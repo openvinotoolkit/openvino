@@ -5,7 +5,7 @@ from typing import Dict
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph, Node
@@ -50,7 +50,7 @@ class FakeQuantWithMinMaxVarsToQuantize(FrontReplacementOp):
         maximum = Select(graph, {'name': name + '/maximum'}).create_node([min_less_max, max_port_tuple, min_port_tuple])
 
         # to create zero of limits data type, we multiply it by integer zero
-        zero = create_op_node_with_second_input(graph, Mul, np.array(0, dtype=dtype), {'name': name + '/zero'},
+        zero = create_op_node_with_second_input(graph, Mul, mo_array(0, dtype=dtype), {'name': name + '/zero'},
                                                 input_node=minimum)
 
         # if 0 < min < max: min_adj = 0 and max_adj = max - min
@@ -68,7 +68,7 @@ class FakeQuantWithMinMaxVarsToQuantize(FrontReplacementOp):
         # scale = (max - min) / (2 ^ num_bits - 1),
         float_range = Sub(graph, {'name': name + '/float_range'}).create_node([maximum, minimum])
         quant_min_value, quant_max_value = int(node.narrow_range), 2 ** node.num_bits - 1
-        int_range_value = np.array(quant_max_value - quant_min_value, dtype=dtype)
+        int_range_value = mo_array(quant_max_value - quant_min_value, dtype=dtype)
         int_range = Const(graph, dict(name=name + '/int_range', value=int_range_value)).create_node()
         scale = Div(graph, {'name': name + '/scale'}).create_node([float_range, int_range])
         # min_adj = scale * round(min / scale)

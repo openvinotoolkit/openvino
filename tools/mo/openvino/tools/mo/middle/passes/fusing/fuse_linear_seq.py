@@ -41,7 +41,7 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
 
     first_value = get_value_in_port(fnodes[0]).data.get_value()
     if not isinstance(first_value, np.ndarray):
-        first_value = np.array(first_value)
+        first_value = mo_array(first_value)
     first_value_type = first_value.dtype
 
     mul = np.ones([1 for x in range(init_dims_cnt)], dtype=first_value_type)

@@ -4,7 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.infer import copy_type_infer
 from openvino.tools.mo.ops.op import Op
@@ -106,7 +106,7 @@ class Pow(Elementwise):
     @staticmethod
     def operation(a, b):
         if np.any(b < 0) and np.issubdtype(a.dtype, np.signedinteger):
-            return mo_array(a.astype(np.float32) ** b, dtype=np.float32)
+            return float32_array(a.astype(np.float32) ** b)
         return a ** b
 
 

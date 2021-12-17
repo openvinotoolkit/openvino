@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.error import Error
@@ -64,7 +64,7 @@ class FakeQuantize(Op):
 
         if all([node.in_node(i).has_valid('value') for i in range(5)]):
             x, input_low, input_high, output_low, output_high = \
-                [mo_array(np.broadcast_to(node.value, x.value.shape), dtype=np.float32) for node in inputs]
+                [float32_array(np.broadcast_to(node.value, x.value.shape)) for node in inputs]
 
             assert node.has_valid('levels')
             assert isinstance(node.levels, int)
