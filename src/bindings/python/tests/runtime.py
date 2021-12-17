@@ -87,7 +87,7 @@ class Computation(object):
             target_dtype = target_dtypes[i]
             # custom conversion for bf16
             if self.results[i].get_output_element_type(0) == Type.bf16:
-                converted_buffers.append((source_buffers[k].view(np.uint32) >> 16).astype(np.uint16))
+                converted_buffers.append((source_buffers[k].view(target_dtype)).astype(target_dtype))
             else:
                 converted_buffers.append(source_buffers[k].astype(target_dtype))
         return converted_buffers
