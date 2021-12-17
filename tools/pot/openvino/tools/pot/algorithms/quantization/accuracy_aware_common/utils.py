@@ -17,7 +17,8 @@ from ....samplers.creator import create_sampler
 
 SPECIAL_METRICS = ['cmc', 'reid_map', 'pairwise_accuracy_subsets', 'pairwise_accuracy', 'normalized_embedding_accuracy',
                    'face_recognition_tafa_pair_metric', 'localization_recall',
-                   'coco_orig_keypoints_precision', 'coco_orig_segm_precision', 'coco_orig_keypoints_precision']
+                   'coco_orig_keypoints_precision', 'coco_orig_segm_precision', 'coco_orig_keypoints_precision',
+                   'spearman_correlation_coef', 'pearson_correlation_coef']
 
 METRICS_CONFIGS = {'sigmoid_recom_loss': {'metrics': 'log_loss',
                                           'postprocessing': 'sigmoid_normalize_recommendation'},
