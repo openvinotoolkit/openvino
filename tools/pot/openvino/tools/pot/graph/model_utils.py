@@ -45,8 +45,9 @@ def add_outputs(models, node_names):
         node_names_ = node_names if len(models) == 1 \
             else [node_name for node_name in node_names
                   if convert_output_key(node_name).startswith(model_dict['name'])]
+        outputs = model_dict['model'].add_outputs(node_names_)
         outputs_list.append({
-            'outputs': model_dict['model'].add_outputs(node_names_),
+            'outputs': outputs if outputs else [],
             'node_names': node_names_
         })
     return outputs_list
