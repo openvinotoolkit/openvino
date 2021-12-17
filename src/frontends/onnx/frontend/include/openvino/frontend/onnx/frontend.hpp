@@ -5,6 +5,7 @@
 #pragma once
 
 #include <openvino/frontend/frontend.hpp>
+
 #include "openvino/frontend/extension/telemetry.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY

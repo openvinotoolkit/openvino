@@ -8,8 +8,8 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;

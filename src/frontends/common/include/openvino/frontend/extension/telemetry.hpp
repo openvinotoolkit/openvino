@@ -9,10 +9,10 @@
 #include <type_traits>
 
 #include "openvino/core/extension.hpp"
+#include "openvino/frontend/visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
-#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {

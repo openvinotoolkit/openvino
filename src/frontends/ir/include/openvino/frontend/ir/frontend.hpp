@@ -5,9 +5,9 @@
 #pragma once
 
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/ir/visibility.hpp"
-#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {
