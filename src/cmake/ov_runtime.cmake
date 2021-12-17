@@ -90,8 +90,13 @@ if(BUILD_SHARED_LIBS)
             COMPONENT core)
 
     # for InferenceEngineUnitTest
-    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-        DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    if(WIN32)
+        install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    else()
+        install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+                DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 # Install cmake scripts
