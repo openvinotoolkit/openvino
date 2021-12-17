@@ -79,11 +79,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
             // TODO: Issue 67910
             R"(.*smoke_PrePostProcess_GPU.*two_inputs_trivial.*)",
-            // TODO: 68525
-            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
-            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
             // TODO: Issue: 67486
             R"(.*(SoftMaxLayerTest).*)",
             // TODO: Issue: 68712
