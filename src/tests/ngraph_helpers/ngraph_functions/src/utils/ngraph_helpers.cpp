@@ -141,6 +141,13 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         outputTensors[resultIndex]->read(output.second.data(), output.second.size());
     }
 
+    sort(outputs.begin(), outputs.end(),
+         [outputs, results](const std::pair<ov::element::Type, std::vector<unsigned char>> & outputA, const std::pair<ov::element::Type,
+                 std::vector<unsigned char>> & outputB) -> bool {
+             auto indexA = find(outputs.begin(), outputs.end(), outputA) - outputs.begin();
+             auto indexB = find(outputs.begin(), outputs.end(), outputB) - outputs.begin();
+             return results[indexA]->get_friendly_name() < results[indexB]->get_friendly_name();
+         });
     return outputs;
 }
 
