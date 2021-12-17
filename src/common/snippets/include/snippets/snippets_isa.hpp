@@ -17,7 +17,7 @@
 #include "op/scalar.hpp"
 #include "op/scalarload.hpp"
 #include "op/scalarstore.hpp"
-#include "op/staticpower.hpp"
+#include "op/powerstatic.hpp"
 #include "op/store.hpp"
 #include "op/tile.hpp"
 #include "op/vectorload.hpp"

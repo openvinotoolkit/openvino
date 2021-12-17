@@ -57,9 +57,11 @@ public:
     const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         const auto kernel = ov::as_type_ptr<ngraph::snippets::op::Kernel>(n);
-        code = kernel->region;
+        if (!kernel)
+            IE_THROW() << "KernelEmitter invoked with invalid op argument";
         if (!kernel->compile_params)
             IE_THROW() << "KernelEmitter invoked without compile_params";
+        code = kernel->region;
         jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     }
 
@@ -156,9 +158,11 @@ public:
     const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
         const auto tile = ov::as_type_ptr<ngraph::snippets::op::Tile>(n);
-        code = tile->region;
+        if (!tile)
+            IE_THROW() << "TileEmitter invoked with invalid op argument";
         if (!tile->compile_params)
             IE_THROW() << "TileEmitter invoked without compile_params";
+        code = tile->region;
         jcp = *reinterpret_cast<const jit_snippets_compile_args*>(tile->compile_params);
     }
 
