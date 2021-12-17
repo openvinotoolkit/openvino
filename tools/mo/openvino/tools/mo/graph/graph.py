@@ -1083,7 +1083,7 @@ def merge_edge_props(attrs: dict, additional_attrs: dict):
 
 
 def rename_node(node: Node, name):
-    if not node.graph.get_nodes_with_attributes(name=name):
+    if not node.graph.get_nodes_with_attributes(name=name, type=node.type):
         node.name = name
     else:
         assert 'Node with name {} already exists'.format(name)
