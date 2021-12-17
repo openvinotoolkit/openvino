@@ -400,7 +400,11 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
         SizeVector dims;
         IE_SUPPRESS_DEPRECATED_START
         if (!foundOutput->isDynamic()) {
-            dims = foundOutput->getTensorDesc().getDims();
+            if (_outputTensors[_executableNetwork->_outputIndex.at(name)] &&
+                _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
+                dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
+            } else
+                dims = foundOutput->getTensorDesc().getDims();
         } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)] &&
                    _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
             dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
