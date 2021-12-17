@@ -316,7 +316,7 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(const InputModel::Ptr
     return f;
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::decode(const InputModel::Ptr&  model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::decode(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);

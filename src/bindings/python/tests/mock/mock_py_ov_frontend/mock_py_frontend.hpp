@@ -645,7 +645,7 @@ public:
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    std::shared_ptr<ov::Model> decode(const InputModel::Ptr&  model) const override {
+    std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override {
         m_stat.m_decode++;
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }

@@ -40,7 +40,7 @@ public:
     /// all attributes represented in FW-independent way.
     /// \param model Input model
     /// \return OV Model after decoding
-    std::shared_ptr<Model> decode(const InputModel::Ptr&  model) const override;
+    std::shared_ptr<Model> decode(const InputModel::Ptr& model) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model

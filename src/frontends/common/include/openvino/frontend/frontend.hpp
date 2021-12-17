@@ -78,7 +78,7 @@ public:
     /// all attributes represented in FW-independent way.
     /// \param model Input model
     /// \return OV Model after decoding
-    virtual std::shared_ptr<ov::Model> decode(const InputModel::Ptr&  model) const;
+    virtual std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const;
 
     /// \brief Runs normalization passes on Model that was loaded with partial conversion
     /// \param Model partially converted OV Model

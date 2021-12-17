@@ -39,7 +39,7 @@ std::shared_ptr<Model> FrontEnd::convert_partially(const InputModel::Ptr& model)
     FRONT_END_NOT_IMPLEMENTED(convert_partially);
 }
 
-std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr&  model) const {
+std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     FRONT_END_NOT_IMPLEMENTED(decode);
 }
 

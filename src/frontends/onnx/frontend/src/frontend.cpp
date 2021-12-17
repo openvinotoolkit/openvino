@@ -71,7 +71,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) co
     ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr&  model) const {
+std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();
