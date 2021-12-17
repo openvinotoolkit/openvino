@@ -90,13 +90,13 @@ ov::frontend::Place::Ptr InputModel::get_place_by_operation_name_and_output_port
     return nullptr;
 }
 
-void InputModel::set_name_for_tensor(ov::frontend::Place::Ptr tensor, const std::string& new_name) {
+void InputModel::set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) {
     const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
     onnx_tensor->set_name(new_name);
 }
 
-void InputModel::set_name_for_operation(ov::frontend::Place::Ptr operation, const std::string& new_name) {
+void InputModel::set_name_for_operation(const ov::frontend::Place::Ptr& operation, const std::string& new_name) {
     const auto onnx_operation = std::dynamic_pointer_cast<PlaceOp>(operation);
     FRONT_END_GENERAL_CHECK(onnx_operation, __FUNCTION__, " expects a pointer to place of ONNX operation type.");
     onnx_operation->set_name(new_name);
@@ -106,7 +106,7 @@ void InputModel::free_name_for_operation(const std::string& name) {
     m_editor->clear_nodes_name(name);
 }
 
-void InputModel::set_name_for_dimension(ov::frontend::Place::Ptr tensor,
+void InputModel::set_name_for_dimension(const ov::frontend::Place::Ptr& tensor,
                                         size_t shape_dim_index,
                                         const std::string& dim_name) {
     const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor);
@@ -114,7 +114,7 @@ void InputModel::set_name_for_dimension(ov::frontend::Place::Ptr tensor,
     onnx_tensor->set_name_for_dimension(shape_dim_index, dim_name);
 }
 
-void InputModel::add_name_for_tensor(ov::frontend::Place::Ptr, const std::string&) {
+void InputModel::add_name_for_tensor(const ov::frontend::Place::Ptr&, const std::string&) {
     FRONT_END_THROW("Method add_name_for_tensor is not applicable for ONNX model. ONNX tensor has just one name.");
 }
 
@@ -122,17 +122,17 @@ void InputModel::free_name_for_tensor(const std::string&) {
     FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model. ONNX tensor name is an identifier.");
 }
 
-void InputModel::set_partial_shape(ov::frontend::Place::Ptr place, const ngraph::PartialShape& shape) {
+void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) {
     std::map<std::string, ngraph::PartialShape> m;
     m[place->get_names()[0]] = shape;
     m_editor->set_input_shapes(m);
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(ov::frontend::Place::Ptr place) const {
+ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
     return m_editor->get_tensor_shape(place->get_names().at(0));
 }
 
-void InputModel::set_element_type(ov::frontend::Place::Ptr place, const ngraph::element::Type& type) {
+void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) {
     std::map<std::string, ngraph::element::Type_t> m;
     m[place->get_names()[0]] = type;
     m_editor->set_input_types(m);

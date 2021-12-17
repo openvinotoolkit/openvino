@@ -40,15 +40,15 @@ Place::Ptr InputModel::get_place_by_operation_name_and_output_port(const std::st
     return nullptr;
 }
 
-void InputModel::set_name_for_tensor(Place::Ptr tensor, const std::string& new_name) {
+void InputModel::set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) {
     FRONT_END_NOT_IMPLEMENTED(set_name_for_tensor);
 }
 
-void InputModel::add_name_for_tensor(Place::Ptr tensor, const std::string& new_name) {
+void InputModel::add_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) {
     FRONT_END_NOT_IMPLEMENTED(add_name_for_tensor);
 }
 
-void InputModel::set_name_for_operation(Place::Ptr operation, const std::string& new_name) {
+void InputModel::set_name_for_operation(const Place::Ptr& operation, const std::string& new_name) {
     FRONT_END_NOT_IMPLEMENTED(set_name_for_operation);
 }
 
@@ -60,23 +60,23 @@ void InputModel::free_name_for_operation(const std::string& name) {
     FRONT_END_NOT_IMPLEMENTED(free_name_for_operation);
 }
 
-void InputModel::set_name_for_dimension(Place::Ptr place, size_t shape_dim_index, const std::string& dim_name) {
+void InputModel::set_name_for_dimension(const Place::Ptr& place, size_t shape_dim_index, const std::string& dim_name) {
     FRONT_END_NOT_IMPLEMENTED(set_name_for_dimension);
 }
 
-void InputModel::cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional) {
+void InputModel::cut_and_add_new_input(const Place::Ptr& place, const std::string& new_name_optional) {
     FRONT_END_NOT_IMPLEMENTED(cut_and_add_new_input);
 }
 
-void InputModel::cut_and_add_new_output(Place::Ptr place, const std::string& new_name_optional) {
+void InputModel::cut_and_add_new_output(const Place::Ptr& place, const std::string& new_name_optional) {
     FRONT_END_NOT_IMPLEMENTED(cut_and_add_new_output);
 }
 
-Place::Ptr InputModel::add_output(Place::Ptr place) {
+Place::Ptr InputModel::add_output(const Place::Ptr& place) {
     FRONT_END_NOT_IMPLEMENTED(add_output);
 }
 
-void InputModel::remove_output(Place::Ptr place) {
+void InputModel::remove_output(const Place::Ptr& place) {
     FRONT_END_NOT_IMPLEMENTED(remove_output);
 }
 
@@ -93,22 +93,22 @@ void InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs, const s
 }
 
 // Setting tensor properties
-void InputModel::set_partial_shape(Place::Ptr place, const PartialShape&) {
+void InputModel::set_partial_shape(const Place::Ptr& place, const PartialShape&) {
     FRONT_END_NOT_IMPLEMENTED(set_partial_shape);
 }
 
-PartialShape InputModel::get_partial_shape(Place::Ptr place) const {
+PartialShape InputModel::get_partial_shape(const Place::Ptr& place) const {
     FRONT_END_NOT_IMPLEMENTED(get_partial_shape);
 }
 
-void InputModel::set_element_type(Place::Ptr place, const element::Type&) {
+void InputModel::set_element_type(const Place::Ptr& place, const element::Type&) {
     FRONT_END_NOT_IMPLEMENTED(set_element_type);
 }
 
-void InputModel::set_tensor_value(Place::Ptr place, const void* value) {
+void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
     FRONT_END_NOT_IMPLEMENTED(set_tensor_value);
 }
 
-void InputModel::set_tensor_partial_value(Place::Ptr place, const void* min_value, const void* max_value) {
+void InputModel::set_tensor_partial_value(const Place::Ptr& place, const void* min_value, const void* max_value) {
     FRONT_END_NOT_IMPLEMENTED(set_tensor_partial_value);
 }
