@@ -90,12 +90,13 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
     bool canBeInPlace() const override {
         return false;
     }
 
+    bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:

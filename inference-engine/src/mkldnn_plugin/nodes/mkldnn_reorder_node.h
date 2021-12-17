@@ -24,9 +24,7 @@ public:
     bool created() const override;
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
-    bool isExecutable() const override {
-        return !isOptimized;
-    }
+    bool isExecutable() const override;
 
     void createPrimitive() override;
 
@@ -34,7 +32,7 @@ public:
 
     void prepareParams() override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
     void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
         this->input = input.clone();

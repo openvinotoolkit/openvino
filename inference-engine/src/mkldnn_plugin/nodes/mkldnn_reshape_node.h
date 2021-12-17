@@ -19,7 +19,6 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
     bool created() const override;
     bool isExecutable() const override {
         return isDynamicNode();

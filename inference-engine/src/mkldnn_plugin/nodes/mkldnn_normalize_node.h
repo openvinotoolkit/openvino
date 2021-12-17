@@ -91,7 +91,9 @@ public:
 
     std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+    bool isExecutable() const override;
 
 private:
     enum class NormEpsMode {

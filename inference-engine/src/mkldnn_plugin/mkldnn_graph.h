@@ -44,9 +44,6 @@ public:
     void setProperty(const std::map<std::string, std::string> &properties);
     Config getProperty() const;
 
-    InferenceEngine::Blob::Ptr getInputBlob(const std::string& name);
-    InferenceEngine::Blob::Ptr getOutputBlob(const std::string& name);
-
     template<typename NET>
     void CreateGraph(NET &network,
                      const MKLDNNExtensionManager::Ptr& extMgr,

@@ -71,7 +71,7 @@ private:
     explicit DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc);
 
     // Creates DnnlBlockedMemoryDesc using the shape parameter as a true shape but all other params (layout, blocks, etc.) are used from the mdesc, but
-    // the mdesc own shape is ignored. The main purpose of this constructor is making dynamic descriptor form some dummy mdesc, which stores info about
+    // the mdesc own shape is ignored. The main purpose of this constructor is making dynamic descriptor from some dummy mdesc, which stores info about
     // layout, blocking, strides, etc., and the provided dynamic shape.
     DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc, const Shape& shape);
 

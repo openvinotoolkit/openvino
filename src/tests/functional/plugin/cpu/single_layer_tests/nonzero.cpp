@@ -7,6 +7,7 @@
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "functional_test_utils/ov_tensor_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -21,6 +22,7 @@ typedef std::tuple<
 
 typedef std::tuple<
         NonZeroLayerTestParams,
+        std::pair<size_t, size_t>, // start from, range
         CPUSpecificParams> NonZeroLayerCPUTestParamsSet;
 
 class NonZeroLayerCPUTest : public testing::WithParamInterface<NonZeroLayerCPUTestParamsSet>,
@@ -28,8 +30,9 @@ class NonZeroLayerCPUTest : public testing::WithParamInterface<NonZeroLayerCPUTe
 public:
     static std::string getTestCaseName(testing::TestParamInfo<NonZeroLayerCPUTestParamsSet> obj) {
         NonZeroLayerTestParams basicParamsSet;
+        std::pair<size_t, size_t> genData;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        std::tie(basicParamsSet, genData, cpuParams) = obj.param;
         std::string td;
         ElementType netType = ElementType::undefined;
         InputShape inputShape;
@@ -44,20 +47,47 @@ public:
             result << CommonTestUtils::vec2str(shape) << "_";
         }
         result << ")_";
+        result << "StartFrom=" << genData.first << "_";
+        result << "Range=" << genData.second << "_";
         result << "netPRC=" << netType;
         result << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
     }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        for (int i = 0; i < funcInputs.size(); ++i) {
+            const auto& funcInput = funcInputs[i];
+            ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], range, startFrom);
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+    }
+
+    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
+        const auto dims = targetStaticShapes[inferNum].front();
+        if (!((startFrom == 0 && range == 1) || std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } ))) {
+            SubgraphBaseTest::compare(expected, actual);
+        }
+        inferNum++;
+    }
+
 protected:
+    size_t startFrom = 0, range = 10;
+    size_t inferNum = 0;
+
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
         NonZeroLayerTestParams basicParamsSet;
+        std::pair<size_t, size_t> genData;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        std::tie(basicParamsSet, genData, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         ElementType netType = ElementType::undefined;
         InputShape inputShape;
         std::tie(inputShape, netType) = basicParamsSet;
+
+        std::tie(startFrom, range) = genData;
 
         init_input_shapes({inputShape});
         auto inputParams = ngraph::builder::makeDynamicParams(netType, inputDynamicShapes);
@@ -65,7 +95,7 @@ protected:
         auto nonZero = std::make_shared<ngraph::opset3::NonZero>(inputParams[0]);
         // I8 was used as a special placeholder during calculating of primitive type if input was U8,
         // real runtime precision is still U8
-        selectedType = makeSelectedTypeStr("ref_", netType == ElementType::u8 ? ElementType::i8 : netType);
+        selectedType = makeSelectedTypeStr("ref", netType == ElementType::u8 ? ElementType::i8 : netType);
         inputParams[0]->set_friendly_name("input");
         function = makeNgraphFunction(netType, inputParams, nonZero, "NonZero");
     }
@@ -92,6 +122,11 @@ const std::vector<ElementType> netPrecisions = {
         ElementType::u8
 };
 
+const std::vector<std::pair<size_t, size_t>> genData = {
+    {0, 10},
+    {0, 1}
+};
+
 std::vector<InputShape> inShapesDynamic = {
         {
             //dynamic shape
@@ -116,6 +151,7 @@ std::vector<InputShape> inShapesDynamic = {
             {-1, -1, -1},
             { //target static shapes
                 {4, 4, 100},
+                {5, 0, 2},
                 {4, 4, 200},
                 {4, 4, 300}
             }
@@ -126,6 +162,7 @@ std::vector<InputShape> inShapesDynamic = {
             { //target static shapes
                 {4, 4, 4, 100},
                 {4, 4, 4, 200},
+                {5, 0, 0, 2},
                 {4, 4, 4, 300}
             }
         },
@@ -160,16 +197,20 @@ const auto paramsStatic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapesStatic)),
                 ::testing::ValuesIn(netPrecisions)),
+        ::testing::ValuesIn(genData),
         ::testing::ValuesIn(filterCPUInfoForDevice()));
 const auto paramsDynamic = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapesDynamic),
                 ::testing::ValuesIn(netPrecisions)),
+        ::testing::ValuesIn(genData),
         ::testing::ValuesIn(filterCPUInfoForDevice()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_NonZeroStaticCPUTest, NonZeroLayerCPUTest,
                          paramsStatic, NonZeroLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_NonZeroDynamicCPUTest, NonZeroLayerCPUTest,
                          paramsDynamic, NonZeroLayerCPUTest::getTestCaseName);
+
 } // namespace
+
 } // namespace CPULayerTestsDefinitions

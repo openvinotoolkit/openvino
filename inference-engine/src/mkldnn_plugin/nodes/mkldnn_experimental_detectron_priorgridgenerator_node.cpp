@@ -56,12 +56,6 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::initSupportedPrimitiveDe
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNExperimentalDetectronPriorGridGeneratorNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream strm) {
     const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0];
     assert(getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[1] == 4);

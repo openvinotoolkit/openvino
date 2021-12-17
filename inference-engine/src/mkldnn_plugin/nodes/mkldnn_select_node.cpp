@@ -152,13 +152,6 @@ void MKLDNNSelectNode::prepareParams() {
     }
 }
 
-void MKLDNNSelectNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNSelectNode::calcOutOffset(VectorDims& offset, const VectorDims& dims) {
     int k = 1;
     for (int i = dims.size() - 1; i >= 0; i--) {
@@ -198,6 +191,10 @@ void MKLDNNSelectNode::execute_impl() {
             }
         });
     }
+}
+
+void MKLDNNSelectNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNSelectNode::execute(mkldnn::stream strm) {

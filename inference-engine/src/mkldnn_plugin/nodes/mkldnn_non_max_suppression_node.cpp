@@ -147,14 +147,20 @@ void MKLDNNNonMaxSuppressionNode::prepareParams() {
         i.resize(num_classes);
 }
 
-void MKLDNNNonMaxSuppressionNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        prepareParams();
-        updateLastInputDims();
-    }
+bool MKLDNNNonMaxSuppressionNode::isExecutable() const {
+    return isDynamicNode() || MKLDNNNode::isExecutable();
 }
 
 void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
+            reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
+        getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims({0, 3}));
+        getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTEDSCORES)->cloneWithNewDims({0, 3}));
+        *reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr()) = 0;
+        return;
+    }
     execute(strm);
 }
 
@@ -168,8 +174,9 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
 
     max_output_boxes_per_class = std::min(max_output_boxes_per_class, num_boxes);
 
-    if (max_output_boxes_per_class == 0)
+    if (max_output_boxes_per_class == 0) {
         return;
+    }
 
     if (inputShapes.size() > NMS_IOUTHRESHOLD)
         iou_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOUTHRESHOLD)->getMemoryPtr()->GetPtr())[0];

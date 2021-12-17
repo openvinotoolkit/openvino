@@ -57,12 +57,8 @@ void MKLDNNCTCLossNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNCTCLossNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
+void MKLDNNCTCLossNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {

@@ -372,13 +372,7 @@ bool MKLDNNROIAlignNode::needPrepareParams() const {
 }
 
 void MKLDNNROIAlignNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
-}
-
-void MKLDNNROIAlignNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
+    execute(strm);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNROIAlignNode, ROIAlign)

@@ -31,6 +31,10 @@ namespace {
     constexpr size_t channelAxis = 1lu;
 }
 
+bool MKLDNNConcatNode::isExecutable() const {
+    return !hasEmptyOutputTensors() && !isOptimized();
+}
+
 bool MKLDNNConcatNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto concatOp = ngraph::as_type_ptr<const ngraph::op::v0::Concat>(op);
@@ -173,7 +177,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     }
 
     // TODO [DS]: inplace
-    if (!canBeInPlace)
+    if (!canBeInPlace || std::any_of(inputShapes.begin(), inputShapes.end(), [](const Shape& shape) { return shape.hasZeroDims(); }))
         return;
 
     // Optimized inplace case
@@ -353,13 +357,16 @@ void MKLDNNConcatNode::prepareParams() {
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     std::vector<memory::desc> srcs_d;
-
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
             auto parent = getParentEdgeAt(i)->getParent();
             IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
                                << getName() << ".";
+        }
+
+        if (srcMemPtr->GetShape().hasZeroDims()) {
+            continue;
         }
 
         auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
@@ -380,14 +387,6 @@ void MKLDNNConcatNode::prepareParams() {
 
     auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
     prim.reset(new concat(primitive_desc));
-}
-
-void MKLDNNConcatNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
 }
 
 size_t MKLDNNConcatNode::inverseOrder(const SizeVector& order, size_t axis) {
@@ -489,16 +488,23 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
         return;
     }
 
+    const MKLDNNMemory& dst_memory = getChildEdgeAt(0)->getMemory();
     if (canOptimizeNspc) {
         execNspcSpecCase();
         return;
     }
 
-    const MKLDNNMemory& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
     std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
-    for (int i = 0; i < num_src; i++)
-        mem_ags[DNNL_ARG_MULTIPLE_SRC + i] = getParentEdgeAt(i)->getMemory().GetPrimitive();
+    size_t nonZeroInShapes = 0;
+    for (int i = 0; i < num_src; i++) {
+        const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
+        if (srcMem.GetShape().hasZeroDims()) {
+            continue;
+        }
+        mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.GetPrimitive();
+        nonZeroInShapes++;
+    }
 
     (*prim).execute(strm, mem_ags);
 }
@@ -518,21 +524,32 @@ void MKLDNNConcatNode::execNspcSpecCase() {
     std::vector<const uint8_t*> src_ptrs;
     std::vector<uint8_t*> dst_ptrs;
 
+    size_t nonZeroInShapes = 0;
+    int firstNonZeroEdge = -1;
     for (size_t i = 0; i < num_src; i++) {
-        const MKLDNNMemory& src_mem = getParentEdgeAt(i)->getMemory();
+        const MKLDNNMemory& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
+        if (src_mem.GetShape().hasZeroDims()) {
+            continue;
+        }
         const size_t num_channels = src_mem.getStaticDims()[channelAxis];
 
         channelsDataSize.push_back(num_channels * dataSize);
         src_ptrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()));
         dst_ptrs.push_back(dst_ptr + channels_size);
         channels_size += num_channels * dataSize;
+
+        if (firstNonZeroEdge == -1) {
+            firstNonZeroEdge = i;
+        }
+
+        nonZeroInShapes++;
     }
 
-    const size_t iter_count = getParentEdgeAt(0)->getMemory().GetSize() / channelsDataSize[0];
+    const size_t iter_count = getParentEdgeAt(firstNonZeroEdge)->getMemory().GetSize() / channelsDataSize[0];
 
     parallel_for(iter_count, [&](int i) {
         const size_t dst_off = i * channels_size;
-        for (int j = 0; j < num_src; j++) {
+        for (int j = 0; j < nonZeroInShapes; j++) {
             cpu_memcpy(dst_ptrs[j] + dst_off, src_ptrs[j] + i * channelsDataSize[j], channelsDataSize[j]);
         }
     });

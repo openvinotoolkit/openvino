@@ -320,12 +320,6 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::initSupportedP
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {

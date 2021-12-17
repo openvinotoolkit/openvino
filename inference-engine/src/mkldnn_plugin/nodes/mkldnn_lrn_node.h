@@ -23,7 +23,6 @@ public:
         return static_cast<size_t>(getOriginalInputsNumber());
     }
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

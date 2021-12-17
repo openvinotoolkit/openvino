@@ -57,6 +57,10 @@ void MKLDNNShapeOfNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool MKLDNNShapeOfNode::isExecutable() const {
+    return true;
+}
+
 void MKLDNNShapeOfNode::execute(mkldnn::stream strm) {
     auto inPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();

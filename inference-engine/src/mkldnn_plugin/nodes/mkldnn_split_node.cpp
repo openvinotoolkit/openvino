@@ -194,10 +194,12 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             for (size_t i = 0; i < outputShapes.size(); i++) {
                 auto outBlockingDesc = refConfig.outConfs[i].desc->as<CpuBlockedMemoryDesc>();
                 const auto& outBlkDims = outBlockingDesc->getBlockDims();
-                const auto& dims = outBlockingDesc->getShape().getStaticDims();
+                const auto& shape = outBlockingDesc->getShape();
+                const auto& dims = shape.getStaticDims();
 
                 config.outConfs[i].inPlace = 0;
-                config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets, strides);
+                config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets,
+                                                                                 shape.hasZeroDims() ? SizeVector(numOfDim, 0) : strides);
             }
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
@@ -245,16 +247,20 @@ void MKLDNNSplitNode::prepareParams() {
 
     dstMemPtrs.clear();
     std::vector<BlockedMemoryDescCPtr> outDescs;
-    for (size_t i = 0; i < outputShapes.size(); ++i) {
-        const auto &outMemPtr = this->getChildEdgesAtPort(i)[0]->getMemoryPtr();
+    for (size_t port = 0; port < outputShapes.size(); ++port) {
+        const auto &outMemPtr = this->getChildEdgesAtPort(port)[0]->getMemoryPtr();
         if (!outMemPtr || !outMemPtr->GetPrimitivePtr()) {
             THROW_ERROR << "has not allocated destination memory";
         }
 
+        if (outMemPtr->GetShape().hasZeroDims()) {
+            continue;
+        }
+
         if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outMemPtr->GetPtr())) {
-            dstMemPtrs.push_back(dstData);
+            dstMemPtrs.emplace_back(port, dstData);
         } else {
-            THROW_ERROR << "can't get child edge indx " << i << "data.";
+            THROW_ERROR << "can't get child edge indx " << port << "data.";
         }
 
         if (!canUseOptimizedNspc2Ncsp) {
@@ -268,15 +274,8 @@ void MKLDNNSplitNode::prepareParams() {
     }
 }
 
-void MKLDNNSplitNode::createPrimitive() {
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR << "Preferable primitive descriptor is not set.";
-
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
+bool MKLDNNSplitNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0) && !isOptimized();
 }
 
 void MKLDNNSplitNode::execute(mkldnn::stream strm) {
@@ -346,13 +345,16 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto oldDesc = config.outConfs[i].desc;
             auto outBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
+            const auto& shape = outBlockingDesc->getShape();
+            const auto& blkDims = outBlockingDesc->getBlockDims();
             config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
-                                                                             outBlockingDesc->getShape(),
-                                                                             outBlockingDesc->getBlockDims(),
+                                                                             shape,
+                                                                             blkDims,
                                                                              outBlockingDesc->getOrder(),
                                                                              firstInBlockingDesc->getOffsetPadding() + offset,
                                                                              firstInBlockingDesc->getOffsetPaddingToData(),
-                                                                             firstInBlockingDesc->getStrides());
+                                                                             (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
+                                                                              firstInBlockingDesc->getStrides()));
 
             size_t axisSize = 1;
             for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {
@@ -497,11 +499,11 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     const size_t strideIW = IC*dataSize;
     const size_t strideOC = DHW * dataSize;
 
-    for (size_t i = 0, sIdx = 0; i < outputShapes.size(); i++) {
-        auto dstData = dstMemPtrs[i];
+    for (size_t i = 0, sIdx = 0; i < dstMemPtrs.size(); i++) {
+        auto dstData = dstMemPtrs[i].second;
 
         size_t innerSize = 1;
-        auto dims = getChildEdgesAtPort(i)[0]->getMemory().getStaticDims();
+        auto dims = getChildEdgesAtPort(dstMemPtrs[i].first)[0]->getMemory().getStaticDims();
 
         for (size_t j = axis; j < dims.size(); j++) {
             innerSize *= dims[j];
@@ -568,14 +570,14 @@ MKLDNNSplitNode::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDes
     }
 }
 
-void MKLDNNSplitNode::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*> &dstMemPtrs,
+void MKLDNNSplitNode::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
                                                    const Dim origBatch, const Dim perInferBatch) {
     size_t execCountStrides = countStrides;
     if (origBatch != perInferBatch)
         execCountStrides = execCountStrides / origBatch * perInferBatch;
 
     parallel_for2d(dstMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
-        uint8_t* dstData = dstMemPtrs[i];
+        uint8_t* dstData = dstMemPtrs[i].second;
 
         cpu_memcpy(&dstData[j * dataSize[i]],
                    &srcData[srcDataOffsets[i] + j * srcDataStride],

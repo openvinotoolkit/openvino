@@ -190,8 +190,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::redefineMemoryForInputNodes() {
         const auto inputNode = cpuInputNodes.find(blob.first);
         if (inputNode == cpuInputNodes.end())
             IE_THROW() << "CPU execution graph doesn't contain input node with name: " << blob.first;
-        if (inputNode->second->isDynamicNode())
+        if (inputNode->second->isDynamicNode()) {
             inputNode->second->redefineOutputMemory({blob.second->getTensorDesc().getDims()});
+        }
     }
 }
 

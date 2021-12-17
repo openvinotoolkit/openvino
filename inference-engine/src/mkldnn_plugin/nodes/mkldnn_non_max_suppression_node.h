@@ -20,7 +20,6 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -52,6 +51,7 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override;
 
+    bool isExecutable() const override;
     bool needShapeInfer() const override { return false; }
     void prepareParams() override;
 

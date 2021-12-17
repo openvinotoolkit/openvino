@@ -49,15 +49,7 @@ bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const
     return true;
 }
 
-void MKLDNNDetectionOutputNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
-MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng,
+MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
         MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -169,6 +161,10 @@ struct ConfidenceComparatorDO {
 
     const float* confData;
 };
+
+void MKLDNNDetectionOutputNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
 
 void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());

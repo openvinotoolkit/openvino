@@ -51,6 +51,10 @@ void MKLDNNReorgYoloNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
+void MKLDNNReorgYoloNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 void MKLDNNReorgYoloNode::execute(mkldnn::stream strm) {
     const auto *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());

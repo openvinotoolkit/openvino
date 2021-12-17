@@ -18,10 +18,6 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {
-        if (inputShapesDefined())
-            updateLastInputDims();
-    };
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool needPrepareParams() const override {return false;};
@@ -29,6 +25,8 @@ public:
     std::vector<VectorDims> shapeInfer() const override {
         return {VectorDims{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims().size()}};
     }
+
+    bool isExecutable() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 

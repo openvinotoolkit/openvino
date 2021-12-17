@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "common/dnnl_executor.h"
 
 namespace MKLDNNPlugin {
 
@@ -23,7 +24,6 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initDescriptor(const NodeConfig& config) override;
-    void createPrimitive() override;
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
     void filterSupportedPrimitiveDescriptors() override;
@@ -65,7 +65,25 @@ protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
 private:
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
+
+    class ConvolutionExecutor : public DnnlExecutor {
+        public:
+            ConvolutionExecutor(const mkldnn::convolution_forward::primitive_desc& pd,
+                                const mkldnn::memory::desc& inMemDesc,
+                                const mkldnn::memory::desc& weightMemDesc,
+                                const mkldnn::memory::desc& outMemDesc,
+                                const mkldnn::engine& engine);
+    };
+
+    std::shared_ptr<MKLDNNDescriptor> createMkldnnConvDesc(const mkldnn::memory::desc& srcDesc,
+                                                           const mkldnn::memory::desc& wghDesc,
+                                                           const mkldnn::memory::desc& dstDesc,
+                                                           const mkldnn::memory::desc& biasDesc);
+
     void prepareParams() override;
+    void execute(mkldnn::stream strm) override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
     void addZeroPoints(mkldnn::primitive_attr& attr) const;

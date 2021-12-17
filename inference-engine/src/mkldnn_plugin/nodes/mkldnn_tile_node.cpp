@@ -80,14 +80,6 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors = getSupportedConfigs(this);
 }
 
-void MKLDNNTileNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 bool MKLDNNTileNode::needPrepareParams() const {
     return needPrepareParamsVar;
 }
@@ -148,6 +140,10 @@ std::vector<VectorDims> MKLDNNTileNode::shapeInfer() const {
         newOutputShapes[i] = partShape.get_shape();
     }
     return newOutputShapes;
+}
+
+void MKLDNNTileNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNTileNode::execute(mkldnn::stream strm) {

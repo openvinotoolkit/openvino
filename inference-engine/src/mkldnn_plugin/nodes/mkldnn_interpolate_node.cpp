@@ -2075,7 +2075,7 @@ void MKLDNNInterpolateNode::createPrimitive() {
     interpAttrs.inPrc = srcMemPtr->getDesc().getPrecision();
     interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
 
-    if (shapesDefined()) {
+    if (shapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();

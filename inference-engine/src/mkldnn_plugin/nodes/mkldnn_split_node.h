@@ -18,7 +18,6 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -26,9 +25,7 @@ public:
     void initOptimalPrimitiveDescriptor() override;
 
     void setDynamicBatchLim(int lim) override;
-    bool isExecutable() const override {
-        return !isOptimized();
-    }
+    bool isExecutable() const override;
 
     bool needPrepareParams() const override;
     void prepareParams() override;
@@ -36,7 +33,7 @@ public:
 
 private:
     struct SplitExecutor {
-        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*> &dstMemPtrs,
+        virtual void exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
                           const Dim origBatch, const Dim perInferBatch) = 0;
         virtual ~SplitExecutor() = default;
     };
@@ -45,7 +42,7 @@ private:
     struct SplitOptimizedExecutor : public SplitExecutor {
         public:
             SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs, const size_t axis);
-            void exec(const uint8_t* srcData, const std::vector<uint8_t*> &dstMemPtrs,
+            void exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
                       const Dim origBatch, const Dim perInferBatch) override;
 
         private:
@@ -60,7 +57,7 @@ private:
     bool canUseOptimizedNspc2Ncsp = false;
 
     size_t axis = 1;
-    std::vector<uint8_t*> dstMemPtrs;
+    std::vector<std::pair<size_t, uint8_t*>> dstMemPtrs;
 
     size_t INPUTS_NUM = 2;
 };

@@ -258,13 +258,7 @@ bool MKLDNNCumSumNode::needPrepareParams() const {
 }
 
 void MKLDNNCumSumNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
-}
-
-void MKLDNNCumSumNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
+    execute(strm);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNCumSumNode, CumSum)

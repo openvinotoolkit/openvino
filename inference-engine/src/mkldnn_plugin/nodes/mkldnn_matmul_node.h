@@ -22,7 +22,6 @@ public:
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initSupportedPrimitiveDescriptors() override;
     MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    void createPrimitive() override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
     bool created() const override;
     size_t getMaxBatch() const override;

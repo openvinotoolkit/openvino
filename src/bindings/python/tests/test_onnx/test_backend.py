@@ -202,7 +202,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_38706,
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
-        "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (
         xfail_issue_33538,
