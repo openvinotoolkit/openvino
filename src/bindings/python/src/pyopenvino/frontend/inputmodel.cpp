@@ -10,7 +10,6 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/manager.hpp"
 
-
 namespace py = pybind11;
 
 void regclass_frontend_InputModel(py::module m) {
