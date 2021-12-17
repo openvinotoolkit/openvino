@@ -501,6 +501,26 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         tokenization_manager.register_pass<SnippetsMarkSkipped>();
         tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
+        tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
+                [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                    const auto& inputs = n->inputs();
+                    // todo: clarify whether we can evaluate snippets on const paths
+                    const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
+                                [](const ov::Input<const ov::Node> &in) {
+                                        return ov::is_type<ov::op::v0::Constant>(in.get_source_output().get_node_shared_ptr());
+                                      });
+                    // todo: clarify whether we can evaluate snippets on inputs with larger ranks
+                    auto rank_is_too_large = [](const ov::descriptor::Tensor& t ) {
+                        // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
+                        return t.get_partial_shape().rank().get_length() > 6;
+                    };
+                    const bool bad_input_rank = std::any_of(inputs.begin(), inputs.end(),
+                                                            [&](const ov::Input<const ov::Node>& in) {return  rank_is_too_large(in.get_tensor());});
+                    const auto& outputs = n->outputs();
+                    const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
+                                                             [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
+                    return has_only_const_inputs || bad_input_rank || bad_output_rank;
+                });
         tokenization_manager.run_passes(nGraphFunc);
     }
 }

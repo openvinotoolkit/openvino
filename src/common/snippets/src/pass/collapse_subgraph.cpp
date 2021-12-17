@@ -104,48 +104,22 @@ auto is_layout_oblivious(const std::shared_ptr<const Node> &n) -> bool {
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
-    // todo: clarify why we can't evaluate snippets on const paths
-    bool has_only_const_inputs{true};
-    for (const auto& in : n->inputs()) {
-        if (in.get_tensor().get_element_type() != ngraph::element::f32) {
-            return false;
-        }
-
-        if (in.get_partial_shape().is_dynamic()) {
-            return false;
-        }
-
-        if (in.get_partial_shape().is_static() && in.get_shape().size() > 6) {
-            return false;
-        }
-        if ( has_only_const_inputs && !ngraph::op::is_constant(in.get_source_output().get_node_shared_ptr()) ) {
-            has_only_const_inputs = false;
-        }
-    }
-    if (has_only_const_inputs)
-        return false;
-
-    for (const auto& out : n->outputs()) {
-        if (out.get_tensor().get_element_type() != ngraph::element::f32) {
-            return false;
-        }
-
-        if (out.get_partial_shape().is_dynamic()) {
-            return false;
-        }
-
-        if (out.get_partial_shape().is_static() && out.get_shape().size() > 6) {
-            return false;
-        }
-
-        for (const auto& in_out : out.get_target_inputs()) {
+    auto supported = [](descriptor::Tensor& t) -> bool{
+        return t.get_element_type() == ngraph::element::f32 &&
+               t.get_partial_shape().is_static();
+    };
+    const auto & inputs = n->inputs();
+    const auto & outputs = n->outputs();
+    // todo: Is this check necessary? Remove if not
+    for (const auto& out : outputs) {
+        for (const auto &in_out : out.get_target_inputs()) {
             if (ov::is_type<ngraph::op::v5::Loop>(in_out.get_node()->shared_from_this())) {
                 return false;
             }
         }
     }
-
-    return true;
+    return std::all_of(inputs.begin(), inputs.end(), [&](const Input<const Node>& in) {return  supported(in.get_tensor());}) &&
+           std::all_of(outputs.begin(), outputs.end(), [&](const Output<const Node>& out) {return  supported(out.get_tensor());});
 }
 
 auto has_result_child(const std::shared_ptr<const Node> &node) -> bool {
@@ -243,9 +217,12 @@ CreateSubgraph::CreateSubgraph() {
         [](const std::shared_ptr<const Node> &n) {
             return GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin && AppropriateForSubgraph(n);
         });
-    ngraph::graph_rewrite_callback callback = [strategy](ngraph::pattern::Matcher &m) -> bool {
+    ngraph::graph_rewrite_callback callback = [&, strategy](ngraph::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
         auto node = m.get_match_root();
+        if (transformation_callback(node)) {
+            return false;
+        }
 
         remark(1) << "Match root: " << node->get_friendly_name() << " " << node << std::endl;
 

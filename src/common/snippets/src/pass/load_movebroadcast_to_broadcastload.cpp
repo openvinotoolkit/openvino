@@ -39,22 +39,15 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
             auto inshape = root->input(0).get_shape();
             auto outshape = root->output(0).get_shape();
             auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape);
-            // Todo: broadcast_info shape matches output_shape, if instantiated in the constructor. Which way is correct?
-            // Todo: bct will contain ones in
-            //  this case: (3,4,5,6,7) + (1,1,6,7)
-            //  But not in this case: (3,4,5,6,7) + (6,7)
             Shape bct(inshape.size(), 0);
             for (size_t k = 0; k < inshape.size(); k++) {
                 if (inshape[k] != outshape[k] && inshape[k] == 1) {
                     bct[k] = 1;
                 }
             }
-
-            // Todo: Why do we need broadcast_info?
-            // Todo: Why don't we check bct[x]==1 directly?
+            // Todo: consider refactoring BroadcastLoad, it seems we don't need broadcast_info at this point.
             broadcastload->set_broadcast_info(bct);
-            // Todo: So we can broadcastload only trailing ones? The why don't we checl only the last dimension right-away?
-            if (broadcastload->is_broadcast(inshape.size()-1)) {
+            if (inshape.back() == 1 && outshape.back() != 1) {
                 ngraph::copy_runtime_info(root, broadcastload);
                 ngraph::replace_node(root, broadcastload);
                 return true;
