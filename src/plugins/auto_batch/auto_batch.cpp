@@ -33,7 +33,8 @@ namespace AutoBatchPlugin {
         auto sizePerBatch = batched_blob->size() / batch_num;
         auto layout = batched_blob->getTensorDesc().getLayout();
         SizeVector dims = batched_blob->getTensorDesc().getDims();
-
+        // the below code is a placeholder for the WIP (22.1) functionality
+        // that will check the reshaping by the batch is robust (CVS-51744)
         if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
             || layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC
             || layout == InferenceEngine::Layout::NDHWC) {
@@ -164,7 +165,6 @@ void AutoBatchInferRequest::CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, In
     auto ptrSrc = bufferSrc.as<const char*>();
     ptrdiff_t szDst = dst->byteSize();
     ptrdiff_t szSrc = src->byteSize();
-    // to do check the int vs float math for offset
     if (bInput) {
         ptrdiff_t offset = szSrc != szDst ? _batchId*szDst/_batchSize : 0;
         if ((ptrDst + offset) == ptrSrc)
@@ -208,8 +208,8 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
             std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
             t.first = _this;
             t.second = std::move(task);
-            // std::lock_guard<std::mutex>(workerInferRequest->_mutex);
             workerInferRequest._tasks.push(t);
+            // it is ok to call unsafe_size() here as the queue only grows (and the bulk removal happens under the mutex)
             const int sz = workerInferRequest._tasks.unsafe_size();
             if (sz == workerInferRequest._batchSize) {
                 workerInferRequest._cond.notify_one();
@@ -605,6 +605,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
             for (const InputsDataMap::value_type &item : inputInfo) {
                 auto layout = item.second->getTensorDesc().getLayout();
+                // the below code is a placeholder for the WIP (22.1) functionality
+                // that will check the reshaping by the batch is robust (CVS-51744)
                 if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
                     || layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC
                     || layout == InferenceEngine::Layout::NDHWC) {
