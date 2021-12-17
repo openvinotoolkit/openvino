@@ -193,10 +193,10 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({CommonTestUtils::DEVICE_GPU, {}, gpuCustomerNum, ""});
     }
-    ON_CALL(*plugin, SelectDevice(_, _)).WillByDefault(Return(metaDevices[1]));
+    ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(1);
+    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
 
     if (cpuSleep) {
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
