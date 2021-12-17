@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cpp/ie_cnn_network.h>
 #include <ie_algorithm.hpp>
+#include <legacy/ie_layers.h>
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -138,7 +139,7 @@ public:
 };
 } // namespace Cnn2D
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning);
 
 bool ArePrecisionsSupported(const std::shared_ptr<ngraph::Function> &model, std::string &error_msg);
 
@@ -146,6 +147,15 @@ inline size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
     auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
     return total_size / bufferMaxSize + 1;
 }
+
+/**
+ * @brief Validates if concat layer axis is supported by GNA
+ * @param layer concat layer
+ * @return true if concat layer axis is valid
+ */
+IE_SUPPRESS_DEPRECATED_START
+bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concatLayer);
+IE_SUPPRESS_DEPRECATED_END
 
 } // namespace GNALimitations
 } // namespace GNAPluginNS

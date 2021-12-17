@@ -19,6 +19,10 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+bool MKLDNNReorderNode::isExecutable() const {
+    return MKLDNNNode::isExecutable() && !isOptimized;
+}
+
 MKLDNNReorderNode::MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
         MKLDNNNode(op, eng, w_cache) {
     IE_THROW() << "Can't create reorder node from ngraph node";
@@ -98,6 +102,10 @@ void MKLDNNReorderNode::createPrimitive() {
             prepareParams();
         updateLastInputDims();
     }
+}
+
+void MKLDNNReorderNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNReorderNode::prepareParams() {
@@ -347,6 +355,10 @@ std::string MKLDNNReorderNode::getReorderArgs(const MemoryDesc &parentDesc, cons
 void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
         IE_THROW() << "Can't reorder data with dynamic shapes";
+
+    if (input.GetShape().hasZeroDims() || output.GetShape().hasZeroDims()) {
+        return;
+    }
 
     if (size != 0)
         IE_ASSERT(size <= output.GetSize());

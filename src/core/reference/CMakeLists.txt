@@ -22,10 +22,6 @@ ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(${TARGET_NAME} PUBLIC /wd4146)
-endif()
-
 target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
 
 if(NOT BUILD_SHARED_LIBS)
@@ -43,7 +39,7 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::reference ALIAS ${TARGET_NAME})
 
-ov_install_static_lib(${TARGET_NAME} ngraph)
+ov_install_static_lib(${TARGET_NAME} core)
 
 # developer package
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::reference)
+openvino_developer_export_targets(COMPONENT core TARGETS ngraph::reference)

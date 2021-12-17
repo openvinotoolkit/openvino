@@ -112,7 +112,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GroupConvolutionBackpropDataParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const GroupConvolutionBackpropDataParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
@@ -126,7 +126,7 @@ private:
                                                                         params.dialations,
                                                                         auto_pad,
                                                                         params.outPadding);
-            return std::make_shared<ov::Function>(NodeVector {GroupConvolutionBackpropData}, ParameterVector {in, filter});
+            return std::make_shared<ov::Model>(NodeVector {GroupConvolutionBackpropData}, ParameterVector {in, filter});
         } else {
             const auto GroupConvolutionBackpropData = std::make_shared<op::v1::GroupConvolutionBackpropData>(in,
                                                                         filter,
@@ -135,7 +135,7 @@ private:
                                                                         params.padEnd,
                                                                         params.dialations,
                                                                         auto_pad);
-            return std::make_shared<ov::Function>(NodeVector {GroupConvolutionBackpropData}, ParameterVector {in, filter});
+            return std::make_shared<ov::Model>(NodeVector {GroupConvolutionBackpropData}, ParameterVector {in, filter});
         }
     }
 };
@@ -164,7 +164,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GroupConvolutionBackpropDataOutShapeParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const GroupConvolutionBackpropDataOutShapeParams& params) {
         const op::PadType auto_pad{op::PadType::SAME_UPPER};
 
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
@@ -176,7 +176,7 @@ private:
                                                                     params.strides,
                                                                     params.dialations,
                                                                     auto_pad);
-        return std::make_shared<ov::Function>(NodeVector {GroupConvolutionBackpropData}, ParameterVector {in, filter});
+        return std::make_shared<ov::Model>(NodeVector {GroupConvolutionBackpropData}, ParameterVector {in, filter});
     }
 };
 

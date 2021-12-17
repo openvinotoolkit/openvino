@@ -768,7 +768,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     //  Check the network
     std::string error;
     if (!GNAPluginNS::GNALimitations::ArePrecisionsSupported(model, error) ||
-        !GNAPluginNS::GNALimitations::AreLayersSupported(network, error)) {
+        !GNAPluginNS::GNALimitations::AreLayersSupported(network, error, gnaFlags->log_level == PluginConfigParams::LOG_WARNING)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 

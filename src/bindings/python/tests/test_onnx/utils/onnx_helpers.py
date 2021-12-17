@@ -5,7 +5,7 @@ import numpy as np
 import onnx
 from onnx.mapping import NP_TYPE_TO_TENSOR_TYPE
 
-from openvino.runtime import Core, Tensor, Function
+from openvino.runtime import Core, Tensor, Model
 
 
 def np_dtype_to_tensor_type(data_type: np.dtype) -> int:
@@ -17,7 +17,7 @@ def np_dtype_to_tensor_type(data_type: np.dtype) -> int:
     return NP_TYPE_TO_TENSOR_TYPE[data_type]
 
 
-def import_onnx_model(model: onnx.ModelProto) -> Function:
+def import_onnx_model(model: onnx.ModelProto) -> Model:
     onnx.checker.check_model(model)
     model_byte_string = model.SerializeToString()
     ie = Core()
