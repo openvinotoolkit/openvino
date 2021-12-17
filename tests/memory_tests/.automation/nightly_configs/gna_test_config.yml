@@ -2,22 +2,121 @@
 - device:
     name: GNA
   model:
-    name: nnet3_tdnn
+    name: KALDI_Librispeech_Tdnn
     precision: FP32
-    full_path: \\nncv03a-cifs.inn.intel.com\vdp_tests\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
-    irs_out_path: \\nncv03a-cifs.inn.intel.com\vdp_tests\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
-    cache_path: \\nncv03a-cifs.inn.intel.com\vdp_tests\models\internal\kaldi\tdnn2\kaldi_nnet3_tdnn_wov_final.mfcc_features.xml
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Librispeech_Tdnn\librispeech_tdnn.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Librispeech_Tdnn\librispeech_tdnn.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Librispeech_Tdnn\librispeech_tdnn.xml
     framework: kaldi
     source: share
   references: {}
 - device:
     name: GNA
   model:
-    name: tdnn2
+    name: KALDI_Rm_Nnet4a
+    precision: FP32
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Rm_Nnet4a\rm_nnet4a.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Rm_Nnet4a\rm_nnet4a.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Rm_Nnet4a\rm_nnet4a.xml
+    framework: kaldi
+    source: share
+  references: {}
+- device:
+    name: GNA
+  model:
+    name: KALDI_Swbd_Nnet6c_Mpe
+    precision: FP32
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Swbd_Nnet6c_Mpe\swbd_nnet6c.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Swbd_Nnet6c_Mpe\swbd_nnet6c.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Swbd_Nnet6c_Mpe\swbd_nnet6c.xml
+    framework: kaldi
+    source: share
+  references: {}
+- device:
+    name: GNA
+  model:
+    name: KALDI_Tdnn
+    precision: FP32
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tdnn\tdnn.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tdnn\tdnn.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tdnn\tdnn.xml
+    framework: kaldi
+    source: share
+  references: {}
+- device:
+    name: GNA
+  model:
+    name: KALDI_Tdnn2
     precision: FP32
     full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tdnn2\tdnn2.xml
     irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tdnn2\tdnn2.xml
     cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tdnn2\tdnn2.xml
     framework: kaldi
+    source: share
+  references: {}
+- device:
+    name: GNA
+  model:
+    name: KALDI_Tedlium_Lstm4f
+    precision: FP32
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tedlium_Lstm4f\tedlium_lstm4f.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tedlium_Lstm4f\tedlium_lstm4f.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Tedlium_Lstm4f\tedlium_lstm4f.xml
+    framework: kaldi
+    source: share
+  references: {}
+- device:
+    name: GNA
+  model:
+    name: KALDI_Wsj_Cnn4b
+    precision: FP32
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Wsj_Cnn4b\wsj_cnn4b.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Wsj_Cnn4b\wsj_cnn4b.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Wsj_Cnn4b\wsj_cnn4b.xml
+    framework: kaldi
+    source: share
+  references: {}
+- device:
+    name: GNA
+  model:
+    name: KALDI_Wsj_Dnn5b
+    precision: FP32
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Wsj_Dnn5b\wsj_dnn5b.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Wsj_Dnn5b\wsj_dnn5b.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\KALDI_Wsj_Dnn5b\wsj_dnn5b.xml
+    framework: kaldi
+    source: share
+  references: {}
+- device:
+    name: GNA
+  model:
+    name: ONNX_ConvPoolFcReLu
+    precision: FP32
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\ONNX_ConvPoolFcReLu\ConvPoolFcRelu.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\ONNX_ConvPoolFcReLu\ConvPoolFcRelu.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\ONNX_ConvPoolFcReLu\ConvPoolFcRelu.xml
+    framework: onnx
+    source: share
+  references: {}
+- device:
+    name: GNA
+  model:
+    name: ONNX_SplitConvPoolConcatFc
+    precision: FP32
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\ONNX_SplitConvPoolConcatFc\SplitConvPoolConcatFc.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\ONNX_SplitConvPoolConcatFc\SplitConvPoolConcatFc.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\ONNX_SplitConvPoolConcatFc\SplitConvPoolConcatFc.xml
+    framework: onnx
+    source: share
+  references: {}
+- device:
+    name: GNA
+  model:
+    name: ONNX_TwoInputsConvPoolConcatFcRelu
+    precision: FP32
+    full_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\ONNX_TwoInputsConvPoolConcatFcRelu\TwoInputsConvPoolConcatFcRelu.xml
+    irs_out_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\ONNX_TwoInputsConvPoolConcatFcRelu\TwoInputsConvPoolConcatFcRelu.xml
+    cache_path: \\nncv05a-cifs.inn.intel.com\vdp_extra\users\vdymchis\memory_tests\irs\ONNX_TwoInputsConvPoolConcatFcRelu\TwoInputsConvPoolConcatFcRelu.xml
+    framework: onnx
     source: share
   references: {}
