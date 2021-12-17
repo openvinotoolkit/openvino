@@ -64,14 +64,6 @@ void MKLDNNEmbeddingBagPackedSumNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
 }
 
-void MKLDNNEmbeddingBagPackedSumNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNEmbeddingBagPackedSumNode::prepareParams() {
     _batch = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[0];
     _indicesPerBag = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[1];
@@ -92,6 +84,14 @@ void MKLDNNEmbeddingBagPackedSumNode::getIndices(int embIndex, const int*& indic
     size = _indicesPerBag;
 
     weightsIdx = embIndex * _indicesPerBag;
+}
+
+void MKLDNNEmbeddingBagPackedSumNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
+bool MKLDNNEmbeddingBagPackedSumNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
 }
 
 void MKLDNNEmbeddingBagPackedSumNode::execute(mkldnn::stream strm) {
