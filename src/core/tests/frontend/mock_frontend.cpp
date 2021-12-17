@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common/frontend_defs.hpp"
-#include "manager.hpp"
 #include "ngraph/visibility.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
 #ifdef mock1_ov_frontend_EXPORTS

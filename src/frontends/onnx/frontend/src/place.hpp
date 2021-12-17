@@ -4,17 +4,19 @@
 
 #pragma once
 
-#include <common/place.hpp>
 #include <editor.hpp>
 #include <memory>
+#include <openvino/frontend/place.hpp>
 #include <sstream>
 
 namespace ov {
 namespace frontend {
-class PlaceInputEdgeONNX : public Place {
+namespace onnx {
+
+class PlaceInputEdge : public Place {
 public:
-    PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceInputEdgeONNX(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceInputEdge(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
     // internal usage
     onnx_editor::InputEdge get_input_edge() const;
@@ -35,10 +37,10 @@ private:
     const std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
 
-class PlaceOutputEdgeONNX : public Place {
+class PlaceOutputEdge : public Place {
 public:
-    PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceOutputEdgeONNX(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOutputEdge(const onnx_editor::OutputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOutputEdge(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
     // internal usage
     onnx_editor::OutputEdge get_output_edge() const;
@@ -59,10 +61,10 @@ private:
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
 
-class PlaceTensorONNX : public Place {
+class PlaceTensor : public Place {
 public:
-    PlaceTensorONNX(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceTensorONNX(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceTensor(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceTensor(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
     // external usage
     std::vector<std::string> get_names() const override;
@@ -83,10 +85,10 @@ private:
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
 
-class PlaceOpONNX : public Place {
+class PlaceOp : public Place {
 public:
-    PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceOpONNX(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOp(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    PlaceOp(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
     std::vector<std::string> get_names() const override;
 
     // internal usage
@@ -127,5 +129,7 @@ private:
     onnx_editor::EditorNode m_node;
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
+
+}  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

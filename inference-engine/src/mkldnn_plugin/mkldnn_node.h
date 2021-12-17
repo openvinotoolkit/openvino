@@ -199,7 +199,7 @@ public:
 
     // must be called only after MKLDNNGraph::InitEdges()
     virtual bool isExecutable() const {
-        return true;
+        return !hasEmptyInputTensors();
     }
 
     bool isConstant();
@@ -370,7 +370,7 @@ public:
      */
     virtual void filterSupportedPrimitiveDescriptors();
 
-    virtual void createPrimitive() = 0;
+    virtual void createPrimitive();
 
     virtual void selectOptimalPrimitiveDescriptor();
     virtual void initOptimalPrimitiveDescriptor();
@@ -727,6 +727,12 @@ protected:
     void prepareMemory(mkldnn::primitive_desc_iterator& itpd);
 
     bool isDynamic = false;
+
+    bool isInputTensorAtPortEmpty(size_t port) const;
+    bool isOutputTensorAtPortEmpty(size_t port) const;
+
+    bool hasEmptyInputTensors() const;
+    bool hasEmptyOutputTensors() const;
 
     bool inputShapesDefined() const;
     bool outputShapesDefined() const;
