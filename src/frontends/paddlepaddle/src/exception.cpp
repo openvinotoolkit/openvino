@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "paddlepaddle_frontend/exceptions.hpp"
-
+#include "exceptions.hpp"
 #include "node_context.hpp"
 
 namespace ov {
