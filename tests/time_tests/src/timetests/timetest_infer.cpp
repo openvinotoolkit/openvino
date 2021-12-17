@@ -16,40 +16,28 @@ using namespace InferenceEngine;
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device, const bool performanceHint,
-                const bool isCacheEnabled, const std::string &vpuCompiler) {
-  auto pipeline = [](const std::string &model, const std::string &device, const bool performanceHint,
-                     const bool isCacheEnabled, const std::string &vpuCompiler) {
+int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled) {
+  auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled) {
     Core ie;
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
     InferRequest inferRequest;
     size_t batchSize = 0;
 
-    // set config for VPUX device
-    std::map<std::string, std::string> vpuConfig = {};
-    if (vpuCompiler == "MCM")
-      vpuConfig = {{"VPUX_COMPILER_TYPE", "MCM"}};
-    else if (vpuCompiler == "MLIR")
-      vpuConfig = {{"VPUX_COMPILER_TYPE", "MLIR"}};
-
     // first_inference_latency = time_to_inference + first_inference
     {
       SCOPED_TIMER(time_to_inference);
       {
         SCOPED_TIMER(load_plugin);
-        if (performanceHint) {
-          TimeTest::setPerformanceConfig(ie, device);
-        }
         ie.GetVersions(device);
-
-        if (isCacheEnabled)
-          ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
       }
+      // Set performance and model cache configs
+      TimeTest::setPerformanceConfig(ie, device);
+      if (isCacheEnabled)
+          ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
       {
+        SCOPED_TIMER(create_exenetwork);
         if (!isCacheEnabled) {
-          SCOPED_TIMER(create_exenetwork);
-
           if (TimeTest::fileExt(model) == "blob") {
             SCOPED_TIMER(import_network);
             exeNetwork = ie.ImportNetwork(model, device);
@@ -60,21 +48,19 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
               cnnNetwork = ie.ReadNetwork(model);
               batchSize = cnnNetwork.getBatchSize();
             }
-
             {
               SCOPED_TIMER(load_network);
-              exeNetwork = ie.LoadNetwork(cnnNetwork, device, vpuConfig);
+              exeNetwork = ie.LoadNetwork(cnnNetwork, device);
             }
           }
         }
         else {
-          SCOPED_TIMER(load_network);
+          SCOPED_TIMER(load_network_cache);
           exeNetwork = ie.LoadNetwork(model, device);
         }
       }
       inferRequest = exeNetwork.CreateInferRequest();
     }
-
     {
       SCOPED_TIMER(first_inference);
       {
@@ -88,7 +74,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
   };
 
   try {
-    pipeline(model, device, performanceHint, isCacheEnabled, vpuCompiler);
+    pipeline(model, device, isCacheEnabled);
   } catch (const InferenceEngine::Exception &iex) {
     std::cerr
         << "Inference Engine pipeline failed with Inference Engine exception:\n"
