@@ -724,9 +724,11 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         Config config = _impl->m_configs.GetConfig(device_id);
         auto networkCloned = CloneAndTransformNetwork(*network, config);
 
-        std::cout << "DEVICE_INFO:"
-                  << "gfx_version.major " << device_info.gfx_ver.major
-                  << ", gfx_version.minor " << std::to_string(device_info.gfx_ver.minor) << std::endl;
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << "DEVICE_INFO:"
+                           << "gfx_version.major, " << device_info.gfx_ver.major
+                           << "gfx_version.minor " << std::to_string(device_info.gfx_ver.minor) << std::endl;
+        }
         static std::map<cldnn::gfx_version, size_t> gen_kbytes_per_bank = {
                 {{12, 0, 0}, 480},  // TGL
                 {{12, 1, 0}, 2048}, // DG1
@@ -744,30 +746,31 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                                        ? next_pow_of_2(device_info.num_sub_slices_per_slice)
                                        : 2 * device_info.num_sub_slices_per_slice;
             L3_cache_size = kbytes_per_bank * 1024 * num_banks_per_slice * device_info.num_slices;
-            std::cout << "DEVICE_INFO:"
-                      << "num_slices " << device_info.num_slices
-                      << ", num_sub_slices_per_slice " << device_info.num_sub_slices_per_slice
-                      << ", num_banks_per_slice " << num_banks_per_slice
-                      << ", gen_kbytes_per_bank : " << kbytes_per_bank
-                      << ", L3_cache_size is (MB): " << float(L3_cache_size)/1024/1024 << std::endl;
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "DEVICE_INFO:"
+                               << "num_slices " << device_info.num_slices
+                               << ", num_sub_slices_per_slice " << device_info.num_sub_slices_per_slice
+                               << ", num_banks_per_slice " << num_banks_per_slice
+                               << ", gen_kbytes_per_bank : " << kbytes_per_bank
+                               << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
+            }
         }
-        ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(
-                networkCloned.getFunction(), L3_cache_size);
+        ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(networkCloned.getFunction(), L3_cache_size);
         unsigned int batch = 1;
         if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
-            batch = 16 * closest_pow_of_2(memPressure.max_mem_tolerance);
-        std::cout << "memPressure.max_mem_tolerance: " << memPressure.max_mem_tolerance << std::endl;
-        std::cout << "SELECTED BATCH: " << batch << std::endl;
+            batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));
         std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
         options_for_max_batch["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network->getFunction());
         options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
         auto max_batch_size = GetMetric(GPU_METRIC_KEY(MAX_BATCH_SIZE), options_for_max_batch).as<unsigned int>();
-        std::cout << "MAX_BATCH: " << max_batch_size << std::endl;
         unsigned int closest = closest_pow_of_2(max_batch_size);
-        std::cout << "!!!!!!!!!!!!!! (CLOSEST):" << closest << std::endl;
         batch = std::min(closest, batch);
         batch = std::min(256u, batch); //batch 256 is a max
-        std::cout << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << memPressure.max_mem_tolerance << std::endl;
+            GPU_DEBUG_COUT << "MAX_BATCH: " << max_batch_size << std::endl;
+            GPU_DEBUG_COUT << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
+        }
         IE_SET_METRIC_RETURN(OPTIMAL_BATCH, batch);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
