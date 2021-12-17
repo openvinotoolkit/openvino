@@ -84,7 +84,7 @@ public:
     using Ptr = std::shared_ptr<AutoBatchInferRequest>;
     explicit AutoBatchInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
                                    const InferenceEngine::OutputsDataMap& networkOutputs,
-                                   AutoBatchExecutableNetwork::WorkerInferRequest* workerRequestPtr,
+                                   AutoBatchExecutableNetwork::WorkerInferRequest& workerRequestPtr,
                                    int batch_id, int num_batch, bool _needPerfCounters = false);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
@@ -92,7 +92,7 @@ public:
     void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
     void CopyInputsIfNeeded();
     void CopyOutputsIfNeeded();
-    AutoBatchExecutableNetwork::WorkerInferRequest* _myBatchedRequestWrapper;
+    AutoBatchExecutableNetwork::WorkerInferRequest& _myBatchedRequestWrapper;
     std::exception_ptr _exceptionPtr;
 protected:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
