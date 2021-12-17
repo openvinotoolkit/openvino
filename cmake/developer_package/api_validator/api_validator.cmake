@@ -79,8 +79,20 @@ function(_ie_add_api_validator_post_build_step)
     _ie_add_api_validator_post_build_step_recursive(TARGET ${API_VALIDATOR_TARGET})
 
     # remove targets which were tested before
-
-    foreach(item IN LISTS VALIDATED_LIBRARIES)
+    foreach(target IN LISTS API_VALIDATOR_TARGETS)
+        list(FIND VALIDATED_LIBRARIES ${target} index)
+        if (NOT index EQUAL -1)
+            list(APPEND VALIDATED_TARGETS ${target})
+        endif()
+        if(TARGET "${target}")
+            get_target_property(orig_target ${target} ALIASED_TARGET)
+            list(FIND VALIDATED_LIBRARIES ${orig_target} index)
+            if (NOT index EQUAL -1)
+                list(APPEND VALIDATED_TARGETS ${target})
+            endif()
+        endif()
+    endforeach()
+    foreach(item IN LISTS VALIDATED_TARGETS)
         list(REMOVE_ITEM API_VALIDATOR_TARGETS ${item})
     endforeach()
 
