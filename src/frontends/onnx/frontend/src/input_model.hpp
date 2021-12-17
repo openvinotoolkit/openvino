@@ -8,6 +8,8 @@
 #include <fstream>
 #include <openvino/frontend/input_model.hpp>
 
+#include "place.hpp"
+
 namespace ov {
 namespace frontend {
 namespace onnx {
