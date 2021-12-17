@@ -19,7 +19,6 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
-    void createPrimitive() override;
     void selectOptimalPrimitiveDescriptor() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
@@ -28,10 +27,8 @@ public:
     bool isOptimized() const;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
-    bool isExecutable() const override {
-        return !isOptimized();
-    }
 
+    bool isExecutable() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
 
