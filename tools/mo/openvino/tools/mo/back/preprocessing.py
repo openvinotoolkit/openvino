@@ -70,8 +70,27 @@ def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs:
     if search_outputs:
         nodes += ov_function.outputs
 
+    # We need to replace all node names from dict to tensor names
     rename_dict = {}
+    # Find names for replacing
+    for name in dict_to_validate.keys():
+        for ov_node in nodes:
+            if name in ov_node.get_tensor().get_names():
+                break
+            elif name == ov_node.get_node().get_friendly_name():
+                assert len(ov_node.get_tensor().get_names()) > 0, 'Node must have at least one tensor name'
+                new_name = list(ov_node.get_tensor().get_names())[0]
+                rename_dict[name] = new_name
+                break
 
+    # Replace found node names with tensor names
+    for name, new_name in rename_dict.items():
+        assert name in dict_to_validate, 'Key {} is not in initial dict'.format(name)
+        assert new_name not in dict_to_validate, 'Key {} is already in initial dict'.format(new_name)
+        dict_to_validate[new_name] = dict_to_validate[name]
+        del dict_to_validate[name]
+
+    # validate the dict
     for name in dict_to_validate.keys():
         node_found = False
         for ov_node in nodes:
@@ -82,25 +101,12 @@ def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs:
                 nodes_used[ov_node] = name
                 node_found = True
                 break
-            elif name == ov_node.get_node().get_friendly_name():
-                assert len(ov_node.get_tensor().get_names()) > 0, 'Node must have at least one tensor name'
-                new_name = list(ov_node.get_tensor().get_names())[0]
-                rename_dict[name] = new_name
-                nodes_used[ov_node] = name
-                node_found = True
-                break
-
 
         if not node_found:
             if not search_outputs:
                 raise Error('Input with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
             else:
                 raise Error('Input/Output with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
-
-    for name, new_name in rename_dict.items():
-        assert name in dict_to_validate, 'Key {} is not in initial dict'.format(name)
-        dict_to_validate[new_name] = dict_to_validate[name]
-        del dict_to_validate[name]
 
 
 def update_layout_is_input_flag(ov_function: Model, layout_values: dict):
