@@ -12,7 +12,8 @@
 
 namespace ngraph {
 
-static const char g_init_suffix[] = "init";
+static const char g_init_mask_key[] = "InitMask";
+static const char g_result_pruning_mask_key[] = "ResultMask";
 
 Mask::Ptr getMask(const Output<const Node> & output) {
     auto &rtInfo = output.get_rt_info();
@@ -39,11 +40,15 @@ void setMask(Output<Node> output, const Mask::Ptr & mask) {
     rtInfo[Mask::get_type_info_static()] = mask;
 }
 
+void setResultMask(Output<Node> output, const Mask::Ptr & mask) {
+    auto &rtInfo = output.get_rt_info();
+    rtInfo[g_result_pruning_mask_key] = mask;
+}
+
 Mask::Ptr getInitMask(const Output<Node> & output) {
     auto &rtInfo = output.get_rt_info();
 
-    auto init_mask_name = std::string(g_init_suffix) + Mask::get_type_info_static().name;
-    const auto attr_it = rtInfo.find(init_mask_name);
+    const auto attr_it = rtInfo.find(g_init_mask_key);
     if (attr_it == rtInfo.end()) return nullptr;
 
     const auto &attr = attr_it->second;
@@ -54,8 +59,7 @@ void setInitMask(Output<Node> output, const Mask::Ptr & mask) {
     auto &rtInfo = output.get_rt_info();
     auto copy_mask = std::make_shared<Mask>();
     std::copy(mask->begin(), mask->end(), std::back_inserter(*copy_mask));
-    auto init_mask_name = std::string(g_init_suffix) + Mask::get_type_info_static().name;
-    rtInfo[init_mask_name] = copy_mask;
+    rtInfo[g_init_mask_key] = copy_mask;
 }
 
 std::ostream & operator<< (std::ostream & out, const Mask & mask) {

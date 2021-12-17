@@ -665,12 +665,39 @@ public:
 
                         // Invalidate current mask and its parent masks
                         output_mask->apply_callback(input_mask);
-                        NGRAPH_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node << " is unknown.\n";
+                        NGRAPH_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node << " is in scope of stop ops.\n";
                         any_input_with_masks = true;
                     }
                 }
-            if (any_input_with_masks)
-                setMask(m_output, output_mask);
+            /*{
+                auto _ = getMask(m_output);
+                auto __ = getMask(node);
+                auto x = node->input_values();
+                Mask::Ptr ___;
+                if (x.size())
+                    ___ = getMask(x[0]);
+
+                NGRAPH_DEBUG << _;
+                NGRAPH_DEBUG << __;
+                NGRAPH_DEBUG << ___;
+
+
+                auto res_rt_info = m_output.get_rt_info();
+                if (x.size()) {
+                    auto conv_rt_info = x[0].get_rt_info();
+                    auto a = 6;
+                    NGRAPH_DEBUG << a;
+                }
+                //NGRAPH_DEBUG << res_rt_info << conv_rt_info;
+            }*/
+            if (any_input_with_masks) {
+                // TODO: find out if any other operation except Result
+                // share output tesnors with previous operation
+                if (ngraph::is_type<opset6::Result>(m_output.get_node_shared_ptr()))
+                    setResultMask(m_output, output_mask);
+                else
+                    setMask(m_output, output_mask);
+            }
 
             return true;
         };

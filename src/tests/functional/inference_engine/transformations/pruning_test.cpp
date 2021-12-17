@@ -401,16 +401,30 @@ TEST(TransformationTests, PropagateMasksHardDependencies) {
 
     auto f = std::make_shared<Function>(NodeVector{matmul, conv3}, ParameterVector{input1, input2});
 
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksHardDependencies.svg").run_on_function(f);
+
     pass::Manager m;
     m.register_pass<pass::Pruning>();
     m.run_passes(f);
 
+    compare_masks(*getMask(weights1.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(conv1->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(weights2.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(add1->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(add2->output(0)),  Mask({{}, {}, {}, {}}));
+
+    compare_masks(*getMask(matmul->output(0)),  Mask({{}, {}}));
+
     // TODO: add checks after MatMul/Reshape/Pooling mask propagation is ready
-//    compare_masks(*getMask(weights),  Mask({{0, 1, 2, 3, 4, 5}, {}, {}, {}}));
-//    compare_masks(*getMask(conv),     Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
-//    compare_masks(*getMask(relu),     Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
-//    compare_masks(*getMask(weights2), Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
-//    compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
+    //compare_masks(*getMask(weights),  Mask({{0, 1, 2, 3, 4, 5}, {}, {}, {}}));
+    //compare_masks(*getMask(conv),     Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
+    //compare_masks(*getMask(relu),     Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
+    //compare_masks(*getMask(weights2), Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
+    //compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
 }
 
 TEST(TransformationTests, PropagateMasksQuantizedGroupConvolution) {

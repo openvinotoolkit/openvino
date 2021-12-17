@@ -210,6 +210,8 @@ Mask::Ptr getMask(const Output<Node> & output);
 
 void setMask(Output<Node> output, const Mask::Ptr & mask);
 
+void setResultMask(Output<Node> output, const Mask::Ptr & mask);
+
 Mask::Ptr getInitMask(const Output<Node> & output);
 
 void setInitMask(Output<Node> output, const Mask::Ptr & mask);

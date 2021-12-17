@@ -43,7 +43,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
                 auto&  dim_current_set = (*mask)[dim];
                 if (!dim_init_set.empty() && !std::includes(dim_current_set.begin(), dim_current_set.end(),
                                                             dim_init_set.begin(), dim_init_set.end())) {
-                    NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name()\
+                    NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name()
                                  << "\nInit mask: " << *init_mask << "\nCurrent mask: " << *mask;
                     break;
                 }
