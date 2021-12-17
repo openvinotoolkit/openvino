@@ -139,7 +139,7 @@ Each device name can then be passed to:
 
 * `IECore.load_network` to load the network to a specific device.
 * `IECore.get_metric` to get common or device specific metrics.
-* All other methods of the `IECore` class that accept `deviceName`.
+* All other methods of the `IECore` class that accept a device name.
 
 #### Get Metric
 
