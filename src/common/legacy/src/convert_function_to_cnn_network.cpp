@@ -10,8 +10,8 @@
 #include <sstream>
 
 #include <cnn_network_ngraph_impl.hpp>
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/deconvolution_ie.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "legacy/ngraph_ops/gather_ie.hpp"

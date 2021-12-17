@@ -7,8 +7,6 @@
 #include <memory>
 #include <functional>
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/ngraph.hpp>
 
 #include "ngraph/pattern/matcher.hpp"
@@ -16,8 +14,8 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/add.hpp"
 
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/deconvolution_ie.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/rt_info.hpp"
 
@@ -26,10 +24,10 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvFusion;
-class TRANSFORMATIONS_API ConvAddFusion;
-class TRANSFORMATIONS_API ConvMultiplyFusion;
-class TRANSFORMATIONS_API DeconvAddFusion;
+class ConvFusion;
+class ConvAddFusion;
+class ConvMultiplyFusion;
+class DeconvAddFusion;
 
 }  // namespace pass
 }  // namespace ngraph

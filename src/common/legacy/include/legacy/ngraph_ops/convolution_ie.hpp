@@ -8,15 +8,13 @@
 #include <vector>
 #include <algorithm>
 
-#include <transformations_visibility.hpp>
-
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
 
-class TRANSFORMATIONS_API ConvolutionIE : public Op {
+class ConvolutionIE : public Op {
 public:
     OPENVINO_OP("ConvolutionIE", "util");
     BWDCMP_RTTI_DECLARATION;
