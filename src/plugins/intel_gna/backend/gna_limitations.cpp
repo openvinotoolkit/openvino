@@ -5,6 +5,7 @@
 #include "gna_limitations.hpp"
 
 #include <cstdint>
+#include <algorithm>
 #include <unordered_set>
 #include <legacy/ie_layers.h>
 #include <legacy/graph_tools.hpp>
@@ -167,28 +168,64 @@ void Validator::ThrowIfNotEmpty(const std::string prefix, const std::string erro
 
 } // namespace Cnn2D
 
+const std::vector<ov::element::Type> kSupportedOutputTypes = {
+    ov::element::f32,
+    ov::element::i32
+};
+
+const std::vector<ov::element::Type> kSupportedInputTypes = {
+    ov::element::u8,
+    ov::element::i16,
+    ov::element::f32
+};
+
+bool ArePrecisionsSupported(const std::shared_ptr<ngraph::Function> &model, std::string &error_msg) {
+    auto types_to_string = [](const std::vector<ov::element::Type> &types) {
+        std::string str = "";
+        if (!types.empty()) {
+            for (auto type_it = types.begin(); type_it < types.end() - 1; ++type_it) {
+                str += type_it->get_type_name() + ", ";
+            }
+            str += types.back().get_type_name();
+        }
+        return str;
+    };
+
+    const ov::ParameterVector &inputs = model->get_parameters();
+    for (const auto &input : inputs) {
+        const ov::element::Type &model_type = input->get_output_element_type(0);
+        if (std::count(kSupportedInputTypes.begin(), kSupportedInputTypes.end(), model_type) == 0) {
+            error_msg = "The plugin does not support input precision with " + model_type.get_type_name() +
+                         " format. Supported input precisions " + types_to_string(kSupportedInputTypes) + "\n";
+            return false;
+        }
+    }
+
+    const ov::ResultVector &outputs = model->get_results();
+    for (const auto &output : outputs) {
+        const ov::element::Type &model_type = output->get_output_element_type(0);
+        if (std::count(kSupportedOutputTypes.begin(), kSupportedOutputTypes.end(), model_type) == 0) {
+            error_msg = "The plugin does not support output precision with " + model_type.get_type_name() +
+                         " format. Supported output precisions " + types_to_string(kSupportedOutputTypes) + "\n";
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
+    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
     InferenceEngine::CNNLayerPtr startLayer;
+
     if (inputs.empty()) {
-        auto outputs = network.getOutputsInfo();
         IE_ASSERT(!outputs.empty());
         // If there are no inputs start search from an output
         startLayer = getCreatorLayer(outputs.begin()->second).lock();
     } else {
-        auto network_input_precision = inputs.begin()->second->getPrecision();
-
-        if (network_input_precision != InferenceEngine::Precision::FP32 &&
-            network_input_precision != InferenceEngine::Precision::I16 &&
-            network_input_precision != InferenceEngine::Precision::U8) {
-            errMessage = "The plugin does not support input precision with " +
-                         std::string(network_input_precision.name()) +
-                         " format. Supported  input precisions FP32, I16, U8\n";
-            return false;
-        }
-
         auto & secondLayers = getInputTo(inputs.begin()->second->getInputData());
         if (secondLayers.empty()) {
             errMessage = "Network consists of input layer only (GNA)\n";
