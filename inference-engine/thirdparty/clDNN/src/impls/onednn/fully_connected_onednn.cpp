@@ -128,20 +128,6 @@ public:
     static primitive_impl* create(const fully_connected_node& arg) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_fully_connected_descriptor(arg);
-        auto prim = arg.get_primitive();
-
-        if (prim->input_size == 3) {
-            for (auto& fused_node : arg.get_fused_primitives()) {
-                auto node = fused_node.node;
-                if (node->is_type<eltwise>()) {
-                    auto& dependency = arg.get_dependency(fused_node.dep_start_idx);
-                    auto original_layout = dependency.get_output_layout();
-                    onednn::combine_bf_with_first_spatial_dim(original_layout);
-                    dependency.set_output_layout(original_layout, false);
-                }
-            }
-        }
-
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 

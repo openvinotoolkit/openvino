@@ -70,10 +70,9 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
-    void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
     size_t getAxis() const { return axis; }
 
