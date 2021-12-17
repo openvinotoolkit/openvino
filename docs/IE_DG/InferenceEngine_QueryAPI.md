@@ -139,7 +139,7 @@ Each device name can then be passed to:
 
 * `IECore.load_network` to load the network to a specific device.
 * `IECore.get_metric` to get common or device specific metrics.
-* All other methods of the `IECore` class that accept `deviceName`.
+* All other methods of the `IECore` class that accept a device name.
 
 #### Get Metric
 
@@ -162,9 +162,6 @@ from openvino.inference_engine import IECore
 ie = IECore()
 ie.get_metric(device_name="GPU", metric_name="SUPPORTED_METRICS")
 ```
-
-> **NOTE**: All metrics have a specific type, which is set during the metric instantiation. The list of common device-agnostic metrics can be found in ie_plugin_config.hpp. Device specific metrics (for example, for HDDL, MYRIAD devices) can be found in corresponding plugin folders.
-
 
 #### Get Configuration
 
