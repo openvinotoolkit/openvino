@@ -25,8 +25,8 @@ public:
     std::vector<std::string> get_names() const override;
     bool is_input() const override;
     bool is_output() const override;
-    bool is_equal(Place::Ptr another) const override;
-    bool is_equal_data(Place::Ptr another) const override;
+    bool is_equal(const Place::Ptr& another) const override;
+    bool is_equal_data(const Place::Ptr& another) const override;
     Place::Ptr get_source_tensor() const override;
     std::vector<Place::Ptr> get_consuming_operations() const override;
     Place::Ptr get_producing_operation() const override;
@@ -49,8 +49,8 @@ public:
     std::vector<std::string> get_names() const override;
     bool is_input() const override;
     bool is_output() const override;
-    bool is_equal(Place::Ptr another) const override;
-    bool is_equal_data(Place::Ptr another) const override;
+    bool is_equal(const Place::Ptr& another) const override;
+    bool is_equal_data(const Place::Ptr& another) const override;
     Place::Ptr get_target_tensor() const override;
     std::vector<Place::Ptr> get_consuming_ports() const override;
     Place::Ptr get_producing_operation() const override;
@@ -73,8 +73,8 @@ public:
     Place::Ptr get_producing_operation() const override;
     bool is_input() const override;
     bool is_output() const override;
-    bool is_equal(Place::Ptr another) const override;
-    bool is_equal_data(Place::Ptr another) const override;
+    bool is_equal(const Place::Ptr& another) const override;
+    bool is_equal_data(const Place::Ptr& another) const override;
     std::vector<Place::Ptr> get_consuming_operations() const override;
 
     void set_name(const std::string& new_name);
@@ -121,7 +121,7 @@ public:
     Place::Ptr get_source_tensor(int input_port_index) const override;
     Place::Ptr get_source_tensor(const std::string& input_name) const override;
 
-    bool is_equal(Place::Ptr another) const override;
+    bool is_equal(const Place::Ptr& another) const override;
     bool is_input() const override;
     bool is_output() const override;
 

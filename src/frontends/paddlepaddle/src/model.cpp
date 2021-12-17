@@ -472,19 +472,19 @@ void InputModelPDPD::extract_subgraph(const std::vector<Place::Ptr>& inputs, con
     _impl->extractSubgraph(inputs, outputs);
 }
 
-void InputModelPDPD::set_partial_shape(Place::Ptr place, const ov::PartialShape& p_shape) {
+void InputModelPDPD::set_partial_shape(const Place::Ptr& place, const ov::PartialShape& p_shape) {
     _impl->setPartialShape(place, p_shape);
 }
 
-ov::PartialShape InputModelPDPD::get_partial_shape(Place::Ptr place) const {
+ov::PartialShape InputModelPDPD::get_partial_shape(const Place::Ptr& place) const {
     return _impl->getPartialShape(place);
 }
 
-void InputModelPDPD::set_element_type(Place::Ptr place, const ov::element::Type& type) {
+void InputModelPDPD::set_element_type(const Place::Ptr& place, const ov::element::Type& type) {
     _impl->setElementType(place, type);
 }
 
-void InputModelPDPD::set_tensor_value(Place::Ptr place, const void* value) {
+void InputModelPDPD::set_tensor_value(const Place::Ptr& place, const void* value) {
     _impl->setTensorValue(place, value);
 }
 
