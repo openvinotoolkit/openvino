@@ -121,11 +121,13 @@ class QueueDequeueManyV2(FrontReplacementSubgraph):
         graph.remove_node(match['fifo_queue'].id)
 
 
-class FifoQueueDequeueCut(FrontReplacementPattern):
+class FIFOQueueDequeueCut(FrontReplacementPattern):
     """
-    Cuts FifoQueue -> QueueDequeue pattern
-    in order to enable Out Of the Box (OOB) usage.
+    Cuts FIFOQueue -> QueueDequeue pattern in order to enable Out Of the Box (OOB) usage.
     Pass runs only if user didn't specify any input names and shapes.
+    This transformation relies on output shapes and types extracted from QueueDequeue node.
+    In the meantime, the transformations FIFOQueue and QueueDequeueManyV2 expects output shapes and types extracted
+    from FIFOQueue node.
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['cmd_params'].input is None]
@@ -142,6 +144,7 @@ class FifoQueueDequeueCut(FrontReplacementPattern):
             if node.op not in ["QueueDequeue", "QueueDequeueV2"]:
                 continue
 
+            new_inputs = ""
             fifo_qd_name = node.soft_get('name', node.id)
             for port_idx, port in node.out_ports().items():
                 if port.disconnected():
@@ -155,5 +158,14 @@ class FifoQueueDequeueCut(FrontReplacementPattern):
                     out=port_idx,
                     data_type=node.types[port_idx]
                 ))
+                new_inputs += "{}:{}, ".format(fifo_qd_name, port_idx)
+
+            log.error(
+                "Found TF {} operation in the model. "
+                "PLEASE NOTE, the model will contain new input(s) ".format(node.op)
+                + new_inputs +
+                "created due to automatically triggered pruning transformation for this operation.",
+                extra={'is_warning': True}
+            )
 
         add_input_ops(graph, fifo_qd_shapes, True)

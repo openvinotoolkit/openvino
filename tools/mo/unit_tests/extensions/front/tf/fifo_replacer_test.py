@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array
-from openvino.tools.mo.front.tf.fifo_replacer import FIFOQueue, FifoQueueDequeueCut
+from openvino.tools.mo.front.tf.fifo_replacer import FIFOQueue, FIFOQueueDequeueCut
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph_with_edge_attrs
 
@@ -68,8 +68,7 @@ class TestFIFOQueueReplacement(unittest.TestCase):
         self.assertTrue(np.array_equal(new_ph_dict['shape'], np.array([1, 2, 3])))
 
 
-class FifoQueueDequeueCutTest(unittest.TestCase):
-
+class FIFOQueueDequeueCutTest(unittest.TestCase):
     def test_one_output_v1(self):
         graph = build_graph_with_edge_attrs(
             {
@@ -92,7 +91,7 @@ class FifoQueueDequeueCutTest(unittest.TestCase):
             ]
         )
 
-        FifoQueueDequeueCut().find_and_replace_pattern(graph)
+        FIFOQueueDequeueCut().find_and_replace_pattern(graph)
 
         flag, msg = compare_graphs(graph, graph_ref, last_node='sub')
         self.assertTrue(flag, msg)
@@ -119,7 +118,7 @@ class FifoQueueDequeueCutTest(unittest.TestCase):
             ]
         )
 
-        FifoQueueDequeueCut().find_and_replace_pattern(graph)
+        FIFOQueueDequeueCut().find_and_replace_pattern(graph)
 
         flag, msg = compare_graphs(graph, graph_ref, last_node='sub')
         self.assertTrue(flag, msg)
@@ -158,7 +157,7 @@ class FifoQueueDequeueCutTest(unittest.TestCase):
             ]
         )
 
-        FifoQueueDequeueCut().find_and_replace_pattern(graph)
+        FIFOQueueDequeueCut().find_and_replace_pattern(graph)
 
         flag, msg = compare_graphs(graph, graph_ref, last_node='concat', check_op_attrs=True)
         self.assertTrue(flag, msg)
@@ -197,7 +196,7 @@ class FifoQueueDequeueCutTest(unittest.TestCase):
             ]
         )
 
-        FifoQueueDequeueCut().find_and_replace_pattern(graph)
+        FIFOQueueDequeueCut().find_and_replace_pattern(graph)
 
         flag, msg = compare_graphs(graph, graph_ref, last_node='concat', check_op_attrs=True)
         self.assertTrue(flag, msg)
