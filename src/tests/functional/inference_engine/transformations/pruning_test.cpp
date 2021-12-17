@@ -54,7 +54,7 @@ Output<Node> create_constant_with_zeros(const Shape & shape, const Mask & mask) 
     return std::make_shared<opset5::Constant>(element::f32, shape, values);
 }
 
-TEST(TransformationTests, MyFirstTest) {
+TEST_F(TransformationTestsF, MyFirstTest) {
     //ov::runtime::Core core;
     InferenceEngine::Core core;
     //const std::string input_model = "/home/dlyakhov/model_export/13_10_21/ir/\
@@ -63,7 +63,8 @@ TEST(TransformationTests, MyFirstTest) {
     const std::string input_model = "/home/dlyakhov/model_export/25_11_21/ir/efficientnet_with_bn/efficientnet_bo_pruning_test.xml";
     //const std::string input_model = "/home/dlyakhov/model_export/19_11_21_yolo_v5_pruning/yolo_v5s_pruned.xml";
         // -------- Step 2. Read a model --------
-    auto f = core.ReadNetwork(input_model).getFunction();
+    function = core.ReadNetwork(input_model).getFunction();
+    function_ref = ngraph::clone_function(*function);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
@@ -99,7 +100,11 @@ TEST(TransformationTests, MyFirstTest) {
     m.register_pass<ngraph::pass::VisualizeTree>("/home/dlyakhov/model_export/22_11_21/efficientnet_with_masks.svg", modifier);
     m.register_pass<pass::ShrinkWeights>();
     //ngraph::pass::VisualizeTree("/home/dlyakhov/model_export/22_11_21/efficientnet.svg").run_on_function(f);
-    m.run_passes(f);
+    m.run_passes(function);
+
+    disable_rt_info_check();
+    disable_function_comparison();
+    enable_accuracy_check();
 }
 
 TEST(TransformationTests, InitMasksOI) {
@@ -170,7 +175,7 @@ TEST(TransformationTests, PropagateMasksNegative) {
     compare_masks(*getMask(conv->output(0)), {{}, {}, {}, {}});
 }
 
-TEST(TransformationTests, PropagateMasksBasic) {
+TEST_F(TransformationTestsF, PropagateMasksBasic) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{6, 3, 3, 3};
     Shape weights_shape2{6, 6, 3, 3};
@@ -192,15 +197,16 @@ TEST(TransformationTests, PropagateMasksBasic) {
     auto weights2 = create_constant_with_zeros(weights_shape2, {{1, 2}, {1, 2, 3}, {}, {}});
     auto conv2 = std::make_shared<opset5::Convolution>(mul, weights2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
-    auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function_ref = ngraph::clone_function(*function);
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBasic.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBasic.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
-    m.run_passes(f);
+    m.run_passes(function);
 
     compare_masks(*getMask(weights->output(0)),  Mask({{1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(conv->output(0)),     Mask({{}, {1, 2, 3, 4}, {}, {}}));
@@ -213,9 +219,13 @@ TEST(TransformationTests, PropagateMasksBasic) {
     compare_masks(*getMask(mul->output(0)), Mask({{}, {1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(weights2.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
+
+    disable_rt_info_check();
+    disable_function_comparison();
+    enable_accuracy_check();
 }
 
-TEST(TransformationTests, PropagateMasksDynamicConvolution) {
+TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     PartialShape input_shape{Dimension::dynamic(), 3, 64, 64};
     Shape weights_shape{6, 3, 3, 3};
     Shape weights_shape2{6, 6, 3, 3};
@@ -234,15 +244,16 @@ TEST(TransformationTests, PropagateMasksDynamicConvolution) {
     auto weights2 = opset5::Constant::create(element::f32, weights_shape2, {0});
     auto conv2 = std::make_shared<opset5::Convolution>(mul, weights2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
-    auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function_ref = ngraph::clone_function(*function);
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicConvolution.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicConvolution.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
-    m.run_passes(f);
+    m.run_passes(function);
 
     compare_masks(*getMask(weights->output(0)),  Mask({{2}, {}, {}, {}}));
     compare_masks(*getMask(conv->output(0)),     Mask({{}, {2}, {}, {}}));
@@ -251,6 +262,10 @@ TEST(TransformationTests, PropagateMasksDynamicConvolution) {
     compare_masks(*getMask(mul_const), Mask({{2}, {}, {}}));
     compare_masks(*getMask(weights2->output(0)), Mask({{}, {2}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
+
+    disable_rt_info_check();
+    disable_function_comparison();
+    enable_accuracy_check();
 }
 
 TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
@@ -321,7 +336,7 @@ TEST(TransformationTests, PropagateMasksEmpty) {
     compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
 }
 
-TEST(TransformationTests, PropagateMaskPassThrough) {
+TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{8, 3, 3, 3};
     Shape weight_shape2{3, 8, 3, 3};
@@ -351,21 +366,26 @@ TEST(TransformationTests, PropagateMaskPassThrough) {
     auto weights2 = opset5::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<opset5::Convolution>(max_pool, weights2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
-    auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function_ref = ngraph::clone_function(*function);
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
-    m.run_passes(f);
+    m.run_passes(function);
 
     compare_masks(*getMask(weights_const_1.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(relu->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(clamp->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(max_pool->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
+
+    disable_rt_info_check();
+    disable_function_comparison();
+    enable_accuracy_check();
 }
 
 TEST(TransformationTests, PropagateMasksHardDependencies) {
@@ -444,7 +464,7 @@ TEST(TransformationTests, PropagateMasksHardDependencies) {
     //compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
 }
 
-TEST(TransformationTests, PropagateMasksQuantizedGroupConvolution) {
+TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{8, 3, 3, 3};
     Shape weights_group_shape{8, 1, 3, 3};
@@ -482,14 +502,15 @@ TEST(TransformationTests, PropagateMasksQuantizedGroupConvolution) {
     auto weights_2 = opset5::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<opset5::Convolution>(add, weights_2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
-    auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function_ref = ngraph::clone_function(*function);
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksQuantizedGroupConvolution.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksQuantizedGroupConvolution.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
-    m.run_passes(f);
+    m.run_passes(function);
 
     compare_masks(*getMask(weights1.get_node_shared_ptr()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0 , 1, 2, 3}, {}, {}}));
@@ -506,9 +527,13 @@ TEST(TransformationTests, PropagateMasksQuantizedGroupConvolution) {
 
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
     compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
+
+    disable_rt_info_check();
+    disable_function_comparison();
+    enable_accuracy_check();
 }
 
-TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor) {
+TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{8, 3, 3, 3};
     Shape weight_shape2{3, 8, 3, 3};
@@ -546,14 +571,15 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor) {
     auto weights_2 = opset5::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<opset5::Convolution>(fq, weights_2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
-    auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function_ref = ngraph::clone_function(*function);
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
-    m.run_passes(f);
+    m.run_passes(function);
 
     compare_masks(*getMask(weights_1->output(0)), Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
@@ -571,9 +597,13 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor) {
 
     compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
+
+    disable_rt_info_check();
+    disable_function_comparison();
+    enable_accuracy_check();
 }
 
-TEST(TransformationTests, PropagateMasksFakeQuantizePerChannel) {
+TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{8, 3, 3, 3};
     Shape weight_shape2{3, 8, 3, 3};
@@ -611,15 +641,16 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerChannel) {
     auto weights_2 = opset5::Constant::create(element::f32, weight_shape2, {0});
     auto conv2 = std::make_shared<opset5::Convolution>(fq, weights_2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
-    auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    function_ref = ngraph::clone_function(*function);
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerChannel.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerChannel.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
-    m.run_passes(f);
+    m.run_passes(function);
 
     compare_masks(*getMask(weights_1->output(0)), Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
@@ -642,9 +673,13 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerChannel) {
     compare_masks(*getMask(fq->input(2).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(fq->input(3).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(fq->input(4).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
+
+    disable_rt_info_check();
+    disable_function_comparison();
+    enable_accuracy_check();
 }
 
-TEST(TransformationTests, TestConcatMaskPropagation) {
+TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape1{8, 3, 3, 3};
     Shape weights_shape2{16, 3, 3, 3};
@@ -670,15 +705,16 @@ TEST(TransformationTests, TestConcatMaskPropagation) {
     auto conv_out = std::make_shared<opset5::Convolution>(concat, weights_out_conv, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
 
-    auto f = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
+    function = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
+    function_ref = ngraph::clone_function(*function);
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagation.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagation.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
-    m.run_passes(f);
+    m.run_passes(function);
 
     compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
@@ -691,10 +727,14 @@ TEST(TransformationTests, TestConcatMaskPropagation) {
 
     compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
     compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+
+    disable_rt_info_check();
+    disable_function_comparison();
+    enable_accuracy_check();
 }
 
 
-TEST(TransformationTests, TestConcatMaskPropagationUp) {
+TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape1{8, 3, 3, 3};
     Shape weights_shape2{16, 3, 3, 3};
@@ -723,15 +763,16 @@ TEST(TransformationTests, TestConcatMaskPropagationUp) {
     auto conv_out = std::make_shared<opset5::Convolution>(add, weights_out_conv, Strides(2, 1),
                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
 
-    auto f = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
+    function = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
+    function_ref = ngraph::clone_function(*function);
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUp.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUp.svg").run_on_function(function);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
     m.register_pass<pass::PropagateMasks>();
-    m.run_passes(f);
+    m.run_passes(function);
 
     compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
@@ -748,6 +789,10 @@ TEST(TransformationTests, TestConcatMaskPropagationUp) {
 
     compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
     compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+
+    disable_rt_info_check();
+    disable_function_comparison();
+    enable_accuracy_check();
 }
 
 
@@ -802,6 +847,7 @@ TEST(TransformationTests, TestConcatMaskPropagationUpEmpty) {
     compare_masks(*getMask(concat->output(0)),  Mask({{}, {}, {}, {}}));
 }
 
+
 TEST_F(TransformationTestsF, PruneConstAddMulwBranchingTest) {
     auto inputShapes = PartialShape{1, 6, 16, 16};
     auto weightsShape = Shape{6, 6, 1, 1};
@@ -852,6 +898,7 @@ TEST_F(TransformationTestsF, PruneConstAddMulwBranchingTest) {
     disable_function_comparison();
     enable_accuracy_check();
 }
+
 
 TEST(TransformationTests, PruneMultiplyBranchingTest) {
     auto inputShapes = PartialShape{1, 6, 16, 16};
@@ -911,6 +958,7 @@ TEST(TransformationTests, PruneMultiplyBranchingTest) {
     compare_masks(*getMask(end_conv->output(0)),  Mask({{}, {}, {}, {}}));
 }
 
+
 TEST_F(TransformationTestsF, PruneAvgPoolReducelayerTest) {
     auto inputShapes = PartialShape{1, 6, 16, 16};
     auto weightsShape = Shape{6, 6, 1, 1};
@@ -966,6 +1014,7 @@ TEST_F(TransformationTestsF, PruneAvgPoolReducelayerTest) {
     disable_function_comparison();
     enable_accuracy_check();
 }
+
 
 TEST(TransformationTests, PruneStopReducelayerTest) {
     auto inputShapes = PartialShape{1, 6, 16, 16};
