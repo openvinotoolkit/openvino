@@ -2084,11 +2084,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     InputsDataMap resultInputDataMap;
     cnnNetworkImpl->getInputsInfo(resultInputDataMap);
     IE_ASSERT(resultInputDataMap.size() == thisInputDataMap.size());
-    for (auto i : resultInputDataMap) {
-        auto &thisInputData = *thisInputDataMap[i.first];
-        i.second->setPrecision(thisInputData.getPrecision());
-        i.second->setLayout(thisInputData.getLayout());
-        i.second->getPreProcess() = thisInputData.getPreProcess();
+    auto params = graph->get_parameters();
+    for ( const auto &param : params ) {
+        const std::string input_name = param->get_friendly_name();
+        auto &thisInputData = *thisInputDataMap[input_name];
+        resultInputDataMap[input_name]->setPrecision(details::convertPrecision(param->get_output_element_type(0)));
+        resultInputDataMap[input_name]->setLayout(thisInputData.getLayout());
+        resultInputDataMap[input_name]->getPreProcess() = thisInputData.getPreProcess();
     }
 }
 
