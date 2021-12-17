@@ -1066,11 +1066,6 @@ def test_not_supported_methods():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     model = fe.load("test_place_names.onnx")
-    tensor = model.get_place_by_tensor_name(tensorName="add_out")
-
-    with pytest.raises(Exception) as e:
-        model.add_name_for_tensor(tensor=tensor, newName="new_name")
-    assert "not applicable for ONNX model" in str(e)
 
     with pytest.raises(Exception) as e:
         model.free_name_for_tensor("add_out")
@@ -1205,3 +1200,53 @@ def test_set_name_for_dimension():
     with pytest.raises(Exception) as e:
         model.set_name_for_dimension(one_const, 0, dim_name)
     assert "ONNX initializer shape dimension cannot be dynamic." in str(e)
+
+
+def test_add_name_for_tensor():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensorName="in2")
+    model.add_name_for_tensor(tensor, "extra_name")
+
+    ov_model = fe.convert(model)
+
+    add_input = ov_model.input(1)
+    add_input_tensor_names = add_input.get_names()
+    assert "extra_name" in add_input_tensor_names
+
+
+def test_add_name_for_tensor_and_cut_it_off():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensorName="in2")
+    model.add_name_for_tensor(tensor, "extra_name")
+
+    split_in = model.get_place_by_operation_name("split2").get_input_port(inputPortIndex=0)
+    model.extract_subgraph(inputs=[split_in], outputs=[])
+
+    ov_model = fe.convert(model)
+
+    model_input = ov_model.input(0)
+    input_tensor_names = model_input.get_names()
+    assert "extra_name" not in input_tensor_names
+
+
+def test_add_name_for_tensor_and_override_all_inputs():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    # test with an InputEdge type of Place
+    split_in = model.get_place_by_operation_name("split2").get_input_port(inputPortIndex=0)
+    model.add_name_for_tensor(split_in, "extra_name")
+    model.override_all_inputs([split_in])
+
+    ov_model = fe.convert(model)
+
+    model_input = ov_model.input(0)
+    input_tensor_names = model_input.get_names()
+    assert "extra_name" in input_tensor_names
