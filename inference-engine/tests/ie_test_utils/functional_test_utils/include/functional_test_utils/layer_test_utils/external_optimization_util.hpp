@@ -21,8 +21,8 @@
 #include "cpp/ie_cnn_network.h"
 
 #define SKIP_VALIDATION_IF_OPTIMIZATION_MODE_IS_DUMP()                  \
-if (LayerTestsUtils::ExternalOptimizationUtil::toDumpModel()                             \
-    || LayerTestsUtils::ExternalOptimizationUtil::toDumpInput()) {                       \
+if (LayerTestsUtils::ExternalOptimizationUtil::toDumpModel()            \
+    || LayerTestsUtils::ExternalOptimizationUtil::toDumpInput()) {      \
     return;                                                             \
 }
 
@@ -116,9 +116,6 @@ protected:
 public:
     static void dumpNetworkToFile(const std::shared_ptr<ov::Model> network,
                                   const std::string &network_name);
-
-    static InferenceEngine::CNNNetwork loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
-                                                           const std::string &network_name);
 
     static std::shared_ptr<ov::Model> loadNetworkFromFile(const std::string &network_name);
 

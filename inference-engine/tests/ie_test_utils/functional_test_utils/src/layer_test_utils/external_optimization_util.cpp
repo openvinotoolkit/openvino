@@ -354,20 +354,3 @@ std::shared_ptr<ov::Model> ExternalOptimizationUtil::loadNetworkFromFile(const s
     printf("Network loaded from %s\n", out_xml_path.c_str());
     return model;
 }
-
-InferenceEngine::CNNNetwork ExternalOptimizationUtil::loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
-                                                                     const std::string &network_name) {
-    const auto importPathString = getModelsPath();
-    auto new_network_name = processTestName(network_name);
-
-    std::string out_xml_path = importPathString
-                                + (importPathString.empty() ? "" : path_delimiter)
-                                + new_network_name + ".xml";
-    std::string out_bin_path = importPathString
-                                + (importPathString.empty() ? "" : path_delimiter)
-                                + new_network_name + ".bin";
-
-    auto network = core->ReadNetwork(out_xml_path, out_bin_path);
-    printf("Network loaded from %s\n", out_xml_path.c_str());
-    return network;
-}
