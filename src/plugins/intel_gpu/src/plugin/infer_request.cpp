@@ -171,13 +171,11 @@ bool same_host_mem(cldnn::memory::ptr memPtr, uint8_t* hostPtr) {
     }
     return bufferMem == hostPtr;
 }
-
 }  // namespace
 
 namespace ov {
 namespace runtime {
 namespace intel_gpu {
-
 
 // ----------------------------------------------------------------------------------------- //
 // ---------------------------- IE API impl ------------------------------------------------ //
@@ -188,6 +186,8 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
     bool is_input = findInputAndOutputBlobByName(name, foundInput, foundOutput);
+    auto node = is_input ? findInputByNodeName(name) : findOutputByNodeName(name);
+    bool isDynamic = (node && node->get_output_partial_shape(0).is_dynamic());
 
     if (is_input) {
         // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
@@ -196,11 +196,20 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
             data = it->second->getRoiBlob();
         } else {
             data = _inputs[name];
-            checkInputBlob(data, name, foundInput);
+            if (!isDynamic)
+                checkInputBlob(data, name, foundInput);
         }
     } else {
         data = _outputs[name];
-        checkOutputBlob(data, name, foundOutput);
+        if (isDynamic) {
+            if (m_graph->GetMaxDynamicBatchSize() > 1) {
+                SizeVector outDims = data->getTensorDesc().getDims();
+                outDims[m_graph->GetOutputDynBatchDims()[name]] = m_curBatch;
+                data->getTensorDesc().setDims(outDims);
+            }
+        } else {
+            checkOutputBlob(data, name, foundOutput);
+        }
     }
     return data;
 }
@@ -243,13 +252,16 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
     bool preProcResize = false;
+    auto node = is_input ? findInputByNodeName(name) : findOutputByNodeName(name);
+    bool isDynamic = (node && node->get_output_partial_shape(0).is_dynamic());
     if (is_input) {
         preProcResize = foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE;
         const auto inputColorFormat = foundInput->getPreProcess().getColorFormat();
         preProcResize |= (inputColorFormat != ColorFormat::RAW) && (inputColorFormat != ColorFormat::BGR);
     }
 
-    if (dataBinSize != netReqBinSize && !compoundBlobPassed && !preProcResize) {
+    if (!isDynamic &&
+        dataBinSize != netReqBinSize && !compoundBlobPassed && !preProcResize) {
         IE_THROW() << "Incorrect binary data size for " << (is_input ? "input" : "output") <<
                       " blob with name: \'" << name <<  "\' " <<
                       "Current: " << dataBinSize << " Required: " << netReqBinSize;
@@ -292,7 +304,9 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
                         auto y_ptr = nv12_ptr->y()->as<gpu::ClBlob>();
                         if (y_ptr) {
                             auto y_impl = getBlobImpl(y_ptr);
-                            y_impl->allocate();
+                            if (!y_impl->is_allocated()) {
+                                y_impl->allocate();
+                            }
                             _deviceInputs[y_name] = nv12_ptr->y();
                             is_remote = true;
                         }
@@ -300,7 +314,9 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
                         auto uv_ptr = nv12_ptr->uv()->as<gpu::ClBlob>();
                         if (uv_ptr) {
                             auto uv_impl = getBlobImpl(uv_ptr);
-                            uv_impl->allocate();
+                            if (!uv_impl->is_allocated()) {
+                                uv_impl->allocate();
+                            }
                             _deviceInputs[uv_name] = nv12_ptr->uv();
                             is_remote = true;
                         }
@@ -326,12 +342,21 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
                 if (compoundBlobPassed) {
                     IE_THROW(NotImplemented) << cannot_set_compound;
                 }
-                size_t blobSize = desc.getLayout() != SCALAR
-                    ? details::product(desc.getDims())
-                    : 1;
-                if (dataSize != blobSize) {
-                    IE_THROW() << "Input blob size is not equal network input size ("
-                               << dataSize << "!=" << blobSize << ").";
+                if (isDynamic) {
+                    // extract new batch size from blob
+                    if (m_graph->GetMaxDynamicBatchSize() > 1) {
+                        const auto batch_idx = m_graph->GetInputDynBatchDims()[name].first;
+                        if (batch_idx >= 0)
+                            SetBatch(blobDesc.getDims()[batch_idx]);
+                    }
+                } else {
+                    size_t blobSize = desc.getLayout() != SCALAR
+                        ? details::product(desc.getDims())
+                        : 1;
+                    if (dataSize != blobSize) {
+                        IE_THROW() << "Input blob size is not equal to network input size ("
+                            << dataSize << "!=" << blobSize << ").";
+                    }
                 }
 
                 if (data->buffer() == nullptr)
@@ -347,15 +372,17 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
         if (is_remote) {
             _deviceOutputs[name] = data;
         } else {
-            size_t outputSize = desc.getLayout() != SCALAR
-                ? details::product(desc.getDims())
-                : 1;
-            if (dataSize != outputSize) {
-                IE_THROW() << "Output blob size is not equal network output size (" << dataSize
-                           << "!=" << outputSize << ").";
+            if (!isDynamic) {
+                size_t outputSize = desc.getLayout() != SCALAR
+                    ? details::product(desc.getDims())
+                    : 1;
+                if (dataSize != outputSize) {
+                    IE_THROW() << "Output blob size is not equal to network output size (" << dataSize
+                        << "!=" << outputSize << ").";
+                }
+                if (data->buffer() == nullptr)
+                    IE_THROW(NotAllocated) << str_output_not_allocated << " Output name: \'" << name << "\'";
             }
-            if (data->buffer() == nullptr)
-                IE_THROW(NotAllocated) << str_input_not_allocated << " Input name: \'" << name << "\'";
         }
         _outputs[name] = data;
     }
@@ -462,7 +489,10 @@ void InferRequest::checkBlobs() {
         } else {
             IE_THROW(NotFound) << "Failed to find input with name: \'" << input.first << "\'";
         }
-        checkInputBlob(input.second, input.first, foundInput, m_graph->getConfig().nv12_two_inputs);
+        auto node = findInputByNodeName(input.first);
+        bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
+        if (!is_dynamic)
+            checkInputBlob(input.second, input.first, foundInput, m_graph->getConfig().nv12_two_inputs);
     }
     for (auto const &output : _outputs) {
         DataPtr foundOutput = nullptr;
@@ -475,7 +505,10 @@ void InferRequest::checkBlobs() {
         } else {
             IE_THROW(NotFound) << "Failed to find output with name: \'" << output.first << "\'";
         }
-        checkOutputBlob(output.second, output.first, foundOutput);
+        auto node = findOutputByNodeName(output.first);
+        bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
+        if (!is_dynamic)
+            checkOutputBlob(output.second, output.first, foundOutput);
     }
 }
 
@@ -514,9 +547,12 @@ void InferRequest::SetBatch(int new_batch) {
     batchOutputs.clear();
 
     // tune expected inputs
-    for (auto &input : m_graph->GetInputLayouts()) {
-        cldnn::tensor dims = input.second.size;
-        const SizeVector sz = { 1, size_t(dims.feature[0]), size_t(dims.spatial[1]), size_t(dims.spatial[0]) };
+    for (auto& input : m_graph->GetNetworkInputs()) {
+        auto sz = input.second->getTensorDesc().getDims();
+        const auto batch_idx = m_graph->GetInputDynBatchDims()[input.first].first;
+        if (batch_idx >= 0)
+            sz[batch_idx] = 1;
+
         size_t single_batch = std::accumulate(std::begin(sz), std::end(sz), (size_t)1, std::multiplies<size_t>());
         std::vector<buf_info> in_buf;
 
@@ -539,9 +575,11 @@ void InferRequest::SetBatch(int new_batch) {
     }
 
     // tune expected outputs
-    for (auto& no : _networkOutputs) {
-        auto sz = m_graph->GetOutputSize(no.first);
-        sz.front() = 1;
+    for (auto& no : m_graph->GetNetworkOutputs()) {
+        auto sz = no.second->getTensorDesc().getDims();
+        const auto batch_idx = m_graph->GetInputDynBatchDims()[no.first].first;
+        if (batch_idx >= 0)
+            sz[batch_idx] = 1;
         size_t single_batch = std::accumulate(std::begin(sz), std::end(sz), (size_t)1, std::multiplies<size_t>());
         std::vector<buf_info> out_buf;
 
@@ -784,6 +822,21 @@ void InferRequest::setup_stream_graph() {
         streamID = streamID % numGraphs;
     }
     m_graph = streamGraphs[streamID];
+    // in case of dynamic batch, check all input blobs and set new batch
+    if (m_graph->GetMaxDynamicBatchSize() > 1) {
+        for (auto& input : _networkInputs) {
+            auto node = findInputByNodeName(input.first);
+            bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
+            if (!is_dynamic)
+                continue;
+            // extract new batch size from blob
+            const auto batch_idx = m_graph->GetInputDynBatchDims()[input.first].first;
+            if (batch_idx >= 0) {
+                SetBatch(_inputs[input.first]->getTensorDesc().getDims()[batch_idx]);
+                break;
+            }
+        }
+    }
 }
 
 Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, std::shared_ptr<InferenceEngine::IAllocator> alloc) {
@@ -936,16 +989,9 @@ void InferRequest::allocate_inputs() {
 void InferRequest::allocate_inputs_dynamic() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::allocate_inputs_dynamic");
     // allocate inputs
-    for (auto &input : m_graph->GetInputLayouts()) {
+    for (auto &input : m_graph->GetNetworkInputs()) {
         InputInfo::Ptr ni = _networkInputs.at(input.first);
-        TensorDesc desc = ni->getTensorDesc();
-        SizeVector& dims = desc.getDims();
-
-        if (!dims.empty()) {
-            *dims.begin() = static_cast<size_t>(m_graph->GetMaxDynamicBatchSize());
-        } else {
-            IE_THROW() << "Empty dimensions for input blob " << input.first;
-        }
+        TensorDesc desc = input.second->getTensorDesc();
 
         Blob::Ptr inputBlob = create_host_blob(desc);
         if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
@@ -988,17 +1034,10 @@ void InferRequest::allocate_outputs() {
 void InferRequest::allocate_outputs_dynamic() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::allocate_outputs_dynamic");
     // allocate outputs
-    for (auto& no : _networkOutputs) {
+    for (auto& no : m_graph->GetNetworkOutputs()) {
         std::string outputID = m_graph->MapOutputName(no.first);
         DataPtr oi = no.second;
         TensorDesc desc = oi->getTensorDesc();
-        SizeVector& dims = desc.getDims();
-
-        if (!dims.empty()) {
-            *dims.begin() = static_cast<size_t>(m_graph->GetMaxDynamicBatchSize());
-        } else {
-            IE_THROW() << "Empty dimensions for output blob " << no.first;
-        }
 
         Blob::Ptr outputBlob = create_host_blob(desc);
         _outputs[no.first] = outputBlob;
