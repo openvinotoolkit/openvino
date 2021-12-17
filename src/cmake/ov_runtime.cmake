@@ -90,10 +90,11 @@ if(BUILD_SHARED_LIBS)
             COMPONENT core)
 
     # for InferenceEngineUnitTest
-    if(WIN32)
-        install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-    else()
+    # For public tests
+    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+        DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    # For private tests
+    if (NOT WIN32)
         install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
                 DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
     endif()
