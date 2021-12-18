@@ -80,14 +80,6 @@ void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNGatherNDNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNGatherNDNode::prepareParams() {
     auto& srcMemPtr = getParentEdgeAt(GATHERND_DATA)->getMemoryPtr();
     auto& idxMemPtr = getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr();
@@ -227,7 +219,7 @@ void MKLDNNGatherNDNode::GatherNDExecutor::gatherElementwise(const MKLDNNMemoryP
     });
 }
 
-void MKLDNNGatherNDNode::executeDynamicImpl(dnnl::stream strm) {
+void MKLDNNGatherNDNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 

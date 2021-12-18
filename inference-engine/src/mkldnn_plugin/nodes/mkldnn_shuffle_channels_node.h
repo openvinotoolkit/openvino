@@ -28,7 +28,7 @@ public:
     void prepareParams() override;
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); };
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
     struct ShuffleChannelsAttributes {
