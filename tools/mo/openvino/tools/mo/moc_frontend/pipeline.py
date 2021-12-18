@@ -39,6 +39,20 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             [item for item in places_original if any(
                 [item.is_equal(item2['node']) for item2 in places_new])]) == len(places_original)
 
+    def add_names_to_tensors(model, places):
+        """
+        Adds additional names to some model input tensors. This helper should be used
+        when a model modification is going to happen.
+        :param model The input model loaded by a given frontend
+        :param places An object containing Places and names that will be used for model modification
+        """
+        for new_input in places:
+            try:
+                # some frontends might not implement this method
+                model.add_name_for_tensor(new_input['node'], new_input['input_name'])
+            except:
+                pass
+
     inputs_equal = True
     if user_shapes:
         inputs_equal = check_places_are_same(input_model.get_inputs(), user_shapes)
@@ -53,8 +67,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         log.debug('Using extract subgraph')
         new_input_places = [x['node'] for x in user_shapes]
         new_output_places = [x['node'] for x in outputs]
-        for new_input in user_shapes:
-            input_model.add_name_for_tensor(new_input['node'], new_input['input_name'])
+        add_names_to_tensors(input_model, user_shapes)
         input_model.extract_subgraph(new_input_places, new_output_places)
         # invalidation of existing Place objects could have happened in the operation above
         if user_shapes:
@@ -63,8 +76,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 argv.output, argv.freeze_placeholder_with_value)
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
-        for new_input in user_shapes:
-            input_model.add_name_for_tensor(new_input['node'], new_input['input_name'])
+        add_names_to_tensors(input_model, user_shapes)
         new_input_places = [x['node'] for x in user_shapes]
         input_model.override_all_inputs(new_input_places)
         # invalidation of existing Place objects could have happened in the operation above
@@ -74,8 +86,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 argv.output, argv.freeze_placeholder_with_value)
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
-        for new_input in user_shapes:
-            input_model.add_name_for_tensor(new_input['node'], new_input['input_name'])
+        add_names_to_tensors(input_model, user_shapes)
         new_output_places = [x['node'] for x in outputs]
         input_model.override_all_outputs(new_output_places)
 
