@@ -227,6 +227,10 @@ void MKLDNNPadNode::createPrimitive() {
     }
 }
 
+bool MKLDNNPadNode::isExecutable() const {
+    return !isOutputTensorAtPortEmpty(0);
+}
+
 void MKLDNNPadNode::prepareParams() {
     execPtr = std::make_shared<PadExecutor>(attrs,
                                             getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims(),
@@ -237,8 +241,15 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
                                         const VectorDims& srcDims,
                                         const VectorDims& dstDims) {
     params.attrs = attrs;
-    params.srcDims = srcDims;
     params.dstDims = dstDims;
+
+    zeroInputDimsCase = std::any_of(srcDims.begin(), srcDims.end(), [](size_t dim) { return dim == 0; } ) &&
+                        std::none_of(dstDims.begin(), dstDims.end(), [](size_t dim) { return dim == 0; } );
+    if (zeroInputDimsCase) {
+        return;
+    }
+
+    params.srcDims = srcDims;
     params.dataSize = attrs.prc.size();
 
     size_t nDims = params.srcDims.size();
@@ -289,19 +300,23 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
 }
 
 void MKLDNNPadNode::PadExecutor::exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    switch (params.attrs.padMode) {
-        case CONSTANT:
-            padConstant(srcMemPtr, dstMemPtr);
-            break;
-        case EDGE:
-            padEdge(srcMemPtr, dstMemPtr);
-            break;
-        case REFLECT:
-            padReflectOrSymmetric(srcMemPtr, dstMemPtr);
-            break;
-        case SYMMETRIC:
-            padReflectOrSymmetric(srcMemPtr, dstMemPtr, true);
-            break;
+    if (zeroInputDimsCase) {
+        padConstant(srcMemPtr, dstMemPtr);
+    } else {
+        switch (params.attrs.padMode) {
+            case CONSTANT:
+                padConstant(srcMemPtr, dstMemPtr);
+                break;
+            case EDGE:
+                padEdge(srcMemPtr, dstMemPtr);
+                break;
+            case REFLECT:
+                padReflectOrSymmetric(srcMemPtr, dstMemPtr);
+                break;
+            case SYMMETRIC:
+                padReflectOrSymmetric(srcMemPtr, dstMemPtr, true);
+                break;
+        }
     }
 }
 
@@ -335,7 +350,7 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDim
 }
 
 void MKLDNNPadNode::PadExecutor::padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    if (params.attrs.padValue == 0) {
+    if (params.attrs.padValue == 0 && !zeroInputDimsCase) {
         padConstantZero(srcMemPtr, dstMemPtr);
         return;
     }
@@ -351,10 +366,16 @@ void MKLDNNPadNode::PadExecutor::padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNM
 
 template<typename T>
 void MKLDNNPadNode::PadExecutor::padConstantCommon(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     T* dstData = reinterpret_cast<T*>(dstMemPtr->GetPtr());
     const T value = static_cast<T>(params.attrs.padValue);
+    if (zeroInputDimsCase) {
+        const auto workAmount = dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        parallel_for(workAmount, [&](size_t i) {
+            dstData[i] = value;
+        });
+    }
 
+    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     const size_t beginShift = params.attrs.padsBegin[params.nDimsForWork] * params.shift;
     const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
     const size_t endShift = params.attrs.padsEnd[params.nDimsForWork] * params.shift;

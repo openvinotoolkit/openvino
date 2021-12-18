@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common/frontend_exceptions.hpp>
-#include <manager.hpp>
 #include <memory>
+#include <openvino/frontend/exception.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

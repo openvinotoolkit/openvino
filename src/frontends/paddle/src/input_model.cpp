@@ -26,13 +26,13 @@ namespace paddle {
 
 using namespace ::paddle::framework::proto;
 
-class InputModel::InputModelpaddleImpl {
+class InputModel::InputModelPaddleImpl {
 public:
     template <typename T>
-    InputModelpaddleImpl(const std::basic_string<T>& path,
+    InputModelPaddleImpl(const std::basic_string<T>& path,
                          const InputModel& input_model,
                          const std::shared_ptr<TelemetryExtension>& telemetry);
-    InputModelpaddleImpl(const std::vector<std::istream*>& streams,
+    InputModelPaddleImpl(const std::vector<std::istream*>& streams,
                          const InputModel& input_model,
                          const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<Place::Ptr> getInputs() const;
@@ -75,7 +75,7 @@ private:
     bool m_graph_changed = false;
 };
 
-void InputModel::InputModelpaddleImpl::loadPlaces() {
+void InputModel::InputModelPaddleImpl::loadPlaces() {
     const int cnt_of_blocks = m_fw_ptr->blocks_size();
     const auto& blocks = m_fw_ptr->blocks();
     std::map<std::string, uint64_t> op_statistics;
@@ -214,14 +214,14 @@ std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path
 #endif
 }  // namespace
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelpaddleImpl::get_op_places() const {
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelPaddleImpl::get_op_places() const {
     if (m_graph_changed) {
         return determine_cut_nodes();
     }
     return m_op_places;
 }
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelpaddleImpl::determine_cut_nodes() const {
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelPaddleImpl::determine_cut_nodes() const {
     std::queue<OpPlace*> q;
     std::unordered_set<OpPlace*> visited;
     std::vector<std::shared_ptr<OpPlace>> new_op_places;
@@ -261,7 +261,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelpaddleImpl::determin
 }
 
 template <typename T>
-void InputModel::InputModelpaddleImpl::loadConsts(const std::basic_string<T>& folder_with_weights,
+void InputModel::InputModelPaddleImpl::loadConsts(const std::basic_string<T>& folder_with_weights,
                                                   std::istream* weight_stream) {
     for (const auto& item : m_var_places) {
         const auto& var_desc = item.second->get_desc();
@@ -300,7 +300,7 @@ void InputModel::InputModelpaddleImpl::loadConsts(const std::basic_string<T>& fo
 }
 
 template <typename T>
-InputModel::InputModelpaddleImpl::InputModelpaddleImpl(const std::basic_string<T>& path,
+InputModel::InputModelPaddleImpl::InputModelPaddleImpl(const std::basic_string<T>& path,
                                                        const InputModel& input_model,
                                                        const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
@@ -328,7 +328,7 @@ InputModel::InputModelpaddleImpl::InputModelpaddleImpl(const std::basic_string<T
     }
 }
 
-InputModel::InputModelpaddleImpl::InputModelpaddleImpl(const std::vector<std::istream*>& streams,
+InputModel::InputModelPaddleImpl::InputModelPaddleImpl(const std::vector<std::istream*>& streams,
                                                        const InputModel& input_model,
                                                        const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
@@ -348,15 +348,15 @@ InputModel::InputModelpaddleImpl::InputModelpaddleImpl(const std::vector<std::is
         loadConsts(std::string(), streams[1]);
 }
 
-std::vector<Place::Ptr> InputModel::InputModelpaddleImpl::getInputs() const {
+std::vector<Place::Ptr> InputModel::InputModelPaddleImpl::getInputs() const {
     return m_inputs;
 }
 
-std::vector<Place::Ptr> InputModel::InputModelpaddleImpl::getOutputs() const {
+std::vector<Place::Ptr> InputModel::InputModelPaddleImpl::getOutputs() const {
     return m_outputs;
 }
 
-Place::Ptr InputModel::InputModelpaddleImpl::getPlaceByTensorName(const std::string& tensorName) const {
+Place::Ptr InputModel::InputModelPaddleImpl::getPlaceByTensorName(const std::string& tensorName) const {
     if (m_var_places.count(tensorName))
         return m_var_places.at(tensorName);
     return nullptr;
@@ -376,7 +376,7 @@ std::shared_ptr<TensorPlace> castToTensorPlace(const Place::Ptr& place) {
 
 }  // namespace
 
-void InputModel::InputModelpaddleImpl::overrideAllInputs(const std::vector<Place::Ptr>& inputs) {
+void InputModel::InputModelPaddleImpl::overrideAllInputs(const std::vector<Place::Ptr>& inputs) {
     m_graph_changed = true;
     m_inputs.clear();
     for (const auto& inp : inputs) {
@@ -384,7 +384,7 @@ void InputModel::InputModelpaddleImpl::overrideAllInputs(const std::vector<Place
     }
 }
 
-void InputModel::InputModelpaddleImpl::overrideAllOutputs(const std::vector<Place::Ptr>& outputs) {
+void InputModel::InputModelPaddleImpl::overrideAllOutputs(const std::vector<Place::Ptr>& outputs) {
     m_graph_changed = true;
     m_outputs.clear();
     for (const auto& outp : outputs) {
@@ -392,30 +392,30 @@ void InputModel::InputModelpaddleImpl::overrideAllOutputs(const std::vector<Plac
     }
 }
 
-void InputModel::InputModelpaddleImpl::extractSubgraph(const std::vector<Place::Ptr>& inputs,
+void InputModel::InputModelPaddleImpl::extractSubgraph(const std::vector<Place::Ptr>& inputs,
                                                        const std::vector<Place::Ptr>& outputs) {
     m_graph_changed = true;
     overrideAllInputs(inputs);
     overrideAllOutputs(outputs);
 }
 
-void InputModel::InputModelpaddleImpl::setDefaultShape(Place::Ptr place, const ov::Shape& shape) {
+void InputModel::InputModelPaddleImpl::setDefaultShape(Place::Ptr place, const ov::Shape& shape) {
     FRONT_END_NOT_IMPLEMENTED("setDefaultShape");
 }
 
-void InputModel::InputModelpaddleImpl::setPartialShape(Place::Ptr place, const ov::PartialShape& p_shape) {
+void InputModel::InputModelPaddleImpl::setPartialShape(Place::Ptr place, const ov::PartialShape& p_shape) {
     castToTensorPlace(place)->set_partial_shape(p_shape);
 }
 
-ov::PartialShape InputModel::InputModelpaddleImpl::getPartialShape(Place::Ptr place) const {
+ov::PartialShape InputModel::InputModelPaddleImpl::getPartialShape(Place::Ptr place) const {
     return castToTensorPlace(place)->get_partial_shape();
 }
 
-void InputModel::InputModelpaddleImpl::setElementType(Place::Ptr place, const ov::element::Type& type) {
+void InputModel::InputModelPaddleImpl::setElementType(Place::Ptr place, const ov::element::Type& type) {
     castToTensorPlace(place)->set_element_type(type);
 }
 
-void InputModel::InputModelpaddleImpl::setTensorValue(Place::Ptr place, const void* value) {
+void InputModel::InputModelPaddleImpl::setTensorValue(Place::Ptr place, const void* value) {
     m_graph_changed = true;
     auto tensor_place = castToTensorPlace(place);
     auto p_shape = tensor_place->get_partial_shape();
@@ -427,15 +427,15 @@ void InputModel::InputModelpaddleImpl::setTensorValue(Place::Ptr place, const vo
 }
 
 InputModel::InputModel(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry)
-    : _impl{std::make_shared<InputModelpaddleImpl>(path, *this, telemetry)} {}
+    : _impl{std::make_shared<InputModelPaddleImpl>(path, *this, telemetry)} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 InputModel::InputModel(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry)
-    : _impl{std::make_shared<InputModelpaddleImpl>(path, *this, telemetry)} {}
+    : _impl{std::make_shared<InputModelPaddleImpl>(path, *this, telemetry)} {}
 #endif
 
 InputModel::InputModel(const std::vector<std::istream*>& streams, const std::shared_ptr<TelemetryExtension>& telemetry)
-    : _impl{std::make_shared<InputModelpaddleImpl>(streams, *this, telemetry)} {}
+    : _impl{std::make_shared<InputModelPaddleImpl>(streams, *this, telemetry)} {}
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places() const {
     return _impl->get_op_places();
@@ -473,19 +473,19 @@ void InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs, const s
     _impl->extractSubgraph(inputs, outputs);
 }
 
-void InputModel::set_partial_shape(Place::Ptr place, const ov::PartialShape& p_shape) {
+void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialShape& p_shape) {
     _impl->setPartialShape(place, p_shape);
 }
 
-ov::PartialShape InputModel::get_partial_shape(Place::Ptr place) const {
+ov::PartialShape InputModel::get_partial_shape(const Place::Ptr& place) const {
     return _impl->getPartialShape(place);
 }
 
-void InputModel::set_element_type(Place::Ptr place, const ov::element::Type& type) {
+void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Type& type) {
     _impl->setElementType(place, type);
 }
 
-void InputModel::set_tensor_value(Place::Ptr place, const void* value) {
+void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
     _impl->setTensorValue(place, value);
 }
 

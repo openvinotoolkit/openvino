@@ -7,9 +7,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/frontend_exceptions.hpp"
-#include "common/telemetry_extension.hpp"
-#include "manager.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/frontend/telemetry_extension.hpp"
 #include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;
@@ -41,7 +41,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(InputModel::Ptr) const>(&FrontEnd::convert),
+            static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const InputModel::Ptr&) const>(&FrontEnd::convert),
             py::arg("model"),
             R"(
                 Completely convert and normalize entire function, throws if it is not possible.
@@ -58,7 +58,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<void (FrontEnd::*)(std::shared_ptr<ov::Model>) const>(&FrontEnd::convert),
+            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Model>&) const>(&FrontEnd::convert),
             py::arg("function"),
             R"(
                 Completely convert the remaining, not converted part of a function.

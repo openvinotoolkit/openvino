@@ -274,7 +274,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     FRONT_END_THROW("Model can be loaded either from 1 or 2 files/streams");
 }
 
-std::shared_ptr<ov::Model> FrontEnd::convert(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto paddle_model = std::dynamic_pointer_cast<InputModel>(model);
     std::map<std::string, paddle::CreatorFunction> CREATORS_MAP = paddle::get_supported_ops();
     auto f = convert_each_node(
@@ -285,7 +285,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(InputModel::Ptr model) const {
     return f;
 }
 
-void FrontEnd::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
+void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
             paddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node),
@@ -297,7 +297,7 @@ void FrontEnd::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
     }
 }
 
-std::shared_ptr<ov::Model> FrontEnd::convert_partially(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
     auto paddle_model = std::dynamic_pointer_cast<InputModel>(model);
     std::map<std::string, paddle::CreatorFunction> CREATORS_MAP = paddle::get_supported_ops();
     auto f = convert_each_node(
@@ -314,7 +314,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(InputModel::Ptr model) co
     return f;
 }
 
-std::shared_ptr<ov::Model> FrontEnd::decode(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     auto paddle_model = std::dynamic_pointer_cast<InputModel>(model);
     std::map<std::string, paddle::CreatorFunction> CREATORS_MAP = paddle::get_supported_ops();
     auto f = convert_each_node(paddle_model, paddle::make_framework_node);

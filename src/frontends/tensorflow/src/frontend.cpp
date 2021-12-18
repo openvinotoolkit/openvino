@@ -306,7 +306,7 @@ ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<ov::Any>& 
     return nullptr;
 }
 
-std::shared_ptr<ov::Model> FrontEndTF::convert(ov::frontend::InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndTF::convert(const ov::frontend::InputModel::Ptr& model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
@@ -316,7 +316,7 @@ std::shared_ptr<ov::Model> FrontEndTF::convert(ov::frontend::InputModel::Ptr mod
     return f;
 }
 
-std::shared_ptr<ov::Model> FrontEndTF::convert_partially(ov::frontend::InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndTF::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
@@ -324,14 +324,14 @@ std::shared_ptr<ov::Model> FrontEndTF::convert_partially(ov::frontend::InputMode
     return f;
 }
 
-std::shared_ptr<ov::Model> FrontEndTF::decode(ov::frontend::InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndTF::decode(const ov::frontend::InputModel::Ptr& model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);
     return f;
 }
 
-void FrontEndTF::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
+void FrontEndTF::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<TFFrameworkNode>(node)) {
             translate_framework_node(std::dynamic_pointer_cast<TFFrameworkNode>(node), m_op_translators);
@@ -344,7 +344,7 @@ void FrontEndTF::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
     normalize(partiallyConverted);
 }
 
-void FrontEndTF::normalize(std::shared_ptr<ov::Model> function) const {
+void FrontEndTF::normalize(const std::shared_ptr<ov::Model>& function) const {
     ov::pass::Manager manager;
     manager.register_pass<ov::frontend::tf::pass::TransposeSinkingOVTF>();
     manager.run_passes(function);

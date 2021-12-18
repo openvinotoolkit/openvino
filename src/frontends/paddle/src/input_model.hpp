@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <common/telemetry_extension.hpp>
-#include <manager.hpp>
+#include <openvino/frontend/telemetry_extension.hpp>
+#include <openvino/frontend/manager.hpp>
 #include <openvino/frontend/paddle/frontend.hpp>
 
 namespace ov {
@@ -15,9 +15,9 @@ namespace paddle {
 class OpPlace;
 class TensorPlace;
 class InputModel : public ov::frontend::InputModel {
-    friend class ov::frontend::paddle::FrontEnd;
-    class InputModelpaddleImpl;
-    std::shared_ptr<InputModelpaddleImpl> _impl;
+    friend class FrontEnd;
+    class InputModelPaddleImpl;
+    std::shared_ptr<InputModelPaddleImpl> _impl;
 
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const;
@@ -36,10 +36,10 @@ public:
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;
     void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
-    void set_partial_shape(Place::Ptr place, const ov::PartialShape&) override;
-    ov::PartialShape get_partial_shape(Place::Ptr place) const override;
-    void set_element_type(Place::Ptr place, const ov::element::Type&) override;
-    void set_tensor_value(Place::Ptr place, const void* value) override;
+    void set_partial_shape(const Place::Ptr& place, const ov::PartialShape&) override;
+    ov::PartialShape get_partial_shape(const Place::Ptr& place) const override;
+    void set_element_type(const Place::Ptr& place, const ov::element::Type&) override;
+    void set_tensor_value(const Place::Ptr& place, const void* value) override;
 };
 
 }  // namespace paddle

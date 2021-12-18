@@ -3,7 +3,7 @@
 //
 
 #include <frontend/shared/include/utils.hpp>
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #include "gtest/gtest.h"
 #include "paddle_utils.hpp"
