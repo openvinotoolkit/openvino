@@ -9,11 +9,11 @@
 #include "openvino/frontend/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
-#ifdef mock_py_ov_frontend_EXPORTS
+#ifdef ov_mock_py_frontend_EXPORTS
 #    define MOCK_API OPENVINO_CORE_EXPORTS
 #else
 #    define MOCK_API OPENVINO_CORE_IMPORTS
-#endif  // mock_py_ov_frontend_EXPORTS
+#endif  // ov_mock_py_frontend_EXPORTS
 
 // OK to have 'using' in mock header
 
@@ -257,13 +257,13 @@ public:
         return false;
     }
 
-    bool is_equal(Ptr another) const override {
+    bool is_equal(const Ptr& another) const override {
         m_stat.m_is_equal++;
         m_stat.m_lastArgPlace = another;
         return false;
     }
 
-    bool is_equal_data(Ptr another) const override {
+    bool is_equal_data(const Ptr& another) const override {
         m_stat.m_is_equal_data++;
         m_stat.m_lastArgPlace = another;
         return false;
@@ -471,19 +471,19 @@ public:
         return std::make_shared<PlaceMockPy>();
     }
 
-    void set_name_for_tensor(Place::Ptr tensor, const std::string& newName) override {
+    void set_name_for_tensor(const Place::Ptr& tensor, const std::string& newName) override {
         m_stat.m_set_name_for_tensor++;
         m_stat.m_lastArgPlace = tensor;
         m_stat.m_lastArgString = newName;
     }
 
-    void add_name_for_tensor(Place::Ptr tensor, const std::string& newName) override {
+    void add_name_for_tensor(const Place::Ptr& tensor, const std::string& newName) override {
         m_stat.m_add_name_for_tensor++;
         m_stat.m_lastArgPlace = tensor;
         m_stat.m_lastArgString = newName;
     }
 
-    void set_name_for_operation(Place::Ptr operation, const std::string& newName) override {
+    void set_name_for_operation(const Place::Ptr& operation, const std::string& newName) override {
         m_stat.m_set_name_for_operation++;
         m_stat.m_lastArgPlace = operation;
         m_stat.m_lastArgString = newName;
@@ -499,32 +499,32 @@ public:
         m_stat.m_lastArgString = name;
     }
 
-    void set_name_for_dimension(Place::Ptr place, size_t shapeDimIndex, const std::string& dimName) override {
+    void set_name_for_dimension(const Place::Ptr& place, size_t shapeDimIndex, const std::string& dimName) override {
         m_stat.m_set_name_for_dimension++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgInt = static_cast<int>(shapeDimIndex);
         m_stat.m_lastArgString = dimName;
     }
 
-    void cut_and_add_new_input(Place::Ptr place, const std::string& newNameOptional) override {
+    void cut_and_add_new_input(const Place::Ptr& place, const std::string& newNameOptional) override {
         m_stat.m_cut_and_add_new_input++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgString = newNameOptional;
     }
 
-    void cut_and_add_new_output(Place::Ptr place, const std::string& newNameOptional) override {
+    void cut_and_add_new_output(const Place::Ptr& place, const std::string& newNameOptional) override {
         m_stat.m_cut_and_add_new_output++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgString = newNameOptional;
     }
 
-    Place::Ptr add_output(Place::Ptr place) override {
+    Place::Ptr add_output(const Place::Ptr& place) override {
         m_stat.m_add_output++;
         m_stat.m_lastArgPlace = place;
         return std::make_shared<PlaceMockPy>();
     }
 
-    void remove_output(Place::Ptr place) override {
+    void remove_output(const Place::Ptr& place) override {
         m_stat.m_remove_output++;
         m_stat.m_lastArgPlace = place;
     }
@@ -546,19 +546,19 @@ public:
     }
 
     // Setting tensor properties
-    void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) override {
+    void set_partial_shape(const Place::Ptr& place, const ngraph::PartialShape& shape) override {
         m_stat.m_set_partial_shape++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgPartialShape = shape;
     }
 
-    ngraph::PartialShape get_partial_shape(Place::Ptr place) const override {
+    ngraph::PartialShape get_partial_shape(const Place::Ptr& place) const override {
         m_stat.m_get_partial_shape++;
         m_stat.m_lastArgPlace = place;
         return {};
     }
 
-    void set_element_type(Place::Ptr place, const ngraph::element::Type& type) override {
+    void set_element_type(const Place::Ptr& place, const ngraph::element::Type& type) override {
         m_stat.m_set_element_type++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgElementType = type;
@@ -631,26 +631,26 @@ public:
         return false;
     }
 
-    std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override {
+    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
         m_stat.m_convert_model++;
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    void convert(std::shared_ptr<ov::Model> func) const override {
+    void convert(const std::shared_ptr<ov::Model>& func) const override {
         m_stat.m_convert++;
     }
 
-    std::shared_ptr<ov::Model> convert_partially(InputModel::Ptr model) const override {
+    std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const override {
         m_stat.m_convert_partially++;
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    std::shared_ptr<ov::Model> decode(InputModel::Ptr model) const override {
+    std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override {
         m_stat.m_decode++;
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    void normalize(std::shared_ptr<ov::Model> function) const override {
+    void normalize(const std::shared_ptr<ov::Model>& function) const override {
         m_stat.m_normalize++;
     }
 
