@@ -21,7 +21,7 @@ namespace {
             {0, 1, 3, 2}
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersDeathTest,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(orders)),

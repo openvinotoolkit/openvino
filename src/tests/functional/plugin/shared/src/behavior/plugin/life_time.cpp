@@ -77,14 +77,15 @@ namespace BehaviorTestsDefinitions {
             release(i);
     }
 
-    TEST_P(HoldersTest, Orders) {
+    TEST_P(HoldersDeathTest, Orders) {
+        ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
         // Test failed if crash happens
-        EXPECT_NO_CRASH(release_order_test(order, targetDevice, function));
+        release_order_test(order, targetDevice, function);
     }
 
     TEST_P(HoldersTestImportNetwork, Orders) {
         // Test failed if crash happens
-        EXPECT_NO_CRASH(release_order_test(order, targetDevice, function));
+        release_order_test(order, targetDevice, function);
     }
 
     std::string HoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {

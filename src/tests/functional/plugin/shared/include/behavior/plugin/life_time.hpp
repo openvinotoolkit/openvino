@@ -42,6 +42,7 @@ public:
 };
 
 using HoldersTestImportNetwork = HoldersTest;
+using HoldersDeathTest = HoldersTest;
 
 class HoldersTestOnImportedNetwork : public CommonTestUtils::TestsCommon,
                                      public ::testing::WithParamInterface<std::string> {

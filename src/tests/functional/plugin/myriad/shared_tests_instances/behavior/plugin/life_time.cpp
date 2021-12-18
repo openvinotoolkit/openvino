@@ -18,7 +18,7 @@ namespace {
             {2, 1, 0}
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersDeathTest,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
             ::testing::ValuesIn(orders)),
