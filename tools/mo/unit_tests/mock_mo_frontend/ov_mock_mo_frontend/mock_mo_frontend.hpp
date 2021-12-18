@@ -188,7 +188,7 @@ public:
         return m_name.find("output") != std::string::npos;
     }
 
-    bool is_equal(Ptr another) const override
+    bool is_equal(const Ptr& another) const override
     {
         m_stat.m_is_equal++;
         m_stat.m_lastArgPlace = another;
@@ -197,7 +197,7 @@ public:
                m_portIndex == mock->m_portIndex;
     }
 
-    bool is_equal_data(Ptr another) const override
+    bool is_equal_data(const Ptr& another) const override
     {
         if (m_is_op)
             throw "Not implemented";
@@ -358,21 +358,21 @@ public:
     }
 
     // Setting tensor properties
-    void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) override
+    void set_partial_shape(const Place::Ptr& place, const ngraph::PartialShape& shape) override
     {
         m_stat.m_set_partial_shape++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgPartialShape = shape;
     }
 
-    ngraph::PartialShape get_partial_shape(Place::Ptr place) const override
+    ngraph::PartialShape get_partial_shape(const Place::Ptr& place) const override
     {
         m_stat.m_get_partial_shape++;
         m_stat.m_lastArgPlace = place;
         return m_returnShape;
     }
 
-    void set_element_type(Place::Ptr place, const ngraph::element::Type& type) override
+    void set_element_type(const Place::Ptr& place, const ngraph::element::Type& type) override
     {
         m_stat.m_set_element_type++;
         m_stat.m_lastArgPlace = place;
@@ -414,7 +414,7 @@ class MOCK_API FrontEndMockPy : public FrontEnd
 public:
     FrontEndMockPy() {}
 
-    std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const override
+    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override
     {
         m_stat.m_convert_model++;
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
