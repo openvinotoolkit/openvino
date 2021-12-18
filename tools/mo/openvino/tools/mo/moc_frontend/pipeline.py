@@ -55,10 +55,20 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         new_output_places = [x['node'] for x in outputs]
         log.debug('Using extract subgraph')
         input_model.extract_subgraph(new_input_places, new_output_places)
+        # invalidation of existing Place objects could have happened in the operation above
+        if user_shapes:
+            user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
+                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+                argv.output, argv.freeze_placeholder_with_value)
     elif not inputs_equal:
         new_input_places = [x['node'] for x in user_shapes]
         log.debug('Using override_all_inputs')
         input_model.override_all_inputs(new_input_places)
+        # invalidation of existing Place objects could have happened in the operation above
+        if user_shapes:
+            user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
+                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+                argv.output, argv.freeze_placeholder_with_value)
     elif not outputs_equal:
         new_output_places = [x['node'] for x in outputs]
         log.debug('Using override_all_outputs')

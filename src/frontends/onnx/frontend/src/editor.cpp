@@ -336,8 +336,8 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     }
 }
 
-void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
-                                                      const std::vector<OutputEdge>& outputs) {
+void onnx_editor::ONNXModelEditor::extract_subgraph(const std::vector<InputEdge>& inputs,
+                                                    const std::vector<OutputEdge>& outputs) {
     if (inputs.empty() && outputs.empty()) {
         return;
     }
@@ -492,6 +492,16 @@ void onnx_editor::ONNXModelEditor::set_node_name(const EditorNode& node, const s
     m_pimpl->m_is_mapper_updated = false;
 
     *graph->mutable_node(node_idx)->mutable_name() = new_name;
+}
+
+std::string onnx_editor::ONNXModelEditor::get_node_name(const EditorNode& node) const {
+    if (node.m_node_index >= 0) {
+        OPENVINO_ASSERT(node.m_node_index < m_pimpl->m_model_proto->graph().node().size(), "XXX");
+        const auto& n = m_pimpl->m_model_proto->graph().node(node.m_node_index);
+        return n.has_name() ? n.name() : "";
+    } else {
+        return node.m_node_name;
+    }
 }
 
 void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {

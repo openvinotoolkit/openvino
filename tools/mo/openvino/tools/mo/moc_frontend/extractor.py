@@ -32,8 +32,7 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     if match_post:
         node_post = input_model.get_place_by_operation_name(match_post.group(1))
         if node_post:
-            node_post = node_post.get_output_port(
-                outputPortIndex=int(match_post.group(2)))
+            node_post = node_post.get_output_port(outputPortIndex=int(match_post.group(2)))
             if node_post:
                 found_node_names.append(match_post.group(1))
                 found_nodes.append(node_post)
@@ -43,8 +42,7 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     if match_pre:
         node_pre = input_model.get_place_by_operation_name(match_pre.group(2))
         if node_pre:
-            node_pre = node_pre.get_input_port(
-                inputPortIndex=int(match_pre.group(1)))
+            node_pre = node_pre.get_input_port(inputPortIndex=int(match_pre.group(1)))
             if node_pre:
                 found_node_names.append(match_pre.group(2))
                 found_nodes.append(node_pre)
