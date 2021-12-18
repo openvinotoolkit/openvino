@@ -5,7 +5,8 @@
 #pragma once
 
 #include <openvino/frontend/frontend.hpp>
-#include <openvino/frontend/telemetry_extension.hpp>
+
+#include "openvino/frontend/extension/telemetry.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define ONNX_FRONTEND_API

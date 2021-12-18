@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/place.hpp"
-#include "openvino/frontend/telemetry_extension.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"
 
 namespace ov {

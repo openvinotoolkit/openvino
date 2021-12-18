@@ -7,7 +7,6 @@
 #include <istream>
 #include <map>
 #include <memory>
-#include <openvino/frontend/telemetry_extension.hpp>
 
 #include "editor_types.hpp"
 #include "ngraph/function.hpp"
@@ -15,6 +14,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ov {
 namespace onnx_editor {

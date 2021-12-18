@@ -308,6 +308,20 @@ ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<ov::Any>& 
 
 std::shared_ptr<ov::Model> FrontEndTF::convert(const ov::frontend::InputModel::Ptr& model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+    FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
     normalize(f);
@@ -318,6 +332,20 @@ std::shared_ptr<ov::Model> FrontEndTF::convert(const ov::frontend::InputModel::P
 
 std::shared_ptr<ov::Model> FrontEndTF::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+    FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
     normalize(f);
@@ -353,5 +381,7 @@ void FrontEndTF::normalize(const std::shared_ptr<ov::Model>& function) const {
 void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
+        m_transformation_extensions.push_back(transformation);
     }
 }

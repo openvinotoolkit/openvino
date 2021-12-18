@@ -8,11 +8,11 @@
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
 #include <openvino/frontend/onnx/frontend.hpp>
-#include <openvino/frontend/telemetry_extension.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 
 #include "onnx_common/onnx_model_validator.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
