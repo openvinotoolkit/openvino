@@ -602,9 +602,9 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
-    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ov_frontend SOURCE_DIR)
+    get_target_property(ONNX_FRONTEND_SRC_DIR ov_onnx_frontend SOURCE_DIR)
     target_include_directories(ov_core_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(ov_core_unit_tests PRIVATE onnx_ov_frontend onnx_test_util)
+    target_link_libraries(ov_core_unit_tests PRIVATE ov_onnx_frontend onnx_test_util)
     if (LINUX)
         target_link_options(ov_core_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
@@ -613,7 +613,7 @@ if (ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 if(ENABLE_OV_IR_FRONTEND)
-    add_dependencies(ov_core_unit_tests ir_ov_frontend)
+    add_dependencies(ov_core_unit_tests ov_ir_frontend)
 endif()
 
 install(TARGETS ov_core_unit_tests

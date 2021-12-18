@@ -29,7 +29,7 @@ extern "C" MOCK_API FrontEndVersion GetAPIVersion()
 extern "C" MOCK_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
-    res->m_name = "mock_mo_ov_frontend";
+    res->m_name = "ov_mock_mo_frontend";
     res->m_creator = []() { return std::make_shared<FrontEndMockPy>(); };
 
     return res;

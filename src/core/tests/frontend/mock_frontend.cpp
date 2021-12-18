@@ -7,11 +7,11 @@
 #include "openvino/frontend/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
-#ifdef mock1_ov_frontend_EXPORTS
+#ifdef ov_mock1_frontend_EXPORTS
 #    define MOCK_API OPENVINO_CORE_EXPORTS
 #else
 #    define MOCK_API OPENVINO_CORE_IMPORTS
-#endif  // mock1_ov_frontend_EXPORTS
+#endif  // ov_mock1_frontend_EXPORTS
 
 using namespace ngraph;
 using namespace ov::frontend;

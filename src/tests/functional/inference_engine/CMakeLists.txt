@@ -33,7 +33,7 @@ set(DEPENDENCIES
 )
 
 if(ENABLE_OV_IR_FRONTEND)
-    list(APPEND DEPENDENCIES ir_ov_frontend)
+    list(APPEND DEPENDENCIES ov_ir_frontend)
 endif()
 
 if(ENABLE_IR_V7_READER)
@@ -74,13 +74,13 @@ if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         ENABLE_OV_ONNX_FRONTEND
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
-    add_dependencies(${TARGET_NAME} onnx_ov_frontend)
+    add_dependencies(${TARGET_NAME} ov_onnx_frontend)
 endif()
 
 if(ENABLE_OV_PDPD_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
-    add_dependencies(${TARGET_NAME} paddlepaddle_ov_frontend)
+    add_dependencies(${TARGET_NAME} ov_paddlepaddle_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
