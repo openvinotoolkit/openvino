@@ -137,18 +137,46 @@ void InputModel::free_name_for_tensor(const std::string&) {
 }
 
 void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) {
-    std::map<std::string, ngraph::PartialShape> m;
-    m[place->get_names()[0]] = shape;
-    m_editor->set_input_shapes(m);
+    std::string input_name;  // name of the model input which should be reshaped
+    const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
+    if (input_edge) {
+        const auto tensor_names = input_edge->get_source_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(), "Cannot retrieve input name. Setting new input shape is not possible.");
+        input_name = tensor_names[0];
+    } else {
+        // fallback in case something else than an InputEdge is passed in - try to retrieve its name and reshape
+        OPENVINO_ASSERT(!place->get_names().empty(),
+                        "Cannot retrieve input name. Setting new input shape is not possible.");
+        input_name = place->get_names()[0];
+    }
+
+    m_editor->set_input_shapes({{input_name, shape}});
 }
 
 ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
-    return m_editor->get_tensor_shape(place->get_names().at(0));
+    std::string tensor_name;  // name of the model input which should be reshaped
+    const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
+    const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
+    if (input_edge) {
+        const auto tensor_names = input_edge->get_source_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(),
+                        "Cannot retrieve source tensor name for this InputEdge and thus partial shape.");
+        tensor_name = tensor_names[0];
+    } else if (output_edge) {
+        const auto tensor_names = output_edge->get_target_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(),
+                        "Cannot retrieve target tensor name for this OutputEdge and thus partial shape.");
+        tensor_name = tensor_names[0];
+    } else {
+        tensor_name = place->get_names().at(0);
+    }
+
+    return m_editor->get_tensor_shape(tensor_name);
 }
 
 void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) {
     std::map<std::string, ngraph::element::Type_t> m;
-    m[place->get_names()[0]] = type;
+    m[place->get_names().at(0)] = type;
     m_editor->set_input_types(m);
 }
 
@@ -195,7 +223,7 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
         if (const auto input_port = std::dynamic_pointer_cast<PlaceInputEdge>(input)) {
             onnx_inputs.push_back(input_port->get_input_edge());
         } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(input)) {
-            auto name = tensor->get_names()[0];
+            const auto name = tensor->get_names().at(0);
             const auto consumers = m_editor->find_output_consumers(name);
             std::transform(std::begin(consumers),
                            std::end(consumers),
@@ -240,7 +268,7 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
                            });
         }
     }
-    m_editor->cut_graph_fragment(onnx_inputs, onnx_outputs);
+    m_editor->extract_subgraph(onnx_inputs, onnx_outputs);
 }
 
 void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {

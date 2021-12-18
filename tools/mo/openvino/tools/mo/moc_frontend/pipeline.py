@@ -56,12 +56,22 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         for new_input in user_shapes:
             input_model.add_name_for_tensor(new_input['node'], new_input['input_name'])
         input_model.extract_subgraph(new_input_places, new_output_places)
+        # invalidation of existing Place objects could have happened in the operation above
+        if user_shapes:
+            user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
+                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+                argv.output, argv.freeze_placeholder_with_value)
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
         for new_input in user_shapes:
             input_model.add_name_for_tensor(new_input['node'], new_input['input_name'])
         new_input_places = [x['node'] for x in user_shapes]
         input_model.override_all_inputs(new_input_places)
+        # invalidation of existing Place objects could have happened in the operation above
+        if user_shapes:
+            user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
+                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+                argv.output, argv.freeze_placeholder_with_value)
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
         for new_input in user_shapes:
