@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <openvino/frontend/manager.hpp>
+#include <openvino/frontend/frontend.hpp>
+#include <openvino/frontend/input_model.hpp>
 #include <openvino/frontend/telemetry_extension.hpp>
 
 #include "exceptions.hpp"
-#include "input_model.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
@@ -69,7 +69,7 @@ protected:
 
 private:
     static std::shared_ptr<Model> convert_each_node(
-        const std::shared_ptr<InputModel>& model,
+        const std::shared_ptr<InputModel>& frontend_model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlace>&)> func);
     std::shared_ptr<TelemetryExtension> m_telemetry;

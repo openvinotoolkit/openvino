@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <openvino/frontend/manager.hpp>
 #include <openvino/frontend/paddle/frontend.hpp>
 #include <openvino/frontend/telemetry_extension.hpp>
 
@@ -14,15 +13,8 @@ namespace paddle {
 
 class OpPlace;
 class TensorPlace;
+
 class InputModel : public ov::frontend::InputModel {
-    friend class FrontEnd;
-    class InputModelPaddleImpl;
-    std::shared_ptr<InputModelPaddleImpl> _impl;
-
-    std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
-    std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const;
-    std::map<std::string, Output<Node>> get_tensor_values() const;
-
 public:
     explicit InputModel(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -40,6 +32,15 @@ public:
     ov::PartialShape get_partial_shape(const Place::Ptr& place) const override;
     void set_element_type(const Place::Ptr& place, const ov::element::Type&) override;
     void set_tensor_value(const Place::Ptr& place, const void* value) override;
+
+private:
+    friend class ov::frontend::paddle::FrontEnd;
+    class InputModelPaddleImpl;
+    std::shared_ptr<InputModelPaddleImpl> _impl;
+
+    std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
+    std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const;
+    std::map<std::string, Output<Node>> get_tensor_values() const;
 };
 
 }  // namespace paddle

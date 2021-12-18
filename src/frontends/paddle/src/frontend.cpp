@@ -133,9 +133,11 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
 }  // namespace
 
 std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
-    const std::shared_ptr<InputModel>& model,
+    const std::shared_ptr<ov::frontend::InputModel>& frontend_model,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                       const std::shared_ptr<OpPlace>&)> func) {
+    auto model = std::dynamic_pointer_cast<InputModel>(frontend_model);
+    FRONT_END_GENERAL_CHECK(model, "Invalid input model");
     auto nodes_dict(model->get_tensor_values());
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
