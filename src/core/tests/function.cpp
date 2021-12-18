@@ -534,8 +534,7 @@ TEST(function, parameter_result_function) {
         param->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::opset8::Result>(param);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                      ngraph::ParameterVector{param});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         function->set_friendly_name("ParamResult");
     }
 
@@ -564,8 +563,7 @@ TEST(function, constant_result_function) {
         constant->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::opset8::Result>(constant);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                      ngraph::ParameterVector{});
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{});
         function->set_friendly_name("ConstResult");
     }
 
