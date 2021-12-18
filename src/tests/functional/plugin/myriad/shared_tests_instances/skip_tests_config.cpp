@@ -53,10 +53,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         // TODO: Issue 69529
-        R"(.*Behavior.*OVExecNetwork.*ieImport.*)",
-        R"(.*Behavior.*OVExecNetwork.*ExportedIENetwork.*)",
+        R"(.*Behavior.*OVExecNetworkImportExport.*ieImport.*)",
+        R"(.*Behavior.*OVExecNetworkImportExport.*ExportedIENetwork.*)",
         // TODO: Issue 73501
-        R"(.*_Hetero_Behavior.*OVExecNetwork.*)",
+        R"(.*_Hetero_Behavior.*OVExecNetworkImportExport.*)",
         // TODO: Issue 65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
         // Not expected behavior

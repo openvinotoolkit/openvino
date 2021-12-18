@@ -25,34 +25,34 @@ const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVExecNetwork,
+                         OVExecNetworkImportExport,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::ValuesIn(emptyConfig)),
-                         OVExecNetwork::getTestCaseName);
+                         OVExecNetworkImportExport::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         OVExecNetwork,
+                         OVExecNetworkImportExport,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                  ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
-                         OVExecNetwork::getTestCaseName);
+                         OVExecNetworkImportExport::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-         OVExecNetwork,
+         OVExecNetworkImportExport,
         ::testing::Combine(
                 ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
-        OVExecNetwork::getTestCaseName);
+        OVExecNetworkImportExport::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-         OVExecNetwork,
+         OVExecNetworkImportExport,
         ::testing::Combine(::testing::ValuesIn(ovExecGraphInfoElemTypes),
                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
-        OVExecNetwork::getTestCaseName);
+        OVExecNetworkImportExport::getTestCaseName);
 
 }  // namespace

@@ -30,26 +30,26 @@ const std::vector<std::map<std::string, std::string>> heteroConfigs = {
         {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVExecNetwork,
+                         OVExecNetworkImportExport,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                  ::testing::ValuesIn(configs)),
-                         OVExecNetwork::getTestCaseName);
+                         OVExecNetworkImportExport::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-         OVExecNetwork,
+         OVExecNetworkImportExport,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(multiConfigs)),
-        OVExecNetwork::getTestCaseName);
+        OVExecNetworkImportExport::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-         OVExecNetwork,
+         OVExecNetworkImportExport,
         ::testing::Combine(::testing::ValuesIn(netPrecisions),
                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                            ::testing::ValuesIn(heteroConfigs)),
-        OVExecNetwork::getTestCaseName);
+        OVExecNetworkImportExport::getTestCaseName);
 
 }  // namespace
