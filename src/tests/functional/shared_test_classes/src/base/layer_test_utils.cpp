@@ -540,15 +540,15 @@ std::string LayerTestsCommon::getRuntimePrecisionByFusedName(const std::string& 
 
         const auto& nameIt = rtInfo.find("originalLayersNames");
         IE_ASSERT(nameIt != rtInfo.end()) << "originalLayersNames is not found for node: " << layerName;
-        const auto fusedName = parse(ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(nameIt->second)->get());
+        const auto fusedName = parse(nameIt->second.as<std::string>());
         if (fusedName.find(layerName) == fusedName.end()) {
             continue;
         }
 
         const auto& it = rtInfo.find("runtimePrecision");
         IE_ASSERT(it != rtInfo.end()) << "runtimePrecision is not found for node: " << layerName;
-        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
-        return rtPrecisionPtr->get();
+        const auto rtPrecisionPtr = it->second.as<std::string>();
+        return rtPrecisionPtr;
     }
 
     return "";
@@ -573,15 +573,15 @@ void LayerTestsCommon::showRuntimePrecisions() {
         const auto& rtInfo = op->get_rt_info();
 
         const auto& nameIt = rtInfo.find("originalLayersNames");
-        const auto name = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(nameIt->second)->get();
+        const auto name = nameIt->second.as<std::string>();
 
         const auto& typeIt = rtInfo.find("layerType");
-        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
+        const auto type = typeIt->second.as<std::string>();
 
         const auto& it = rtInfo.find("runtimePrecision");
-        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+        const auto rtPrecisionPtr = it->second.as<std::string>();
 
-        std::cout << type << "(" << name << "): " << rtPrecisionPtr->get() << std::endl;
+        std::cout << type << "(" << name << "): " << rtPrecisionPtr << std::endl;
     }
 }
 #endif

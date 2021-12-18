@@ -81,7 +81,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
         auto rtInfo = LayerTestsCommon::getRuntimeInfo();
         for (auto it : rtInfo) {
             const auto& typeIt = it.second.find("layerType");
-            const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
+            const auto type = typeIt->second.as<std::string>();
             if (type == "Reorder") {
                 const auto name = it.first;
                 bool wasFound = false;
@@ -99,7 +99,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
                 ASSERT_TRUE(wasFound) << it.first << " was not found in expected list";
             } else if (type == "Convolution") {
                 const auto& precisionIt = it.second.find("runtimePrecision");
-                const auto precision = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(precisionIt->second)->get();
+                const auto precision = precisionIt->second.as<std::string>();
                 ASSERT_EQ("U8", precision);
             }
         }
