@@ -16,7 +16,7 @@ if (ENABLE_OV_TF_FRONTEND)
 endif()
 
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
-set(MOCK1_FE_NAME mock1_ov_frontend)
+set(MOCK1_FE_NAME ov_mock1_frontend)
 add_library(${MOCK1_FE_NAME} SHARED EXCLUDE_FROM_ALL ${SRC})
 
 target_compile_definitions(${MOCK1_FE_NAME} PRIVATE "-DMOCK_VARIANT=\"1\"")

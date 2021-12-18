@@ -21,7 +21,6 @@ addIeTargetTest(
             vpu_graph_transformer_test_static
             mvnc
             ngraph
-            interpreter_backend
             inference_engine_lp_transformations # for ngraphFunctions
         ADD_CPPLINT
         LABELS

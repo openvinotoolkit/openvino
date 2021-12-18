@@ -7,7 +7,8 @@
 #include "common/cpu_convert.h"
 #include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>
-#include "utils/ngraph_utils.hpp"
+#include <ie_ngraph_utils.hpp>
+#include <utils/ngraph_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -26,14 +27,17 @@ bool MKLDNNConvertNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNConvertNode::MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+MKLDNNConvertNode::MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Convert node with name '" + getName() + "'";
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
+
+    auto convert = ov::as_type_ptr<const ngraph::opset1::Convert>(op);
+    origPrc = details::convertPrecision(convert->get_destination_type());
 }
 
 std::vector<VectorDims> MKLDNNConvertNode::shapeInfer() const {
@@ -42,7 +46,8 @@ std::vector<VectorDims> MKLDNNConvertNode::shapeInfer() const {
 
 MKLDNNConvertNode::MKLDNNConvertNode(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
                                      const std::string &nodeName, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode("Convert", nodeName, eng, cache) {
+        : MKLDNNNode("Convert", nodeName, eng, cache)
+        , origPrc(outPrc) {
     inputShapes.push_back(shape);
     addOriginalInputPrecision(inPrc);
     outputShapes.push_back(shape);
@@ -124,15 +129,8 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNConvertNode::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " has not allocated destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " has not allocated input memory";
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
+void MKLDNNConvertNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNConvertNode::execute(mkldnn::stream strm) {
@@ -147,7 +145,13 @@ void MKLDNNConvertNode::execute(mkldnn::stream strm) {
 
     void* srcPtr = parentMem.GetPtr();
     void* dstPtr = childMem.GetPtr();
-    cpu_convert(srcPtr, dstPtr, parentMem.getDesc().getPrecision(), childMem.getDesc().getPrecision(), parentPaddElemCount);
+
+    cpu_convert(srcPtr,
+                dstPtr,
+                parentMem.getDesc().getPrecision(),
+                origPrc,
+                childMem.getDesc().getPrecision(),
+                parentPaddElemCount);
 }
 
 bool MKLDNNConvertNode::created() const {

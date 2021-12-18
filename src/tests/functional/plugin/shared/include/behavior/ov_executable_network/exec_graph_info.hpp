@@ -108,10 +108,14 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
               importedExecNet.input(0).get_tensor().get_partial_shape());
     EXPECT_EQ(function->input(0).get_tensor().get_element_type(),
               importedExecNet.input(0).get_tensor().get_element_type());
+    EXPECT_EQ(function->input(0).get_element_type(),
+              importedExecNet.input(0).get_tensor().get_element_type());
     EXPECT_EQ(function->input(1).get_tensor().get_names(), importedExecNet.input(1).get_tensor().get_names());
     EXPECT_EQ(function->input(1).get_tensor().get_partial_shape(),
               importedExecNet.input(1).get_tensor().get_partial_shape());
     EXPECT_EQ(function->input(1).get_tensor().get_element_type(),
+              importedExecNet.input(1).get_tensor().get_element_type());
+    EXPECT_EQ(function->input(1).get_element_type(),
               importedExecNet.input(1).get_tensor().get_element_type());
     EXPECT_EQ(importedExecNet.input(0).get_node(), importedExecNet.input("data1").get_node());
     EXPECT_NE(importedExecNet.input(1).get_node(), importedExecNet.input("data1").get_node());
@@ -125,10 +129,14 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
               importedExecNet.output(0).get_tensor().get_partial_shape());
     EXPECT_EQ(function->output(0).get_tensor().get_element_type(),
               importedExecNet.output(0).get_tensor().get_element_type());
+    EXPECT_EQ(function->output(0).get_element_type(),
+              importedExecNet.output(0).get_tensor().get_element_type());
     EXPECT_EQ(function->output(1).get_tensor().get_names(), importedExecNet.output(1).get_tensor().get_names());
     EXPECT_EQ(function->output(1).get_tensor().get_partial_shape(),
               importedExecNet.output(1).get_tensor().get_partial_shape());
     EXPECT_EQ(function->output(1).get_tensor().get_element_type(),
+              importedExecNet.output(1).get_tensor().get_element_type());
+    EXPECT_EQ(function->output(1).get_element_type(),
               importedExecNet.output(1).get_tensor().get_element_type());
     EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("relu").get_node());
     EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("relu").get_node());
@@ -248,7 +256,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
         result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});
-        function->set_friendly_name("SingleRuLU");
+        function->set_friendly_name("SingleReLU");
     }
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration);
 
@@ -291,7 +299,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
     InferenceEngine::ExecutableNetwork execNet;
 
-    // Create simple function
+    // Create a simple function
     {
         auto param = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param->set_friendly_name("param");
@@ -300,7 +308,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
         result->set_friendly_name("result");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                       ngraph::ParameterVector{param});
-        function->set_friendly_name("SingleRuLU");
+        function->set_friendly_name("ParamResult");
     }
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration);
 
@@ -337,16 +345,16 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
     InferenceEngine::ExecutableNetwork execNet;
 
-    // Create simple function
+    // Create a simple function
     {
         auto constant = std::make_shared<ov::opset8::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
         constant->set_friendly_name("constant");
         constant->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::opset8::Result>(constant);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{},
-                                                      ngraph::ParameterVector{param});
-        function->set_friendly_name("SingleRuLU");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                      ngraph::ParameterVector{});
+        function->set_friendly_name("ConstResult");
     }
     execNet = ie->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration);
 
@@ -403,7 +411,7 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
         result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});
-        function->set_friendly_name("SingleRuLU");
+        function->set_friendly_name("SingleReLU");
     }
     execNet = core->compile_model(function, targetDevice, configuration);
 
