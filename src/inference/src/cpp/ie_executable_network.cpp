@@ -186,7 +186,7 @@ ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name)
                 return result;
             }
         }
-        throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+        throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
     });
 }
 

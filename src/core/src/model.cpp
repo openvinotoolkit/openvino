@@ -695,7 +695,7 @@ ov::Output<const ov::Node> ov::Model::output(const std::string& tensor_name) con
             return result;
         }
     }
-    throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+    throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
 }
 
 std::vector<ov::Output<ov::Node>> ov::Model::outputs() {
@@ -719,7 +719,7 @@ ov::Output<ov::Node> ov::Model::output(const std::string& tensor_name) {
         if (res->get_input_tensor(0).get_names().count(tensor_name))
             return res;
     }
-    throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+    throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
 }
 
 /// Input Model

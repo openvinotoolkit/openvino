@@ -123,8 +123,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
-        // Issue 67910
-        R"(.*smoke_PrePostProcess.*two_inputs_trivial.*)",
         // TODO: CVS-67255
         R"(smoke_If.*SimpleIf2OutTest.*)",
 

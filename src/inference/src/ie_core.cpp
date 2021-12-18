@@ -564,9 +564,8 @@ public:
             // create getInputs() based on GetInputsInfo()
             using namespace InferenceEngine::details;
 
-            if (exec->getInputs().empty()) {
+            if (exec->getInputs().empty() && !exec->GetInputsInfo().empty()) {
                 const auto& inputsInfo = exec->GetInputsInfo();
-                OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
 
                 std::vector<std::shared_ptr<const ov::Node>> params;
                 params.reserve(inputsInfo.size());
