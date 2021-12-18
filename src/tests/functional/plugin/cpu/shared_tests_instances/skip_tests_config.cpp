@@ -102,6 +102,17 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
 
+        // CVS-74306
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i8|u8).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i16|u16).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=(i64|u64).*)",
+        R"(.*importExportedIENetworkParameterResultOnly.*elementType=u32.*)",
+
+        // CVS-74307
+        R"(.*importExportedIENetworkConstantResultOnly.*targetDevice=CPU.*elementType=(u32|f16).*)",
+        R"(.*importExportedIENetworkConstantResultOnly.*targetDevice=CPU.*elementType=(i16|u16).*)",
+        R"(.*importExportedIENetworkConstantResultOnly.*targetDevice=CPU.*elementType=(i64|u64).*)",
+
         // CPU plugin does not support some precisions
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
 
