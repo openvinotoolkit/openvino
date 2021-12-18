@@ -72,7 +72,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
 
     ov::runtime::CompiledModel execNet;
 
-// Create simple function
+    // Create simple function
     {
         auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
@@ -146,6 +146,85 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
     EXPECT_THROW(importedExecNet.input("param2"), ov::Exception);
     EXPECT_THROW(importedExecNet.output("concat_op"), ov::Exception);
     EXPECT_THROW(importedExecNet.output("relu_op"), ov::Exception);
+}
+
+TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
+
+    // Create a simple function
+    {
+        auto param = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param->set_friendly_name("param");
+        param->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(param);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                      ngraph::ParameterVector{param});
+        function->set_friendly_name("ParamResult");
+    }
+
+    auto execNet = core->compile_model(function, targetDevice, configuration);
+    std::stringstream strm;
+    execNet.export_model(strm);
+
+    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    EXPECT_EQ(function->inputs().size(), 1);
+    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
+    EXPECT_NO_THROW(importedExecNet.input());
+    EXPECT_NO_THROW(importedExecNet.input("data").get_node());
+    EXPECT_THROW(importedExecNet.input("param"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
+    EXPECT_NO_THROW(importedExecNet.output());
+    EXPECT_EQ(function->output(0).get_tensor().get_names(),
+              importedExecNet.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedExecNet.output("data").get_node());
+    EXPECT_THROW(importedExecNet.output("param"), ov::Exception);
+
+    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.input("data").get_element_type());
+    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("data").get_element_type());
+}
+
+TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
+
+    // Create a simple function
+    {
+        auto constant = std::make_shared<ov::opset8::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        constant->set_friendly_name("constant");
+        constant->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(constant);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                      ngraph::ParameterVector{});
+        function->set_friendly_name("ConstResult");
+    }
+
+    auto execNet = core->compile_model(function, targetDevice, configuration);
+    std::stringstream strm;
+    execNet.export_model(strm);
+
+    ov::runtime::CompiledModel importedExecNet = core->import_model(strm, targetDevice, configuration);
+    EXPECT_EQ(function->inputs().size(), 0);
+    EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
+    EXPECT_THROW(importedExecNet.input(), ov::Exception);
+    EXPECT_THROW(importedExecNet.input("data"), ov::Exception);
+    EXPECT_THROW(importedExecNet.input("constant"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
+    EXPECT_NO_THROW(importedExecNet.output());
+    EXPECT_EQ(function->output(0).get_tensor().get_names(),
+              importedExecNet.output(0).get_tensor().get_names());
+    EXPECT_NO_THROW(importedExecNet.output("data").get_node());
+    EXPECT_THROW(importedExecNet.output("constant"), ov::Exception);
+
+    EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("data").get_element_type());
 }
 
 TEST_P(OVExecGraphImportExportTest, readFromV10IR) {

@@ -526,6 +526,62 @@ TEST(function, multiple_inputs_outputs_function_from_const_function) {
     EXPECT_EQ(f->outputs().size(), 2);
 }
 
+TEST(function, parameter_result_function) {
+    std::shared_ptr<ov::Model> function = nullptr;
+    {
+        auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ngraph::Shape({1, 3, 24, 24}));
+        param->set_friendly_name("param");
+        param->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(param);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                      ngraph::ParameterVector{param});
+        function->set_friendly_name("ParamResult");
+    }
+
+    EXPECT_EQ(function->inputs().size(), 1);
+    EXPECT_NO_THROW(function->input());
+    EXPECT_NO_THROW(function->input("data"));
+    EXPECT_THROW(function->input("param"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_NO_THROW(function->output());
+    EXPECT_EQ(1, function->output(0).get_tensor().get_names().size());
+    EXPECT_NO_THROW(function->output("data"));
+    EXPECT_THROW(function->output("constant"), ov::Exception);
+
+    EXPECT_EQ(ov::element::f16, function->input("data").get_element_type());
+    EXPECT_EQ(ov::element::f16, function->output("data").get_element_type());
+}
+
+TEST(function, constant_result_function) {
+    std::shared_ptr<ov::Model> function = nullptr;
+    std::shared_ptr<ov::Node> constant = nullptr;
+
+    {
+        constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, ngraph::Shape({1, 3, 24, 24}));
+        constant->set_friendly_name("constant");
+        constant->output(0).get_tensor().set_names({"data"});
+        auto result = std::make_shared<ov::opset8::Result>(constant);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                      ngraph::ParameterVector{});
+        function->set_friendly_name("ConstResult");
+    }
+
+    EXPECT_EQ(function->inputs().size(), 0);
+    EXPECT_THROW(function->input(), ov::Exception);
+    EXPECT_THROW(function->input("data"), ov::Exception);
+    EXPECT_THROW(function->input("constant"), ov::Exception);
+
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_NO_THROW(function->output());
+    EXPECT_EQ(1, function->output(0).get_tensor().get_names().size());
+    EXPECT_NO_THROW(function->output("data"));
+    EXPECT_THROW(function->output("constant"), ov::Exception);
+    EXPECT_EQ(ov::element::f32, function->output("data").get_element_type());
+}
+
 TEST(function_reshape, ReshapedDynamicShapeLayout) {
     std::shared_ptr<ov::Model> ngraph;
     {

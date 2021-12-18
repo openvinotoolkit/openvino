@@ -154,7 +154,7 @@ ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) 
                 return param;
             }
         }
-        throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+        throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
     });
 }
 
