@@ -37,10 +37,9 @@ ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
     ov::mark_as_precision_sensitive(input(1));
 }
 
-ov::PartialShape ov::op::util::BroadcastBase::get_result_shape_paddle(
-    const PartialShape& arg0_shape,
-    const PartialShape& target_pshape,
-    const op::BroadcastModeSpec& broadcast_spec) const {
+ov::PartialShape ov::op::util::BroadcastBase::get_result_shape_pdpd(const PartialShape& arg0_shape,
+                                                                    const PartialShape& target_pshape,
+                                                                    const op::BroadcastModeSpec& broadcast_spec) const {
     if (target_pshape.is_dynamic())
         return PartialShape::dynamic(target_pshape.rank());
     Shape target_shape = target_pshape.to_shape();
@@ -246,22 +245,22 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
             result_shape = output_shape;
             validate_target_shape_numpy(input_shape, output_shape);
         }
-    } else if (m_mode.m_type == BroadcastType::PADDLE) {
+    } else if (m_mode.m_type == BroadcastType::PDPD) {
         if (output_shape_defined) {
-            result_shape = get_result_shape_paddle(input_shape, output_shape, m_mode);
+            result_shape = get_result_shape_pdpd(input_shape, output_shape, m_mode);
         }
     }
     set_output_type(0, get_input_element_type(0), result_shape);
 }
 
-std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes_numpy_paddle(
+std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes_numpy_pdpd(
     const Shape& arg_shape,
     const Shape& result_shape,
     const op::BroadcastModeSpec& broadcast_spec) {
     AxisSet broadcast_axes;
     bool axes_known = false;
-    auto start_axis = (broadcast_spec.m_type == op::BroadcastType::PADDLE) ? broadcast_spec.m_axis
-                                                                           : result_shape.size() - arg_shape.size();
+    auto start_axis = (broadcast_spec.m_type == op::BroadcastType::PDPD) ? broadcast_spec.m_axis
+                                                                         : result_shape.size() - arg_shape.size();
     NGRAPH_CHECK(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
         if (i < start_axis || result_shape[i] != arg_shape[i - start_axis]) {
@@ -300,11 +299,11 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
             NGRAPH_CHECK(target_shape.size() == 1);
             return get_broadcast_axes_none(axes_mapping_val, target_shape[0]);
         }
-    } else if (m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::PADDLE) {
+    } else if (m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::PDPD) {
         if (get_input_partial_shape(0).is_static() && get_output_partial_shape(0).is_static()) {
             auto arg_shape = get_input_shape(0);
             auto result_shape = get_output_shape(0);
-            return get_broadcast_axes_numpy_paddle(arg_shape, result_shape, m_mode);
+            return get_broadcast_axes_numpy_pdpd(arg_shape, result_shape, m_mode);
         }
     } else {
         throw ov::Exception("Unknown autobroadcast type");
@@ -466,13 +465,13 @@ bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, cons
         pair_broadcast_axes = get_broadcast_axes_none(axes_mapping_val, target_shape.size());
         validate_target_shape_none(inputs[0]->get_shape(), axes_mapping_val, target_shape);
         result_shape = target_shape;
-    } else if (m_mode.m_type == BroadcastType::PADDLE) {
-        result_shape = get_result_shape_paddle(arg_shape, target_shape, m_mode);
-        pair_broadcast_axes = get_broadcast_axes_numpy_paddle(arg_shape, result_shape.to_shape(), m_mode);
+    } else if (m_mode.m_type == BroadcastType::PDPD) {
+        result_shape = get_result_shape_pdpd(arg_shape, target_shape, m_mode);
+        pair_broadcast_axes = get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
     } else if (m_mode.m_type == BroadcastType::NUMPY) {
         result_shape = target_shape;
         validate_target_shape_numpy(arg_shape, target_shape);
-        pair_broadcast_axes = get_broadcast_axes_numpy_paddle(arg_shape, result_shape.to_shape(), m_mode);
+        pair_broadcast_axes = get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
     } else {
         throw ov::Exception("Unsupported BroadcastType ");
     }

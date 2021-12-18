@@ -159,9 +159,7 @@ static shared_ptr<Node> numpy_broadcast_node(const Output<Node>& value,
 ///
 /// \return     The broadcasted Node.
 ///
-static shared_ptr<Node> broadcast_value_paddle_style(const Output<Node>& value,
-                                                     const Shape& output_shape,
-                                                     int64_t axis) {
+static shared_ptr<Node> broadcast_value_pdpd_style(const Output<Node>& value, const Shape& output_shape, int64_t axis) {
     auto value_shape = value.get_shape();
 
     // If node already has the required shape, return original node
@@ -262,14 +260,14 @@ OutputVector numpy_broadcast_for_matmul_operation(const Output<Node>& left, cons
             numpy_broadcast_node(right, right_output_shape, right_full_shape)};
 }
 
-OutputVector paddle_broadcast(const OutputVector& inputs, int64_t axis) {
+OutputVector pdpd_broadcast(const OutputVector& inputs, int64_t axis) {
     if (inputs.size() <= 1) {
         return inputs;
     }
 
     OutputVector broadcasted_inputs{inputs[0]};
     for (size_t i = 1; i < inputs.size(); ++i) {
-        broadcasted_inputs.push_back(broadcast_value_paddle_style(inputs[i], inputs[0].get_shape(), axis));
+        broadcasted_inputs.push_back(broadcast_value_pdpd_style(inputs[i], inputs[0].get_shape(), axis));
     }
     return broadcasted_inputs;
 }

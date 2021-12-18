@@ -29,7 +29,7 @@ void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, s
     if (autob.m_type == ov::op::AutoBroadcastType::NONE) {
         NODE_VALIDATION_CHECK(op, T::merge_into(output_shape, input_shapes[1]),
                               "Argument shapes are inconsistent.");
-    } else if (autob.m_type == ov::op::AutoBroadcastType::NUMPY || autob.m_type == ov::op::AutoBroadcastType::PADDLE) {
+    } else if (autob.m_type == ov::op::AutoBroadcastType::NUMPY || autob.m_type == ov::op::AutoBroadcastType::PDPD) {
         NODE_VALIDATION_CHECK(op, T::broadcast_merge_into(output_shape, input_shapes[1], autob),
                               "Argument shapes are inconsistent.");
     } else {

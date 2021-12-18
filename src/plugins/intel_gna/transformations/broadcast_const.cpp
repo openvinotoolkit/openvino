@@ -50,8 +50,8 @@ ov::op::BroadcastModeSpec GetBroadcastType(Node eltwise_node) {
     switch (node->get_autob().m_type) {
         case ov::op::AutoBroadcastType::NUMPY:
             return ov::op::BroadcastType::NUMPY;
-        case ov::op::AutoBroadcastType::PADDLE:
-            return ov::op::BroadcastType::PADDLE;
+        case ov::op::AutoBroadcastType::PDPD:
+            return ov::op::BroadcastType::PDPD;
         default:
             return ov::op::BroadcastType::NONE;
     }
@@ -85,7 +85,7 @@ bool IsEltwiseAcceptable(const ngraph::Output<ngraph::Node>& output) {
         return true;
 
     const ov::op::AutoBroadcastType type = node->get_autob().m_type;
-    return (type == ov::op::AutoBroadcastType::NUMPY || type == ov::op::AutoBroadcastType::PADDLE);
+    return (type == ov::op::AutoBroadcastType::NUMPY || type == ov::op::AutoBroadcastType::PDPD);
 }
 
 } // namespace

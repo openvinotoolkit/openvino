@@ -181,7 +181,7 @@ bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTens
 
 bool op::v3::Broadcast::has_evaluate() const {
     NGRAPH_OP_SCOPE(v3_Broadcast_has_evaluate);
-    return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PADDLE ||
+    return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
            m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::BIDIRECTIONAL;
 }
 
@@ -197,8 +197,8 @@ BroadcastModeSpec to_broadcast_mode(const AutoBroadcastSpec& bs) {
     case AutoBroadcastType::NUMPY:
         broadcast_mode.m_type = BroadcastType::NUMPY;
         break;
-    case AutoBroadcastType::PADDLE:
-        broadcast_mode.m_type = BroadcastType::PADDLE;
+    case AutoBroadcastType::PDPD:
+        broadcast_mode.m_type = BroadcastType::PDPD;
         break;
     }
     return broadcast_mode;
@@ -272,6 +272,6 @@ bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs, const HostTens
 
 bool op::v1::Broadcast::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Broadcast_has_evaluate);
-    return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PADDLE ||
+    return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
            m_mode.m_type == BroadcastType::NUMPY;
 }

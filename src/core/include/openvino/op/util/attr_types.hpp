@@ -75,8 +75,8 @@ std::ostream& operator<<(std::ostream& s, const RoundingType& type);
 ///              A: Shape(2, 1, 6)
 ///              B: Shape(   3, 1)
 ///         Result: Shape(2, 3, 6)
-/// PADDLE  - paddle-style implicit broadcasting
-///         (https://github.com/paddle/Paddle/blob/release/1.5/paddle/
+/// PDPD  - PaddlePaddle-style implicit broadcasting
+///         (https://github.com/PaddlePaddle/Paddle/blob/release/1.5/paddle/
 ///                  fluid/operators/elementwise/elementwise_op.h#L126)
 ///         Broadcast B to match the shape of A, where axis is the start
 ///         dimension index to align B with A. If axis is -1 (default), i
@@ -96,7 +96,7 @@ enum class AutoBroadcastType {
     NONE = 0,
     EXPLICIT = NONE,
     NUMPY,
-    PADDLE,
+    PDPD,
 };
 
 OPENVINO_API
@@ -112,12 +112,12 @@ std::ostream& operator<<(std::ostream& s, const AutoBroadcastType& type);
 ///                 based on axes_mapping input.
 /// NUMPY         - Numpy broadcasting rules, aligned with ONNX Broadcasting.
 ///                 (https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md)
-/// PADDLE          - paddle-style implicit broadcasting.
+/// PDPD          - PaddlePaddle-style implicit broadcasting.
 ///                 For more informaction see AutoBroadcastType documentation.
 /// BIDIRECTIONAL - The broadcast rule is similar to
 ///                 numpy.array(input) * numpy.ones(target_shape).
 ///                 Dimensions are right alignment.
-enum class BroadcastType { NONE, EXPLICIT = NONE, NUMPY, PADDLE, BIDIRECTIONAL };
+enum class BroadcastType { NONE, EXPLICIT = NONE, NUMPY, PDPD, BIDIRECTIONAL };
 
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const BroadcastType& type);

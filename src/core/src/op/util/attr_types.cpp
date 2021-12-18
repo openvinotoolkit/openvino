@@ -54,7 +54,7 @@ NGRAPH_API EnumNames<ngraph::op::AutoBroadcastType>& EnumNames<ngraph::op::AutoB
                                                  {{"none", ngraph::op::AutoBroadcastType::NONE},
                                                   {"explicit", ngraph::op::AutoBroadcastType::EXPLICIT},
                                                   {"numpy", ngraph::op::AutoBroadcastType::NUMPY},
-                                                  {"paddle", ngraph::op::AutoBroadcastType::PADDLE}});
+                                                  {"pdpd", ngraph::op::AutoBroadcastType::PDPD}});
     return enum_names;
 }
 BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::AutoBroadcastType>);
@@ -66,7 +66,7 @@ NGRAPH_API EnumNames<ngraph::op::BroadcastType>& EnumNames<ngraph::op::Broadcast
                                              {{"none", ngraph::op::BroadcastType::NONE},
                                               {"numpy", ngraph::op::BroadcastType::NUMPY},
                                               {"explicit", ngraph::op::BroadcastType::EXPLICIT},
-                                              {"paddle", ngraph::op::BroadcastType::PADDLE},
+                                              {"pdpd", ngraph::op::BroadcastType::PDPD},
                                               {"bidirectional", ngraph::op::BroadcastType::BIDIRECTIONAL}});
     return enum_names;
 }
@@ -106,7 +106,7 @@ bool AttributeAdapter<ngraph::op::AutoBroadcastSpec>::visit_attributes(Attribute
     std::string name = visitor.finish_structure();
     visitor.on_attribute(name, m_ref.m_type);
     visitor.start_structure(name);
-    if (m_ref.m_type == ngraph::op::AutoBroadcastType::PADDLE) {
+    if (m_ref.m_type == ngraph::op::AutoBroadcastType::PDPD) {
         visitor.on_attribute("auto_broadcast_axis", m_ref.m_axis);
     }
     return true;
@@ -119,7 +119,7 @@ bool AttributeAdapter<ngraph::op::BroadcastModeSpec>::visit_attributes(Attribute
     std::string name = visitor.finish_structure();
     visitor.on_attribute(name, m_ref.m_type);
     visitor.start_structure(name);
-    if (m_ref.m_type == ngraph::op::BroadcastType::PADDLE) {
+    if (m_ref.m_type == ngraph::op::BroadcastType::PDPD) {
         visitor.start_structure(name);
         visitor.on_attribute("axis", m_ref.m_axis);
         visitor.finish_structure();
@@ -183,7 +183,7 @@ op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string&
 
     static const std::map<std::string, AutoBroadcastType> allowed_values = {{"none", AutoBroadcastType::NONE},
                                                                             {"numpy", AutoBroadcastType::NUMPY},
-                                                                            {"paddle", AutoBroadcastType::PADDLE},
+                                                                            {"pdpd", AutoBroadcastType::PDPD},
                                                                             {"explicit", AutoBroadcastType::EXPLICIT}};
 
     NGRAPH_CHECK(allowed_values.count(lowercase_type) > 0, "Invalid 'type' value passed in.");

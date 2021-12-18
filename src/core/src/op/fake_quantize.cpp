@@ -45,7 +45,7 @@ void op::FakeQuantize::validate_and_infer_types() {
                                   ov::PartialShape::merge_into(data_pshape, get_input_partial_shape(i)),
                                   "Argument shapes are inconsistent.");
         } else if (m_auto_broadcast.m_type == op::AutoBroadcastType::NUMPY ||
-                   m_auto_broadcast.m_type == op::AutoBroadcastType::PADDLE) {
+                   m_auto_broadcast.m_type == op::AutoBroadcastType::PDPD) {
             NODE_VALIDATION_CHECK(
                 this,
                 ov::PartialShape::broadcast_merge_into(data_pshape, get_input_partial_shape(i), m_auto_broadcast),

@@ -469,7 +469,7 @@ TEST(TransformationTests, GreaterNegativeDifferentMax) {
     };
 
     const auto& f1 = createGreaterFunc(ngraph::op::AutoBroadcastType::NUMPY);
-    const auto& f2 = createGreaterFunc(ngraph::op::AutoBroadcastType::PADDLE);
+    const auto& f2 = createGreaterFunc(ngraph::op::AutoBroadcastType::PDPD);
 
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const auto res = fc.compare(f1, f2);

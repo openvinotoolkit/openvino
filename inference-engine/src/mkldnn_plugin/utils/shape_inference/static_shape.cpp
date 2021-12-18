@@ -120,7 +120,7 @@ bool ov::StaticShape::broadcast_merge_into(StaticShape& dst,
             dst = StaticShape(std::move(dims));
             return success;
         }
-        case ngraph::op::AutoBroadcastType::PADDLE: {
+        case ngraph::op::AutoBroadcastType::PDPD: {
             // Ranks are both static.
             auto dst_rank = dst.rank().get_length();
             auto src_rank = src.rank().get_length();

@@ -19,7 +19,7 @@
   * **Range of values**:
     * *none* - no auto-broadcasting is allowed, all input shapes must match
     * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
-    * *paddle* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
   * **Type**: `string`
   * **Default value**: "numpy"
   * **Required**: *no*

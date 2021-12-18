@@ -118,7 +118,7 @@ void multiclass_nms(const float* boxes_data,
             std::vector<BoxInfo> candidate_boxes;
 
             for (int64_t box_idx = 0; box_idx < num_boxes; box_idx++) {
-                if (scoresPtr[box_idx] >= attrs.score_threshold) /* NOTE: ">=" instead of ">" used in paddle */
+                if (scoresPtr[box_idx] >= attrs.score_threshold) /* NOTE: ">=" instead of ">" used in PDPD */
                 {
                     candidate_boxes.emplace_back(r[box_idx], box_idx, scoresPtr[box_idx], 0, batch, class_idx);
                 }
@@ -127,7 +127,7 @@ void multiclass_nms(const float* boxes_data,
             int candiate_size = candidate_boxes.size();
 
             // threshold nms_top_k for each class
-            // NOTE: "nms_top_k" in paddle not exactly equal to
+            // NOTE: "nms_top_k" in PDPD not exactly equal to
             // "max_output_boxes_per_class" in ONNX.
             if (attrs.nms_top_k > -1 && attrs.nms_top_k < candiate_size) {
                 candiate_size = attrs.nms_top_k;
