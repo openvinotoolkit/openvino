@@ -68,6 +68,7 @@ target_include_directories(${TARGET_NAME}_dev INTERFACE $<BUILD_INTERFACE:$<TARG
                                                         $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>>)
 add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
+set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
 
 openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_dev)
 
