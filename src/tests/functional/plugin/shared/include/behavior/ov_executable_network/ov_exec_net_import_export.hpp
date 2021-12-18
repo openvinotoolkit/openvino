@@ -22,12 +22,12 @@ typedef std::tuple<
         ov::element::Type_t,                // Element type
         std::string,                        // Device name
         std::map<std::string, std::string>  // Config
-> OVExecGraphImportExportTestParams;
+> OVExecNetworkParams;
 
-class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGraphImportExportTestParams>,
+class OVExecNetwork : public testing::WithParamInterface<OVExecNetworkParams>,
                                     public CommonTestUtils::TestsCommon {
     public:
-    static std::string getTestCaseName(testing::TestParamInfo<OVExecGraphImportExportTestParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<OVExecNetworkParams> obj) {
         ov::element::Type_t elementType;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
@@ -65,7 +65,7 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     std::shared_ptr<ov::Model> function;
 };
 
-TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
+TEST_P(OVExecNetwork, importExportedFunction) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
@@ -148,7 +148,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
     EXPECT_THROW(importedExecNet.output("relu_op"), ov::Exception);
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
+TEST_P(OVExecNetwork, importExportedFunctionParameterResultOnly) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
@@ -188,7 +188,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
     EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("data").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
+TEST_P(OVExecNetwork, importExportedFunctionConstantResultOnly) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
@@ -227,7 +227,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
     EXPECT_EQ(ov::element::Type(elementType), importedExecNet.output("data").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
+TEST_P(OVExecNetwork, readFromV10IR) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -307,7 +307,7 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
+TEST_P(OVExecNetwork, importExportedIENetwork) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
@@ -370,7 +370,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     EXPECT_EQ(outputType, importedExecNet.output("relu_op").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) {
+TEST_P(OVExecNetwork, importExportedIENetworkParameterResultOnly) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
@@ -418,7 +418,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
     EXPECT_EQ(outputType, importedExecNet.output("data").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
+TEST_P(OVExecNetwork, importExportedIENetworkConstantResultOnly) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }
@@ -462,7 +462,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
     EXPECT_EQ(outputType, importedExecNet.output("data").get_element_type());
 }
 
-TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
+TEST_P(OVExecNetwork, ieImportExportedFunction) {
     if (targetDevice == "MULTI" || targetDevice == "AUTO") {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
     }

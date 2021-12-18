@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "behavior/ov_executable_network/exec_graph_info.hpp"
+#include "behavior/ov_executable_network/ov_exec_net_import_export.hpp"
 
 #include "ie_plugin_config.hpp"
 #include <common_test_utils/test_constants.hpp>
@@ -24,32 +24,32 @@ const std::vector<std::map<std::string, std::string>> configs = {
         {},
 };
 const std::vector<std::map<std::string, std::string>> multiConfigs = {
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_TEMPLATE}}};
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU}}};
 
 const std::vector<std::map<std::string, std::string>> heteroConfigs = {
-        {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE}}};
+        {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVExecGraphImportExportTest,
+                         OVExecNetwork,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::ValuesIn(configs)),
-                         OVExecGraphImportExportTest::getTestCaseName);
+                         OVExecNetwork::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-         OVExecGraphImportExportTest,
+         OVExecNetwork,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(multiConfigs)),
-        OVExecGraphImportExportTest::getTestCaseName);
+        OVExecNetwork::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-         OVExecGraphImportExportTest,
+         OVExecNetwork,
         ::testing::Combine(::testing::ValuesIn(netPrecisions),
                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                            ::testing::ValuesIn(heteroConfigs)),
-        OVExecGraphImportExportTest::getTestCaseName);
+        OVExecNetwork::getTestCaseName);
 
 }  // namespace
