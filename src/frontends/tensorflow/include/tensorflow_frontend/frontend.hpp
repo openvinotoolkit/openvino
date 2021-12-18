@@ -9,9 +9,10 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/input_model.hpp"
-#include "openvino/frontend/telemetry_extension.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
@@ -83,6 +84,7 @@ private:
                          std::shared_ptr<ov::Model>& ng_function) const;
 
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
 };
 }  // namespace frontend
 }  // namespace ov

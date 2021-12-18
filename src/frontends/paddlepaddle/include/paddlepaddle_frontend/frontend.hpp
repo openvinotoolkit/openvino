@@ -4,8 +4,9 @@
 
 #pragma once
 
+#include <openvino/frontend/extension/decoder_transformation.hpp>
+#include <openvino/frontend/extension/telemetry.hpp>
 #include <openvino/frontend/manager.hpp>
-#include <openvino/frontend/telemetry_extension.hpp>
 
 #include "exceptions.hpp"
 #include "model.hpp"
@@ -70,6 +71,7 @@ private:
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlacePDPD>&)> func);
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
 };
 
 }  // namespace frontend
