@@ -22,10 +22,6 @@ ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(${TARGET_NAME} PUBLIC /wd4146)
-endif()
-
 target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
 
 if(NOT BUILD_SHARED_LIBS)
