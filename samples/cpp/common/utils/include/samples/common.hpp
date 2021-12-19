@@ -669,6 +669,16 @@ inline std::string getFullDeviceName(std::map<std::string, std::string>& devices
     }
 }
 
+inline std::string getFullDeviceName(InferenceEngine::Core& ie, std::string device) {
+    InferenceEngine::Parameter p;
+    try {
+        p = ie.GetMetric(device, METRIC_KEY(FULL_DEVICE_NAME));
+        return p.as<std::string>();
+    } catch (InferenceEngine::Exception&) {
+        return "";
+    }
+}
+
 inline std::string getFullDeviceName(ov::runtime::Core& ie, std::string device) {
     InferenceEngine::Parameter p;
     try {
