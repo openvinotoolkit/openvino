@@ -740,8 +740,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         const auto& pass_config = manager.get_pass_config();
+
+        // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
         pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
         pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
+
         pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
         pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();

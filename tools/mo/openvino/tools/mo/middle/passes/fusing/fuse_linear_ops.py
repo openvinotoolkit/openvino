@@ -80,7 +80,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         if not backward:
             cnt = shape[-1] / value.shape[0]
             if fuse_node.layout == 'NCHW':
-                tmp = []
+                tmp = mo_array([], dtype=value.dtype)
                 for val in value:
                     tmp = np.concatenate((tmp, np.repeat(val, cnt)))
                 value = mo_array(tmp)
