@@ -26,7 +26,7 @@ Depending on the plugin instruction set, low precision inference for the `Add` o
 
  * Inference step #2: Inference step #1 result can be added with the empty branch tensor in low precision.
 
-This approach allows to infer the `Add` operation in the most optimal way.
+This approach allows to infer the `Add` operation in the optimal way.
 
 ## Subgraph before transformation
 The subgraph with quantized `Add` operation before transformation:
