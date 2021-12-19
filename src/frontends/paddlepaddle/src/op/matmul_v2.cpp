@@ -1,9 +1,8 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "paddlepaddle_frontend/node_context.hpp"
-
 #include "default_opset.hpp"
+#include "paddlepaddle_frontend/node_context.hpp"
 
 namespace ov {
 namespace frontend {

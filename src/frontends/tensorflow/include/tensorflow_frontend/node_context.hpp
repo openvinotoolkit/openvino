@@ -5,8 +5,8 @@
 #pragma once
 #include <openvino/core/any.hpp>
 
-#include "common/node_context.hpp"
 #include "exceptions.hpp"
+#include "openvino/frontend/node_context.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
 #include "tensorflow_frontend/utility.hpp"
@@ -23,11 +23,12 @@ using OutPortName = size_t;
 class NodeContext : public ov::frontend::NodeContext {
     const DecoderBase& m_decoder;
     const OutputVector& m_inputs;
+
 public:
-    NodeContext(const DecoderBase& decoder, const OutputVector& inputs) :
-    ov::frontend::NodeContext(decoder.get_op_type(), inputs),
-    m_decoder(decoder),
-    m_inputs(inputs) {}
+    NodeContext(const DecoderBase& decoder, const OutputVector& inputs)
+        : ov::frontend::NodeContext(decoder.get_op_type(), inputs),
+          m_decoder(decoder),
+          m_inputs(inputs) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <typename T>

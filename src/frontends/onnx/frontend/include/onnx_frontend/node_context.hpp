@@ -5,10 +5,10 @@
 #pragma once
 
 #include <common/input_model.hpp>
+#include <common/node_context.hpp>
 #include <editor.hpp>
 #include <fstream>
 #include <onnx_import/core/node.hpp>
-#include <common/node_context.hpp>
 #include <openvino/core/any.hpp>
 
 namespace ov {
@@ -23,6 +23,6 @@ public:
 protected:
     const ngraph::onnx_import::Node& context;
 };
-}
-}
-}
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -8,13 +8,13 @@
 #include <iostream>
 #include <type_traits>
 
-#include "frontend_defs.hpp"
-#include "node_context.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
+#include "openvino/frontend/visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
+#include "tensorflow_frontend/node_context.hpp"
 
 namespace ov {
 namespace frontend {
@@ -28,8 +28,8 @@ public:
           m_converter(converter) {}
 
     ConversionExtensionBase(const std::string& op_type, const CreatorFunctionNamed& converter)
-            : m_op_type(op_type),
-              m_named_converter(converter) {}
+        : m_op_type(op_type),
+          m_named_converter(converter) {}
 
     const CreatorFunction& get_converter() const {
         return m_converter;
@@ -42,6 +42,7 @@ public:
     const std::string& get_op_type() const {
         return m_op_type;
     }
+
 private:
     std::string m_op_type;
     CreatorFunction m_converter;
@@ -51,12 +52,10 @@ private:
 class FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
-        : ConversionExtensionBase(op_type, converter) {
-    }
+        : ConversionExtensionBase(op_type, converter) {}
 
     ConversionExtension(const std::string& op_type, const CreatorFunctionNamed& converter)
-        : ConversionExtensionBase(op_type, converter) {
-    }
+        : ConversionExtensionBase(op_type, converter) {}
 };
 
 }  // namespace frontend

@@ -7,11 +7,11 @@
 #include <fstream>
 #include <queue>
 
-#include "node_context.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "place.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"
+#include "tensorflow_frontend/node_context.hpp"
 #include "utils.hpp"
 
 using namespace google;

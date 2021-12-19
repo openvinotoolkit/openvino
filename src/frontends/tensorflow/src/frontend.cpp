@@ -25,15 +25,7 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
-    ov::OutputVector ng_inputs;
-    NamedInputs named_inputs;
-    size_t input_port_idx = 0;
-    for (const auto& input : node->input_values()) {
-        ng_inputs.push_back(input);
-        named_inputs[input_port_idx++] = {input};
-    }
-
-    NodeContext node_ctx(*node->get_decoder(), named_inputs);
+    ov::frontend::tf::NodeContext node_ctx(*node->get_decoder(), node->input_values());
     auto new_node_outputs = translator_it->second(node_ctx);
 
     auto new_output = new_node_outputs.begin();
@@ -64,7 +56,8 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
     const auto& model_frozen_inputs = model_tf->get_tensor_values();
-    std::map<const std::string, const std::function<ov::OutputVector(const NodeContext&)>> translate_map;
+    std::map<const std::string, const std::function<ov::OutputVector(const ov::frontend::tf::NodeContext&)>>
+        translate_map;
 
     const auto& TRANSLATE_OP_MAP = m_op_translators;
     if (no_conversion) {
@@ -113,7 +106,6 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
-        ::ov::frontend::tf::NamedInputs named_inputs;
         for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
             std::string producer_name;
             size_t producer_port_idx;
@@ -137,20 +129,17 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(0));
-                named_inputs[input_port_idx] = {input_outputs_vector.at(0)};
             } else if (ng_op_map.count(producer_name + ":" + std::to_string(producer_port_idx))) {
                 const auto& input_outputs_vector =
                     ng_op_map.at(producer_name + ":" + std::to_string(producer_port_idx));
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(0));
-                named_inputs[input_port_idx] = {input_outputs_vector.at(0)};
             } else if (ng_op_map.count(producer_name)) {
                 const auto& input_outputs_vector = ng_op_map.at(producer_name);
                 FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > producer_port_idx,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(producer_port_idx));
-                named_inputs[input_port_idx] = {input_outputs_vector.at(producer_port_idx)};
             } else {
                 FRONT_END_GENERAL_CHECK(false,
                                         "No input is found for node \"" + operation_name + "\" by port" +
@@ -166,7 +155,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
             auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
             // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
             // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
-            ::ov::frontend::tf::NodeContext node_context(*operation_decoder, named_inputs);
+            ::ov::frontend::tf::NodeContext node_context(*operation_decoder, ng_inputs);
             // generate OV node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {

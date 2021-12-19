@@ -7,11 +7,12 @@
 #include <fstream>
 #include <queue>
 
-#include "decoder.hpp"
+#include "decoder_pdpd.hpp"
 #include "exceptions.hpp"
 #include "framework.pb.h"
-#include "node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "paddlepaddle_frontend/decoder.hpp"
+#include "paddlepaddle_frontend/node_context.hpp"
 #include "paddlepaddle_frontend/place.hpp"
 #include "pdpd_utils.hpp"
 

@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include <manager.hpp>
 #include <common/conversion_extension.hpp>
+#include <manager.hpp>
 
 struct ConversionExtensionFEParam {
     std::string m_frontEndName;

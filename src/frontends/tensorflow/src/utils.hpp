@@ -21,11 +21,11 @@
 #pragma once
 
 #include "graph_iterator_proto.hpp"
-#include "tensorflow_frontend/node_context.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/log.hpp"
 #include "openvino_conversions.hpp"
+#include "tensorflow_frontend/node_context.hpp"
 
 namespace ov {
 namespace frontend {

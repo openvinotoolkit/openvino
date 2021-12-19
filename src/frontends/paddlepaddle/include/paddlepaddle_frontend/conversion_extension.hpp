@@ -16,8 +16,7 @@ public:
     using Ptr = std::shared_ptr<ConversionExtensionPDPD>;
     ConversionExtensionPDPD() = delete;
     ConversionExtensionPDPD(const std::string& op_type, const FrontEndPDPD::CreatorFunction& converter)
-        : ConversionExtensionBase(op_type, converter)
-        {}
+        : ConversionExtensionBase(op_type, converter) {}
 
 private:
     using ConversionExtensionBase::get_converter;
