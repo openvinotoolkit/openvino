@@ -211,9 +211,8 @@ endif()
 # Apply common functions
 #
 
-foreach(target openvino::runtime openvino::runtime::c openvino::core
-               openvino::frontend::common openvino::frontend::onnx
-               openvino::frontend::paddlepaddle openvino::frontend::tensorflow)
+foreach(target openvino::runtime openvino::runtime::c
+               openvino::frontend::onnx openvino::frontend::paddlepaddle openvino::frontend::tensorflow)
     if(TARGET ${target} AND _ov_as_external_package)
         _ov_target_no_deprecation_error(${target})
     endif()
