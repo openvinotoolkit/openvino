@@ -25,7 +25,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_FLOAT_LIKE = xfail_test(reason="Use of bfloat16 or float16")
-xfail_issue_69444 = xfail_test(reason="failed with accuracy issue")
+xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
@@ -51,12 +51,6 @@ xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is no
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
-xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)."
-                                      "is_static() nGraph <value> operation with name: <value> cannot be "
-                                      "converted to <value> layer with name: <value> because output "
-                                      "with index 0 contains dynamic shapes: {<value>}. Try to use "
-                                      "CNNNetwork::reshape() method in order to specialize shapes "
-                                      "before the conversion.")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Gradient")
@@ -91,8 +85,8 @@ xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpo
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
 xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
-xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
-
+xfail_issue_73538 = xfail_test(reason="OneHot: Unsupported negative indices, "
+                                      "AssertionError: Mismatched elements.")
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND, "
@@ -117,7 +111,6 @@ xfail_issue_48145 = xfail_test(reason="BertSquad-8 - AssertionError: Items are n
                                       "DESIRED: 3")
 xfail_issue_48190 = xfail_test(reason="RobertaBase-11 - AssertionError: Items are not equal: "
                                       "ACTUAL: dtype('float64') DESIRED: dtype('float32')")
-xfail_issue_49750 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v4::Interpolate")
 xfail_issue_49752 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::Pad")
 xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::StridedSlice")
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")

@@ -240,13 +240,6 @@ size_t MKLDNNMatrixNmsNode::nmsMatrix(const float* boxesData, const float* score
     return numDet;
 }
 
-void MKLDNNMatrixNmsNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNMatrixNmsNode::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
@@ -286,6 +279,23 @@ void MKLDNNMatrixNmsNode::prepareParams() {
             continue;
         m_classOffset[i] = (count++) * m_realNumBoxes;
     }
+}
+
+bool MKLDNNMatrixNmsNode::isExecutable() const {
+    return isDynamicNode() || MKLDNNNode::isExecutable();
+}
+
+void MKLDNNMatrixNmsNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (hasEmptyInputTensors()) {
+        getChildEdgesAtPort(NMS_SELECTED_OUTPUTS)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTED_OUTPUTS)->cloneWithNewDims({0, 6}));
+        getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_SELECTED_INDICES)->cloneWithNewDims({0, 1}));
+        getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr()->redefineDesc(
+            getBaseMemDescAtOutputPort(NMS_VALID_OUTPUTS)->cloneWithNewDims({0}));
+        return;
+    }
+    execute(strm);
 }
 
 void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {

@@ -21,7 +21,7 @@ namespace InferenceEngine {
 /**
  * @brief TBD
  */
-class INFERENCE_ENGINE_API_CLASS(ConstTransformer) {
+class ConstTransformer {
 public:
     explicit ConstTransformer(details::CNNNetworkImpl* _network);
 
