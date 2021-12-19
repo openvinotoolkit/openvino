@@ -11,18 +11,9 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
-#include "openvino/core/variant.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
-
-class Layout;
-
-namespace layout {
-
-std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& src_shape_rank, const Layout& dst_layout);
-Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
-
-}  // namespace layout
 
 class OPENVINO_API Layout {
 public:
@@ -85,11 +76,7 @@ private:
     int64_t m_left_size = 0;
     int64_t m_right_size = 0;
 
-    friend Layout layout::apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
-
-    friend std::vector<int64_t> layout::find_permutation(const Layout& src_layout,
-                                                         const Rank& src_shape_rank,
-                                                         const Layout& dst_layout);
+    friend class LayoutUtils;
 };
 
 namespace layout {
@@ -161,15 +148,19 @@ protected:
     std::string m_dump;
 };
 
-class OPENVINO_API LayoutAttribute : public VariantImpl<Layout> {
+class OPENVINO_API LayoutAttribute : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("layout", "0");
 
     LayoutAttribute() = default;
 
-    explicit LayoutAttribute(const Layout& value) : VariantImpl<Layout>(value) {}
+    explicit LayoutAttribute(const Layout& value) : value(value) {}
 
     bool visit_attributes(AttributeVisitor& visitor) override;
+
+    std::string to_string() const override;
+
+    Layout value;
 };
 
 }  // namespace ov

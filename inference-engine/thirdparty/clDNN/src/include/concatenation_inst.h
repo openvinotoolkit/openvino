@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
 #include "primitive_inst.h"
 
 #include <string>

@@ -7,7 +7,6 @@
 #include <memory>
 #include <openvino/core/except.hpp>
 #include <openvino/core/node.hpp>
-#include <openvino/core/variant.hpp>
 
 namespace ov {
 class SharedRTInfo {

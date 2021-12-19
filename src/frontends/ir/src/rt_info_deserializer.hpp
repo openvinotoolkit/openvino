@@ -7,7 +7,6 @@
 #include <istream>
 #include <memory>
 
-#include "ir_frontend/utility.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "utils.hpp"
 
@@ -60,7 +59,7 @@ public:
         adapter.set(stringToType<int64_t>(val));
     }
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         throw ov::Exception("Function type is unsupported for rt info deserialization");
     }
 

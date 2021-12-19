@@ -15,12 +15,14 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto);
+    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto2,
+          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
     Graph() = delete;
 
     Graph(const Graph&) = delete;
@@ -43,10 +45,16 @@ public:
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
 
-protected:
-    Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, std::unique_ptr<GraphCache>&& cache);
+    const std::shared_ptr<ov::frontend::TelemetryExtension>& get_telemetry() const {
+        return m_telemetry;
+    }
 
-    void set_friendly_names(const Node& onnx_node, const OutputVector& ng_node_vector) const;
+protected:
+    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
+          std::unique_ptr<GraphCache>&& cache,
+          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+
+    void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
 
 protected:
     virtual void decode_to_framework_nodes();
@@ -60,6 +68,7 @@ protected:
 
 private:
     std::vector<Node> m_nodes;
+    std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
 };
 
 /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.
@@ -111,6 +120,8 @@ private:
 inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
     return (outs << "<Graph: " << graph.get_name() << ">");
 }
+
+static const char* const ONNX_GRAPH_RT_ATTRIBUTE = "onnx_graph";
 
 }  // namespace onnx_import
 

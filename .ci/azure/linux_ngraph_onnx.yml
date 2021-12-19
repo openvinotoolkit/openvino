@@ -60,7 +60,7 @@ jobs:
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo mkdir -p $(MODELS_DIR)
-      sudo apt --assume-yes install nfs-common
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
       mkdir -p $(MODELS_DIR)/models_data
     displayName: 'Make dirs'

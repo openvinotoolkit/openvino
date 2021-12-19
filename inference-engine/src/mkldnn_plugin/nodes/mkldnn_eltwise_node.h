@@ -54,7 +54,7 @@ struct jit_uni_eltwise_kernel {
         ker_(const_args, indexes);
     }
 
-    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(std::move(jep)), eltwiseNode(node) {}
+    explicit jit_uni_eltwise_kernel(const jit_eltwise_params& jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
     virtual void create_ker() = 0;
@@ -75,7 +75,8 @@ public:
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1, bool initAsBinary = false, bool initBinaryMemory = false) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1) override;
+    void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
     void fuseInto(MKLDNNNodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -89,15 +90,22 @@ public:
     bool isWithBroadcast();
     bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }
 
-    void createPrimitive() override;
-
     std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+    enum BroadcastingPolicy {
+        PerChannel,
+        PerTensor,
+        Undefined,
+    };
+
+    BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 
 private:
     struct EltwiseExecutor {
@@ -130,6 +138,8 @@ private:
         size_t fullWorkAmount = 0;
     };
 
+    BroadcastingPolicy broadcastingPolicy;
+
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
 
     static const int optimalTensorRank = 6;
@@ -156,6 +166,8 @@ private:
 
     using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>;
     static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
+
+    static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
 
     void executeOptimized6D(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
                             const VectorDims &dims_out) const;

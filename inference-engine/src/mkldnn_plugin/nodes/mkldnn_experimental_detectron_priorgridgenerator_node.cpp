@@ -14,10 +14,6 @@ using namespace InferenceEngine;
 bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                                                                              std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
         if (!priorGridGen) {
             errorMessage = "Only opset6 ExperimentalDetectronPriorGridGenerator operation is supported";
@@ -41,11 +37,6 @@ MKLDNNExperimentalDetectronPriorGridGeneratorNode::MKLDNNExperimentalDetectronPr
     const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
-
-    if (op->get_input_shape(INPUT_PRIORS).size() != 2 ||
-        op->get_input_shape(INPUT_FEATUREMAP).size() != 4 ||
-        op->get_input_shape(INPUT_IMAGE).size() != 4)
-        IE_THROW() << errorPrefix << " has unsupported input shape";
 
     const auto &attr = priorGridGen->get_attrs();
     grid_w_ = attr.w;
@@ -93,6 +84,10 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream s
 
 bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::created() const {
     return getType() == ExperimentalDetectronPriorGridGenerator;
+}
+
+bool MKLDNNExperimentalDetectronPriorGridGeneratorNode::needPrepareParams() const {
+    return false;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNExperimentalDetectronPriorGridGeneratorNode, ExperimentalDetectronPriorGridGenerator)

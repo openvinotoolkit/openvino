@@ -106,10 +106,14 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool MKLDNNTransposeNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
+}
+
 bool MKLDNNTransposeNode::needPrepareParams() const {
     if (isOptimized)
         return false;
-    return MKLDNNNode::needPrepareParams();
+    return inputShapesModified();
 }
 
 void MKLDNNTransposeNode::prepareParams() {
@@ -151,7 +155,7 @@ void MKLDNNTransposeNode::createPrimitive() {
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     params.dst_block_order = dstDesc->getOrder();
 
-    if (inputShapesDefined()) {
+    if (inputShapesDefined() && isExecutable()) {
         prepareParams();
         updateLastInputDims();
     }

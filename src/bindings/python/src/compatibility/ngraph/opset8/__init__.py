@@ -38,7 +38,7 @@ from ngraph.opset3.ops import cum_sum as cumsum
 from ngraph.opset8.ops import deformable_convolution
 from ngraph.opset1.ops import deformable_psroi_pooling
 from ngraph.opset1.ops import depth_to_space
-from ngraph.opset1.ops import detection_output
+from ngraph.opset8.ops import detection_output
 from ngraph.opset7.ops import dft
 from ngraph.opset1.ops import divide
 from ngraph.opset7.ops import einsum
@@ -69,7 +69,10 @@ from ngraph.opset1.ops import hard_sigmoid
 from ngraph.opset5.ops import hsigmoid
 from ngraph.opset4.ops import hswish
 from ngraph.opset7.ops import idft
+from ngraph.opset8.ops import if_op
 from ngraph.opset1.ops import interpolate
+from ngraph.opset8.ops import i420_to_bgr
+from ngraph.opset8.ops import i420_to_rgb
 from ngraph.opset1.ops import less
 from ngraph.opset1.ops import less_equal
 from ngraph.opset1.ops import log
@@ -97,6 +100,8 @@ from ngraph.opset5.ops import non_max_suppression
 from ngraph.opset3.ops import non_zero
 from ngraph.opset1.ops import normalize_l2
 from ngraph.opset1.ops import not_equal
+from ngraph.opset8.ops import nv12_to_bgr
+from ngraph.opset8.ops import nv12_to_rgb
 from ngraph.opset1.ops import one_hot
 from ngraph.opset1.ops import pad
 from ngraph.opset1.ops import parameter
@@ -141,7 +146,7 @@ from ngraph.opset1.ops import sign
 from ngraph.opset1.ops import sin
 from ngraph.opset1.ops import sinh
 from ngraph.opset8.ops import slice
-from ngraph.opset1.ops import softmax
+from ngraph.opset8.ops import softmax
 from ngraph.opset4.ops import softplus
 from ngraph.opset2.ops import space_to_batch
 from ngraph.opset1.ops import space_to_depth

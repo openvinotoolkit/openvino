@@ -5,7 +5,7 @@
 #include "transpose_sinking.hpp"
 
 #include <frontend/shared/include/utils.hpp>
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
@@ -18,7 +18,7 @@ using namespace opset8;
 using namespace frontend::tf::pass;
 
 template <class T>
-int64_t count_ops_of_type(const shared_ptr<Function>& f) {
+int64_t count_ops_of_type(const shared_ptr<Model>& f) {
     int64_t cnt = 0;
     for (const auto& op : f->get_ops()) {
         cnt += dynamic_pointer_cast<T>(op) != nullptr;

@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "cldnn/primitives/pyramid_roi_align.hpp"
+#include "intel_gpu/primitives/pyramid_roi_align.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

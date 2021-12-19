@@ -12,7 +12,7 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 
 The Intel® Distribution of OpenVINO™ toolkit\*:
 - Enables CNN-based deep learning inference on the edge
-- Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+- Supports heterogeneous execution across Intel® CPU and Intel® Integrated Graphics
 - Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
 
 The **runtime package** includes the following components installed by default:

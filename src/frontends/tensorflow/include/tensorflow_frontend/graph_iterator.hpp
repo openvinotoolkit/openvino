@@ -5,15 +5,16 @@
 #pragma once
 
 #include "openvino/core/any.hpp"
-#include "openvino/core/variant.hpp"
 #include "tensorflow_frontend/decoder.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
 namespace frontend {
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class TF_API GraphIterator {
+class TF_API GraphIterator : ov::RuntimeAttribute {
 public:
+    OPENVINO_RTTI("Variant::GraphIterator");
+
     using Ptr = std::shared_ptr<GraphIterator>;
 
     /// \brief Get a number of operation nodes in the graph
@@ -35,16 +36,4 @@ public:
     virtual ~GraphIterator() = default;
 };
 }  // namespace frontend
-}  // namespace ov
-
-namespace ov {
-/// Keep GraphIterator::Ptr object and type information for type-safe
-/// dynamic conversions without using C++ RTTI
-template <>
-class TF_API VariantWrapper<::ov::frontend::GraphIterator::Ptr>
-    : public VariantImpl<::ov::frontend::GraphIterator::Ptr> {
-public:
-    OPENVINO_RTTI("Variant::GraphIterator::Ptr");
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-};
 }  // namespace ov
