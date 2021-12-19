@@ -100,6 +100,8 @@ const std::vector<std::vector<size_t>> inputShapes4D = {
 const std::vector<std::vector<size_t>> indicesShapes_BD0 = {
         std::vector<size_t>{4},
         std::vector<size_t>{2, 2},
+        std::vector<size_t>{3, 3},
+        std::vector<size_t>{5, 2},
         std::vector<size_t>{3, 2, 4},
 };
 
@@ -206,19 +208,51 @@ const auto gather7ParamsSubset_NegativeBD = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Gather7_NegativeBD, Gather7LayerTest, gather7ParamsSubset_NegativeBD, Gather7LayerTest::getTestCaseName);
 
-const auto gatherParamsVec1 = testing::Combine(
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{10, 30, 50, 1}})),
-        testing::ValuesIn(std::vector<std::vector<size_t>>({{10, 16, 16}, {10, 7, 8}, {10, 5, 7}, {10, 5}})),
-        testing::ValuesIn(std::vector<std::tuple<int, int>>{std::tuple<int, int>{2, 1}}),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
-);
 
-INSTANTIATE_TEST_CASE_P(smoke_Vec1, Gather8LayerTest, gatherParamsVec1, Gather8LayerTest::getTestCaseName);
+///// GATHER-8 /////
+
+const std::vector<std::vector<size_t>> dataShapes4DGather8 = {
+        {10, 3, 1, 2},
+        {10, 3, 3, 1},
+        {10, 2, 2, 7},
+        {10, 2, 2, 2},
+        {10, 3, 4, 4},
+        {10, 2, 3, 17}
+};
+const std::vector<std::vector<size_t>> idxShapes4DGather8 = {
+        {10, 1, 1},
+        {10, 1, 2},
+        {10, 1, 3},
+        {10, 2, 2},
+        {10, 1, 7},
+        {10, 2, 4},
+        {10, 3, 3},
+        {10, 3, 5},
+        {10, 7, 3},
+        {10, 8, 7}
+};
+const std::vector<std::tuple<int, int>> axesBatches4DGather8 = {
+        {3, 0},
+        {-1, -2},
+        {2, -3},
+        {2, 1},
+        {1, 0},
+        {1, 1},
+        {0, 0}
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_static_4D, Gather8LayerTest,
+        testing::Combine(
+                testing::ValuesIn(dataShapes4DGather8),
+                testing::ValuesIn(idxShapes4DGather8),
+                testing::ValuesIn(axesBatches4DGather8),
+                testing::ValuesIn(netPrecisions),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Layout::ANY),
+                testing::Values(InferenceEngine::Layout::ANY),
+                testing::Values(CommonTestUtils::DEVICE_CPU)),
+        Gather8LayerTest::getTestCaseName);
 
 const auto gatherParamsVec2 = testing::Combine(
         testing::ValuesIn(std::vector<std::vector<size_t>>({{5, 4}, {11, 4}, {23, 4}, {35, 4}, {51, 4}, {71, 4}})),

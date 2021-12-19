@@ -1,345 +1,343 @@
-//// Copyright (C) 2018-2021 Intel Corporation
-//// SPDX-License-Identifier: Apache-2.0
-////
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-//#include <shared_test_classes/single_layer/gather.hpp>
-//#include "ngraph_functions/builders.hpp"
-//#include "test_utils/cpu_test_utils.hpp"
-//
-//using namespace InferenceEngine;
-//using namespace CPUTestUtils;
-//
-//namespace CPULayerTestsDefinitions {
-//
-//using inputShapesPair = std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>>;
-//
-//typedef std::tuple<
-//        inputShapesPair,                   // Input shapes
-//        int64_t,                           // Axis
-//        int64_t,                           // Batch dims
-//        InferenceEngine::Precision,        // Network precision
-//        bool,                              // Is axis input constant
-//        std::string,                       // Device name
-//        CPUSpecificParams                  // CPU specific params
-//> GatherLayerTestCPUParams;
-//
-//class GatherLayerTestCPU : public testing::WithParamInterface<GatherLayerTestCPUParams>,
-//                            virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
-//public:
-//    static std::string getTestCaseName(testing::TestParamInfo<GatherLayerTestCPUParams> obj) {
-//        inputShapesPair inputShapes;
-//        int axis, batchDims;
-//        Precision netPrecision;
-//        std::string targetDevice;
-//        bool isAxisConstant;
-//        CPUSpecificParams cpuParams;
-//        std::tie(inputShapes, axis, batchDims, netPrecision, isAxisConstant, targetDevice, cpuParams) = obj.param;
-//
-//        std::ostringstream result;
-//        result << "DynShapes=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
-//        result << "StatShapes=" << CommonTestUtils::vec2str(inputShapes.second) << "_";
-//        result << "axis=" << axis << "_";
-//        result << "batchDims=" << batchDims << "_";
-//        result << "netPrc=" << netPrecision.name() << "_";
-//        result << "constAx=" << (isAxisConstant ? "True" : "False") << "_";
-//        result << "trgDev=" << targetDevice;
-//        result << CPUTestsBase::getTestCaseName(cpuParams);
-//
-//        return result.str();
-//    }
-//
-//protected:
-//    void SetUp() override {
-//        inputShapesPair inputShapes;
-//        int64_t batchDims;
-//        Precision netPrecision;
-//        CPUSpecificParams cpuParams;
-//        bool isAxisConstant = true;
-//        std::tie(inputShapes, axis, batchDims, netPrecision, isAxisConstant, targetDevice, cpuParams) = this->GetParam();
-//
-//        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-//
-//        selectedType = std::string("ref_any_") + netPrecision.name();
-//
-//        targetStaticShapes.reserve(inputShapes.second.size());
-//        inputDynamicShapes.reserve(inputShapes.first.size());
-//        for (int i = 0; i < (isAxisConstant ? 2 : 3); i++) {
-//            if (inputShapes.second.size() > i)
-//                targetStaticShapes.push_back({inputShapes.second[i]});
-//            if (inputShapes.first.size() > i)
-//                inputDynamicShapes.push_back(inputShapes.first[i]);
-//        }
-//        const ov::Shape& inputDataShape = targetStaticShapes.front().front(), indicesShape = targetStaticShapes.front()[1];
-//        dataSrcRank = inputDataShape.size();
-//
-//        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-//        ov::ParameterVector functionParams {
-//            ngraph::builder::makeParams(ngPrc, { {"data", inputDataShape} })[0],
-//            ngraph::builder::makeParams(ov::element::i32, { {"indices", indicesShape} })[0]
-//        };
-//        if (!isAxisConstant) {
-//            functionParams.push_back(ngraph::builder::makeParams(ov::element::i32, { {"axis", {1}} })[0]);
-//        }
-//        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
-//        std::shared_ptr<ov::Node> gatherNode;
-//        if (isAxisConstant) {
-//            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1],
-//                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape({}), { axis }), batchDims);
-//        } else {
-//            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1], paramOuts[2], batchDims);
-//        }
-//
-//        ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(gatherNode) };
-//        function = std::make_shared<ov::Model>(results, functionParams, "Gather");
-//    }
-//
-//    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const override {
-//        if (inputInfo.name() == "indices") {
-//            const auto& td = inputInfo.getTensorDesc();
-//            size_t normAxis = axis < 0 ? axis + dataSrcRank : axis;
-//            const auto axDim = targetStaticShapes[index][0][normAxis];
-//            if (axDim == 1) {
-//                // Random generator cannot generate values in range [0; 0]
-//                int values[1] = { 0 };
-//                return FuncTestUtils::createAndFillBlobWithFloatArray<int32_t>(td, values, 1);
-//            } else {
-//                return FuncTestUtils::createAndFillBlob(td, axDim - 1, 0);
-//            }
-//        } else if (inputInfo.name() == "axis") {
-//            int values[1] = { static_cast<int32_t>(axis) };
-//            return FuncTestUtils::createAndFillBlobWithFloatArray<int32_t>(inputInfo.getTensorDesc(), values, 1);
-//        } else {
-//            return LayerTestsCommon::GenerateInput(inputInfo);
-//        }
-//    }
-//
-//    int64_t axis = 0;
-//    int64_t dataSrcRank = 0;
-//};
-//
-//TEST_P(GatherLayerTestCPU, CompareWithRefs) {
-//    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-//
-//    Run();
-//    CheckPluginRelatedResults(executableNetwork, "Gather");
-//}
-//
-//namespace {
-//const std::vector<InferenceEngine::Precision> netPrecisions = {
-//        InferenceEngine::Precision::FP32,
-//        InferenceEngine::Precision::BF16,
-//        InferenceEngine::Precision::I8
-//};
-//
-//// 1D
-//const std::vector<inputShapesPair> staticInputShapes1D = {
-//    {
-//        {},
-//        { // Static shapes
-//            {{4}, {2, 3, 4}}
-//        }
-//    },
-//    {
-//        {},
-//        { // Static shapes
-//            {{4}, {1}}
-//        }
-//    },
-//    {
-//        {},
-//        { // Static shapes
-//            {{4}, {9}}
-//        }
-//    },
-//    {
-//        {},
-//        { // Static shapes
-//            {{5}, {5}}
-//        }
-//    }
-//};
-//const std::vector<inputShapesPair> dynamicInputShapes1D = {
-//    {
-//        { // Origin dynamic shapes
-//            {ov::Dimension(4, 6)}, {ov::Dimension(1, 10)},  {ov::Dimension(1, 2)}
-//        },
-//        { // Dynamic shapes instances
-//            {{4}, {1}, {1}},
-//            {{4}, {9}, {1}},
-//            {{5}, {5}, {1}}
-//        }
-//    }
-//};
-//
-//INSTANTIATE_TEST_SUITE_P(smoke_StaticShape1D, GatherLayerTestCPU,
-//                ::testing::Combine(
-//                    ::testing::ValuesIn(staticInputShapes1D),
-//                    ::testing::Values(0),
-//                    ::testing::Values(0),
-//                    ::testing::ValuesIn(netPrecisions),
-//                    ::testing::Values(true),
-//                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//                    ::testing::Values(CPUSpecificParams{})),
-//                GatherLayerTestCPU::getTestCaseName);
-//
-//INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape1D, GatherLayerTestCPU,
-//                ::testing::Combine(
-//                    ::testing::ValuesIn(dynamicInputShapes1D),
-//                    ::testing::Values(0),
-//                    ::testing::Values(0),
-//                    ::testing::ValuesIn(netPrecisions),
-//                    ::testing::Values(true, false),
-//                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//                    ::testing::Values(CPUSpecificParams{})),
-//                GatherLayerTestCPU::getTestCaseName);
-//
-//// 2D
-//const std::vector<inputShapesPair> staticInputShapes2D = {
-//    {
-//        {},
-//        { // Static shapes
-//            {{4, 7}, {4, 55}}
-//        }
-//    },
-//    {
-//        {},
-//        { // Static shapes
-//            {{4, 17}, {4, 17}}
-//        }
-//    },
-//    {
-//        {},
-//        { // Static shapes
-//            {{4, 55}, {4, 7}}
-//        }
-//    }
-//};
-//const std::vector<inputShapesPair> dynamicInputShapes2D = {
-//    {
-//        { // Origin dynamic shapes
-//            {4, ov::Dimension(3, 99)},
-//            {4, ov::Dimension(3, 99)},
-//            {1}
-//        },
-//        { // Dynamic shapes instances
-//            {{4, 7}, {4, 55}, {1}},
-//            {{4, 55}, {4, 7}, {1}},
-//            {{4, 17}, {4, 17}, {1}}
-//        }
-//    }
-//};
-//const std::vector<inputShapesPair> dynamicInputShapes2Dv2 = {
-//    {
-//        { // Origin dynamic shapes
-//            {ov::Dimension(3, 99), ov::Dimension(3, 99)},
-//            {-1, ov::Dimension(3, 99)},
-//            {1}
-//        },
-//        { // Dynamic shapes instances
-//            {{4, 7}, {4, 55}, {1}},
-//            {{8, 55}, {5, 7}, {1}}
-//        }
-//    }
-//};
-//
-//INSTANTIATE_TEST_SUITE_P(smoke_StaticShape2D, GatherLayerTestCPU,
-//                ::testing::Combine(
-//                    ::testing::ValuesIn(staticInputShapes2D),
-//                    ::testing::Values(1),
-//                    ::testing::ValuesIn(std::vector<int64_t>{0, 1}),
-//                    ::testing::ValuesIn(netPrecisions),
-//                    ::testing::Values(true),
-//                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//                    ::testing::Values(CPUSpecificParams{})),
-//                GatherLayerTestCPU::getTestCaseName);
-//
-//INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape2D, GatherLayerTestCPU,
-//                ::testing::Combine(
-//                    ::testing::ValuesIn(dynamicInputShapes2D),
-//                    ::testing::Values(1),
-//                    ::testing::ValuesIn(std::vector<int64_t>{0, 1}),
-//                    ::testing::ValuesIn(netPrecisions),
-//                    ::testing::Values(true, false),
-//                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//                    ::testing::Values(CPUSpecificParams{})),
-//                GatherLayerTestCPU::getTestCaseName);
-//
-//INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape2Dv2, GatherLayerTestCPU,
-//                ::testing::Combine(
-//                    ::testing::ValuesIn(dynamicInputShapes2Dv2),
-//                    ::testing::Values(0),
-//                    ::testing::Values(0),
-//                    ::testing::ValuesIn(netPrecisions),
-//                    ::testing::Values(true, false),
-//                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//                    ::testing::Values(CPUSpecificParams{})),
-//                GatherLayerTestCPU::getTestCaseName);
-//
-//// 4D
-//const std::vector<inputShapesPair> staticInputShapes4D = {
-//    {
-//        {},
-//        { // Static shapes
-//            {{4, 5, 6, 7}, {2, 5, 1}}
-//        }
-//    },
-//    {
-//        {},
-//        { // Static shapes
-//            {{10, 5, 6, 7}, {2, 5, 2}}
-//        }
-//    },
-//    {
-//        {},
-//        { // Static shapes
-//            {{16, 5, 6, 7}, {3, 5, 3}}
-//        }
-//    }
-//};
-//const std::vector<inputShapesPair> dynamicInputShapes4D = {
-//    {
-//        { // Origin dynamic shapes
-//            {ov::Dimension(4, 20), 5, 6, 7},
-//            {ov::Dimension(2, 4), 5, ov::Dimension(1, 4)},
-//            {1}
-//        },
-//        { // Dynamic shapes instances
-//            {{4, 5, 6, 7}, {2, 5, 1}, {1}},
-//            {{10, 5, 6, 7}, {2, 5, 2}, {1}},
-//            {{16, 5, 6, 7}, {3, 5, 3}, {1}}
-//        }
-//    },
-//    {
-//        { // Origin dynamic shapes
-//            {-1, -1, -1, -1}, {-1, -1, -1}, {1}
-//        },
-//        { // Dynamic shapes instances
-//            {{4, 5, 6, 4}, {2, 5, 16}, {1}},
-//            {{10, 5, 6, 8}, {2, 5, 24}, {1}}
-//        }
-//    }
-//};
-//
-//INSTANTIATE_TEST_SUITE_P(smoke_StaticShape4D, GatherLayerTestCPU,
-//                ::testing::Combine(
-//                    ::testing::ValuesIn(staticInputShapes4D),
-//                    ::testing::ValuesIn(std::vector<int64_t>{0, 1, 2, -1}),
-//                    ::testing::Values(0),
-//                    ::testing::ValuesIn(netPrecisions),
-//                    ::testing::Values(true),
-//                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//                    ::testing::Values(CPUSpecificParams{})),
-//                GatherLayerTestCPU::getTestCaseName);
-//
-//INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape4D, GatherLayerTestCPU,
-//                ::testing::Combine(
-//                    ::testing::ValuesIn(dynamicInputShapes4D),
-//                    ::testing::ValuesIn(std::vector<int64_t>{0, 1, 2, -1}),
-//                    ::testing::Values(0),
-//                    ::testing::ValuesIn(netPrecisions),
-//                    ::testing::Values(true, false),
-//                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//                    ::testing::Values(CPUSpecificParams{})),
-//                GatherLayerTestCPU::getTestCaseName);
-//} // namespace
-//} // namespace CPULayerTestsDefinitions
+
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "ngraph_functions/builders.hpp"
+#include "test_utils/cpu_test_utils.hpp"
+#include "functional_test_utils/ov_tensor_utils.hpp"
+
+using namespace CPUTestUtils;
+using namespace ov::test;
+
+namespace CPULayerTestsDefinitions {
+
+typedef std::tuple<
+        std::vector<InputShape>,           // Input shapes
+        int64_t,                           // Axis
+        int64_t,                           // Batch dims
+        ElementType,                       // Network precision
+        bool,                              // Is axis input constant
+        CPUSpecificParams,                 // CPU specific params
+        std::map<std::string, std::string> // Additional config
+> GatherLayerTestCPUParams;
+
+class GatherLayerTestCPU : public testing::WithParamInterface<GatherLayerTestCPUParams>,
+                           virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<GatherLayerTestCPUParams> obj) {
+        std::vector<InputShape> inputShapes;
+        int64_t axis, batchDims;
+        ElementType netPrecision;
+        bool isAxisConstant;
+        CPUSpecificParams cpuParams;
+        std::map<std::string, std::string> additionalConfig;
+
+        std::tie(inputShapes, axis, batchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig) = obj.param;
+
+        std::ostringstream result;
+        result << "IS=(";
+        for (size_t i = 0lu; i < inputShapes.size(); i++) {
+            result << CommonTestUtils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
+        }
+        result << ")_TS=";
+        for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
+            result << "{";
+            for (size_t j = 0lu; j < inputShapes.size(); j++) {
+                result << CommonTestUtils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
+            }
+            result << "}_";
+        }
+        result << "axis=" << axis << "_";
+        result << "batchDims=" << batchDims << "_";
+        result << "netPrc=" << netPrecision << "_";
+        result << "constAx=" << (isAxisConstant ? "True" : "False") << "_";
+        result << CPUTestsBase::getTestCaseName(cpuParams);
+
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto &item : additionalConfig) {
+                if (item.second == InferenceEngine::PluginConfigParams::YES)
+                    result << "_" << item.first << "=" << item.second;
+            }
+        }
+
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        std::vector<InputShape> inputShapes;
+        int64_t batchDims;
+        ElementType netPrecision;
+        bool isAxisConstant = true;
+        CPUSpecificParams cpuParams;
+        std::map<std::string, std::string> additionalConfig;
+        const ElementType intInputsPrecision = ElementType::i64;
+
+        std::tie(inputShapes, axis, batchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig) = this->GetParam();
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        init_input_shapes(inputShapes);
+//        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+
+        if (!isAxisConstant) {
+            inputDynamicShapes.push_back({1});
+            for (size_t i = 0lu; i < targetStaticShapes.size(); i++) {
+                targetStaticShapes[i].push_back({1});
+            }
+        }
+
+        ngraph::ParameterVector params {
+            std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0]),
+            std::make_shared<ov::op::v0::Parameter>(intInputsPrecision, inputDynamicShapes[1])
+        };
+        params[0]->set_friendly_name("data");
+        params[1]->set_friendly_name("indices");
+        if (!isAxisConstant) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(intInputsPrecision, inputDynamicShapes[2]));
+            params[2]->set_friendly_name("axis");
+        }
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+        std::shared_ptr<ov::Node> gatherNode;
+        if (isAxisConstant) {
+            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1],
+                    ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({1}), { axis }), batchDims);
+        } else {
+            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1], paramOuts[2], batchDims);
+        }
+
+        function = makeNgraphFunction(netPrecision, params, gatherNode, "GatherCPU");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        const auto& funcInputs = function->inputs();
+        inputs.clear();
+
+        const size_t normAxis = axis < 0 ? axis + targetInputStaticShapes[0].size() : axis;
+        const int32_t axisDim = targetInputStaticShapes[0][normAxis];
+
+        for (int i = 0; i < funcInputs.size(); ++i) {
+            const auto& funcInput = funcInputs[i];
+            ov::runtime::Tensor tensor;
+
+            if (funcInput.get_node()->get_friendly_name() == "data") {
+                tensor = ov::test::utils::create_and_fill_tensor(
+                        funcInput.get_element_type(), targetInputStaticShapes[0], 256, 0, 1);
+            } else if (funcInput.get_node()->get_friendly_name() == "indices") {
+                tensor = ov::test::utils::create_and_fill_tensor(
+                        funcInput.get_element_type(), targetInputStaticShapes[1], axisDim * 2, -axisDim, 1);
+            } else if (funcInput.get_node()->get_friendly_name() == "axis") {
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), {1}, 1, axis, 1);
+            }
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+    }
+
+    int64_t axis = 0;
+};
+
+TEST_P(GatherLayerTestCPU, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    run();
+    CheckPluginRelatedResults(executableNetwork, "Gather");
+}
+
+namespace {
+const std::vector<ElementType> netPrecisions = {
+        ElementType::i32, // TODO: remove
+        ElementType::f32,
+        ElementType::bf16,
+        ElementType::i8
+};
+
+std::vector<std::map<std::string, std::string>> additionalConfig
+    = {{{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
+       {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
+
+const CPUSpecificParams cpuParams{{}, {}, {"ref_any"}, "ref_any"};
+
+// 1D
+const std::vector<std::vector<ov::test::InputShape>> staticInputShapes1D = {
+    { { {}, { {4} } },   // Static shapes
+      { {}, { {2, 3, 4} } }
+    },
+    { { {}, { {4} } },   // Static shapes
+      { {}, { {1} } },
+    },
+    { { {}, { {4} } },   // Static shapes
+      { {}, { {9} } }
+    },
+    { { {}, { {5} } },   // Static shapes
+      { {}, { {5} } }
+    }
+};
+const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes1D = {
+    { { { ov::Dimension{1, 70} },                                                             // Dynamic shape 0
+        { {3}, {3}, {5}, {5}, {7}, {7}, {8}, {10}, {16}, {17}, {32}, {55}, {32}, {55} } },    // Target shapes
+      { { -1 },                                                                               // Dynamic shape 1
+        { {1}, {3}, {4}, {5}, {7}, {8}, {9}, {15}, {16}, {17}, {32}, {55}, {64}, {67} } } }   // Target shapes
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_1D, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(staticInputShapes1D),
+                    ::testing::Values(0),
+                    ::testing::Values(0),
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(true),
+                    ::testing::Values(cpuParams),
+                    ::testing::ValuesIn(additionalConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_1D, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(dynamicInputShapes1D),
+                    ::testing::Values(0),
+                    ::testing::Values(0),
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(true, false),
+                    ::testing::Values(cpuParams),
+                    ::testing::ValuesIn(additionalConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+
+// 2D
+const std::vector<std::vector<ov::test::InputShape>> staticInputShapes2D_ax0 = {
+    { { {}, { {3, 7} } },    // Static shapes
+      { {}, { {5, 4} } }
+    },
+    { { {}, { {2, 8} } },    // Static shapes
+      { {}, { {3, 15} } },
+    },
+    { { {}, { {2, 15} } },   // Static shapes
+      { {}, { {3, 7} } }
+    },
+    { { {}, { {1, 17} } },    // Static shapes
+      { {}, { {5, 10} } }
+    },
+    { { {}, { {7, 9} } },     // Static shapes
+      { {}, { {8, 9} } }
+    }
+};
+const std::vector<std::vector<ov::test::InputShape>> staticInputShapes2D_ax1 = {
+    { { {}, { {4, 7} } },    // Static shapes
+      { {}, { {4, 55} } }
+    },
+    { { {}, { {4, 17} } },   // Static shapes
+      { {}, { {4, 17} } },
+    },
+    { { {}, { {4, 55} } },   // Static shapes
+      { {}, { {4, 7} } }
+    },
+    { { {}, { {5, 5} } },    // Static shapes
+      { {}, { {5, 33} } }
+    },
+    { { {}, { {7, 7} } },    // Static shapes
+      { {}, { {7, 9} } }
+    }
+};
+const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes2D_ax1 = {
+    { { { ov::Dimension{1, 128}, ov::Dimension(3, 80) },          // Dynamic shape 0
+        { {3, 4}, {5, 5}, {128, 8}, {7, 5}, {7, 7}, {8, 5} } },    // Target shapes
+      { { -1, ov::Dimension(3, 99) },                            // Dynamic shape 1
+        { {3, 6}, {5, 4}, {128, 7}, {7, 8}, {7, 9}, {8, 9} } } }   // Target shapes
+};
+const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes2D_ax0 = {
+    { { { ov::Dimension{1, 70}, ov::Dimension(3, 80) },          // Dynamic shape 0
+        { {4, 7}, {3, 21}, {2, 35}, {1, 41}, {5, 45} } },        // Target shapes
+      { { -1, ov::Dimension(3, 99) },                            // Dynamic shape 1
+        { {4, 55}, {5, 7}, {8, 35}, {8, 41}, {8, 45} } } }       // Target shapes
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_2D_ax0, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(staticInputShapes2D_ax0),
+                    ::testing::Values(0),
+                    ::testing::Values(0),
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(true),
+                    ::testing::Values(cpuParams),
+                    ::testing::ValuesIn(additionalConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_2D_ax1, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(staticInputShapes2D_ax1),
+                    ::testing::Values(1),
+                    ::testing::ValuesIn(std::vector<int64_t>{0, 1}),
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(true),
+                    ::testing::Values(cpuParams),
+                    ::testing::ValuesIn(additionalConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_2D_ax1, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(dynamicInputShapes2D_ax1),
+                    ::testing::Values(1),
+                    ::testing::ValuesIn(std::vector<int64_t>{0, 1}),
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(true, false),
+                    ::testing::Values(cpuParams),
+                    ::testing::ValuesIn(additionalConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_2D_ax0, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(dynamicInputShapes2D_ax0),
+                    ::testing::Values(0),
+                    ::testing::Values(0),
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(true, false),
+                    ::testing::Values(cpuParams),
+                    ::testing::ValuesIn(additionalConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+
+// 4D
+const std::vector<std::vector<ov::test::InputShape>> staticInputShapes4D = {
+    { { {}, { {4, 5, 6, 7} } },    // Static shapes
+      { {}, { {2, 5, 1} } }
+    },
+    { { {}, { {10, 5, 6, 7} } },   // Static shapes
+      { {}, { {2, 5, 2} } },
+    },
+    { { {}, { {16, 5, 6, 7} } },   // Static shapes
+      { {}, { {3, 5, 3} } }
+    }
+};
+const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
+    { { { ov::Dimension(4, 20), 5, 6, 7 },                   // Dynamic shape 0
+        { {4, 5, 6, 7}, {10, 5, 6, 7}, {16, 5, 6, 7} } },    // Target shapes
+      { { ov::Dimension(2, 4), 5, ov::Dimension(1, 4) },     // Dynamic shape 1
+        { {2, 5, 1}, {2, 5, 2}, {3, 5, 3} } } },             // Target shapes
+    { { { -1, -1, -1, -1 },                                  // Dynamic shape 0
+        { {4, 5, 6, 4}, {10, 5, 6, 8} } },                   // Target shapes
+      { { -1, -1, -1 },                                      // Dynamic shape 1
+        { {2, 5, 16}, {2, 5, 24} } } }                       // Target shapes
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_4D, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(staticInputShapes4D),
+                    ::testing::ValuesIn(std::vector<int64_t>{0, 1, 2, -1}),
+                    ::testing::Values(0),
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(true),
+                    ::testing::Values(cpuParams),
+                    ::testing::ValuesIn(additionalConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_4D, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(dynamicInputShapes4D),
+                    ::testing::ValuesIn(std::vector<int64_t>{0, 1, 2, -1}),
+                    ::testing::Values(0),
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(true, false),
+                    ::testing::Values(cpuParams),
+                    ::testing::ValuesIn(additionalConfig)),
+                GatherLayerTestCPU::getTestCaseName);
+} // namespace
+} // namespace CPULayerTestsDefinitions

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,9 +104,9 @@ std::string Gather8LayerTest::getTestCaseName(const testing::TestParamInfo<gathe
     std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "indicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
     result << "axis=" << std::get<0>(axis_batchIdx) << "_";
     result << "batchIdx=" << std::get<1>(axis_batchIdx) << "_";
-    result << "indicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
