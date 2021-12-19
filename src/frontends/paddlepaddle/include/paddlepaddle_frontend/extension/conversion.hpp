@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "common/conversion_extension.hpp"
+#include <openvino/frontend/extension/conversion.hpp>
 #include "openvino/core/extension.hpp"
-#include "openvino/core/variant.hpp"
 #include "paddlepaddle_frontend/frontend.hpp"
 
 namespace ov {
 namespace frontend {
-class ConversionExtensionPDPD : public ConversionExtensionBase {
+namespace pdpd {
+class ConversionExtensionPDPD : public ov::frontend::ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtensionPDPD>;
     ConversionExtensionPDPD() = delete;
@@ -22,5 +22,6 @@ private:
     using ConversionExtensionBase::get_converter;
 };
 
+}
 }  // namespace frontend
 }  // namespace ov

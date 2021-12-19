@@ -14,21 +14,14 @@
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/input_model.hpp"
 #include "tensorflow_frontend/utility.hpp"
-
-namespace ov {
-namespace frontend {
-namespace tf {
-class NodeContext;
-}
-}  // namespace frontend
-}  // namespace ov
+#include "tensorflow_frontend/node_context.hpp"
+#include "tensorflow_frontend/extension/conversion.hpp"
 
 namespace ov {
 namespace frontend {
 class TF_API FrontEndTF : public ov::frontend::FrontEnd {
 public:
-    using CreatorFunction = std::function<::ov::OutputVector(const ov::frontend::tf::NodeContext&)>;
-    using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
+    using TranslatorDictionaryType = std::map<const std::string, const tf::CreatorFunction>;
 
 private:
     TranslatorDictionaryType m_op_translators;

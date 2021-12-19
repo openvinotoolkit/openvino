@@ -17,30 +17,28 @@
 namespace ov {
 namespace frontend {
 
+template<class T>
 class FRONTEND_API NodeContext {
 public:
-    NodeContext(const std::string& _op_type, OutputVector _ng_inputs) : m_op_type(_op_type), m_ng_inputs(_ng_inputs) {}
-    NodeContext(const std::string& _op_type, std::map<std::string, OutputVector> _ng_inputs)
-        : m_op_type(_op_type),
-          m_ng_named_inputs(_ng_inputs) {}
+    NodeContext(const std::string& _op_type, const T& inputs)
+    : m_op_type(_op_type), m_inputs(inputs) {}
 
-    OutputVector get_ng_inputs() const {
-        return m_ng_inputs;
-    }
-
-    std::map<std::string, OutputVector> get_ng_named_inputs() const {
-        return m_ng_named_inputs;
+    T get_inputs() const {
+        return m_inputs;
     }
 
     const std::string& op_type() const {
         return m_op_type;
     }
 
+    virtual ~NodeContext() = 0;
 private:
     std::string m_op_type;
-    OutputVector m_ng_inputs;
-    std::map<std::string, OutputVector> m_ng_named_inputs;
+    T m_inputs;
 };
+
+template<class T>
+using CreatorFunction = std::function<OutputVector(const NodeContext<T>&)>;
 
 }  // namespace frontend
 }  // namespace ov

@@ -15,18 +15,16 @@
 namespace ov {
 namespace frontend {
 namespace tf {
-using InPortName = size_t;
-using OutPortName = size_t;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class NodeContext : public ov::frontend::NodeContext {
+class NodeContext : public ov::frontend::NodeContext<OutputVector> {
     const DecoderBase& m_decoder;
     const OutputVector& m_inputs;
 
 public:
     NodeContext(const DecoderBase& decoder, const OutputVector& inputs)
-        : ov::frontend::NodeContext(decoder.get_op_type(), inputs),
+        : ov::frontend::NodeContext<OutputVector>(decoder.get_op_type(), inputs),
           m_decoder(decoder),
           m_inputs(inputs) {}
 
@@ -97,6 +95,7 @@ public:
     }
 };
 
+using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tf::NodeContext&)>;
 }  // namespace tf
 }  // namespace frontend
 }  // namespace ov
