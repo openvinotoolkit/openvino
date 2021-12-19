@@ -11,7 +11,7 @@ from openvino.runtime import Core   # pylint: disable=E0611,E0401
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    process_raw_output, set_friendly_node_names
+    process_raw_output, add_tensor_names
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -96,9 +96,10 @@ class IEEngine(Engine):
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
             outputs = self._add_outputs(list(nodes_names_map.values()))
-            set_friendly_node_names(zip(outputs, nodes_names_map.keys()))
+            add_tensor_names(zip(outputs, nodes_names_map.keys()))
 
-            model_output_names = [o.get_node().friendly_name for o in self._model.outputs]
+            model_output_names = [convert_output_key(node_name) + '/sink_port_0' for node_name in nodes_names_map.keys()]
+
             align_stat_names_with_results(model_output_names,
                                           nodes_names_map,
                                           output_to_node_names,
@@ -246,7 +247,7 @@ class IEEngine(Engine):
             if infer_status:
                 logger.debug('Infer request %d returned %s message', ir_id, infer_status)
                 return [], []
-            outputs = process_raw_output(ir.results)
+            outputs = ir.results
 
             result.append((batch_id, image_annotations, batch_meta, outputs, ir))
             free_indexes.append(ir_id)
@@ -383,7 +384,7 @@ class IEEngine(Engine):
 
             # Infer batch of images
             predictions = infer_request.infer(self._fill_input(executable_model, image_batch))
-            outputs = process_raw_output(predictions)
+            outputs = predictions
 
             self._process_infer_output(stats_layout, outputs,
                                        batch_annotations, batch_meta,

@@ -11,7 +11,7 @@ import numpy as np
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    set_friendly_node_names
+    add_tensor_names
 from ..api.engine import Engine
 from ..data_loaders.ac_data_loader import ACDataLoader
 from ..graph.model_utils import save_model, add_outputs
@@ -132,10 +132,10 @@ class ACEngine(Engine):
             outputs_list = add_outputs(self._model, list(nodes_names_map.values()))
             self._model_evaluator.load_network(self._model)
             for outputs_data in outputs_list:
-                set_friendly_node_names(zip(outputs_data['outputs'], outputs_data['node_names']))
+                add_tensor_names(zip(outputs_data['outputs'], nodes_names_map.keys()))
 
-            model_output_names = [out.get_node().friendly_name for m_dict in self._model
-                                  for out in m_dict['model'].outputs]
+            model_output_names = [convert_output_key(node_name) + '/sink_port_0' for node_name in nodes_names_map.keys()]
+
             align_stat_names_with_results(model_output_names,
                                           nodes_names_map,
                                           output_to_node_names,

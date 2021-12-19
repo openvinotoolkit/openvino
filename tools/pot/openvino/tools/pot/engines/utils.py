@@ -135,19 +135,21 @@ def align_stat_names_with_results(result_names, nodes_name, output2node, stats_l
                 update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)
                 output2node[out_name_with_port] = original_out_name
 
+
 def process_raw_output(raw_output):
     """ Processes raw output into the POT friendly format """
     result = {}
     for result_node, result_data in raw_output.items():
-        if isinstance(result_node, str):
-            result_name = result_node.replace('/sink_port_0', '')
-        else:
-            result_name = result_node.get_node().friendly_name.replace('/sink_port_0', '')
-        result[result_name] = result_data
+        for name in result_node.get_tensor().get_names():
+            result_name = name.replace('/sink_port_0', '')
+            result[result_name] = result_data
     return result
 
-def set_friendly_node_names(nodes_and_names):
+
+def add_tensor_names(nodes_and_names):
     """ Processes nGraph output_node's and sets POT-friendly name """
     for output_node, node_name in nodes_and_names:
+        names = output_node.get_tensor().get_names()
         node_name = convert_output_key(node_name) + '/sink_port_0'
-        output_node.get_node().set_friendly_name(node_name)
+        names.add(node_name)
+        output_node.get_tensor().set_names(names)
