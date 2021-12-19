@@ -30,6 +30,8 @@ At runtime, the quantized model is loaded to the plugin. The plugin uses the `Lo
 
 Let's explore quantized [TensorFlow* implementation of the ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader) to download the `FP16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
 
+> **NOTE**: If you installed OpenVINO with pip, use `omz_downloader` and `omz_quantizer` instead of `download.py` and `quantize.py`. See [Open Model Zoo documentation](https://github.com/openvinotoolkit/open_model_zoo/tree/master/tools/model_tools#model-downloader-usage). Replace `./benchmark_app` with `benchmark_app`.
+
 ```sh
 <omz_dir>//tools/downloader/downloader.py --name resnet-50-tf --precisions FP16-INT8
 ```
