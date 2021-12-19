@@ -7,31 +7,42 @@
 #include <functional>
 #include <map>
 
-#include "tensorflow_frontend/node_context.hpp"
-#include "common/conversion_extension.hpp"
-#include "common/frontend.hpp"
-#include "common/input_model.hpp"
-#include "common/telemetry_extension.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/input_model.hpp"
 #include "tensorflow_frontend/utility.hpp"
+
+namespace ov {
+namespace frontend {
+namespace tf {
+class NodeContext;
+}
+}  // namespace frontend
+}  // namespace ov
 
 namespace ov {
 namespace frontend {
 class TF_API FrontEndTF : public ov::frontend::FrontEnd {
 public:
-    using CreatorFunction = std::function<::ov::OutputVector(const ov::frontend::tf::NodeContext&)>;
+    using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;
     using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
 
+private:
+    TranslatorDictionaryType m_op_translators;
+
+public:
     FrontEndTF();
 
     /// \brief Completely convert the model
     /// \return fully converted ov Model
-    std::shared_ptr<Model> convert(ov::frontend::InputModel::Ptr model) const override;
+    std::shared_ptr<Model> convert(const ov::frontend::InputModel::Ptr& model) const override;
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted ov Model
-    void convert(std::shared_ptr<Model> partiallyConverted) const override;
+    void convert(const std::shared_ptr<Model>& partiallyConverted) const override;
 
     /// \brief Convert only those parts of the model that can be converted leaving others
     /// as-is. Converted parts are not normalized by additional transformations; normalize
@@ -39,18 +50,18 @@ public:
     /// conversion process.
     /// \param model Input model
     /// \return partially converted ov Model
-    std::shared_ptr<Model> convert_partially(ov::frontend::InputModel::Ptr model) const override;
+    std::shared_ptr<Model> convert_partially(const ov::frontend::InputModel::Ptr& model) const override;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
     /// Each decoding node is an ov node representing a single FW operation node with
     /// all attributes represented in FW-independent way.
     /// \param model Input model
     /// \return ov Model after decoding
-    std::shared_ptr<Model> decode(ov::frontend::InputModel::Ptr model) const override;
+    std::shared_ptr<Model> decode(const ov::frontend::InputModel::Ptr& model) const override;
 
     /// \brief Runs normalization passes on function that was loaded with partial conversion
     /// \param Model partially converted ov Model
-    void normalize(std::shared_ptr<ov::Model> function) const override;
+    void normalize(const std::shared_ptr<ov::Model>& function) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     std::string get_name() const override {
@@ -64,7 +75,6 @@ protected:
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
-    TranslatorDictionaryType m_op_translators;
 
 private:
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
@@ -74,8 +84,7 @@ private:
                          std::shared_ptr<ov::Model>& ng_function) const;
 
     std::shared_ptr<TelemetryExtension> m_telemetry;
-    std::vector<std::shared_ptr<Extension>> m_so_extensions;
-    std::vector<std::shared_ptr<ConversionExtensionBase>> m_conversion_extensions;
+    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
 };
 }  // namespace frontend
 }  // namespace ov

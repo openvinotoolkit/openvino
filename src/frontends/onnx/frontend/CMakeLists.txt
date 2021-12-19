@@ -24,6 +24,6 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/frontend.cpp
         PROPERTIES INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import
-        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+        DESTINATION ${FRONTEND_INSTALL_INCLUDE}/ngraph/frontend
         COMPONENT core_dev
         FILES_MATCHING PATTERN "*.hpp")

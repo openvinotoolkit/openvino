@@ -181,7 +181,9 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     bool is_convert_color_input = false;
     for (auto& node : op->get_users()) {
         is_convert_color_input |= ngraph::is_type<ngraph::op::v8::NV12toRGB>(node) ||
-                                  ngraph::is_type<ngraph::op::v8::NV12toBGR>(node);
+                                  ngraph::is_type<ngraph::op::v8::NV12toBGR>(node) ||
+                                  ngraph::is_type<ngraph::op::v8::I420toRGB>(node) ||
+                                  ngraph::is_type<ngraph::op::v8::I420toBGR>(node);
     }
 
     if (is_convert_color_input) {
