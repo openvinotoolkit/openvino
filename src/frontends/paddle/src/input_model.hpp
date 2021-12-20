@@ -35,8 +35,8 @@ public:
 
 private:
     friend class ov::frontend::paddle::FrontEnd;
-    class InputModelPaddleImpl;
-    std::shared_ptr<InputModelPaddleImpl> _impl;
+    class InputModelImpl;
+    std::shared_ptr<InputModelImpl> _impl;
 
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const;

@@ -16,7 +16,6 @@
 using namespace ov;
 using namespace ov::frontend;
 
-//----------- FrontEndManager ---------------------------
 class FrontEndManager::Impl {
     std::mutex m_loading_mutex;
     std::vector<PluginInfo> m_plugins;

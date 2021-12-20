@@ -358,7 +358,7 @@ TEST(eval, evaluate_broadcast_v3_bidi_4d) {
     ASSERT_EQ(result_val, expec);
 }
 
-TEST(eval, evaluate_broadcast_v3_paddle) {
+TEST(eval, evaluate_broadcast_v3_pdpd) {
     Shape shape_a{3, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 6});
@@ -376,7 +376,7 @@ TEST(eval, evaluate_broadcast_v3_paddle) {
     ASSERT_EQ(result_val, expec);
 }
 
-TEST(eval, evaluate_broadcast_v3_paddle_dyn) {
+TEST(eval, evaluate_broadcast_v3_pdpd_dyn) {
     Shape shape_a{3, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto target_shape = make_shared<op::Parameter>(element::i32, Shape{3});
@@ -434,7 +434,7 @@ TEST(eval, evaluate_broadcast_v1_numpy_dyn) {
     ASSERT_EQ(result_val, expec);
 }
 
-TEST(eval, evaluate_broadcast_v1_paddle) {
+TEST(eval, evaluate_broadcast_v1_pdpd) {
     Shape shape_a{3, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 6});
@@ -453,7 +453,7 @@ TEST(eval, evaluate_broadcast_v1_paddle) {
     ASSERT_EQ(result_val, expec);
 }
 
-TEST(eval, evaluate_broadcast_v1_paddle_dyn) {
+TEST(eval, evaluate_broadcast_v1_pdpd_dyn) {
     Shape shape_a{3, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto target_shape = make_shared<op::Parameter>(element::i64, Shape{3});
