@@ -178,6 +178,8 @@ TRANSFORMATIONS_API std::shared_ptr<Node> try_fold_unary_output(const std::share
 
 TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const OutputVector& inputs);
 
+TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected, const ngraph::PartialShape& actual);
+
 template <typename T, typename... Args>
 std::shared_ptr<Node> make_try_fold(Args&&... args) {
     auto unary_output_node = std::make_shared<T>(std::forward<Args>(args)...);
