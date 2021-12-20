@@ -19,7 +19,7 @@ V_ENV=0
 
 for ((i=1;i <= $#;i++)) {
     case "${!i}" in
-        caffe|tf|mxnet|kaldi|onnx)
+        caffe|tf|tf2|mxnet|kaldi|onnx)
             postfix="_$1"
             ;;
         "venv")

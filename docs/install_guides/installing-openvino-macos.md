@@ -215,7 +215,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
    - For **TensorFlow 2.x**:
    ```sh
-   sudo ./install_prerequisites_tf.sh
+   sudo ./install_prerequisites_tf2.sh
    ```
 
    - For **MXNet**:

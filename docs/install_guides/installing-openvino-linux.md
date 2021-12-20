@@ -242,7 +242,7 @@ cd /opt/intel/openvino_2022/tools/model_optimizer/install_prerequisites
 
    - For **TensorFlow 2.x**:
    ```sh
-   sudo ./install_prerequisites_tf.sh
+   sudo ./install_prerequisites_tf2.sh
    ```
 
    - For **MXNet**:
