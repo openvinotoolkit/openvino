@@ -284,7 +284,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
         if (!batch_id) {  //need new request
             _workerRequests.push_back(std::make_shared<WorkerInferRequest>());
             auto workerRequestPtr = _workerRequests.back();
-            workerRequestPtr->_inferRequestBatched = {_network._so, _network->CreateInferRequest()};
+            workerRequestPtr->_inferRequestBatched = {_network->CreateInferRequest(), _network._so};
             workerRequestPtr->_batchSize = _device.batchForDevice;
             workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
             workerRequestPtr->_inferRequestBatched->SetCallback(
@@ -352,8 +352,8 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequest() {
     auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatch = {_networkWithoutBatch._so,
-                                                                         _networkWithoutBatch->CreateInferRequest()};
+    InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatch = {_networkWithoutBatch->CreateInferRequest(),
+                                                                         _networkWithoutBatch._so};
     return std::make_shared<AutoBatchAsyncInferRequest>(std::static_pointer_cast<AutoBatchInferRequest>(syncRequestImpl),
                                                                              _needPerfCounters,
                                                                              inferRequestWithoutBatch,

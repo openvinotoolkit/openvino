@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include "openvino/runtime/gpu/ocl/ocl.hpp"
+#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/core.hpp"
 
 #include <gpu/gpu_config.hpp>
@@ -124,7 +124,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
 
     // inference using remote tensor
     auto inf_req_shared = exec_net.create_infer_request();
-    auto cldnn_context = exec_net.get_context().as<ov::runtime::gpu::ocl::ClContext>();
+    auto cldnn_context = exec_net.get_context().as<ov::runtime::intel_gpu::ocl::ClContext>();
     cl_context ctx = cldnn_context;
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
     cl_int err;
@@ -185,8 +185,8 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
         }
         case RemoteTensorSharingType::PLUGIN_CL_TENSOR: {
             auto cldnn_tensor = cldnn_context.create_tensor(input->get_element_type(), input->get_shape());
-            ASSERT_TRUE(cldnn_tensor.is<ov::runtime::gpu::ocl::ClBufferTensor>());
-            auto cl_tensor = cldnn_tensor.as<ov::runtime::gpu::ocl::ClBufferTensor>();
+            ASSERT_TRUE(cldnn_tensor.is<ov::runtime::intel_gpu::ocl::ClBufferTensor>());
+            auto cl_tensor = cldnn_tensor.as<ov::runtime::intel_gpu::ocl::ClBufferTensor>();
             {
                 cl::Buffer shared_buffer = cl_tensor;
                 void* buffer = fakeImageData.data();
@@ -201,9 +201,9 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
                 GTEST_SKIP();
 
             auto cldnn_tensor = cldnn_context.create_usm_host_tensor(input->get_element_type(), input->get_shape());
-            ASSERT_TRUE(cldnn_tensor.is<ov::runtime::gpu::ocl::USMTensor>());
+            ASSERT_TRUE(cldnn_tensor.is<ov::runtime::intel_gpu::ocl::USMTensor>());
             {
-                auto cl_tensor = cldnn_tensor.as<ov::runtime::gpu::ocl::USMTensor>();
+                auto cl_tensor = cldnn_tensor.as<ov::runtime::intel_gpu::ocl::USMTensor>();
                 void* shared_buffer = cl_tensor.get();
                 ASSERT_EQ(ocl_instance->get_allocation_type(shared_buffer), CL_MEM_TYPE_HOST_INTEL);
                 void* buffer = fakeImageData.data();
@@ -220,9 +220,9 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
                 GTEST_SKIP();
 
             auto cldnn_tensor = cldnn_context.create_usm_device_tensor(input->get_element_type(), input->get_shape());
-            ASSERT_TRUE(cldnn_tensor.is<ov::runtime::gpu::ocl::USMTensor>());
+            ASSERT_TRUE(cldnn_tensor.is<ov::runtime::intel_gpu::ocl::USMTensor>());
             {
-                auto cl_tensor = cldnn_tensor.as<ov::runtime::gpu::ocl::USMTensor>();
+                auto cl_tensor = cldnn_tensor.as<ov::runtime::intel_gpu::ocl::USMTensor>();
                 void* shared_buffer = cl_tensor.get();
                 ASSERT_EQ(ocl_instance->get_allocation_type(shared_buffer), CL_MEM_TYPE_DEVICE_INTEL);
                 void* buffer = fakeImageData.data();
@@ -327,7 +327,7 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContext) {
     // inference using remote tensor
     auto ocl_instance = std::make_shared<OpenCL>();
 
-    auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_context.get());
+    auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_context.get());
     auto exec_net_shared = ie.compile_model(function, remote_context, config);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input, fakeImageData);
@@ -373,7 +373,7 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContextWithMultipleD
     cl::Context multi_device_ctx({ocl_instance_tmp->_device, ocl_instance_tmp->_device});
     auto ocl_instance = std::make_shared<OpenCL>(multi_device_ctx.get());
 
-    auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_context.get(), 1);
+    auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_context.get(), 1);
 
     ASSERT_EQ(remote_context.get_device_name(), "GPU.0");
     auto exec_net_shared = ie.compile_model(function, remote_context, config);
@@ -426,9 +426,9 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_out_of_order) 
     cl::Buffer shared_input_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size, NULL, &err);
     cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
 
-    auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
+    auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
     auto exec_net_shared = ie.compile_model(function, remote_context);
-    auto gpu_context = exec_net_shared.get_context().as<ov::runtime::gpu::ocl::ClContext>();
+    auto gpu_context = exec_net_shared.get_context().as<ov::runtime::intel_gpu::ocl::ClContext>();
 
     auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
     auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
@@ -506,9 +506,9 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_in_order) {
     cl::Buffer shared_input_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size, NULL, &err);
     cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
 
-    auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
+    auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
     auto exec_net_shared = ie.compile_model(function, remote_context);
-    auto gpu_context = exec_net_shared.get_context().as<ov::runtime::gpu::ocl::ClContext>();
+    auto gpu_context = exec_net_shared.get_context().as<ov::runtime::intel_gpu::ocl::ClContext>();
 
     auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
     auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
@@ -584,7 +584,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image) {
     auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
     auto inf_req_remote = exec_net_b.create_infer_request();
 
-    auto cldnn_context = exec_net_b.get_context().as<ov::runtime::gpu::ocl::ClContext>();
+    auto cldnn_context = exec_net_b.get_context().as<ov::runtime::intel_gpu::ocl::ClContext>();
     cl_context ctx = cldnn_context.get();
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
     cl_int err;
@@ -703,9 +703,9 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
     cl::Buffer shared_input_uv_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size_uv, NULL, &err);
     cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
 
-    auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
+    auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
     auto exec_net_shared = ie.compile_model(function, remote_context);
-    auto gpu_context = exec_net_shared.get_context().as<ov::runtime::gpu::ocl::ClContext>();
+    auto gpu_context = exec_net_shared.get_context().as<ov::runtime::intel_gpu::ocl::ClContext>();
 
     auto gpu_in_y_tensor = gpu_context.create_tensor(param_input_y->get_output_element_type(0), fake_image_data_y.get_shape(), shared_input_y_buffer);
     auto gpu_in_uv_tensor = gpu_context.create_tensor(param_input_uv->get_output_element_type(0), fake_image_data_uv.get_shape(), shared_input_uv_buffer);

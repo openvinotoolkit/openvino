@@ -15,7 +15,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
-#include "openvino/frontend/telemetry_extension.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ngraph {
 namespace onnx_import {

@@ -124,7 +124,7 @@ public:
        cpuMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
        auto cpuMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
        ON_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(cpuMockIExeNet));
-       cpuMockPlugin = InferenceEngine::InferencePlugin{{}, cpuMockIPluginPtr};
+       cpuMockPlugin = InferenceEngine::InferencePlugin{cpuMockIPluginPtr, {}};
        // remove annoying ON CALL message
        EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
        cpuMockExeNetwork = cpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
@@ -133,7 +133,7 @@ public:
        gpuMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
        auto gpuMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
        ON_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(gpuMockIExeNet));
-       gpuMockPlugin = InferenceEngine::InferencePlugin{{}, gpuMockIPluginPtr};
+       gpuMockPlugin = InferenceEngine::InferencePlugin{gpuMockIPluginPtr, {}};
        // remove annoying ON CALL message
        EXPECT_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
        gpuMockExeNetwork = gpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
