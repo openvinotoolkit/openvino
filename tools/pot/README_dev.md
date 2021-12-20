@@ -52,4 +52,3 @@ To test the tool you can use PyTorch Mobilenet_v2 model from `tests/data/models/
 
  - If there're some errors with imports in ModelOptimizer first of all make the following steps:
     - Checkout _mkaglins/poc_ branch in DLDT (It's important!)
-
