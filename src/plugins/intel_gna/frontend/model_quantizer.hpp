@@ -44,9 +44,16 @@ class ModelQuantizer {
     template <class PreQuantisationCb>
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model,  const PreQuantisationCb &cb, std::vector<float> scaleFactors) const {
         GNAPluginNS::GnaInputs inputs;
-        for (size_t i = 0; i < scaleFactors.size(); ++i) {
-            inputs[std::to_string(i)].scale_factor = scaleFactors[i];;
+        InferenceEngine::InputsDataMap inputs_map = model.getInputsInfo();
+        int sf_id = 0;
+        for (auto &&input_data : inputs_map) {
+            auto input_layer = getCreatorLayer(input_data.second->getInputData()).lock();
+            if (scaleFactors.size() <= sf_id) {
+                THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";
+            }
+            inputs[input_layer->name].scale_factor = scaleFactors[sf_id++];
         }
+
         return quantize(model, cb, inputs);
     }
 
@@ -87,16 +94,11 @@ class ModelQuantizer {
         }
         /// filling scale factors for input layers, memory layers will have scaleFactor of 1.0 by default
         InferenceEngine::InputsDataMap dm = copiedNet.getInputsInfo();
-        int scaleIndex = 0;
         for (auto &&inputData : dm) {
             auto inputLayer = getCreatorLayer(inputData.second->getInputData()).lock();
             auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
-            if (inputs.size() <= scaleIndex) {
-                THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";
-            }
             IE_ASSERT(quantData != nullptr);
             quantData->_src_quant.SetScale(inputs.at(inputLayer->name).scale_factor);
-            scaleIndex++;
         }
 
         propagateScaleFactor(sortedNewNet);
