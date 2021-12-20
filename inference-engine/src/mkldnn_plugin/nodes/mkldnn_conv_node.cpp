@@ -352,8 +352,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const Vecto
                 ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps || eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-                    constexpr int align = 16;
-                    eltwiseNode->appendPostOps(ops, dims, align);
+                    eltwiseNode->appendPostOps(ops, dims);
                 } else {
                     eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
                 }
