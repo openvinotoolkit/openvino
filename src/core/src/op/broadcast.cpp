@@ -135,14 +135,14 @@ void op::v3::Broadcast::validate_and_infer_types() {
                               "axes_mapping input should not be provided for mode other than explicit");
     }
 
-    auto shape_et = get_input_element_type(1);
+    const auto& shape_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           shape_et.is_integral_number(),
                           "Broadcast shape must be an integral number, but is: ",
                           shape_et);
     if (m_mode.m_type == BroadcastType::NONE) {
         // axes_mapping node should have integer data type. For now we only allow i64
-        auto axes_et = get_input_element_type(2);
+        const auto& axes_et = get_input_element_type(2);
         NODE_VALIDATION_CHECK(this,
                               axes_et.is_integral_number(),
                               "Broadcast axes must be integral numbers, but are: ",
@@ -261,14 +261,14 @@ void op::v1::Broadcast::validate_and_infer_types() {
         util::BroadcastBase::m_mode = base_spec;
     }
 
-    auto shape_et = get_input_element_type(1);
+    const auto& shape_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           shape_et.is_integral_number(),
                           "Broadcast shape must be an integral number, but is: ",
                           shape_et);
     if (m_mode.m_type == BroadcastType::NONE) {
         // axes_mapping node should have integer data type. For now we only allow i64
-        auto axes_et = get_input_element_type(2);
+        const auto& axes_et = get_input_element_type(2);
         NODE_VALIDATION_CHECK(this,
                               axes_et.is_integral_number(),
                               "Broadcast axes must be integral numbers, but are: ",

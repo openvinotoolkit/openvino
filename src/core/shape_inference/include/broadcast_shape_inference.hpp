@@ -77,8 +77,6 @@ void validate_target_shape_numpy(const ov::Node* op, const T& arg_shape, const T
                           " than arg shape ",
                           arg_rank_length);
     for (auto i = start_axis; i < target_rank_length; i++) {
-        std::stringstream ss;
-        ss << " or " << target_shape[i];
         NODE_VALIDATION_CHECK(op,
                               arg_shape[i - start_axis].is_dynamic() || target_shape[i].is_dynamic() ||
                                   arg_shape[i - start_axis].compatible(1) ||
@@ -88,7 +86,8 @@ void validate_target_shape_numpy(const ov::Node* op, const T& arg_shape, const T
                               " cannot be broadcasted (numpy mode) to ",
                               target_shape[i],
                               ". Allowed input dimension value would be 1",
-                              target_shape[i] != 1 ? ss.str() : "");
+                              target_shape[i] != 1 ? " or " : "",
+                              target_shape[i] != 1 ? std::to_string(target_shape[i].get_length()) : "");
     }
 }
 
@@ -104,12 +103,12 @@ void set_result_shape_pdpd(const ov::Node* op,
         return;
     }
     result_shape = target_shape;
-    auto start_axis = broadcast_spec.m_axis;
+    auto& start_axis = broadcast_spec.m_axis;
 
     NODE_VALIDATION_CHECK(op, start_axis >= 0, "Broadcast start_axis must be greater than 0");
 
     for (size_t i = start_axis; i < target_shape.size(); i++) {
-        const auto arg_dim = arg0_shape[i - start_axis];
+        const auto& arg_dim = arg0_shape[i - start_axis];
         if (arg_dim == 1) {
             result_shape[i] = target_shape[i];
         } else if (target_shape[i] == 1) {
@@ -176,7 +175,7 @@ void broadcase_base_shape_infer(
                           "Broadcast shape rank must be 1, but has ",
                           broadcast_shape_rank);
 
-    auto& mode = op->get_broadcast_spec();
+    const auto& mode = op->get_broadcast_spec();
     if (mode.m_type == BroadcastType::NONE) {
         // axes_mapping node should produce a one dimensional shape.
         auto axes_shape_rank = input_shapes[2].rank();
