@@ -4,19 +4,19 @@
 
 #pragma once
 
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define PDPD_API
 #    define PDPD_C_API
 #else
-#    ifdef paddlepaddle_ov_frontend_EXPORTS
+#    ifdef ov_paddlepaddle_frontend_EXPORTS
 #        define PDPD_API   OPENVINO_CORE_EXPORTS
 #        define PDPD_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #    else
 #        define PDPD_API   OPENVINO_CORE_IMPORTS
 #        define PDPD_C_API OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS
-#    endif  // paddlepaddle_ov_frontend_EXPORTS
+#    endif  // ov_paddlepaddle_frontend_EXPORTS
 #endif      // OPENVINO_STATIC_LIBRARY
 
 #define PDPD_ASSERT(ex, msg)               \
