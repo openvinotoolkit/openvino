@@ -30,11 +30,11 @@ class InputModel::InputModelImpl {
 public:
     template <typename T>
     InputModelImpl(const std::basic_string<T>& path,
-                         const InputModel& input_model,
-                         const std::shared_ptr<TelemetryExtension>& telemetry);
+                   const InputModel& input_model,
+                   const std::shared_ptr<TelemetryExtension>& telemetry);
     InputModelImpl(const std::vector<std::istream*>& streams,
-                         const InputModel& input_model,
-                         const std::shared_ptr<TelemetryExtension>& telemetry);
+                   const InputModel& input_model,
+                   const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<Place::Ptr> getInputs() const;
     std::vector<Place::Ptr> getOutputs() const;
     Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
@@ -262,7 +262,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::determine_cut_
 
 template <typename T>
 void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_with_weights,
-                                                  std::istream* weight_stream) {
+                                            std::istream* weight_stream) {
     for (const auto& item : m_var_places) {
         const auto& var_desc = item.second->get_desc();
         const auto& name = item.first;
@@ -301,8 +301,8 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
 
 template <typename T>
 InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
-                                                       const InputModel& input_model,
-                                                       const std::shared_ptr<TelemetryExtension>& telemetry)
+                                           const InputModel& input_model,
+                                           const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
       m_input_model(input_model),
       m_telemetry(telemetry) {
@@ -329,8 +329,8 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
 }
 
 InputModel::InputModelImpl::InputModelImpl(const std::vector<std::istream*>& streams,
-                                                       const InputModel& input_model,
-                                                       const std::shared_ptr<TelemetryExtension>& telemetry)
+                                           const InputModel& input_model,
+                                           const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
       m_input_model(input_model),
       m_telemetry(telemetry) {
@@ -393,7 +393,7 @@ void InputModel::InputModelImpl::overrideAllOutputs(const std::vector<Place::Ptr
 }
 
 void InputModel::InputModelImpl::extractSubgraph(const std::vector<Place::Ptr>& inputs,
-                                                       const std::vector<Place::Ptr>& outputs) {
+                                                 const std::vector<Place::Ptr>& outputs) {
     m_graph_changed = true;
     overrideAllInputs(inputs);
     overrideAllOutputs(outputs);
