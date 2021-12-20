@@ -63,6 +63,8 @@ public:
 
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
+    std::vector<VectorDims> shapeInfer() const override;
+    std::vector<VectorDims> shapeInfer2(const std::vector<Shape> & shapes);
 
 private:
     void prepareParams() override;
@@ -85,7 +87,6 @@ private:
                              const mkldnn::memory::desc& biasDesc,
                              const mkldnn::memory::desc& outputDesc,
                              mkldnn::algorithm alg);
-    void updatePadding();
 
     bool withBiases;
     bool withSum;

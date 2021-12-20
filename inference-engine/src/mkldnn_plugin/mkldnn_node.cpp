@@ -1382,6 +1382,75 @@ std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
     return shapeInferGeneric({}, 0xFFFFFFFF);
 }
 
+#if 0
+#if 0
+std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes, uint32_t input_value_port_mask) const {
+    std::vector<VectorDims> newOutputShapes{{64, 64, 64, 64}};
+    std::cerr << "==============3 " << opToShapeInfer->get_friendly_name() << "," << "\n";
+    for (auto s : shapes) {
+        std::cerr << "in: (";
+        for (auto d : s.getStaticDims()) std::cerr << d << ",";
+        std::cerr << ")\n";
+    }
+    for (auto s : newOutputShapes) {
+        std::cerr << "out: (";
+        for (auto d : s) std::cerr << d << ",";
+        std::cerr << ")\n";
+    }
+    return newOutputShapes;
+}
+#else
+std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes_in, uint32_t input_value_port_mask) const {
+    std::vector<Shape> shapes;
+
+    if (shapes_in.empty()) {
+        for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+            shapes.push_back(getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
+        }
+    } else {
+        shapes = shapes_in;
+    }
+
+    if (shapes.size() < opToShapeInfer->get_input_size()) {
+        std::cout << __LINE__ << " ????????????\n";
+        IE_THROW(Unexpected) << "MKLDNNNode::shapeInferGeneric input shapes vector size is " << shapes.size() << ", but " << opToShapeInfer->get_input_size() <<
+            " required for node with name: " << getName();
+    }
+
+    for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+        if (!dynamic_cast<ngraph::opset1::Constant *>(opToShapeInfer->get_input_node_ptr(i))) {
+            opToShapeInfer->get_input_tensor(i).set_partial_shape(shapes[i].toPartialShape());
+        }
+    }
+#if 0
+    opToShapeInfer->validate_and_infer_types();
+
+    std::vector<VectorDims> newOutputShapes(opToShapeInfer->get_output_size());
+    for (size_t i = 0; i < newOutputShapes.size(); i++) {
+        const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
+        if (partShape.is_dynamic()) {
+            std::cout << __LINE__ << " ????????????\n";
+            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
+        }
+        newOutputShapes[i] = partShape.get_shape();
+    }
+#endif
+    std::vector<VectorDims> newOutputShapes = {{64, 64, 64, 64}};
+    std::cerr << "==============2 " << opToShapeInfer->get_friendly_name() << "," << "\n";
+    for (auto s : shapes) {
+        std::cerr << "in: (";
+        for (auto d : s.getStaticDims()) std::cerr << d << ",";
+        std::cerr << ")\n";
+    }
+    for (auto s : newOutputShapes) {
+        std::cerr << "out: (";
+        for (auto d : s) std::cerr << d << ",";
+        std::cerr << ")\n";
+    }
+    return newOutputShapes;
+}
+#endif
+#else
 std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes,
                                                       uint32_t input_value_port_mask) const {
     // collect input shapes
@@ -1435,7 +1504,26 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
         return s.to_shape();
     });
 
+    std::cout << "=============== " << opToShapeInfer->get_friendly_name() << "," << input_value_port_mask << "\n";
+    for (auto s : shapes) {
+        std::cout << "in: (";
+        for (auto d : s.getStaticDims()) std::cout << d << ",";
+        std::cout << ")\n";
+    }
+    for (auto s : result) {
+        std::cout << "out: (";
+        for (auto d : s) std::cout << d << ",";
+        std::cout << ")\n";
+    }
     return result;
+}
+#endif
+template <typename OPTYPE>
+std::vector<ov::VectorDims> MKLDNNNode::shapeInferHelper(OPTYPE* op,
+                                  const std::vector<Shape>& shapes,
+                                  std::vector<ov::StaticShape>& input_shapes,
+                                  std::vector<ov::StaticShape>& output_shapes) {
+    
 }
 
 void MKLDNNNode::updateLastInputDims() {
