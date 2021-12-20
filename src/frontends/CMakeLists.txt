@@ -23,6 +23,3 @@ endif()
 if(ENABLE_OV_TF_FRONTEND)
     add_subdirectory(tensorflow)
 endif()
-
-# used for static build
-ov_generate_frontends_hpp()

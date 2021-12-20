@@ -22,28 +22,10 @@ endif()
 
 add_subdirectory(plugins)
 add_subdirectory(inference)
+include(cmake/ov_runtime.cmake)
 add_subdirectory(common)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
     add_subdirectory(tests)
-endif()
-
-if(ENABLE_OV_IR_FRONTEND)
-    if(BUILD_SHARED_LIBS)
-        add_dependencies(ov_runtime_libraries ov_ir_frontend)
-    endif()
-    # use this one once CVS-69781 is fixed
-    # add_dependencies(inference_engine ov_ir_frontend)
-endif()
-if(ENABLE_OV_ONNX_FRONTEND)
-    add_dependencies(inference_engine ov_onnx_frontend)
-endif()
-
-if(ENABLE_OV_PDPD_FRONTEND)
-    add_dependencies(inference_engine ov_paddlepaddle_frontend)
-endif()
-
-if(ENABLE_OV_TF_FRONTEND)
-    add_dependencies(inference_engine ov_tensorflow_frontend)
 endif()
