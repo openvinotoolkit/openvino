@@ -1226,33 +1226,6 @@ def test_set_input_partial_shape_using_input_edge():
     assert ov_model.output("out4").get_partial_shape() == PartialShape([10, 10])
 
 
-def test_get_partial_shape_using_input_edge():
-    skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
-    model = fe.load("input_model.onnx")
-
-    add_operator = model.get_place_by_operation_name("onnx_add_op")
-    add_input_edge = add_operator.get_input_port(input_port_index=0)
-
-    pshape = model.get_partial_shape(add_input_edge)
-    assert pshape == PartialShape([2, 2])
-
-
-def test_get_partial_shape_using_output_edge():
-    skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
-    model = fe.load("input_model.onnx")
-
-    add_operator = model.get_place_by_operation_name("onnx_add_op")
-    add_output_edge = add_operator.get_output_port(output_port_index=0)
-
-    assert model.get_partial_shape(add_output_edge) == PartialShape([2, 2])
-
-    split_operator = model.get_place_by_tensor_name("out1").get_producing_operation()
-    out2_edge = split_operator.get_output_port(output_port_index=1)
-    assert model.get_partial_shape(out2_edge) == PartialShape([1, 2])
-
-
 def test_set_partial_shape_with_range():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
@@ -1295,3 +1268,30 @@ def test_set_partial_shape_with_range_and_rename_it():
 
     ov_model = fe.convert(model)
     assert ov_model.input("new_in1").get_partial_shape() == ranged_shape
+
+
+def test_get_partial_shape_using_input_edge():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    add_operator = model.get_place_by_operation_name("onnx_add_op")
+    add_input_edge = add_operator.get_input_port(input_port_index=0)
+
+    pshape = model.get_partial_shape(add_input_edge)
+    assert pshape == PartialShape([2, 2])
+
+
+def test_get_partial_shape_using_output_edge():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    add_operator = model.get_place_by_operation_name("onnx_add_op")
+    add_output_edge = add_operator.get_output_port(output_port_index=0)
+
+    assert model.get_partial_shape(add_output_edge) == PartialShape([2, 2])
+
+    split_operator = model.get_place_by_tensor_name("out1").get_producing_operation()
+    out2_edge = split_operator.get_output_port(output_port_index=1)
+    assert model.get_partial_shape(out2_edge) == PartialShape([1, 2])
