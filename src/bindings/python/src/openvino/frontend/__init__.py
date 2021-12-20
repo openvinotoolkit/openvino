@@ -41,6 +41,8 @@ from openvino.pyopenvino import FrontEnd
 from openvino.pyopenvino import InputModel
 from openvino.pyopenvino import Place
 from openvino.pyopenvino import TelemetryExtension
+from openvino.pyopenvino import DecoderTransformationExtension
+from openvino.pyopenvino import JsonConfigExtension
 
 # exceptions
 from openvino.pyopenvino import NotImplementedFailure

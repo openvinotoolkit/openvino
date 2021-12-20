@@ -10,11 +10,11 @@
 #include <vector>
 
 #include "decoder.hpp"
+#include "exceptions.hpp"
 #include "framework.pb.h"
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/opsets/opset7.hpp"
-#include "paddlepaddle_frontend/exceptions.hpp"
 #include "paddlepaddle_frontend/model.hpp"
 #include "paddlepaddle_frontend/place.hpp"
 #include "pdpd_fw_node.hpp"
@@ -276,8 +276,22 @@ InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<ov::Any>& variants) co
     PDPD_THROW("Model can be loaded either from 1 or 2 files/streams");
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::convert(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::convert(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
+    FRONT_END_GENERAL_CHECK(pdpd_model != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(
         pdpd_model,
@@ -287,20 +301,34 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert(InputModel::Ptr model) const {
     return f;
 }
 
-void FrontEndPDPD::convert(std::shared_ptr<ov::Model> partiallyConverted) const {
+void FrontEndPDPD::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<PDPDFrameworkNode>(node)) {
             pdpd::normalize_framework_node(std::dynamic_pointer_cast<PDPDFrameworkNode>(node),
                                            pdpd::get_supported_ops());
         }
     }
-    for (auto result : partiallyConverted->get_results()) {
+    for (const auto& result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
+    FRONT_END_GENERAL_CHECK(pdpd_model != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(
         pdpd_model,
@@ -316,8 +344,10 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(InputModel::Ptr model
     return f;
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::decode(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::decode(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
+    FRONT_END_GENERAL_CHECK(pdpd_model != nullptr, "Invalid input model");
+
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
     return f;
@@ -330,6 +360,8 @@ std::string FrontEndPDPD::get_name() const {
 void FrontEndPDPD::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
+        m_transformation_extensions.push_back(transformation);
     }
 }
 
