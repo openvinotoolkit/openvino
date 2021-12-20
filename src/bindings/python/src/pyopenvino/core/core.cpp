@@ -48,7 +48,7 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("config") = py::dict());
 
-    cls.def("get_versions", &ov::runtime::Core::get_versions);
+    cls.def("get_versions", &ov::runtime::Core::get_versions, py::arg("device_name"));
 
     cls.def(
         "read_model",
