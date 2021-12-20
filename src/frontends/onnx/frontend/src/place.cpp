@@ -21,6 +21,10 @@ onnx_editor::InputEdge PlaceInputEdge::get_input_edge() const {
     return m_edge;
 }
 
+std::vector<std::string> PlaceInputEdge::get_names() const {
+    return {"InputEdge{" + std::to_string(m_edge.m_node_idx) + ", " + std::to_string(m_edge.m_port_idx) + "}"};
+}
+
 bool PlaceInputEdge::is_input() const {
     return m_editor->is_input(m_edge);
 }
@@ -29,7 +33,7 @@ bool PlaceInputEdge::is_output() const {
     return false;
 }
 
-bool PlaceInputEdge::is_equal(Place::Ptr another) const {
+bool PlaceInputEdge::is_equal(const Place::Ptr& another) const {
     if (const auto in_edge = std::dynamic_pointer_cast<PlaceInputEdge>(another)) {
         const auto& editor_edge = in_edge->get_input_edge();
         return (editor_edge.m_node_idx == m_edge.m_node_idx) && (editor_edge.m_port_idx == m_edge.m_port_idx);
@@ -37,7 +41,7 @@ bool PlaceInputEdge::is_equal(Place::Ptr another) const {
     return false;
 }
 
-bool PlaceInputEdge::is_equal_data(Place::Ptr another) const {
+bool PlaceInputEdge::is_equal_data(const Place::Ptr& another) const {
     return get_source_tensor()->is_equal_data(another);
 }
 
@@ -70,6 +74,10 @@ onnx_editor::OutputEdge PlaceOutputEdge::get_output_edge() const {
     return m_edge;
 }
 
+std::vector<std::string> PlaceOutputEdge::get_names() const {
+    return {"OutputEdge{" + std::to_string(m_edge.m_node_idx) + ", " + std::to_string(m_edge.m_port_idx) + "}"};
+}
+
 bool PlaceOutputEdge::is_input() const {
     return false;
 }
@@ -78,7 +86,7 @@ bool PlaceOutputEdge::is_output() const {
     return m_editor->is_output(m_edge);
 }
 
-bool PlaceOutputEdge::is_equal(Place::Ptr another) const {
+bool PlaceOutputEdge::is_equal(const Place::Ptr& another) const {
     if (const auto out_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(another)) {
         const auto& editor_edge = out_edge->get_output_edge();
         return (editor_edge.m_node_idx == m_edge.m_node_idx) && (editor_edge.m_port_idx == m_edge.m_port_idx);
@@ -86,7 +94,7 @@ bool PlaceOutputEdge::is_equal(Place::Ptr another) const {
     return false;
 }
 
-bool PlaceOutputEdge::is_equal_data(Place::Ptr another) const {
+bool PlaceOutputEdge::is_equal_data(const Place::Ptr& another) const {
     return get_target_tensor()->is_equal_data(another);
 }
 
@@ -147,14 +155,14 @@ bool PlaceTensor::is_output() const {
     return std::find(std::begin(outputs), std::end(outputs), m_name) != std::end(outputs);
 }
 
-bool PlaceTensor::is_equal(Place::Ptr another) const {
+bool PlaceTensor::is_equal(const Place::Ptr& another) const {
     if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(another)) {
         return m_name == tensor->get_names().at(0);
     }
     return false;
 }
 
-bool PlaceTensor::is_equal_data(Place::Ptr another) const {
+bool PlaceTensor::is_equal_data(const Place::Ptr& another) const {
     const auto consuming_ports = get_consuming_ports();
     const auto eq_to_consuming_port = [&consuming_ports](const Ptr& another) {
         return std::any_of(consuming_ports.begin(), consuming_ports.end(), [&another](const Ptr& place) {
@@ -198,7 +206,11 @@ PlaceOp::PlaceOp(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ON
       m_editor{std::move(editor)} {}
 
 std::vector<std::string> PlaceOp::get_names() const {
-    return {m_node.m_node_name};
+    if (!m_node.m_node_name.empty()) {
+        return {m_node.m_node_name};
+    } else {
+        return {m_editor->get_node_name(m_node)};
+    }
 }
 
 const onnx_editor::EditorNode& PlaceOp::get_editor_node() const {
@@ -319,7 +331,7 @@ ov::frontend::Place::Ptr PlaceOp::get_producing_operation(const std::string& inp
     return nullptr;
 }
 
-bool PlaceOp::is_equal(Place::Ptr another) const {
+bool PlaceOp::is_equal(const Place::Ptr& another) const {
     if (const auto place_op = std::dynamic_pointer_cast<PlaceOp>(another)) {
         const auto& another_node = place_op->get_editor_node();
         if (m_editor->is_correct_and_unambiguous_node(m_node) ||
