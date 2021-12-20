@@ -165,14 +165,8 @@ bool MKLDNNCTCGreedyDecoderNode::created() const {
     return getType() == CTCGreedyDecoder;
 }
 
-void MKLDNNCTCGreedyDecoderNode::executeDynamicImpl(dnnl::stream strm) {
-    MKLDNNCTCGreedyDecoderNode::execute(strm);
-}
-
-void MKLDNNCTCGreedyDecoderNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
+void MKLDNNCTCGreedyDecoderNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 bool MKLDNNCTCGreedyDecoderNode::needPrepareParams() const {

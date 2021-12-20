@@ -849,14 +849,6 @@ void MKLDNNMVNNode::prepareParams() {
         }
 }
 
-void MKLDNNMVNNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
     switch (shape.size()) {
         // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
@@ -899,13 +891,16 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            constexpr int align = 16;
-            eltwiseNode->appendPostOps(ops, postOpDims, align);
+            eltwiseNode->appendPostOps(ops, postOpDims);
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
     attr.set_post_ops(ops);
+}
+
+void MKLDNNMVNNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNMVNNode::execute(mkldnn::stream strm) {
