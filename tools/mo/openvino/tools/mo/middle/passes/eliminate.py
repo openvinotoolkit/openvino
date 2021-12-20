@@ -152,7 +152,7 @@ def add_constant_operations(graph):
                                            override_output_shape=node.has_valid('force_shape'),
                                            force_type=node.soft_get('force_type', None),
                                            correct_data_type=node.soft_get('correct_data_type', False),
-                                           rt_info=node.soft_get('save_rt_info', RTInfo()),
+                                           rt_info=node.soft_get('rt_info', RTInfo()),
                                            )).create_node()
             graph.add_edges_from([(const_node.id, node.id, {'out': 0})])
 

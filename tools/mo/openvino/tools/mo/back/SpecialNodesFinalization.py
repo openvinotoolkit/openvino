@@ -86,7 +86,7 @@ class CreateConstNodesReplacement(BackReplacementPattern):
                                            'override_output_shape': node.has_valid('force_shape'),
                                            'force_type': node.soft_get('force_type', None),
                                            'correct_data_type': node.soft_get('correct_data_type', None),
-                                           'rt_info': node.soft_get('save_rt_info', RTInfo()),
+                                           'rt_info': node.soft_get('rt_info', RTInfo()),
                                            }).create_node()
                 const_node.add_input_port(0)
                 graph.add_edges_from([(const_node_name, node.id, {'out': 0})])
