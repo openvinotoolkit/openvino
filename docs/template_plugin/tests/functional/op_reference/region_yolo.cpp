@@ -123,7 +123,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const RegionYoloParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const RegionYoloParams& params) {
         const auto p = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
         const auto RegionYolo = std::make_shared<op::v0::RegionYolo>(p,
                                                                      params.coords,
@@ -133,7 +133,7 @@ private:
                                                                      params.mask,
                                                                      params.axis,
                                                                      params.end_axis);
-        return std::make_shared<ov::Function>(NodeVector {RegionYolo}, ParameterVector {p});
+        return std::make_shared<ov::Model>(NodeVector {RegionYolo}, ParameterVector {p});
     }
 };
 
