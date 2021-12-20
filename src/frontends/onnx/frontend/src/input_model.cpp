@@ -93,7 +93,13 @@ ov::frontend::Place::Ptr InputModel::get_place_by_operation_name_and_output_port
 void InputModel::set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) {
     const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensor>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
+    const auto original_name = onnx_tensor->get_names().at(0);
     onnx_tensor->set_name(new_name);
+
+    if (m_inputs_to_reshape.count(original_name) > 0) {
+        m_inputs_to_reshape[new_name] = m_inputs_to_reshape[original_name];
+        m_inputs_to_reshape.erase(original_name);
+    }
 }
 
 void InputModel::set_name_for_operation(const ov::frontend::Place::Ptr& operation, const std::string& new_name) {
