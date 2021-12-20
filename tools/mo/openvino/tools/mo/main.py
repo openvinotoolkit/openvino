@@ -8,7 +8,6 @@ import os
 import platform
 import sys
 import traceback
-import re
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -343,12 +342,9 @@ def prepare_ir(argv : argparse.Namespace):
             ngraph_function = moc_pipeline(argv, moc_front_end)
             return graph, ngraph_function
         except Exception as e:
-            # remove file info from exception string
-            sanitized_exception = re.sub("Check '.*' failed at .*:\d+:\\n", "", str(e))
-            fallback_reasons.append(f"frontend failure with exception: {sanitized_exception}")
+            fallback_reasons.append(f"frontend failure with exception: {e}")
     if len(fallback_reasons) > 0:
         reasons_message = ", ".join(fallback_reasons)
-        t.send_event("mo", "fallback_reason", reasons_message)
         log.warning("The IR prepartion was executed by the legacy MO path. "
                     "This is a fallback scenario applicable only for some specific cases. "
                    f"The detailed reason why fallback was executed: {reasons_message}. "
