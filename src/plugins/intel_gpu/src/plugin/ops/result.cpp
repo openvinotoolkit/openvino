@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/result.hpp"
 
@@ -11,7 +11,9 @@
 
 using namespace InferenceEngine;
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
     OutputsDataMap networkOutputs = p.GetNetworkOutputs();
@@ -36,7 +38,14 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 
     auto inputs = p.GetInputPrimitiveIDs(op);
     const auto outputDesc = outputData->getTensorDesc();
-    const auto outputlayout = outputDesc.getLayout();
+    auto outputlayout = outputDesc.getLayout();
+
+    if (ngraph::is_type<ngraph::op::v8::NV12toRGB>(prev) ||
+        ngraph::is_type<ngraph::op::v8::NV12toBGR>(prev) ||
+        ngraph::is_type<ngraph::op::v8::I420toRGB>(prev) ||
+        ngraph::is_type<ngraph::op::v8::I420toBGR>(prev)) {
+        outputlayout = NHWC;
+    }
 
     // TODO: add precision check once there's an outputInfo object
     if (outputlayout != NCHW &&
@@ -57,7 +66,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 
     p.AddPrimitive(cldnn::reorder(outLayerName,
                                   outputID,
-                                  FormatFromLayout(outputData->getLayout()),
+                                  FormatFromLayout(outputlayout),
                                   DataTypeFromPrecision(precision),
                                   std::vector<float>(),
                                   cldnn::reorder_mean_mode::subtract,
@@ -73,4 +82,6 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 
 REGISTER_FACTORY_IMPL(v0, Result);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

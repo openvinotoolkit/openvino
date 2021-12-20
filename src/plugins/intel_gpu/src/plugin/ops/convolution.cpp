@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/convolution.hpp"
 #include "ngraph/op/binary_convolution.hpp"
@@ -19,7 +19,9 @@
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 struct ConvoltuionParameters {
     cldnn::tensor stride;
@@ -82,7 +84,7 @@ static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::o
                                        params.stride,
                                        params.padding,
                                        params.dilation,
-                                       CldnnTensorFromIEDims(outDims),
+                                       tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
                                        weights_have_group_dim,
                                        op->get_friendly_name());
@@ -111,7 +113,7 @@ static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1
                                        params.stride,
                                        params.padding,
                                        params.dilation,
-                                       CldnnTensorFromIEDims(outDims),
+                                       tensor_from_dims(outDims),
                                        DataTypeFromPrecision(outPrecision),
                                        weights_have_group_dim,
                                        op->get_friendly_name());
@@ -135,11 +137,12 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
-    // WA: For the cases like Const(weights)->Sub(zp)->Deconv.
+    bool hasConstantWeights = IsNodeOnConstPath(weights_node);
+    // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap (and transpose) I and O dimensions to match the format
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
-    if (IsNodeOnConstPath(weights_node) && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) {
+    if ((hasConstantWeights && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) || !hasConstantWeights) {
         std::string permuteName = layerName + "_cldnn_weights_permute";
         auto weights_rank = op->get_input_shape(1).size();
         std::vector<uint16_t> permute_order(weights_rank);
@@ -168,7 +171,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
                                            params.groups,
                                            params.stride,
                                            params.padding,
-                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                            weights_have_group_dim,
                                            op->get_friendly_name());
 
@@ -193,11 +196,12 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
-    // WA: For the cases like Const(weights)->Sub(zp)->Deconv.
+    bool hasConstWeights = IsNodeOnConstPath(weights_node);
+    // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap I and O dimensions to match the format.
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
-    if (IsNodeOnConstPath(weights_node) && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) {
+    if ((hasConstWeights && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) || !hasConstWeights) {
         std::string permuteName = layerName + "_cldnn_weights_permute";
         auto weights_rank = op->get_input_shape(1).size();
         std::vector<uint16_t> permute_order(weights_rank);
@@ -225,7 +229,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
                                            params.groups,
                                            params.stride,
                                            params.padding,
-                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                            weights_have_group_dim,
                                            op->get_friendly_name());
 
@@ -272,7 +276,7 @@ static void DeformableConvolutionImpl(Program& p,
                                                           params.stride,
                                                           params.padding,
                                                           params.dilation,
-                                                          CldnnTensorFromIEDims(outDims),
+                                                          tensor_from_dims(outDims),
                                                           kernel,
                                                           bilinearInterpolationPad,
                                                           op->get_friendly_name());
@@ -283,7 +287,7 @@ static void DeformableConvolutionImpl(Program& p,
                                                   weights,
                                                   {},
                                                   params.groups,
-                                                  CldnnTensorFromIEDims(outDims),
+                                                  tensor_from_dims(outDims),
                                                   op->get_friendly_name());
         p.AddPrimitive(defConvPrim);
         p.AddPrimitiveToProfiler(defConvLayerNameConv, op);
@@ -297,7 +301,7 @@ static void DeformableConvolutionImpl(Program& p,
                                            params.stride,
                                            params.padding,
                                            params.dilation,
-                                           CldnnTensorFromIEDims(outDims),
+                                           tensor_from_dims(outDims),
                                            bilinearInterpolationPad,
                                            op->get_friendly_name());
 
@@ -334,7 +338,7 @@ static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::
                                               params.stride,
                                               params.padding,
                                               params.dilation,
-                                              CldnnTensorFromIEDims(outDims),
+                                              tensor_from_dims(outDims),
                                               params.groups,
                                               op->get_pad_value(),
                                               calc_precision,
@@ -352,4 +356,6 @@ REGISTER_FACTORY_IMPL(v1, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v1, BinaryConvolution);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

@@ -110,18 +110,10 @@ void MKLDNNGatherNode::prepareParams() {
 }
 
 bool MKLDNNGatherNode::needPrepareParams() const {
-    bool result = MKLDNNNode::needPrepareParams();
+    bool result = inputShapesModified();
     if (!isAxisInputConst)
         result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
     return result;
-}
-
-void MKLDNNGatherNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
 }
 
 void MKLDNNGatherNode::execute(mkldnn::stream strm) {
