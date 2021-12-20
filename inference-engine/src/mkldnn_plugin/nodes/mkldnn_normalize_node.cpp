@@ -813,8 +813,7 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, con
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            constexpr int align = 16;
-            eltwiseNode->appendPostOps(ops, dims, align);
+            eltwiseNode->appendPostOps(ops, dims);
             continue;
         }
 
