@@ -392,19 +392,19 @@ void InputModelTF::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>&
     _impl->extractSubgraph(inputs, outputs);
 }
 
-void InputModelTF::set_partial_shape(ov::frontend::Place::Ptr place, const ov::PartialShape& p_shape) {
+void InputModelTF::set_partial_shape(const ov::frontend::Place::Ptr& place, const ov::PartialShape& p_shape) {
     _impl->setPartialShape(place, p_shape);
 }
 
-ov::PartialShape InputModelTF::get_partial_shape(ov::frontend::Place::Ptr place) const {
+ov::PartialShape InputModelTF::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
     return _impl->getPartialShape(place);
 }
 
-void InputModelTF::set_element_type(ov::frontend::Place::Ptr place, const ov::element::Type& type) {
+void InputModelTF::set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) {
     _impl->setElementType(place, type);
 }
 
-void InputModelTF::set_tensor_value(ov::frontend::Place::Ptr place, const void* value) {
+void InputModelTF::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
     _impl->setTensorValue(place, value);
 }
 }  // namespace frontend
