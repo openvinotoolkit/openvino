@@ -4,8 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/gather.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -55,13 +56,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GatherParams& params) {
-        const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
-        const auto A = op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape,
+    static std::shared_ptr<Model> CreateFunction(const GatherParams& params) {
+        const auto P = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto I = std::make_shared<opset1::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
+        const auto A = opset1::Constant::create(params.axisTensor.type, params.axisTensor.shape,
                                                 params.axisTensor.data.data());
-        const auto G = std::make_shared<op::v1::Gather>(P, I, A);
-        const auto f = std::make_shared<Function>(G, ParameterVector{P, I});
+        const auto G = std::make_shared<opset1::Gather>(P, I, A);
+        const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }
 };
@@ -115,18 +116,35 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GatherParamsV7& params) {
-        const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
-        const auto A = op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape,
+    static std::shared_ptr<Model> CreateFunction(const GatherParamsV7& params) {
+        const auto P = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto I = std::make_shared<opset1::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
+        const auto A = opset1::Constant::create(params.axisTensor.type, params.axisTensor.shape,
                                                 params.axisTensor.data.data());
-        const auto G = std::make_shared<op::v7::Gather>(P, I, A, params.batchDims);
-        const auto f = std::make_shared<Function>(G, ParameterVector{P, I});
+        const auto G = std::make_shared<opset7::Gather>(P, I, A, params.batchDims);
+        const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }
 };
 
 TEST_P(ReferenceGatherTestV7, CompareWithRefs) {
+    Exec();
+}
+
+class ReferenceGatherTestV8 : public ReferenceGatherTestV7 {
+private:
+    static std::shared_ptr<Model> CreateFunction(const GatherParamsV7& params) {
+        const auto P = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto I = std::make_shared<opset1::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
+        const auto A = opset1::Constant::create(params.axisTensor.type, params.axisTensor.shape,
+                                                params.axisTensor.data.data());
+        const auto G = std::make_shared<opset8::Gather>(P, I, A, params.batchDims);
+        const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
+        return f;
+    }
+};
+
+TEST_P(ReferenceGatherTestV8, CompareWithRefs) {
     Exec();
 }
 
@@ -877,4 +895,64 @@ std::vector<GatherParamsV7> generateCombinedParamsV7() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Gather_With_Hardcoded_Refs, ReferenceGatherTestV7,
     testing::ValuesIn(generateCombinedParamsV7()), ReferenceGatherTestV7::getTestCaseName);
+
+template <element::Type_t ET, element::Type_t ET_I, element::Type_t ET_A>
+std::vector<GatherParamsV7> generateParamsV8() {
+    using T = typename element_type_traits<ET>::value_type;
+    using T_I = typename element_type_traits<ET_I>::value_type;
+    using T_A = typename element_type_traits<ET_A>::value_type;
+    std::vector<GatherParamsV7> params {
+        GatherParamsV7(
+            Tensor(ET, {5}, std::vector<T>{
+                1, 2, 3, 4, 5}),
+            Tensor(ET_I, {3}, std::vector<T_I>{
+                0, -2, -1}),
+            Tensor(ET_A, {}, std::vector<T_A>{0}),
+            0,
+            Tensor(ET, {3}, std::vector<T>{
+                1, 4, 5}),
+            "gather_v8_1d_negative_indices"),
+    };
+    return params;
+}
+
+std::vector<GatherParamsV7> generateCombinedParamsV8() {
+    const std::vector<std::vector<GatherParamsV7>> generatedParams {
+        generateParamsV7<element::Type_t::boolean, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV7<element::Type_t::i8, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV7<element::Type_t::i16, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV7<element::Type_t::i32, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV7<element::Type_t::i64, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV7<element::Type_t::u8, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV7<element::Type_t::u16, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV7<element::Type_t::u32, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV7<element::Type_t::u64, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsFloatValueV7<element::Type_t::bf16, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsFloatValueV7<element::Type_t::f16, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsFloatValueV7<element::Type_t::f32, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsFloatValueV7<element::Type_t::f64, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::boolean, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::i8, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::i16, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::i32, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::i64, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::u8, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::u16, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::u32, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::u64, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::bf16, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::f16, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::f32, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsV8<element::Type_t::f64, element::Type_t::i32, element::Type_t::i64>(),
+    };
+    std::vector<GatherParamsV7> combinedParams;
+
+    for (const auto& params : generatedParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+    return combinedParams;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Gather_With_Hardcoded_Refs, ReferenceGatherTestV8,
+    testing::ValuesIn(generateCombinedParamsV8()), ReferenceGatherTestV8::getTestCaseName);
 } // namespace

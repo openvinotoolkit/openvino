@@ -4,11 +4,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
 #include "device_cache_reader.h"
@@ -456,11 +456,6 @@ void program::init_graph() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
 
-    for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layout();
-    }
-
     apply_opt_pass<calculate_prior_boxes>();
 
     apply_opt_pass<mark_nodes>();
@@ -746,10 +741,10 @@ program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
 }
 
 void program::add_intermediate(program_node& node,
-                                    program_node& next,
-                                    size_t prev_idx,
-                                    bool connect_int_node_with_old_dep,
-                                    bool move_usrs_of_prev_to_node) {
+                               program_node& next,
+                               size_t prev_idx,
+                               bool connect_int_node_with_old_dep,
+                               bool move_usrs_of_prev_to_node) {
     if (connect_int_node_with_old_dep && !node.dependencies.empty())
         throw std::invalid_argument(
             "Node which is about to be added in between two other nodes should not have any existing dependencies");
@@ -998,11 +993,15 @@ bool program::extract_and_remove(program_node& node) {
     return true;
 }
 
-void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std::map<primitive_id, std::vector<primitive_id>>* fusing_history) {
+
+void program::fuse_nodes(program_node &fused_node,
+                         program_node &peer_node,
+                         std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc;
     local_desc.node = get_node_ptr(peer_node.id());
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
+    local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
     if (!peer_node.get_fused_activations_funcs().empty()) {
@@ -1019,15 +1018,18 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
         for (auto& id : history_iter->second) {
-            local_desc.fused_deps.push_back(id);
+            local_desc.fused_deps.emplace(id.first, id.second);
         }
     }
 
     // Add new dependencies to the fused_node
+    size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
         auto& dep = peer_node.get_dependency(i);
-        if (dep.id() == fused_node.id())
+        if (dep.id() == fused_node.id()) {
+            deps_idx++;
             continue;
+        }
 
         if (peer_node.is_type<quantize>()) {
             quantize_node& q_node = peer_node.as<quantize>();
@@ -1053,9 +1055,11 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
             }
         }
         fused_node.dependencies.push_back(&dep);
-        local_desc.deps.push_back(dep.id());
+        local_desc.deps.emplace(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
+    local_desc.total_num_deps = std::min(local_desc.total_num_deps, deps_idx);
+
     fused_node.add_fused_primitive(local_desc);
     // This shouldn't happen, but who knows...
     if (peer_node.has_fused_primitives()) {
@@ -1064,7 +1068,13 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
     add_optimized_primitive_info(peer_node.id(), { fused_node.id() });
 
     for (auto& user : peer_node.users) {
-        (*fusing_history)[user->id()].push_back(peer_node.id());
+        size_t dep_idx = 0;
+        for (auto& dep : user->dependencies) {
+            if (dep->id() == peer_node.id())
+                break;
+            dep_idx++;
+        }
+        (*fusing_history)[user->id()].push_back(std::make_pair(peer_node.id(), dep_idx));
     }
 
     // Remove all edges connected with peer node
@@ -1102,8 +1112,8 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use
 // primitive_inst::to_string?)
 void program::dump_program(const char* stage,
-                                bool with_full_info,
-                                std::function<bool(program_node const&)> const& filter) const {
+                           bool with_full_info,
+                           std::function<bool(program_node const&)> const& filter) const {
     std::string path = get_dir_path(options);
     if (path.empty() || !with_full_info) {
         return;
@@ -1164,7 +1174,8 @@ std::string program::get_implementation_info(const primitive_id& id) const {
     try {
         const auto& node = get_node(id);
         auto impl = node.get_selected_impl();
-        return impl ? (impl->get_kernel_name() + "__" + dt_to_str(get_inference_precision(node))) : "undef";
+        auto kernel_name = impl ? impl->get_kernel_name() : "";
+        return !kernel_name.empty() ? (kernel_name + "__" + dt_to_str(get_inference_precision(node))) : "undef";
     } catch (...) { }
 
     return "undef";
@@ -1219,7 +1230,7 @@ void program::save_pass_info(std::string pass_name) {
 }
 
 void program::add_optimized_primitive_info(primitive_id optimized_primitive_id,
-                                                std::vector<primitive_id> replaced_with_ids) {
+                                           std::vector<primitive_id> replaced_with_ids) {
     for (auto& e : optimized) {
         auto it = std::find_if(e.second.begin(), e.second.end(), [&optimized_primitive_id](const primitive_id& id) {
            return optimized_primitive_id == id;

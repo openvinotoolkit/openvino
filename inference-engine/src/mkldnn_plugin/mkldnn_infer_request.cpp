@@ -190,8 +190,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::redefineMemoryForInputNodes() {
         const auto inputNode = cpuInputNodes.find(blob.first);
         if (inputNode == cpuInputNodes.end())
             IE_THROW() << "CPU execution graph doesn't contain input node with name: " << blob.first;
-        if (inputNode->second->isDynamicNode())
+        if (inputNode->second->isDynamicNode()) {
             inputNode->second->redefineOutputMemory({blob.second->getTensorDesc().getDims()});
+        }
     }
 }
 
@@ -526,9 +527,12 @@ void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
                     break;
                 }
 
-                if (child->getType() == Concatenation && dynamic_cast<MKLDNNConcatNode*>(child.get())->isOptimized()) {
-                    canBeInPlace = false;
-                    break;
+                if (child->getType() == Concatenation) {
+                    auto concat = dynamic_cast<MKLDNNConcatNode*>(child.get());
+                    if (concat && concat->isOptimized()) {
+                        canBeInPlace = false;
+                        break;
+                    }
                 }
 
                 // Cannot be in-place before split because split is using different ptrs without offsets

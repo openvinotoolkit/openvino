@@ -11,7 +11,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-#include "ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ngraph;

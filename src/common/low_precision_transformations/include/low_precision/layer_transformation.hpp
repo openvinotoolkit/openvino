@@ -194,6 +194,9 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 
 // Base class for all LP transformations, holds some common data structures
 class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
+    static std::vector<ngraph::element::Type> defaultPrecisions;
+    static std::mutex defaultPrecisionsMutex;
+
 public:
     class Params {
     public:
@@ -260,13 +263,16 @@ public:
 
     // return true if operation can be preserved for precision
     // note: dequantization operations on activations are absent during method execution
-    virtual bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept = 0;
+    virtual bool isPrecisionPreserved(std::shared_ptr<Node> layer) const = 0;
 
     // weights specific
     static DataPrecision getDataPrecision(
             const std::shared_ptr<Node>& layer,
             const QuantizationDetails& quantizationDetails,
             const std::vector<element::Type>& precisions);
+
+    static void setDefaultPrecisions(const std::vector<ngraph::element::Type>& precisions);
+    static std::vector<ngraph::element::Type> getDefaultPrecisions();
 
 protected:
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO

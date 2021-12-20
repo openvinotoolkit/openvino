@@ -1,7 +1,3 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
-
 #pragma once
 
 #include <gflags/gflags.h>
@@ -13,14 +9,14 @@
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
 
-/// @brief message for images argument
+/// @brief message for input data argument
 static const char input_message[] =
     "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
-/// @brief message for assigning cnn calculation to device
+/// @brief message for assigning calculation to device
 static const char target_device_message[] =
     "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
     "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
@@ -36,12 +32,17 @@ static const char execution_target_message[] =
     "or the latest fully supported generation by the software. "
     "See the GNA Plugin's GNA_EXEC_TARGET config option description.";
 
-/// @brief message for execution target
+/// @brief message for compile target
 static const char compile_target_message[] = "Optional. Specify GNA compile target generation. "
                                              "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
                                              "By default, generation corresponds to the GNA HW available in the system "
                                              "or the latest fully supported generation by the software. "
                                              "See the GNA Plugin's GNA_COMPILE_TARGET config option description.";
+
+/// @brief message for enabling GNA log
+static const char enable_log_message[] = "Optional. Enable GNA logging, which may give additional info "
+                                         "about potential issues found in network. "
+                                         "By default logging is disabled.";
 
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Optional. Enables per-layer performance report.";
@@ -140,6 +141,9 @@ DEFINE_string(exec_target, "", execution_target_message);
 /// \brief GNA compile target <br>
 DEFINE_string(compile_target, "", compile_target_message);
 
+/// \brief GNA log level (default LOG_NONE) <br>
+DEFINE_string(log, "LOG_NONE", enable_log_message);
+
 /// \brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);
 
@@ -219,4 +223,96 @@ static void showUsage() {
     std::cout << "    -oname \"<string>\"       " << output_layer_names_message << std::endl;
     std::cout << "    -iname \"<string>\"       " << input_layer_names_message << std::endl;
     std::cout << "    -pwl_me \"<double>\"      " << pwl_max_error_percent_message << std::endl;
+}
+
+/**
+ * @brief Checks input arguments
+ * @param argc number of args
+ * @param argv list of input arguments
+ * @return bool status true(Success) or false(Fail)
+ */
+bool ParseAndCheckCommandLine(int argc, char* argv[]) {
+    slog::info << "Parsing input parameters" << slog::endl;
+
+    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+    if (FLAGS_h) {
+        showUsage();
+        showAvailableDevices();
+        return false;
+    }
+    bool isDumpMode = !FLAGS_wg.empty() || !FLAGS_we.empty();
+
+    // input not required only in dump mode and if external scale factor provided
+    if (FLAGS_i.empty() && (!isDumpMode || FLAGS_q.compare("user") != 0)) {
+        showUsage();
+        if (isDumpMode) {
+            throw std::logic_error("In model dump mode either static quantization is used (-i) or user scale"
+                                   " factor need to be provided. See -q user option");
+        }
+        throw std::logic_error("Input file not set. Please use -i.");
+    }
+
+    if (FLAGS_m.empty() && FLAGS_rg.empty()) {
+        showUsage();
+        throw std::logic_error("Either IR file (-m) or GNAModel file (-rg) need to be set.");
+    }
+
+    if ((!FLAGS_m.empty() && !FLAGS_rg.empty())) {
+        throw std::logic_error("Only one of -m and -rg is allowed.");
+    }
+
+    std::vector<std::string> supportedDevices = {"CPU",
+                                                 "GPU",
+                                                 "GNA_AUTO",
+                                                 "GNA_HW",
+                                                 "GNA_HW_WITH_SW_FBACK",
+                                                 "GNA_SW_EXACT",
+                                                 "GNA_SW",
+                                                 "GNA_SW_FP32",
+                                                 "HETERO:GNA,CPU",
+                                                 "HETERO:GNA_HW,CPU",
+                                                 "HETERO:GNA_SW_EXACT,CPU",
+                                                 "HETERO:GNA_SW,CPU",
+                                                 "HETERO:GNA_SW_FP32,CPU",
+                                                 "MYRIAD"};
+
+    if (std::find(supportedDevices.begin(), supportedDevices.end(), FLAGS_d) == supportedDevices.end()) {
+        throw std::logic_error("Specified device is not supported.");
+    }
+
+    uint32_t batchSize = (uint32_t)FLAGS_bs;
+    if ((batchSize < 1) || (batchSize > 8)) {
+        throw std::logic_error("Batch size out of range (1..8).");
+    }
+
+    /** default is a static quantization **/
+    if ((FLAGS_q.compare("static") != 0) && (FLAGS_q.compare("dynamic") != 0) && (FLAGS_q.compare("user") != 0)) {
+        throw std::logic_error("Quantization mode not supported (static, dynamic, user).");
+    }
+
+    if (FLAGS_q.compare("dynamic") == 0) {
+        throw std::logic_error("Dynamic quantization not yet supported.");
+    }
+
+    if (FLAGS_qb != 16 && FLAGS_qb != 8) {
+        throw std::logic_error("Only 8 or 16 bits supported.");
+    }
+
+    if (FLAGS_nthreads <= 0) {
+        throw std::logic_error("Invalid value for 'nthreads' argument. It must be greater that or equal to 0");
+    }
+
+    if (FLAGS_cw_r < 0) {
+        throw std::logic_error("Invalid value for 'cw_r' argument. It must be greater than or equal to 0");
+    }
+
+    if (FLAGS_cw_l < 0) {
+        throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
+    }
+
+    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 100.0) {
+        throw std::logic_error("Invalid value for 'pwl_me' argument. It must be greater than 0.0 and less than 100.0");
+    }
+
+    return true;
 }

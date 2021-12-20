@@ -7,8 +7,8 @@
 #include <fstream>
 #include <queue>
 
-#include "common/frontend_exceptions.hpp"
 #include "node_context.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "place.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"
@@ -116,12 +116,10 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
         m_op_places.push_back(op_place);
         m_op_places_map[op_name] = op_place;
         if (op_type == "Placeholder") {
-            auto pshape = std::dynamic_pointer_cast<VariantWrapper<ov::PartialShape>>(
-                node_decoder->get_attribute("shape", VariantWrapper<ov::PartialShape>::get_type_info_static()));
-            auto type = std::dynamic_pointer_cast<VariantWrapper<ov::element::Type>>(
-                node_decoder->get_attribute("dtype", VariantWrapper<ov::element::Type>::get_type_info_static()));
+            auto pshape = node_decoder->get_attribute("shape", typeid(ov::PartialShape)).as<ov::PartialShape>();
+            auto type = node_decoder->get_attribute("dtype", typeid(ov::element::Type)).as<ov::element::Type>();
             std::vector<std::string> names = {op_name};
-            auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape->get(), type->get(), names);
+            auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape, type, names);
             m_tensor_places[op_name] = tensor_place;
             m_inputs.push_back(tensor_place);
         }
@@ -394,19 +392,19 @@ void InputModelTF::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>&
     _impl->extractSubgraph(inputs, outputs);
 }
 
-void InputModelTF::set_partial_shape(ov::frontend::Place::Ptr place, const ov::PartialShape& p_shape) {
+void InputModelTF::set_partial_shape(const ov::frontend::Place::Ptr& place, const ov::PartialShape& p_shape) {
     _impl->setPartialShape(place, p_shape);
 }
 
-ov::PartialShape InputModelTF::get_partial_shape(ov::frontend::Place::Ptr place) const {
+ov::PartialShape InputModelTF::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
     return _impl->getPartialShape(place);
 }
 
-void InputModelTF::set_element_type(ov::frontend::Place::Ptr place, const ov::element::Type& type) {
+void InputModelTF::set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) {
     _impl->setElementType(place, type);
 }
 
-void InputModelTF::set_tensor_value(ov::frontend::Place::Ptr place, const void* value) {
+void InputModelTF::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
     _impl->setTensorValue(place, value);
 }
 }  // namespace frontend
