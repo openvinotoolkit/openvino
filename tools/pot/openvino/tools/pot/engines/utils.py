@@ -150,6 +150,5 @@ def add_tensor_names(nodes_and_names):
     """ Processes nGraph output_node's and sets POT-friendly name """
     for output_node, node_name in nodes_and_names:
         names = output_node.get_tensor().get_names()
-        node_name = convert_output_key(node_name) + '/sink_port_0'
-        names.add(node_name)
+        names.add(convert_output_key(node_name))
         output_node.get_tensor().set_names(names)

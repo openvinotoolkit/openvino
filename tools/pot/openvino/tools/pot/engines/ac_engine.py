@@ -129,15 +129,25 @@ class ACEngine(Engine):
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
-            outputs_list = add_outputs(self._model, list(nodes_names_map.values()))
-            self._model_evaluator.load_network(self._model)
-            for outputs_data in outputs_list:
-                add_tensor_names(zip(outputs_data['outputs'], nodes_names_map.keys()))
+            outputs_per_model = add_outputs(self._model, nodes_names_map)
+            for model_name, outputs_data in outputs_per_model.items():
+                add_tensor_names(zip(outputs_data, nodes_names_map[model_name].keys()))
 
-            model_output_names = [convert_output_key(node_name) + '/sink_port_0' for node_name in nodes_names_map.keys()]
+            self._model_evaluator.load_network(self._model)
+
+            model_output_names = []
+            model_outputs = []
+            for model in self._model:
+                model_outputs.extend(model['model'].outputs)
+            for ng_output in model_outputs:
+                model_output_names.extend(list(ng_output.get_tensor().get_names()))
+
+            node_names = []
+            for names_map in nodes_names_map.values():
+                node_names.extend(list(names_map.keys()))
 
             align_stat_names_with_results(model_output_names,
-                                          nodes_names_map,
+                                          node_names,
                                           output_to_node_names,
                                           stats_layout,
                                           stat_aliases)
