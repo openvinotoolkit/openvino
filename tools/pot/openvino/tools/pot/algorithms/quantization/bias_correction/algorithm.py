@@ -271,9 +271,9 @@ class BiasCorrection(Algorithm):
                 for in_port in port.get_destinations():
                     in_port.disconnect()
                     in_port.connect(param_node.out_port(0))
-
+            param_node.out_node()['fw_tensor_debug_info'] = [(parameter_name, parameter_name)]
             inputs_data.append({
-                'param_name': param_node.name,
+                'param_name': parameter_name,
                 'param_shape': tuple(c_input_shape),
                 'input_name': input_node_name
             })
@@ -290,6 +290,7 @@ class BiasCorrection(Algorithm):
                 if 'fw_tensor_debug_info' in out_node:
                     del out_node['fw_tensor_debug_info']
             result_node.in_port(0).connect(output_node.out_port(0))
+            output_node.out_node()['fw_tensor_debug_info'] = [(result_name, result_name)]
             if output_name in self._fp32_statistics:
                 self._fp32_statistics[output_name]['batch_mean_in'] = []
             else:
@@ -340,8 +341,7 @@ class BiasCorrection(Algorithm):
             _, q_outputs = self._engine.predict(ref_stats_layout, self._sampler)
             q_output = agf.mean(q_outputs[add_name]['mean_per_channel'])
         else:
-            input_names = [param['param_name'] for param in params['parameters_data_dict']]
-            self._launcher.set_model(model_copy, input_names=input_names)
+            self._launcher.set_model(model_copy)
             q_outputs = []
             for feed_dict in params['feed_dicts']:
                 self._reshape_model_by_feed_dict(feed_dict, model_copy)
@@ -364,8 +364,7 @@ class BiasCorrection(Algorithm):
             if not bias_is_updated:
                 fq_nodes = mu.get_nodes_by_type(model_copy, ['FakeQuantize'])
                 self._graph_transformer.remove_fq_nodes(model_copy, fq_nodes)
-            input_names = [param['param_name'] for param in params['parameters_data_dict']]
-            self._launcher.set_model(model_copy, input_names=input_names)
+            self._launcher.set_model(model_copy)
             for feed_dict in params['feed_dicts']:
                 self._reshape_model_by_feed_dict(feed_dict, model_copy)
                 q_output = self._launcher.infer(feed_dict)
