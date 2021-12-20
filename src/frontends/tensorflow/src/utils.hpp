@@ -90,14 +90,14 @@ void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T
 // compatibility with OpenVINO).
 template <typename T, typename VecT = T>
 void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
-    TF_OP_VALIDATION_CHECK(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
+    TENSORFLOW_OP_VALIDATION(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
     auto dt = node.get_attribute<::tensorflow::DataType>("dtype");
     auto tensor_proto = node.get_attribute<::tensorflow::TensorProto>("value");
     const ::tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
     tf_shape_to_ov_shape(shape, &pshape);
     *const_tensor_shape = pshape.get_shape();
-    TF_OP_VALIDATION_CHECK(node, pshape.is_static(), "Dynamic shapes are not supported in Constant conversion.");
+    TENSORFLOW_OP_VALIDATION(node, pshape.is_static(), "Dynamic shapes are not supported in Constant conversion.");
     auto tensor_content = tensor_proto.tensor_content();
     std::vector<char> tensor_values_plain(tensor_content.begin(), tensor_content.end());
     const T* tensor_values = reinterpret_cast<const T*>(tensor_values_plain.data());
@@ -122,7 +122,7 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
     if (tensor_content_size == 0) {
         int64_t n_elements = 1;
         for (auto i = 0; i < shape.dim_size(); i++) {
-            TF_OP_VALIDATION_CHECK(node,
+            TENSORFLOW_OP_VALIDATION(node,
                                    shape.dim(i).size() >= 0,
                                    "Const node has empty tensor and an unknown dimension size");
             n_elements *= shape.dim(i).size();
@@ -166,7 +166,7 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
                                   "handle this element type";
                 FRONT_END_THROW("Encountered unknown element type " + DataType_Name(dt) + " on an empty tensor_proto");
             }
-            TF_OP_VALIDATION_CHECK(node, val_size != 0, "Empty values vector");
+            TENSORFLOW_OP_VALIDATION(node, val_size != 0, "Empty values vector");
 
             if (i < val_size) {
                 (*values)[i] = val_i;

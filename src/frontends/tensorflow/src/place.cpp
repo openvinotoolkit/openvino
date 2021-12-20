@@ -4,9 +4,9 @@
 
 #include "place.hpp"
 
-#include "common/frontend_exceptions.hpp"
 #include "node_context.hpp"
 #include "op_def.pb.h"
+#include "openvino/frontend/exception.hpp"
 #include "tensor.pb.h"
 #include "types.pb.h"
 
@@ -204,7 +204,7 @@ std::vector<ov::frontend::Place::Ptr> TensorPlace::get_consuming_operations() co
     return consuming_ops;
 }
 
-bool TensorPlace::is_equal_data(ov::frontend::Place::Ptr another) const {
+bool TensorPlace::is_equal_data(const ov::frontend::Place::Ptr& another) const {
     auto consuming_ports = get_consuming_ports();
     bool eq_to_consuming_port =
         std::any_of(consuming_ports.begin(), consuming_ports.end(), [&another](const Ptr& place) {
@@ -253,7 +253,7 @@ ov::frontend::Place::Ptr InPortPlace::get_producing_port() const {
     return get_source_tensor()->get_producing_port();
 }
 
-bool InPortPlace::is_equal_data(ov::frontend::Place::Ptr another) const {
+bool InPortPlace::is_equal_data(const ov::frontend::Place::Ptr& another) const {
     return get_source_tensor()->is_equal_data(another);
 }
 
@@ -286,7 +286,7 @@ std::vector<ov::frontend::Place::Ptr> OutPortPlace::get_consuming_ports() const 
     FRONT_END_THROW("Tensor has expired.");
 }
 
-bool OutPortPlace::is_equal_data(ov::frontend::Place::Ptr another) const {
+bool OutPortPlace::is_equal_data(const ov::frontend::Place::Ptr& another) const {
     return get_target_tensor()->is_equal_data(another);
 }
 

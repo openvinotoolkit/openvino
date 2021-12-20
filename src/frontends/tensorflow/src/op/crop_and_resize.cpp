@@ -33,7 +33,7 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
 
     auto resize_method = node.get_attribute<string>("method");
 
-    TF_OP_VALIDATION_CHECK(node,
+    TENSORFLOW_OP_VALIDATION(node,
                            ng_input.get_partial_shape().is_static() && ng_boxes.get_partial_shape().is_static() &&
                                ng_box_ind.get_partial_shape().is_static() && ng_size.get_partial_shape().is_static(),
                            "Dynamic shapes are not supported.");
@@ -47,7 +47,7 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
     auto const_box_ind = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
     auto const_crop_size = dynamic_pointer_cast<Constant>(ng_boxes.get_node_shared_ptr());
 
-    TF_OP_VALIDATION_CHECK(node,
+    TENSORFLOW_OP_VALIDATION(node,
                            const_boxes && const_box_ind && const_crop_size,
                            "Boxes, BoxIndexes, CropSize inputs must be constant.");
 

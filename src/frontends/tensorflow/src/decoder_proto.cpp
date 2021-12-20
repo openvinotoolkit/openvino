@@ -27,7 +27,7 @@ const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
 }
 }  // namespace
 
-ov::Any DecoderTFProto::get_attribute(const std::string& name, const std::type_info& type_info) const {
+ov::Any DecoderProto::get_attribute(const std::string& name, const std::type_info& type_info) const {
     auto attrs = decode_attribute_helper(name);
     if (attrs.empty()) {
         return {};
@@ -85,11 +85,11 @@ ov::Any DecoderTFProto::get_attribute(const std::string& name, const std::type_i
     return {};
 }
 
-size_t DecoderTFProto::get_input_size() const {
+size_t DecoderProto::get_input_size() const {
     return m_node_def->input_size();
 }
 
-void DecoderTFProto::get_input_node(size_t input_port_idx,
+void DecoderProto::get_input_node(size_t input_port_idx,
                                     std::string& producer_name,
                                     size_t& producer_output_port_index) const {
     // TODO: handle body graph nodes with a couple of columns
@@ -104,15 +104,15 @@ void DecoderTFProto::get_input_node(size_t input_port_idx,
     producer_output_port_index = 0;
 }
 
-const std::string& DecoderTFProto::get_op_type() const {
+const std::string& DecoderProto::get_op_type() const {
     return m_node_def->op();
 }
 
-const std::string& DecoderTFProto::get_op_name() const {
+const std::string& DecoderProto::get_op_name() const {
     return m_node_def->name();
 }
 
-std::vector<::tensorflow::AttrValue> DecoderTFProto::decode_attribute_helper(const std::string& name) const {
+std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const std::string& name) const {
     auto attr_map = m_node_def->attr();
     FRONT_END_GENERAL_CHECK(attr_map.contains(name),
                             "An error occurred while parsing the ",

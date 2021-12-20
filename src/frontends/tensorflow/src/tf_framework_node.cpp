@@ -8,7 +8,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-void TFFrameworkNode::validate_and_infer_types() {
+void FrameworkNode::validate_and_infer_types() {
     for (size_t i = 0; i < get_output_size(); ++i) {
         set_output_type(i, ov::element::dynamic, PartialShape::dynamic());
     }

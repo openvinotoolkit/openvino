@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "manager.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
 FRONTEND_C_API ov::frontend::FrontEndVersion GetAPIVersion() {

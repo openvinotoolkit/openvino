@@ -6,7 +6,7 @@
 
 #include <fstream>
 
-#include "common/frontend_exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "decoder_proto.hpp"
 #include "graph.pb.h"
 #include "node_def.pb.h"
@@ -55,7 +55,7 @@ public:
 
     /// Return NodeContext for the current node that iterator points to
     std::shared_ptr<DecoderBase> get_decoder() const override {
-        return std::make_shared<DecoderTFProto>(m_nodes[node_index]);
+        return std::make_shared<DecoderProto>(m_nodes[node_index]);
     }
 };
 

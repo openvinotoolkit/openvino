@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_select_op(const NodeContext& node) {
-    TF_OP_VALIDATION_CHECK(node, node.get_all_inputs().size() == 3, "Select op cannot be converted");
+    TENSORFLOW_OP_VALIDATION(node, node.get_all_inputs().size() == 3, "Select op cannot be converted");
     auto in_1 = node.get_input(0);
     auto in_2 = node.get_input(1);
     auto in_3 = node.get_input(2);

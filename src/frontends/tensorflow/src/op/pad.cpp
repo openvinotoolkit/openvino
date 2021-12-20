@@ -28,7 +28,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
     } else if (op_type == "PadV2") {
         pad_val_op = node.get_input(2);
     } else {
-        TF_OP_VALIDATION_CHECK(node, false, "Incorrect TF Pad OpType: " + node.get_op_type());
+        TENSORFLOW_OP_VALIDATION(node, false, "Incorrect TF Pad OpType: " + node.get_op_type());
     }
 
     // Set pad_mode
@@ -40,7 +40,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
         } else if (pad_mode_str == "SYMMETRIC") {
             pad_mode = ov::op::PadMode::SYMMETRIC;
         } else {
-            TF_OP_VALIDATION_CHECK(node, false, pad_mode_str + " is not an allowed padding mode.");
+            TENSORFLOW_OP_VALIDATION(node, false, pad_mode_str + " is not an allowed padding mode.");
         }
     }
 
@@ -48,7 +48,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
     std::vector<int64_t> paddings;
     get_const_input(node, 1, &paddings);
     if (paddings.size() % 2 != 0) {
-        TF_OP_VALIDATION_CHECK(node,
+        TENSORFLOW_OP_VALIDATION(node,
                                false,
                                "Constant node for paddings does not have an even number of "
                                "elements");

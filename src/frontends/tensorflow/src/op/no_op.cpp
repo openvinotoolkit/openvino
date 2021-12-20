@@ -18,7 +18,7 @@ OutputVector translate_no_op(const NodeContext& node) {
         return OutputVector{};
     }
 
-    TF_OP_VALIDATION_CHECK(node,
+    TENSORFLOW_OP_VALIDATION(node,
                            node.get_input_size() == 1,
                            "NoOp has " + to_string(node.get_input_size()) + " inputs, should have 1");
 

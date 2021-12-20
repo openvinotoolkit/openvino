@@ -16,9 +16,9 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class DecoderTFProto : public ov::frontend::tensorflow::DecoderBase {
+class DecoderProto : public ov::frontend::tensorflow::DecoderBase {
 public:
-    explicit DecoderTFProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
+    explicit DecoderProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
 
     ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const override;
 

@@ -27,7 +27,7 @@ OutputVector translate_concat_op(const NodeContext& node) {
         concat_idx_start = 1;
         concat_idx_stop = node.get_input_size();
     } else {
-        TF_OP_VALIDATION_CHECK(node, false, "Incorrect operation type.");
+        TENSORFLOW_OP_VALIDATION(node, false, "Incorrect operation type.");
     }
 
     std::vector<int64_t> tf_concat_axis_vec;

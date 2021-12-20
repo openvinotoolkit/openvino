@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "common/frontend.hpp"
+#include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
 
 namespace ov {
@@ -26,7 +26,7 @@ public:
 
     bool is_input() const override;
     bool is_output() const override;
-    bool is_equal(Ptr another) const override {
+    bool is_equal(const Ptr& another) const override {
         return this == another.get();
     }
 
@@ -58,7 +58,7 @@ public:
     ov::frontend::Place::Ptr get_source_tensor() const override;
     Ptr get_producing_port() const override;
 
-    bool is_equal_data(Ptr another) const override;
+    bool is_equal_data(const Ptr& another) const override;
 
 private:
     std::weak_ptr<TensorPlace> m_source_tensor;
@@ -81,7 +81,7 @@ public:
     ov::frontend::Place::Ptr get_producing_operation() const override;
     std::vector<ov::frontend::Place::Ptr> get_consuming_ports() const override;
     Ptr get_target_tensor() const override;
-    bool is_equal_data(Ptr another) const override;
+    bool is_equal_data(const Ptr& another) const override;
 
 private:
     std::weak_ptr<OpPlace> m_op;
@@ -163,7 +163,7 @@ public:
     std::vector<ov::frontend::Place::Ptr> get_consuming_operations() const override;
     std::vector<ov::frontend::Place::Ptr> get_consuming_ports() const override;
     Ptr get_producing_port() const override;
-    bool is_equal_data(Ptr another) const override;
+    bool is_equal_data(const Ptr& another) const override;
 
 private:
     PartialShape m_pshape;

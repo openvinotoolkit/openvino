@@ -28,7 +28,7 @@ OutputVector translate_direct_reduce_op(const NodeContext& node) {
     // ensure its either an arithmetic or a logical reduction
     if (!(std::is_base_of<ov::op::util::ArithmeticReduction, T>::value ||
           std::is_base_of<ov::op::util::LogicalReduction, T>::value)) {
-        TF_OP_VALIDATION_CHECK(node,
+        TENSORFLOW_OP_VALIDATION(node,
                                false,
                                "Expected node to be either a valid logical or arithmetic reduction "
                                "type");

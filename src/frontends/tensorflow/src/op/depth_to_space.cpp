@@ -21,7 +21,7 @@ OutputVector translate_depth_to_space_op(const NodeContext& node) {
     auto block_size = node.get_attribute<int64_t>("block_size");
     std::string tf_data_format = node.get_attribute<std::string>("data_format");
 
-    TF_OP_VALIDATION_CHECK(node,
+    TENSORFLOW_OP_VALIDATION(node,
                            tf_data_format == "NHWC" || tf_data_format == "NCHW",
                            "DepthToSpace data format is neither NHWC nor NCHW");
 

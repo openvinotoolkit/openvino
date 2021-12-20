@@ -17,8 +17,8 @@ OutputVector translate_top_k_v2_op(const NodeContext& node) {
     auto input = node.get_input(0);
     auto k = node.get_input(1);
 
-    TF_OP_VALIDATION_CHECK(node, input.get_partial_shape().rank().is_static(), "Input rank must be static.");
-    TF_OP_VALIDATION_CHECK(node,
+    TENSORFLOW_OP_VALIDATION(node, input.get_partial_shape().rank().is_static(), "Input rank must be static.");
+    TENSORFLOW_OP_VALIDATION(node,
                            input.get_partial_shape().rank().get_length() >= 1,
                            "Input rank must be greater than 0.");
     // axis along which to compute top k indices
