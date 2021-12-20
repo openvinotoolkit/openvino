@@ -13,9 +13,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR auto_batch.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph inference_engine_transformations)
-
-set_ie_threading_interface_for(${TARGET_NAME})
+target_link_libraries(${TARGET_NAME} PRIVATE ngraph inference_engine_transformations Threads::Threads)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
