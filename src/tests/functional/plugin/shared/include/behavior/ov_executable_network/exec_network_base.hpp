@@ -61,12 +61,9 @@ public:
             // Remote tensor
             data2 = nullptr;
         }
-        return t1.get_element_type() == t2.get_element_type() &&
-            t1.get_shape() == t2.get_shape() &&
-            t1.get_byte_size() == t2.get_byte_size() &&
-            t1.get_size() == t2.get_size() &&
-            t1.get_strides() == t2.get_strides() &&
-            data1 == data2;
+        return t1.get_element_type() == t2.get_element_type() && t1.get_shape() == t2.get_shape() &&
+               t1.get_byte_size() == t2.get_byte_size() && t1.get_size() == t2.get_size() &&
+               t1.get_strides() == t2.get_strides() && data1 == data2;
     }
 
 protected:
@@ -78,6 +75,12 @@ protected:
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function, targetDevice, configuration));
+}
+
+TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
+    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeConvPoolRelu();
+    EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
@@ -542,8 +545,8 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
         result1->set_friendly_name("result1");
         auto result2 = std::make_shared<ov::opset8::Result>(split->output(1));
         result2->set_friendly_name("result2");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
-                                                      ngraph::ParameterVector{param1});
+        function =
+            std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, ngraph::ParameterVector{param1});
         function->set_friendly_name("SingleSplit");
     }
     execNet = core->compile_model(function, targetDevice, configuration);

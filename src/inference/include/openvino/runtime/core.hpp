@@ -102,6 +102,19 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::string& model, const Tensor& weights) const;
 
     /**
+     * @brief Creates an executable network from a model object and loads model to default device.
+     *
+     * Users can create as many executable networks as they need and use
+     * them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param model Model object acquired from Core::read_model
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model, const ConfigMap& config = {});
+
+    /**
      * @brief Creates an executable network from a model object.
      *
      * Users can create as many executable networks as they need and use
@@ -116,6 +129,20 @@ public:
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
                                 const std::string& device_name,
                                 const ConfigMap& config = {});
+
+    /**
+     * @brief Reads model and creates an executable network from IR or ONNX file and load model to default device.
+     *
+     * This can be more efficient than using read_model + compile_model(Model) flow
+     * especially for cases when caching is enabled and cached model is available
+     *
+     * @param model_path path to model
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation/
+     *
+     * @return An executable network reference
+     */
+    CompiledModel compile_model(const std::string& model_path, const ConfigMap& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
