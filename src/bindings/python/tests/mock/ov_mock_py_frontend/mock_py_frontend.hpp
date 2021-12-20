@@ -299,6 +299,10 @@ public:
     static PlaceStat get_stat() {
         return m_stat;
     }
+
+    static void clear_stat() {
+        m_stat = {};
+    }
 };
 
 ////////////////////////////////
@@ -568,6 +572,10 @@ public:
     static ModelStat get_stat() {
         return m_stat;
     }
+
+    static void clear_stat() {
+        m_stat = {};
+    }
 };
 
 /////////////////////////////////////////////////////////
@@ -603,6 +611,7 @@ struct MOCK_API FeStat {
     int get_name() const {
         return m_get_name;
     }
+
     int supported() const {
         return m_supported;
     }
@@ -661,5 +670,9 @@ public:
 
     static FeStat get_stat() {
         return m_stat;
+    }
+
+    static void clear_stat() {
+        m_stat = {};
     }
 };

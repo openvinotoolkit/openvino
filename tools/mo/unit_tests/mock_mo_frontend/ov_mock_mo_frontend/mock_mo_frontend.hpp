@@ -66,7 +66,7 @@ struct MOCK_API PlaceStat
 
     // Arguments tracking
     std::string m_lastArgString;
-    int m_lastArgInt;
+    int m_lastArgInt = -1;
     Place::Ptr m_lastArgPlace = nullptr;
 
     // Getters
@@ -95,8 +95,8 @@ class MOCK_API PlaceMockPy : public Place
     int m_portIndex = -1;
 
 public:
-    PlaceMockPy(const std::string& name = {}, bool is_op = false, int portIndex = -1)
-        : m_name(name)
+    explicit PlaceMockPy(std::string name = {}, bool is_op = false, int portIndex = -1)
+        : m_name(std::move(name))
         , m_is_op(is_op)
         , m_portIndex(portIndex)
     {
@@ -200,7 +200,7 @@ public:
     bool is_equal_data(const Ptr& another) const override
     {
         if (m_is_op)
-            throw "Not implemented";
+            throw std::runtime_error("Not implemented");
         m_stat.m_is_equal_data++;
         m_stat.m_lastArgPlace = another;
         std::shared_ptr<PlaceMockPy> mock = std::dynamic_pointer_cast<PlaceMockPy>(another);
@@ -243,7 +243,7 @@ struct MOCK_API ModelStat
 
     // Arguments tracking
     std::string m_lastArgString;
-    int m_lastArgInt;
+    int m_lastArgInt = -1;
     Place::Ptr m_lastArgPlace = nullptr;
     std::vector<Place::Ptr> m_lastArgInputPlaces;
     std::vector<Place::Ptr> m_lastArgOutputPlaces;
@@ -275,7 +275,7 @@ struct MOCK_API ModelStat
 /// \brief Mock implementation of InputModel
 /// Every call increments appropriate counters in statistic and stores argument values to statistics
 /// as well
-class MOCK_API InputModelMockPy : public InputModel
+class MOCK_API InputModelMockPy : public IInputModel
 {
     static ModelStat m_stat;
     static PartialShape m_returnShape;
@@ -407,15 +407,16 @@ struct MOCK_API FeStat
 /// \brief Mock implementation of FrontEnd
 /// Every call increments appropriate counters in statistic and stores argument values to statistics
 /// as well
-class MOCK_API FrontEndMockPy : public FrontEnd
+class MOCK_API FrontEndMockPy : public IFrontEnd
 {
     static FeStat m_stat;
 
 public:
-    FrontEndMockPy() {}
+    FrontEndMockPy() = default;
 
-    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override
+    std::shared_ptr<ov::Model> convert(const IInputModel::Ptr& model) const override
     {
+        std::cout << "MVN: convert called\n";
         m_stat.m_convert_model++;
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
@@ -425,9 +426,9 @@ public:
     static void clear_stat() { m_stat = {}; }
 
 private:
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override
+    IInputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override
     {
-        if (params.size() > 0 && params[0].is<std::string>())
+        if (!params.empty() && params[0].is<std::string>())
         {
             auto path = params[0].as<std::string>();
             m_stat.m_load_paths.push_back(path);
@@ -438,7 +439,7 @@ private:
     bool supported_impl(const std::vector<ov::Any>& params) const override
     {
         m_stat.m_supported++;
-        if (params.size() > 0 && params[0].is<std::string>())
+        if (!params.empty() && params[0].is<std::string>())
         {
             auto path = params[0].as<std::string>();
             if (path.find(".test_mo_mock_mdl") != std::string::npos)
