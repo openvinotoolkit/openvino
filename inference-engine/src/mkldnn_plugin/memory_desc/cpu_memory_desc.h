@@ -93,7 +93,7 @@ public:
      */
     size_t getCurrentMemSize() const {
         size_t retVal = UNDEFINED_SIZE;
-        if (isDefined()) {
+        if (canComputeMemSize()) {
             retVal = getCurrentMemSizeImp();
         }
         return retVal;
@@ -140,7 +140,12 @@ protected:
     // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
     virtual size_t getElementOffset(size_t elemNumber) const = 0;
 
+    virtual bool canComputeMemSizeZeroDims() const = 0;
     virtual bool isDefinedImp() const = 0;
+
+    bool canComputeMemSize() const {
+        return isDefined() || canComputeMemSizeZeroDims();
+    }
 
     virtual MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const = 0;
 
