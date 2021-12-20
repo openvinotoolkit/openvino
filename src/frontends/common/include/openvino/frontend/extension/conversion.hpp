@@ -19,16 +19,10 @@
 namespace ov {
 namespace frontend {
 
-template <class T>
 class FRONTEND_API ConversionExtensionBase : public ov::Extension {
 public:
-    ConversionExtensionBase(const std::string& op_type, const CreatorFunction<T>& converter)
-        : m_op_type(op_type),
-          m_converter(converter) {}
-
-    const CreatorFunction<T>& get_converter() const {
-        return m_converter;
-    }
+    explicit ConversionExtensionBase(const std::string& op_type)
+        : m_op_type(op_type) {}
 
     const std::string& get_op_type() const {
         return m_op_type;
@@ -37,14 +31,17 @@ public:
     ~ConversionExtensionBase() override = 0;
 private:
     std::string m_op_type;
-    CreatorFunction<T> m_converter;
 };
 
 template <class T>
-class FRONTEND_API ConversionExtension : public ConversionExtensionBase<T> {
+class FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     ConversionExtension(const std::string& op_type, const CreatorFunction<T>& converter)
-        : ConversionExtensionBase<T>(op_type, converter) {}
+        : ConversionExtensionBase(op_type) {}
+
+    CreatorFunction<T> get_converter() { return m_converter; };
+private:
+    CreatorFunction<T> m_converter;
 };
 
 }  // namespace frontend

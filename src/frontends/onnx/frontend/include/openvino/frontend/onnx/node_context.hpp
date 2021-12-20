@@ -4,25 +4,24 @@
 
 #pragma once
 
-#include <common/input_model.hpp>
-#include <common/node_context.hpp>
-#include <editor.hpp>
-#include <fstream>
 #include <onnx_import/core/node.hpp>
-#include <openvino/core/any.hpp>
+#include "openvino/frontend/extension/conversion.hpp"
+#include "openvino/frontend/onnx/frontend.hpp"
+#include "openvino/frontend/node_context.hpp"
+#include "openvino/frontend/onnx/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-class NodeContext : public ov::frontend::NodeContext {
+class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext {
 public:
     explicit NodeContext(const ngraph::onnx_import::Node& _context)
-        : ov::frontend::NodeContext(_context.op_type(), _context.get_ng_inputs()),
-          context(_context) {}
+        : context(_context) {}
 
 protected:
     const ngraph::onnx_import::Node& context;
 };
+using CreatorFunction = std::function<OutputVector(const ov::frontend::onnx::NodeContext&)>;
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

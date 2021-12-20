@@ -8,6 +8,8 @@
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
 #include <openvino/frontend/onnx/frontend.hpp>
+#include <openvino/frontend/onnx/visibility.hpp>
+#include <openvino/frontend/onnx/extension/conversion.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 

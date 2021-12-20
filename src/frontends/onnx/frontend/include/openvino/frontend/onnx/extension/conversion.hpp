@@ -3,23 +3,23 @@
 //
 
 #pragma once
-#include "common/conversion_extension.hpp"
-#include "exceptions.hpp"
-#include "onnx_frontend/frontend.hpp"
-#include "openvino/core/extension.hpp"
+#include "openvino/frontend/onnx/visibility.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
+#include "openvino/frontend/onnx/node_context.hpp"
+#include "openvino/frontend/node_context.hpp"
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-class ConversionExtension : public ConversionExtensionBase {
+class ONNX_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
     ConversionExtension() = delete;
-    ConversionExtension(const std::string& op_type, const FrontEndONNX::CreatorFunction& converter)
+    ConversionExtension(const std::string& op_type, const ov::frontend::onnx::CreatorFunction& converter)
         : ConversionExtensionBase(op_type, converter) {}
-
+    CreatorFunction get_converter() { return m_converter; }
 private:
-    using ConversionExtensionBase::get_converter;
+    CreatorFunction m_converter;
 };
 }  // namespace onnx
 }  // namespace frontend

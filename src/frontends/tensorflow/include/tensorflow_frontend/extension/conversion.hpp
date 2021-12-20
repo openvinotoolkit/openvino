@@ -14,14 +14,18 @@ namespace ov {
 namespace frontend {
 namespace tf {
 
-class TF_API ConversionExtension : public ov::frontend::ConversionExtensionBase<OutputVector> {
+class TF_API ConversionExtension : public ov::frontend::ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
 
     ConversionExtension() = delete;
 
     ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
-        : ConversionExtensionBase(op_type, &converter) {}
+        : ConversionExtensionBase(op_type), m_converter(converter) {}
+
+    CreatorFunction get_converter() { return m_converter; }
+private:
+    CreatorFunction m_converter;
 };
 
 }  // namespace tf

@@ -16,6 +16,7 @@
 #include "paddlepaddle_frontend/decoder.hpp"
 #include "paddlepaddle_frontend/model.hpp"
 #include "paddlepaddle_frontend/node_context.hpp"
+#include "paddlepaddle_frontend/extension/conversion.hpp"
 #include "paddlepaddle_frontend/place.hpp"
 #include "pdpd_fw_node.hpp"
 #include "pdpd_utils.hpp"
