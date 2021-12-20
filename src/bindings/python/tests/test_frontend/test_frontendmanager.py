@@ -141,7 +141,7 @@ def test_model_get_place_by_tensor_name():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_tensor_name(tensorName=name)
+        model.get_place_by_tensor_name(tensor_name=name)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_tensor_name == i
         assert stat.lastArgString == name
@@ -152,7 +152,7 @@ def test_model_get_place_by_operation_name():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_name(operationName=name)
+        model.get_place_by_operation_name(operation_name=name)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_operation_name == i
         assert stat.lastArgString == name
@@ -163,7 +163,7 @@ def test_model_get_place_by_operation_name_and_input_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_name_and_input_port(operationName=name, inputPortIndex=i * 2)
+        model.get_place_by_operation_name_and_input_port(operation_name=name, input_port_index=i * 2)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_operation_and_input_port == i
         assert stat.lastArgString == name
@@ -175,7 +175,7 @@ def test_model_get_place_by_operation_name_and_output_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_name_and_output_port(operationName=name, outputPortIndex=i * 2)
+        model.get_place_by_operation_name_and_output_port(operation_name=name, output_port_index=i * 2)
         stat = get_mdl_stat(model)
         assert stat.get_place_by_operation_and_output_port == i
         assert stat.lastArgString == name
@@ -185,8 +185,8 @@ def test_model_get_place_by_operation_name_and_output_port():
 @mock_needed
 def test_model_set_name_for_tensor():
     model = init_model()
-    place = model.get_place_by_tensor_name(tensorName="")
-    model.set_name_for_tensor(tensor=place, newName="1234")
+    place = model.get_place_by_tensor_name(tensor_name="")
+    model.set_name_for_tensor(tensor=place, new_name="1234")
     stat = get_mdl_stat(model)
     assert stat.set_name_for_tensor == 1
     assert stat.lastArgString == "1234"
@@ -196,8 +196,8 @@ def test_model_set_name_for_tensor():
 @mock_needed
 def test_model_add_name_for_tensor():
     model = init_model()
-    place = model.get_place_by_tensor_name(tensorName="")
-    model.add_name_for_tensor(tensor=place, newName="1234")
+    place = model.get_place_by_tensor_name(tensor_name="")
+    model.add_name_for_tensor(tensor=place, new_name="1234")
     stat = get_mdl_stat(model)
     assert stat.add_name_for_tensor == 1
     assert stat.lastArgString == "1234"
@@ -207,8 +207,8 @@ def test_model_add_name_for_tensor():
 @mock_needed
 def test_model_set_name_for_operation():
     model = init_model()
-    place = model.get_place_by_operation_name(operationName="")
-    model.set_name_for_operation(operation=place, newName="1111")
+    place = model.get_place_by_operation_name(operation_name="")
+    model.set_name_for_operation(operation=place, new_name="1111")
     stat = get_mdl_stat(model)
     assert stat.set_name_for_operation == 1
     assert stat.lastArgString == "1111"
@@ -236,8 +236,8 @@ def test_model_free_name_for_operation():
 @mock_needed
 def test_model_set_name_for_dimension():
     model = init_model()
-    place = model.get_place_by_operation_name(operationName="")
-    model.set_name_for_dimension(place=place, dimIndex=123, dimName="4444")
+    place = model.get_place_by_operation_name(operation_name="")
+    model.set_name_for_dimension(place=place, dim_index=123, dim_name="4444")
     stat = get_mdl_stat(model)
     assert stat.set_name_for_dimension == 1
     assert stat.lastArgString == "4444"
@@ -249,7 +249,7 @@ def test_model_set_name_for_dimension():
 def test_model_cut_and_add_new_input():
     model = init_model()
     place = model.get_place_by_operation_name("")
-    model.cut_and_add_new_input(place=place, newName="5555")
+    model.cut_and_add_new_input(place=place, new_name="5555")
     stat = get_mdl_stat(model)
     assert stat.cut_and_add_new_input == 1
     assert stat.lastArgString == "5555"
@@ -265,7 +265,7 @@ def test_model_cut_and_add_new_input():
 def test_model_cut_and_add_new_output():
     model = init_model()
     place = model.get_place_by_operation_name("")
-    model.cut_and_add_new_output(place=place, newName="5555")
+    model.cut_and_add_new_output(place=place, new_name="5555")
     stat = get_mdl_stat(model)
     assert stat.cut_and_add_new_output == 1
     assert stat.lastArgString == "5555"
@@ -301,7 +301,7 @@ def test_model_remove_output():
 @mock_needed
 def test_model_set_partial_shape():
     model = init_model()
-    place = model.get_place_by_tensor_name(tensorName="")
+    place = model.get_place_by_tensor_name(tensor_name="")
     test_shape = PartialShape([1, 2, 3, 4])
     model.set_partial_shape(place=place, shape=test_shape)
     stat = get_mdl_stat(model)
@@ -313,7 +313,7 @@ def test_model_set_partial_shape():
 @mock_needed
 def test_model_get_partial_shape():
     model = init_model()
-    place = model.get_place_by_tensor_name(tensorName="")
+    place = model.get_place_by_tensor_name(tensor_name="")
     shape = model.get_partial_shape(place=place)
     assert shape is not None
     stat = get_mdl_stat(model)
@@ -324,8 +324,8 @@ def test_model_get_partial_shape():
 @mock_needed
 def test_model_override_all_inputs():
     model = init_model()
-    place1 = model.get_place_by_tensor_name(tensorName="p1")
-    place2 = model.get_place_by_tensor_name(tensorName="p2")
+    place1 = model.get_place_by_tensor_name(tensor_name="p1")
+    place2 = model.get_place_by_tensor_name(tensor_name="p2")
     model.override_all_inputs(inputs=[place1, place2])
     stat = get_mdl_stat(model)
     assert stat.override_all_inputs == 1
@@ -337,8 +337,8 @@ def test_model_override_all_inputs():
 @mock_needed
 def test_model_override_all_outputs():
     model = init_model()
-    place1 = model.get_place_by_tensor_name(tensorName="p1")
-    place2 = model.get_place_by_tensor_name(tensorName="p2")
+    place1 = model.get_place_by_tensor_name(tensor_name="p1")
+    place2 = model.get_place_by_tensor_name(tensor_name="p2")
     model.override_all_outputs(outputs=[place1, place2])
     stat = get_mdl_stat(model)
     assert stat.override_all_outputs == 1
@@ -350,10 +350,10 @@ def test_model_override_all_outputs():
 @mock_needed
 def test_model_extract_subgraph():
     model = init_model()
-    place1 = model.get_place_by_tensor_name(tensorName="p1")
-    place2 = model.get_place_by_tensor_name(tensorName="p2")
-    place3 = model.get_place_by_tensor_name(tensorName="p3")
-    place4 = model.get_place_by_tensor_name(tensorName="p4")
+    place1 = model.get_place_by_tensor_name(tensor_name="p1")
+    place2 = model.get_place_by_tensor_name(tensor_name="p2")
+    place3 = model.get_place_by_tensor_name(tensor_name="p3")
+    place4 = model.get_place_by_tensor_name(tensor_name="p4")
     model.extract_subgraph(inputs=[place1, place2], outputs=[place3, place4])
     stat = get_mdl_stat(model)
     assert stat.extract_subgraph == 1
@@ -368,7 +368,7 @@ def test_model_extract_subgraph():
 @mock_needed
 def test_model_set_element_type():
     model = init_model()
-    place = model.get_place_by_tensor_name(tensorName="")
+    place = model.get_place_by_tensor_name(tensor_name="")
     model.set_element_type(place=place, type=get_element_type(np.int32))
     stat = get_mdl_stat(model)
     assert stat.set_element_type == 1
@@ -381,7 +381,7 @@ def test_model_set_element_type():
 def init_place():
     fe = fem.load_by_framework(framework="mock_py")
     model = fe.load(path="")
-    place = model.get_place_by_tensor_name(tensorName="")
+    place = model.get_place_by_tensor_name(tensor_name="")
     return model, place
 
 
@@ -432,7 +432,7 @@ def test_place_is_equal_data():
 @mock_needed
 def test_place_get_consuming_operations():
     _, place = init_place()
-    assert place.get_consuming_operations(outputPortIndex=22) is not None
+    assert place.get_consuming_operations(output_port_index=22) is not None
     stat = get_place_stat(place)
     assert stat.get_consuming_operations == 1
     assert stat.lastArgInt == 22
@@ -440,12 +440,12 @@ def test_place_get_consuming_operations():
     stat = get_place_stat(place)
     assert stat.get_consuming_operations == 2
     assert stat.lastArgInt == -1
-    assert place.get_consuming_operations(outputName="2") is not None
+    assert place.get_consuming_operations(output_name="2") is not None
     stat = get_place_stat(place)
     assert stat.get_consuming_operations == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_consuming_operations(outputName="3", outputPortIndex=33) is not None
+    assert place.get_consuming_operations(output_name="3", output_port_index=33) is not None
     stat = get_place_stat(place)
     assert stat.get_consuming_operations == 4
     assert stat.lastArgInt == 33
@@ -455,7 +455,7 @@ def test_place_get_consuming_operations():
 @mock_needed
 def test_place_get_target_tensor():
     _, place = init_place()
-    assert place.get_target_tensor(outputPortIndex=22) is not None
+    assert place.get_target_tensor(output_port_index=22) is not None
     stat = get_place_stat(place)
     assert stat.get_target_tensor == 1
     assert stat.lastArgInt == 22
@@ -463,12 +463,12 @@ def test_place_get_target_tensor():
     stat = get_place_stat(place)
     assert stat.get_target_tensor == 2
     assert stat.lastArgInt == -1
-    assert place.get_target_tensor(outputName="2") is not None
+    assert place.get_target_tensor(output_name="2") is not None
     stat = get_place_stat(place)
     assert stat.get_target_tensor == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_target_tensor(outputName="3", outputPortIndex=33) is not None
+    assert place.get_target_tensor(output_name="3", output_port_index=33) is not None
     stat = get_place_stat(place)
     assert stat.get_target_tensor == 4
     assert stat.lastArgInt == 33
@@ -478,7 +478,7 @@ def test_place_get_target_tensor():
 @mock_needed
 def test_place_get_producing_operation():
     _, place = init_place()
-    assert place.get_producing_operation(inputPortIndex=22) is not None
+    assert place.get_producing_operation(input_port_index=22) is not None
     stat = get_place_stat(place)
     assert stat.get_producing_operation == 1
     assert stat.lastArgInt == 22
@@ -486,12 +486,12 @@ def test_place_get_producing_operation():
     stat = get_place_stat(place)
     assert stat.get_producing_operation == 2
     assert stat.lastArgInt == -1
-    assert place.get_producing_operation(inputName="2") is not None
+    assert place.get_producing_operation(input_name="2") is not None
     stat = get_place_stat(place)
     assert stat.get_producing_operation == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_producing_operation(inputName="3", inputPortIndex=33) is not None
+    assert place.get_producing_operation(input_name="3", input_port_index=33) is not None
     stat = get_place_stat(place)
     assert stat.get_producing_operation == 4
     assert stat.lastArgInt == 33
@@ -513,7 +513,7 @@ def test_place_get_input_port():
     stat = get_place_stat(place)
     assert stat.get_input_port == 1
     assert stat.lastArgInt == -1
-    assert place.get_input_port(inputPortIndex=22) is not None
+    assert place.get_input_port(input_port_index=22) is not None
     stat = get_place_stat(place)
     assert stat.get_input_port == 2
     assert stat.lastArgInt == 22
@@ -522,12 +522,12 @@ def test_place_get_input_port():
 @mock_needed
 def test_place_get_input_port2():
     _, place = init_place()
-    assert place.get_input_port(inputName="abc") is not None
+    assert place.get_input_port(input_name="abc") is not None
     stat = get_place_stat(place)
     assert stat.get_input_port == 1
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "abc"
-    assert place.get_input_port(inputName="abcd", inputPortIndex=22) is not None
+    assert place.get_input_port(input_name="abcd", input_port_index=22) is not None
     stat = get_place_stat(place)
     assert stat.get_input_port == 2
     assert stat.lastArgInt == 22
@@ -541,7 +541,7 @@ def test_place_get_output_port():
     stat = get_place_stat(place)
     assert stat.get_output_port == 1
     assert stat.lastArgInt == -1
-    assert place.get_output_port(outputPortIndex=22) is not None
+    assert place.get_output_port(output_port_index=22) is not None
     stat = get_place_stat(place)
     assert stat.get_output_port == 2
     assert stat.lastArgInt == 22
@@ -550,12 +550,12 @@ def test_place_get_output_port():
 @mock_needed
 def test_place_get_output_port2():
     _, place = init_place()
-    assert place.get_output_port(outputName="abc") is not None
+    assert place.get_output_port(output_name="abc") is not None
     stat = get_place_stat(place)
     assert stat.get_output_port == 1
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "abc"
-    assert place.get_output_port(outputName="abcd", outputPortIndex=22) is not None
+    assert place.get_output_port(output_name="abcd", output_port_index=22) is not None
     stat = get_place_stat(place)
     assert stat.get_output_port == 2
     assert stat.lastArgInt == 22
@@ -577,16 +577,16 @@ def test_place_get_source_tensor():
     stat = get_place_stat(place)
     assert stat.get_source_tensor == 1
     assert stat.lastArgInt == -1
-    assert place.get_source_tensor(inputPortIndex=22) is not None
+    assert place.get_source_tensor(input_port_index=22) is not None
     stat = get_place_stat(place)
     assert stat.get_source_tensor == 2
     assert stat.lastArgInt == 22
-    assert place.get_source_tensor(inputName="2") is not None
+    assert place.get_source_tensor(input_name="2") is not None
     stat = get_place_stat(place)
     assert stat.get_source_tensor == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_source_tensor(inputName="3", inputPortIndex=33) is not None
+    assert place.get_source_tensor(input_name="3", input_port_index=33) is not None
     stat = get_place_stat(place)
     assert stat.get_source_tensor == 4
     assert stat.lastArgInt == 33
