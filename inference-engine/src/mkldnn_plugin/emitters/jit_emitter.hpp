@@ -50,8 +50,6 @@ public:
     virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
     static std::set<InferenceEngine::Precision> get_supported_precisions();
-    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&,
-                                    const std::vector<size_t>&, const std::vector<size_t> &) const {}
 
 protected:
     virtual size_t aux_gprs_count() const;
@@ -151,6 +149,8 @@ private:
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;
     }
+    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&,
+                                    const std::vector<size_t>&, const std::vector<size_t> &) const {}
 };
 
 } // namespace MKLDNNPlugin

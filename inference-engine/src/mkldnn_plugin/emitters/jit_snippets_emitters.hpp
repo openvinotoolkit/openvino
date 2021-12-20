@@ -72,6 +72,8 @@ public:
         validate_arguments(in, out, pool, gpr);
         emit_impl(in, out, pool, gpr, nullptr);
     }
+
+private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
                             const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         if (in.size() != 2)
@@ -87,9 +89,6 @@ public:
             IE_THROW() << "Codegen Kernel supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
                        " dims, got " << harness_num_dims;
     }
-
-private:
-    jit_snippets_compile_args jcp;
 
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
@@ -134,6 +133,7 @@ private:
         h->postamble();
     }
 
+    jit_snippets_compile_args jcp;
     std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> code;
 };
 ///
@@ -173,6 +173,8 @@ public:
         validate_arguments(in, out, pool, gpr);
         emit_impl(in, out, pool, gpr, nullptr);
     }
+
+private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
                             const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         if (in.size() != 4)
@@ -188,9 +190,6 @@ public:
             IE_THROW() << "Codegen Tile supports tile ranks up to " << SNIPPETS_MAX_TILE_RANK <<
                        " got " << dim;
     }
-
-private:
-    jit_snippets_compile_args jcp;
 
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out,
@@ -288,6 +287,7 @@ private:
     //   ptr0 -= 0*dom_1*dom2;
     //   ptr1 -= 1*dom_1*dom2;
     // }
+    jit_snippets_compile_args jcp;
     std::vector<std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>> code;
 };
 
