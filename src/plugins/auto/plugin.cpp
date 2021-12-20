@@ -445,6 +445,7 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     devices.splice(devices.end(), VPUX);
     devices.splice(devices.end(), iGPU);
     devices.splice(devices.end(), MYRIAD);
+    devices.splice(devices.end(), CPU);
 
     std::list<DeviceInformation> validDevices;
 
@@ -466,8 +467,6 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
        const std::string f16 = "FP16";
        selectSupportDev(f16);
     }
-    // add cpu devices if exist.
-    validDevices.splice(validDevices.end(), CPU);
 
     if (validDevices.empty()) {
          IE_THROW() << "Cannot select any device";
