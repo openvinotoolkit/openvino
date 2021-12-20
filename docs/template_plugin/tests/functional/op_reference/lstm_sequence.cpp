@@ -120,7 +120,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const LSTMSequenceParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const LSTMSequenceParams& params) {
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
         const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
         const auto C_t = std::make_shared<op::v0::Parameter>(params.C_t.type, params.C_t.shape);
@@ -140,7 +140,7 @@ private:
                                                params.hiddenSize,
                                                params.lstm_direction);
 
-        auto function = std::make_shared<Function>(lstm_sequence->outputs(), ParameterVector{X, H_t, C_t, S_t, W, R, B});
+        auto function = std::make_shared<Model>(lstm_sequence->outputs(), ParameterVector{X, H_t, C_t, S_t, W, R, B});
         return function;
     }
 };
