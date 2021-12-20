@@ -1525,14 +1525,6 @@ void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
 }
 
-void MKLDNNEltwiseNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
@@ -1681,6 +1673,10 @@ void MKLDNNEltwiseNode::executeReference(const jit_eltwise_params &jep, const ji
             }
         }
     });
+}
+
+void MKLDNNEltwiseNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {

@@ -15,6 +15,10 @@ DnnlMemoryDesc::DnnlMemoryDesc(const mkldnn::memory::desc& desc) :
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 }
 
+bool DnnlMemoryDesc::canComputeMemSizeZeroDims() const {
+    return getShape().hasZeroDims() && desc.data.offset0 != DNNL_RUNTIME_DIM_VAL;
+}
+
 size_t DnnlMemoryDesc::getCurrentMemSizeImp() const {
     return MKLDNNExtensionUtils::getMemSizeForDnnlDesc(desc);
 }
