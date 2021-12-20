@@ -123,8 +123,8 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
         int64_t n_elements = 1;
         for (auto i = 0; i < shape.dim_size(); i++) {
             TENSORFLOW_OP_VALIDATION(node,
-                                   shape.dim(i).size() >= 0,
-                                   "Const node has empty tensor and an unknown dimension size");
+                                     shape.dim(i).size() >= 0,
+                                     "Const node has empty tensor and an unknown dimension size");
             n_elements *= shape.dim(i).size();
         }
         values->resize(n_elements);

@@ -6,10 +6,10 @@
 
 #include <fstream>
 
-#include "openvino/frontend/exception.hpp"
 #include "decoder_proto.hpp"
 #include "graph.pb.h"
 #include "node_def.pb.h"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 

@@ -49,9 +49,9 @@ OutputVector translate_pad_op(const NodeContext& node) {
     get_const_input(node, 1, &paddings);
     if (paddings.size() % 2 != 0) {
         TENSORFLOW_OP_VALIDATION(node,
-                               false,
-                               "Constant node for paddings does not have an even number of "
-                               "elements");
+                                 false,
+                                 "Constant node for paddings does not have an even number of "
+                                 "elements");
     }
     std::vector<int64_t> pad_begin(paddings.size() / 2);
     std::vector<int64_t> pad_end(paddings.size() / 2);

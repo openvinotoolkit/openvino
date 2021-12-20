@@ -19,8 +19,8 @@ OutputVector translate_top_k_v2_op(const NodeContext& node) {
 
     TENSORFLOW_OP_VALIDATION(node, input.get_partial_shape().rank().is_static(), "Input rank must be static.");
     TENSORFLOW_OP_VALIDATION(node,
-                           input.get_partial_shape().rank().get_length() >= 1,
-                           "Input rank must be greater than 0.");
+                             input.get_partial_shape().rank().get_length() >= 1,
+                             "Input rank must be greater than 0.");
     // axis along which to compute top k indices
     int64_t k_axis = input.get_partial_shape().rank().get_length() - 1;
     bool sorted = node.get_attribute<bool>("sorted", true);

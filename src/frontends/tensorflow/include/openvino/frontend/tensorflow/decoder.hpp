@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/frontend/tensorflow/visibility.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/frontend/tensorflow/visibility.hpp"
 
 namespace ov {
 namespace frontend {

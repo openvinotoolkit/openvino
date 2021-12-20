@@ -90,8 +90,8 @@ size_t DecoderProto::get_input_size() const {
 }
 
 void DecoderProto::get_input_node(size_t input_port_idx,
-                                    std::string& producer_name,
-                                    size_t& producer_output_port_index) const {
+                                  std::string& producer_name,
+                                  size_t& producer_output_port_index) const {
     // TODO: handle body graph nodes with a couple of columns
     std::string producer_port_name = m_node_def->input(input_port_idx);
     auto delim_pos = producer_port_name.find(':');

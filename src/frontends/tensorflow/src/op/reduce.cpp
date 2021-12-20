@@ -29,9 +29,9 @@ OutputVector translate_direct_reduce_op(const NodeContext& node) {
     if (!(std::is_base_of<ov::op::util::ArithmeticReduction, T>::value ||
           std::is_base_of<ov::op::util::LogicalReduction, T>::value)) {
         TENSORFLOW_OP_VALIDATION(node,
-                               false,
-                               "Expected node to be either a valid logical or arithmetic reduction "
-                               "type");
+                                 false,
+                                 "Expected node to be either a valid logical or arithmetic reduction "
+                                 "type");
     }
     return TranslateReduceOp(node, [](Output<Node> ng_input, Output<Node> ng_reduction_axes, const bool keep_dims) {
         return make_shared<T>(ng_input, ng_reduction_axes, keep_dims);

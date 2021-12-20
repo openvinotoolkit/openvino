@@ -174,8 +174,8 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 throw;
             } else {
                 auto ng_node = std::make_shared<FrameworkNode>(operation_decoder,
-                                                                 ng_inputs,
-                                                                 operation_place->get_output_ports().size());
+                                                               ng_inputs,
+                                                               operation_place->get_output_ports().size());
                 set_node_name(operation_name, ng_node);
                 ng_outputs = ng_node->outputs();
             }

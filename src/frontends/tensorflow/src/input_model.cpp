@@ -8,8 +8,8 @@
 #include <queue>
 
 #include "node_context.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "place.hpp"
 #include "utils.hpp"

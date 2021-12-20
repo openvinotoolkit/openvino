@@ -22,8 +22,8 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 
     TENSORFLOW_OP_VALIDATION(node,
-                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                           "Conv2D data format is neither NHWC nor NCHW");
+                             tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                             "Conv2D data format is neither NHWC nor NCHW");
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
@@ -31,8 +31,8 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
     // Strides in the batch and depth dimension is not supported
     if (tf_strides[0] != 1 || tf_strides[is_nhwc ? 3 : 1] != 1) {
         TENSORFLOW_OP_VALIDATION(node,
-                               false,
-                               "Strides in batch and depth dimensions is not supported: " + node.get_op_type());
+                                 false,
+                                 "Strides in batch and depth dimensions is not supported: " + node.get_op_type());
     }
 
     Strides ng_strides(2);

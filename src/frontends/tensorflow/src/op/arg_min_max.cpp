@@ -22,7 +22,9 @@ OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
     Shape input_shape = ng_input.get_shape();
     size_t input_rank = input_shape.size();
 
-    TENSORFLOW_OP_VALIDATION(node, tf_dim.size() == 1, "ArgMax Op: dimension must be scalar, operates on a single axis");
+    TENSORFLOW_OP_VALIDATION(node,
+                             tf_dim.size() == 1,
+                             "ArgMax Op: dimension must be scalar, operates on a single axis");
 
     // If input dimension is negative, make it positive
     if (tf_dim[0] < 0) {

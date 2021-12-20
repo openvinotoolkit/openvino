@@ -23,8 +23,8 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 
     TENSORFLOW_OP_VALIDATION(node,
-                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                           "Conv2DBackpropInput data format is neither NHWC nor NCHW");
+                             tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                             "Conv2DBackpropInput data format is neither NHWC nor NCHW");
 
     std::vector<int64_t> tf_input_sizes;
     get_const_input(node, 0, &tf_input_sizes);
