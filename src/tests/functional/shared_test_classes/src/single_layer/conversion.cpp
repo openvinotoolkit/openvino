@@ -28,6 +28,9 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
 }
 
 void ConversionLayerTest::SetUp() {
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    }
     ngraph::helpers::ConversionTypes conversionOpType;
     InferenceEngine::Precision inputPrecision, targetPrecision;
     std::vector<std::vector<size_t>> inputShape;
