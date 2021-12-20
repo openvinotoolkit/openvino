@@ -145,6 +145,10 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void MKLDNNAdaptivePoolingNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
@@ -282,8 +286,6 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
 bool MKLDNNAdaptivePoolingNode::created() const {
     return getType() == AdaptivePooling;
 }
-
-void MKLDNNAdaptivePoolingNode::createPrimitive() {}
 
 inline void MKLDNNAdaptivePoolingNode::setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength) {
     *(startPtr) = idx * inputLength / outputLength;

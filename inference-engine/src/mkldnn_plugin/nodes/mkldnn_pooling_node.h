@@ -22,14 +22,13 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initDescriptor(const NodeConfig& config) override;
-    void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
 
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 

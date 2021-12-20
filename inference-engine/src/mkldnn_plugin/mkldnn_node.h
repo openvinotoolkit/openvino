@@ -199,7 +199,7 @@ public:
 
     // must be called only after MKLDNNGraph::InitEdges()
     virtual bool isExecutable() const {
-        return true;
+        return !hasEmptyInputTensors();
     }
 
     bool isConstant();
@@ -370,7 +370,7 @@ public:
      */
     virtual void filterSupportedPrimitiveDescriptors();
 
-    virtual void createPrimitive() = 0;
+    virtual void createPrimitive();
 
     virtual void selectOptimalPrimitiveDescriptor();
     virtual void initOptimalPrimitiveDescriptor();
@@ -602,7 +602,7 @@ protected:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, int align = -1);
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
     virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
 
     virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() { return nullptr; }
@@ -727,6 +727,12 @@ protected:
     void prepareMemory(mkldnn::primitive_desc_iterator& itpd);
 
     bool isDynamic = false;
+
+    bool isInputTensorAtPortEmpty(size_t port) const;
+    bool isOutputTensorAtPortEmpty(size_t port) const;
+
+    bool hasEmptyInputTensors() const;
+    bool hasEmptyOutputTensors() const;
 
     bool inputShapesDefined() const;
     bool outputShapesDefined() const;
