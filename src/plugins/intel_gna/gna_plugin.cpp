@@ -453,6 +453,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
 
 void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork & network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromNetwork");
+
     // update inputs
     {
         InputsDataMap network_inputs = network.getInputsInfo();
@@ -478,25 +479,43 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
     }
 }
 
+void GNAPlugin::UpdateInputs(const std::vector<std::shared_ptr<const ov::Node>>& params) {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputs");
+    for (const auto& param : params) {
+        const std::string ie_name = param->get_friendly_name();
+        (*inputs_ptr_)[ie_name].name = param->get_friendly_name();
+        (*inputs_ptr_)[ie_name].tensor_names = param->get_output_tensor(0).get_names();
+    }
+}
+
+void GNAPlugin::UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results) {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateOutputs");
+    for (const auto& result : results) {
+        const std::string ie_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        outputs_[ie_name].name = ie_name;
+        outputs_[ie_name].tensor_names = result->get_output_tensor(0).get_names();
+    }
+}
+
 void GNAPlugin::UpdateInputsAndOutputsInfoFromFunction(const std::shared_ptr<ov::Function> &function) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromFunction");
 
     // update inputs
     {
-        for (const auto& param : function->get_parameters()) {
-            const std::string ie_name = param->get_friendly_name();
-            (*inputs_ptr_)[ie_name].name = param->get_friendly_name();
-            (*inputs_ptr_)[ie_name].tensor_names = param->get_output_tensor(0).get_names();
+        std::vector<std::shared_ptr<const ov::Node>> node_vector;
+        for (auto& param : function->get_parameters()) {
+            node_vector.emplace_back(param);
         }
+        UpdateInputs(node_vector);
     }
 
     // update outputs
     {
-        for (const auto& result : function->get_results()) {
-            const std::string ie_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
-            outputs_[ie_name].name = ie_name;
-            outputs_[ie_name].tensor_names = result->get_output_tensor(0).get_names();
+        std::vector<std::shared_ptr<const ov::Node>> node_vector;
+        for (auto& result : function->get_results()) {
+            node_vector.emplace_back(result);
         }
+        UpdateOutputs(node_vector);
     }
 }
 

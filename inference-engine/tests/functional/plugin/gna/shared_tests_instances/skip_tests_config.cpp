@@ -68,6 +68,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
+        // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
+        R"(.*OVExecGraphImportExportTest.*readFromV10IR.*)",
         // TODO: Issue: 29577
         R"(.*QueryNetwork.*)",
         // Issue connected with OV2.0

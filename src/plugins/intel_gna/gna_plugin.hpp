@@ -157,6 +157,11 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void SetNetworkInputs();
     void SetNetworkOutputs();
     /**
+     * helpers to update internal inputs/output descriptions from loaded network
+     */
+    void UpdateInputs(const std::vector<std::shared_ptr<const ov::Node>>& params);
+    void UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results);
+    /**
      * QueryState API
      * @return
      */

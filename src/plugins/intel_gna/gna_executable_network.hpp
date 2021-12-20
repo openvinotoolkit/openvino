@@ -27,9 +27,8 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
          if (inputStream.fail()) {
              THROW_GNA_EXCEPTION << "Cannot open file to import model: " << aotFileName;
          }
-
          plg->ImportNetwork(inputStream);
-        // old API
+         // old API
          setNetworkInputs(plg->GetNetworkInputs());
          setNetworkOutputs(plg->GetNetworkOutputs());
          // new API
@@ -41,11 +40,11 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
         : plg(plg) {
         plg->ImportNetwork(networkModel);
         // old API
-         setNetworkInputs(plg->GetNetworkInputs());
-         setNetworkOutputs(plg->GetNetworkOutputs());
-         // new API
-         setInputs(plg->GetInputs());
-         setOutputs(plg->GetOutputs());
+        setNetworkInputs(plg->GetNetworkInputs());
+        setNetworkOutputs(plg->GetNetworkOutputs());
+        // new API
+        setInputs(plg->GetInputs());
+        setOutputs(plg->GetOutputs());
     }
 
     GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
@@ -76,10 +75,14 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     }
 
     void Export(const std::string &modelFileName) override {
+        plg->UpdateInputs(getInputs());
+        plg->UpdateOutputs(getOutputs());
         plg->Export(modelFileName);
     }
 
     void Export(std::ostream& modelStream) override {
+        plg->UpdateInputs(getInputs());
+        plg->UpdateOutputs(getOutputs());
         plg->Export(modelStream);
     }
 
