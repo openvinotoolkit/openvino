@@ -5,13 +5,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/loop.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/primitives/input_layout.hpp"
-#include "cldnn/primitives/eltwise.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/primitives/loop.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 #include "primitive_inst.h"
 #include <string>

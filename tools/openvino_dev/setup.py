@@ -28,7 +28,7 @@ SRC_DIR = SCRIPT_DIR / 'src'
 
 PKG_INSTALL_CFG = {
     'openvino-mo': {
-        'src_dir': OPENVINO_DIR / 'model-optimizer',
+        'src_dir': OPENVINO_DIR / 'tools' / 'mo',
         'black_list': ['*unit_tests*'],
         'prefix': 'mo',
         'extract_entry_points': True,
@@ -195,7 +195,7 @@ setup(
     author_email='openvino_pushbot@intel.com',
     url='https://docs.openvinotoolkit.org/latest/index.html',
     download_url='https://github.com/openvinotoolkit/openvino/tags',
-    description='OpenVINO™ Developer Package',
+    description='OpenVINO(TM) Development Tools',
     long_description=get_description(SCRIPT_DIR.parents[1] / 'docs/install_guides/pypi-openvino-dev.md'),
     long_description_content_type='text/markdown',
     classifiers=[

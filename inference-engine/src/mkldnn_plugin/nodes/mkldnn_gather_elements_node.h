@@ -18,14 +18,13 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
     void prepareParams() override;
 
 private:
@@ -34,8 +33,8 @@ private:
 
     size_t axis_;
     size_t dataTypeSize_ = 0;
-    int strideAxDst_;
-    int dstAxDim_;
+    int strideAxDst_ = 0;
+    int dstAxDim_ = 0;
     int strideAx1Diff_ = 0;
     std::string errorPrefix_;
 

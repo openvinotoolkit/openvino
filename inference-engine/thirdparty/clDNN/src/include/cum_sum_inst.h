@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/cum_sum.hpp"
+#include "intel_gpu/primitives/cum_sum.hpp"
 #include "primitive_inst.h"
 
 namespace cldnn {

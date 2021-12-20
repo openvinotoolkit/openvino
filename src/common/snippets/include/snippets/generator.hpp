@@ -8,21 +8,20 @@
  */
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
 
 namespace ngraph {
 namespace snippets {
 
-TRANSFORMATIONS_API auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo;
+auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo;
 
 /**
  * @interface TargetMachine
  * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emittors
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API TargetMachine {
+class TargetMachine {
 public:
     /**
      * @brief checks if target is natively supported
@@ -71,7 +70,7 @@ protected:
  * @brief Return scheduling information and pointer to generated kernel code
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API Schedule {
+class Schedule {
 public:
     /**
      * @brief Default constructor
@@ -101,7 +100,7 @@ public:
  * @brief Target independent code generator interface
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API Generator {
+class Generator {
 public:
     /**
      * @brief Default constructor

@@ -129,7 +129,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const element::Type& input_type,
                                                     const element::Type& expected_type,
                                                     const Shape& input_shape,
                                                     const Shape& expected_shape,
@@ -139,7 +139,7 @@ private:
             in,
             op::v0::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
             zero_flag);
-        return std::make_shared<Function>(NodeVector{reshape}, ParameterVector{in});
+        return std::make_shared<Model>(NodeVector{reshape}, ParameterVector{in});
     }
 };
 
@@ -171,7 +171,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const element::Type& input_type,
+    static std::shared_ptr<Model> CreateFunction(const element::Type& input_type,
                                                     const element::Type& expected_type,
                                                     const Shape& input_shape1,
                                                     const Shape& input_shape2,
@@ -191,7 +191,7 @@ private:
             reshape2,
             op::v0::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
             zero_flag);
-        return std::make_shared<Function>(NodeVector{reshape3}, ParameterVector{in});
+        return std::make_shared<Model>(NodeVector{reshape3}, ParameterVector{in});
     }
 };
 

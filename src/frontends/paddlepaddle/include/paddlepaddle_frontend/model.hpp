@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <manager.hpp>
+#include <openvino/frontend/extension/telemetry.hpp>
+#include <openvino/frontend/manager.hpp>
 
 #include "paddlepaddle_frontend/utility.hpp"
 
@@ -22,21 +23,22 @@ class PDPD_API InputModelPDPD : public InputModel {
     std::map<std::string, Output<Node>> get_tensor_values() const;
 
 public:
-    explicit InputModelPDPD(const std::string& path);
+    explicit InputModelPDPD(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    explicit InputModelPDPD(const std::wstring& path);
+    explicit InputModelPDPD(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
 #endif
-    explicit InputModelPDPD(const std::vector<std::istream*>& streams);
+    explicit InputModelPDPD(const std::vector<std::istream*>& streams,
+                            const std::shared_ptr<TelemetryExtension>& telemetry = {});
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;
     void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
-    void set_partial_shape(Place::Ptr place, const ov::PartialShape&) override;
-    ov::PartialShape get_partial_shape(Place::Ptr place) const override;
-    void set_element_type(Place::Ptr place, const ov::element::Type&) override;
-    void set_tensor_value(Place::Ptr place, const void* value) override;
+    void set_partial_shape(const Place::Ptr& place, const ov::PartialShape&) override;
+    ov::PartialShape get_partial_shape(const Place::Ptr& place) const override;
+    void set_element_type(const Place::Ptr& place, const ov::element::Type&) override;
+    void set_tensor_value(const Place::Ptr& place, const void* value) override;
 };
 
 }  // namespace frontend

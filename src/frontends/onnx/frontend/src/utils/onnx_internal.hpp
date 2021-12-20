@@ -8,6 +8,7 @@
 #include <string>
 
 #include "ngraph/function.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ONNX_NAMESPACE {
 class ModelProto;
@@ -32,7 +33,8 @@ namespace detail {
 /// \return     An nGraph function that represents a single output from the created
 /// graph.
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                            const std::string& model_path);
+                                            const std::string& model_path,
+                                            const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 
 /// \brief      Decode ONNX model to nGraph function with ONNXFrameworkNode(s)
 ///
@@ -42,8 +44,10 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
 ///                         external files.
 ///
 /// \return     A nGraph function with ONNXFrameworkNodes
-std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                                    const std::string& model_path);
+std::shared_ptr<Function> decode_to_framework_nodes(
+    std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+    const std::string& model_path,
+    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 
 /// \brief     Converts a nGraph function (onnx model decoded to function with
 /// ONNXFrameworkNode(s))

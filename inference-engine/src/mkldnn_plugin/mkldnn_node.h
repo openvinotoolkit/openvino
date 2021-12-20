@@ -195,14 +195,22 @@ public:
         return engine;
     }
 
+    bool isInPlace();
+
     // must be called only after MKLDNNGraph::InitEdges()
     virtual bool isExecutable() const {
-        return true;
+        return !hasEmptyInputTensors();
     }
 
     bool isConstant();
 
-    bool isInplace() const;
+    virtual size_t getFusingAxis() const {
+        return 1;
+    }
+
+    static void appendPostOpArgs(const mkldnn::primitive_attr& attr,
+                                 std::unordered_map<int, mkldnn::memory>& primArgs,
+                                 const std::vector<MKLDNNMemoryPtr>& binaryPostOpsArgs);
 
     bool isFusedWith(Type type) const;
 
@@ -336,6 +344,10 @@ public:
             selectedPrimitiveDescriptorIndex = -1;
         else
             selectedPrimitiveDescriptorIndex = index;
+
+        // Each primitive descriptor has its own InPlace status. So after new primitive descriptor selection
+        // we should reset InPlace type to definite new status for node using MKLDNNNode::isInPlace()
+        inplace = InPlaceType::Unknown;
     }
 
     std::string getPrimitiveDescriptorType();
@@ -358,7 +370,7 @@ public:
      */
     virtual void filterSupportedPrimitiveDescriptors();
 
-    virtual void createPrimitive() = 0;
+    virtual void createPrimitive();
 
     virtual void selectOptimalPrimitiveDescriptor();
     virtual void initOptimalPrimitiveDescriptor();
@@ -415,7 +427,7 @@ public:
                 if (impl_type == selected_pd->getImplementationType() &&
                     descsCompatible(srcDescs, selected_pd->getConfig().inConfs) &&
                     descsCompatible(dstDescs, selected_pd->getConfig().outConfs)) {
-                    prepareMemory(selected_pd, itpd);
+                    prepareMemory(itpd);
                     PD prim_desc = createPd<PD, D, FPD>(desc);
                     return {itpd.get()};
                 }
@@ -590,8 +602,10 @@ protected:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1, bool initAsBinary = false, bool initBinaryMemory = false);
-    virtual AttrPtr initPrimitiveAttr() const { return nullptr; }
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, int align = -1);
+    virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
+
+    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
@@ -616,17 +630,23 @@ protected:
     bool permanent = false;
     bool temporary = false;
     int dynBatchLim = 0;
+    enum class InPlaceType {
+        Unknown,
+        InPlace,
+        NoInPlace
+    };
     enum class ConstantType {
         Unknown,
         Const,
         NoConst
     };
+    InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, mkldnn::memory> primArgs;
-    std::vector<mkldnn::memory> binaryPostOpsArgs;
+    std::vector<MKLDNNMemoryPtr> binaryPostOpsArgs;
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 
@@ -704,9 +724,19 @@ protected:
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 
+    void prepareMemory(mkldnn::primitive_desc_iterator& itpd);
+
     bool isDynamic = false;
 
+    bool isInputTensorAtPortEmpty(size_t port) const;
+    bool isOutputTensorAtPortEmpty(size_t port) const;
+
+    bool hasEmptyInputTensors() const;
+    bool hasEmptyOutputTensors() const;
+
     bool inputShapesDefined() const;
+    bool outputShapesDefined() const;
+    bool shapesDefined() const;
     void updateLastInputDims();
 
     bool inputShapesModified() const;
@@ -726,6 +756,7 @@ protected:
     }
 
     std::vector<VectorDims> lastInputDims = {};
+
     std::shared_ptr<ngraph::Node> opToShapeInfer;
 
 private:
@@ -768,7 +799,6 @@ private:
         return PD(*selected_desc_ptr, engine);
     }
 
-    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 

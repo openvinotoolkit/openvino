@@ -49,7 +49,7 @@ Intermediate blobs between these sub graphs are allocated automatically in the m
 Samples can be used with the following command:
 
 ```sh
-./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:GPU,CPU
+./hello_classification <path_to_model>/squeezenet1.1.xml <path_to_pictures>/picture.jpg HETERO:GPU,CPU
 ```
 where:
 - `HETERO` stands for heterogeneous plugin

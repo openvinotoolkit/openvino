@@ -12,5 +12,9 @@ namespace op {
 namespace v1 {
 using ov::op::v1::Softmax;
 }  // namespace v1
+
+namespace v8 {
+using ov::op::v8::Softmax;
+}  // namespace v8
 }  // namespace op
 }  // namespace ngraph

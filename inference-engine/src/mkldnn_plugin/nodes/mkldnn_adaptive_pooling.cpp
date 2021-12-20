@@ -109,8 +109,7 @@ std::vector<VectorDims> MKLDNNAdaptivePoolingNode::shapeInfer() const {
         spatialDimsValue[i] = newSpatialDimsPtr[i];
     }
 
-    std::vector<VectorDims> result = {};
-    result.resize(outputShapes.size(), outputDims);
+    std::vector<VectorDims> result(outputShapes.size(), outputDims);
     return result;
 }
 
@@ -144,6 +143,10 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
                                  impl_desc_type::unknown);
         }
     }
+}
+
+void MKLDNNAdaptivePoolingNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
@@ -283,8 +286,6 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
 bool MKLDNNAdaptivePoolingNode::created() const {
     return getType() == AdaptivePooling;
 }
-
-void MKLDNNAdaptivePoolingNode::createPrimitive() {}
 
 inline void MKLDNNAdaptivePoolingNode::setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength) {
     *(startPtr) = idx * inputLength / outputLength;
