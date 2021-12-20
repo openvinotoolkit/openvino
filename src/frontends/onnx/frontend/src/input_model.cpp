@@ -207,7 +207,7 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
     m_editor->extract_subgraph(onnx_inputs, onnx_outputs);
 }
 
-ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr place) {
+ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& place) {
     std::string name = place->get_names().at(0);
 
     const auto& outputs = m_editor->model_outputs();
@@ -238,7 +238,7 @@ ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr p
     return std::make_shared<PlaceTensor>(name, m_editor);
 }
 
-void InputModel::remove_output(const ov::frontend::Place::Ptr place) {
+void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
     std::string name = place->get_names().at(0);
     std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
     const auto& output_names = m_editor->model_outputs();
@@ -257,7 +257,7 @@ void InputModel::remove_output(const ov::frontend::Place::Ptr place) {
     }
 }
 
-void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr place, const std::string& new_name_optional) {
+void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr& place, const std::string& new_name_optional) {
     std::vector<ov::frontend::Place::Ptr> inputs = get_inputs();
     std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
 
@@ -278,7 +278,7 @@ void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr place, con
     }
 }
 
-void InputModel::set_tensor_value(const ov::frontend::Place::Ptr place, const void* value) {
+void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> map;
 
     if (const auto var_place = std::dynamic_pointer_cast<PlaceTensor>(place)) {
@@ -353,4 +353,6 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
                            });
         }
     }
+
+    return onnx_outputs;
 }

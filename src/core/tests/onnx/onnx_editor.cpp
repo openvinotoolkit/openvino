@@ -1594,7 +1594,7 @@ NGRAPH_TEST(onnx_editor, subgraph__cut_one_edge_and_merge_all_new_inputs) {
     // InputEdge{1, "relu1"}
     const auto input_edge_1 = editor.find_input_edge(EditorNode(EditorOutput("add1")), EditorInput(0));
 
-    editor.cut_graph_fragment({{input_edge_1}}, {}, true);
+    editor.extract_subgraph({{input_edge_1}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
         SERIALIZED_ZOO,
@@ -1605,7 +1605,7 @@ NGRAPH_TEST(onnx_editor, subgraph__cut_one_edge_and_merge_all_new_inputs) {
     // InputEdge{5, "add2"}
     const auto input_edge_2 = editor.find_input_edge(EditorNode(EditorOutput("split1")), EditorInput(0));
 
-    editor.cut_graph_fragment({{input_edge_2}}, {}, true);
+    editor.extract_subgraph({{input_edge_2}}, {}, true);
 
     const auto ref_model1 = ngraph::file_util::path_join(
         SERIALIZED_ZOO,
@@ -1625,7 +1625,7 @@ NGRAPH_TEST(onnx_editor, subgraph__cut_two_edges_from_one_source_and_merge_all_n
     // InputEdge{6, "relu1"}
     const auto input_edge_2 = editor.find_input_edge(EditorNode(EditorOutput("mul1")), EditorInput(0));
 
-    editor.cut_graph_fragment({{input_edge_1, input_edge_2}}, {}, true);
+    editor.extract_subgraph({{input_edge_1, input_edge_2}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
         SERIALIZED_ZOO,
@@ -1645,7 +1645,7 @@ NGRAPH_TEST(onnx_editor, subgraph__cut_two_edges_from_different_sources_and_merg
     // InputEdge{6, "relu1"}
     const auto input_edge_2 = editor.find_input_edge(EditorNode(EditorOutput("mul1")), EditorInput(0));
 
-    editor.cut_graph_fragment({{input_edge_1, input_edge_2}}, {}, true);
+    editor.extract_subgraph({{input_edge_1, input_edge_2}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
         SERIALIZED_ZOO,
@@ -1667,7 +1667,7 @@ NGRAPH_TEST(onnx_editor, subgraph__cut_all_edges_from_one_source_and_merge_all_n
     // InputEdge{1, "relu1"}
     const auto input_edge_3 = editor.find_input_edge(EditorNode(EditorOutput("add1")), EditorInput(0));
 
-    editor.cut_graph_fragment({{input_edge_1, input_edge_2, input_edge_3}}, {}, true);
+    editor.extract_subgraph({{input_edge_1, input_edge_2, input_edge_3}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
         SERIALIZED_ZOO,
@@ -1689,7 +1689,7 @@ NGRAPH_TEST(onnx_editor, subgraph__cut_custom_edges_from_different_sources_and_m
     // InputEdge{3, "add1"}
     const auto input_edge_3 = editor.find_input_edge(EditorNode(EditorOutput("add2")), EditorInput(1));
 
-    editor.cut_graph_fragment({{input_edge_2, input_edge_1, input_edge_3}}, {}, true);
+    editor.extract_subgraph({{input_edge_2, input_edge_1, input_edge_3}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
         SERIALIZED_ZOO,

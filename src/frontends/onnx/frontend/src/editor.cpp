@@ -357,8 +357,8 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
 }
 
 void onnx_editor::ONNXModelEditor::extract_subgraph(const std::vector<InputEdge>& inputs,
-                                                      const std::vector<OutputEdge>& outputs,
-                                                      const bool merge_inputs) {
+                                                    const std::vector<OutputEdge>& outputs,
+                                                    const bool merge_inputs) {
     if (inputs.empty() && outputs.empty()) {
         return;
     }

@@ -84,8 +84,8 @@ public:
     ///                     false - each cutted edge will be connected with one new input (default),
     ///                     true - all input edges will be connected to one new input
     void extract_subgraph(const std::vector<InputEdge>& inputs,
-                            const std::vector<OutputEdge>& outputs,
-                            const bool merge_inputs = false);
+                          const std::vector<OutputEdge>& outputs,
+                          const bool merge_inputs = false);
 
     /// \brief Modifies the in-memory representation of the model by setting custom input
     ///        values for inputs specified in the provided map.
