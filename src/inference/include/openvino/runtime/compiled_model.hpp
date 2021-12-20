@@ -55,7 +55,7 @@ public:
     CompiledModel() = default;
 
     /**
-     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @brief Destructor preserves unload order of implementation object and reference to library
      */
     ~CompiledModel();
 

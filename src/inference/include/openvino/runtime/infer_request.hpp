@@ -69,7 +69,7 @@ public:
     InferRequest& operator=(InferRequest&& other) = default;
 
     /**
-     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @brief Destructor preserves unload order of implementation object and reference to library
      * @note To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
      *       And use destructor to remove implementation object before reference to library explicitly
      */

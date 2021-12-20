@@ -79,7 +79,7 @@ class OPENVINO_API Allocator {
 
 public:
     /**
-     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @brief Destructor preserves unload order of implementation object and reference to library
      */
     ~Allocator();
 
