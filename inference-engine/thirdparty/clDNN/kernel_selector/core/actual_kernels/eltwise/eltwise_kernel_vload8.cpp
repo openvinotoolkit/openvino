@@ -37,6 +37,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
             const auto batch_size = ewParams.inputs[i].Batch().v;
             const auto feature_size = ewParams.inputs[i].Feature().v;
             if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) ||
+                (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
                 (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) ||
                 (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
                 input_layout == DataLayout::fs_b_yx_fsv32 ||
@@ -45,6 +46,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
                 return false;
         }
         if ((ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
+            (ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.output.Feature().v % 32 != 0) ||
             (ewParams.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
             (ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.output.Feature().v % 8 != 0) ||
             ewParams.output.GetLayout() == DataLayout::fs_b_yx_fsv32 ||
