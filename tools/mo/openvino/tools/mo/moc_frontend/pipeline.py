@@ -12,6 +12,8 @@ from openvino.runtime import Dimension, PartialShape        # pylint: disable=no
 from openvino.frontend import FrontEnd, Place       # pylint: disable=no-name-in-module,import-error
 from openvino.runtime.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
 
+import numpy as np
+
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     """
@@ -53,10 +55,20 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         new_output_places = [x['node'] for x in outputs]
         log.debug('Using extract subgraph')
         input_model.extract_subgraph(new_input_places, new_output_places)
+        # invalidation of existing Place objects could have happened in the operation above
+        if user_shapes:
+            user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
+                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+                argv.output, argv.freeze_placeholder_with_value)
     elif not inputs_equal:
         new_input_places = [x['node'] for x in user_shapes]
         log.debug('Using override_all_inputs')
         input_model.override_all_inputs(new_input_places)
+        # invalidation of existing Place objects could have happened in the operation above
+        if user_shapes:
+            user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
+                input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+                argv.output, argv.freeze_placeholder_with_value)
     elif not outputs_equal:
         new_output_places = [x['node'] for x in outputs]
         log.debug('Using override_all_outputs')
@@ -66,7 +78,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         for user_shape in user_shapes:
             if user_shape.get('shape') is not None:
                 input_model.set_partial_shape(
-                    user_shape['node'], PartialShape(user_shape['shape']))
+                    user_shape['node'], partial_shape_from_tuple(user_shape['shape']))
             if user_shape.get('data_type') is not None:
                 data_type = get_element_type(user_shape['data_type'])
                 log.debug('Set data type: {}'.format(data_type))
@@ -97,3 +109,16 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     ngraph_function = moc_front_end.convert(input_model)
     return ngraph_function
+
+
+def partial_shape_from_tuple(shape: tuple):
+    new_shape = []
+    for dim in shape:
+        if isinstance(dim, tuple):
+            assert len(dim) == 2, "Incorrect boundaries of dimension {} in shape {}".format(dim, shape)
+            assert dim[0] >= 0, "Incorrect min value of dimension {} in shape".format(dim, shape)
+            new_shape.append(Dimension(dim[0], dim[1]))
+        else:
+            assert isinstance(dim, np.int64), "Incorrect type of dimension {} in shape".format(dim, shape)
+            new_shape.append(Dimension(dim))
+    return PartialShape(new_shape)

@@ -173,14 +173,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
     manager.register_pass<ngraph::pass::TransposeSinking>();
-    manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
-    manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
-    manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
+    manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-    manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
-    manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
-    manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToSequence>();
     manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
     manager.register_pass<ngraph::pass::GRUCellDecomposition>();
     manager.register_pass<ngraph::pass::RNNCellDecomposition>();
@@ -504,23 +500,24 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
     // verification of supported input
-    InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
-    for (const auto &ii : _networkInputs) {
+    for (const auto &ii : network.getInputsInfo()) {
         auto input_precision = ii.second->getPrecision();
-        if (input_precision != InferenceEngine::Precision::FP64 &&
-            input_precision != InferenceEngine::Precision::FP32 &&
-            input_precision != InferenceEngine::Precision::I32 &&
-            input_precision != InferenceEngine::Precision::U32 &&
-            input_precision != InferenceEngine::Precision::U16 &&
-            input_precision != InferenceEngine::Precision::I16 &&
-            input_precision != InferenceEngine::Precision::I8 &&
-            input_precision != InferenceEngine::Precision::U8 &&
-            input_precision != InferenceEngine::Precision::BF16 &&
-            input_precision != InferenceEngine::Precision::BOOL &&
-            input_precision != InferenceEngine::Precision::I64 &&
-            input_precision != InferenceEngine::Precision::U64) {
+
+        using hash_t = std::hash<typename std::underlying_type<Precision::ePrecision>::type>;
+
+        static const std::unordered_set<Precision::ePrecision, hash_t> supported_precisions = {
+            Precision::U8,   Precision::I8,
+            Precision::U16,  Precision::I16,
+            Precision::U32,  Precision::I32,
+            Precision::U64,  Precision::I64,
+            Precision::BF16, Precision::FP16,
+            Precision::FP32, Precision::FP64,
+            Precision::BOOL
+        };
+
+        if (!supported_precisions.count(input_precision)) {
             IE_THROW(NotImplemented)
-                               << "Input image format " << input_precision << " is not supported yet...";
+                        << "Input image format " << input_precision << " is not supported yet...";
         }
     }
 

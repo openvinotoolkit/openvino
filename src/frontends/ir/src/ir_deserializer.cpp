@@ -7,7 +7,6 @@
 #include <pugixml.hpp>
 
 #include "ie_ngraph_utils.hpp"
-#include "ir_frontend/model.hpp"
 #include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "rt_info_deserializer.hpp"
@@ -251,14 +250,16 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         return;
     if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::Type>>(&adapter)) {
         static_cast<ngraph::element::Type&>(*a) = InferenceEngine::details::convertPrecision(val);
-    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::PartialShape>>(&adapter)) {
-        std::vector<int64_t> shape;
-        std::vector<ngraph::Dimension> dims;
-        if (!getParameters<int64_t>(m_node.child("data"), name, shape))
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<PartialShape>>(&adapter)) {
+        PartialShape shape;
+        if (!get_partial_shape_from_attribute(m_node.child("data"), name, shape))
             return;
-        for (const auto& dim : shape)
-            dims.emplace_back(dim);
-        static_cast<ngraph::PartialShape&>(*a) = ngraph::PartialShape(dims);
+        a->set(shape);
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<Dimension>>(&adapter)) {
+        Dimension dim;
+        if (!get_dimension_from_attribute(m_node.child("data"), name, dim))
+            return;
+        a->set(dim);
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::Shape>>(&adapter)) {
         std::vector<size_t> shape;
         if (!getParameters<size_t>(m_node.child("data"), name, shape))
