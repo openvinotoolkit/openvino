@@ -1214,9 +1214,9 @@ def test_set_input_partial_shape_using_input_edge():
     model = fe.load("input_model.onnx")
 
     add_operator = model.get_place_by_operation_name("onnx_add_op")
-    add_input_edge = add_operator.get_input_port(inputPortIndex=0)
+    add_input_edge = add_operator.get_input_port(input_port_index=0)
     model.set_partial_shape(add_input_edge, PartialShape([10, 10]))
-    add_input_edge = add_operator.get_input_port(inputPortIndex=1)
+    add_input_edge = add_operator.get_input_port(input_port_index=1)
     model.set_partial_shape(add_input_edge, PartialShape([1]))
 
     ov_model = fe.convert(model)
@@ -1232,7 +1232,7 @@ def test_get_partial_shape_using_input_edge():
     model = fe.load("input_model.onnx")
 
     add_operator = model.get_place_by_operation_name("onnx_add_op")
-    add_input_edge = add_operator.get_input_port(inputPortIndex=0)
+    add_input_edge = add_operator.get_input_port(input_port_index=0)
 
     pshape = model.get_partial_shape(add_input_edge)
     assert pshape == PartialShape([2, 2])
@@ -1244,10 +1244,10 @@ def test_get_partial_shape_using_output_edge():
     model = fe.load("input_model.onnx")
 
     add_operator = model.get_place_by_operation_name("onnx_add_op")
-    add_output_edge = add_operator.get_output_port(outputPortIndex=0)
+    add_output_edge = add_operator.get_output_port(output_port_index=0)
 
     assert model.get_partial_shape(add_output_edge) == PartialShape([2, 2])
 
     split_operator = model.get_place_by_tensor_name("out1").get_producing_operation()
-    out2_edge = split_operator.get_output_port(outputPortIndex=1)
+    out2_edge = split_operator.get_output_port(output_port_index=1)
     assert model.get_partial_shape(out2_edge) == PartialShape([1, 2])
