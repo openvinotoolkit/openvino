@@ -87,7 +87,7 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
                The FakeQuantize result is converted to low precision type and then constant folded
             */
             std::shared_ptr<Node> new_input_low;
-            auto new_output_low = op::Constant::create(input_type, Shape{}, {-static_cast<float>(levels) / 2});
+            auto new_output_low = op::Constant::create(input_type, Shape{}, {-static_cast<float>(levels / 2)});
             auto new_output_high = std::make_shared<opset8::Add>(new_output_low, op::Constant::create(input_type, Shape{}, {levels - 1}));
             const auto& weights = pattern_value_map.at(weights_pattern);
             const auto& input_low = pattern_value_map.at(input_low_pattern);
