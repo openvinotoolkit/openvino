@@ -182,6 +182,7 @@ void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, co
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     auto inputMap = utils::getInputMap();
+    auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
@@ -193,7 +194,6 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
                     }
                 }
                 auto it = inputMap.find(nodePtr->get_type_info());
-                auto itTargetShape = targetInputStaticShapes.begin();
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
                         inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});
