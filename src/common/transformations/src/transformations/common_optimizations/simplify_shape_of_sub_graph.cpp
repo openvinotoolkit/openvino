@@ -44,14 +44,16 @@ bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Fun
 
         std::vector<std::shared_ptr<ngraph::Node>> nodes_for_different_types[2];
         for (const auto& child : pair.second) {
-            const auto child_as_shapeof =  std::dynamic_pointer_cast<opset8::ShapeOf>(child);
-            if (!child_as_shapeof)
-                continue;
-            const auto& type_of_output = child_as_shapeof->get_output_type();
-            if (type_of_output == element::i32) {
-                nodes_for_different_types[index_for_int32].push_back(child);
+            const auto child_as_shapeof_v8 =  std::dynamic_pointer_cast<opset8::ShapeOf>(child);
+            if (child_as_shapeof_v8) {
+                const auto& type_of_output = child_as_shapeof_v8->get_output_type();
+                size_t index = (type_of_output == element::i32) ? index_for_int32 : index_for_int64;
+                nodes_for_different_types[index].push_back(child);
             } else {
-                nodes_for_different_types[index_for_int64].push_back(child);
+                const auto child_as_shapeof_v1 =  std::dynamic_pointer_cast<opset1::ShapeOf>(child);
+                if (child_as_shapeof_v1) {
+                    nodes_for_different_types[index_for_int64].push_back(child);
+                }
             }
         }
         for (const auto& v : nodes_for_different_types) {
@@ -59,7 +61,7 @@ bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Fun
                 continue;
             const auto& root_ss = v[0];
             for (const auto& child_ss : v)
-                if (root_ss->get_instance_id() != child_ss->get_instance_id() && root_ss->get_output_element_type(0) == root_ss->get_output_element_type(0))
+                if (root_ss->get_instance_id() != child_ss->get_instance_id())
                     graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
         }
     }
