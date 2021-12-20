@@ -25,11 +25,11 @@ class OpPlacePDPD;
 
 class PlacePDPD : public Place {
 public:
-    PlacePDPD(const InputModel& input_model, const std::vector<std::string>& names)
+    PlacePDPD(const IInputModel& input_model, const std::vector<std::string>& names)
         : m_input_model(input_model),
           m_names(names) {}
 
-    explicit PlacePDPD(const InputModel& input_model) : PlacePDPD(input_model, std::vector<std::string>{}) {}
+    explicit PlacePDPD(const IInputModel& input_model) : PlacePDPD(input_model, std::vector<std::string>{}) {}
 
     ~PlacePDPD() override = default;
 
@@ -44,13 +44,13 @@ public:
     }
 
 private:
-    const InputModel& m_input_model;
+    const IInputModel& m_input_model;
     std::vector<std::string> m_names;
 };
 
 class InPortPlacePDPD : public PlacePDPD {
 public:
-    explicit InPortPlacePDPD(const InputModel& input_model) : PlacePDPD(input_model) {}
+    explicit InPortPlacePDPD(const IInputModel& input_model) : PlacePDPD(input_model) {}
 
     void set_op(const std::weak_ptr<OpPlacePDPD>& op) {
         m_op = op;
@@ -76,7 +76,7 @@ private:
 
 class OutPortPlacePDPD : public PlacePDPD {
 public:
-    explicit OutPortPlacePDPD(const InputModel& input_model) : PlacePDPD(input_model) {}
+    explicit OutPortPlacePDPD(const IInputModel& input_model) : PlacePDPD(input_model) {}
 
     void set_op(const std::weak_ptr<OpPlacePDPD>& op) {
         m_op = op;
@@ -99,11 +99,11 @@ private:
 
 class OpPlacePDPD : public PlacePDPD {
 public:
-    OpPlacePDPD(const InputModel& input_model,
+    OpPlacePDPD(const IInputModel& input_model,
                 const paddle::framework::proto::OpDesc& op_desc,
                 const std::vector<std::string>& names);
 
-    OpPlacePDPD(const InputModel& input_model, const paddle::framework::proto::OpDesc& op_desc);
+    OpPlacePDPD(const IInputModel& input_model, const paddle::framework::proto::OpDesc& op_desc);
 
     void add_in_port(const std::shared_ptr<InPortPlacePDPD>& input, const std::string& name);
     void add_out_port(const std::shared_ptr<OutPortPlacePDPD>& output, const std::string& name);
@@ -156,11 +156,11 @@ private:
 
 class TensorPlacePDPD : public PlacePDPD {
 public:
-    TensorPlacePDPD(const InputModel& input_model,
+    TensorPlacePDPD(const IInputModel& input_model,
                     const std::vector<std::string>& names,
                     const paddle::framework::proto::VarDesc& var_desc);
 
-    TensorPlacePDPD(const InputModel& input_model, const paddle::framework::proto::VarDesc& var_desc);
+    TensorPlacePDPD(const IInputModel& input_model, const paddle::framework::proto::VarDesc& var_desc);
 
     void add_producing_port(const std::shared_ptr<OutPortPlacePDPD>& out_port);
     void add_consuming_port(const std::shared_ptr<InPortPlacePDPD>& in_port);

@@ -25,17 +25,17 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 
-class ONNX_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
+class ONNX_FRONTEND_API FrontEnd : public ov::frontend::IFrontEnd {
 public:
-    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override;
+    std::shared_ptr<ov::Model> convert(const IInputModel::Ptr& model) const override;
     void convert(const std::shared_ptr<ov::Model>& partially_converted) const override;
-    std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override;
+    std::shared_ptr<ov::Model> decode(const IInputModel::Ptr& model) const override;
     std::string get_name() const override;
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
+    IInputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 private:
     std::shared_ptr<TelemetryExtension> m_telemetry;

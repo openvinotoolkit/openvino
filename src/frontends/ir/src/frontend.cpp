@@ -111,7 +111,7 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
         extensions.emplace_back(ext);
 }
 
-InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+IInputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
@@ -125,13 +125,14 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return exts;
     };
 
-    auto create_input_model = [&]() -> std::shared_ptr<InputModel> {
+    auto create_input_model = [&]() -> std::shared_ptr<IInputModel> {
         if (provided_model_stream) {
-            return std::make_shared<InputModel>(*provided_model_stream, weights, create_extensions_map());
+            auto input_model = std::make_shared<InputModel>(*provided_model_stream, weights, create_extensions_map());
+            return std::static_pointer_cast<IInputModel>(input_model);
         } else if (local_model_stream.is_open()) {
             auto input_model = std::make_shared<InputModel>(local_model_stream, weights, create_extensions_map());
             local_model_stream.close();
-            return input_model;
+            return std::static_pointer_cast<IInputModel>(input_model);
         }
         return nullptr;
     };
@@ -225,7 +226,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     return create_input_model();
 }
 
-std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert(const IInputModel::Ptr& model) const {
     auto ir_model = std::dynamic_pointer_cast<InputModel>(model);
     OPENVINO_ASSERT(ir_model != nullptr);
     return ir_model->convert();

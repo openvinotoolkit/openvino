@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 
-class InputModel : public ov::frontend::InputModel {
+class InputModel : public ov::frontend::IInputModel {
 public:
     InputModel(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)

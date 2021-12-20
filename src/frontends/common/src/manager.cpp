@@ -43,7 +43,8 @@ public:
             });
             if (plugin_it != m_plugins.end()) {
                 if (plugin_it->load()) {
-                    return plugin_it->get_creator().m_creator();
+                    return std::make_shared<FrontEnd>(plugin_it->get_so_pointer(),
+                                                      plugin_it->get_creator().m_creator());
                 }
             }
         }
@@ -51,7 +52,7 @@ public:
         for (auto& plugin : m_plugins) {
             plugin.load();
             if (plugin.get_creator().m_name == framework) {
-                return plugin.get_creator().m_creator();
+                return std::make_shared<FrontEnd>(plugin.get_so_pointer(), plugin.get_creator().m_creator());
             }
         }
         FRONT_END_INITIALIZATION_CHECK(false, "FrontEnd for Framework ", framework, " is not found");
@@ -85,10 +86,10 @@ public:
             auto fe = plugin.get_creator().m_creator();
             OPENVINO_ASSERT(fe, "Frontend error: frontend '", plugin.get_creator().m_name, "' created null FrontEnd");
             if (fe->supported(variants)) {
-                return fe;
+                return std::make_shared<FrontEnd>(plugin.get_so_pointer(), fe);
             }
         }
-        return {};
+        return nullptr;
     }
 
     void register_front_end(const std::string& name, FrontEndFactory creator) {
@@ -174,7 +175,7 @@ private:
             auto fe = plugin_info.get_creator().m_creator();
             if (fe && fe->supported(variants)) {
                 // Priority FE (e.g. IR) is found and is suitable
-                return fe;
+                return std::make_shared<FrontEnd>(plugin_info.get_so_pointer(), fe);
             }
         }
         return {};

@@ -5,6 +5,7 @@
 #include "ngraph/visibility.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
 #ifdef ov_mock1_frontend_EXPORTS
@@ -16,10 +17,23 @@
 using namespace ngraph;
 using namespace ov::frontend;
 
-class FrontEndMock : public FrontEnd {
+class InputModelMock : public IInputModel {};
+
+class FrontEndMock : public IFrontEnd {
 public:
     std::string get_name() const override {
         return "mock1";
+    }
+
+    IInputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override {
+        return std::make_shared<InputModelMock>();
+    }
+
+    std::shared_ptr<ov::Model> convert(const IInputModel::Ptr& model) const override {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, Shape{1, 2, 3, 4});
+        auto op = std::make_shared<ov::opset8::Relu>(param);
+        auto res = std::make_shared<ov::opset8::Result>(op);
+        return std::make_shared<ov::Model>(ResultVector({res}), ParameterVector({param}), "mock1_model");
     }
 };
 
@@ -28,7 +42,7 @@ extern "C" MOCK_API FrontEndVersion GetAPIVersion() {
 }
 
 extern "C" MOCK_API void* GetFrontEndData() {
-    FrontEndPluginInfo* res = new FrontEndPluginInfo();
+    auto* res = new FrontEndPluginInfo();
     res->m_name = "mock1";
     res->m_creator = []() {
         return std::make_shared<FrontEndMock>();

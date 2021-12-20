@@ -15,11 +15,11 @@ class OpPlaceTF;
 
 class PlaceTF : public ov::frontend::Place {
 public:
-    PlaceTF(const ov::frontend::InputModel& input_model, const std::vector<std::string>& names)
+    PlaceTF(const ov::frontend::IInputModel& input_model, const std::vector<std::string>& names)
         : m_input_model(input_model),
           m_names(names) {}
 
-    explicit PlaceTF(const ov::frontend::InputModel& input_model) : PlaceTF(input_model, std::vector<std::string>{}) {}
+    explicit PlaceTF(const ov::frontend::IInputModel& input_model) : PlaceTF(input_model, std::vector<std::string>{}) {}
 
     ~PlaceTF() override = default;
 
@@ -34,13 +34,13 @@ public:
     }
 
 private:
-    const ov::frontend::InputModel& m_input_model;
+    const ov::frontend::IInputModel& m_input_model;
     std::vector<std::string> m_names;
 };
 
 class InPortPlaceTF : public PlaceTF {
 public:
-    explicit InPortPlaceTF(const ov::frontend::InputModel& input_model) : PlaceTF(input_model) {}
+    explicit InPortPlaceTF(const ov::frontend::IInputModel& input_model) : PlaceTF(input_model) {}
 
     void set_op(const std::weak_ptr<OpPlaceTF>& op) {
         m_op = op;
@@ -66,7 +66,7 @@ private:
 
 class OutPortPlaceTF : public PlaceTF {
 public:
-    explicit OutPortPlaceTF(const ov::frontend::InputModel& input_model) : PlaceTF(input_model) {}
+    explicit OutPortPlaceTF(const ov::frontend::IInputModel& input_model) : PlaceTF(input_model) {}
 
     void set_op(const std::weak_ptr<OpPlaceTF>& op) {
         m_op = op;
@@ -89,7 +89,7 @@ private:
 
 class OpPlaceTF : public PlaceTF {
 public:
-    OpPlaceTF(const ov::frontend::InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder);
+    OpPlaceTF(const ov::frontend::IInputModel& input_model, std::shared_ptr<DecoderBase> op_decoder);
 
     void add_in_port(const std::shared_ptr<InPortPlaceTF>& input, const std::string& name);
     void add_out_port(const std::shared_ptr<OutPortPlaceTF>& output, int idx);
@@ -135,7 +135,7 @@ private:
 
 class TensorPlaceTF : public PlaceTF {
 public:
-    TensorPlaceTF(const ov::frontend::InputModel& input_model,
+    TensorPlaceTF(const ov::frontend::IInputModel& input_model,
                   const ov::PartialShape& pshape,
                   ov::element::Type type,
                   const std::vector<std::string>& names);

@@ -52,9 +52,9 @@ void extract_operation_name_and_port(const std::string& port_name,
 }  // namespace tf
 class InputModelTF::InputModelTFImpl {
 public:
-    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const ov::frontend::InputModel& input_model);
+    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const ov::frontend::IInputModel& input_model);
     InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
-                     const ov::frontend::InputModel& input_model,
+                     const ov::frontend::IInputModel& input_model,
                      const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<ov::frontend::Place::Ptr> getInputs() const;
     std::vector<ov::frontend::Place::Ptr> getOutputs() const;
@@ -88,7 +88,7 @@ private:
     std::map<std::string, Output<Node>> m_tensor_values;
 
     std::shared_ptr<GraphIterator> m_graph_iterator;
-    const ov::frontend::InputModel& m_input_model;
+    const ov::frontend::IInputModel& m_input_model;
 
     std::shared_ptr<TelemetryExtension> m_telemetry;
 
@@ -249,7 +249,7 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
 }
 
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
-                                                 const ov::frontend::InputModel& input_model)
+                                                 const ov::frontend::IInputModel& input_model)
     : m_input_model(input_model),
       m_graph_iterator(graph_iterator) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
@@ -257,7 +257,7 @@ InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph
 }
 
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
-                                                 const InputModel& input_model,
+                                                 const IInputModel& input_model,
                                                  const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_input_model(input_model),
       m_graph_iterator(graph_iterator),

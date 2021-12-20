@@ -8,8 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "frontend_interface.hpp"
-#include "input_model.hpp"
+#include "input_model_interface.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
@@ -20,22 +19,14 @@ namespace ov {
 namespace frontend {
 /// \brief An interface for identifying a frontend for a particular framework.
 /// Provides an ability to load and convert of input model
-class FRONTEND_API FrontEnd final {
-    friend class FrontEndManager;
-    std::shared_ptr<void> m_shared_object;  // Library handle
-    std::shared_ptr<IFrontEnd> m_actual;
-
+class FRONTEND_API IFrontEnd {
+    friend class FrontEnd;
 public:
-    FrontEnd(const std::shared_ptr<void>& so, const std::shared_ptr<IFrontEnd>& actual);
+    typedef std::shared_ptr<IFrontEnd> Ptr;
 
-    using Ptr = std::shared_ptr<FrontEnd>;
+    IFrontEnd();
 
-    FrontEnd(const FrontEnd&) = default;
-    FrontEnd& operator=(const FrontEnd&) = default;
-    FrontEnd(FrontEnd&&) noexcept = default;
-    FrontEnd& operator=(FrontEnd&&) noexcept = default;
-
-    ~FrontEnd();
+    virtual ~IFrontEnd() = 0;
 
     /// \brief Validates if FrontEnd can recognize model with parameters specified.
     /// Same parameters should be used to load model.
@@ -57,52 +48,52 @@ public:
     /// refer to specific FrontEnd documentation.
     /// \return Loaded input model.
     template <typename... Types>
-    inline InputModel::Ptr load(const Types&... vars) const {
+    inline IInputModel::Ptr load(const Types&... vars) const {
         return load_impl({ov::Any{vars}...});
     }
 
-    inline InputModel::Ptr load(const ov::AnyVector& vars) const {
+    inline IInputModel::Ptr load(const ov::AnyVector& vars) const {
         return load_impl(vars);
     }
 
-    /// \brief Completely convert and normalize entire Model, throws if it is not
+    /// \brief Completely convert and normalize entire function, throws if it is not
     /// possible
     /// \param model Input model
-    /// \return fully converted OV Model
-    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const;
+    /// \return fully converted nGraph function
+    virtual std::shared_ptr<ov::Model> convert(const IInputModel::Ptr& model) const;
 
-    /// \brief Completely convert the remaining, not converted part of a Model.
-    /// \param partiallyConverted partially converted OV Model
-    void convert(const std::shared_ptr<ov::Model>& partially_converted) const;
+    /// \brief Completely convert the remaining, not converted part of a function.
+    /// \param partiallyConverted partially converted nGraph function
+    virtual void convert(const std::shared_ptr<ov::Model>& partially_converted) const;
 
     /// \brief Convert only those parts of the model that can be converted leaving others
     /// as-is. Converted parts are not normalized by additional transformations; normalize
-    /// Model or another form of convert Model should be called to finalize the
+    /// function or another form of convert function should be called to finalize the
     /// conversion process.
     /// \param model Input model
-    /// \return partially converted OV Model
-    std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const;
+    /// \return partially converted nGraph function
+    virtual std::shared_ptr<ov::Model> convert_partially(const IInputModel::Ptr& model) const;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
-    /// Each decoding node is an OV node representing a single FW operation node with
+    /// Each decoding node is an nGraph node representing a single FW operation node with
     /// all attributes represented in FW-independent way.
     /// \param model Input model
-    /// \return OV Model after decoding
-    std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const;
+    /// \return nGraph function after decoding
+    virtual std::shared_ptr<ov::Model> decode(const IInputModel::Ptr& model) const;
 
-    /// \brief Runs normalization passes on Model that was loaded with partial conversion
-    /// \param Model partially converted OV Model
-    void normalize(const std::shared_ptr<ov::Model>& model) const;
+    /// \brief Runs normalization passes on function that was loaded with partial conversion
+    /// \param function partially converted nGraph function
+    virtual void normalize(const std::shared_ptr<ov::Model>& function) const;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model
     ///
     /// \return Current frontend name. Empty string if not implemented
-    std::string get_name() const;
+    virtual std::string get_name() const;
 
     /// \brief Register base extension in the FrontEnd
     /// \param extension base extension
-    void add_extension(const std::shared_ptr<ov::Extension>& extension);
+    virtual void add_extension(const std::shared_ptr<ov::Extension>& extension);
     /// \brief Register base extensions in the FrontEnd
     /// \param extensions vector of extensions
     void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
@@ -135,12 +126,12 @@ public:
     }
 
 protected:
-    bool supported_impl(const std::vector<ov::Any>& variants) const;
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
+    virtual bool supported_impl(const std::vector<ov::Any>& variants) const;
+    virtual IInputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
 };
 
 template <>
-inline bool FrontEnd::supported(const std::vector<ov::Any>& variants) const {
+inline bool IFrontEnd::supported(const std::vector<ov::Any>& variants) const {
     return supported_impl(variants);
 }
 

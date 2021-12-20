@@ -66,7 +66,7 @@ static int set_test_env(const char* name, const char* value) {
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     FrontEndManager fem;
-    class MockFrontEnd : public FrontEnd {};
+    class MockFrontEnd : public IFrontEnd {};
     ASSERT_NO_THROW(fem.register_front_end("mock", []() {
         return std::make_shared<MockFrontEnd>();
     }));
@@ -100,18 +100,50 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-TEST(FrontEndManagerTest, testDefaultFrontEnd) {
-    FrontEndManager fem;
+TEST(FrontEndManagerTest, testFEMDestroy_FrontEndHolder) {
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(fe = fem.load_by_model(""));
-    ASSERT_FALSE(fe);
+    {
+        FrontEndManager fem;
+        auto frontends = fem.get_available_front_ends();
+        ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
+        ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
+    }
+    ASSERT_EQ(fe->get_name(), "mock1");
+}
 
-    class MockFrontEnd : public FrontEnd {};
-    std::unique_ptr<FrontEnd> fePtr(new MockFrontEnd());  // to verify base destructor
+TEST(FrontEndManagerTest, testFEMDestroy_InputModelHolder) {
+    InputModel::Ptr input_model;
+    {
+        std::shared_ptr<ov::Model> model;
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        input_model = fe->load("test");
+        model = fe->convert(input_model);
+        ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+    }
+    ASSERT_TRUE(input_model);
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder) {
+    std::shared_ptr<ov::Model> model;
+    {
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        model = fe->convert(input_model);
+        ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+    }
+    ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+}
+
+ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
+    IFrontEnd::Ptr fe;
+    class MockFrontEnd: public IFrontEnd {};
+    std::unique_ptr<IFrontEnd> fePtr(new MockFrontEnd());  // to verify base destructor
     fe = std::make_shared<MockFrontEnd>();
     ASSERT_ANY_THROW(fe->load(""));
     ASSERT_ANY_THROW(fe->convert(std::shared_ptr<Function>(nullptr)));
-    ASSERT_ANY_THROW(fe->convert(InputModel::Ptr(nullptr)));
+    ASSERT_ANY_THROW(fe->convert(IInputModel::Ptr(nullptr)));
     ASSERT_ANY_THROW(fe->convert_partially(nullptr));
     ASSERT_ANY_THROW(fe->decode(nullptr));
     ASSERT_ANY_THROW(fe->normalize(nullptr));
@@ -119,9 +151,8 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
 }
 
 TEST(FrontEndManagerTest, testDefaultInputModel) {
-    class MockInputModel : public InputModel {};
-    std::unique_ptr<InputModel> imPtr(new MockInputModel());  // to verify base destructor
-    InputModel::Ptr im = std::make_shared<MockInputModel>();
+    class MockInputModel: public IInputModel {};
+    std::unique_ptr<MockInputModel> im(new MockInputModel());  // to verify base destructor
     ASSERT_EQ(im->get_inputs(), std::vector<Place::Ptr>{});
     ASSERT_EQ(im->get_outputs(), std::vector<Place::Ptr>{});
     ASSERT_ANY_THROW(im->override_all_inputs({nullptr}));

@@ -15,7 +15,7 @@ namespace frontend {
 class OpPlaceTF;
 class TensorPlaceTF;
 
-class InputModelTF : public ov::frontend::InputModel {
+class InputModelTF : public ov::frontend::IInputModel {
     friend class FrontEndTF;
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;

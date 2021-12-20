@@ -8,11 +8,10 @@
 #include <string>
 #include <vector>
 
-#include "input_model_interface.hpp"
+#include "visibility.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "place.hpp"
-#include "visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -23,7 +22,7 @@ namespace frontend {
 /// \note Class methods are divided into several groups: searching for places, naming and
 /// annotation, topology editing, setting tensor properties.
 ///
-/// Editing requests may affect ability to convert the original model to OV Model.
+/// Editing requests may affect ability to convert the original model to nGraph function.
 /// Aim to provide these editing capabilities is to unlock conversion for models that
 /// are not natively supported "as-is" because of undefined shapes, types or operations.
 ///
@@ -36,17 +35,11 @@ namespace frontend {
 ///
 /// All editing requests affect the model representation that is held behind the scene
 /// successive method calls observe a new graph structure.
-class FRONTEND_API InputModel final {
-    std::shared_ptr<void> m_shared_object;
-    IInputModel::Ptr m_actual;
-    friend class FrontEnd;
+class FRONTEND_API IInputModel {
 public:
-    typedef std::shared_ptr<InputModel> Ptr;
+    typedef std::shared_ptr<IInputModel> Ptr;
 
-    InputModel(const std::shared_ptr<void>& shared_object, const IInputModel::Ptr& actual):
-    m_shared_object(shared_object), m_actual(actual) {}
-
-    virtual ~InputModel() = default;
+    virtual ~IInputModel() = default;
 
     /////  Searching for places  /////
 
@@ -58,7 +51,7 @@ public:
     /// operation like Placeholder in TensorFlow.
     ///
     /// \return A vector of input place references
-    std::vector<Place::Ptr> get_inputs() const;
+    virtual std::vector<Place::Ptr> get_inputs() const;
 
     /// \brief Returns all output for a model
     /// An output is a terminal place in a graph where data escapes the flow. It can be a
@@ -69,32 +62,32 @@ public:
     /// may be considered as outputs.
     ///
     /// \return A vector of output place references
-    std::vector<Place::Ptr> get_outputs() const;
+    virtual std::vector<Place::Ptr> get_outputs() const;
 
     /// \brief Returns a tensor place by a tensor name following framework conventions, or
     /// nullptr if a tensor with this name doesn't exist.
     /// \param tensor_name Name of tensor
     /// \return Tensor place corresponding to specified tensor name or nullptr if not exists
-    Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const;
+    virtual Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const;
 
     /// \brief Returns an operation place by an operation name following framework
     /// conventions, or nullptr if an operation with this name doesn't exist.
     /// \param operation_name Name of operation
     /// \return Place representing operation or nullptr if not exists
-    Place::Ptr get_place_by_operation_name(const std::string& operation_name) const;
+    virtual Place::Ptr get_place_by_operation_name(const std::string& operation_name) const;
 
     /// \brief Returns an input port place by operation name and appropriate port index
     /// \param operation_name Name of operation
     /// \param input_port_index Index of input port for this operation
     /// \return Place representing input port of operation or nullptr if not exists
-    Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
+    virtual Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
                                                                   int input_port_index);
 
     /// \brief Returns an output port place by operation name and appropriate port index
     /// \param operation_name Name of operation
     /// \param output_port_index Index of output port for this operation
     /// \return Place representing output port of operation or nullptr if not exists
-    Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name,
+    virtual Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name,
                                                                    int output_port_index);
 
     ///// Naming and annotation  /////
@@ -102,31 +95,31 @@ public:
     /// \brief Sets name for tensor. Overwrites existing names of this place
     /// \param tensor Tensor place
     /// \param new_name New name for this tensor
-    void set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name);
+    virtual void set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name);
 
     /// \brief Adds new name for tensor
     /// \param tensor Tensor place
     /// \param new_name New name to be added to this place
-    void add_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name);
+    virtual void add_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name);
 
     /// \brief Sets name for operation. Overwrites existing names of this place
     /// \param operation Operation place
     /// \param new_name New name for this operation
-    void set_name_for_operation(const Place::Ptr& operation, const std::string& new_name);
+    virtual void set_name_for_operation(const Place::Ptr& operation, const std::string& new_name);
 
     /// \brief Unassign specified name from tensor place(s)
     /// \param name Name of tensor
-    void free_name_for_tensor(const std::string& name);
+    virtual void free_name_for_tensor(const std::string& name);
 
     /// \brief Unassign specified name from operation place(s)
     /// \param name Name of operation
-    void free_name_for_operation(const std::string& name);
+    virtual void free_name_for_operation(const std::string& name);
 
     /// \brief Set name for a particular dimension of a place (e.g. batch dimension)
     /// \param place Model's place
     /// \param shape_dim_index Dimension index
     /// \param dim_name Name to assign on this dimension
-    void set_name_for_dimension(const Place::Ptr& place, size_t shape_dim_index, const std::string& dim_name);
+    virtual void set_name_for_dimension(const Place::Ptr& place, size_t shape_dim_index, const std::string& dim_name);
 
     ///// Topology Editing  /////
 
@@ -134,25 +127,25 @@ public:
     /// all nodes that don't contribute to any output.
     /// \param place New place to be assigned as input
     /// \param new_name_optional Optional new name assigned to this input place
-    void cut_and_add_new_input(const Place::Ptr& place, const std::string& new_name_optional = "");
+    virtual void cut_and_add_new_input(const Place::Ptr& place, const std::string& new_name_optional = "");
 
     /// \brief Cut immediately after this place and assign this place as new output; prune
     /// all nodes that don't contribute to any output.
     /// \param place New place to be assigned as output
     /// \param new_name_optional Optional new name assigned to this output place
-    void cut_and_add_new_output(const Place::Ptr& place, const std::string& new_name_optional = "");
+    virtual void cut_and_add_new_output(const Place::Ptr& place, const std::string& new_name_optional = "");
 
     /// \brief Assign this place as new output or add necessary nodes to represent a new
     /// output.
     ///
     /// \param place Anchor point to add an output
     /// \return new output place, may be the same as a given place
-    Place::Ptr add_output(const Place::Ptr& place);
+    virtual Place::Ptr add_output(const Place::Ptr& place);
 
     /// \brief Removes any sinks directly attached to this place with all inbound data flow
     /// if it is not required by any other output.
     /// \param place Model place
-    void remove_output(const Place::Ptr& place);
+    virtual void remove_output(const Place::Ptr& place);
 
     /// \brief Replaces all existing outputs with new ones removing all data flow that is
     /// not required for new outputs.
@@ -160,50 +153,50 @@ public:
     /// \param outputs Vector with places that will become new outputs; may intersect
     /// existing outputs.
     /// \param outputs Array of new output places
-    void override_all_outputs(const std::vector<Place::Ptr>& outputs);
+    virtual void override_all_outputs(const std::vector<Place::Ptr>& outputs);
 
     /// \brief Modifies the graph to use new inputs instead of existing ones. New inputs
     /// should completely satisfy all existing outputs.
     /// \param inputs Array of new input places
-    void override_all_inputs(const std::vector<Place::Ptr>& inputs);
+    virtual void override_all_inputs(const std::vector<Place::Ptr>& inputs);
 
     /// \brief Leaves only subgraph that are defined by new inputs and new outputs.
     /// \param inputs Array of new input places
     /// \param outputs Array of new output places
-    void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
+    virtual void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
 
     ///// Setting tensor properties  /////
 
     /// \brief Defines all possible shape that may be used for this place; place should be
     /// uniquely refer to some data. This partial shape will be converted to corresponding
-    /// shape of results OV nodes and will define shape inference when the model is
-    /// converted to OV.
+    /// shape of results ngraph nodes and will define shape inference when the model is
+    /// converted to ngraph.
     /// \param place Model place
     /// \param shape Partial shape for this place
-    void set_partial_shape(const Place::Ptr& place, const ov::PartialShape& shape);
+    virtual void set_partial_shape(const Place::Ptr& place, const ov::PartialShape& shape);
 
     /// \brief Returns current partial shape used for this place
     /// \param place Model place
     /// \return Partial shape for this place
-    ov::PartialShape get_partial_shape(const Place::Ptr& place) const;
+    virtual ov::PartialShape get_partial_shape(const Place::Ptr& place) const;
 
     /// \brief Sets new element type for a place
     /// \param place Model place
     /// \param type New element type
-    void set_element_type(const Place::Ptr& place, const ov::element::Type& type);
+    virtual void set_element_type(const Place::Ptr& place, const ov::element::Type& type);
 
     /// \brief Freezes a tensor with statically defined value or replace existing value for
     /// already constant node or tensor
     /// \param place Tensor place
     /// \param value Value for tensor place representing a memory buffer
-    void set_tensor_value(const Place::Ptr& place, const void* value);
+    virtual void set_tensor_value(const Place::Ptr& place, const void* value);
 
     /// \brief Defines partial value (lower bound and upper bound) for a tensor place
     /// TODO: more details for min_value and max_value format; who defines shape?
     /// \param place Tensor place
     /// \param min_value Lower bound of partial value for tensor place
     /// \param max_value Upper bound of partial value for tensor place
-    void set_tensor_partial_value(const Place::Ptr& place, const void* min_value, const void* max_value);
+    virtual void set_tensor_partial_value(const Place::Ptr& place, const void* min_value, const void* max_value);
 };
 
 }  // namespace frontend

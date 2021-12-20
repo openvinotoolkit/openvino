@@ -30,7 +30,7 @@ bool PlaceTF::is_output() const {
     return std::find_if(model_outs.begin(), model_outs.end(), cmp) != model_outs.end();
 }
 
-OpPlaceTF::OpPlaceTF(const ov::frontend::InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder)
+OpPlaceTF::OpPlaceTF(const ov::frontend::IInputModel& input_model, std::shared_ptr<DecoderBase> op_decoder)
     : PlaceTF(input_model, {op_decoder->get_op_name()}),
       m_op_decoder(op_decoder) {}
 
@@ -155,7 +155,7 @@ ov::frontend::Place::Ptr OpPlaceTF::get_target_tensor(int outputPortIndex) const
     return get_output_port(outputPortIndex)->get_target_tensor();
 }
 
-TensorPlaceTF::TensorPlaceTF(const ov::frontend::InputModel& input_model,
+TensorPlaceTF::TensorPlaceTF(const ov::frontend::IInputModel& input_model,
                              const ov::PartialShape& pshape,
                              ov::element::Type type,
                              const std::vector<std::string>& names)

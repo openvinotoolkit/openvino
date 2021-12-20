@@ -24,9 +24,15 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
+namespace frontend {
+class FrontEnd;
+}
 class ModelAccessor;
 /// A user-defined function.
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
+    friend class ov::frontend::FrontEnd;
+    std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
+
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
         static const ::ov::DiscreteTypeInfo type_info{"Function", 0};
