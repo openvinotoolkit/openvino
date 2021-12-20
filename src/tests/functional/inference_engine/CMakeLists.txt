@@ -148,18 +148,18 @@ function(ie_headers_compilation_with_custom_flags)
                                                 "gpu/gpu_context_api_va.hpp"
                                                 "gpu/gpu_context_api_dx.hpp"
                                                 "gpu/gpu_ocl_wrapper.hpp"
-                                                "openvino/runtime/gpu/ocl/ocl_wrapper.hpp"
-                                                "openvino/runtime/gpu/ocl/ocl.hpp"
-                                                "openvino/runtime/gpu/ocl/va.hpp"
-                                                "openvino/runtime/gpu/ocl/dx.hpp")
+                                                "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
+                                                "openvino/runtime/intel_gpu/ocl/ocl.hpp"
+                                                "openvino/runtime/intel_gpu/ocl/va.hpp"
+                                                "openvino/runtime/intel_gpu/ocl/dx.hpp")
         endif()
         if(NOT WIN32)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp"
-                                                "openvino/runtime/gpu/ocl/dx.hpp")
+                                                "openvino/runtime/intel_gpu/ocl/dx.hpp")
         endif()
         if(NOT LIBVA_FOUND)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp"
-                                                "openvino/runtime/gpu/ocl/va.hpp")
+                                                "openvino/runtime/intel_gpu/ocl/va.hpp")
         endif()
     endif()
 
