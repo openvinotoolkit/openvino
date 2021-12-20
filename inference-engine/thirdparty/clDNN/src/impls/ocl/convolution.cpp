@@ -6,7 +6,7 @@
 #include "eltwise_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "kernel_runner.h"
 #include "convolution/convolution_kernel_selector.h"
@@ -224,6 +224,11 @@ attach_convolution_impl::attach_convolution_impl() {
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),

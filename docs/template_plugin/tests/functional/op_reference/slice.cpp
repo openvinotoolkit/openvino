@@ -97,7 +97,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Tensor& data,
+    static std::shared_ptr<Model> CreateFunction(const Tensor& data,
                                                     const Tensor& start,
                                                     const Tensor& stop,
                                                     const Tensor& step,
@@ -109,12 +109,12 @@ private:
         const auto axes_param = std::make_shared<opset8::Parameter>(axes.type, axes.shape);
 
         const auto slice = std::make_shared<opset8::Slice>(data_param, start_param, stop_param, step_param, axes_param);
-        return std::make_shared<Function>(NodeVector{slice},
+        return std::make_shared<Model>(NodeVector{slice},
                                           ParameterVector{data_param, start_param, stop_param, step_param, axes_param});
     }
 
     // Default `axes` input
-    static std::shared_ptr<Function> CreateFunction(const Tensor& data,
+    static std::shared_ptr<Model> CreateFunction(const Tensor& data,
                                                     const Tensor& start,
                                                     const Tensor& stop,
                                                     const Tensor& step) {
@@ -124,7 +124,7 @@ private:
         const auto step_param = std::make_shared<opset8::Parameter>(step.type, step.shape);
 
         const auto slice = std::make_shared<opset8::Slice>(data_param, start_param, stop_param, step_param);
-        return std::make_shared<Function>(NodeVector{slice},
+        return std::make_shared<Model>(NodeVector{slice},
                                           ParameterVector{data_param, start_param, stop_param, step_param});
     }
 };

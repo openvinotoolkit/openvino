@@ -16,7 +16,7 @@ public:
     NGRAPH_RTTI_DECLARATION;
     AvgPoolTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
-    bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
+    bool isPrecisionPreserved(std::shared_ptr<Node> layer) const override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };
 

@@ -56,13 +56,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const SplitParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const SplitParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto axis = std::make_shared<op::v0::Constant>(params.axisTensor.type,
                                                                  params.axisTensor.shape,
                                                                  params.axisTensor.data.data());
         const auto split = std::make_shared<op::v1::Split>(data, axis, params.numSplits);
-        return std::make_shared<ov::Function>(split->outputs(), ParameterVector {data});
+        return std::make_shared<ov::Model>(split->outputs(), ParameterVector {data});
     }
 };
 

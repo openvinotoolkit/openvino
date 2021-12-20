@@ -17,7 +17,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create library
 
-add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
+add_library(${TARGET_NAME}
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
@@ -42,7 +42,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 # install
 

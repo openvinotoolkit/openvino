@@ -17,7 +17,7 @@ namespace py = pybind11;
 void regclass_graph_op_Result(py::module m) {
     py::class_<ov::op::v0::Result, std::shared_ptr<ov::op::v0::Result>, ov::Node> result(m, "Result");
 
-    result.doc() = "openvino.impl.op.Result wraps ov::op::v0::Result";
+    result.doc() = "openvino.runtime.op.Result wraps ov::op::v0::Result";
 
     result.def("get_output_partial_shape", &ov::Node::get_output_partial_shape, py::arg("index"));
 

@@ -5,63 +5,66 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "cldnn/primitives/activation.hpp"
-#include "cldnn/primitives/arg_max_min.hpp"
-#include "cldnn/primitives/average_unpooling.hpp"
-#include "cldnn/primitives/batch_to_space.hpp"
-#include "cldnn/primitives/binary_convolution.hpp"
-#include "cldnn/primitives/border.hpp"
-#include "cldnn/primitives/broadcast.hpp"
-#include "cldnn/primitives/concatenation.hpp"
-#include "cldnn/primitives/convolution.hpp"
-#include "cldnn/primitives/crop.hpp"
-#include "cldnn/primitives/custom_gpu_primitive.hpp"
-#include "cldnn/primitives/deconvolution.hpp"
-#include "cldnn/primitives/depth_to_space.hpp"
-#include "cldnn/primitives/detection_output.hpp"
-#include "cldnn/primitives/eltwise.hpp"
-#include "cldnn/primitives/experimental_detectron_roi_feature_extractor.hpp"
-#include "cldnn/primitives/fully_connected.hpp"
-#include "cldnn/primitives/gather.hpp"
-#include "cldnn/primitives/gather_nd.hpp"
-#include "cldnn/primitives/gather_elements.hpp"
-#include "cldnn/primitives/gemm.hpp"
-#include "cldnn/primitives/lrn.hpp"
-#include "cldnn/primitives/lstm.hpp"
-#include "cldnn/primitives/lstm_dynamic.hpp"
-#include "cldnn/primitives/max_unpooling.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/primitives/mvn.hpp"
-#include "cldnn/primitives/non_max_suppression.hpp"
-#include "cldnn/primitives/normalize.hpp"
-#include "cldnn/primitives/one_hot.hpp"
-#include "cldnn/primitives/permute.hpp"
-#include "cldnn/primitives/pooling.hpp"
-#include "cldnn/primitives/pyramid_roi_align.hpp"
-#include "cldnn/primitives/quantize.hpp"
-#include "cldnn/primitives/reduce.hpp"
-#include "cldnn/primitives/region_yolo.hpp"
-#include "cldnn/primitives/reorder.hpp"
-#include "cldnn/primitives/reorg_yolo.hpp"
-#include "cldnn/primitives/reshape.hpp"
-#include "cldnn/primitives/reverse_sequence.hpp"
-#include "cldnn/primitives/roi_pooling.hpp"
-#include "cldnn/primitives/scale.hpp"
-#include "cldnn/primitives/scatter_update.hpp"
-#include "cldnn/primitives/scatter_elements_update.hpp"
-#include "cldnn/primitives/scatter_nd_update.hpp"
-#include "cldnn/primitives/select.hpp"
-#include "cldnn/primitives/shuffle_channels.hpp"
-#include "cldnn/primitives/softmax.hpp"
-#include "cldnn/primitives/space_to_batch.hpp"
-#include "cldnn/primitives/strided_slice.hpp"
-#include "cldnn/primitives/tile.hpp"
-#include "cldnn/primitives/resample.hpp"
-#include "cldnn/primitives/gather_tree.hpp"
-#include "cldnn/primitives/lstm_dynamic_input.hpp"
-#include "cldnn/primitives/lstm_dynamic_timeloop.hpp"
-#include "cldnn/primitives/grn.hpp"
-#include "cldnn/primitives/ctc_greedy_decoder.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/arg_max_min.hpp"
+#include "intel_gpu/primitives/average_unpooling.hpp"
+#include "intel_gpu/primitives/batch_to_space.hpp"
+#include "intel_gpu/primitives/binary_convolution.hpp"
+#include "intel_gpu/primitives/border.hpp"
+#include "intel_gpu/primitives/broadcast.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/custom_gpu_primitive.hpp"
+#include "intel_gpu/primitives/deconvolution.hpp"
+#include "intel_gpu/primitives/depth_to_space.hpp"
+#include "intel_gpu/primitives/detection_output.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/gather_nd.hpp"
+#include "intel_gpu/primitives/gather_elements.hpp"
+#include "intel_gpu/primitives/gemm.hpp"
+#include "intel_gpu/primitives/lrn.hpp"
+#include "intel_gpu/primitives/lstm.hpp"
+#include "intel_gpu/primitives/lstm_dynamic.hpp"
+#include "intel_gpu/primitives/max_unpooling.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/mvn.hpp"
+#include "intel_gpu/primitives/non_max_suppression.hpp"
+#include "intel_gpu/primitives/normalize.hpp"
+#include "intel_gpu/primitives/one_hot.hpp"
+#include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/pooling.hpp"
+#include "intel_gpu/primitives/pyramid_roi_align.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/reduce.hpp"
+#include "intel_gpu/primitives/region_yolo.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reorg_yolo.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/reverse_sequence.hpp"
+#include "intel_gpu/primitives/roi_align.hpp"
+#include "intel_gpu/primitives/roi_pooling.hpp"
+#include "intel_gpu/primitives/scale.hpp"
+#include "intel_gpu/primitives/scatter_update.hpp"
+#include "intel_gpu/primitives/scatter_elements_update.hpp"
+#include "intel_gpu/primitives/scatter_nd_update.hpp"
+#include "intel_gpu/primitives/select.hpp"
+#include "intel_gpu/primitives/shuffle_channels.hpp"
+#include "intel_gpu/primitives/slice.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/primitives/space_to_batch.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/primitives/resample.hpp"
+#include "intel_gpu/primitives/gather_tree.hpp"
+#include "intel_gpu/primitives/lstm_dynamic_input.hpp"
+#include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
+#include "intel_gpu/primitives/grn.hpp"
+#include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
+#include "intel_gpu/primitives/convert_color.hpp"
 #include "generic_layer.hpp"
 
 
@@ -71,7 +74,7 @@ void register_implementations();
 
 namespace detail {
 
-#define REGISTER_OCL(prim)              \
+#define REGISTER_OCL(prim)               \
     struct attach_##prim##_impl {        \
         attach_##prim##_impl();          \
     }
@@ -120,6 +123,7 @@ REGISTER_OCL(reorder);
 REGISTER_OCL(reorg_yolo);
 REGISTER_OCL(reshape);
 REGISTER_OCL(reverse_sequence);
+REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(scale);
 REGISTER_OCL(scatter_update);
@@ -127,6 +131,7 @@ REGISTER_OCL(scatter_elements_update);
 REGISTER_OCL(scatter_nd_update);
 REGISTER_OCL(select);
 REGISTER_OCL(shuffle_channels);
+REGISTER_OCL(slice);
 REGISTER_OCL(softmax);
 REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);
@@ -142,6 +147,7 @@ REGISTER_OCL(ctc_greedy_decoder);
 REGISTER_OCL(cum_sum);
 REGISTER_OCL(embedding_bag);
 REGISTER_OCL(extract_image_patches);
+REGISTER_OCL(convert_color);
 
 #undef REGISTER_OCL
 

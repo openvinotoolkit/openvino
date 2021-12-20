@@ -18,9 +18,10 @@ using namespace ngraph;
 using namespace ngraph::onnx_import;
 using namespace ngraph::test;
 
-static std::string s_manifest = "${MANIFEST}";
+OPENVINO_SUPPRESS_DEPRECATED_START
 
-using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+static std::string s_manifest = "${MANIFEST}";
+static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 // ~~~~~~~~TERMINATION CONDITION/TRIP COUNT COMBINATIONS TESTS:~~~~~~~~
 
@@ -49,7 +50,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add) {
     EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
     EXPECT_EQ(function->get_output_shape(1), (Shape{3, 1, 2}));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -67,7 +68,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_no_identity_termination_cond.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     // termination condition
     test_case.add_input<bool>({true});
     // a_init
@@ -82,7 +83,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_max_int) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_trip_count_max_int.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     // termination condition
     test_case.add_input<bool>({true});
     // a_init
@@ -98,7 +99,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
         file_util::path_join(SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_no_identity_termination_cond_static_shapes.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // termination condition
     test_case.add_input<bool>({true});
     // a_init
@@ -114,7 +115,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_no_identity_termination_cond_false.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({3.f, 4.f});
 
@@ -132,7 +133,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_terminat
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_const_no_identity_termination_cond.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -146,7 +147,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_terminat
         file_util::path_join(SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_const_no_identity_termination_cond_static_shapes.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -164,7 +165,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_a
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_cond_and_trip_count_as_inputs.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     // trip count
     test_case.add_input<int64_t>({10});
 
@@ -184,7 +185,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_a
         file_util::path_join(SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_cond_and_trip_count_as_inputs_static_shapes.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // trip count
     test_case.add_input<int64_t>({10});
 
@@ -204,7 +205,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_s
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_initializer_from_parent_scope.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     // a_init
     test_case.add_input<float>({0.f, 0.f});
@@ -218,7 +219,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_node_from_parent_scope.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -232,7 +233,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_us
         file_util::path_join(SERIALIZED_ZOO,
                              "onnx/controlflow/loop_add_node_from_parent_scope_used_in_parent_and_in_body.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
     // parent_input
@@ -261,7 +262,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_the_same_name.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -274,7 +275,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_graph) 
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_input_from_parent_graph.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
     // b input
@@ -307,7 +308,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_scalars_add.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f});
 
@@ -320,7 +321,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_const_cond.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -333,7 +334,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_2d_add_trip_count_dynamic.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     // trip count
     test_case.add_input<int64_t>({3});
     // a_init
@@ -349,7 +350,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_infer_types) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/onnx_controlflow_loop_2d_infer_types.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // trip count
     test_case.add_input<int64_t>({10});
 
@@ -367,7 +368,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_in
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_add_node_from_parent_scope_infer_types.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
     // parent_input
@@ -385,7 +386,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_concat_values) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_concat_values.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // trip_count
     test_case.add_input<int64_t>({5});
     // init condition
@@ -425,7 +426,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_infinite.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // trip_count
     test_case.add_input<int64_t>({std::numeric_limits<int64_t>::max()});
     // init condition
@@ -446,7 +447,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_output
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_no_variadic_inputs_and_outputs.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     // trip_count
     test_case.add_input<int64_t>({1});
     // init condition
@@ -461,7 +462,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/loop_pow.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     // trip_count
     test_case.add_input<int64_t>({5});
     // pow init
@@ -485,7 +486,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_same_inputs) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_branches_with_same_inputs.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
     std::iota(y.begin(), y.end(), -20);
@@ -523,7 +524,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_different_inputs) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_branches_with_different_inputs.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
     std::iota(y.begin(), y.end(), -20);
@@ -561,7 +562,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_without_inputs) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_branches_without_inputs.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     // condition
     test_case.add_input<bool>({true});
@@ -589,7 +590,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_inside_if.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     // case when condition == true and any(x > y)
     // expected value == x * y
@@ -643,7 +644,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_multiple_outputs) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_branches_with_multiple_outputs.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     // case when condition == true so split is along axis 0
     std::vector<float> x(36);
@@ -682,7 +683,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_loop) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_inside_loop.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -702,7 +703,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_dynamic_inputs.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
     std::iota(y.begin(), y.end(), -20);

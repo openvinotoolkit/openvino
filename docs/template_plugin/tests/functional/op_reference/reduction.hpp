@@ -49,13 +49,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Function> CreateFunction(const ReductionParams& params) {
+    static std::shared_ptr<ov::Model> CreateFunction(const ReductionParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.data.type, params.data.shape);
         const auto axes = std::make_shared<op::v0::Constant>(ov::element::i64,
                                                              ov::Shape{params.reductionAxes.size()},
                                                              params.reductionAxes);
         const auto reduction = ngraph::builder::makeReduce(data, axes, params.keepDimensions, params.reductionType);
-        return std::make_shared<ov::Function>(reduction, ov::ParameterVector{data});
+        return std::make_shared<ov::Model>(reduction, ov::ParameterVector{data});
     }
 };
 } // namespace ReductionOpsRefTestDefinitions

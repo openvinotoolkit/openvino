@@ -10,12 +10,11 @@
 #include <vector>
 
 #include "decoder.hpp"
+#include "exceptions.hpp"
 #include "framework.pb.h"
 #include "node_context.hpp"
 #include "op_table.hpp"
-#include "openvino/core/variant.hpp"
 #include "openvino/opsets/opset7.hpp"
-#include "paddlepaddle_frontend/exceptions.hpp"
 #include "paddlepaddle_frontend/model.hpp"
 #include "paddlepaddle_frontend/place.hpp"
 #include "pdpd_fw_node.hpp"
@@ -116,16 +115,16 @@ bool normalize_framework_node(const std::shared_ptr<PDPDFrameworkNode>& node,
     return true;
 }
 
-std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant, std::ifstream& ext_stream) {
-    if (ov::is_type<VariantWrapper<std::istream*>>(variant)) {
-        return ov::as_type_ptr<VariantWrapper<std::istream*>>(variant)->get();
-    } else if (ov::is_type<VariantWrapper<std::string>>(variant)) {
-        const auto& model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variant)->get();
+std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_stream) {
+    if (variant.is<std::istream*>()) {
+        return variant.as<std::istream*>();
+    } else if (variant.is<std::string>()) {
+        const auto& model_path = variant.as<std::string>();
         ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (ov::is_type<VariantWrapper<std::wstring>>(variant)) {
-        const auto& model_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variant)->get();
+    else if (variant.is<std::wstring>()) {
+        const auto& model_path = variant.as<std::wstring>();
         ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
     }
 #endif
@@ -135,7 +134,7 @@ std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant, std
 }  // namespace
 }  // namespace pdpd
 
-std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
+std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_each_node(
     const std::shared_ptr<InputModelPDPD>& model,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                       const std::shared_ptr<OpPlacePDPD>&)> func) {
@@ -202,18 +201,18 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
         result_nodes.push_back(result);
     }
 
-    return std::make_shared<ov::Function>(result_nodes, parameter_nodes);
+    return std::make_shared<ov::Model>(result_nodes, parameter_nodes);
 }
 
-bool FrontEndPDPD::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+bool FrontEndPDPD::supported_impl(const std::vector<ov::Any>& variants) const {
     // FrontEndPDPD can only load model specified by one path, one file or two files.
     if (variants.empty() || variants.size() > 2)
         return false;
 
     // Validating first path, it must contain a model
-    if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
+    if (variants[0].is<std::string>()) {
         std::string suffix = ".pdmodel";
-        std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+        std::string model_path = variants[0].as<std::string>();
         if (!pdpd::endsWith(model_path, suffix)) {
             model_path += pdpd::get_path_sep<char>() + "__model__";
         }
@@ -223,9 +222,9 @@ bool FrontEndPDPD::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         return model_str && model_str.is_open();
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if (ov::is_type<VariantWrapper<std::wstring>>(variants[0])) {
+    else if (variants[0].is<std::wstring>()) {
         std::wstring suffix = L".pdmodel";
-        std::wstring model_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variants[0])->get();
+        std::wstring model_path = variants[0].as<std::wstring>();
         if (!pdpd::endsWith(model_path, suffix)) {
             model_path += pdpd::get_path_sep<wchar_t>() + L"__model__";
         }
@@ -235,32 +234,32 @@ bool FrontEndPDPD::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         return model_str && model_str.is_open();
     }
 #endif
-    else if (ov::is_type<VariantWrapper<std::istream*>>(variants[0])) {
+    else if (variants[0].is<std::istream*>()) {
         // Validating first stream, it must contain a model
-        auto p_model_stream = ov::as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
+        auto p_model_stream = variants[0].as<std::istream*>();
         paddle::framework::proto::ProgramDesc fw;
         return fw.ParseFromIstream(p_model_stream);
     }
     return false;
 }
 
-InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() == 1) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
-        if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
-            std::string m_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+        if (variants[0].is<std::string>()) {
+            std::string m_path = variants[0].as<std::string>();
             return std::make_shared<InputModelPDPD>(m_path, m_telemetry);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        else if (ov::is_type<VariantWrapper<std::wstring>>(variants[0])) {
-            std::wstring m_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variants[0])->get();
+        else if (variants[0].is<std::wstring>()) {
+            std::wstring m_path = variants[0].as<std::wstring>();
             return std::make_shared<InputModelPDPD>(m_path, m_telemetry);
         }
 #endif
         // The case with only model stream provided and no weights. This means model has
         // no learnable weights
-        else if (ov::is_type<VariantWrapper<std::istream*>>(variants[0])) {
-            auto p_model_stream = ov::as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
+        else if (variants[0].is<std::istream*>()) {
+            auto p_model_stream = variants[0].as<std::istream*>();
             return std::make_shared<InputModelPDPD>(std::vector<std::istream*>{p_model_stream}, m_telemetry);
         }
     } else if (variants.size() == 2) {
@@ -277,8 +276,22 @@ InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<std::shared_ptr<Varian
     PDPD_THROW("Model can be loaded either from 1 or 2 files/streams");
 }
 
-std::shared_ptr<ov::Function> FrontEndPDPD::convert(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::convert(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
+    FRONT_END_GENERAL_CHECK(pdpd_model != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(
         pdpd_model,
@@ -288,20 +301,34 @@ std::shared_ptr<ov::Function> FrontEndPDPD::convert(InputModel::Ptr model) const
     return f;
 }
 
-void FrontEndPDPD::convert(std::shared_ptr<ov::Function> partiallyConverted) const {
+void FrontEndPDPD::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<PDPDFrameworkNode>(node)) {
             pdpd::normalize_framework_node(std::dynamic_pointer_cast<PDPDFrameworkNode>(node),
                                            pdpd::get_supported_ops());
         }
     }
-    for (auto result : partiallyConverted->get_results()) {
+    for (const auto& result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
 }
 
-std::shared_ptr<ov::Function> FrontEndPDPD::convert_partially(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
+    FRONT_END_GENERAL_CHECK(pdpd_model != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(
         pdpd_model,
@@ -317,8 +344,10 @@ std::shared_ptr<ov::Function> FrontEndPDPD::convert_partially(InputModel::Ptr mo
     return f;
 }
 
-std::shared_ptr<ov::Function> FrontEndPDPD::decode(InputModel::Ptr model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::decode(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
+    FRONT_END_GENERAL_CHECK(pdpd_model != nullptr, "Invalid input model");
+
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
     return f;
@@ -331,6 +360,8 @@ std::string FrontEndPDPD::get_name() const {
 void FrontEndPDPD::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
+        m_transformation_extensions.push_back(transformation);
     }
 }
 
