@@ -177,7 +177,7 @@ def xml_ports(node: Node, element: Element, edges: Element):
             xml_shape(node.graph.node[v]['shape'], port)
             if node.has('ports') and port_id in node.ports:
                 port_rt_info_value = node.ports[port_id][2]
-                if port_rt_info_value is not None:
+                if port_rt_info_value != []:
                     port_rt_info = SubElement(port, 'rt_info')
                     for (name, version), info_elem in port_rt_info_value.items():
                         attribute = SubElement(port_rt_info, 'attribute')

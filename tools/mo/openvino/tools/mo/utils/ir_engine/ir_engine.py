@@ -6,8 +6,7 @@ import logging as log
 import os
 import sys
 from argparse import Namespace
-from collections import OrderedDict
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, OrderedDict
 from pathlib import Path
 
 import defusedxml.ElementTree as ET
@@ -229,12 +228,13 @@ class IREngine(object):
                 for port in output:
                     port_id = int(port.attrib['id'])
                     output_shape = []
-                    port_rt_info = None
+                    port_rt_info = {}
                     for dim in port:
                         if dim.tag == "dim":
                             output_shape.append(int(dim.text))
                         if dim.tag == 'rt_info':
-                            port_rt_info = self.__read_rt_info_common(dim[0])
+                            for attr in dim:
+                                port_rt_info.update(self.__read_rt_info_common(attr))
 
                     output_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in output_shape])
 
