@@ -112,13 +112,13 @@ class TestMoFallback(unittest.TestCase):
             os.remove(name)
 
 
-    @generate(*[('dir_to_extension', False, True, 'mo_legacy'),
-                ('dir_to_extension', True, False, 'mo_legacy'),
-                ('', True, False, 'mo_legacy'),
-                ('', False, True, 'onnx_frontend'),
-                (None, False, True, 'onnx_frontend'),
+    @generate(*[('dir_to_extension', False, True, 'mo_legacy', None),
+                ('dir_to_extension', True, False, 'mo_legacy', 'extensions'),
+                ('', True, False, 'mo_legacy', None),
+                ('', False, True, 'onnx_frontend', None),
+                (None, False, True, 'onnx_frontend', None),
     ])
-    def test_fallback_if_extension_specified(self, extension, use_legacy, use_new_fe, conversion_method):
+    def test_fallback_if_extension_specified(self, extension, use_legacy, use_new_fe, conversion_method, fallback_reason):
         # fix problem with incorrect extractors loading from UT
         with patch('openvino.tools.mo.utils.class_registration._update') as update_mock:
             update_mock.return_value=None
@@ -131,13 +131,19 @@ class TestMoFallback(unittest.TestCase):
             prepare_ir(args)
 
             tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+            if fallback_reason:
+                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+            else:
+                with pytest.raises(AssertionError): # not called
+                    tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
 
 
-    @generate(*[('config.json', False, True, 'mo_legacy'),
-                ('config.json', True, False, 'mo_legacy'),
-                (None, False, True, 'onnx_frontend'),
+
+    @generate(*[('config.json', False, True, 'mo_legacy', None),
+                ('config.json', True, False, 'mo_legacy', 'transformations_config'),
+                (None, False, True, 'onnx_frontend', None),
     ])
-    def test_fallback_if_tranformation_config_specified(self, trans_config, use_legacy, use_new_fe, expected_path):
+    def test_fallback_if_tranformation_config_specified(self, trans_config, use_legacy, use_new_fe, expected_path, fallback_reason):
         args = base_args_config()
         args.use_legacy_frontend = use_legacy
         args.use_new_frontend = use_new_fe
@@ -152,17 +158,22 @@ class TestMoFallback(unittest.TestCase):
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+        if fallback_reason:
+            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+        else:
+            with pytest.raises(AssertionError): # not called
+                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
 
         if args.transformations_config is not None:
             os.remove(args.transformations_config) # clean-up
 
 
-    @generate(*[('dir_to_extension', 'config.json', True, 'mo_legacy'),
-                (None, 'config.json', True, 'mo_legacy'),
-                ('dir_to_extension', None, True, 'mo_legacy'),
-                (None, None, True, 'onnx_frontend'),
+    @generate(*[('dir_to_extension', 'config.json', True, 'mo_legacy', 'extensions, transformations_config'),
+                (None, 'config.json', True, 'mo_legacy', 'transformations_config'),
+                ('dir_to_extension', None, True, 'mo_legacy', 'extensions'),
+                (None, None, True, 'onnx_frontend', None),
     ])
-    def test_fallback_if_both_extension_and_trans_config_specified(self, extension, trans_config, use_new_fe, expected_path):
+    def test_fallback_if_both_extension_and_trans_config_specified(self, extension, trans_config, use_new_fe, expected_path, fallback_reason):
         args = base_args_config()
         args.use_new_frontend = use_new_fe
         args.extensions = extension
@@ -177,15 +188,20 @@ class TestMoFallback(unittest.TestCase):
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+        if fallback_reason:
+            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+        else:
+            with pytest.raises(AssertionError): # not called
+                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
 
         if args.transformations_config is not None:
             os.remove(args.transformations_config) # clean-up
 
 
-    @generate(*[(True, False, 'mo_legacy'),
-                (False, False, 'mo_legacy'),
+    @generate(*[(True, False, 'mo_legacy', 'frontend failure with exception: nGraph does not support the following ONNX operations: FakeElu\n'),
+                (False, False, 'mo_legacy', None),
     ])
-    def test_fallback_if_frontend_path_failed(self, use_new_fe, use_legacy, expected_path):
+    def test_fallback_if_frontend_path_failed(self, use_new_fe, use_legacy, expected_path, fallback_reason):
         args = base_args_config()
         args.use_legacy_frontend = use_legacy
         args.use_new_frontend = use_new_fe
@@ -197,3 +213,7 @@ class TestMoFallback(unittest.TestCase):
 
         call_args_dict = event_call_args_to_dict(tm.Telemetry.send_event.call_args_list)
         assert call_args_dict['conversion_method'] == expected_path
+        if fallback_reason is None:
+            assert not 'fallback_reason' in call_args_dict
+        else:
+            assert fallback_reason == call_args_dict['fallback_reason']
