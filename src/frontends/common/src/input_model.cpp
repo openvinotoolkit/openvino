@@ -12,7 +12,6 @@
 using namespace ov;
 using namespace ov::frontend;
 
-
 //----------- InputModel ---------------------------
 std::vector<Place::Ptr> InputModel::get_inputs() const {
     return m_actual->get_inputs();

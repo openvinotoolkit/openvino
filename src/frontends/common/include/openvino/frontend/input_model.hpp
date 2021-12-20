@@ -40,11 +40,13 @@ class FRONTEND_API InputModel final {
     std::shared_ptr<void> m_shared_object;
     IInputModel::Ptr m_actual;
     friend class FrontEnd;
+
 public:
     typedef std::shared_ptr<InputModel> Ptr;
 
-    InputModel(const std::shared_ptr<void>& shared_object, const IInputModel::Ptr& actual):
-    m_shared_object(shared_object), m_actual(actual) {}
+    InputModel(const std::shared_ptr<void>& shared_object, const IInputModel::Ptr& actual)
+        : m_shared_object(shared_object),
+          m_actual(actual) {}
 
     virtual ~InputModel() = default;
 
@@ -87,15 +89,13 @@ public:
     /// \param operation_name Name of operation
     /// \param input_port_index Index of input port for this operation
     /// \return Place representing input port of operation or nullptr if not exists
-    Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
-                                                                  int input_port_index);
+    Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name, int input_port_index);
 
     /// \brief Returns an output port place by operation name and appropriate port index
     /// \param operation_name Name of operation
     /// \param output_port_index Index of output port for this operation
     /// \return Place representing output port of operation or nullptr if not exists
-    Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name,
-                                                                   int output_port_index);
+    Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name, int output_port_index);
 
     ///// Naming and annotation  /////
 

@@ -18,7 +18,9 @@ using namespace ov::frontend;
 
 //----------- FrontEnd ---------------------------
 
-FrontEnd::FrontEnd(const std::shared_ptr<void>& so, const std::shared_ptr<IFrontEnd>& actual) : m_shared_object(so), m_actual(actual) {}
+FrontEnd::FrontEnd(const std::shared_ptr<void>& so, const std::shared_ptr<IFrontEnd>& actual)
+    : m_shared_object(so),
+      m_actual(actual) {}
 
 FrontEnd::~FrontEnd() = default;
 

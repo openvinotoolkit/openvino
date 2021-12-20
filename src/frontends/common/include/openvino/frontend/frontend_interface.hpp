@@ -21,6 +21,7 @@ namespace frontend {
 /// Provides an ability to load and convert of input model
 class FRONTEND_API IFrontEnd {
     friend class FrontEnd;
+
 public:
     typedef std::shared_ptr<IFrontEnd> Ptr;
 
