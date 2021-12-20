@@ -27,7 +27,7 @@ NamedOutputs fill_any_like(const NodeContext& node) {
         std::any_of(supported_type.begin(), supported_type.end(), [dtype](const element::Type& type) {
             return dtype == type;
         });
-    paddle_OP_CHECK(node, valid_type, "fill_any_like only supports i32, i64, f16, f32, f64");
+    PADDLE_OP_CHECK(node, valid_type, "fill_any_like only supports i32, i64, f16, f32, f64");
     const auto value_node = default_opset::Constant::create(dtype, {1}, {value});
     const auto shape_node = std::make_shared<default_opset::ShapeOf>(x);
 

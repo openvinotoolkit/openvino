@@ -9,7 +9,7 @@
 using namespace ngraph;
 using namespace ov::frontend;
 
-using paddlePartialShapeTest = FrontEndPartialShapeTest;
+using PaddlePartialShapeTest = FrontEndPartialShapeTest;
 
 static PartShape getTestShape_2in_2out() {
     PartShape res;
@@ -57,7 +57,7 @@ static PartShape getTestShape_conv2d_relu() {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    paddlePartialShapeTest,
+    PaddlePartialShapeTest,
     FrontEndPartialShapeTest,
     ::testing::Combine(::testing::Values(BaseFEParam{PADDLE_FE, std::string(TEST_PADDLE_MODELS_DIRNAME)}),
                        ::testing::ValuesIn(std::vector<PartShape>{getTestShape_2in_2out(),

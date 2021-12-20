@@ -9,7 +9,7 @@
 using namespace ov;
 using namespace ov::frontend;
 
-using paddleConvertModelTest = FrontEndConvertModelTest;
+using PaddleConvertModelTest = FrontEndConvertModelTest;
 
 static const std::vector<std::string> models{
     std::string("conv2d"),
@@ -21,7 +21,7 @@ static const std::vector<std::string> models{
     std::string("pool2d_dyn_hw/pool2d_dyn_hw.pdmodel"),
 };
 
-INSTANTIATE_TEST_SUITE_P(paddleConvertModelTest,
+INSTANTIATE_TEST_SUITE_P(PaddleConvertModelTest,
                          FrontEndConvertModelTest,
                          ::testing::Combine(::testing::Values(PADDLE_FE),
                                             ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),

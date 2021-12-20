@@ -13,7 +13,7 @@ namespace op {
 NamedOutputs lstm(const NodeContext& node);
 NamedOutputs rnn(const NodeContext& node) {
     auto mode = node.get_attribute<std::string>("mode");
-    paddle_OP_CHECK(node,
+    PADDLE_OP_CHECK(node,
                     mode == "LSTM",
                     "[Paddle Frontend]RNN Only Supports LSTM Ops Conversion now, don't "
                     "support " +

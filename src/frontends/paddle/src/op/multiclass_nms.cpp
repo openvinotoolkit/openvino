@@ -24,11 +24,11 @@ NamedOutputs multiclass_nms(const NodeContext& node) {
     auto nms_eta = node.get_attribute<float>("nms_eta");
 
     auto out_names = node.get_output_names();
-    paddle_OP_CHECK(node, out_names.size() == 3, "Unexpected number of outputs of MulticlassNMS");
+    PADDLE_OP_CHECK(node, out_names.size() == 3, "Unexpected number of outputs of MulticlassNMS");
 
     auto type_index = node.get_out_port_type("Index");
     auto type_num = node.get_out_port_type("NmsRoisNum");
-    paddle_OP_CHECK(node,
+    PADDLE_OP_CHECK(node,
                     (type_index == i32 || type_index == i64) && (type_num == i32 || type_num == i64),
                     "Unexpected data type of outputs of MulticlassNMS: " + std::to_string(out_names.size()));
 

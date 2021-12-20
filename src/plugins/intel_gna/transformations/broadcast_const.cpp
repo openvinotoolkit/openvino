@@ -36,7 +36,7 @@ bool HasDynamicShape(Node node) {
 }
 
 /*
- * really returns only NUMPY and PADDLE
+ * really returns only NUMPY and PDPD
  * since another types are filtered out in matcher pattern
  */
 

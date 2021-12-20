@@ -9,7 +9,7 @@
 using namespace ngraph;
 using namespace ov::frontend;
 
-using paddleCutTest = FrontEndLoadFromTest;
+using PaddleCutTest = FrontEndLoadFromTest;
 
 static LoadFromFEParam getTestData() {
     LoadFromFEParam res;
@@ -22,7 +22,7 @@ static LoadFromFEParam getTestData() {
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(paddleCutTest,
+INSTANTIATE_TEST_SUITE_P(PaddleCutTest,
                          FrontEndLoadFromTest,
                          ::testing::Values(getTestData()),
                          FrontEndLoadFromTest::getTestCaseName);

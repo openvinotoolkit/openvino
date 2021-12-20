@@ -80,7 +80,7 @@ NamedOutputs slice(const NodeContext& node) {
         // according to paddle slice_op, when all axes are decreased, output shape is [1], instead of scalar.
         // Ref: paddle/fluid/operators/slice_op.h
         PartialShape input_shape = data.get_partial_shape();
-        paddle_OP_CHECK(node,
+        PADDLE_OP_CHECK(node,
                         input_shape.rank().is_static(),
                         "input rank of slice must be static when decrease_axis is set.");
 

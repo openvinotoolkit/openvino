@@ -18,7 +18,7 @@ NamedOutputs batch_norm(const NodeContext& node) {
     auto variance = node.get_ng_input("Variance");
     auto data_layout = node.get_attribute<std::string>("data_layout");
 
-    paddle_OP_CHECK(node, (data_layout == "NCHW" || data_layout == "NHWC"), "Not supported input data layout!");
+    PADDLE_OP_CHECK(node, (data_layout == "NCHW" || data_layout == "NHWC"), "Not supported input data layout!");
     if (data_layout == "NCHW") {
         return node.default_single_output_mapping(
             {std::make_shared<ov::opset6::BatchNormInference>(data,

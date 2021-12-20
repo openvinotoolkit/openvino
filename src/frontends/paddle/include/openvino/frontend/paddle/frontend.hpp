@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include <openvino/frontend/frontend.hpp>
+#include <openvino/frontend/extension/decoder_transformation.hpp>
+#include <openvino/frontend/extension/telemetry.hpp>
 #include <openvino/frontend/input_model.hpp>
-#include <openvino/frontend/telemetry_extension.hpp>
+#include <openvino/frontend/frontend.hpp>
 
 #include "exceptions.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
@@ -73,6 +74,7 @@ private:
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlace>&)> func);
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
 };
 
 }  // namespace paddle

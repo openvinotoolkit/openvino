@@ -59,7 +59,7 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node, cons
 
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node) {
     const auto data_rank = node.get_ng_input("Input").get_partial_shape().rank();
-    paddle_OP_CHECK(node, data_rank.get_length() > 2, "the rank of conv input must > 2");
+    PADDLE_OP_CHECK(node, data_rank.get_length() > 2, "the rank of conv input must > 2");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
     return get_pads(node, data_spatial_dims);

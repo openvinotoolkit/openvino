@@ -22,14 +22,14 @@ NamedOutputs pad3d(const NodeContext& node) {
     // version(>=2.1.0)
     if (node.has_attribute<std::vector<int32_t>>("paddings")) {
         auto paddings_vector = node.get_attribute<std::vector<int32_t>>("paddings");
-        paddle_OP_CHECK(node, paddings_vector.size() == 6, "paddings Params size should be 6 in pad3d!");
+        PADDLE_OP_CHECK(node, paddings_vector.size() == 6, "paddings Params size should be 6 in pad3d!");
         paddings = paddings_vector;
     } else if (node.has_attribute<int32_t>("paddings")) {
         auto padding_int = node.get_attribute<int32_t>("paddings");
         for (int i = 0; i < 6; i++)
             paddings[i] = padding_int;
     } else {
-        paddle_OP_CHECK(node, false, "Unsupported paddings attribute!");
+        PADDLE_OP_CHECK(node, false, "Unsupported paddings attribute!");
     }
 
     auto pads_begin = std::vector<int32_t>(5, 0);
@@ -49,7 +49,7 @@ NamedOutputs pad3d(const NodeContext& node) {
     } else if (mode == "replicate") {
         pad_mode = ov::op::PadMode::EDGE;
     } else {
-        paddle_OP_CHECK(node, false, "Unsupported 3d paddings mode: [" + mode + "]");
+        PADDLE_OP_CHECK(node, false, "Unsupported 3d paddings mode: [" + mode + "]");
     }
 
     if (data_format == "NCDHW") {
@@ -67,7 +67,7 @@ NamedOutputs pad3d(const NodeContext& node) {
         pads_begin[1] = paddings[4];  // front
         pads_end[1] = paddings[5];    // back
     } else {
-        paddle_OP_CHECK(node, false, "Unsupported 3d paddings data_format: [" + data_format + "]");
+        PADDLE_OP_CHECK(node, false, "Unsupported 3d paddings data_format: [" + data_format + "]");
     }
 
     padding_begin = ov::opset6::Constant::create(element::i32, ov::Shape{pads_begin.size()}, pads_begin);

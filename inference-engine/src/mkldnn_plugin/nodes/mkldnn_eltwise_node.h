@@ -75,7 +75,7 @@ public:
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) override;
     void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
     void fuseInto(MKLDNNNodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;

@@ -9,7 +9,7 @@
 using namespace ngraph;
 using namespace ov::frontend;
 
-using paddleCutTest = FrontEndCutModelTest;
+using PaddleCutTest = FrontEndCutModelTest;
 
 static CutModelParam getTestData_2in_2out() {
     CutModelParam res;
@@ -26,7 +26,7 @@ static CutModelParam getTestData_2in_2out() {
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(paddleCutTest,
+INSTANTIATE_TEST_SUITE_P(PaddleCutTest,
                          FrontEndCutModelTest,
                          ::testing::Values(getTestData_2in_2out()),
                          FrontEndCutModelTest::getTestCaseName);

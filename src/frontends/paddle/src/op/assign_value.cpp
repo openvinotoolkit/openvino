@@ -36,7 +36,7 @@ NamedOutputs assign_value(const NodeContext& node) {
         break;
     }
     default: {
-        paddle_OP_CHECK(node, false, "assign_value only supports int32, int64, float32, bool");
+        PADDLE_OP_CHECK(node, false, "assign_value only supports int32, int64, float32, bool");
         break;
     }
     }

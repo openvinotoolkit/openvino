@@ -73,13 +73,13 @@ NamedOutputs pool2d(const NodeContext& node) {
         pooling_type = "max";
     }
 
-    paddle_OP_CHECK(node, (pooling_type == "max") || (pooling_type == "avg"), "pool2d: not supported pooling type !");
-    paddle_OP_CHECK(node, kernel_shape.size() == 1 || kernel_shape.size() == 2, "pool2d: ksize must be 1 or 2!");
+    PADDLE_OP_CHECK(node, (pooling_type == "max") || (pooling_type == "avg"), "pool2d: not supported pooling type !");
+    PADDLE_OP_CHECK(node, kernel_shape.size() == 1 || kernel_shape.size() == 2, "pool2d: ksize must be 1 or 2!");
 
     PartialShape input_shape = data.get_partial_shape();
 
     int32_t input_rank = input_shape.rank().get_length();
-    paddle_OP_CHECK(node, input_rank >= 2, "input tensor rank must be greater than 2");
+    PADDLE_OP_CHECK(node, input_rank >= 2, "input tensor rank must be greater than 2");
 
     auto auto_pad = ov::op::PadType::EXPLICIT;
     ov::Shape pad_begin, pad_end;
@@ -139,7 +139,7 @@ NamedOutputs pool2d(const NodeContext& node) {
             kernel_w = kernel_shape[1];
         }
 
-        paddle_OP_CHECK(node, kernel_h > 0 && kernel_w > 0, "pool2d kernel shape must be greater than 0");
+        PADDLE_OP_CHECK(node, kernel_h > 0 && kernel_w > 0, "pool2d kernel shape must be greater than 0");
 
         // Note: this shape check is only valid when the spatial dim of input_shape
         // is static.

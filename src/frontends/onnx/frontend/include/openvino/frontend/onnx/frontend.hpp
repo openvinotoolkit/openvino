@@ -5,19 +5,20 @@
 #pragma once
 
 #include <openvino/frontend/frontend.hpp>
-#include <openvino/frontend/telemetry_extension.hpp>
+
+#include "openvino/frontend/extension/telemetry.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define ONNX_FRONTEND_API
 #    define ONNX_FRONTEND_C_API
 #else
-#    ifdef onnx_ov_frontend_EXPORTS
+#    ifdef ov_onnx_frontend_EXPORTS
 #        define ONNX_FRONTEND_API   OPENVINO_CORE_EXPORTS
 #        define ONNX_FRONTEND_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #    else
 #        define ONNX_FRONTEND_API   OPENVINO_CORE_IMPORTS
 #        define ONNX_FRONTEND_C_API OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS
-#    endif  // onnx_ov_frontend_EXPORTS
+#    endif  // ov_onnx_frontend_EXPORTS
 #endif      // OPENVINO_STATIC_LIBRARY
 
 namespace ov {

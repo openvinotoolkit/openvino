@@ -24,9 +24,9 @@
         "runtime/bin/intel64/Release/ov_auto_plugin.dll",
         "runtime/bin/intel64/Release/ngraph.dll",
         "runtime/bin/intel64/Release/frontend_common.dll",
-        "runtime/bin/intel64/Release/ir_ov_frontend.dll",
-        "runtime/bin/intel64/Release/onnx_ov_frontend.dll",
-        "runtime/bin/intel64/Release/paddle_ov_frontend.dll",
+        "runtime/bin/intel64/Release/ov_ir_frontend.dll",
+        "runtime/bin/intel64/Release/ov_onnx_frontend.dll",
+        "runtime/bin/intel64/Release/ov_paddle_frontend.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]

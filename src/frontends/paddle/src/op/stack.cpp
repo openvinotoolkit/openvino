@@ -20,12 +20,12 @@ NamedOutputs stack(const NodeContext& node) {
 
     auto axis_const = std::make_shared<Constant>(element::i64, Shape{}, axis);
     if (data_shape.rank().is_static())
-        paddle_OP_CHECK(node,
+        PADDLE_OP_CHECK(node,
                         (axis >= -(data_shape.rank().get_length() + 1)) && axis < (data_shape.rank().get_length() + 1),
                         "axis range is [-(R+1), R+1)!");
 
     for (const auto& data : datas) {
-        paddle_OP_CHECK(node,
+        PADDLE_OP_CHECK(node,
                         data_type == data.get_element_type(),
                         "stack input tensor must have the same data types!");
 

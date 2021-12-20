@@ -18,7 +18,7 @@ NamedOutputs softplus(const NodeContext& node) {
     const float EPSINON = 1e-6;
 
     if (!(abs(beta - supported_beta) <= EPSINON) || !(abs(threshold - supported_threshold) <= EPSINON)) {
-        paddle_OP_CHECK(node, false, "only support beta==1.0 && threshold==20.0");
+        PADDLE_OP_CHECK(node, false, "only support beta==1.0 && threshold==20.0");
     }
     return node.default_single_output_mapping({std::make_shared<default_opset::SoftPlus>(data)}, {"Out"});
 }

@@ -153,7 +153,7 @@ struct LSTMAttributes {
 }  // namespace
 NamedOutputs lstm(const NodeContext& node) {
     auto mode = node.get_attribute<std::string>("mode");
-    paddle_OP_CHECK(node, mode == "LSTM", "RNN only support LSTM now");
+    PADDLE_OP_CHECK(node, mode == "LSTM", "RNN only support LSTM now");
     auto prev_inputs = node.get_ng_inputs("Input");
     Output<Node> prev_output = prev_inputs[0];
     LSTMAttributes attrs(node);

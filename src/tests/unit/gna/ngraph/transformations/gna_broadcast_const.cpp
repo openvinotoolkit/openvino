@@ -263,7 +263,7 @@ INSTANTIATE_TEST_SUITE_P(BroadcastConstTestNumpySuite, BroadcastConstTestFixture
                                             ::testing::Bool(),
                                             ::testing::Values(ov::op::AutoBroadcastType::NUMPY)));
 
-INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPaddleSuite, BroadcastConstTestFixture,
+INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPDPDSuite, BroadcastConstTestFixture,
                          ::testing::Combine(::testing::ValuesIn(opset8_eltwise_factories),
                                             ::testing::Bool(),
                                             ::testing::Bool(),

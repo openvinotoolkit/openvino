@@ -18,7 +18,7 @@ using namespace InferenceEngine;
 using namespace ngraph;
 using namespace ov::frontend;
 
-using paddleFuzzyOpTest = FrontEndFuzzyOpTest;
+using PaddleFuzzyOpTest = FrontEndFuzzyOpTest;
 
 static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("argmax1"),
@@ -64,7 +64,7 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("conv2d_strides_no_padding"),
                                              std::string("conv2d_strides_padding"),
                                              std::string("conv2d_transpose_dilation_assymetric_pads_strides"),
-                                             // conv2d_transpose_SAME_padding(paddle outputs wrong results),
+                                             // conv2d_transpose_SAME_padding(Paddle outputs wrong results),
                                              std::string("conv2d_transpose_strides_assymetric_padding"),
                                              std::string("conv2d_transpose_strides_no_padding"),
                                              std::string("conv2d_transpose_strides_padding"),
@@ -261,9 +261,9 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              // std::string("yolo_box_scale_xy"),
                                              std::string("yolo_box_uneven_wh")};
 
-INSTANTIATE_TEST_SUITE_P(paddleFuzzyOpTest,
+INSTANTIATE_TEST_SUITE_P(PaddleFuzzyOpTest,
                          FrontEndFuzzyOpTest,
                          ::testing::Combine(::testing::Values(PADDLE_FE),
                                             ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),
                                             ::testing::ValuesIn(models)),
-                         paddleFuzzyOpTest::getTestCaseName);
+                         PaddleFuzzyOpTest::getTestCaseName);

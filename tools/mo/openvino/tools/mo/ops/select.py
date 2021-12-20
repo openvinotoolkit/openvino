@@ -68,10 +68,10 @@ class Select(Op):
             output_shape = bi_directional_shape_broadcasting(output_shape, condition_shape)
             assert output_shape is not None, msg
 
-        elif broadcast_rule == 'paddle':
-            # todo: add paddle broadcasting rule
+        elif broadcast_rule == 'pdpd':
+            # todo: add pdpd broadcasting rule
             # note that additionally to output_shape resulting_tensors must be broadcasted as well
-            raise Error("paddle broadcasting rule is not implemented yet")
+            raise Error("PDPD broadcasting rule is not implemented yet")
         else:  # broadcasting is not allowed
             assert compatible_shapes(a_shape, b_shape) and compatible_shapes(condition_shape, a_shape), \
                 'In node \'{}\' for Select operation when broadcasting is off all inputs must be of the same shape. ' \
@@ -92,9 +92,9 @@ class Select(Op):
                     return
                 if broadcast_rule == 'numpy':
                     output_value = bi_directional_broadcasting(output_value, output_shape)
-                elif broadcast_rule == 'paddle':
-                    # todo: add paddle broadcasting rule
-                    raise Error("paddle broadcasting rule is not implemented yet")
+                elif broadcast_rule == 'pdpd':
+                    # todo: add pdpd broadcasting rule
+                    raise Error("PDPD broadcasting rule is not implemented yet")
 
                 node.out_port(0).data.set_value(output_value)
             elif resulting_tensors[0] is not None and resulting_tensors[1] is not None:

@@ -17,7 +17,7 @@ NamedOutputs layer_norm(const NodeContext& node) {
     const auto begin_norm_axis = node.get_attribute<int32_t>("begin_norm_axis", 1);
     // The limitation from:
     // https://github.com/paddle/Paddle/blob/cec36ea6ff16fda90c1a004c6e043cd9b2096a2a/paddle/fluid/operators/layer_norm_op.cc#L176
-    paddle_OP_CHECK(node, begin_norm_axis > 0, "begin_norm_axis should be greater than 0");
+    PADDLE_OP_CHECK(node, begin_norm_axis > 0, "begin_norm_axis should be greater than 0");
 
     // shape of input
     const auto shape_of_node = std::make_shared<ShapeOf>(data);

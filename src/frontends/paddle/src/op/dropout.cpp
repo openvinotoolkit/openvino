@@ -13,7 +13,7 @@ namespace op {
 NamedOutputs dropout(const NodeContext& node) {
     auto data = node.get_ng_input("X");
     auto dropout_implementation = node.get_attribute<std::string>("dropout_implementation");
-    paddle_OP_CHECK(node,
+    PADDLE_OP_CHECK(node,
                     (dropout_implementation == "downgrade_in_infer" || dropout_implementation == "upscale_in_train"),
                     "Unsupported dropout mode!");
     if (dropout_implementation == "downgrade_in_infer") {

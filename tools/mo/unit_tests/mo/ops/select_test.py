@@ -292,11 +292,11 @@ class TestSelect(unittest.TestCase):
                                                       out_value=None, out_shape=shape_array([100, 20]),
                                                       auto_broadcast='numpy', fw_format='tf')
 
-    def test_select_infer_assert_paddle(self):
-        with self.assertRaisesRegex(Error, "Paddle broadcasting rule is not implemented yet"):
+    def test_select_infer_assert_pdpd(self):
+        with self.assertRaisesRegex(Error, "PDPD broadcasting rule is not implemented yet"):
             self.build_select_graph_and_infer(condition_value=None, condition_shape=[2, 2],
                                               then_value=None, then_shape=[2, 2],
                                               else_value=None, else_shape=[3, 3],
                                               out_value=None, out_shape=[42, 42],
-                                              auto_broadcast='paddle')
+                                              auto_broadcast='pdpd')
 

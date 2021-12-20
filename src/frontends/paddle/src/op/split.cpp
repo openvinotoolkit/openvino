@@ -34,7 +34,7 @@ NamedOutputs split(const NodeContext& node) {
             auto inputs = node.get_ng_inputs("SectionsTensorList");
             sections_node = std::make_shared<ov::opset7::Concat>(inputs, 0);
         } else {
-            paddle_OP_CHECK(node,
+            PADDLE_OP_CHECK(node,
                             node.has_attribute<std::vector<int32_t>>("sections"),
                             "split: num==0 && no sections is invalid.");
             auto sections = node.get_attribute<std::vector<int32_t>>("sections");
@@ -46,10 +46,10 @@ NamedOutputs split(const NodeContext& node) {
     }
 
     auto out_names = node.get_output_names();
-    paddle_OP_CHECK(node, out_names.size() == 1, "Unexpected number of outputs");
+    PADDLE_OP_CHECK(node, out_names.size() == 1, "Unexpected number of outputs");
 
     auto it = std::find(out_names.begin(), out_names.end(), "Out");
-    paddle_OP_CHECK(node, it != out_names.end(), "Expected output not found");
+    PADDLE_OP_CHECK(node, it != out_names.end(), "Expected output not found");
     for (const auto& split_output : split_outputs) {
         named_outputs[*it].push_back(split_output);
     }

@@ -28,7 +28,7 @@ NamedOutputs conv2d_base(const NodeContext& node) {
     const auto groups = node.get_attribute<int32_t>("groups");
     const auto data_format = node.get_attribute<std::string>("data_format");
     // TODO Support Other data layout #55423
-    paddle_OP_CHECK(node, data_format == "NCHW", "conv2d only supports NCHW now");
+    PADDLE_OP_CHECK(node, data_format == "NCHW", "conv2d only supports NCHW now");
 
     if (groups > 1) {
         const auto reshaped_filters = get_reshaped_filter(filters, groups);

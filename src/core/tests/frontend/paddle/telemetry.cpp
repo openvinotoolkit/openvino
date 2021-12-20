@@ -8,7 +8,7 @@
 
 using namespace ov::frontend;
 
-using paddleTelemetryTest = FrontEndTelemetryTest;
+using PaddleTelemetryTest = FrontEndTelemetryTest;
 
 static TelemetryFEParam getTestData() {
     TelemetryFEParam res;
@@ -22,7 +22,7 @@ static TelemetryFEParam getTestData() {
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(paddleTelemetryTest,
+INSTANTIATE_TEST_SUITE_P(PaddleTelemetryTest,
                          FrontEndTelemetryTest,
                          ::testing::Values(getTestData()),
                          FrontEndTelemetryTest::getTestCaseName);

@@ -9,7 +9,7 @@
 using namespace ngraph;
 using namespace ov::frontend;
 
-using paddleCutTest = FrontEndElementTypeTest;
+using PaddleCutTest = FrontEndElementTypeTest;
 
 static SetTypeFEParam getTestData_relu() {
     SetTypeFEParam res;
@@ -19,7 +19,7 @@ static SetTypeFEParam getTestData_relu() {
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(paddleCutTest,
+INSTANTIATE_TEST_SUITE_P(PaddleCutTest,
                          FrontEndElementTypeTest,
                          ::testing::Values(getTestData_relu()),
                          FrontEndElementTypeTest::getTestCaseName);

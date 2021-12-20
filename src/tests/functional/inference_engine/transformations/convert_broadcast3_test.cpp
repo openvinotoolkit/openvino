@@ -313,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBro
                         std::make_tuple(InputShape{3, 3, DYN},          TargetShape{2})));
 
 
-// Broadcast-3 is converted directly to Broadcast-1 for modes NUMPY, NONE and PADDLE
+// Broadcast-3 is converted directly to Broadcast-1 for modes NUMPY, NONE and PDPD
 TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
@@ -349,7 +349,7 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
     ASSERT_TRUE(broadcast_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertBroadcast3WithPaddleModeToBroadcast1) {
+TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
