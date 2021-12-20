@@ -648,6 +648,9 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNNode::initDescriptor(const NodeConfig& config) {
+    if (!getSelectedPrimitiveDescriptor()) {
+        return;
+    }
     std::vector<MemoryDescPtr> inDescs;
     for (const auto& inConf : config.inConfs)
         inDescs.emplace_back(inConf.desc);
@@ -659,9 +662,6 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
     AttrPtr attr = initPrimitiveAttr();
 
     auto* selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD) {
-        return;
-    }
     NodeConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {

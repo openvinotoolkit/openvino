@@ -276,7 +276,7 @@ void MKLDNNRNN::initCell() {
 
     T = 1;
     DC = getInputShapeAtPort(0).getDims()[1];
-
+    // Expected shapes.
     const Shape shapeD{N, DC}, shapeS{N, SC};
 
     if (getInputShapeAtPort(0) != shapeD || getInputShapeAtPort(1) != shapeS || getOutputShapeAtPort(0) != shapeS)
@@ -292,7 +292,7 @@ void MKLDNNRNN::initCell() {
 
 void MKLDNNRNN::fillCellDesc() {
     const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
-    const size_t B = N.isStatic() ? N.getMaxValue() : 64lu; // Dummy value
+    const size_t B = N.isStatic() ? N.getMaxValue() : batchDimDummyValue;
     const Shape shapeS_4D {L, D, B, SC};
 
     // layer input plus states
@@ -357,7 +357,7 @@ void MKLDNNRNN::initSequence() {
 
 void MKLDNNRNN::fillSequenceDesc() {
     const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
-    const size_t B = N.isStatic() ? N.getMaxValue() : 64lu; // Dummy value
+    const size_t B = N.isStatic() ? N.getMaxValue() : batchDimDummyValue;
     const size_t SL = T.isStatic() ? T.getMaxValue() : 1lu; // Dummy value
     const Shape shapeS_4D {L, D, B, SC};
 
@@ -607,72 +607,83 @@ void MKLDNNRNN::copyWeightsData() {
         fillBiases<Precision::FP32>(gate_map);
 }
 
-void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                 const std::vector<MemoryDescPtr> &outputDesc) {
-    if (!descs.empty())
-        return;
-    wDescs.resize(3);
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
-    auto weightsDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
-    wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
-    auto statesDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
-    wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
-    auto biasDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
-    wDescs[2] = mkldnn::memory::desc(biasDims, memory::data_type::f32, memory::format_tag::ldgo);
+void MKLDNNRNN::fillDescs() {
+    descs.clear();
 
     switch (cell_type) {
         case mkldnn::algorithm::vanilla_rnn: {
-            MKLDNNDescriptor desc(std::shared_ptr<vanilla_rnn_forward::desc>(
-                    new vanilla_rnn_forward::desc(prop_kind::forward_scoring, cell_act, direction,
-                            /* In Data       */ inDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* In State      */ inDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* Weights data  */ wDescs[0],
-                            /* Weights state */ wDescs[1],
-                            /* Bias          */ wDescs[2],
-                            /* Out Data      */ outDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* Out State     */ outDataDescs[RNNInOutKind::HiddenState].getDnnlDesc())));
+            MKLDNNDescriptor desc(std::make_shared<vanilla_rnn_forward::desc>(
+                                        prop_kind::forward_scoring,
+                                        cell_act,
+                                        direction,
+                    /* In Data       */ inDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
+                    /* In State      */ inDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
+                    /* Weights data  */ wDescs[0],
+                    /* Weights state */ wDescs[1],
+                    /* Bias          */ wDescs[2],
+                    /* Out Data      */ outDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
+                    /* Out State     */ outDataDescs[RNNInOutKind::HiddenState].getDnnlDesc()));
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::vanilla_gru: {
-            MKLDNNDescriptor desc(std::shared_ptr<gru_forward::desc>(
-                    new gru_forward::desc(prop_kind::forward_scoring, direction,
-                            /* In Data       */ inDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* In State      */ inDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* Weights data  */ wDescs[0],
-                            /* Weights state */ wDescs[1],
-                            /* Bias          */ wDescs[2],
-                            /* Out Data      */ outDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* Out State     */ outDataDescs[RNNInOutKind::HiddenState].getDnnlDesc())));
+            MKLDNNDescriptor desc(std::make_shared<gru_forward::desc>(
+                                        prop_kind::forward_scoring,
+                                        direction,
+                    /* In Data       */ inDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
+                    /* In State      */ inDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
+                    /* Weights data  */ wDescs[0],
+                    /* Weights state */ wDescs[1],
+                    /* Bias          */ wDescs[2],
+                    /* Out Data      */ outDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
+                    /* Out State     */ outDataDescs[RNNInOutKind::HiddenState].getDnnlDesc()));
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::lbr_gru: {
-            MKLDNNDescriptor desc(std::shared_ptr<lbr_gru_forward::desc>(
-                    new lbr_gru_forward::desc(prop_kind::forward_scoring, direction,
-                            /* In Data       */ inDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* In State      */ inDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* Weights data  */ wDescs[0],
-                            /* Weights state */ wDescs[1],
-                            /* Bias          */ wDescs[2],
-                            /* Out Data      */ outDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* Out State     */ outDataDescs[RNNInOutKind::HiddenState].getDnnlDesc())));
+            MKLDNNDescriptor desc(std::make_shared<lbr_gru_forward::desc>(
+                                        prop_kind::forward_scoring,
+                                        direction,
+                    /* In Data       */ inDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
+                    /* In State      */ inDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
+                    /* Weights data  */ wDescs[0],
+                    /* Weights state */ wDescs[1],
+                    /* Bias          */ wDescs[2],
+                    /* Out Data      */ outDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
+                    /* Out State     */ outDataDescs[RNNInOutKind::HiddenState].getDnnlDesc()));
             descs.push_back(desc);
         } break;
         case mkldnn::algorithm::vanilla_lstm: {
-            MKLDNNDescriptor desc(std::shared_ptr<lstm_forward::desc>(
-                    new lstm_forward::desc(prop_kind::forward_scoring, direction,
-                            /* In Data       */ inDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* In State      */ inDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* In State C    */ inDataDescs[RNNInOutKind::CellState].getDnnlDesc(),
-                            /* Weights data  */ wDescs[0],
-                            /* Weights state */ wDescs[1],
-                            /* Bias          */ wDescs[2],
-                            /* Out Data      */ outDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
-                            /* Out State     */ outDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* Out State C   */ outDataDescs[RNNInOutKind::CellState].getDnnlDesc())));
+            MKLDNNDescriptor desc(std::make_shared<lstm_forward::desc>(
+                                        prop_kind::forward_scoring,
+                                        direction,
+                    /* In Data       */ inDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
+                    /* In State      */ inDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
+                    /* In State C    */ inDataDescs[RNNInOutKind::CellState].getDnnlDesc(),
+                    /* Weights data  */ wDescs[0],
+                    /* Weights state */ wDescs[1],
+                    /* Bias          */ wDescs[2],
+                    /* Out Data      */ outDataDescs[RNNInOutKind::Layer].getDnnlDesc(),
+                    /* Out State     */ outDataDescs[RNNInOutKind::HiddenState].getDnnlDesc(),
+                    /* Out State C   */ outDataDescs[RNNInOutKind::CellState].getDnnlDesc()));
             descs.push_back(desc);
         } break;
         default:
             THROW_ERROR << "has unknown cell type.";
+    }
+}
+
+void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+                                 const std::vector<MemoryDescPtr> &outputDesc) {
+    if (descs.empty()) {
+        wDescs.resize(3);
+        auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+        auto weightsDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
+        wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
+        auto statesDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
+        wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
+        auto biasDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
+        wDescs[2] = mkldnn::memory::desc(biasDims, memory::data_type::f32, memory::format_tag::ldgo);
+
+        fillDescs();
     }
 
     // Fill supported config
@@ -721,20 +732,16 @@ void MKLDNNRNN::prepareParams() {
     const size_t B = getParentEdgesAtPort(0).front()->getMemory().GetShape().getStaticDims()[0];
     const size_t SL = is_cell ? 1lu : getParentEdgesAtPort(0).front()->getMemory().GetShape().getStaticDims()[1];
     Shape shapeS_4D{L, D, B, SC};
-    std::vector<DnnlBlockedMemoryDesc> inDataD, outDataD;
 
-    inDataD.reserve(S + 1);
-    outDataD.reserve(S + 1);
+    inDataDescs[0] = DnnlBlockedMemoryDesc(Shape{SL, B, DC}, dataType, memory::format_tag::tnc);
+    outDataDescs[0] = DnnlBlockedMemoryDesc(Shape{SL, B, SC}, dataType, memory::format_tag::tnc);
 
-    inDataD.emplace_back(Shape{SL, B, DC}, dataType, memory::format_tag::tnc);
-    outDataD.emplace_back(Shape{SL, B, SC}, dataType, memory::format_tag::tnc);
-
-    inDataD.emplace_back(shapeS_4D, dataType, memory::format_tag::ldnc);
-    outDataD.emplace_back(shapeS_4D, dataType, memory::format_tag::ldnc);
+    inDataDescs[1] = DnnlBlockedMemoryDesc(shapeS_4D, dataType, memory::format_tag::ldnc);
+    outDataDescs[1] = DnnlBlockedMemoryDesc(shapeS_4D, dataType, memory::format_tag::ldnc);
 
     if (haveCellState(cell_type)) {
-        inDataD.emplace_back(shapeS_4D, memory::data_type::f32, memory::format_tag::ldnc);
-        outDataD.emplace_back(shapeS_4D, memory::data_type::f32, memory::format_tag::ldnc);
+        inDataDescs[2] = DnnlBlockedMemoryDesc(shapeS_4D, memory::data_type::f32, memory::format_tag::ldnc);
+        outDataDescs[2] = DnnlBlockedMemoryDesc(shapeS_4D, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
     bool wFormatWasChanged = false;
@@ -757,66 +764,23 @@ void MKLDNNRNN::prepareParams() {
         wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
     }
 
-    primitive_desc_iterator itpd;
-    const mkldnn::primitive_attr attr = mkldnn::primitive_attr();
+    fillDescs();
     if (cell_type == mkldnn::algorithm::vanilla_rnn) {
-        auto desc = std::make_shared<vanilla_rnn_forward::desc>(
-                                            prop_kind::forward_scoring,
-                                            cell_act,
-                                            direction,
-                        /* In Data       */ inDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                        /* In State      */ inDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
-                        /* Weights data  */ wDescs[0],
-                        /* Weights state */ wDescs[1],
-                        /* Bias          */ wDescs[2],
-                        /* Out Data      */ outDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                        /* Out State     */ outDataD[RNNInOutKind::HiddenState].getDnnlDesc());
+        std::shared_ptr<vanilla_rnn_forward::desc> desc = descs[0];
         prim.reset(new vanilla_rnn_forward(vanilla_rnn_forward::primitive_desc(*desc, getEngine())));
-        itpd = mkldnn::primitive_desc_iterator(&desc->data, &attr, getEngine(), nullptr, true);
     } else if (cell_type == mkldnn::algorithm::vanilla_gru) {
-        auto desc = std::make_shared<gru_forward::desc>(
-                                            prop_kind::forward_scoring,
-                                            direction,
-                        /* In Data       */ inDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                        /* In State      */ inDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
-                        /* Weights data  */ wDescs[0],
-                        /* Weights state */ wDescs[1],
-                        /* Bias          */ wDescs[2],
-                        /* Out Data      */ outDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                        /* Out State     */ outDataD[RNNInOutKind::HiddenState].getDnnlDesc());
+        std::shared_ptr<gru_forward::desc> desc = descs[0];
         prim.reset(new gru_forward(gru_forward::primitive_desc(*desc, getEngine())));
-        itpd = mkldnn::primitive_desc_iterator(&desc->data, &attr, getEngine(), nullptr, true);
     } else if (cell_type == mkldnn::algorithm::lbr_gru) {
-        auto desc = std::make_shared<lbr_gru_forward::desc>(
-                                            prop_kind::forward_scoring,
-                                            direction,
-                        /* In Data       */ inDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                        /* In State      */ inDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
-                        /* Weights data  */ wDescs[0],
-                        /* Weights state */ wDescs[1],
-                        /* Bias          */ wDescs[2],
-                        /* Out Data      */ outDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                        /* Out State     */ outDataD[RNNInOutKind::HiddenState].getDnnlDesc());
+        std::shared_ptr<lbr_gru_forward::desc> desc = descs[0];
         prim.reset(new lbr_gru_forward(lbr_gru_forward::primitive_desc(*desc, getEngine())));
-        itpd = mkldnn::primitive_desc_iterator(&desc->data, &attr, getEngine(), nullptr, true);
     } else if (cell_type == mkldnn::algorithm::vanilla_lstm) {
-        auto desc = std::make_shared<lstm_forward::desc>(
-                                            prop_kind::forward_scoring,
-                                            direction,
-                        /* In Data       */ inDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                        /* In State      */ inDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
-                        /* In State C    */ inDataD[RNNInOutKind::CellState].getDnnlDesc(),
-                        /* Weights data  */ wDescs[0],
-                        /* Weights state */ wDescs[1],
-                        /* Bias          */ wDescs[2],
-                        /* Out Data      */ outDataD[RNNInOutKind::Layer].getDnnlDesc(),
-                        /* Out State     */ outDataD[RNNInOutKind::HiddenState].getDnnlDesc(),
-                        /* Out State C   */ outDataD[RNNInOutKind::CellState].getDnnlDesc());
+        std::shared_ptr<lstm_forward::desc> desc = descs[0];
         prim.reset(new lstm_forward(lstm_forward::primitive_desc(*desc, getEngine())));
-        itpd = mkldnn::primitive_desc_iterator(&desc->data, &attr, getEngine(), nullptr, true);
     }
 
     if (wFormatWasChanged) {
+        auto itpd = descs[0].createPrimitiveDescriptorIterator(getEngine(), mkldnn::primitive_attr());
         prepareMemory(itpd);
     }
 }

@@ -43,6 +43,7 @@ private:
     void initSequence();
     void fillCellDesc();
     void fillSequenceDesc();
+    void fillDescs();
     bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
                                 const InferenceEngine::Precision& weightsPrec);
 
@@ -100,6 +101,7 @@ private:
     static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
 
     static constexpr size_t optimalBatchSize = 16lu;
+    static constexpr size_t batchDimDummyValue = 64lu;
 };
 
 }  // namespace MKLDNNPlugin

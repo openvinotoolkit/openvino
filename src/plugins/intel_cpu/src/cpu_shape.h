@@ -161,7 +161,7 @@ public:
 
     const Interval getInterval(size_t i) const {
         if (i >= minDims.size()) {
-            IE_THROW() << "Shape index " << i << " is out of bound " << minDims.size();
+            IE_THROW() << "Can't get interval. Shape index " << i << " is out of bound " << minDims.size();
         }
         return Interval(minDims[i], maxDims[i]);
     }
