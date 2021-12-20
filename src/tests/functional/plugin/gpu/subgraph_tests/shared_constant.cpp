@@ -33,6 +33,9 @@ protected:
         auto mul = std::make_shared<opset8::Multiply>(input4, constant);
         auto input5 = std::make_shared<opset8::Parameter>(type, constGroupConvBackpropShape);
         auto mul2 = std::make_shared<opset8::Multiply>(input5, constantGroupConv);
+        // explicitly set the output name, to avoid global conflict
+        mul2->set_friendly_name("Multiply_0");
+        mul->set_friendly_name("Multiply_1");
         function = std::make_shared<ngraph::Function>(NodeVector{convBprop, conv, groupConvBprop, mul2, mul},
                 ParameterVector{input1, input2, input3, input4, input5});
     }
