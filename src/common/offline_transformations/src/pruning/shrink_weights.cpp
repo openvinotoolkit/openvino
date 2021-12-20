@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/log.hpp>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/env_util.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ShrinkWeights, "ShrinkWeights", 0);
 
@@ -32,12 +33,15 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
 
         auto init_mask = getInitMask(const_node->output(0));
         auto mask = getMask(const_node->output(0));
-        if (!mask && init_mask)
-            NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name() << "\nInit mask: " << *init_mask;
+        auto pruning_extended_debug = getenv_bool("ENABLE_PRUNING_EXTENDED_DEBUG");
+        if (pruning_extended_debug) {
+            if (!mask && init_mask)
+                NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name() << "\nInit mask: " << *init_mask;
+        }
 
         if (!mask) continue;
 
-        if (init_mask) {
+        if (pruning_extended_debug && init_mask) {
             for (size_t dim = 0; dim < init_mask->size(); ++dim) {
                 auto& dim_init_set = (*init_mask)[dim];
                 auto&  dim_current_set = (*mask)[dim];
