@@ -474,8 +474,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                 ? InferenceEngine::details::product(foundOutput->getDims())
                 : 1;
             if (dataSize != outputSize) {
-            IE_THROW() << "Output blob size is not equal network output size ("
-                               << dataSize << "!=" << outputSize << ").";
+                IE_THROW() << "Output blob size is not equal network output size ("
+                                   << dataSize << "!=" << outputSize << ").";
             }
         }
         if (!isDynamic && foundOutput->getTensorDesc().getDims() != blobDesc.getDims()) {
