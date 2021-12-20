@@ -146,9 +146,18 @@ def process_raw_output(raw_output):
     return result
 
 
-def add_tensor_names(nodes_and_names):
-    """ Processes nGraph output_node's and sets POT-friendly name """
-    for output_node, node_name in nodes_and_names:
-        names = output_node.get_tensor().get_names()
+def add_tensor_names(nodes, names):
+    """ Processes nGraph nodes and sets POT-friendly tensor name """
+    for ng_node, node_name in zip(nodes, names):
+        names = ng_node.get_tensor().get_names()
         names.add(convert_output_key(node_name))
-        output_node.get_tensor().set_names(names)
+        ng_node.get_tensor().set_names(names)
+
+def cast_friendly_names(nodes):
+    """ Processes nGraph nodes and sets POT-friendly tensor name
+    based on friendly_name
+     """
+    for ng_node in nodes:
+        names = ng_node.get_tensor().get_names()
+        names.add(ng_node.get_node().friendly_name)
+        ng_node.get_tensor().set_names(names)

@@ -144,7 +144,6 @@ class StatisticGraphBuilder:
             ie_result_name = f'{name}_{node.name}'
             res_op = Result(node.graph, {'name': f'Result_{ie_result_name}'}).create_node()
             child_node.out_port(0).connect(res_op.in_port(0))
-        child_node.out_node()['fw_tensor_debug_info'] = [(ie_result_name, ie_result_name)]
         return (False, ie_result_name)
 
     @staticmethod

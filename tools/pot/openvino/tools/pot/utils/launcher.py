@@ -6,6 +6,7 @@ from openvino.runtime import Core  # pylint: disable=E0611,E0401
 from ..utils.utils import create_tmp_dir
 from ..graph.model_utils import save_model
 from ..graph.node_utils import convert_to_outputs_name
+from ..engines.utils import cast_friendly_names, process_raw_output
 
 
 class IELauncher:
@@ -23,7 +24,7 @@ class IELauncher:
 
         self._ie = Core()
 
-    def set_model(self, model, output_names=None, md_shapes=None, input_names=None):
+    def set_model(self, model, output_names=None, md_shapes=None):
         """ Set/reset model to instance of engine class
          :param model: NXModel instance for inference
         """
@@ -35,6 +36,8 @@ class IELauncher:
         # load IR model
         ir_model = self._load_model(path)
 
+        cast_friendly_names(ir_model.inputs + ir_model.outputs)
+
         if output_names is not None:
             output_names = [convert_to_outputs_name(output_name) for output_name in output_names]
             ir_model.add_outputs(output_names)
@@ -44,9 +47,6 @@ class IELauncher:
 
         self.model = self._ie.compile_model(model=ir_model, device_name=self.device)
 
-        if input_names is not None:
-            self.model.input().get_tensor().set_names(set(input_names))
-
         self.infer_request = self.model.create_infer_request()
 
     def infer(self, inputs):
@@ -54,7 +54,8 @@ class IELauncher:
          :param inputs: dictionary of inputs {node_name, value}
          :returns dictionary of outputs {node_name, value}
         """
-        return self.infer_request.infer(inputs=inputs)
+        outputs = self.infer_request.infer(inputs=inputs)
+        return process_raw_output(outputs)
 
     def _load_model(self, path):
         """ Loads IT model from disk

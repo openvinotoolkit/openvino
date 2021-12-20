@@ -21,7 +21,6 @@ from ....statistics.functions import aggregation as agf
 from ....statistics.statistics import TensorStatisticAxis
 from ....utils.launcher import IELauncher
 from ....utils.logger import get_logger
-from ....engines.utils import process_raw_output
 
 logger = get_logger(__name__)
 
@@ -271,7 +270,6 @@ class BiasCorrection(Algorithm):
                 for in_port in port.get_destinations():
                     in_port.disconnect()
                     in_port.connect(param_node.out_port(0))
-            param_node.out_node()['fw_tensor_debug_info'] = [(parameter_name, parameter_name)]
             inputs_data.append({
                 'param_name': parameter_name,
                 'param_shape': tuple(c_input_shape),
@@ -290,7 +288,6 @@ class BiasCorrection(Algorithm):
                 if 'fw_tensor_debug_info' in out_node:
                     del out_node['fw_tensor_debug_info']
             result_node.in_port(0).connect(output_node.out_port(0))
-            output_node.out_node()['fw_tensor_debug_info'] = [(result_name, result_name)]
             if output_name in self._fp32_statistics:
                 self._fp32_statistics[output_name]['batch_mean_in'] = []
             else:
@@ -328,7 +325,7 @@ class BiasCorrection(Algorithm):
                           current_inputs}
         feed_shapes = {input_name: tuple(feed_dict[input_name].shape) for input_name in feed_dict}
         if feed_shapes != current_shapes:
-            self._launcher.set_model(model_copy, md_shapes=feed_shapes, input_names=list(current_shapes.keys()))
+            self._launcher.set_model(model_copy, md_shapes=feed_shapes)
 
     def _compute_bias_shift(self, model_copy, **params):
         add_name = params['node_bias_add'].fullname
@@ -346,7 +343,6 @@ class BiasCorrection(Algorithm):
             for feed_dict in params['feed_dicts']:
                 self._reshape_model_by_feed_dict(feed_dict, model_copy)
                 q_output = self._launcher.infer(feed_dict)
-                q_output = process_raw_output(q_output)
                 q_outputs.append(asf.mean_per_channel_axis(q_output[add_name], add_name, channel=self._channel_axis))
             q_output = agf.mean(q_outputs)
 
@@ -368,7 +364,6 @@ class BiasCorrection(Algorithm):
             for feed_dict in params['feed_dicts']:
                 self._reshape_model_by_feed_dict(feed_dict, model_copy)
                 q_output = self._launcher.infer(feed_dict)
-                q_output = process_raw_output(q_output)
                 for result_data_dict in params['results_data_dict']:
                     q_stat_updated = q_output[result_data_dict['output_name']]
                     self._fp32_statistics[result_data_dict['output_name']]['batch_mean_in'].append(q_stat_updated)

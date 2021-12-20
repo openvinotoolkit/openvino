@@ -11,7 +11,7 @@ import numpy as np
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    add_tensor_names
+    add_tensor_names, cast_friendly_names
 from ..api.engine import Engine
 from ..data_loaders.ac_data_loader import ACDataLoader
 from ..graph.model_utils import save_model, add_outputs
@@ -129,9 +129,13 @@ class ACEngine(Engine):
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
+            
+            for model in self._model:
+                cast_friendly_names(model['model'].outputs)
+
             outputs_per_model = add_outputs(self._model, nodes_names_map)
             for model_name, outputs_data in outputs_per_model.items():
-                add_tensor_names(zip(outputs_data, nodes_names_map[model_name].keys()))
+                add_tensor_names(outputs_data, nodes_names_map[model_name].keys())
 
             self._model_evaluator.load_network(self._model)
 
@@ -142,12 +146,12 @@ class ACEngine(Engine):
             for ng_output in model_outputs:
                 model_output_names.extend(list(ng_output.get_tensor().get_names()))
 
-            node_names = []
+            nodes_name = []
             for names_map in nodes_names_map.values():
-                node_names.extend(list(names_map.keys()))
+                nodes_name.extend(list(names_map.keys()))
 
             align_stat_names_with_results(model_output_names,
-                                          node_names,
+                                          nodes_name,
                                           output_to_node_names,
                                           stats_layout,
                                           stat_aliases)
