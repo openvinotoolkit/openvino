@@ -94,11 +94,11 @@ bool Place::is_output() const {
     FRONT_END_NOT_IMPLEMENTED(is_output);
 }
 
-bool Place::is_equal(Ptr another) const {
+bool Place::is_equal(const Ptr& another) const {
     FRONT_END_NOT_IMPLEMENTED(is_equal);
 }
 
-bool Place::is_equal_data(Ptr another) const {
+bool Place::is_equal_data(const Ptr& another) const {
     FRONT_END_NOT_IMPLEMENTED(is_equal_data);
 }
 
