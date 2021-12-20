@@ -8,11 +8,11 @@
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
 #include <openvino/frontend/onnx/frontend.hpp>
-#include <openvino/frontend/telemetry_extension.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 
 #include "onnx_common/onnx_model_validator.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
@@ -61,17 +61,17 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert(InputModel::Ptr model) const {
+std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->convert();
 }
 
-void FrontEnd::convert(std::shared_ptr<ngraph::Function> partially_converted) const {
+void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
     ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::decode(InputModel::Ptr model) const {
+std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();

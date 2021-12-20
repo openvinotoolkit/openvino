@@ -365,9 +365,8 @@ void MKLDNNDeconvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const Vec
     for (auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             // TODO [DS]: change to shape from memory
-            constexpr int align = 16;
             // use legacy depthwise since backprop convolution does not support binary post ops
-            eltwiseNode->appendPostOps(ops, dims, align);
+            eltwiseNode->appendPostOps(ops, dims);
             continue;
         }
         if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
