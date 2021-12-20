@@ -1209,7 +1209,6 @@ def test_set_input_partial_shape_using_input_edge():
     model = fe.load("input_model.onnx")
 
     add_operator = model.get_place_by_operation_name("onnx_add_op")
-    print("********", add_operator.get_names())
     add_input_edge = add_operator.get_input_port(input_port_index=0)
     model.set_partial_shape(add_input_edge, PartialShape([10, 10]))
     add_input_edge = add_operator.get_input_port(input_port_index=1)
