@@ -1102,7 +1102,7 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
     }
 }
 
-void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align) {
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) {
     IE_THROW() << "Fusing of " << this->getType() << " operation is not implemented";
 }
 
