@@ -6,11 +6,11 @@
 
 #include "test_utils/test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/deconvolution.hpp>
-#include <cldnn/primitives/crop.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/deconvolution.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 namespace cldnn {
 template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
@@ -74,9 +74,9 @@ VVVF<OutputT> reference_deconvolution(
     auto stride_y = stride.spatial[1];
     auto stride_z = stride.spatial[2];
 
-    auto offset_x = offset.spatial[0];
-    auto offset_y = offset.spatial[1];
-    auto offset_z = offset.spatial[2];
+    auto offset_x = -offset.spatial[0];
+    auto offset_y = -offset.spatial[1];
+    auto offset_z = -offset.spatial[2];
 
     int out_x = 2 * offset_x + (in_x - 1) * stride_x + filter_x;
     int out_y = 2 * offset_y + (in_y - 1) * stride_y + filter_y;
@@ -333,7 +333,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_pad1) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 1, 1 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 1, 1 }, tensor{ {0, 0, 1, 1}, 0 })
     );
 
     network network(engine, topology);
@@ -449,7 +449,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 4, 4 }, { 0, 0, -2, -2 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 4, 4 }, tensor{ {0, 0, 2, 2}, 0 })
     );
 
     network network(engine, topology);
@@ -511,7 +511,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{ {0, 0, 1, 1}, 0 })
     );
 
     network network(engine, topology);
@@ -578,7 +578,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{ {0, 0, 1, 1}, 0 })
     );
 
     network network(engine, topology, options);
@@ -639,7 +639,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{ {0, 0, 1, 1}, 0 })
     );
 
     network network(engine, topology);
@@ -702,7 +702,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1_input_p
         reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reorder", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "reorder", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{ {0, 0, 1, 1}, 0 })
     );
 
     network network(engine, topology);
@@ -771,7 +771,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
         reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reorder", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "reorder", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{ {0, 0, 1, 1}, 0 })
     );
 
     network network(engine, topology, options);
@@ -832,7 +832,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{ {0, 0, 1, 1}, 0 })
     );
 
     network network(engine, topology);
@@ -901,7 +901,7 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{ {0, 0, 1, 1}, 0 })
     );
 
     network network(engine, topology, options);
@@ -969,7 +969,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2)
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 2, 2 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 2, 2 }, { 0, 0, 1, 1 })
     );
 
     network network(engine, topology);
@@ -1014,7 +1014,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2)
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 2, 2 }, { 0, 0, -1, -1 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 2, 2 }, { 0, 0, 1, 1 })
     );
 
     network network(engine, topology);
@@ -1091,7 +1091,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
         data("bias", biases)
     );
 
-    topology.add(deconvolution("deconv", "input", { "weights" }, { "bias" }, 16, { 1, 1, 2, 2 }, { 0, 0, -1, -1 }));
+    topology.add(deconvolution("deconv", "input", { "weights" }, { "bias" }, 16, { 1, 1, 2, 2 }, { 0, 0, 1, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1180,7 +1180,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
         data("bias", biases)
     );
 
-    topology.add(deconvolution("deconv", "input", { "weights" }, { "bias" }, 16, { 1, 1, 2, 2 }, { 0, 0, -1, -1 }));
+    topology.add(deconvolution("deconv", "input", { "weights" }, { "bias" }, 16, { 1, 1, 2, 2 }, { 0, 0, 1, 1 }));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1612,7 +1612,7 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
     topology topology(
         input_layout("input", input->get_layout()),
         data("weights", weights),
-        deconvolution("deconv", "input", { "weights" }, { 1,1,2,2,2 }, { 0, 0, -1, -1, -1 })
+        deconvolution("deconv", "input", { "weights" }, { 1,1,2,2,2 }, tensor{ {0, 0, 1, 1, 1 }, 0})
     );
 
     network network(engine, topology);
@@ -1675,7 +1675,7 @@ TEST(deconvolution_f16_gpu, basic_k9x9_s2x2_pad4x4) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -4, -4 }, tensor{ 1, 1, 32, 32 })
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{{ 0, 0, 4, 4 }, 0}, tensor{ 1, 1, 32, 32 })
     );
 
     network network_ref(engine, topology_ref);
@@ -1696,7 +1696,7 @@ TEST(deconvolution_f16_gpu, basic_k9x9_s2x2_pad4x4) {
         input_layout("input_act", input->get_layout()),
         data("weights_f32", weights_f32),
         data("biases_f32", biases_f32),
-        deconvolution("deconv_act", "input_act", { "weights_f32" }, { "biases_f32" }, { 1, 1, 2, 2 }, { 0, 0, -4, -4 }),
+        deconvolution("deconv_act", "input_act", { "weights_f32" }, { "biases_f32" }, { 1, 1, 2, 2 }, tensor{{ 0, 0, 4, 4 }, 0}),
         reorder("out", "deconv_act", format::bfyx, data_types::f16)
     );
 
@@ -1754,7 +1754,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -1, -1 }),
+            deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{ {0, 0, 1, 1}, 0 }),
             reorder("out", "deconv", format::bfyx, data_types::f32)
     );
 
@@ -1825,7 +1825,7 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -1, -1 }),
+            deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, tensor{ {0, 0, 1, 1}, 0 }),
             reorder("out", "deconv", format::bfyx, data_types::f16)
     );
 
@@ -1874,7 +1874,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 2, 2 }, { 0, 0, -1, -1 }),
+            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 2, 2 }, tensor{{ 0, 0, 1, 1 }, 0}),
             reorder("out", "deconv", format::bfyx, data_types::f32)
     );
 
@@ -1922,7 +1922,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 2, 2 }, { 0, 0, -1, -1 }),
+            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 2, 2 }, tensor{{ 0, 0, 1, 1 }, 0}),
             reorder("out", "deconv", format::bfyx, data_types::f32)
     );
 
@@ -2022,7 +2022,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_pad1_b_fs_yx_fsv16_dw) {
             data("weights", weights),
             data("biases", biases),
             reorder("input_fsv16", "input", format::b_fs_yx_fsv16, data_types::f32),
-            deconvolution("deconv", "input_fsv16", { "weights" }, { "biases" }, 2, { 1, 1, 1, 1 }, { 0, 0, -1, -1 }),
+            deconvolution("deconv", "input_fsv16", { "weights" }, { "biases" }, 2, { 1, 1, 1, 1 }, tensor{{ 0, 0, 1, 1 }, 0}),
             reorder("out", "deconv", format::bfyx, data_types::f32)
     );
 
@@ -2120,7 +2120,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 4, 4 }, { 0, 0, -2, -2 }),
+            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 4, 4 }, tensor{{ 0, 0, 2, 2 }, 0}),
             reorder("out", "deconv", format::bfyx, data_types::f32)
     );
 
@@ -2176,7 +2176,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 4, 4 }, { 0, 0, -2, -2 }),
+            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1, 4, 4 }, tensor{{ 0, 0, 2, 2 }, 0}),
             reorder("out", "deconv", format::bfyx, data_types::f32)
     );
 
@@ -2261,7 +2261,7 @@ TEST(deconvolution_f32_fw_gpu, bs_fs_zyx_bsv16_fsv16_wsiz2x2x2_in1x1x2x2x2_strid
     topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            deconvolution("deconv", "input", { "weights" }, { 1,1,2,2,2 }, { 0, 0, -1, -1, -1 }),
+            deconvolution("deconv", "input", { "weights" }, { 1,1,2,2,2 }, tensor{ {0, 0, 1, 1, 1 }, 0}),
             reorder("out", "deconv", format::bfzyx, data_types::f32)
     );
 
@@ -2352,7 +2352,7 @@ struct deconvolution_random_test_params {
     format::type weights_format;
     tensor weights_size;
     tensor strides;
-    tensor input_offset;
+    tensor pad;
     bool with_bias;
     data_types output_type;
     cldnn::implementation_desc deconv_desc;
@@ -2384,7 +2384,7 @@ struct deconvolution_random_test_params {
             "_" + print_tensor(param.weights_size) +
             (param.with_bias ? "_bias" : "") +
             "_s_" + print_tensor(param.strides) +
-            "_off_" + print_tensor(param.input_offset) +
+            "_off_" + print_tensor(param.pad) +
             "_out_" + dt_to_str(param.output_type) +
             (!param.deconv_desc.kernel_name.empty() ? "_kernel_" + param.deconv_desc.kernel_name : "") +
             (param.deconv_desc.output_format != format::any ? "_fmt_" + fmt_to_str(param.deconv_desc.output_format) : "");
@@ -2549,9 +2549,9 @@ public:
             bias_data = generate_random_1d<OutputT>(bias_lay.size.feature[0], -1, 1);
             set_values(bias_mem, bias_data);
             topo.add(cldnn::data("bias", bias_mem));
-            topo.add(cldnn::deconvolution("deconv", "input", { "weights" }, { "bias" }, groups, params.strides, params.input_offset));
+            topo.add(cldnn::deconvolution("deconv", "input", { "weights" }, { "bias" }, groups, params.strides, params.pad));
         } else {
-            topo.add(cldnn::deconvolution("deconv", "input", { "weights" }, groups, params.strides, params.input_offset));
+            topo.add(cldnn::deconvolution("deconv", "input", { "weights" }, groups, params.strides, params.pad));
         }
 
         if (!params.deconv_desc.kernel_name.empty() || params.deconv_desc.output_format != cldnn::format::any) {
@@ -2586,7 +2586,7 @@ public:
                         weights_data[group][fi % ofm],
                         bias_data.empty() ? 0.f : static_cast<float>(bias_data[fi]),
                         params.strides,
-                        params.input_offset,
+                        params.pad,
                         group * ifm);
 
                     ASSERT_EQ(reference.size(), out_mem->get_layout().size.spatial[2]);
@@ -2703,19 +2703,18 @@ public:
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7}, wei_dt, format::oiyx, {15, 15, 1, 1}, tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7}, wei_dt, format::oiyx, {15, 15, 1, 1}, {1, 1, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
             // 3x3
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7}, wei_dt, format::oiyx, {15, 15, 3, 3}, tensor(1), {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7}, wei_dt, format::oiyx, {15, 15, 3, 3}, {1, 1, 2, 2}, {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 15, 7, 7}, wei_dt, format::oiyx, {15, 15, 3, 3}, tensor(1), tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 15, 7, 7}, wei_dt, format::oiyx, {15, 15, 3, 3}, {1, 1, 2, 2}, tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
             // Grouped
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 8, 7, 7}, wei_dt, format::goiyx, tensor(group(2), batch(16), feature(4), spatial(1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 8, 7, 7}, wei_dt, format::goiyx, tensor(group(2), batch(16), feature(4), spatial(1, 1)), {1, 1, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 8, 7, 7}, wei_dt, format::goiyx, tensor(group(2), batch(16), feature(4), spatial(3, 3)), tensor(1), {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 8, 7, 7}, wei_dt, format::goiyx, tensor(group(2), batch(16), feature(4), spatial(3, 3)), {1, 1, 2, 2}, {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 8, 7, 7}, wei_dt, format::goiyx, tensor(group(2), batch(16), feature(4), spatial(1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 8, 7, 7}, wei_dt, format::goiyx, tensor(group(2), batch(16), feature(4), spatial(1, 1)), {1, 1, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 8, 7, 7}, wei_dt, format::goiyx, tensor(group(2), batch(16), feature(4), spatial(3, 3)), tensor(1), tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 8, 7, 7}, wei_dt, format::goiyx, tensor(group(2), batch(16), feature(4), spatial(3, 3)), {1, 1, 2, 2}, tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
             // Depthwise
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 16, 7, 7}, wei_dt, format::goiyx, tensor(group(16), spatial(1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 16, 7, 7}, wei_dt, format::goiyx, tensor(group(16), spatial(1, 1)), {1, 1, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 16, 7, 7}, wei_dt, format::goiyx, tensor(group(16), spatial(3, 3)), tensor(1), {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 16, 7, 7}, wei_dt, format::goiyx, tensor(group(16), spatial(3, 3)), {1, 1, 2, 2}, {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
-
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 16, 7, 7}, wei_dt, format::goiyx, tensor(group(16), spatial(1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 16, 7, 7}, wei_dt, format::goiyx, tensor(group(16), spatial(1, 1)), {1, 1, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 16, 7, 7}, wei_dt, format::goiyx, tensor(group(16), spatial(3, 3)), tensor(1), tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 16, 7, 7}, wei_dt, format::goiyx, tensor(group(16), spatial(3, 3)), {1, 1, 2, 2}, tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
         }
         return *this;
     }
@@ -2727,18 +2726,18 @@ public:
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7, 7}, wei_dt, format::oizyx, {15, 15, 1, 1, 1}, tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7, 7}, wei_dt, format::oizyx, {15, 15, 1, 1, 1}, {1, 1, 2, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
             // 3x3
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7, 7}, wei_dt, format::oizyx, {15, 15, 3, 3, 3}, tensor(1), {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 15, 7, 7, 7}, wei_dt, format::oizyx, {15, 15, 3, 3, 3}, {1, 1, 2, 2, 2}, {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 15, 7, 7, 7}, wei_dt, format::oizyx, {15, 15, 3, 3, 3}, tensor(1), tensor{{0, 0, 1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 15, 7, 7, 7}, wei_dt, format::oizyx, {15, 15, 3, 3, 3}, {1, 1, 2, 2, 2}, tensor{{0, 0, 1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
             // Grouped
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 8, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(2), batch(16), feature(4), spatial(1, 1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 8, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(2), batch(16), feature(4), spatial(1, 1, 1)), {1, 1, 2, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 8, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(2), batch(16), feature(4), spatial(3, 3, 3)), tensor(1), {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 8, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(2), batch(16), feature(4), spatial(3, 3, 3)), {1, 1, 2, 2, 2}, {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 8, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(2), batch(16), feature(4), spatial(1, 1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 8, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(2), batch(16), feature(4), spatial(1, 1, 1)), {1, 1, 2, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 8, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(2), batch(16), feature(4), spatial(3, 3, 3)), tensor(1), tensor{{0, 0, 1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 8, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(2), batch(16), feature(4), spatial(3, 3, 3)), {1, 1, 2, 2, 2}, tensor{{0, 0, 1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
             // Depthwise
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 16, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(16), spatial(1, 1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 16, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(16), spatial(1, 1, 1)), {1, 1, 2, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 16, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(16), spatial(3, 3, 3)), tensor(1), {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 16, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(16), spatial(3, 3, 3)), {1, 1, 2, 2, 2}, {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 16, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(16), spatial(1, 1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 16, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(16), spatial(1, 1, 1)), {1, 1, 2, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 16, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(16), spatial(3, 3, 3)), tensor(1), tensor{{0, 0, 1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 16, 7, 7, 7}, wei_dt, format::goizyx, tensor(group(16), spatial(3, 3, 3)), {1, 1, 2, 2, 2}, tensor{{0, 0, 1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
         }
         return *this;
     }
@@ -2750,16 +2749,16 @@ public:
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 1, 1}, tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 1, 1}, {1, 1, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
             // 3x3
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 3, 3}, tensor(1), {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 3, 3}, {1, 1, 2, 2}, {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 3, 3}, tensor(1), tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 3, 3}, {1, 1, 2, 2}, tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
             // Asymmetric weights
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 3, 2}, tensor(1), {0, 0, 0, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 3, 2}, {1, 1, 2, 2}, {0, 0, 0, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 3, 2}, tensor(1), tensor{{0, 0, 0, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 31, 19, 17}, wei_dt, format::oiyx, {41, 31, 3, 2}, {1, 1, 2, 2}, tensor{{0, 0, 0, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
             // Uneven groups
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17}, wei_dt, format::goiyx, tensor(group(3), batch(7), feature(9), spatial(1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17}, wei_dt, format::goiyx, tensor(group(3), batch(7), feature(9), spatial(1, 1)), {1, 1, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17}, wei_dt, format::goiyx, tensor(group(3), batch(7), feature(9), spatial(3, 3)), tensor(1), {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17}, wei_dt, format::goiyx, tensor(group(3), batch(7), feature(9), spatial(3, 3)), {1, 1, 2, 2}, {0, 0, -1, -1, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 27, 19, 17}, wei_dt, format::goiyx, tensor(group(3), batch(7), feature(9), spatial(1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 27, 19, 17}, wei_dt, format::goiyx, tensor(group(3), batch(7), feature(9), spatial(1, 1)), {1, 1, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 27, 19, 17}, wei_dt, format::goiyx, tensor(group(3), batch(7), feature(9), spatial(3, 3)), tensor(1), tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
+            push_back(deconvolution_random_test_params{in_dt, in_fmt, {b, 27, 19, 17}, wei_dt, format::goiyx, tensor(group(3), batch(7), feature(9), spatial(3, 3)), {1, 1, 2, 2}, tensor{{0, 0, 1, 1, 0}, 0}, true, out_dt, implementation_desc{out_fmt, ""}});
         }
         return *this;
     }
@@ -2771,16 +2770,16 @@ public:
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17, 11}, wei_dt, format::oizyx, {41, 31, 1, 1, 1}, tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17, 11}, wei_dt, format::oizyx, {41, 31, 1, 1, 1}, {1, 1, 2, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
             // 3x3
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17, 11}, wei_dt, format::oizyx, {41, 31, 3, 3, 3}, tensor(1), {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17, 11}, wei_dt, format::oizyx, {41, 31, 3, 3, 3}, {1, 1, 2, 2, 2}, {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17, 11}, wei_dt, format::oizyx, {41, 31, 3, 3, 3}, tensor(1), tensor{{0, 0, 1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17, 11}, wei_dt, format::oizyx, {41, 31, 3, 3, 3}, {1, 1, 2, 2, 2}, tensor{{0, 0, 1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
             // Asymmetric weights
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17, 11}, wei_dt, format::oizyx, {41, 31, 3, 2, 4}, tensor(1), {0, 0, 0, -1, -2}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17, 11}, wei_dt, format::oizyx, {41, 31, 3, 2, 4}, tensor(1), tensor{{0, 0, 0, 1, 2}, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 31, 19, 17, 11}, wei_dt, format::oizyx, {41, 31, 3, 2, 4}, {1, 1, 2, 2, 2}, {0, 0, 0, -1, -2}, true, out_dt, implementation_desc{out_fmt, ""} });
             // Uneven groups
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17, 11}, wei_dt, format::goizyx, tensor(group(3), batch(7), feature(9), spatial(1, 1, 1)), tensor(1), tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
             push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17, 11}, wei_dt, format::goizyx, tensor(group(3), batch(7), feature(9), spatial(1, 1, 1)), {1, 1, 2, 2, 2}, tensor(0), true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17, 11}, wei_dt, format::goizyx, tensor(group(3), batch(7), feature(9), spatial(3, 3, 3)), tensor(1), {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
-            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17, 11}, wei_dt, format::goizyx, tensor(group(3), batch(7), feature(9), spatial(3, 3, 3)), {1, 1, 2, 2, 2}, {0, 0, -1, -1, -1}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17, 11}, wei_dt, format::goizyx, tensor(group(3), batch(7), feature(9), spatial(3, 3, 3)), tensor(1), tensor{{0, 0, -1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
+            push_back(deconvolution_random_test_params{ in_dt, in_fmt, {b, 27, 19, 17, 11}, wei_dt, format::goizyx, tensor(group(3), batch(7), feature(9), spatial(3, 3, 3)), {1, 1, 2, 2, 2}, tensor{{0, 0, 1, 1, 1}, 0}, true, out_dt, implementation_desc{out_fmt, ""} });
         }
         return *this;
     }
@@ -2838,3 +2837,56 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_extended, deconvolution_random_test, testing::
     .add_all_3d(data_types::i8, data_types::i8, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16)
     .add_all_3d(data_types::u8, data_types::i8, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16)
 ), deconvolution_random_test_params::print_params);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
+    //  Filter : 1x1
+    //  Input  : 2x2
+    //  Output : 4x4
+    //  Stride : 2x2
+
+    auto& engine = get_onednn_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::oiyx, { 1, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values(input, { 8.f, 0.5f, 6.f, 9.f });
+    set_values(weights, { -2.0f, 0.5f, 3.5f, 1.5f });
+    set_values(biases, { 1.0f });
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        data("biases", biases),
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1,1,2,2 })
+    );
+
+    build_options bo;
+    implementation_desc conv_impl = { format::yxfb, "", impl_types::onednn };
+    bo.set_option(build_option::force_implementations({ {"deconv", conv_impl} }));
+
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "deconv");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+    std::vector<float> expected_output_vec = {
+        -15.f, 5.f, 0.f, 1.25f,
+        29.f, 13.f, 2.75f, 1.75,
+        -11.f, 4.f, -17.f, 5.5f,
+        22.f, 10.f, 32.5f, 14.5f
+    };
+
+    for (unsigned int i = 0; i < expected_output_vec.size(); i++)
+    {
+        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+    }
+}
+#endif

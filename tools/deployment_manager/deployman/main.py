@@ -183,7 +183,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="", formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument("--targets", nargs="+", help="List of targets."
+    parser.add_argument("--targets", nargs="+", help="List of targets. "
                                                      "Possible values: \n{}".format(help_msg))
     parser.add_argument("--user_data", type=str, help="Path to user data that will be added to "
                                                       "the deployment package", default=None)

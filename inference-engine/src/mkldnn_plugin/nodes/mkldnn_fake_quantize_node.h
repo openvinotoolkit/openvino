@@ -56,7 +56,7 @@ struct jit_uni_quantize_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_quantize_kernel(jit_quantize_params jqp) : ker_(nullptr), jqp_(jqp) {}
+    explicit jit_uni_quantize_kernel(const jit_quantize_params& jqp) : ker_(nullptr), jqp_(jqp) {}
     virtual ~jit_uni_quantize_kernel() {}
 
     virtual void create_ker() = 0;
@@ -73,10 +73,14 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
     size_t getAxis() const { return axis; }
 
     bool isBinarization() const { return getAlgorithm() == Algorithm::FQBinarization; }
+
+    bool needPrepareParams() const override;
+    void prepareParams() override;
 
     const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
     const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
@@ -90,12 +94,24 @@ public:
     const std::vector<float>& getOutputScale() const { return outputScale; }
     const std::vector<float>& getOutputShift() const { return outputShift; }
 
-    void setCropLow(std::vector<float> newCropLow) { cropLow = std::move(newCropLow); isPostOpDataInitialized = false; }
-    void setCropHigh(std::vector<float> newCropHigh) { cropHigh = std::move(newCropHigh); isPostOpDataInitialized = false; }
-    void setInputScale(std::vector<float> newInputScale) { inputScale = std::move(newInputScale); isPostOpDataInitialized = false; }
-    void setInputShift(std::vector<float> newInputShift) { inputShift = std::move(newInputShift); isPostOpDataInitialized = false; }
-    void setOutputScale(std::vector<float> newOutputScale) { outputScale = std::move(newOutputScale); isPostOpDataInitialized = false;}
-    void setOutputShift(std::vector<float> newOutputShift) { outputShift = std::move(newOutputShift); isPostOpDataInitialized = false; }
+    void setCropLow(std::vector<float> newCropLow) {
+        cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); isPostOpDataInitialized = false;
+    }
+    void setCropHigh(std::vector<float> newCropHigh) {
+        cropHigh = std::move(newCropHigh); cropHighSize = cropHigh.size(); isPostOpDataInitialized = false;
+    }
+    void setInputScale(std::vector<float> newInputScale) {
+        inputScale = std::move(newInputScale); inputScaleSize = inputScale.size(); isPostOpDataInitialized = false;
+    }
+    void setInputShift(std::vector<float> newInputShift) {
+        inputShift = std::move(newInputShift); inputShiftSize = inputShift.size(); isPostOpDataInitialized = false;
+    }
+    void setOutputScale(std::vector<float> newOutputScale) {
+        outputScale = std::move(newOutputScale); outputScaleSize = outputScale.size(); isPostOpDataInitialized = false;
+    }
+    void setOutputShift(std::vector<float> newOutputShift) {
+        outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); isPostOpDataInitialized = false;
+    }
 
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
     bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
@@ -105,16 +121,49 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops) override;
+    // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
+    // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
+    // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}, int align = 16) override;
+    void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    enum BroadcastingPolicy {
+        PerChannel, // all FQ operations are per channel
+        PerTensor,  // all FQ operations are per tensor
+        Mixed,      // some per channel, some per tensor
+    };
+
+    BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
+
+    MKLDNNMemoryPtr cropLowMemory;
+    MKLDNNMemoryPtr cropHighMemory;
+    MKLDNNMemoryPtr inputScaleMemory;
+    MKLDNNMemoryPtr inputShiftMemory;
+    MKLDNNMemoryPtr outputScaleMemory;
+    MKLDNNMemoryPtr outputShiftMemory;
+
 private:
+    struct FakeQuantizeExecutor {
+        virtual void exec(const MKLDNNFakeQuantizeNode& node) = 0;
+        virtual ~FakeQuantizeExecutor() = default;
+    };
+    using executorPtr = std::shared_ptr<FakeQuantizeExecutor>;
+    executorPtr execPtr = nullptr;
+
+    struct FakeQuantizeJitExecutor : public FakeQuantizeExecutor {
+        FakeQuantizeJitExecutor(const jit_quantize_params &_jqp);
+        void exec(const MKLDNNFakeQuantizeNode& node) override;
+        std::unique_ptr<jit_uni_quantize_kernel> pKernel;
+    };
+
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
+    void initializePostOpData(const VectorDims &postOpDims, const size_t bufferAlignment);
     void executeReference();
-    void executeBinarization();
-    void executeQuantization();
+    void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
+    void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
 
     size_t levels = 0;
 
@@ -130,6 +179,13 @@ private:
     std::vector<float> outputScale;
     std::vector<float> outputShift;
 
+    size_t cropLowSize;
+    size_t cropHighSize;
+    size_t inputScaleSize;
+    size_t inputShiftSize;
+    size_t outputScaleSize;
+    size_t outputShiftSize;
+
     // mkldnn style post ops data representation
     bool isPostOpDataInitialized = false;
     mkldnn::impl::shifts_t<float> cropLowData;
@@ -144,16 +200,15 @@ private:
     bool isOutputLowBroadcasted = false;
     bool isOutputHighBroadcasted = false;
 
+    size_t currentAxisSize = 0;
     size_t axis = 0;
 
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 
-    jit_quantize_params jqp = {};
-
-    std::shared_ptr<jit_uni_quantize_kernel> quantize_kernel = nullptr;
-
     std::string errorPrefix;
+
+    BroadcastingPolicy broadcastingPolicy;
 };
 
 }  // namespace MKLDNNPlugin

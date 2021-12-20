@@ -38,11 +38,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
     this->offsetPadding = offsetPadding;
 
     if (offsetPaddingToData.empty() && !order.empty()) {
-        this->offsetPaddingToData.resize(order.size());
-        this->offsetPaddingToData[order.size() - 1] = 0;
-        for (size_t i = 2; i <= order.size(); i++) {
-            this->offsetPaddingToData[order.size() - i] = 0;
-        }
+        this->offsetPaddingToData.resize(order.size(), 0);
     } else {
         this->offsetPaddingToData = offsetPaddingToData;
     }
@@ -113,7 +109,9 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
     }
 
     auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
+                                                                         // WA: for some nodes ngraph compute upper bound depending on precision max value
+                                                                         std::numeric_limits<int32_t>::max() == x; })) {
         return UNDEFINED_SIZE;
     }
 
@@ -216,29 +214,6 @@ bool CpuBlockedMemoryDesc::isTailCFormat() const {
     return true;
 }
 
-std::string CpuBlockedMemoryDesc::serializeFormat() const {
-    std::stringstream result;
-    char startLetter = 'a';
-    std::unordered_map<size_t, size_t> mapAxisBlockSize;
-    for (size_t i = shape.getRank(); i < order.size(); ++i) {
-        mapAxisBlockSize.insert({order[i], blockedDims[i]});
-    }
-
-    for (size_t i = 0; i < shape.getRank(); ++i) {
-        char nextLetter = startLetter + order[i];
-        if (mapAxisBlockSize.count(i)) {
-            nextLetter = toupper(nextLetter);
-        }
-        result << nextLetter;
-    }
-
-    for (auto& item : mapAxisBlockSize) {
-        result << item.second << char(startLetter + item.first);
-    }
-
-    return result.str();
-}
-
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
     if (std::any_of(dims.begin(), dims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
         IE_THROW() << "Can't clone desc if new dims are undefined";
@@ -256,7 +231,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) 
     VectorDims newBlockedDims(order.size());
 
     for (size_t i = 0; i < dims.size(); ++i) {
-        newBlockedDims[order[i]] = dims[i];
+        newBlockedDims[i] = dims[order[i]];
     }
 
     for (size_t i = dims.size(); i < order.size(); ++i) {
@@ -298,4 +273,20 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
     if (std::any_of(blockedDims.begin(), blockedDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; }))
         IE_THROW() << "Can't compute padded elements count for non undefined blocked dims";
     return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
+}
+
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithUndefStridesAndOffset() const {
+    const auto orderSize = getOrder().size();
+    return std::make_shared<CpuBlockedMemoryDesc>(getPrecision(), getShape(), getBlockDims(), getOrder(), Shape::UNDEFINED_DIM,
+                                                  VectorDims(orderSize, 0), VectorDims(orderSize, Shape::UNDEFINED_DIM));
+}
+
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithDefaultStridesAndOffset() const {
+    return std::make_shared<CpuBlockedMemoryDesc>(getPrecision(), getShape(), getBlockDims(), getOrder());
+}
+
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
+    auto newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
+    newDesc->setPrecision(prec);
+    return newDesc;
 }

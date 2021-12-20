@@ -12,6 +12,7 @@
 #include <utils/general_utils.h>
 #include "common/blocked_desc_creator.h"
 #include "utils/ngraph_utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -197,7 +198,7 @@ private:
 
 }  // namespace MKLDNNPlugin
 
-int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) {
+static int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) {
     const auto isIterable = [](const PortMap& rule) { return rule.axis != -1; };
 
     const auto getNumIterations = [](const PortMap& rule, const std::vector<size_t>& dimensions) -> int {
@@ -283,8 +284,8 @@ bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const 
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::TensorIterator::type_info,
-                ngraph::op::v5::Loop::type_info)) {
+                ngraph::op::v0::TensorIterator::get_type_info_static(),
+                ngraph::op::v5::Loop::get_type_info_static())) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
             return false;
         }
@@ -321,11 +322,8 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
 
     const auto &outMap = sub_graph.GetOutputNodesMap();
     for (const auto &out : tiOp->get_function()->get_results()) {
-        auto prev = out->get_input_node_shared_ptr(0);
-        std::string inputID = prev->get_friendly_name();
-        if (prev->get_output_size() > 1) {
-            inputID += "." + std::to_string(out->get_input_source_output(0).get_index());
-        }
+        const auto prev = out->input_value(0);
+        const auto inputID = ngraph::op::util::create_ie_output_name(prev);
         auto outNode = outMap.find(inputID);
         if (outNode != outMap.end()) {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();

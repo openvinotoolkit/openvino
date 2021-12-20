@@ -29,14 +29,19 @@ cl::PFN_clCreateFromMediaSurfaceINTEL cl::ImageVA::pfn_clCreateFromMediaSurfaceI
 cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL;
 #endif
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_ocl.hpp>
+#endif
+
 namespace cldnn {
 namespace ocl {
 
 ocl_error::ocl_error(cl::Error const& err)
     : std::runtime_error(err.what() + std::string(", error code: ") + std::to_string(err.err())) {}
 
-ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type, const engine_configuration& conf)
-    : engine(dev, conf) {
+ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
+            const engine_configuration& conf, const InferenceEngine::ITaskExecutor::Ptr task_executor)
+    : engine(dev, conf, task_executor) {
     if (runtime_type != runtime_types::ocl) {
         throw std::runtime_error("Invalid runtime type specified for OCL engine. Only OCL runtime is supported");
     }
@@ -46,9 +51,21 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type, const 
         throw std::runtime_error("[CLDNN] Invalid device type passed to ocl engine");
     casted->get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
 
-    _program_stream.reset(new ocl_stream(*this));
     _usm_helper.reset(new cl::UsmHelper(get_cl_context(), get_cl_device(), use_unified_shared_memory()));
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+#endif
+    _program_stream.reset(new ocl_stream(*this));
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::engine& ocl_engine::get_onednn_engine() const {
+    if (!_onednn_engine)
+        throw std::runtime_error("[GPU] onednn engine is nullptr");
+    return *_onednn_engine;
+}
+#endif
 
 const cl::Context& ocl_engine::get_cl_context() const {
     auto cl_device = std::dynamic_pointer_cast<ocl_device>(_device);
@@ -71,6 +88,12 @@ const cl::UsmHelper& ocl_engine::get_usm_helper() const {
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
     if (layout.bytes_count() > get_device_info().max_alloc_mem_size) {
         throw std::runtime_error("exceeded max size of memory object allocation");
+    }
+
+    if (type != allocation_type::cl_mem && !supports_allocation(type)) {
+        std::ostringstream type_str;
+        type_str << type;
+        throw std::runtime_error("Unsupported allocation type " + type_str.str());
     }
 
     try {
@@ -145,6 +168,9 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
         } else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
             cl::Buffer buf(static_cast<cl_mem>(params.mem), true);
             return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf);
+        } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
+            cl::UsmMemory usm_buffer(get_usm_helper(), params.mem);
+            return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer);
         } else {
             throw std::runtime_error("unknown shared object fromat or type");
         }
@@ -191,16 +217,22 @@ stream::ptr ocl_engine::create_stream() const {
     return std::make_shared<ocl_stream>(*this);
 }
 
+stream::ptr ocl_engine::create_stream(void* handle) const {
+    return std::make_shared<ocl_stream>(*this, handle);
+}
+
 stream& ocl_engine::get_program_stream() const {
     return *_program_stream;
 }
 
-std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration) {
-    return std::make_shared<ocl::ocl_engine>(device, runtime_type, configuration);
+std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runtime_types runtime_type,
+                            const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    return std::make_shared<ocl::ocl_engine>(device, runtime_type, configuration, task_executor);
 }
 
-std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration) {
-    return ocl_engine::create(device, runtime_type, configuration);
+std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type,
+                            const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    return ocl_engine::create(device, runtime_type, configuration, task_executor);
 }
 
 }  // namespace ocl

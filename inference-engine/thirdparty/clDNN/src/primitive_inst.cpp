@@ -8,14 +8,13 @@
 #include "generic_layer_inst.h"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
-#include "fused_conv_eltwise_inst.h"
 
-#include "cldnn/graph/network.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/memory.hpp"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "json_object.h"
 #include <string>
 #include <stack>
@@ -23,7 +22,62 @@
 #include <memory>
 #include <algorithm>
 
+namespace {
+
+bool is_optimized_output_user(const program_node* user) {
+    if (user->can_be_optimized()) {
+        if (user->is_output())
+            return true;
+
+        auto users = user->get_users();
+        for (const auto& u : users) {
+            if (is_optimized_output_user(u)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
+bool is_output_buffer(const program_node& node) {
+    if (node.is_output())
+        return true;
+
+    // Try to recursively find any optimized out user which is also network output
+    for (const auto& user : node.get_users()) {
+        if (is_optimized_output_user(user)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+}  // namespace
+
 namespace cldnn {
+
+bool is_user_cpu(const program_node* user) {
+    if (user->can_be_optimized()) {
+        auto users = user->get_users();
+        for (const auto& u : users) {
+            if (is_user_cpu(u)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    return user->get_selected_impl()->is_cpu();
+}
+
+bool is_any_user_cpu(const std::list<const program_node*>& users) {
+    for (const auto& user : users) {
+        if (is_user_cpu(user))
+            return true;
+    }
+    return false;
+}
 
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
@@ -128,7 +182,8 @@ void primitive_inst::build_deps() {
 }
 
 primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
-    : _network(network), _node(node), _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr), _output(), _output_changed(false) {
+    : _network(network), _node(node), _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr),
+      _output(), _output_changed(false), _mem_allocated(allocate_memory) {
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
@@ -139,13 +194,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             // Get mutable_data nodes count from nodes users
             if (user->is_type<mutable_data>()) {
                 mutable_data_count++;
-            } else if (user->is_type<fused_conv_eltwise>()) {
-                if (!user->as<fused_conv_eltwise>().get_users().empty() &&
-                    (*user->as<fused_conv_eltwise>().get_users().begin())->is_type<mutable_data>()) {
-                    if (user->as<fused_conv_eltwise>().get_dependency(1).id() == node.id()) {
-                        user_count--;
-                    }
-                }
             }
         }
 
@@ -162,54 +210,124 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     }
 }
 
-memory::ptr primitive_inst::allocate_output() {
-    auto layout = _node.get_output_layout();
+void primitive_inst::allocate_internal_buffers(void) {
+    if (_impl == nullptr) return;
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+    if (ibuf_layouts.empty()) return;
+
+    auto device_mem_acc = [&](size_t a, std::shared_ptr<primitive_inst> b) {
+        if (!b->mem_allocated()) return a;
+        if (b->output_memory().get_allocation_type() == allocation_type::usm_device ||
+            b->output_memory().get_allocation_type() == allocation_type::cl_mem)
+            return a + b->output_memory().size();
+        else
+            return a;
+    };
+
     auto& engine = get_network().get_engine();
+    bool input_device_mem = false;
+
+    // NOTE: Currently the ocl driver aborts at runtime when there are layers using device memory close to max size within multiple streams.
+    // Decided the limitation as 85 % empirically, but still it needs further investigation.
+    const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
+
+    auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), 0, device_mem_acc);
+    if (_output->get_allocation_type() ==  allocation_type::usm_device) {
+        total_device_mem_size += _output->size();
+    }
+
+    int64_t available_device_mem_size = engine.get_device_info().max_global_mem_size - total_device_mem_size;
+    // check if there is any device mem input
+    if (engine.supports_allocation(allocation_type::usm_device)) {
+        for (const auto& dep : inst_deps) {
+            if (dep->output_memory().get_allocation_type() == allocation_type::usm_device) {
+                input_device_mem = true;
+                break;
+            }
+        }
+    }
+
+    for (auto layout : ibuf_layouts) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": internal buf]" << std::endl;
+        }
+        if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0))
+            _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_device));
+        else
+            _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_host));
+    }
+}
+memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node,
+        bool is_internal) {
+    auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
+            allocation_type type, bool reusable) {
+        if (_engine.configuration().use_memory_pool)
+                return pool.get_memory(layout, id, 0, dependencies, type, reusable);
+        return pool.get_memory(layout, type);
+    };
+
+    auto layout = _node.get_output_layout();
+    // TODO: Add a preprocessing step to do  alloc_type check before actual allocation
+    const auto& node_deps = _node.get_dependencies();
+    auto device_mem_acc = [&](size_t a, program_node* b) {
+        return a + b->get_output_layout().bytes_count();
+    };
+
+    bool usm_device_allocatable = true;
+    const auto& total_device_input_mem_size = std::accumulate(node_deps.begin(), node_deps.end(), (uint64_t)0, device_mem_acc);
+    if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
+        usm_device_allocatable = false;
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
-    auto use_lockable_memory = _node.is_output() || _node.get_selected_impl()->is_cpu()
-                               || std::any_of(_node.get_users().begin(), _node.get_users().end(),
-                                              [](const program_node* n) {return n->get_selected_impl()->is_cpu() || n->can_be_optimized(); })
-                               || !engine.supports_allocation(allocation_type::usm_device);
-    allocation_type alloc_type = use_lockable_memory ?
-                                 engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d())
-                                                     : allocation_type::usm_device;
+    auto use_lockable_memory = is_output_buffer(_node) || _node.get_selected_impl()->is_cpu() || is_any_user_cpu(_node.get_users()) ||
+                               !_engine.supports_allocation(allocation_type::usm_device);
+
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    if (!_network.is_internal() && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
+    const auto& lockable_mem_type = _engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    const auto& alloc_type = use_lockable_memory ? lockable_mem_type
+        : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
+
+    if (is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
-        return _network.get_memory_from_pool(layout,
-                                             _node.id(),
-                                             _node.get_memory_dependencies(),
-                                             alloc_type,
-                                             false);
-    } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
-               engine.supports_allocation(allocation_type::usm_device)) {
+        return get_memory_from_pool(_engine,
+                layout,
+                _node.id(),
+                _node.get_memory_dependencies(),
+                alloc_type,
+                false);
+    } else if (is_internal && _node.is_output() && _node.is_type<generic_layer>() &&
+            _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
-        return engine.allocate_memory(layout, allocation_type::usm_device, false);
-    } else if (_network.is_internal() && !_node.is_output() && _node.is_type<input_layout>()) {
+        return _engine.allocate_memory(layout, allocation_type::usm_device, false);
+    } else if (is_internal && !_node.is_output() && _node.is_type<input_layout>()) {
         // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
         // or just reuse primitive's memory
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": constant]" << std::endl;
         }
-        return engine.allocate_memory(layout, alloc_type, false);
-    } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
+        return _engine.allocate_memory(layout, alloc_type, false);
+    } else if (is_internal || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
-        return engine.allocate_memory(layout, alloc_type);
+        return _engine.allocate_memory(layout, alloc_type);
     } else {
-        return _network.get_memory_from_pool(layout,
-                                             _node.id(),
-                                             _node.get_memory_dependencies(),
-                                             alloc_type,
-                                             true);
+        return get_memory_from_pool(_engine,
+                layout,
+                _node.id(),
+                _node.get_memory_dependencies(),
+                alloc_type,
+                true);
     }
+}
+memory::ptr primitive_inst::allocate_output() {
+    return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal());
 }
 
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(
@@ -246,5 +364,4 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
 
     return primitive_description.str();
 }
-
 }  // namespace cldnn

@@ -105,13 +105,13 @@ protected:
         auto b = xmm2;
         auto c = xmm3;
 
-        movdqu(a, xword[src]);          // load 4 floats
-        movdqu(b, a);                   // b = a
-        movdqu(c, a);                   // c = a
-        pcmpeqd(b, zero);               // if (a == 0) b = 1 else b = 0
-        pand(c, mask);                  // c = a & 01111111100000000000000000000000
-        pcmpeqd(c, zero);               // if (c == 0) c = 1 else c = 0
-        ptest(b, c);                    // if ((!b & c) == 0) CF = 1 else CF = 0
+        uni_vmovdqu(a, xword[src]);          // load 4 floats
+        uni_vmovdqu(b, a);                   // b = a
+        uni_vmovdqu(c, a);                   // c = a
+        uni_vpcmpeqd(b, b, zero);               // if (a == 0) b = 1 else b = 0
+        uni_vpand(c, mask);                  // c = a & 01111111100000000000000000000000
+        uni_vpcmpeqd(c, c, zero);               // if (c == 0) c = 1 else c = 0
+        uni_vtestps(b, c);                    // if ((!b & c) == 0) CF = 1 else CF = 0
     }
 
     template<cpu_isa_t isa>
@@ -230,11 +230,11 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
     if (!one_of(op->get_type_info(),
-            v0::Parameter::type_info,
-            v0::Constant::type_info,
-            v0::Result::type_info,
-            v3::ReadValue::type_info,
-            v6::ReadValue::type_info))
+            v0::Parameter::get_type_info_static(),
+            v0::Constant::get_type_info_static(),
+            v0::Result::get_type_info_static(),
+            v3::ReadValue::get_type_info_static(),
+            v6::ReadValue::get_type_info_static()))
         IE_THROW(NotImplemented) << "CPU Input node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
 
     constant = ConstantType::NoConst;
@@ -393,7 +393,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outPortConfs;
 
     if (getType() == Input || getType() == MemoryInput) {
-        precision = getOriginalOutputPrecisionAtPort(0);
+        auto precision = getOriginalOutputPrecisionAtPort(0);
         if (precision == Precision::U16 || isMeanImage) {
             precision = Precision::FP32;
         }
@@ -403,7 +403,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
             inPortConfs.push_back({LayoutType::ncsp, precision, true});
         }
     } else if (getType() == Output) {
-        precision = getOriginalInputPrecisionAtPort(0);
+        auto precision = getOriginalInputPrecisionAtPort(0);
         if (precision == Precision::U16) precision = Precision::FP32;
 
         inPortConfs.push_back({LayoutType::ncsp, precision});

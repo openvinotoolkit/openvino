@@ -28,8 +28,8 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::lrn_forward::desc> desc);
     operator std::shared_ptr<mkldnn::lrn_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::pooling_forward::desc>();
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_v2_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::pooling_v2_forward::desc>();
 
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::softmax_forward::desc> desc);
     operator std::shared_ptr<mkldnn::softmax_forward::desc>();
@@ -48,6 +48,9 @@ public:
 
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc> desc);
     operator std::shared_ptr<mkldnn::eltwise_forward::desc>();
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::matmul::desc> desc);
+    operator std::shared_ptr<mkldnn::matmul::desc>();
 
     mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
             const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) const;

@@ -68,11 +68,17 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     KernelData kd = KernelData::Default<lstm_dynamic_input_params>(params);
     lstm_dynamic_input_params& dlstm_params = *static_cast<lstm_dynamic_input_params*>(kd.params.get());
 
+    auto in_layout = dlstm_params.inputs[0].GetLayout();
+    auto out_layout = dlstm_params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
+                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE }};
+
     const auto& out = dlstm_params.output;
     auto hidden_size = out.X().v;
 
     dispatchData.gws = { hidden_size / simd_size, out.Batch().v * out.Y().v, out.Feature().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     bool succeed = UpdateWeightsParams(dlstm_params,
         options,

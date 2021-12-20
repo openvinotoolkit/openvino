@@ -78,18 +78,6 @@ LIB_INSTALL_CFG = {
         'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
-    'myriad_plugin': {
-        'name': 'myriad',
-        'prefix': 'libs.core',
-        'install_dir': OV_RUNTIME_LIBS_DIR,
-        'rpath': LIBS_RPATH,
-    },
-    'ngraph_libs': {
-        'name': 'ngraph',
-        'prefix': 'libs.core',
-        'install_dir': OV_RUNTIME_LIBS_DIR,
-        'rpath': LIBS_RPATH,
-    },
     'tbb_libs': {
         'name': 'tbb',
         'prefix': 'libs.tbb',
@@ -106,6 +94,11 @@ PY_INSTALL_CFG = {
     },
     'ngraph_py': {
         'name': f'pyngraph_{PYTHON_VERSION}',
+        'prefix': 'site-packages',
+        'install_dir': PY_PACKAGES_DIR,
+    },
+    'pyopenvino' : {
+        'name': f'pyopenvino_{PYTHON_VERSION}',
         'prefix': 'site-packages',
         'install_dir': PY_PACKAGES_DIR,
     },
@@ -178,7 +171,7 @@ class CustomBuild(build):
             self.spawn(['cmake', '-H' + str(openvino_root_dir), '-B' + self.build_temp,
                         '-DCMAKE_BUILD_TYPE={type}'.format(type=self.config),
                         '-DENABLE_PYTHON=ON',
-                        '-DNGRAPH_ONNX_FRONTEND_ENABLE=ON'])
+                        '-DENABLE_OV_ONNX_FRONTEND=ON'])
 
             self.announce('Building binaries', level=3)
             self.spawn(['cmake', '--build', self.build_temp,
@@ -446,6 +439,7 @@ ext_modules = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)) if pkg_name
 
 setup(
     version=config('WHEEL_VERSION', '0.0.0'),
+    build=config('WHEEL_BUILD', '000'),
     author_email=config('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
     name=pkg_name,
     license=config('WHEEL_LICENCE_TYPE', 'OSI Approved :: Apache Software License'),

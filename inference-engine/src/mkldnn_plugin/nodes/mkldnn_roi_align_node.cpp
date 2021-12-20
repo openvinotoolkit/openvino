@@ -25,11 +25,7 @@ using ngPoolingMode = ngraph::op::v3::ROIAlign::PoolingMode;
 
 bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-        const auto roiAlign = std::dynamic_pointer_cast<const ngraph::opset3::ROIAlign>(op);
+        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset3::ROIAlign>(op);
         if (!roiAlign) {
             errorMessage = "Only opset3 ROIAlign operation is supported";
             return false;
@@ -52,7 +48,7 @@ MKLDNNROIAlignNode::MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, 
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-        const auto roiAlign = std::dynamic_pointer_cast<const ngraph::opset3::ROIAlign>(op);
+        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset3::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
         spatialScale = roiAlign->get_spatial_scale();
@@ -93,15 +89,15 @@ void MKLDNNROIAlignNode::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
     }
 
-    if (getInputShapeAtPort(1).getStaticDims()[1] != 4) {
-        IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
-                           << getInputShapeAtPort(1).getStaticDims()[0] << "," << getInputShapeAtPort(1).getStaticDims()[1] << "]";
+    const auto& proposalsDims = getInputShapeAtPort(1).getDims();
+    if (proposalsDims[1] != 4) {
+        IE_THROW() << errorPrefix << "has invalid shape on 1st input: [" << proposalsDims[0] << "," << proposalsDims[1] << "]";
     }
 
-    if (getInputShapeAtPort(1).getStaticDims()[0] != getInputShapeAtPort(2).getStaticDims()[0]) {
+    const auto& indexesDims = getInputShapeAtPort(2).getDims();
+    if (!dimsEqualWeak(proposalsDims[0], indexesDims[0])) {
         IE_THROW() << errorPrefix << "has different sizes of inputs for proposals ("
-                           << getInputShapeAtPort(1).getStaticDims()[0] << ") and indexes ("
-                           << getInputShapeAtPort(2).getStaticDims()[0] << ")";
+                   << proposalsDims[0] << ") and indexes (" << indexesDims[0] << ")";
     }
 }
 
@@ -238,7 +234,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
         auto samplingRatioX = samplingRatio == 0 ? static_cast<int>(ceil(binWidth)) : samplingRatio;
         auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(ceil(binHeight)) : samplingRatio;
 
-        uint64_t numSamplesInBin = samplingRatioX * samplingRatioY;
+        uint64_t numSamplesInBin = static_cast<uint64_t>(samplingRatioX) * samplingRatioY;
 
         float sampleDistanceX = binWidth / samplingRatioX;
         float sampleDistanceY = binHeight / samplingRatioY;
@@ -317,25 +313,20 @@ void MKLDNNROIAlignNode::executeSpecified() {
                                     pointVector[sampleIndex + 3].second * wInputStride + blockResidual_;
                 float part4 = srcData[part4Index];
 
+                float sampleValue =
+                        weightVector[sampleIndex] * part1 +
+                        weightVector[sampleIndex + 1] * part2 +
+                        weightVector[sampleIndex + 2] * part3 +
+                        weightVector[sampleIndex + 3] * part4;
                 switch (getAlgorithm()) {
                     case Algorithm::ROIAlignMax:
                     {
-                        float sampleValue = std::max(
-                                {weightVector[sampleIndex] * part1,
-                                 weightVector[sampleIndex + 1] * part2,
-                                 weightVector[sampleIndex + 2] * part3,
-                                 weightVector[sampleIndex + 3] * part4});
                         pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
                         break;
                     }
                     case Algorithm::ROIAlignAvg:
                     default:
                     {
-                        float sampleValue =
-                                weightVector[sampleIndex] * part1 +
-                                weightVector[sampleIndex + 1] * part2 +
-                                weightVector[sampleIndex + 2] * part3 +
-                                weightVector[sampleIndex + 3] * part4;
                         pooledValue += sampleValue / numSamplesInBin;
                     }
                 }
@@ -373,6 +364,18 @@ bool MKLDNNROIAlignNode::created() const {
     return getType() == ROIAlign;
 }
 
-void MKLDNNROIAlignNode::createPrimitive() {}
+bool MKLDNNROIAlignNode::needPrepareParams() const {
+    return false;
+}
+
+void MKLDNNROIAlignNode::executeDynamicImpl(mkldnn::stream strm) {
+    return execute(strm);
+}
+
+void MKLDNNROIAlignNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
+}
 
 REG_MKLDNN_PRIM_FOR(MKLDNNROIAlignNode, ROIAlign)

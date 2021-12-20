@@ -1,0 +1,69 @@
+# Copyright (C) 2020-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import json
+from pathlib import Path
+import pytest
+import numpy as np
+from addict import Dict
+
+from openvino.tools.pot.graph import load_model
+from openvino.tools.pot.data_loaders.creator import create_data_loader
+from openvino.tools.pot.engines.creator import create_engine
+from openvino.tools.pot.statistics.collector import StatisticsCollector
+from openvino.tools.pot.algorithms.quantization.minmax.algorithm import MinMaxQuantization
+from openvino.tools.pot.algorithms.quantization.bias_correction.algorithm import BiasCorrection
+from .utils.config import PATHS2DATASETS_CONFIG
+
+TEST_MODELS = [('mobilenet-v2-pytorch', 'pytorch')]
+
+@pytest.mark.parametrize(
+    'model_name, model_framework', TEST_MODELS,
+    ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MODELS])
+def test_statistics_collector_subsets(tmp_path, models, model_name, model_framework):
+    with open(PATHS2DATASETS_CONFIG.as_posix()) as f:
+        data_source = Dict(json.load(f))['ImageNet2012'].pop('source_dir')
+
+    engine_config = Dict({'type': 'simplified',
+                          'data_source': '{}/{}'.format(data_source, 'ILSVRC2012_val*'),
+                          'device': 'CPU'})
+
+    minmax_config = Dict({
+        'target_device': 'CPU',
+        'preset': 'performance',
+        'stat_subset_size': 1,
+        'ignored': []
+    })
+    bias_correction_config = Dict({
+        'target_device': 'CPU',
+        'preset': 'performance',
+        'stat_subset_size': 2
+    })
+
+    model = models.get(model_name, model_framework, tmp_path)
+    model = load_model(model.model_params)
+    data_loader = create_data_loader(engine_config, model)
+    engine = create_engine(engine_config, data_loader=data_loader, metric=None)
+    collector = StatisticsCollector(engine)
+    min_max_algo = MinMaxQuantization(minmax_config, engine)
+    min_max_algo.register_statistics(model, collector)
+    bias_correction_algo = BiasCorrection(bias_correction_config, engine)
+    bias_correction_algo.register_statistics(model, collector)
+    collector.compute_statistics(model)
+
+    out = {'MinMaxQuantization': collector.get_statistics_for_algorithm('MinMaxQuantization'),
+           'BiasCorrection': collector.get_statistics_for_algorithm('BiasCorrection')}
+
+    refs_file = Path(__file__).parent / 'data/test_cases_refs/statistics_data.txt'
+    with open(refs_file.as_posix()) as file:
+        refs = json.loads(json.load(file))
+
+    eps = 1e-3
+    for algo_name, algo_val in out.items():
+        for node_name, node_val in algo_val.items():
+            for stats_name, stats_val in node_val.items():
+                if stats_name == 'batch_mean_param_in':
+                    continue
+                ref_stats_vals = refs[algo_name][node_name][stats_name]
+                for ref_vals, vals in zip(ref_stats_vals, stats_val):
+                    assert np.max(np.abs(np.array(ref_vals) - vals)) < eps

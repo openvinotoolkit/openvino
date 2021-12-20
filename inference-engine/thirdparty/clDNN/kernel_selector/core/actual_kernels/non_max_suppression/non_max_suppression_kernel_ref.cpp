@@ -13,7 +13,7 @@ Datatype NonMaxSuppressionKernelRef::GetAccumulatorType(const non_max_suppressio
     auto out_dt = params.output.GetDType();
 
     auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
-        if (candidate != Datatype::F32 || candidate != Datatype::F16)
+        if (candidate != Datatype::F32 && candidate != Datatype::F16)
             return current;
 
         return BytesPerElement(candidate) < BytesPerElement(current) ? candidate : current;
@@ -282,7 +282,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
 
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[i];
-        KernelBase::CheckDispatchData(kernelName, dispatchData);
+        KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local  = dispatchData.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);

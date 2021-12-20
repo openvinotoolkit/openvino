@@ -70,6 +70,10 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 
 CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params, const optional_params&, bool is_second) const {
     CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
+
     const auto& output = params.output;
     const auto& indices = params.inputs[1];
 
@@ -78,21 +82,30 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
     switch (params.inputs[0].GetLayout()) {
     case DataLayout::bfyx:
         dispatchData.gws = {scope.X().v, scope.Y().v, scope.Feature().v * scope.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
 
     case DataLayout::bfzyx:
         dispatchData.gws = {scope.X().v * scope.Y().v, scope.Z().v, scope.Feature().v * scope.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
 
     case DataLayout::bfwzyx:
         dispatchData.gws = {scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
     default:
         throw std::invalid_argument("Unsupported data layout for scatter elements update primitive");
         break;
     }
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

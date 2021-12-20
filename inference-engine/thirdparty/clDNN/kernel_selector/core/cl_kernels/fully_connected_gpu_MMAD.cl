@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
-#include "include/fetch_weights.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/fetch_weights.cl"
 #include "include/mmad.cl"
 
 #define INPUT_PACKED_TYPE_8     CAT(INPUT_PACKED_TYPE, 8)
@@ -16,8 +16,6 @@
 #define BLOCK_READ_8(ptr)       intel_sub_group_block_read8((const __global uint*)(ptr))
 
 #define MMAD                    CAT(MMAD_, SUB_GROUP_SIZE)
-
-#define AS_TYPE(type, val)      CAT(as_, type)(val)
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL(fully_connected_gpu_MMAD)(
@@ -302,4 +300,3 @@ KERNEL(fully_connected_gpu_MMAD)(
 #undef BLOCK_READ_8
 
 #undef MMAD
-#undef AS_TYPE

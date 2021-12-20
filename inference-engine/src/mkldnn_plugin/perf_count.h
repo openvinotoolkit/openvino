@@ -5,20 +5,25 @@
 #pragma once
 
 #include <chrono>
+#include <ratio>
 
 namespace MKLDNNPlugin {
 
 class PerfCount {
-    uint64_t duration;
+    uint64_t total_duration;
     uint32_t num;
 
     std::chrono::high_resolution_clock::time_point __start = {};
     std::chrono::high_resolution_clock::time_point __finish = {};
 
 public:
-    PerfCount(): duration(0), num(0) {}
+    PerfCount(): total_duration(0), num(0) {}
 
-    uint64_t avg() { return (num == 0) ? 0 : duration / num; }
+    std::chrono::duration<double, std::milli> duration() const {
+        return __finish - __start;
+    }
+
+    uint64_t avg() const { return (num == 0) ? 0 : total_duration / num; }
 
 private:
     void start_itr() {
@@ -27,8 +32,7 @@ private:
 
     void finish_itr() {
         __finish = std::chrono::high_resolution_clock::now();
-
-        duration += std::chrono::duration_cast<std::chrono::microseconds>(__finish - __start).count();
+        total_duration += std::chrono::duration_cast<std::chrono::microseconds>(__finish - __start).count();
         num++;
     }
 
@@ -46,5 +50,5 @@ public:
 
 }  // namespace MKLDNNPlugin
 
-#define GET_PERF(_counter) std::unique_ptr<PerfHelper>(new PerfHelper(_counter->PerfCounter()))
-#define PERF(_need, _counter) auto pc = _need ? GET_PERF(_counter) : nullptr;
+#define GET_PERF(_node) std::unique_ptr<PerfHelper>(new PerfHelper(_node->PerfCounter()))
+#define PERF(_node, _need) auto pc = _need ? GET_PERF(_node) : nullptr;

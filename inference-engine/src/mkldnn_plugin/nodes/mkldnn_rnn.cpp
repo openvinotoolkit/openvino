@@ -23,13 +23,13 @@ namespace MKLDNNPlugin {
 
 static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ngraph::Node>& op) {
     ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD;
-    if (op->get_type_info() == ngraph::op::v5::GRUSequence::type_info) {
+    if (op->get_type_info() == ngraph::op::v5::GRUSequence::get_type_info_static()) {
         direction = ngraph::as_type_ptr<const ngraph::op::v5::GRUSequence>(op)->get_direction();
-    } else if (op->get_type_info() == ngraph::op::v0::LSTMSequence::type_info) {
+    } else if (op->get_type_info() == ngraph::op::v0::LSTMSequence::get_type_info_static()) {
         direction = ngraph::as_type_ptr<const ngraph::op::v0::LSTMSequence>(op)->get_direction();
-    } else if (op->get_type_info() == ngraph::op::v5::LSTMSequence::type_info) {
+    } else if (op->get_type_info() == ngraph::op::v5::LSTMSequence::get_type_info_static()) {
         direction = ngraph::as_type_ptr<const ngraph::op::v5::LSTMSequence>(op)->get_direction();
-    } else if (op->get_type_info() == ngraph::op::v5::RNNSequence::type_info) {
+    } else if (op->get_type_info() == ngraph::op::v5::RNNSequence::get_type_info_static()) {
         direction = ngraph::as_type_ptr<const ngraph::op::v5::RNNSequence>(op)->get_direction();
     }
     return direction == ngraph::op::RecurrentSequenceDirection::FORWARD ? rnn_direction::unidirectional_left2right
@@ -47,8 +47,8 @@ static mkldnn::algorithm ie2dnnl(std::string act_type) {
 
 static mkldnn::algorithm ie2dnnl(const std::shared_ptr<const ngraph::Node>& op) {
     if (one_of(op->get_type_info(),
-            ngraph::op::v3::GRUCell::type_info,
-            ngraph::op::v5::GRUSequence::type_info)) {
+            ngraph::op::v3::GRUCell::get_type_info_static(),
+            ngraph::op::v5::GRUSequence::get_type_info_static())) {
         auto gruCellOp = ngraph::as_type_ptr<const ngraph::op::v3::GRUCell>(op);
         auto gruSeqOp = ngraph::as_type_ptr<const ngraph::op::v5::GRUSequence>(op);
         if ((gruCellOp && gruCellOp->get_linear_before_reset()) ||
@@ -57,21 +57,21 @@ static mkldnn::algorithm ie2dnnl(const std::shared_ptr<const ngraph::Node>& op) 
         else
             return mkldnn::algorithm::vanilla_gru;
     } else if (one_of(op->get_type_info(),
-            ngraph::op::v0::LSTMCell::type_info,
-            ngraph::op::v4::LSTMCell::type_info,
-            ngraph::op::v0::LSTMSequence::type_info,
-            ngraph::op::v5::LSTMSequence::type_info)) {
+            ngraph::op::v0::LSTMCell::get_type_info_static(),
+            ngraph::op::v4::LSTMCell::get_type_info_static(),
+            ngraph::op::v0::LSTMSequence::get_type_info_static(),
+            ngraph::op::v5::LSTMSequence::get_type_info_static())) {
         return mkldnn::algorithm::vanilla_lstm;
     } else if (one_of(op->get_type_info(),
-            ngraph::op::v0::RNNCell::type_info,
-            ngraph::op::v5::RNNSequence::type_info)) {
+            ngraph::op::v0::RNNCell::get_type_info_static(),
+            ngraph::op::v5::RNNSequence::get_type_info_static())) {
         return mkldnn::algorithm::vanilla_rnn;
     } else {
         IE_THROW() << "Unsupported cell type";
     }
 }
 
-size_t gatesCount(mkldnn::algorithm alg) {
+inline size_t gatesCount(mkldnn::algorithm alg) {
     switch (alg) {
         case mkldnn::algorithm::vanilla_rnn:     return 1;
         case mkldnn::algorithm::vanilla_gru:
@@ -83,7 +83,7 @@ size_t gatesCount(mkldnn::algorithm alg) {
     }
 }
 
-size_t statesCount(mkldnn::algorithm alg) {
+inline size_t statesCount(mkldnn::algorithm alg) {
     switch (alg) {
         case mkldnn::algorithm::vanilla_rnn:
         case mkldnn::algorithm::vanilla_gru:
@@ -95,7 +95,7 @@ size_t statesCount(mkldnn::algorithm alg) {
     }
 }
 
-bool haveCellState(mkldnn::algorithm alg) {
+inline bool haveCellState(mkldnn::algorithm alg) {
     return alg == mkldnn::algorithm::vanilla_lstm;
 }
 
@@ -116,54 +116,54 @@ bool MKLDNNRNN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v3::GRUCell::type_info,
-                ngraph::op::v0::LSTMCell::type_info,
-                ngraph::op::v4::LSTMCell::type_info,
-                ngraph::op::v0::RNNCell::type_info,
-                ngraph::op::v5::GRUSequence::type_info,
-                ngraph::op::v0::LSTMSequence::type_info,
-                ngraph::op::v5::LSTMSequence::type_info,
-                ngraph::op::v5::RNNSequence::type_info)) {
+                ngraph::op::v3::GRUCell::get_type_info_static(),
+                ngraph::op::v0::LSTMCell::get_type_info_static(),
+                ngraph::op::v4::LSTMCell::get_type_info_static(),
+                ngraph::op::v0::RNNCell::get_type_info_static(),
+                ngraph::op::v5::GRUSequence::get_type_info_static(),
+                ngraph::op::v0::LSTMSequence::get_type_info_static(),
+                ngraph::op::v5::LSTMSequence::get_type_info_static(),
+                ngraph::op::v5::RNNSequence::get_type_info_static())) {
             errorMessage = "Unsupported RNN operation.";
             return false;
         }
 
-        if (one_of(op->get_type_info(), ngraph::op::v0::RNNCell::type_info, ngraph::op::v3::GRUCell::type_info)) {
+        if (one_of(op->get_type_info(), ngraph::op::v0::RNNCell::get_type_info_static(), ngraph::op::v3::GRUCell::get_type_info_static())) {
             if (op->get_input_size() != 5) {
                 errorMessage = "Node expects 5 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
             }
-            if (op->get_input_node_ptr(2)->get_type_info() != ngraph::op::v0::Constant::type_info ||
-                    op->get_input_node_ptr(3)->get_type_info() != ngraph::op::v0::Constant::type_info ||
-                    op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::type_info) {
+            if (op->get_input_node_ptr(2)->get_type_info() != ngraph::op::v0::Constant::get_type_info_static() ||
+                    op->get_input_node_ptr(3)->get_type_info() != ngraph::op::v0::Constant::get_type_info_static() ||
+                    op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::get_type_info_static()) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
         } else if (one_of(op->get_type_info(),
-                ngraph::op::v0::LSTMCell::type_info,
-                ngraph::op::v4::LSTMCell::type_info,
-                ngraph::op::v5::GRUSequence::type_info,
-                ngraph::op::v5::RNNSequence::type_info)) {
+                ngraph::op::v0::LSTMCell::get_type_info_static(),
+                ngraph::op::v4::LSTMCell::get_type_info_static(),
+                ngraph::op::v5::GRUSequence::get_type_info_static(),
+                ngraph::op::v5::RNNSequence::get_type_info_static())) {
             if (op->get_input_size() != 6) {
                 errorMessage = "Node expects 6 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
             }
-            if (op->get_input_node_ptr(3)->get_type_info() != ngraph::op::v0::Constant::type_info ||
-                    op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::type_info ||
-                    op->get_input_node_ptr(5)->get_type_info() != ngraph::op::v0::Constant::type_info) {
+            if (op->get_input_node_ptr(3)->get_type_info() != ngraph::op::v0::Constant::get_type_info_static() ||
+                    op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::get_type_info_static() ||
+                    op->get_input_node_ptr(5)->get_type_info() != ngraph::op::v0::Constant::get_type_info_static()) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
         } else if (one_of(op->get_type_info(),
-                ngraph::op::v0::LSTMSequence::type_info,
-                ngraph::op::v5::LSTMSequence::type_info)) {
+                ngraph::op::v0::LSTMSequence::get_type_info_static(),
+                ngraph::op::v5::LSTMSequence::get_type_info_static())) {
             if (op->get_input_size() != 7) {
                 errorMessage = "Node expects 7 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
             }
-            if (op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::type_info ||
-                    op->get_input_node_ptr(5)->get_type_info() != ngraph::op::v0::Constant::type_info ||
-                    op->get_input_node_ptr(6)->get_type_info() != ngraph::op::v0::Constant::type_info) {
+            if (op->get_input_node_ptr(4)->get_type_info() != ngraph::op::v0::Constant::get_type_info_static() ||
+                    op->get_input_node_ptr(5)->get_type_info() != ngraph::op::v0::Constant::get_type_info_static() ||
+                    op->get_input_node_ptr(6)->get_type_info() != ngraph::op::v0::Constant::get_type_info_static()) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
@@ -176,13 +176,13 @@ bool MKLDNNRNN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
         }
 
         ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD;
-        if (op->get_type_info() == ngraph::op::v5::GRUSequence::type_info) {
+        if (op->get_type_info() == ngraph::op::v5::GRUSequence::get_type_info_static()) {
             direction = ngraph::as_type_ptr<const ngraph::op::v5::GRUSequence>(op)->get_direction();
-        } else if (op->get_type_info() == ngraph::op::v0::LSTMSequence::type_info) {
+        } else if (op->get_type_info() == ngraph::op::v0::LSTMSequence::get_type_info_static()) {
             direction = ngraph::as_type_ptr<const ngraph::op::v0::LSTMSequence>(op)->get_direction();
-        } else if (op->get_type_info() == ngraph::op::v5::LSTMSequence::type_info) {
+        } else if (op->get_type_info() == ngraph::op::v5::LSTMSequence::get_type_info_static()) {
             direction = ngraph::as_type_ptr<const ngraph::op::v5::LSTMSequence>(op)->get_direction();
-        } else if (op->get_type_info() == ngraph::op::v5::RNNSequence::type_info) {
+        } else if (op->get_type_info() == ngraph::op::v5::RNNSequence::get_type_info_static()) {
             direction = ngraph::as_type_ptr<const ngraph::op::v5::RNNSequence>(op)->get_direction();
         }
         if (!one_of(direction, ngraph::op::RecurrentSequenceDirection::FORWARD, ngraph::op::RecurrentSequenceDirection::REVERSE)) {
@@ -197,30 +197,40 @@ bool MKLDNNRNN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
 
 MKLDNNRNN::MKLDNNRNN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {
+    internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
+        return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
+    });
+    internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
+        return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(1));
+    });
+    internalBlobDesc.emplace_back([&](primitive_desc_iterator& primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
+        return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(2));
+    });
+
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
     is_cell = one_of(op->get_type_info(),
-            ngraph::op::v0::RNNCell::type_info,
-            ngraph::op::v3::GRUCell::type_info,
-            ngraph::op::v0::LSTMCell::type_info,
-            ngraph::op::v4::LSTMCell::type_info);
+            ngraph::op::v0::RNNCell::get_type_info_static(),
+            ngraph::op::v3::GRUCell::get_type_info_static(),
+            ngraph::op::v0::LSTMCell::get_type_info_static(),
+            ngraph::op::v4::LSTMCell::get_type_info_static());
 
     if (one_of(op->get_type_info(),
-               ngraph::op::v0::RNNCell::type_info,
-               ngraph::op::v3::GRUCell::type_info)) {
+               ngraph::op::v0::RNNCell::get_type_info_static(),
+               ngraph::op::v3::GRUCell::get_type_info_static())) {
         wIdx = 2; rIdx = 3; bIdx = 4;
     } else if (one_of(op->get_type_info(),
-                      ngraph::op::v5::RNNSequence::type_info,
-                      ngraph::op::v0::LSTMCell::type_info,
-                      ngraph::op::v4::LSTMCell::type_info,
-                      ngraph::op::v5::GRUSequence::type_info)) {
+                      ngraph::op::v5::RNNSequence::get_type_info_static(),
+                      ngraph::op::v0::LSTMCell::get_type_info_static(),
+                      ngraph::op::v4::LSTMCell::get_type_info_static(),
+                      ngraph::op::v5::GRUSequence::get_type_info_static())) {
         wIdx = 3; rIdx = 4; bIdx = 5;
     } else if (one_of(op->get_type_info(),
-                      ngraph::op::v0::LSTMSequence::type_info,
-                      ngraph::op::v5::LSTMSequence::type_info)) {
+                      ngraph::op::v0::LSTMSequence::get_type_info_static(),
+                      ngraph::op::v5::LSTMSequence::get_type_info_static())) {
         wIdx = 4; rIdx = 5; bIdx = 6;
     }
 
@@ -305,12 +315,6 @@ void MKLDNNRNN::fillCellDesc() {
         out_data_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    w_data_d   = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, DC, G, SC}), dataType, memory::format_tag::ldigo);
-    w_state_d  = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, SC, G, SC}), dataType, memory::format_tag::ldigo);
-
-    // Add 5th input
-    w_bias_d = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, Gb, SC}), memory::data_type::f32, memory::format_tag::ldgo);
-
     copyWeightsData();
 
     // Expected shapes
@@ -363,7 +367,7 @@ void MKLDNNRNN::initSeq(const std::shared_ptr<ngraph::Node>& op) {
     const auto rtInfo = op->get_rt_info();
 
     if (rtInfo.count("seqAxis")) {
-        nativeOrder = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rtInfo.at("seqAxis"))->get() == 0;
+        nativeOrder = rtInfo.at("seqAxis").as<int64_t>() == 0;
     }
     out_data_dims.erase(out_data_dims.begin() + 1);
 
@@ -400,11 +404,6 @@ void MKLDNNRNN::fillSeqDesc() {
         in_data_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
         out_data_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
     }
-
-    w_data_d  = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, DC, G, SC}), dataType, memory::format_tag::ldigo);
-    w_state_d = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, SC, G, SC}), dataType, memory::format_tag::ldigo);
-
-    w_bias_d = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{L, D, Gb, SC}), memory::data_type::f32, memory::format_tag::ldgo);
 
     copyWeightsData();
 
@@ -480,12 +479,21 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
         IE_THROW() << "Doesn't support combination of weights precision: " << weightPrec << " and runtime precision: " << runtimePrecision;
     }
     // create weight blobs (data and state part)
-    auto w_data_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    w_data_mem->Create(*w_data_d);
-    internalBlobMemory.push_back(w_data_mem);
-    auto w_state_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    w_state_mem->Create(*w_state_d);
-    internalBlobMemory.push_back(w_state_mem);
+    InferenceEngine::SizeVector dims_w = { L, D, DC, G, SC };
+    InferenceEngine::TensorDesc w_data_desc(runtimePrecision, dims_w, getWeightsLayoutByDims(dims_w, false));
+    Blob::Ptr w_data_mem = InferenceEngine::make_shared_blob<Prec>(w_data_desc);
+    w_data_mem->allocate();
+    auto w_ptr = static_cast<Prec*>(w_data_mem->buffer());
+    if (w_ptr == nullptr)
+        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
+
+    InferenceEngine::SizeVector dims_s = { L, D, SC, G, SC };
+    InferenceEngine::TensorDesc w_state_desc(runtimePrecision, dims_s, getWeightsLayoutByDims(dims_s, false));
+    Blob::Ptr w_state_mem = InferenceEngine::make_shared_blob<Prec>(w_state_desc);
+    w_state_mem->allocate();
+    auto r_ptr = static_cast<Prec*>(w_state_mem->buffer());
+    if (r_ptr == nullptr)
+        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
 
     const size_t ie_w_vec_size = getInputShapeAtPort(wIdx).getElementsCount();
     const size_t ie_r_vec_size = getInputShapeAtPort(rIdx).getElementsCount();
@@ -503,8 +511,6 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
     cpu_convert(wConstBlob->GetPtr(), ie_w_ptr, weightPrec, runtimePrecision, ie_w_vec_size);
     cpu_convert(rConstBlob->GetPtr(), ie_r_ptr, weightPrec, runtimePrecision, ie_r_vec_size);
 
-    auto w_ptr = static_cast<Prec*>(w_data_mem->GetData());
-    auto r_ptr = static_cast<Prec*>(w_state_mem->GetData());
     const int step = SC * G;
 
     for (int g = 0; g < G; g++) {
@@ -524,22 +530,26 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
             }
         }
     }
+
+    internalBlobs.push_back(w_data_mem);
+    internalBlobs.push_back(w_state_mem);
 }
 
 template <InferenceEngine::Precision::ePrecision Prec>
 void MKLDNNRNN::fillBiases(const int *gate_map) {
     using dataType = typename PrecisionTrait<Prec>::value_type;
 
-    if (!w_bias_d)
-        return;
-
     if (getOriginalInputPrecisionAtPort(bIdx) != Precision::FP32) {
         IE_THROW() << "Doesn't support bias precision: " << getOriginalInputPrecisionAtPort(bIdx);
     }
 
-    auto w_bias_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    w_bias_mem->Create(*w_bias_d);
-    internalBlobMemory.push_back(w_bias_mem);
+    InferenceEngine::SizeVector dims_b = { L, D, Gb, SC };
+    InferenceEngine::TensorDesc w_bias_data_desc(Prec, dims_b, getWeightsLayoutByDims(dims_b, false));
+    Blob::Ptr w_bias_data_mem = InferenceEngine::make_shared_blob<dataType>(w_bias_data_desc);
+    w_bias_data_mem->allocate();
+    auto b_ptr = static_cast<dataType*>(w_bias_data_mem->buffer());
+    if (b_ptr == nullptr)
+        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
 
     auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();
@@ -552,12 +562,12 @@ void MKLDNNRNN::fillBiases(const int *gate_map) {
                 Prec,
                 elementsCount);
 
-    auto b_ptr = static_cast<dataType*>(w_bias_mem->GetData());
     for (int g = 0; g < Gb; g++) {
         dataType *l_b_ptr = b_ptr + gate_map[g] * SC;
         const dataType *l_ie_b_ptr = &ie_b_vec[g * SC];
         cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(typename PrecisionTrait<Prec>::value_type));
     }
+    internalBlobs.push_back(w_bias_data_mem);
 }
 
 void MKLDNNRNN::copyWeightsData() {
@@ -614,27 +624,39 @@ void MKLDNNRNN::copyWeightsData() {
         }
     }
 
-    if (runtimePrecision == Precision::BF16)
-        fillWeights<bfloat16_t>(gate_map, wIdx, rIdx);
-    else if (runtimePrecision == Precision::FP32)
+    if (runtimePrecision == Precision::BF16) {
+        fillWeights<uint16_t>(gate_map, wIdx, rIdx);
+    } else if (runtimePrecision == Precision::FP32) {
+        // WA To avoid different weights layer and iter formats in FP32 case
+        if (T != 1 || N < 16)
+            w_format = mkldnn::memory::format_tag::ldigo;
         fillWeights<float>(gate_map, wIdx, rIdx);
-    else // TODO FP16 and INT8 support
+    } else {// TODO FP16 and INT8 support
         IE_THROW() << "Unsupported data type";
+    }
 
     if (runtimePrecision == Precision::BF16 || runtimePrecision == Precision::FP32)
         fillBiases<Precision::FP32>(gate_map);
 }
 void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                  const std::vector<MemoryDescPtr> &outputDesc) {
+    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+    auto weightsDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
+    mkldnn::memory::desc w_data_d(weightsDims, dataType, w_format);
+    auto statesDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
+    mkldnn::memory::desc w_state_d(statesDims, dataType, w_format);
+    auto biasDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
+    mkldnn::memory::desc w_bias_d(biasDims, memory::data_type::f32, memory::format_tag::ldgo);
+
     switch (cell_type) {
         case mkldnn::algorithm::vanilla_rnn: {
             MKLDNNDescriptor desc(std::shared_ptr<vanilla_rnn_forward::desc>(
                     new vanilla_rnn_forward::desc(prop_kind::forward_scoring, cell_act, direction,
                             /* In Data       */ in_data_d[RNNInOutKind::Layer].getDnnlDesc(),
                             /* In State      */ in_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* Weights data  */ w_data_d->getDnnlDesc(),
-                            /* Weights state */ w_state_d->getDnnlDesc(),
-                            /* Bias          */ w_bias_d->getDnnlDesc(),
+                            /* Weights data  */ w_data_d,
+                            /* Weights state */ w_state_d,
+                            /* Bias          */ w_bias_d,
                             /* Out Data      */ out_data_d[RNNInOutKind::Layer].getDnnlDesc(),
                             /* Out State     */ out_data_d[RNNInOutKind::HiddenState].getDnnlDesc())));
             descs.push_back(desc);
@@ -644,9 +666,9 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                     new gru_forward::desc(prop_kind::forward_scoring, direction,
                             /* In Data       */ in_data_d[RNNInOutKind::Layer].getDnnlDesc(),
                             /* In State      */ in_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* Weights data  */ w_data_d->getDnnlDesc(),
-                            /* Weights state */ w_state_d->getDnnlDesc(),
-                            /* Bias          */ w_bias_d->getDnnlDesc(),
+                            /* Weights data  */ w_data_d,
+                            /* Weights state */ w_state_d,
+                            /* Bias          */ w_bias_d,
                             /* Out Data      */ out_data_d[RNNInOutKind::Layer].getDnnlDesc(),
                             /* Out State     */ out_data_d[RNNInOutKind::HiddenState].getDnnlDesc())));
             descs.push_back(desc);
@@ -656,9 +678,9 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                     new lbr_gru_forward::desc(prop_kind::forward_scoring, direction,
                             /* In Data       */ in_data_d[RNNInOutKind::Layer].getDnnlDesc(),
                             /* In State      */ in_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
-                            /* Weights data  */ w_data_d->getDnnlDesc(),
-                            /* Weights state */ w_state_d->getDnnlDesc(),
-                            /* Bias          */ w_bias_d->getDnnlDesc(),
+                            /* Weights data  */ w_data_d,
+                            /* Weights state */ w_state_d,
+                            /* Bias          */ w_bias_d,
                             /* Out Data      */ out_data_d[RNNInOutKind::Layer].getDnnlDesc(),
                             /* Out State     */ out_data_d[RNNInOutKind::HiddenState].getDnnlDesc())));
             descs.push_back(desc);
@@ -669,9 +691,9 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                             /* In Data       */ in_data_d[RNNInOutKind::Layer].getDnnlDesc(),
                             /* In State      */ in_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
                             /* In State C    */ in_data_d[RNNInOutKind::CellState].getDnnlDesc(),
-                            /* Weights data  */ w_data_d->getDnnlDesc(),
-                            /* Weights state */ w_state_d->getDnnlDesc(),
-                            /* Bias          */ w_bias_d->getDnnlDesc(),
+                            /* Weights data  */ w_data_d,
+                            /* Weights state */ w_state_d,
+                            /* Bias          */ w_bias_d,
                             /* Out Data      */ out_data_d[RNNInOutKind::Layer].getDnnlDesc(),
                             /* Out State     */ out_data_d[RNNInOutKind::HiddenState].getDnnlDesc(),
                             /* Out State C   */ out_data_d[RNNInOutKind::CellState].getDnnlDesc())));
@@ -704,8 +726,31 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 }
 
 void MKLDNNRNN::createPrimitive() {
-    auto pd = descs[0].createPrimitiveDescriptorIterator(getEngine());
-    prim.reset(new mkldnn::primitive(pd));
+    if (cell_type == mkldnn::algorithm::vanilla_rnn) {
+        auto prim_desc = createPrimitiveDescriptor<vanilla_rnn_forward::primitive_desc, vanilla_rnn_forward::desc>();
+        prim.reset(new vanilla_rnn_forward(prim_desc));
+    } else if (cell_type == mkldnn::algorithm::vanilla_gru) {
+        auto prim_desc = createPrimitiveDescriptor<gru_forward::primitive_desc, gru_forward::desc>();
+        prim.reset(new gru_forward(prim_desc));
+    } else if (cell_type == mkldnn::algorithm::lbr_gru) {
+        auto prim_desc = createPrimitiveDescriptor<lbr_gru_forward::primitive_desc, lbr_gru_forward::desc>();
+        prim.reset(new lbr_gru_forward(prim_desc));
+    } else if (cell_type == mkldnn::algorithm::vanilla_lstm) {
+        auto prim_desc = createPrimitiveDescriptor<lstm_forward::primitive_desc, lstm_forward::desc>();
+        prim.reset(new lstm_forward(prim_desc));
+    } else {
+        IE_THROW() << "Unknown cell type";
+    }
+}
+
+std::shared_ptr<MemoryDesc> MKLDNNRNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+    auto desc = supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].desc;
+    return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+}
+
+std::shared_ptr<MemoryDesc> MKLDNNRNN::getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+    auto desc = supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].desc;
+    return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
 }
 
 void MKLDNNRNN::execute(mkldnn::stream strm) {
@@ -749,6 +794,7 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
     (*prim).execute(strm, args);
 }
 
+}  // namespace MKLDNNPlugin
+
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNSeq);
-}  // namespace MKLDNNPlugin

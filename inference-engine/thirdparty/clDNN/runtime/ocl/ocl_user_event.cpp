@@ -23,7 +23,7 @@ bool ocl_user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::p
     }
 
     auto period = std::make_shared<instrumentation::profiling_period_basic>(_duration->value());
-    info.push_back({"duration", period });
+    info.push_back({ instrumentation::profiling_stage::executing, period });
     return true;
 }
 

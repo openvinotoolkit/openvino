@@ -211,8 +211,9 @@ void dump_graph_init(std::ofstream& graph,
             !node->can_be_optimized()) {
             graph << "\\n Selected kernel: "
                   << (node->get_selected_impl() == nullptr ? "none"
-                                                           : node->get_selected_impl()->get_kernel_name()) +
-                         "\n" + dump_mem_info(node);
+                                                           : node->get_selected_impl()->get_kernel_name()) + " / "
+                  << node->get_preferred_impl_type()
+                  << "\n" + dump_mem_info(node);
         }
         graph << "\"";
 #ifdef __clang__

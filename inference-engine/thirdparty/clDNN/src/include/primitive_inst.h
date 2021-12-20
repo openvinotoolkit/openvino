@@ -4,12 +4,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/primitive.hpp"
-#include "cldnn/primitives/concatenation.hpp"
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/graph/network.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/graph/network.hpp"
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"
 #include "program_node.h"
@@ -20,6 +20,9 @@
 #include <string>
 
 namespace cldnn {
+
+// checks if any user in a list is a cpu primitive
+bool is_any_user_cpu(const std::list<const program_node*>& users);
 
 class primitive_inst;
 
@@ -43,6 +46,7 @@ struct primitive_impl {
         : _weights_reorder_params(params), _kernel_name(kernel_name) {}
     virtual ~primitive_impl() = default;
 
+    virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
@@ -111,6 +115,7 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels();
     void set_arguments();
+
     bool validate() const {
         if (_impl == nullptr)
             throw std::invalid_argument("[Internal cldnn error].  Validation method for nullptr impl is not allowed.");
@@ -141,6 +146,16 @@ public:
         return _node.is_output();
     }
 
+    bool mem_allocated() const {
+        return _mem_allocated;
+    }
+
+    void allocate_internal_buffers();
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool,
+                                        const program_node& _node, bool is_internal);
+
+    std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -167,10 +182,13 @@ protected:
     // depending on reshape_node.is_in_place())
     memory::ptr _output;
 
+    std::vector<memory::cptr> _intermediates_memory;
+
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
+    bool _mem_allocated = false;
 
     memory::ptr allocate_output();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
@@ -207,6 +225,14 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
+    std::vector<layout> get_internal_buffer_layouts() const override {
+        return get_internal_buffer_layouts_impl();
+    }
+
+    virtual std::vector<layout> get_internal_buffer_layouts_impl() const {
+        return {};
+    }
+
     void set_arguments(primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
@@ -216,7 +242,6 @@ private:
 
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
-
 
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
     virtual event::ptr execute_impl(const std::vector<event::ptr>& event,

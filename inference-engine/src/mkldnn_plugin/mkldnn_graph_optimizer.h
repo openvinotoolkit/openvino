@@ -19,10 +19,11 @@ public:
     void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
 
 private:
-    void FuseConvolutionAndBias(MKLDNNGraph &graph);
+    void FuseConvolutionMatMulAndBias(MKLDNNGraph &graph);
     void FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseMultiplyAndAdd(MKLDNNGraph &graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseMatMulAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperationThroughMaxPool(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
@@ -31,6 +32,7 @@ private:
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
     void FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph);
     void FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph);
+    void FuseReduceAndSimpleOperation(MKLDNNGraph &graph);
 
     void DropDoubleReorders(MKLDNNGraph& graph);
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);

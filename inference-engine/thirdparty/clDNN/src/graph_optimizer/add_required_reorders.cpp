@@ -51,9 +51,28 @@ void add_required_reorders::run(program& p) {
             continue;  // only nodes with dependencies
         if (usr->is_type<data>())
             continue;
-        if (usr->type()->does_an_implementation_exist(*usr))
-            continue;
 
+        if (usr->type()->does_an_implementation_exist(*usr)) {
+            if (usr->get_preferred_impl_type() != impl_types::onednn) {
+                continue;
+            } else {
+                // oneDNN doesn't support padded memory, so add reorder directly if needed
+                for (size_t i = 0; i < usr->get_dependencies().size(); i++) {
+                    auto& input = usr->get_dependency(i);
+                    if (!input.is_in_data_flow() || input.is_constant())
+                        continue;
+
+                    if (static_cast<bool>(input.get_output_layout().data_padding)) {
+                        cldnn::layout layout_wo_padding = input.get_output_layout();
+                        layout_wo_padding.data_padding = cldnn::padding{};
+                        auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
+                        auto& new_reorder_node = p.get_or_create(new_reorder);
+                        p.add_intermediate(new_reorder_node, *usr, i);
+                    }
+                }
+                continue;
+            }
+        }
         bool correct_layout_selected = false;
         bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() ||
                              usr->is_type<deformable_conv>() || usr->is_type<fully_connected>());
@@ -143,14 +162,22 @@ void add_required_reorders::run(program& p) {
                 };
             }
 
-            for (auto new_layout_format : preffered_layout_formats) {
-                layout current_layout(original_layout.data_type,
-                                      new_layout_format,
-                                      original_layout.size);
-                usr->set_output_layout(current_layout, false);
+            if (usr->get_preferred_impl_type() == impl_types::onednn) {
+                usr->set_preferred_impl_type(impl_types::ocl);
+                usr->set_output_layout(original_layout, false);
                 if (usr->type()->does_possible_implementation_exist(*usr)) {
                     correct_layout_selected = true;
-                    break;
+                }
+            }
+
+            if (!correct_layout_selected) {
+                for (auto new_layout_format : preffered_layout_formats) {
+                    layout current_layout(original_layout.data_type, new_layout_format, original_layout.size);
+                    usr->set_output_layout(current_layout, false);
+                    if (usr->type()->does_possible_implementation_exist(*usr)) {
+                        correct_layout_selected = true;
+                        break;
+                    }
                 }
             }
 

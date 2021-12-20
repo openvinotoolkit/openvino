@@ -5,8 +5,8 @@
 #pragma once
 
 #include "ocl_common.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/utils.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 
 #include <vector>
 #include <memory>
@@ -16,7 +16,7 @@ namespace cldnn {
 namespace ocl {
 
 struct profiling_period_ocl_start_stop {
-    const char* name;
+    instrumentation::profiling_stage stage;
     cl_profiling_info start;
     cl_profiling_info stop;
 };

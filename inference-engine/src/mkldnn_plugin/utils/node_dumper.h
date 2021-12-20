@@ -23,10 +23,10 @@ namespace MKLDNNPlugin {
  */
 class NodeDumper {
 public:
-    NodeDumper(const DebugCaps::Config& config, const int _count);
+    NodeDumper(const DebugCaps::Config& config);
 
-    void dumpInputBlobs(const MKLDNNNodePtr &node) const;
-    void dumpOutputBlobs(const MKLDNNNodePtr &node) const;
+    void dumpInputBlobs(const MKLDNNNodePtr &node, int count = -1) const;
+    void dumpOutputBlobs(const MKLDNNNodePtr &node, int count = -1) const;
 
 private:
     void dumpInternalBlobs(const MKLDNNNodePtr& node) const;
@@ -55,5 +55,26 @@ private:
     // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
     std::unordered_map<FILTER, std::string, std::hash<int>> dumpFilters;
 };
+
+void initNodeDumper(const DebugCaps::Config& config);
+const std::unique_ptr<NodeDumper>& getNodeDumper();
+
+class DumpHelper {
+    const MKLDNNNodePtr& node;
+    const int count;
+
+public:
+    explicit DumpHelper(const MKLDNNNodePtr& _node, int _count = -1): node(_node), count(_count) {
+        getNodeDumper()->dumpInputBlobs(node, count);
+    }
+
+    ~DumpHelper() {
+        getNodeDumper()->dumpOutputBlobs(node, count);
+    }
+};
+
+#define DUMP(...) DumpHelper __helper##__node (__VA_ARGS__);
 } // namespace MKLDNNPlugin
+#else // CPU_DEBUG_CAPS
+#define DUMP(...)
 #endif // CPU_DEBUG_CAPS

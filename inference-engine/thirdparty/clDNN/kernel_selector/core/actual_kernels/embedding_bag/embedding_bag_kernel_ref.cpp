@@ -32,11 +32,16 @@ JitConstants EmbeddingBagKernelRef::GetJitConstants(const embedding_bag_params& 
 
 CommonDispatchData EmbeddingBagKernelRef::SetDefault(const embedding_bag_params& params) const {
     CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
 
     dispatchData.gws = { params.output.Batch().v,
                          params.output.Feature().v,
                          params.output.Y().v * params.output.X().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -83,8 +88,6 @@ ParamsKey EmbeddingBagKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-
-    k.EnableInputLayout(DataLayout::bfxy);
 
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();

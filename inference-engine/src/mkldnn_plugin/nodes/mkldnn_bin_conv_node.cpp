@@ -14,11 +14,12 @@
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "cpu/x64/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
 #include <ngraph/opsets/opset1.hpp>
+#include "utils/cpu_utils.hpp"
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -215,7 +216,7 @@ private:
             case memory::data_type::s32:
                 if (scalar_load) {
                     mov(reg_tmp_32, op);
-                    movq(xmm_in, reg_tmp_64);
+                    uni_vmovq(xmm_in, reg_tmp_64);
                 } else {
                     uni_vmovups(vmm_in, op);
                 }
@@ -223,7 +224,7 @@ private:
             case memory::data_type::s8:
                 if (scalar_load) {
                     movsx(reg_tmp_32, op);
-                    movq(xmm_in, reg_tmp_64);
+                    uni_vmovq(xmm_in, reg_tmp_64);
                 } else {
                     uni_vpmovsxbd(vmm_in, op);
                 }
@@ -231,7 +232,7 @@ private:
             case memory::data_type::u8:
                 if (scalar_load) {
                     movzx(reg_tmp_32, op);
-                    movq(xmm_in, reg_tmp_64);
+                    uni_vmovq(xmm_in, reg_tmp_64);
                 } else {
                     uni_vpmovzxbd(vmm_in, op);
                 }
@@ -541,7 +542,7 @@ private:
                 if (jcp_.exclude_pad) {
                     mov(reg_shift, kw_padding[jj]);
                     imul(reg_shift, reg_tmp_32);
-                    movq(Xmm(vmm_shift.getIdx()), reg_shift);
+                    uni_vmovq(Xmm(vmm_shift.getIdx()), reg_shift);
                     uni_vbroadcastss(vmm_shift, Xmm(vmm_shift.getIdx()));
                     uni_vcvtdq2ps(vmm_shift, vmm_shift);
                 }
@@ -612,7 +613,7 @@ private:
                                         } else {
                                             Ymm ymm_prev_dst = Ymm(vmm_sum.getIdx());
                                             vperm2i128(ymm_prev_dst, ymm_prev_dst, ymm_prev_dst, 0x01);
-                                            vpslldq(vmm_sum, vmm_sum, (oc - jcp_.oc_block / 2) * sizeof(float));
+                                            uni_vpslldq(vmm_sum, vmm_sum, (oc - jcp_.oc_block / 2) * sizeof(float));
                                         }
 
                                         uni_vaddps(vmm_dst, vmm_dst, vmm_sum);
@@ -848,7 +849,7 @@ private:
 
         // offset = 4
         for (size_t d = 0; d < simd_w; ++d) {
-            dd(float2int(jcp_.ic * jcp_.kw * jcp_.kh));
+            dd(x64::float2int(jcp_.ic * jcp_.kw * jcp_.kh));
         }
 
         // offset = 5
@@ -1127,16 +1128,19 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     for (auto &node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            if (eltwiseNode->isSpecialConvolutionAddFusing())
+            if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
-            else
-                eltwiseNode->appendPostOps(ops);
+            } else {
+                // TODO [DS]: change to shape from memory
+                constexpr int align = 16;
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
+            }
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
             continue;
         }
 

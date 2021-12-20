@@ -8,7 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 using namespace cldnn;
 

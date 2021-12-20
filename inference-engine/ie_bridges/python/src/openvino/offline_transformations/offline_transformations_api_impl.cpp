@@ -5,14 +5,19 @@
 #include "offline_transformations_api_impl.hpp"
 
 #include <generate_mapping_file.hpp>
-#include <moc_transformations.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/low_latency.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/pass/make_stateful.hpp>
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
+#include <transformations/common_optimizations/compress_float_constants.hpp>
+#include <transformations/common_optimizations/division_by_zero_fp16_resolver.hpp>
+#include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
+#include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
+#include <transformations/serialize.hpp>
 
 void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf) {
     ngraph::pass::Manager manager;
@@ -33,6 +38,13 @@ void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython:
     manager.run_passes(network.actual->getFunction());
 }
 
+void InferenceEnginePython::ApplyMakeStatefulTransformation(InferenceEnginePython::IENetwork network,
+                                                            std::map<std::string, std::string>& param_res_names) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ov::pass::MakeStateful>(param_res_names);
+    manager.run_passes(network.actual->getFunction());
+}
+
 void InferenceEnginePython::ApplyPruningTransformation(InferenceEnginePython::IENetwork network) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Pruning>();
@@ -44,6 +56,22 @@ void InferenceEnginePython::GenerateMappingFile(InferenceEnginePython::IENetwork
                                                 bool extract_names) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::GenerateMappingFile>(path, extract_names);
+    manager.run_passes(network.actual->getFunction());
+}
+
+void InferenceEnginePython::CompressModelTransformation(InferenceEnginePython::IENetwork network) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ov::pass::DivisionByZeroFP16Resolver>();
+    manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+    manager.register_pass<ov::pass::CompressFloatConstants>();
+    manager.run_passes(network.actual->getFunction());
+}
+
+void InferenceEnginePython::Serialize(InferenceEnginePython::IENetwork network,
+                                      std::string path_to_xml,
+                                      std::string path_to_bin) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::Serialize>(path_to_xml, path_to_bin);
     manager.run_passes(network.actual->getFunction());
 }
 

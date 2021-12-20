@@ -4,3 +4,4 @@ PyYAML>=5.4.1
 fastjsonschema~=2.15.1
 pandas>=1.1.5
 h5py>=3.1.0
+scipy~=1.5.4

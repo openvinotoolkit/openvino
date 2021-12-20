@@ -16,7 +16,7 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 void pre_replace_deconv::run(program& p) {
     bool update_processing_order = false;
@@ -66,7 +66,7 @@ void pre_replace_deconv::run(program& p) {
 
                 // setting convolution parameters based on deconvolution params
                 auto stride = deconv_prim->stride;
-                auto input_offset = deconv_prim->input_offset;
+                auto pad = deconv_prim->pad;
                 auto output_padding = deconv_prim->output_padding;
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
@@ -84,9 +84,10 @@ void pre_replace_deconv::run(program& p) {
                     p.remove_connection(*weights_node_ptr, deconv_node);
                 }
 
-                input_offset.spatial[0] = std::abs(input_offset.spatial[0]) - (filter_size.spatial[0] - 1);
-                input_offset.spatial[1] = std::abs(input_offset.spatial[1]) - (filter_size.spatial[1] - 1);
-                input_offset.spatial[2] = std::abs(input_offset.spatial[2]) - (filter_size.spatial[2] - 1);
+                auto filter_z = deconv_prim->grouped_weights_shape ? 1 : (filter_size.spatial[2] - 1);
+                pad.spatial[0] = (filter_size.spatial[0] - 1) - std::abs(pad.spatial[0]);
+                pad.spatial[1] = (filter_size.spatial[1] - 1) - std::abs(pad.spatial[1]);
+                pad.spatial[2] = filter_z - std::abs(pad.spatial[2]);
 
                 std::vector<std::shared_ptr<program_node>> bias_connections;
                 for (auto& bias_id : biases_nodes_id) {
@@ -116,7 +117,7 @@ void pre_replace_deconv::run(program& p) {
                                                               biases_nodes_id,
                                                               groups,
                                                               stride,
-                                                              input_offset,
+                                                              pad,
                                                               tensor{ 1, 1, 1, 1 },
                                                               grouped_weights_shape,
                                                               "",
@@ -127,7 +128,7 @@ void pre_replace_deconv::run(program& p) {
                                                               weights_nodes_id,
                                                               groups,
                                                               stride,
-                                                              input_offset,
+                                                              pad,
                                                               tensor{ 1, 1, 1, 1 },
                                                               grouped_weights_shape,
                                                               "",
@@ -171,7 +172,7 @@ void pre_replace_deconv::run(program& p) {
                deconv_node.get_output_layout().size.feature[0] == 1 &&
                deconv_prim->stride.spatial[0] == 2 && deconv_prim->stride.spatial[1] == 2 &&
                filter_size.spatial[0] == 9 && filter_size.spatial[1] == 9 &&
-               deconv_prim->input_offset.spatial[0] == -4 && deconv_prim->input_offset.spatial[1] == -4 &&
+               deconv_prim->pad.spatial[0] == 4 && deconv_prim->pad.spatial[1] == 4 &&
                weights_nodes_id.size() == 1 && biases_nodes_id.size() == 1 &&
                input_node.get_output_layout().format == format::bfyx) {
                 const auto scale_factor = deconv_prim->stride.spatial[0];
@@ -194,7 +195,7 @@ void pre_replace_deconv::run(program& p) {
 
                 // setting convolution parameters based on deconvolution params
                 tensor stride = { 1, 1, 1, 1 };
-                tensor input_offset = { 0, 0, -scale_factor, -scale_factor };
+                tensor pad = tensor{{ 0, 0, scale_factor, scale_factor }, 0};
                 auto output_padding = deconv_prim->output_padding;
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
@@ -221,11 +222,11 @@ void pre_replace_deconv::run(program& p) {
                      std::vector<float> weights_vec_float;
 
                      if (weights_data_type == data_types::f16) {
-                         mem_lock<half_t> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                         mem_lock<half_t, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                          for (uint32_t i = 0; i < weights_layout.size.count(); i++)
                              weights_vec_float.push_back(static_cast<float>(src.data()[i]));
                      } else {
-                         mem_lock<float> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                         mem_lock<float, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                          for (uint32_t i = 0; i < weights_layout.size.count(); i++)
                              weights_vec_float.push_back(src.data()[i]);
                      }
@@ -240,10 +241,10 @@ void pre_replace_deconv::run(program& p) {
                          subpixel_weights);
 
                      if (weights_data_type == data_types::f16) {
-                         mem_lock<half_t> dst{ data_to_allocate, stream};
+                         mem_lock<half_t, mem_lock_type::write> dst{ data_to_allocate, stream};
                          program_helpers::set_weights_values<half_t>(dst.data(), subpixel_weights);
                      } else if (weights_data_type == data_types::f32) {
-                         mem_lock<float> dst{ data_to_allocate, stream };
+                         mem_lock<float, mem_lock_type::write> dst{ data_to_allocate, stream };
                          program_helpers::set_weights_values<float>(dst.data(), subpixel_weights);
                      } else {
                          throw std::logic_error("Not supported data type.");
@@ -262,7 +263,7 @@ void pre_replace_deconv::run(program& p) {
                                                                input_node_id,
                                                                std::vector<primitive_id>{ weight_replace_node_id },
                                                                stride,
-                                                               input_offset,
+                                                               pad,
                                                                tensor{ 1, 1, 1, 1 },
                                                                grouped_weights_shape,
                                                                "",
@@ -283,10 +284,10 @@ void pre_replace_deconv::run(program& p) {
                 float bias = 0;
 
                 if (bias_data_type == data_types::f16) {
-                    mem_lock<half_t> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                    mem_lock<half_t, mem_lock_type::read> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                     bias = static_cast<float>(src.data()[0]);
                 } else {
-                    mem_lock<float> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                    mem_lock<float, mem_lock_type::read> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                     bias = src.data()[0];
                 }
                 auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_node_id, deconv_id_conv, 2, depth_to_space_mode::blocks_first);

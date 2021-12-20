@@ -12,95 +12,64 @@
 
 namespace ngraph {
 
-constexpr const char *MLKDNNInputMemoryFormatsAttr = "MLKDNNInputMemoryFormats";
-constexpr const char *MLKDNNOutputMemoryFormatsAttr = "MLKDNNOutputMemoryFormats";
+constexpr const char *MKLDNNInputMemoryFormatsAttr = "MKLDNNInputMemoryFormats";
+constexpr const char *MKLDNNOutputMemoryFormatsAttr = "MKLDNNOutputMemoryFormats";
 
-class MLKDNNMemoryFormats {
+template<typename MemoryFormat>
+class MKLDNNMemoryFormats : public ov::RuntimeAttribute {
 protected:
     std::string memory_format;
 
 public:
-    MLKDNNMemoryFormats() = default;
-    explicit MLKDNNMemoryFormats(const std::string &_memory_format) : memory_format(_memory_format) {}
+    MKLDNNMemoryFormats() = default;
+    explicit MKLDNNMemoryFormats(const std::string &_memory_format) : memory_format(_memory_format) {}
     std::string getMemoryFormats() const { return memory_format; }
-};
 
-
-class MLKDNNInputMemoryFormats : public MLKDNNMemoryFormats {
-public:
-    MLKDNNInputMemoryFormats() = default;
-    explicit MLKDNNInputMemoryFormats(const std::string &_memory_format) : MLKDNNMemoryFormats(_memory_format) {}
-};
-
-std::string getMLKDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
-
-class MLKDNNOutputMemoryFormats : public MLKDNNMemoryFormats {
-public:
-    MLKDNNOutputMemoryFormats() = default;
-    explicit MLKDNNOutputMemoryFormats(const std::string &_memory_format) : MLKDNNMemoryFormats(_memory_format) {}
-};
-std::string getMLKDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
-
-}  // namespace ngraph
-
-namespace ov {
-template <typename MemoryFormatsType>
-class MLKDNNMemoryFormatsHelper : public VariantImpl<MemoryFormatsType> {
-public:
-    MLKDNNMemoryFormatsHelper(const MemoryFormatsType& value) : VariantImpl<MemoryFormatsType>(value) {}
-
-    static std::string getMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
-        const auto &rtInfo = node->get_rt_info();
-        using MemoryFormatsWrapper = VariantWrapper<MemoryFormatsType>;
-        if (!rtInfo.count(MemoryFormatsWrapper::type_info.name)) return "";
-        const auto &attr = rtInfo.at(MemoryFormatsWrapper::type_info.name);
-        MemoryFormatsType mem_format = ngraph::as_type_ptr<MemoryFormatsWrapper>(attr)->get();
-        return mem_format.getMemoryFormats();
-    }
-
-    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override {
+    ov::Any merge(const ngraph::NodeVector & nodes) const override {
         std::set<std::string> unique_mem_format;
 
         for (auto &node : nodes) {
-            std::string mem_format = getMemoryFormats(node);
-            if (!mem_format.empty()) unique_mem_format.insert(mem_format);
+            auto it_info = node->get_rt_info().find(MemoryFormat::get_type_info_static());
+            if (it_info != node->get_rt_info().end()) {
+                std::string mem_format = it_info->second.template as<MemoryFormat>().getMemoryFormats();
+                if (!mem_format.empty()) {
+                    unique_mem_format.insert(mem_format);
+                }
+            }
         }
 
         if (unique_mem_format.size() > 1) {
-            throw ngraph::ngraph_error(std::string(VariantWrapper<MemoryFormatsType>::type_info.name) + " no rule defined for multiple values.");
+            throw ngraph::ngraph_error(
+                std::string(MemoryFormat::get_type_info_static().name) +
+                " no rule defined for multiple values.");
         }
 
         std::string final_mem_format;
         if (unique_mem_format.size() == 1) {
             final_mem_format = *unique_mem_format.begin();
         }
-        return std::make_shared<VariantWrapper<MemoryFormatsType>>(MemoryFormatsType(final_mem_format));
-    }
-
-    std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override {
-        throw ngraph::ngraph_error(std::string(VariantWrapper<MemoryFormatsType>::type_info.name) + " has no default initialization.");
+        return MemoryFormat{final_mem_format};
     }
 };
-extern template class MLKDNNMemoryFormatsHelper<ngraph::MLKDNNInputMemoryFormats>;
 
-template<>
-class VariantWrapper<ngraph::MLKDNNInputMemoryFormats> : public MLKDNNMemoryFormatsHelper<ngraph::MLKDNNInputMemoryFormats> {
+
+class MKLDNNInputMemoryFormats : public MKLDNNMemoryFormats<MKLDNNInputMemoryFormats> {
 public:
-    static constexpr VariantTypeInfo type_info{ngraph::MLKDNNInputMemoryFormatsAttr, 0};
-    const VariantTypeInfo &get_type_info() const override { return type_info; }
-
-    VariantWrapper(const ngraph::MLKDNNInputMemoryFormats &value) : MLKDNNMemoryFormatsHelper<ngraph::MLKDNNInputMemoryFormats>(value) {}
+    OPENVINO_RTTI(MKLDNNInputMemoryFormatsAttr);
+    MKLDNNInputMemoryFormats() = default;
+    explicit MKLDNNInputMemoryFormats(const std::string &_memory_format) : MKLDNNMemoryFormats(_memory_format) {}
+    ~MKLDNNInputMemoryFormats() override;
 };
 
-extern template class MLKDNNMemoryFormatsHelper<ngraph::MLKDNNOutputMemoryFormats>;
+std::string getMKLDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
 
-template<>
-class VariantWrapper<ngraph::MLKDNNOutputMemoryFormats> : public MLKDNNMemoryFormatsHelper<ngraph::MLKDNNOutputMemoryFormats> {
+class MKLDNNOutputMemoryFormats : public MKLDNNMemoryFormats<MKLDNNOutputMemoryFormats> {
 public:
-    static constexpr VariantTypeInfo type_info{ngraph::MLKDNNOutputMemoryFormatsAttr, 0};
-    const VariantTypeInfo &get_type_info() const override { return type_info; }
-
-    VariantWrapper(const ngraph::MLKDNNOutputMemoryFormats &value) : MLKDNNMemoryFormatsHelper<ngraph::MLKDNNOutputMemoryFormats>(value) {}
+    OPENVINO_RTTI(MKLDNNOutputMemoryFormatsAttr);
+    MKLDNNOutputMemoryFormats() = default;
+    explicit MKLDNNOutputMemoryFormats(const std::string &_memory_format) : MKLDNNMemoryFormats(_memory_format) {}
+    ~MKLDNNOutputMemoryFormats() override;
 };
+std::string getMKLDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
 
-}  // namespace ov
+}  // namespace ngraph

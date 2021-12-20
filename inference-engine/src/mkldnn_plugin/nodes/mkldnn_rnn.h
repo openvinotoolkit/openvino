@@ -19,6 +19,8 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     bool created() const override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
@@ -61,6 +63,9 @@ private:
     /** activation type for vanilla RNN cell */
     mkldnn::algorithm cell_act = mkldnn::algorithm::eltwise_tanh;
 
+    /** Weights data and state memory format: ldigo or any */
+    mkldnn::memory::format_tag w_format = mkldnn::memory::format_tag::any;
+
     // Internal attributes
     size_t N = 0;   /**< Batch value */
     size_t T = 0;   /**< Sequence value */
@@ -80,10 +85,6 @@ private:
         HiddenState = 1,
         CellState   = 2
     };
-
-    DnnlBlockedMemoryDescPtr w_data_d;
-    DnnlBlockedMemoryDescPtr w_state_d;
-    DnnlBlockedMemoryDescPtr w_bias_d;
 
     std::vector<size_t > in_data_dims;
     std::vector<size_t > out_data_dims;

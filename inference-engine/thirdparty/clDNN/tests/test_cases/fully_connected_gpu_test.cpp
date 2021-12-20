@@ -7,10 +7,10 @@
 #include "test_utils.h"
 #include "network_test.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include "cldnn/primitives/fully_connected.hpp"
-#include <cldnn/primitives/quantize.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include <intel_gpu/primitives/quantize.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 #include <cmath>
 
@@ -1606,3 +1606,106 @@ INSTANTIATE_TEST_SUITE_P(
     ),
     fully_connected_u8_f32_test::PrintToStringParamName
 );
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(fully_connected_onednn_gpu, no_biases_int8) {
+    //  Input  : 3x1
+    //  Output : 4x1
+    //  Weights: 4x3
+
+    const int32_t input_x = 3, input_b = 1,  // size of whole input buffer
+        weight_b = 4, weight_x = 3;  // size of whole weights buffer
+
+    auto& engine = get_onednn_test_engine();
+
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, 1, input_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_b, 1, weight_x, 1 } });
+
+    set_values(input_prim, { 8.4f, 2.3f, -4.49f });
+    set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
+
+    auto input = input_layout("input", input_prim->get_layout());
+    auto w_data = data("weights", weights_prim);
+    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, 1, input_x, 1 } });
+    auto fc = fully_connected("full_con_prim", "reorder_to_int", "weights");
+    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32, format::bfyx, { input_b, 1, 4, 1 } });
+    topology topology;
+    topology.add(input);
+    topology.add(w_data);
+    topology.add(fc);
+    topology.add(ri);
+    topology.add(rf);
+
+    cldnn::build_options force_options;
+    implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
+    force_options.set_option(build_option::force_implementations({ {"full_con_prim", fc_impl} }));
+
+    network network(engine, topology, force_options);
+    network.set_input_data("input", input_prim);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder_to_float");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+    EXPECT_EQ(18.0f, output_ptr[0]);
+    EXPECT_EQ(-32.0f, output_ptr[1]);
+    EXPECT_EQ(12.0f, output_ptr[2]);
+    EXPECT_EQ(-52.0f, output_ptr[3]);
+}
+
+TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
+    //  Input  : 1x2x3x1 (3D FC case)
+    //  Output : 2x4
+    //  Weights: 4x3
+
+    const int32_t input_y = 3, input_f = 2, input_b = 1,  // size of whole input buffer
+                  weight_o = 4, weight_i = 3,  // size of whole weights buffer
+                  output_b = 2, output_f = 4;
+
+    auto& engine = get_onednn_test_engine();
+
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, input_f, 1, input_y } });
+    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_o, weight_i, 1, 1 } });
+
+    set_values(input_prim, { 8.4f, 2.3f, -4.49f, 8.4f, 2.3f, -4.49f });
+    set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
+
+    auto input = input_layout("input", input_prim->get_layout());
+    auto w_data = data("weights", weights_prim);
+    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, input_y } });
+    auto fc = fully_connected("full_con_prim", "reorder_to_int", "weights", "", "", padding(), 3);
+    auto rf = reorder("reorder_to_float", "full_con_prim", { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
+    topology topology;
+    topology.add(input);
+    topology.add(w_data);
+    topology.add(fc);
+    topology.add(ri);
+    topology.add(rf);
+
+    cldnn::build_options force_options;
+    implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
+    force_options.set_option(build_option::force_implementations({ {"full_con_prim", fc_impl} }));
+
+    network network(engine, topology, force_options);
+    network.set_input_data("input", input_prim);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder_to_float");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+    for (int b = 0; b < output_b; b++) {
+        EXPECT_EQ(18.0f, output_ptr[b * output_f + 0]);
+        EXPECT_EQ(-32.0f, output_ptr[b * output_f + 1]);
+        EXPECT_EQ(12.0f, output_ptr[b * output_f + 2]);
+        EXPECT_EQ(-52.0f, output_ptr[b * output_f + 3]);
+    }
+}
+#endif

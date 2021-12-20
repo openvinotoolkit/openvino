@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set_property(GLOBAL PROPERTY JOB_POOLS four_jobs=4)
+
 function(ov_model_convert SRC DST OUT)
-    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/ngraph/test/models/onnx/onnx_prototxt_converter.py)
+    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/core/tests/models/onnx/onnx_prototxt_converter.py)
 
     file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
     file(GLOB_RECURSE xml_models RELATIVE "${SRC}" "${SRC}/*.xml")
@@ -17,7 +19,7 @@ function(ov_model_convert SRC DST OUT)
         get_filename_component(name_we "${in_file}" NAME_WE)
         set(model_source_dir "${SRC}/${rel_dir}")
 
-        if(NOT NGRAPH_ONNX_FRONTEND_ENABLE AND ext MATCHES "^\\.(onnx|prototxt)$")
+        if(NOT ENABLE_OV_ONNX_FRONTEND AND ext MATCHES "^\\.(onnx|prototxt)$")
             # don't copy / process ONNX / prototxt files
             continue()
         endif()
@@ -43,6 +45,7 @@ function(ov_model_convert SRC DST OUT)
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
                 COMMENT "Generate ${rel_out_name}"
+                JOB_POOL four_jobs
                 WORKING_DIRECTORY "${model_source_dir}")
         else()
             add_custom_command(OUTPUT ${full_out_name}
@@ -50,6 +53,7 @@ function(ov_model_convert SRC DST OUT)
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
                 COMMENT "Copy ${rel_out_name}"
+                JOB_POOL four_jobs
                 WORKING_DIRECTORY "${model_source_dir}")
         endif()
         list(APPEND files "${full_out_name}")
@@ -58,27 +62,37 @@ function(ov_model_convert SRC DST OUT)
     set(${OUT} ${files} PARENT_SCOPE)
 endfunction()
 
-ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/ngraph/test"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ngraph"
+ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/tests"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/core"
                   onnx_out_files)
 
-set(rel_path "inference-engine/tests/functional/inference_engine/onnx_reader")
+set(rel_path "src/tests/functional/plugin/shared/models")
+ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/func_tests/models"
+                 ft_out_files)
+
+set(rel_path "src/tests/functional/inference_engine/onnx_reader")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_reader"
                  ie_onnx_out_files)
 
-set(rel_path "inference-engine/tests/functional/inference_engine/ir_serialization")
+set(rel_path "src/tests/functional/inference_engine/ir_serialization")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ir_serialization"
                  ie_serialize_out_files)
 
-set(rel_path "inference-engine/tests/unit/frontends/onnx_import/models")
+set(rel_path "src/tests/unit/frontends/onnx_import/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
                  ie_onnx_import_out_files)
 
+set(rel_path "docs/onnx_custom_op")
+ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/docs/models"
+                 docs_onnx_out_files)
+
 if(ENABLE_TESTS)
-    if(NGRAPH_ONNX_FRONTEND_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
+    if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_REQUIREMENTS_INSTALL)
         find_package(PythonInterp 3 REQUIRED)
 
         get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
@@ -103,7 +117,7 @@ if(ENABLE_TESTS)
             list(APPEND args --use-feature=2020-resolver)
         endif()
 
-        set(reqs "${OpenVINO_SOURCE_DIR}/ngraph/test/requirements_test_onnx.txt")
+        set(reqs "${OpenVINO_SOURCE_DIR}/src/core/tests/requirements_test_onnx.txt")
         add_custom_target(test_pip_prerequsites ALL
                           "${PYTHON_EXECUTABLE}" -m pip install ${args} -r ${reqs}
                           COMMENT "Install requirements_test.txt"
@@ -112,15 +126,17 @@ if(ENABLE_TESTS)
     endif()
 
     add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
+                                             ${ft_out_files}
                                              ${ie_onnx_out_files}
                                              ${ie_serialize_out_files}
-                                             ${ie_onnx_import_out_files})
+                                             ${ie_onnx_import_out_files}
+                                             ${docs_onnx_out_files})
 
     if(TARGET test_pip_prerequsites)
         add_dependencies(test_model_zoo test_pip_prerequsites)
     endif()
 
-    if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    if (ENABLE_OV_PDPD_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)
         add_dependencies(test_model_zoo paddlepaddle_test_models)
     endif()
 

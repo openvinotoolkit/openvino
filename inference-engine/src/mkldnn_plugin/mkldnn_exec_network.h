@@ -24,6 +24,10 @@ public:
     typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
 
     std::shared_ptr<InferenceEngine::IInferRequestInternal>
+    CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
+
+    std::shared_ptr<InferenceEngine::IInferRequestInternal>
     CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                            InferenceEngine::OutputsDataMap networkOutputs) override;
 
@@ -40,9 +44,6 @@ public:
 
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
 
-    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
-
     void Export(std::ostream& modelStream) override;
 
 protected:
@@ -50,7 +51,7 @@ protected:
     MKLDNNExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     const InferenceEngine::CNNNetwork           _network;
-    std::mutex                                  _cfgMutex;
+    mutable std::mutex                          _cfgMutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
@@ -70,7 +71,6 @@ protected:
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
      *       even from main thread
      */
-    Graph::Lock GetGraph();
     Graph::Lock GetGraph() const;
 
 

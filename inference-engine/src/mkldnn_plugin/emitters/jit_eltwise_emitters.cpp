@@ -85,8 +85,8 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 
     if (isa == cpu::x64::sse41) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->mulps(vmm_dst, vmm_src1);
-        h->addps(vmm_dst, vmm_src2);
+        h->uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
+        h->uni_vaddps(vmm_dst, vmm_dst, vmm_src2);
     } else {
         Vmm vmm_mul0;
         if (vmm_dst.getIdx() == vmm_src0.getIdx()) {
@@ -656,7 +656,7 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
     } else if (isa == cpu::x64::avx2) {
         h->vcmpeqps(vmm_aux0, vmm_src0, vmm_src1);
         h->uni_vmovups(vmm_dst, table_val("zero"));
-        h->vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
+        h->uni_vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
     } else {
         h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_eq_oq);
         h->uni_vmovups(vmm_dst, table_val("zero"));
@@ -1297,7 +1297,7 @@ jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_
     power = ngraph::as_type_ptr<ngraph::op::Constant>(parent)->get_data_ptr<float>()[0];
     scale = 1.f;
     shift = 0.f;
-    push_arg_entry_of("power", float2int(power), true);
+    push_arg_entry_of("power", cpu::x64::float2int(power), true);
     push_arg_entry_of("scale", 0x3f800000, true);
     push_arg_entry_of("shift", 0x00000000, true);
     push_arg_entry_of("one",   0x3f800000, true);
@@ -1475,10 +1475,10 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
 }
 
 void jit_power_static_emitter::register_table_entries() {
-    push_arg_entry_of("power", float2int(power), true);
-    push_arg_entry_of("scale", float2int(scale), true);
-    push_arg_entry_of("shift", float2int(shift), true);
-    push_arg_entry_of("one",   float2int(1.f), true);
+    push_arg_entry_of("power", cpu::x64::float2int(power), true);
+    push_arg_entry_of("scale", cpu::x64::float2int(scale), true);
+    push_arg_entry_of("shift", cpu::x64::float2int(shift), true);
+    push_arg_entry_of("one",   cpu::x64::float2int(1.f), true);
 }
 
 size_t jit_power_static_emitter::aux_vecs_count() const {

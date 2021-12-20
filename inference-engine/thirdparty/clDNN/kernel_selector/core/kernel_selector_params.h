@@ -129,9 +129,10 @@ public:
                         uint32_t split : 1;
                         uint32_t dilation : 1;
                         uint32_t depthwise_separable_opt : 1;
-                        uint32_t local : 1;
                         uint32_t grouped : 1;
                         uint32_t deformable : 1;
+                        uint32_t bilinear_interpolation_pad : 1;
+                        uint32_t deformable_mask_enabled : 1;
                     } conv;
                     struct fc_t {
                     } fc;
@@ -190,20 +191,6 @@ public:
                     struct lstm_elt_t {
                         uint32_t cell : 1;
                     } lstm_elt;
-                    struct fused_conv_eltw_t {
-                        // conv
-                        uint32_t split : 1;
-                        uint32_t dilation : 1;
-                        uint32_t depthwise_separable_opt : 1;
-                        uint32_t transposed : 1;
-                        uint32_t local : 1;
-                        uint32_t grouped : 1;
-                        // eltw
-                        uint32_t stride : 1;
-                        // fused conv eltw
-                        uint32_t rw_out_opt : 1;
-                        uint32_t depth_to_space_fused : 1;
-                    } fused_conv_eltw;
                     struct quantize_t {
                         uint32_t packed_binary_output : 1;
                         uint32_t scale_shift_opt : 1;
@@ -299,20 +286,10 @@ public:
     void EnableSplitSupport() { key.restrict.val.dedicated.conv.split = 1; }
     void EnableDilation() { key.restrict.val.dedicated.conv.dilation = 1; }
     void EnableDepthwiseSeparableOpt() { key.restrict.val.dedicated.conv.depthwise_separable_opt = 1; }
-    void EnableLocalConvolution() { key.restrict.val.dedicated.conv.local = 1; }
     void EnableGroupedConvolution() { key.restrict.val.dedicated.conv.grouped = 1; }
     void EnableDeformableMode() { key.restrict.val.dedicated.conv.deformable = 1; }
-
-    void EnableFusedConvEltwSplitSupport() { key.restrict.val.dedicated.fused_conv_eltw.split = 1; }
-    void EnableFusedConvEltwDilation() { key.restrict.val.dedicated.fused_conv_eltw.dilation = 1; }
-    void EnableFusedConvEltwDepthwiseSeparableOpt() {
-        key.restrict.val.dedicated.fused_conv_eltw.depthwise_separable_opt = 1;
-    }
-    void EnableFusedConvEltwLocalConvolution() { key.restrict.val.dedicated.fused_conv_eltw.local = 1; }
-    void EnableFusedConvEltwGroupedConvolution() { key.restrict.val.dedicated.fused_conv_eltw.grouped = 1; }
-    void EnableFusedConvEltwTranspose() { key.restrict.val.dedicated.fused_conv_eltw.transposed = 1; }
-    void EnableFusedConvEltwEltwiseStride();
-    void EnableFusedConvEltwDepthToSpaceFusing();
+    void EnableBilinearInterpolationPad() { key.restrict.val.dedicated.conv.bilinear_interpolation_pad = 1; }
+    void EnableDeformableMask() { key.restrict.val.dedicated.conv.deformable_mask_enabled = 1; }
 
     void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
     void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
@@ -384,6 +361,7 @@ struct EngineInfo {
     uint64_t maxImage2dHeight = 0;
     std::string deviceId = "";
     std::string driverVersion = "";
+    std::vector<size_t> supportedSimdSizes = {};
     std::shared_ptr<TuningCache> deviceCache;
 };
 
@@ -512,6 +490,26 @@ struct FusedOpsConfiguration {
     bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
 };
 
+// Dependency(Input) type of fusing operation in fused node.
+// There are different ways to generate input var name and type by the dependency(input) type in MakeOpJitConstants in jitter
+// - ORIGINAL: The input of the operation is the fused node such as Conv
+// - EXTERNAL: The input of the operation is the external node outside the fused node
+// - INTERNAL: The input of the operation is the another fused operation in the fused node
+enum class DepType {
+    UNDEFINED  = -1,
+    ORIGINAL   = 0,
+    EXTERNAL   = 1,
+    INTERNAL   = 2
+};
+
+// Dependency(Input) information of fusing operation which is used to generate input var name and type
+// in MakeOpJitConstants in jitter
+struct dep_info {
+    DepType     dep_type = DepType::UNDEFINED;
+    size_t      op_id;
+    Datatype    data_type;
+};
+
 // Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program::fuse_nodes
 // method. In order to process fused ops following modifications should be done in a kernel:
 // option 1 - using common generator:
@@ -564,7 +562,7 @@ struct fused_operation_desc {
     MultiDataTensor tensors;
     DataTensor output_tensor;
     size_t op_id;
-    std::vector<std::pair<size_t, Datatype>> fused_op_ids;
+    std::vector<dep_info> dep_data = {};
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }

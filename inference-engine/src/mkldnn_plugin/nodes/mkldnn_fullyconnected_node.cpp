@@ -14,6 +14,7 @@
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -131,7 +132,7 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
     if (prim)
         return;
 
-    std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
+    AttrPtr attr = initPrimitiveAttr();
     std::shared_ptr<inner_product_forward::primitive_desc> prim_desc;
     prim_desc = std::make_shared<inner_product_forward::primitive_desc>(
             createPrimitiveDescriptor<inner_product_forward::primitive_desc, inner_product_forward::desc>(*attr));
@@ -145,6 +146,8 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
                     {DNNL_ARG_BIAS, getParentEdgeAt(BIAS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
     else
         primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getParentEdgeAt(WEIGHTS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
+
+    appendPostOpArgs(*attr);
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
@@ -177,16 +180,30 @@ bool MKLDNNFullyConnectedNode::canFuse(const MKLDNNNodePtr& node) const {
 void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) {
     mkldnn::post_ops ops;
 
+    auto getBinPostOpShape = [&](){
+        const size_t binaryShapeRank = getOutputShapeAtPort(0).getRank() == 3 ? 2 : getOutputShapeAtPort(0).getRank();
+        VectorDims binaryShape(binaryShapeRank, 1);
+        const size_t channelAxis = getFusingAxis();
+        // always use 1 as channelAxis for binary Shape, since oneDNN primitive is actually always 2D
+        binaryShape[1] = getOutputShapeAtPort(0).getStaticDims()[channelAxis];
+
+        return binaryShape;
+    };
+
     for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
-        if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+        if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
             continue;
         }
 
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
+        if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
+            // TODO [DS]: change to shape from memory
+            constexpr int align = -1;
+            if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
+            } else {
+                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            }
             continue;
         }
 
@@ -228,6 +245,15 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
             impl_desc_type::jit_sse42,
             impl_desc_type::ref,
     };
+
+    // WA: brgemm kernel contains bug that may lead to segfault in case of added post-ops and unaligned number of channels
+    size_t simdWidth = 16;
+    auto inputDims = inputShapes[0].getDims();
+    if (inputDims.back() != Shape::UNDEFINED_DIM && inputDims.back() % simdWidth == 0) {
+        priorities.insert(priorities.begin() + 1, impl_desc_type::brgemm_avx512_amx);
+        priorities.insert(priorities.begin() + 2, impl_desc_type::brgemm_avx512);
+    }
+
     for (const auto& impl : priorities) {
         if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
             implPriorities.push_back(impl);
@@ -235,10 +261,10 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
     return implPriorities;
 }
 
-std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveAttr() {
+MKLDNNNode::AttrPtr MKLDNNFullyConnectedNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
-    setPostOps(*attr, true);
+    setPostOps(*attr);
 
     return attr;
 }
@@ -263,13 +289,16 @@ void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::de
 
     if (in_candidate.dims().size() == 3) {
         auto inDims = in_candidate.dims();
-        auto outDims = out_candidate.dims();
         auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
-        auto normalizedOutDims = {outDims[0] * outDims[1], outDims[2]};
         in_candidate = mkldnn::memory::desc(normalizedInDims, in_candidate.data_type(),
                                          MKLDNNExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
+    }
+
+    if (out_candidate.dims().size() == 3) {
+        auto outDims = out_candidate.dims();
+        auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
         out_candidate = mkldnn::memory::desc(normalizedOutDims, out_candidate.data_type(),
-                                             MKLDNNExtensionUtils::GetPlainFormatByRank(normalizedOutDims.size()));
+                                         MKLDNNExtensionUtils::GetPlainFormatByRank(normalizedOutDims.size()));
     }
 
     mkldnn::memory::desc wgh_candidate(MKLDNNExtensionUtils::convertToDnnlDims(weightsDims), wdt, mkldnn::memory::format_tag::any);

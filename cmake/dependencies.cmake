@@ -5,7 +5,7 @@
 cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it
-set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
+set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)
@@ -83,12 +83,11 @@ if(THREADING STREQUAL "OMP")
         message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
-    log_rpath_from_dir(OMP "${OMP}/lib")
     debug_message(STATUS "intel_omp=" ${OMP})
-    
+
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-    install(FILES ${source_list} 
+    install(FILES ${source_list}
             DESTINATION "runtime/3rdparty/omp/lib"
             COMPONENT omp)
 endif()
@@ -97,18 +96,29 @@ endif()
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT TBB_DIR)
 
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    endif()
+
     if(WIN32 AND X86_64)
-        #TODO: add target_path to be platform specific as well, to avoid following if
+        # TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_WIN "tbb2020_20200415_win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
-        RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_WIN "tbbbind_2_4_static_win_v2.zip"
-                TARGET_PATH "${TEMP}/tbbbind_2_4"
-                ENVIRONMENT "TBBBIND_2_4_ROOT"
-                SHA256 "90dc165652f6ac2ed3014c71e57f797fcc4b11e1498a468e3d2c85deb2a4186a")
+        if(ENABLE_TBBBIND_2_5)
+            RESOLVE_DEPENDENCY(TBBBIND_2_5
+                    ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
+                    TARGET_PATH "${TEMP}/tbbbind_2_5"
+                    ENVIRONMENT "TBBBIND_2_5_ROOT"
+                    SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
+        else()
+            message(WARNING "prebuilt TBBBIND_2_5 is not available.
+    Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
+        endif()
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -121,11 +131,16 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-        RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_LIN "tbbbind_2_4_static_lin_v2.tgz"
-                TARGET_PATH "${TEMP}/tbbbind_2_4"
-                ENVIRONMENT "TBBBIND_2_4_ROOT"
-                SHA256 "6dc926258c6cd3cba0f5c2cc672fd2ad599a1650fe95ab11122e8f361a726cb6")
+        if(ENABLE_TBBBIND_2_5)
+            RESOLVE_DEPENDENCY(TBBBIND_2_5
+                    ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                    TARGET_PATH "${TEMP}/tbbbind_2_5"
+                    ENVIRONMENT "TBBBIND_2_5_ROOT"
+                    SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+        else()
+            message(WARNING "prebuilt TBBBIND_2_5 is not available.
+    Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
+        endif()
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -143,16 +158,19 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
-    update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
-
-    update_deps_cache(TBBBIND_2_4_DIR "${TBBBIND_2_4}/cmake" "Path to TBBBIND_2_4 cmake folder")
-
-    if(WIN32)
-        log_rpath_from_dir(TBB "${TBB}/bin")
-    else ()
-        log_rpath_from_dir(TBB "${TBB}/lib")
+    if(EXISTS "${TBBROOT}/lib/cmake/TBB/TBBConfig.cmake")
+        # oneTBB case
+        update_deps_cache(TBB_DIR "${TBB}/lib/cmake/TBB" "Path to TBB cmake folder")
+    else()
+        update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
     endif()
+
+    update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
     debug_message(STATUS "tbb=" ${TBB})
+
+    if(DEFINED IE_PATH_TO_DEPS)
+        unset(IE_PATH_TO_DEPS)
+    endif()
 endif()
 
 ## OpenCV
@@ -242,22 +260,14 @@ if(ENABLE_OPENCV)
     endif()
 
     update_deps_cache(OpenCV_DIR "${ocv_cmake_path}" "Path to OpenCV package folder")
-
-    if(WIN32)
-        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../bin")
-    elseif(ANDROID)
-        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../../../lib")
-    else()
-        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
-    endif()
     debug_message(STATUS "opencv=" ${OPENCV})
 else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake)
+include(${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake)
 
-if(ENABLE_GNA)
+if(ENABLE_INTEL_GNA)
     reset_deps_cache(
             GNA
             GNA_PLATFORM_DIR
@@ -277,8 +287,8 @@ if(ENABLE_GNA)
             set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.1226")
-            set(GNA_HASH "d5450af15c993e264c25ac4591a7dab44722e10d15fca4f222a1b84429d4e5b6")
+            set(GNA_VERSION "03.00.00.1455")
+            set(GNA_HASH "8ac1af18eb32777b00193f4f8c252ee4f8bd64a9069138b4a5aaeebd82ead464")
         endif()
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
@@ -287,7 +297,7 @@ if(ENABLE_GNA)
         else()
             LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
         endif()
-     
+
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"

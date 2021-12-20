@@ -23,24 +23,20 @@ if not "%1"=="" (
 )
 
 :: OpenCV
+if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
+call "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat"
+goto :opencv_done
+)
 if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
 call "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat"
-) else (
-set "OpenCV_DIR=%INTEL_OPENVINO_DIR%\opencv\x64\vc14\lib"
-set "PATH=%INTEL_OPENVINO_DIR%\opencv\x64\vc14\bin;%PATH%"
+goto :opencv_done
 )
+:opencv_done
 
 :: Model Optimizer
-if exist %INTEL_OPENVINO_DIR%\tools\model_optimizer (
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PYTHONPATH%
-set "PATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PATH%"
-)
-
-
-:: Model Downloader
-if exist %INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader (
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PYTHONPATH%
-set "PATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PATH%"
+if exist %INTEL_OPENVINO_DIR%\tools\mo (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\mo;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\tools\mo;%PATH%"
 )
 
 :: OpenVINO runtime
@@ -114,12 +110,8 @@ if not "%bitness%"=="64" (
 
 set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%pyversion_major%.%pyversion_minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
 
-if exist %INTEL_OPENVINO_DIR%\tools\accuracy_checker (
-    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\accuracy_checker;%PYTHONPATH%
-)
-
-if exist %INTEL_OPENVINO_DIR%\post_training_optimization_toolkit (
-    set PYTHONPATH=%INTEL_OPENVINO_DIR%\post_training_optimization_toolkit;%PYTHONPATH%
+if exist %INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit (
+    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit;%PYTHONPATH%
 )
 
 echo [setupvars.bat] OpenVINO environment initialized

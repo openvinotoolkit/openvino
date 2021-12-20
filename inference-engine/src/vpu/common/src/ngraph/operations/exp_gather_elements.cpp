@@ -8,8 +8,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo ExpGatherElements::type_info;
-
 ExpGatherElements::ExpGatherElements(const Output<Node>& data,
                                      const Output<Node>& indices,
                                      const Output<Node>& lookupIndices,

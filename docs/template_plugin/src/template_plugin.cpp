@@ -17,6 +17,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/convert_precision.hpp>
 
+#include "openvino/core/except.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
@@ -34,8 +35,7 @@ Plugin::Plugin() {
     _pluginName = "TEMPLATE";
 
     // create ngraph backend which performs inference using ngraph reference implementations
-    ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
-    _backend = ngraph::runtime::Backend::create("INTERPRETER");
+    _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
     _waitExecutor =
@@ -68,7 +68,7 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
     // TODO: add post-processing based on outputsInfoMap
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
-    // GAPI supports only FP32 networks for pre-processing
+    // G-API supports only FP32 networks for pre-processing
     bool needF16toF32 = false;
     for (const auto& param : function->get_parameters()) {
         if (param->get_element_type() == ngraph::element::f16 &&
@@ -78,9 +78,10 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
             break;
         }
     }
-    if (needF16toF32)
+    if (needF16toF32) {
         passManager.register_pass<ngraph::pass::ConvertPrecision>(
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
+    }
     // Example: register plugin specific transformation
     passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
     passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
@@ -119,9 +120,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetwork");
 
     auto fullConfig = Configuration{config, _cfg};
-    return std::make_shared<ExecutableNetwork>(modelStream,
-                                               fullConfig,
-                                               std::static_pointer_cast<Plugin>(shared_from_this()));
+    auto exec = std::make_shared<ExecutableNetwork>(modelStream,
+                                                    fullConfig,
+                                                    std::static_pointer_cast<Plugin>(shared_from_this()));
+    SetExeNetworkInfo(exec, exec->_function);
+    return exec;
 }
 // ! [plugin:import_network]
 
@@ -148,14 +151,24 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
     // So we need store as supported either unsupported node sets
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
-    auto opset = ngraph::get_opset4();
+    ngraph::OpSet op_super_set;
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) op_super_set.insert<NAMESPACE::NAME>();
+#include "openvino/opsets/opset1_tbl.hpp"
+#include "openvino/opsets/opset2_tbl.hpp"
+#include "openvino/opsets/opset3_tbl.hpp"
+#include "openvino/opsets/opset4_tbl.hpp"
+#include "openvino/opsets/opset5_tbl.hpp"
+#include "openvino/opsets/opset6_tbl.hpp"
+#include "openvino/opsets/opset7_tbl.hpp"
+#include "openvino/opsets/opset8_tbl.hpp"
+#undef _OPENVINO_OP_REG
     for (auto&& node : transformedFunction->get_ops()) {
         // Extract transformation history from transformed node as list of nodes
         for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (opset.contains_type(friendlyNameToType[fusedLayerName])) {
+                if (op_super_set.contains_type(friendlyNameToType[fusedLayerName])) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);

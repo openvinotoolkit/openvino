@@ -16,10 +16,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNExperimentalDetectronTopKROIsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
         if (!topKROI) {
             errorMessage = "Only opset6 ExperimentalDetectronTopKROIs operation is supported";
@@ -40,10 +36,14 @@ MKLDNNExperimentalDetectronTopKROIsNode::MKLDNNExperimentalDetectronTopKROIsNode
 
     errorPrefix = "ExperimentalDetectronTopKROIs layer with name '" + op->get_friendly_name() + "'";
     const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
-    if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1)
+    if (topKROI == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of ExperimentalDetectronTopKROIs from opset6.";
+
+    if (inputShapes.size() != 2 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    if (op->get_input_shape(INPUT_ROIS).size() != 2 || op->get_input_shape(INPUT_PROBS).size() != 1)
+    if (getInputShapeAtPort(INPUT_ROIS).getDims().size() != 2 || getInputShapeAtPort(INPUT_PROBS).getDims().size() != 1)
         IE_THROW() << errorPrefix << " has nsupported input shape";
 
     max_rois_num_ = topKROI->get_max_rois();

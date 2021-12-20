@@ -20,7 +20,7 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -50,29 +50,28 @@ public:
     void nmsWithoutSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
                              const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
 
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
-    std::vector<VectorDims> shapeInfer() const override {
-        return std::vector<VectorDims>();
-    }
+    bool needShapeInfer() const override { return false; }
+    void prepareParams() override;
 
 private:
     // input
-    enum : size_t {
+    enum {
         NMS_BOXES,
         NMS_SCORES,
         NMS_MAXOUTPUTBOXESPERCLASS,
         NMS_IOUTHRESHOLD,
         NMS_SCORETHRESHOLD,
         NMS_SOFTNMSSIGMA,
-    } InputNumber;
+    };
 
     // output
-    enum : size_t {
+    enum {
         NMS_SELECTEDINDICES,
         NMS_SELECTEDSCORES,
         NMS_VALIDOUTPUTS
-    } OutputNumber;
+    };
 
 
     enum class boxEncoding {
@@ -82,9 +81,9 @@ private:
     boxEncoding boxEncodingType = boxEncoding::CORNER;
     bool sort_result_descending = true;
 
-    size_t num_batches;
-    size_t num_boxes;
-    size_t num_classes;
+    size_t num_batches = 0;
+    size_t num_boxes = 0;
+    size_t num_classes = 0;
 
     size_t max_output_boxes_per_class = 0lu;
     float iou_threshold = 0.0f;

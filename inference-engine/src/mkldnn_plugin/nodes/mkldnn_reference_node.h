@@ -4,9 +4,7 @@
 
 #pragma once
 
-//#include <ie_common.h>
 #include <mkldnn_node.h>
-//#include <string>
 
 namespace MKLDNNPlugin {
 
@@ -20,12 +18,13 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    std::vector<std::vector<size_t>> shapeInfer() const override;
+    std::vector<VectorDims> shapeInfer() const override;
+    bool needShapeInfer() const override;
+    bool needPrepareParams() const override { return false; }
     void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
     const std::shared_ptr<ngraph::Node> ngraphOp;
-    std::shared_ptr<ngraph::Node> opToShapeInfer;
     const std::string additionalErrorMessage;
 };
 

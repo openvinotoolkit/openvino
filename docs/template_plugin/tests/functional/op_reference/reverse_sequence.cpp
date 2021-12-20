@@ -4,18 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/reverse_sequence.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct ReverseSequenceParams {
@@ -49,11 +42,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ReverseSequenceParams& params) {
-        const auto data = std::make_shared<op::Parameter>(params.mDataTensor.type, params.mDataTensor.shape);
-        const auto seqLengths = std::make_shared<op::Parameter>(params.mSeqLengthsTensor.type, params.mSeqLengthsTensor.shape);
-        const auto reverseSequence = std::make_shared<op::ReverseSequence>(data, seqLengths, params.mBatchAxis, params.mSeqAxis);
-        return std::make_shared<Function>(NodeVector {reverseSequence}, ParameterVector {data, seqLengths});
+    static std::shared_ptr<Model> CreateFunction(const ReverseSequenceParams& params) {
+        const auto data = std::make_shared<op::v0::Parameter>(params.mDataTensor.type, params.mDataTensor.shape);
+        const auto seqLengths = std::make_shared<op::v0::Parameter>(params.mSeqLengthsTensor.type, params.mSeqLengthsTensor.shape);
+        const auto reverseSequence = std::make_shared<op::v0::ReverseSequence>(data, seqLengths, params.mBatchAxis, params.mSeqAxis);
+        return std::make_shared<ov::Model>(NodeVector {reverseSequence}, ParameterVector {data, seqLengths});
     }
 };
 

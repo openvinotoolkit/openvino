@@ -33,7 +33,9 @@ def parse_args():
                       help='Show this help message and exit.')
     args.add_argument('-i', '--paths_to_input', action='append', nargs='+', type=str, required=False,
                       help='Optional. '
-                           'Path to a folder with images and/or binaries or to specific image or binary file.')
+                           'Path to a folder with images and/or binaries or to specific image or binary file.'
+                           'It is also allowed to map files to network inputs: '
+                           'input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
                       help='Required. Path to an .xml/.onnx file with a trained model or '
                            'to a .blob file with a trained compiled model.')
@@ -49,18 +51,18 @@ def parse_args():
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
     args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency'],
-                      help='Optional. Performance hint (optimize for latency or throughput).'
-                            'The hint allows the OpenVINO device to select the right network-specific settings,'
-                            'as opposite to accepting specific values like  \'nstreams\' from the command line.'
+                      help='Optional. Performance hint (optimize for latency or throughput). '
+                            'The hint allows the OpenVINO device to select the right network-specific settings, '
+                            'as opposite to accepting specific values like  \'nstreams\' from the command line. '
                             'So you can specify just the hint without adding explicit device-specific options')
     args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
                       help='Optional. Enable using sync/async API. Default value is async.')
     args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
                       help='Optional. Number of iterations. '
                            'If not specified, the number of iterations is calculated depending on a device.')
-    args.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=None,
+    args.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=0,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
-    args.add_argument('-b', '--batch_size', type=int, required=False, default=0,
+    args.add_argument('-b', '--batch_size', type=str, required=False, default='',
                       help='Optional. ' +
                            'Batch size value. ' +
                            'If not specified, the batch size value is determined from Intermediate Representation')
@@ -75,7 +77,13 @@ def parse_args():
                            'Show progress bar (can affect performance measurement). Default values is \'False\'.')
     args.add_argument('-shape', type=str, required=False, default='',
                       help='Optional. '
-                           'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.')
+                           'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.'
+                           'This parameter affect model Parameter shape, can be dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.')
+    args.add_argument('-data_shape', type=str, required=False, default='',
+                      help='Optional. '
+                           'Optional if network shapes are all static (original ones or set by -shape).'
+                           'Required if at least one input shape is dynamic and input images are not provided.'
+                           'Set shape for input tensors. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224] in case of one input size.')
     args.add_argument('-layout', type=str, required=False, default='',
                       help='Optional. '
                            'Prompts how network layouts should be treated by application. '
@@ -101,13 +109,18 @@ def parse_args():
     args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
                       help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
                            'threads->(NUMA)nodes (\'NUMA\'), '
-                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs)'
-                           'or completely disable (\'NO\')'
+                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs) '
+                           'or completely disable (\'NO\') '
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
     args.add_argument('-pc', '--perf_counts', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report performance counters.', )
+    args.add_argument('-pcseq', '--pcseq', type=str2bool, required=False, default=False, nargs='?', const=True,
+                      help='Optional. Report latencies for each shape in -data_shape sequence.', )
+    args.add_argument('-inference_only', '--inference_only', type=str2bool, required=False, default=None, nargs='?', const=True,
+                      help='Optional. If true inputs filling only once before measurements (default for static models), '
+                                     'else inputs filling is included into loop measurement (default for dynamic models)', )
     args.add_argument('-report_type', '--report_type', type=str, required=False,
                       choices=['no_counters', 'average_counters', 'detailed_counters'],
                       help="Optional. Enable collecting statistics report. \"no_counters\" report contains "

@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "data_inst.h"
 #include "primitive_type_base.h"
-#include "cldnn/runtime/memory.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 
 #include "json_object.h"
 #include <string>
@@ -25,8 +25,8 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
         return mem;
 
     memory::ptr result = engine.allocate_memory(mem->get_layout(), false);
-    mem_lock<char> src(mem, network.get_stream());
-    mem_lock<char> dst(result, network.get_stream());
+    mem_lock<char, mem_lock_type::read> src(mem, network.get_stream());
+    mem_lock<char, mem_lock_type::write> dst(result, network.get_stream());
     std::copy(src.begin(), src.end(), dst.begin());
     return result;
 }

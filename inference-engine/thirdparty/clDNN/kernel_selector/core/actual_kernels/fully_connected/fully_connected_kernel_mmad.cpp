@@ -68,8 +68,8 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
         output_feature = output.Y().v;
     }
 
-    tuning_data.sub_group_size = 8;
-    if (input.X().v == 1 && input.Z().v == 1 && input.Batch().v == 1 &&
+    tuning_data.sub_group_size = IsSIMDSizeSupported(params.engineInfo, 8) ? 8 : 16;
+    if (tuning_data.sub_group_size == 8 && input.X().v == 1 && input.Z().v == 1 && input.Batch().v == 1 &&
         ((input.Y().v == 1 && output.GetLayout() != DataLayout::bfyx) || (input.Feature().v == 1 && output.GetLayout() == DataLayout::bfyx)) ) {
         // Known cases for TGL where simd16 works better than simd8
         bool simd16_exception_1 = input.Feature().v == 25088 && output.Feature().v == 512;
@@ -90,9 +90,16 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
     bool slm_div_factor_exception = input_batch == 300 && input_feature == 2048 &&
                                     output_batch == 300 && (output_feature == 324 || output_feature == 81);
 
+    bool big_wgs_exception = params.engineInfo.computeUnitsCount == 96 && params.engineInfo.maxThreadsPerExecutionUnit == 7 &&
+                             input_feature == 9216 && output_feature == 4096;
+
+    size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
+    if (max_work_group_size > 256 && !big_wgs_exception)
+        max_work_group_size = 256;
+
     if (tuning_data.feature_blocks_count && tuning_data.sub_group_size == 8 && !slm_div_factor_exception)
         while (tuning_data.feature_blocks_count % (tuning_data.slm_div_factor * 2) == 0 &&
-               (tuning_data.slm_div_factor * 2 <= params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size))
+               (tuning_data.slm_div_factor * 2 <= max_work_group_size / tuning_data.sub_group_size))
             tuning_data.slm_div_factor *= 2;
 
     tuning_data.work_group_size = tuning_data.slm_div_factor * tuning_data.sub_group_size;

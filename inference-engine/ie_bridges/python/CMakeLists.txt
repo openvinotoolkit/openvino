@@ -13,8 +13,6 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
 endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
-cmake_dependent_option(ENABLE_WHEEL "Create wheel package" OFF
-    "PYTHONINTERP_FOUND;NOT CMAKE_SOURCE_DIR STREQUAL ie_python_api_SOURCE_DIR" OFF)
 
 set(PYTHON_BRIDGE_CPACK_PATH "python")
 
@@ -34,7 +32,9 @@ else()
 endif()
 
 if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
-    set(PYTHON_VERSION python${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
+    set(PYTHON_VERSION_MAJOR ${CMAKE_MATCH_1})
+    set(PYTHON_VERSION_MINOR ${CMAKE_MATCH_2})
+    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 else()
     message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
 endif()
@@ -66,10 +66,6 @@ set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory (src/openvino/inference_engine)
 add_subdirectory (src/openvino/offline_transformations)
 
-if (ENABLE_TESTS)
-    add_subdirectory(src/openvino/test_utils)
-endif()
-
 if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
@@ -86,21 +82,10 @@ install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
         COMPONENT ${PYTHON_COMPONENT})
 
-install(FILES requirements.txt
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}
-        COMPONENT ${PYTHON_COMPONENT})
-
-install(PROGRAMS src/openvino/__init__.py
+install(PROGRAMS ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_COMPONENT})
 
-# install Python samples
+# package Python samples
 
-ie_cpack_add_component(python_samples)
-
-install(DIRECTORY sample/
-        DESTINATION samples/python
-        USE_SOURCE_PERMISSIONS
-        COMPONENT python_samples)
-
-ie_cpack(${PYTHON_COMPONENT} python_samples)
+ie_cpack(${PYTHON_COMPONENT})
