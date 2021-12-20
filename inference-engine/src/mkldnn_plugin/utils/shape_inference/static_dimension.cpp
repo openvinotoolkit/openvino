@@ -42,7 +42,8 @@ StaticDimension& StaticDimension::operator*=(const StaticDimension& dim) {
 }
 
 StaticDimension StaticDimension::operator/(const value_type divisor) const {
-    OPENVINO_ASSERT(divisor != 0, "divisor can't be 0");
+    OPENVINO_ASSERT(divisor >= 0, "divisor must be greater than 0");
+
     if (m_dimension % divisor) {
         OPENVINO_UNREACHABLE("Dimension value: ", m_dimension,
                     " must be a multiple of divisor: ", divisor);

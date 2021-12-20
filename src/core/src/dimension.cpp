@@ -42,7 +42,7 @@ Dimension Dimension::operator-(const Dimension& dim) const {
 }
 
 Dimension Dimension::operator/(const value_type divisor) const {
-    OPENVINO_ASSERT(divisor != 0, "divisor can't be 0");
+    OPENVINO_ASSERT(divisor >= 0, "divisor must be greater than 0");
 
     if (m_dimension.get_max_val() == Interval::s_max && m_dimension.get_min_val() == 0)
         return Dimension::dynamic();
