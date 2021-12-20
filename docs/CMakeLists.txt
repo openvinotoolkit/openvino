@@ -65,22 +65,12 @@ function(build_docs)
     endif()
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-    set(DOCS_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/docs")
+    set(DOCS_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/docs")
     set(SCRIPTS_DIR "${DOCS_SOURCE_DIR}/scripts")
-
-    # API INPUT
-
-    set(NGRAPH_DIR "${OpenVINO_MAIN_SOURCE_DIR}/ngraph")
 
     # markdown docs
     set(MARKDOWN_INPUT "${DOCS_BUILD_DIR}")
-    
-    # IE C++ API
-    set(IE_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine")
-    
-    # IE C API
-    set(IE_C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
-    
+
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${SCRIPTS_DIR}/doxy_md_filter.py")
     set(PYNGRAPH_REF_SCRIPT "${SCRIPTS_DIR}/pyngraph_ref.py")
@@ -122,7 +112,7 @@ function(build_docs)
     configure_file(${DOXYFILE_SOURCE} ${DOXYFILE_BUILD} @ONLY)
 
     list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir=${OpenVINO_MAIN_SOURCE_DIR}
+        --input_dir=${OpenVINO_SOURCE_DIR}
         --output_dir=${DOCS_BUILD_DIR}/openvino
         --exclude_dir=${DOCS_BUILD_DIR})
 
@@ -215,7 +205,7 @@ function(build_docs)
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${DOXYREST_EXECUTABLE} -c ${DOXYREST_CONFIG_OUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
-                       COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_MAIN_SOURCE_DIR}/../
+                       COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN} ${API_DOCS_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}

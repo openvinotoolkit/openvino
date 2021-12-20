@@ -16,6 +16,3 @@ API references available:
    ../groupie_cpp_api
    ../groupie_c_api
    ie_python_api/api
-   ../groupngraph_cpp_api
-   ngraph_python_api/api
-   ../deprecated
