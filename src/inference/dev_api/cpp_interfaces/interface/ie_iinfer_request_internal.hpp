@@ -118,6 +118,15 @@ public:
     virtual Blob::Ptr GetBlob(const std::string& name);
 
     /**
+     * @brief Get input/output data to infer
+     * @note Memory allocation doesn't happen
+     * @param name - a name of input or output blob.
+     * @return data - a reference to input batched blob.
+     */
+    virtual BatchedBlob::Ptr GetBlobs(const std::string& name);
+
+
+    /**
      * @brief Sets pre-process for input data
      * @param name Name of input blob.
      * @param data - a reference to input or output blob. The type of Blob must correspond to the network input

@@ -358,6 +358,13 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
     return data;
 }
 
+BatchedBlob::Ptr IInferRequestInternal::GetBlobs(const std::string& name) {
+    if (_batched_inputs.count(name)) {
+        return _batched_inputs.at(name);
+    }
+    return nullptr;
+}
+
 void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) {
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
