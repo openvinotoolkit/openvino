@@ -111,7 +111,6 @@ setup(
     long_description_content_type='text/markdown',
     url='https://software.intel.com/openvino-toolkit',
     packages=find_packages(exclude=["tests", "tests.*",
-                                    "thirdparty", "thirdparty.*",
                                     "tools", "tools.*"]),
     package_data={"openvino.tools.pot.configs.hardware": ['*.json'],
                   "openvino.tools.pot.api.samples": ['*.md', '*/*.md']},

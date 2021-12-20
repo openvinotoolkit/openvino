@@ -42,13 +42,13 @@ PKG_INSTALL_CFG = {
         'extract_entry_points': True,
     },
     "accuracy_checker": {
-        'src_dir': OPENVINO_DIR / 'tools' / 'pot' / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
+        'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
         'black_list': ['*tests*'],
         'prefix': 'accuracy_checker',
         'extract_entry_points': True,
     },
     "omz_tools": {
-        'src_dir': OPENVINO_DIR / 'tools' / 'pot' / 'thirdparty' / 'open_model_zoo' / 'tools' / 'model_tools',  # noqa:E501
+        'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'model_tools',  # noqa:E501
         'black_list': [],
         'prefix': 'omz_tools',
         'extract_requirements': True,
@@ -80,6 +80,10 @@ class CustomBuild(build):
         self.announce('Installing packages', level=log.INFO)
         for cmp, cmp_data in PKG_INSTALL_CFG.items():
             self.announce(f'Processing package: {cmp}', level=log.INFO)
+            if not cmp_data['src_dir'].is_dir():
+                raise FileNotFoundError(
+                    f'The source directory was not found: {cmp_data["src_dir"]}'
+                )
             subprocess.call([sys.executable, 'setup.py', 'install',
                             '--root', str(SCRIPT_DIR),
                              '--prefix', str(cmp_data.get("prefix"))],
