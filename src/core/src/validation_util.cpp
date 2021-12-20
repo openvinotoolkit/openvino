@@ -1287,12 +1287,18 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;
     if (lb && ub) {
-        const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
-        const auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
+        auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             NGRAPH_CHECK(lower_bound[i] >= 0 && upper_bound[i] >= 0);
+            if (output.get_element_type() == element::i32) {
+                if (upper_bound[i] == std::numeric_limits<std::int32_t>::max())
+                    upper_bound[i] = std::numeric_limits<std::int64_t>::max();
+                if (lower_bound[i] == std::numeric_limits<std::int32_t>::max())
+                    lower_bound[i] = std::numeric_limits<std::int64_t>::max();
+            }
             resulting_pshape[i] = {lower_bound[i], upper_bound[i]};
         }
         pshape = PartialShape(resulting_pshape);
