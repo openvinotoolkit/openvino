@@ -717,7 +717,7 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(rightConfig);
 }
 
-void MKLDNNNode::prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd) {
+void MKLDNNNode::prepareMemory(mkldnn::primitive_desc_iterator& itpd) {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
@@ -1049,7 +1049,9 @@ void MKLDNNNode::setDynamicBatchLim(int lim) {
     }
 }
 
-void MKLDNNNode::appendPostOpArgs(const mkldnn::primitive_attr& attr) {
+void MKLDNNNode::appendPostOpArgs(const mkldnn::primitive_attr& attr,
+                                  std::unordered_map<int, mkldnn::memory>& primArgs,
+                                  const std::vector<MKLDNNMemoryPtr>& binaryPostOpsArgs) {
     auto post_ops = attr.get_post_ops();
     int idx = 0;
     for (int i = 0; i < post_ops.len(); i++) {
