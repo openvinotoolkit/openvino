@@ -109,7 +109,7 @@ setup(
       'mxnet': read_text('requirements_mxnet.txt'),
       'onnx': read_text('requirements_onnx.txt'),
       'tensorflow': read_text('requirements_tf.txt'),
-      'tensorflow2': read_text('requirements_tf.txt'),
+      'tensorflow2': read_text('requirements_tf2.txt'),
     },
     classifiers=[
       "Programming Language :: Python :: 3",
