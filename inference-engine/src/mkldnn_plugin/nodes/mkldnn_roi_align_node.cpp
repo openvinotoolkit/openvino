@@ -108,9 +108,12 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
     Precision inputPrec0 = getOriginalInputPrecisionAtPort(0);
     Precision outputPrec = getOriginalOutputPrecisionAtPort(0);
 
-    if (!mayiuse(avx512_core)) {
-        if (outputPrec == Precision::BF16 || inputPrec0 == Precision::BF16)
+    if (inputPrec0 != Precision::FP32 || outputPrec != Precision::FP32) {
+        if ((outputPrec == Precision::BF16 || inputPrec0 == Precision::BF16) && mayiuse(avx512_core)) {
+            outputPrec = inputPrec0 = Precision::BF16;
+        } else {
             outputPrec = inputPrec0 = Precision::FP32;
+        }
     }
 
     NodeConfig config;
@@ -130,7 +133,7 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
                               {LayoutType::ncsp, Precision::FP32},
                               {LayoutType::ncsp, Precision::I32}},
                              {{fmts.second, outputPrec}},
-                              impl_desc_type::unknown);
+                              impl_desc_type::ref);
     }
 }
 
@@ -369,13 +372,7 @@ bool MKLDNNROIAlignNode::needPrepareParams() const {
 }
 
 void MKLDNNROIAlignNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
-}
-
-void MKLDNNROIAlignNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
+    execute(strm);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNROIAlignNode, ROIAlign)
