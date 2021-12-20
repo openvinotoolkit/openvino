@@ -1331,3 +1331,21 @@ def test_add_name_for_tensor_and_override_all_inputs():
     model_input = ov_model.input(0)
     input_tensor_names = model_input.get_names()
     assert "extra_name" in input_tensor_names
+
+
+def test_add_name_for_tensor_and_rename_it():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensorName="in2")
+    model.add_name_for_tensor(tensor, "extra_name")
+    model.set_name_for_tensor(tensor, "renamed_input")
+
+    ov_model = fe.convert(model)
+
+    model_input = ov_model.input(1)
+    input_tensor_names = model_input.get_names()
+    assert "renamed_input" in input_tensor_names
+    assert "extra_name" in input_tensor_names
+    assert "in2" not in input_tensor_names
