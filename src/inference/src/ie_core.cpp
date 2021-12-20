@@ -544,9 +544,8 @@ public:
                 if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
                     layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
                     layout == InferenceEngine::Layout::NDHWC) {
-                    if (item.first == "im_info"  // WA for faster-rcnn* and alikes (pls see the note above)
-                        || 1 != item.second->getTensorDesc()
-                                    .getDims()[0])  // do not reshape/re-batch originally batched networks
+                    if (item.first == "im_info"  // WA for faster-rcnn* and alikes (CVS-74085)
+                        || 1 != item.second->getTensorDesc().getDims()[0])  // do not reshape/re-batch  batched networks
                         IE_THROW(NotImplemented)
                             << "Auto-batching does not reshape/re-batch originally batched networks!";
                     else
@@ -1350,7 +1349,9 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
         } catch (...) {
         }
         const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-        if (bThroughputEnabledInPlugin || (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)))
+        const auto& allow = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+        if ((bThroughputEnabledInPlugin || (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) &&
+                                           (allow == config.end() || allow->second != CONFIG_VALUE(NO)))
             config_with_batch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(YES);
     }
     auto exec = _impl->LoadNetwork(network, deviceName, config_with_batch);
