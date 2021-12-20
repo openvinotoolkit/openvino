@@ -127,11 +127,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_PrePostProcess.*two_inputs_trivial.*)",
         // TODO: CVS-67255
         R"(smoke_If.*SimpleIf2OutTest.*)",
-        // TODO: CVS-68525
-        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
-        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
 
         // Issue: 69086
         // need to add support convert BIN -> FP32
