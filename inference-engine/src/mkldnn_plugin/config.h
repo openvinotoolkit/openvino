@@ -41,6 +41,7 @@ struct Config {
 #ifdef CPU_DEBUG_CAPS
     DebugCaps::Config debugCaps;
 #endif
+    std::string cache_dir{};
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();

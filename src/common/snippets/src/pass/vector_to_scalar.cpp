@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -16,6 +16,7 @@ ngraph::snippets::pass::ReplaceLoadsWithScalarLoads::ReplaceLoadsWithScalarLoads
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<ngraph::snippets::op::Load>()),
             [this](ngraph::pattern::Matcher &m) {
+            OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ReplaceLoadsWithScalarLoads_callback")
             auto root = m.get_match_root();
             auto load = std::make_shared<ngraph::snippets::op::ScalarLoad> (root->input_value(0));
             load->set_friendly_name(root->get_friendly_name());
@@ -30,6 +31,7 @@ ngraph::snippets::pass::ReplaceStoresWithScalarStores::ReplaceStoresWithScalarSt
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<ngraph::snippets::op::Store>()),
             [this](ngraph::pattern::Matcher &m) {
+            OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ReplaceStoresWithScalarStores_callback")
             auto root = m.get_match_root();
             auto store = std::make_shared<ngraph::snippets::op::ScalarStore> (root->input_value(0));
             store->set_friendly_name(root->get_friendly_name());
