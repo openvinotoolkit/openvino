@@ -103,6 +103,8 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         !((foundInput && foundInput->getInputData()->isDynamic()) || (foundOutput && foundOutput->isDynamic()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
+    const bool isInputDynamic = foundInput && foundInput->getInputData()->isDynamic();
+    const bool isOutputDynamic = foundOutput && foundOutput->isDynamic();
     IE_SUPPRESS_DEPRECATED_END
 
     size_t dataSize = userBlob->size();
@@ -126,7 +128,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
             size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                    ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
                                    : 1;
-            if (dataSize != inputSize) {
+            if (!isInputDynamic && dataSize != inputSize) {
                 IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize
                            << ").";
             }
@@ -140,7 +142,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                 ? details::product(foundOutput->getTensorDesc().getDims())
                                 : 1;
-        if (dataSize != outputSize) {
+        if (!isOutputDynamic && dataSize != outputSize) {
             IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize
                        << ").";
         }
@@ -164,6 +166,9 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
     DataPtr foundOutput;
     const SizeVector oneVector = {1};
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+        IE_SUPPRESS_DEPRECATED_START
+        const bool isInputDynamic = foundInput && foundInput->getInputData()->isDynamic();
+        IE_SUPPRESS_DEPRECATED_END
         // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
@@ -171,7 +176,10 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
         } else {
             data = _inputs[name];
             const auto& dims = foundInput->getTensorDesc().getDims();
-            checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
+            if (isInputDynamic)
+                checkBlob(data, name, true);
+            else
+                checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
 
             auto& devBlob = _deviceInputs[name];
             if (preProcessingRequired(foundInput, data, devBlob)) {
@@ -180,9 +188,15 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
             }
         }
     } else {
+        IE_SUPPRESS_DEPRECATED_START
+        const bool isOutputDynamic = foundOutput && foundOutput->isDynamic();
+        IE_SUPPRESS_DEPRECATED_END
         data = _outputs[name];
         const auto& dims = foundOutput->getTensorDesc().getDims();
-        checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
+        if (isOutputDynamic)
+            checkBlob(data, name, false);
+        else
+            checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
     }
     return data;
 }
