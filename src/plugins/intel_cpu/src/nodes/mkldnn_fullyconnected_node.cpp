@@ -317,13 +317,13 @@ void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::de
     }
 }
 
-void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                                const std::vector<MemoryDescPtr> &outputDesc) {
+void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<MemoryDescCPtr> &inputDesc,
+                                                const std::vector<MemoryDescCPtr> &outputDesc) {
     createDescriptorInternal(MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc(),
                              MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0])->getDnnlDesc());
 }
 
-std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<const MemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
 
     if (getInputShapeAtPort(idx).getRank() == 3) {
@@ -333,7 +333,7 @@ std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::prim
     return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 
-std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<const MemoryDesc> MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = primitive_desc_it.dst_desc(idx);
 
     if (getOutputShapeAtPort(idx).getRank() == 3) {

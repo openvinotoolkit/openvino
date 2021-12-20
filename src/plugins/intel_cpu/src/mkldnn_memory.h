@@ -49,7 +49,7 @@ public:
         return prim;
     }
 
-    MemoryDescPtr getDescPtr() const {
+    MemoryDescCPtr getDescPtr() const {
         return pMemDesc;
     }
 
@@ -60,7 +60,7 @@ public:
     template <typename T,
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
             typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
-    std::shared_ptr<T> GetDescWithType() const;
+    std::shared_ptr<const T> GetDescWithType() const;
 
     /**
      * Return handler of buffer. Real data may starts from some other offset
@@ -123,7 +123,7 @@ private:
     void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
 private:
-    MemoryDescPtr pMemDesc;
+    MemoryDescCPtr pMemDesc;
     std::shared_ptr<mkldnn::memory> prim;
     mkldnn::engine eng;
     bool useExternalStorage = false;

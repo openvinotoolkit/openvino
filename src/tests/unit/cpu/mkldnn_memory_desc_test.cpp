@@ -22,11 +22,11 @@ TEST(MemDescTest, Conversion) {
     auto converted_correctly = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc orig_tdesc {dims, dnnl::memory::data_type::u8, fmt};
         DnnlMemoryDescPtr plg_tdesc = MKLDNNExtensionUtils::makeDescriptor(orig_tdesc);
-        BlockedMemoryDescPtr blk_tdesc = MemoryDescUtils::convertToBlockedMemoryDesc(plg_tdesc);
+        BlockedMemoryDescCPtr blk_tdesc = MemoryDescUtils::convertToBlockedMemoryDesc(plg_tdesc);
         MemoryDescPtr cpu_blk_tdesc = std::make_shared<CpuBlockedMemoryDesc>(blk_tdesc->getPrecision(), blk_tdesc->getShape(), blk_tdesc->getBlockDims(),
                                                                              blk_tdesc->getOrder(), blk_tdesc->getOffsetPadding(),
                                                                              blk_tdesc->getOffsetPaddingToData(), blk_tdesc->getStrides());
-        DnnlMemoryDescPtr plg_tdesc_after = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_blk_tdesc);
+        DnnlMemoryDescCPtr plg_tdesc_after = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_blk_tdesc);
         dnnl::memory::desc after_tdesc = plg_tdesc_after->getDnnlDesc();
 
         return orig_tdesc == after_tdesc;
@@ -98,7 +98,7 @@ TEST(MemDescTest, ConversionSpecialCases) {
                                                                                 dnnl_blk_desc.getBlockDims(), dnnl_blk_desc.getOrder(),
                                                                                 dnnl_blk_desc.getOffsetPadding(), dnnl_blk_desc.getOffsetPaddingToData(),
                                                                                 dnnl_blk_desc.getStrides());
-        DnnlMemoryDescPtr dnnl_desc_ptr = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_blk_desc_ptr);
+        DnnlMemoryDescCPtr dnnl_desc_ptr = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_blk_desc_ptr);
 
         if (shape.isDynamic()) {
             ASSERT_FALSE(dnnl_desc_ptr->isDefined());
@@ -133,16 +133,17 @@ TEST(MemDescTest, ConversionSpecialCases) {
         ASSERT_TRUE(dnnl_blk_desc.getDnnlDesc() == dnnl_desc_ptr->getDnnlDesc());
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             dnnl_desc_ptr = MemoryDescUtils::convertToDnnlMemoryDesc(desc_extra_ptr);
             ASSERT_TRUE(dnnl_desc_ptr->getDnnlDesc() == orig_desc_extra);
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -186,16 +187,17 @@ TEST(MemDescTest, ConversionSpecialCases) {
         ASSERT_TRUE(dnnl_blk_desc.getDnnlDesc() == dnnl_blk_desc_check.getDnnlDesc());
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             dnnl_blk_desc_check = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*desc_extra_ptr);
             ASSERT_TRUE(dnnl_blk_desc_check.getDnnlDesc() == orig_desc_extra);
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -207,7 +209,7 @@ TEST(MemDescTest, ConversionSpecialCases) {
                                                                                 dnnl_blk_desc.getBlockDims(), dnnl_blk_desc.getOrder(),
                                                                                 dnnl_blk_desc.getOffsetPadding(), dnnl_blk_desc.getOffsetPaddingToData(),
                                                                                 dnnl_blk_desc.getStrides());
-        BlockedMemoryDescPtr blk_desc_ptr = MemoryDescUtils::convertToBlockedMemoryDesc(cpu_blk_desc_ptr);
+        BlockedMemoryDescCPtr blk_desc_ptr = MemoryDescUtils::convertToBlockedMemoryDesc(cpu_blk_desc_ptr);
 
         if (shape.isDynamic()) {
             ASSERT_FALSE(blk_desc_ptr->isDefined());
@@ -248,16 +250,17 @@ TEST(MemDescTest, ConversionSpecialCases) {
         dnnl_blk_desc.getStrides() == blk_desc_ptr->getStrides());
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             blk_desc_ptr = MemoryDescUtils::convertToBlockedMemoryDesc(desc_extra_ptr);
             ASSERT_TRUE(blk_desc_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -349,20 +352,21 @@ TEST(MemDescTest, cloneWithNewPrecision) {
                     dnnl_blk_desc.getStrides() == dnnl_blk_desc_new_pr.getStrides());
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
+        dnnl::memory::desc orig_desc_extra_new_pr{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), newPr, fmt};
+        orig_desc_extra_new_pr.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra_new_pr.data.extra.compensation_mask = 1;
+        orig_desc_extra_new_pr.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
-            dnnl::memory::desc orig_desc_extra_new_pr{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), newPr, fmt};
-            orig_desc_extra_new_pr.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra_new_pr.data.extra.compensation_mask = 1;
-            orig_desc_extra_new_pr.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             MemoryDescPtr clone = desc_extra_ptr->cloneWithNewPrecision(pr);
             ASSERT_TRUE(clone->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra_new_pr);
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -430,15 +434,16 @@ TEST(MemDescTest, convertToTensorDesc) {
         ASSERT_ANY_THROW(tensor_desc = MemoryDescUtils::convertToTensorDesc(*desc_ptr));
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             ASSERT_ANY_THROW(tensor_desc = MemoryDescUtils::convertToTensorDesc(*desc_extra_ptr));
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -494,15 +499,16 @@ TEST(MemDescTest, isCompatibleTrueTests) {
         }
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             ASSERT_FALSE(desc_extra_ptr->isCompatible(dnnl_blk_desc));
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -515,7 +521,7 @@ TEST(MemDescTest, isCompatibleTrueTests) {
                                                                                 dnnl_blk_desc.getStrides());
 
         ASSERT_TRUE(cpu_blk_desc_ptr->isCompatible(*cpu_blk_desc_ptr) &&
-                    cpu_blk_desc_ptr->isCompatible(*cpu_blk_desc_ptr));
+                    cpu_blk_desc_ptr->isCompatible(dnnl_blk_desc));
 
         dnnl::memory::desc orig_desc{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
         MemoryDescPtr dnnl_desc_ptr;
@@ -679,15 +685,16 @@ TEST(MemDescTest, hasLayoutType) {
         ASSERT_TRUE(dnnl_blk_desc.hasLayoutType(expected));
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, formatTag};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, formatTag};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->hasLayoutType(expected));
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -765,15 +772,16 @@ TEST(MemDescTest, blocksExtended) {
         }
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, formatTag};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, formatTag};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             ASSERT_EQ(result, desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->blocksExtended());
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -836,7 +844,7 @@ TEST(MemDescTest, getPaddedElementsCount) {
 }
 
 TEST(MemDescTest, cloneWithNewDims) {
-    Shape dynamicShape(ngraph::PartialShape{{16}, {7, 15}, {-1, -1}, {-1, -1}});
+    Shape dynamicShape(ngraph::PartialShape{{17}, {7, 15}, {-1, -1}, {-1, -1}});
 
     auto cloneWithNewDimsDnnlDesc = [&] (dnnl::memory::format_tag fmt) {
         dnnl::memory::desc orig_desc {MKLDNNExtensionUtils::convertToDnnlDims(dynamicShape.getDims()), dnnl::memory::data_type::f32, fmt};
@@ -848,14 +856,14 @@ TEST(MemDescTest, cloneWithNewDims) {
 
     auto cloneWithNewDimsDnnlBlkDesc = [&] (dnnl::memory::format_tag fmt) {
         DnnlBlockedMemoryDescPtr dnnl_blk_desc_ptr = std::make_shared<DnnlBlockedMemoryDesc>(dynamicShape, mkldnn::memory::data_type::u8, fmt);
-        DnnlBlockedMemoryDescPtr ref = std::make_shared<DnnlBlockedMemoryDesc>(Shape(SizeVector {16, 8, 10, 10}), mkldnn::memory::data_type::u8, fmt);
-        auto descNewDims = dnnl_blk_desc_ptr->cloneWithNewDims({16, 8, 10, 10});
+        DnnlBlockedMemoryDescPtr ref = std::make_shared<DnnlBlockedMemoryDesc>(Shape(SizeVector {17, 8, 10, 10}), mkldnn::memory::data_type::u8, fmt);
+        auto descNewDims = dnnl_blk_desc_ptr->cloneWithNewDims({17, 8, 10, 10});
 
         ASSERT_EQ(descNewDims->as<DnnlBlockedMemoryDesc>()->getDnnlDesc(), ref->getDnnlDesc());
         ASSERT_EQ(descNewDims->as<DnnlBlockedMemoryDesc>()->getStrides(), ref->getStrides());
         ASSERT_EQ(descNewDims->as<DnnlBlockedMemoryDesc>()->getOrder(), ref->getOrder());
         ASSERT_ANY_THROW(descNewDims = dnnl_blk_desc_ptr->cloneWithNewDims({8, 8, 10, 10}));
-        ASSERT_ANY_THROW(descNewDims = dnnl_blk_desc_ptr->cloneWithNewDims({16, 16, 10, 10}));
+        ASSERT_ANY_THROW(descNewDims = dnnl_blk_desc_ptr->cloneWithNewDims({17, 16, 10, 10}));
     };
 
     auto cloneWithNewDimsCpuBlkDesc = [&] (dnnl::memory::format_tag fmt) {
@@ -865,14 +873,14 @@ TEST(MemDescTest, cloneWithNewDims) {
                                                                                           dnnl_blk_desc_ptr->getOffsetPadding(),
                                                                                           dnnl_blk_desc_ptr->getOffsetPaddingToData(),
                                                                                           dnnl_blk_desc_ptr->getStrides());
-        auto descNewDims = cpu_blk_desc_ptr->cloneWithNewDims({16, 9, 10, 10});
-        DnnlBlockedMemoryDescPtr ref = std::make_shared<DnnlBlockedMemoryDesc>(Shape(SizeVector{16, 9, 10, 10}), mkldnn::memory::data_type::u8, fmt);
+        auto descNewDims = cpu_blk_desc_ptr->cloneWithNewDims({17, 9, 10, 10});
+        DnnlBlockedMemoryDescPtr ref = std::make_shared<DnnlBlockedMemoryDesc>(Shape(SizeVector{17, 9, 10, 10}), mkldnn::memory::data_type::u8, fmt);
 
         ASSERT_EQ(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*descNewDims).getDnnlDesc(), ref->getDnnlDesc());
         ASSERT_EQ(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*descNewDims).getStrides(), ref->getStrides());
         ASSERT_EQ(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*descNewDims).getOrder(), ref->getOrder());
         ASSERT_ANY_THROW(descNewDims = ref->cloneWithNewDims({8, 8, 10, 10}));
-        ASSERT_ANY_THROW(descNewDims = ref->cloneWithNewDims({16, 16, 10, 10}));
+        ASSERT_ANY_THROW(descNewDims = ref->cloneWithNewDims({17, 16, 10, 10}));
     };
 
     dnnl::memory::format_tag payload[] {
@@ -880,8 +888,7 @@ TEST(MemDescTest, cloneWithNewDims) {
         dnnl::memory::format_tag::nhwc,
         dnnl::memory::format_tag::nchw,
         dnnl::memory::format_tag::NChw16n16c,
-        // TODO [DS]: Should be fixed for DnnlBlockedMemoryDesc
-        // dnnl::memory::format_tag::BAcd16a16b,
+        dnnl::memory::format_tag::BAcd16a16b,
         dnnl::memory::format_tag::Acdb16a,
     };
 
@@ -969,15 +976,16 @@ TEST(MemDescTest, getMaxMemSize) {
         ASSERT_EQ(result, cpu_blk_desc_ptr->getMaxMemSize());
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, formatTag};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, formatTag};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             ASSERT_LT(result, desc_extra_ptr->getMaxMemSize());
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -986,6 +994,7 @@ TEST(MemDescTest, getMaxMemSize) {
             {{ dnnl::memory::format_tag::nhwc,        Shape(SizeVector{4, 2, 10, 7 }) }, 560},
             {{ dnnl::memory::format_tag::nchw,        Shape(SizeVector{4, 2, 10, 7 }) }, 560},
             {{ dnnl::memory::format_tag::nChw8c,      Shape(SizeVector{1, 1, 10, 10}) }, 800},
+            {{ dnnl::memory::format_tag::nchw,        Shape(ngraph::PartialShape{{8, INT32_MAX }, {8, 16}, {8, 24}, {10, 20}}) }, Shape::UNDEFINED_DIM},
             {{ dnnl::memory::format_tag::nChw16c,     Shape(ngraph::PartialShape{{16}, {6}, {-1, -1}, {-1, -1}}) }, Shape::UNDEFINED_DIM},
             {{ dnnl::memory::format_tag::nhwc,        Shape(ngraph::PartialShape{{8, 16}, {16}, {8, 24}, {10, 20}}) }, 122880},
             {{ dnnl::memory::format_tag::nchw,        Shape(ngraph::PartialShape{{8, 16}, {8, 16}, {8, 24}, {10, 20}}) }, 122880},
@@ -1010,15 +1019,16 @@ TEST(MemDescTest, getCurrentMemSize) {
         ASSERT_EQ(result, cpu_blk_desc_ptr->getCurrentMemSize());
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
-        if (shape.isStatic()) {
             dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, formatTag};
             orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
             orig_desc_extra.data.extra.compensation_mask = 1;
             orig_desc_extra.data.extra.scale_adjust = 2.0f;
+        if (shape.isStatic()) {
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             ASSERT_LT(result, desc_extra_ptr->getCurrentMemSize());
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -1039,8 +1049,8 @@ TEST(MemDescTest, getCurrentMemSize) {
 }
 
 TEST(MemDescTest, serializeFormat) {
-    Shape dynamicShape(ngraph::PartialShape{{16}, {7, 15}, {-1, -1}, {-1, -1}});
-    Shape staticShape(SizeVector{1, 1, 10, 10});
+    Shape dynamicShape(ngraph::PartialShape{{17}, {7, 15}, {-1, -1}, {-1, -1}});
+    Shape staticShape(SizeVector{17, 1, 10, 10});
 
     auto serializeFormat = [] (dnnl::memory::format_tag fmt, const Shape& shape, std::string str) {
         DnnlBlockedMemoryDescPtr dnnl_blk_desc_ptr;
@@ -1061,15 +1071,16 @@ TEST(MemDescTest, serializeFormat) {
         ASSERT_EQ(cpu_blk_desc_ptr->serializeFormat(), dnnl_blk_desc_ptr->serializeFormat());
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             ASSERT_EQ(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->serializeFormat(), str);
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -1078,11 +1089,13 @@ TEST(MemDescTest, serializeFormat) {
             {{ dnnl::memory::format_tag::nhwc,        staticShape  }, "acdb",       },  // permuted
             {{ dnnl::memory::format_tag::nchw,        staticShape  }, "abcd",       },  // plain
             {{ dnnl::memory::format_tag::NChw16n16c,  staticShape  }, "ABcd16a16b", },  // blocked for 2 dims
+            {{ dnnl::memory::format_tag::BAcd16a16b,  staticShape  }, "BAcd16a16b", },  // blocked for 2 dims
             {{ dnnl::memory::format_tag::Acdb16a,     staticShape  }, "Acdb16a",    },  // same strides but not default order
             {{ dnnl::memory::format_tag::nChw16c,     dynamicShape }, "aBcd16b",    },  // auto blocked
             {{ dnnl::memory::format_tag::nhwc,        dynamicShape }, "acdb",       },  // permuted
             {{ dnnl::memory::format_tag::nchw,        dynamicShape }, "abcd",       },  // plain
             {{ dnnl::memory::format_tag::NChw16n16c,  dynamicShape }, "ABcd16a16b", },  // blocked for 2 dims
+            {{ dnnl::memory::format_tag::BAcd16a16b,  dynamicShape }, "BAcd16a16b", },  // blocked for 2 dims
             {{ dnnl::memory::format_tag::Acdb16a,     dynamicShape }, "Acdb16a",    },  // same strides but not default order
     };
 
@@ -1142,18 +1155,19 @@ TEST(MemDescTest, redefineDesc) {
         ASSERT_FALSE(mkldnnMemCpuBlkDesc.getDesc().isCompatible(*dnnl_blk_desc_orig));
 
         // DnnlBlockedMemoryDesc with extra data
-        // TODO [DS]: Should be added case for shape.isDynamic
+        dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
+        orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        orig_desc_extra.data.extra.compensation_mask = 1;
+        orig_desc_extra.data.extra.scale_adjust = 2.0f;
         if (shape.isStatic()) {
-            dnnl::memory::desc orig_desc_extra{MKLDNNExtensionUtils::convertToDnnlDims(shape.getDims()), dnnl::memory::data_type::u8, fmt};
-            orig_desc_extra.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-            orig_desc_extra.data.extra.compensation_mask = 1;
-            orig_desc_extra.data.extra.scale_adjust = 2.0f;
             MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra);
             ASSERT_TRUE(desc_extra_ptr->as<DnnlBlockedMemoryDesc>()->getDnnlDesc() == orig_desc_extra);
             mkldnnMemBlkDesc.Create(dnnl_blk_desc_orig);
             mkldnnMemBlkDesc.redefineDesc(desc_extra_ptr);
             ASSERT_TRUE(mkldnnMemBlkDesc.getDesc().isCompatible(*desc_extra_ptr));
             ASSERT_FALSE(mkldnnMemBlkDesc.getDesc().isCompatible(*dnnl_blk_desc_orig));
+        } else {
+            ASSERT_ANY_THROW(MemoryDescPtr desc_extra_ptr = MKLDNNExtensionUtils::makeDescriptor(orig_desc_extra));
         }
     };
 
@@ -1300,12 +1314,48 @@ TEST(MemDescTest, UndefinedAndDefaultParams) {
     }
 }
 
+TEST(MemDescTest, UndefinedState) {
+    ngraph::PartialShape ngraphShape({{16}, {-1, -1}, {20, 30}, {7}});
+    MKLDNNPlugin::Shape pluginShape(ngraphShape);
+    DnnlBlockedMemoryDesc memDesc(pluginShape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nChw8c);
+
+    ASSERT_FALSE(memDesc.isDefined());
+
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 40, 7}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25, 5}), InferenceEngine::ParameterMismatch);
+
+    auto definedDesc = memDesc.cloneWithNewDims({16, 15, 25, 7});
+
+    ASSERT_TRUE(definedDesc->isDefined());
+
+    auto creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nCsp8c);
+    auto cpuBlockedDesc = creator->createSharedDesc(Precision::FP32, pluginShape);
+
+    ASSERT_FALSE(cpuBlockedDesc->isDefined());
+
+    ASSERT_TRUE(cpuBlockedDesc->isCompatible(memDesc));
+
+    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 40, 7}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25, 5}), InferenceEngine::ParameterMismatch);
+
+    auto definedBlockedDesc = cpuBlockedDesc->cloneWithNewDims({16, 15, 25, 7});
+
+    ASSERT_TRUE(definedBlockedDesc->isDefined());
+
+    ASSERT_FALSE(memDesc.isCompatible(*definedDesc));
+    ASSERT_FALSE(memDesc.isCompatible(*definedBlockedDesc));
+
+    ASSERT_TRUE(definedBlockedDesc->isCompatible(*definedDesc));
+}
+
 TEST(makeDummyDesc, LowerBoundMoreThanDummyValue) {
     Shape shape(ngraph::PartialShape{1, 3, 85, {144, 1444}});
     auto desc = std::make_shared<DnnlBlockedMemoryDesc>(shape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nchw);
     ASSERT_FALSE(desc->isDefined());
 
-    MemoryDescPtr definedDesc;
+    MemoryDescCPtr definedDesc;
     ASSERT_NO_THROW(definedDesc = MemoryDescUtils::makeDummyDesc(*desc));
 
     ASSERT_TRUE(definedDesc->isDefined());

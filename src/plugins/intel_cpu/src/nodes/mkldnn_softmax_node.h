@@ -17,8 +17,8 @@ public:
     MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void initOptimalPrimitiveDescriptor() override;
-    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                          const std::vector<MemoryDescPtr>& outputDesc) override;
+    void createDescriptor(const std::vector<MemoryDescCPtr>& inputDesc,
+                          const std::vector<MemoryDescCPtr>& outputDesc) override;
     void getSupportedDescriptors() override;
     bool created() const override;
 

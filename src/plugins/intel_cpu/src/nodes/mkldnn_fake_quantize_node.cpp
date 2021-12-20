@@ -1282,7 +1282,8 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
 
     if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
             (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
-        DnnlBlockedMemoryDesc weightsDataDesc(Shape(VectorDims{newPaddedSize}), memory::data_type::f32, memory::format_tag::x);
+        DnnlBlockedMemoryDescPtr weightsDataDesc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{newPaddedSize}),
+                                                                                           memory::data_type::f32, memory::format_tag::x);
 
         if (isBinarization()) {
             constexpr size_t numBinFqIntBlob = 2;
@@ -1303,7 +1304,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
 
             if (internalBlobMemory.empty() || needUpdThr) {
                 auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                binarizationThresholdsDataMem->Create(std::make_shared<DnnlBlockedMemoryDesc>(weightsDataDesc), getBinarizationTresholdsPtr());
+                binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
                 if (internalBlobMemory.empty()) {
                     internalBlobMemory.push_back(binarizationThresholdsDataMem);
                 } else {
@@ -1313,7 +1314,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
 
             if (internalBlobMemory.size() == (numBinFqIntBlob - 1) || needUpdMask) {
                 auto binarizationMaskDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                binarizationMaskDataMem->Create(std::make_shared<DnnlBlockedMemoryDesc>(weightsDataDesc), getBinarizationOutputMaskPtr());
+                binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
                 if (internalBlobMemory.size() == (numBinFqIntBlob - 1)) {
                     internalBlobMemory.push_back(binarizationMaskDataMem);
                 } else {
@@ -1327,7 +1328,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
                 auto memory = std::make_shared<MKLDNNMemory>(getEngine());
                 bool needOverwrite = getInputShapeAtPort(0).getDims()[getAxis()] == Shape::UNDEFINED_DIM && data.size() == 1;
                 if (needOverwrite) {
-                    memory->Create(std::make_shared<DnnlBlockedMemoryDesc>(weightsDataDesc));
+                    memory->Create(weightsDataDesc);
                     float *ptr = reinterpret_cast<float *>(memory->GetPtr());
                     std::fill(ptr, ptr + newPaddedSize, data[0]);
                 } else {
@@ -1336,7 +1337,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
                     } else {
                         data.resize(newPaddedSize);
                     }
-                    memory->Create(std::make_shared<DnnlBlockedMemoryDesc>(weightsDataDesc), &data[0]);
+                    memory->Create(weightsDataDesc, &data[0]);
                 }
 
                 if (internalBlobMemory.size() != numFqIntBlob) {
@@ -1731,12 +1732,14 @@ void MKLDNNFakeQuantizeNode::appendBinPostOps(mkldnn::post_ops& ops, const Vecto
     VectorDims broadcastBinaryShape(postOpDims.size(), 1);
 
     auto appendBinary = [&](const mkldnn::algorithm alg, const size_t dataSize, MKLDNNMemoryPtr &memPtr, const void *data) {
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
-        ops.append_binary(alg, memoryDesc.getDnnlDesc());
+        DnnlBlockedMemoryDescPtr memoryDesc = std::make_shared<DnnlBlockedMemoryDesc>(Precision::FP32, dataSize == 1 ?
+                                                                                        Shape(broadcastBinaryShape) :
+                                                                                        Shape(postOpDims));
+        ops.append_binary(alg, memoryDesc->getDnnlDesc());
 
         if (!memPtr) {
             memPtr.reset(new MKLDNNMemory(getEngine()));
-            memPtr->Create(std::make_shared<DnnlBlockedMemoryDesc>(memoryDesc), data);
+            memPtr->Create(memoryDesc, data);
 
             binaryPostOpsMem.push_back(memPtr);
         }

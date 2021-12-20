@@ -441,7 +441,7 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() const {
     }
 }
 
-static bool isReorderAvailable(MemoryDescPtr parentDesc, MemoryDescPtr childDesc, const mkldnn::engine& eng) {
+static bool isReorderAvailable(MemoryDescCPtr parentDesc, MemoryDescCPtr childDesc, const mkldnn::engine& eng) {
     memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(childDesc)->getDnnlDesc();
     memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(parentDesc)->getDnnlDesc();
     mkldnn::primitive_attr attr;
@@ -479,10 +479,7 @@ void MKLDNNGraph::InitEdges() {
         uniqueLayerNames.insert(layerName);
 
         // optimized flag indicate that just desc update w/o actual physical memory movement.
-        InsertReorder(edge, layerName,
-                      std::const_pointer_cast<MemoryDesc>(edge->getInputDescPtr()),
-                      std::const_pointer_cast<MemoryDesc>(edge->getOutputDescPtr()),
-                       isOptimized);
+        InsertReorder(edge, layerName, edge->getInputDescPtr(), edge->getOutputDescPtr(), isOptimized);
     };
 
     auto updateEdge = [&](int& i) {
@@ -498,9 +495,7 @@ void MKLDNNGraph::InitEdges() {
             MKLDNNEdge::ReorderStatus reorderStatusInternal = MKLDNNEdge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
-                     !isReorderAvailable(std::const_pointer_cast<MemoryDesc>(edge->getInputDescPtr()),
-                                         std::const_pointer_cast<MemoryDesc>(edge->getOutputDescPtr()),
-                                         this->getEngine())) {
+                     !isReorderAvailable(edge->getInputDescPtr(), edge->getOutputDescPtr(), this->getEngine())) {
                 // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
                 const auto& inDesc = edge->getInputDesc();
                 const auto& outDesc = edge->getOutputDesc();
@@ -510,8 +505,7 @@ void MKLDNNGraph::InitEdges() {
 
                 auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
                                                                        convertName, this->getEngine(), this->weightsCache);
-                convertNode->setDescs(std::const_pointer_cast<MemoryDesc>(edge->getInputDescPtr()),
-                                      std::const_pointer_cast<MemoryDesc>(edge->getOutputDescPtr()));
+                convertNode->setDescs(edge->getInputDescPtr(), edge->getOutputDescPtr());
                 InsertNode(edge, convertNode, true);
 
                 //Check if reorder is still needed
@@ -1143,7 +1137,7 @@ void MKLDNNGraph::RemoveDroppedEdges() {
     }
 }
 
-MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, MemoryDescPtr inDesc, MemoryDescPtr outDesc,
+MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, MemoryDescCPtr inDesc, MemoryDescCPtr outDesc,
                                          bool isOptimized) {
     MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layerName, getEngine(), weightsCache));
     auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());

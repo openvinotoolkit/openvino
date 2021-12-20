@@ -89,7 +89,7 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
 }
 
 void MKLDNNMemory::Create(MemoryDescCPtr desc, const void* data, bool pads_zeroing) {
-    pMemDesc = std::const_pointer_cast<MemoryDesc>(desc);
+    pMemDesc = std::move(desc);
     if (nullptr != data) {
         useExternalStorage = true;
     } else {
@@ -159,12 +159,12 @@ void MKLDNNMemory::redefineDesc(MemoryDescCPtr desc, void *data) {
 }
 
 template<>
-DnnlMemoryDescPtr MKLDNNMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
+DnnlMemoryDescCPtr MKLDNNMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc);
 }
 
 template<>
-BlockedMemoryDescPtr MKLDNNMemory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
+BlockedMemoryDescCPtr MKLDNNMemory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(pMemDesc);
 }
 

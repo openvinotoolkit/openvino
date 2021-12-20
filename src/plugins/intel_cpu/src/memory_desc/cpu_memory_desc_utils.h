@@ -28,7 +28,7 @@ public:
      * @param desc MemoryDesc to be converted
      * @return converted DnnlMemoryDesc
      */
-    static std::shared_ptr<DnnlMemoryDesc> convertToDnnlMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
+    static std::shared_ptr<const DnnlMemoryDesc> convertToDnnlMemoryDesc(const std::shared_ptr<const MemoryDesc> &desc);
 
     /**
      * @brief Converts MemoryDesc to DnnlBlockedMemoryDesc
@@ -56,7 +56,7 @@ public:
      * @param desc MemoryDesc to be converted
      * @return converted BlockedMemoryDesc
      */
-    static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
+    static std::shared_ptr<const BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<const MemoryDesc> &desc);
 
     /**
      * @brief Creates InferenceEngine::Blob from MKLDNNMemory with the memory reuse
@@ -78,7 +78,7 @@ public:
      * @param dummyVal Dim value to replace undefined dimensions
      * @return a new MemoryDesc with dummy values instead of undefined dims
      */
-     static std::shared_ptr<MemoryDesc> makeDummyDesc(const MemoryDesc& desc, Dim dummyVal = 64);
+     static std::shared_ptr<const MemoryDesc> makeDummyDesc(const MemoryDesc& desc, Dim dummyVal = 64);
 
     /**
     * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim

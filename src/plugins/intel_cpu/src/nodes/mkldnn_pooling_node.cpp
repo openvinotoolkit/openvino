@@ -343,8 +343,8 @@ std::shared_ptr<pooling_v2_forward::desc> MKLDNNPoolingNode::createDescriptorInt
     return desc_ptr;
 }
 
-void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                         const std::vector<MemoryDescPtr> &outputDesc) {
+void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescCPtr> &inputDesc,
+                                         const std::vector<MemoryDescCPtr> &outputDesc) {
     auto inDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     auto dnnlInDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inDesc);
     auto in_candidate = dnnlInDesc->getDnnlDesc();
@@ -420,10 +420,10 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
     if (!selectedPD) {
         return;
     }
-    std::vector<MemoryDescPtr> inDescs;
+    std::vector<MemoryDescCPtr> inDescs;
     for (const auto& inConf : config.inConfs)
         inDescs.push_back(inConf.desc);
-    std::vector<MemoryDescPtr> outDescs;
+    std::vector<MemoryDescCPtr> outDescs;
     for (const auto& outConf : config.outConfs)
         outDescs.push_back(outConf.desc);
     createDescriptor(inDescs, outDescs);

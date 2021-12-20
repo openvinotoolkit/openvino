@@ -88,7 +88,7 @@ struct PortConfig {
     // TODO [DS]: better to make private and const
     bool constant = false;
     int inPlace = -1;
-    MemoryDescPtr desc;
+    MemoryDescCPtr desc;
 };
 
 struct NodeConfig {
@@ -307,7 +307,7 @@ public:
      * @param portNum port number
      * @return pointer to selected primitive descriptor with type MemoryDesc
      */
-    MemoryDescPtr getBaseMemDescAtInputPort(size_t portNum) const;
+    MemoryDescCPtr getBaseMemDescAtInputPort(size_t portNum) const;
 
     /**
      * @brief Returns output selected primitive descriptor on the specified port
@@ -315,7 +315,7 @@ public:
      * @param portNum port number
      * @return pointer to selected primitive descriptor with type MemoryDesc
      */
-    MemoryDescPtr getBaseMemDescAtOutputPort(size_t portNum) const;
+    MemoryDescCPtr getBaseMemDescAtOutputPort(size_t portNum) const;
 
     /**
      * @brief Returns input selected primitive descriptor on the specified port
@@ -377,8 +377,8 @@ public:
 
     virtual void getSupportedDescriptors() = 0;
     // TODO [DS]: Should be moved into Node derivative class
-    virtual void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                                  const std::vector<MemoryDescPtr>& outputDesc) {}
+    virtual void createDescriptor(const std::vector<MemoryDescCPtr>& inputDesc,
+                                  const std::vector<MemoryDescCPtr>& outputDesc) {}
     virtual void initDescriptor(const NodeConfig& config);
     virtual bool created() const = 0;
     virtual bool created(const MKLDNNExtensionManager::Ptr& extMgr) {
@@ -393,7 +393,7 @@ public:
 
     template <class PD, class D, typename FPD = bool>
     PD createPrimitiveDescriptor(const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) {
-        auto descsCompatible = [](const std::vector<MemoryDescPtr>& srcDescs,
+        auto descsCompatible = [](const std::vector<MemoryDescCPtr>& srcDescs,
                                const std::vector<PortConfig>& selectedDescs) {
             if (srcDescs.empty() && selectedDescs.empty())
                 return true;
@@ -414,11 +414,11 @@ public:
             auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
 
             while (static_cast<bool>(itpd))  {
-                std::vector<MemoryDescPtr> srcDescs;
+                std::vector<MemoryDescCPtr> srcDescs;
                 for (size_t i = 0; i < descInputNumbers(desc); i++)
                     srcDescs.push_back(getSrcMemDesc(itpd, i));
 
-                std::vector<MemoryDescPtr> dstDescs;
+                std::vector<MemoryDescCPtr> dstDescs;
                 for (size_t i = 0; i < descOutputNumbers(desc); i++)
                     dstDescs.push_back(getDstMemDesc(itpd, i));
 
@@ -592,10 +592,10 @@ protected:
     virtual size_t getMaxBatch() const;
 
 
-    virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescCPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
+    virtual MemoryDescCPtr getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
+    virtual MemoryDescCPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescCPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.

@@ -99,7 +99,7 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<const MemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
@@ -151,10 +151,10 @@ bool MKLDNNLrnNode::created() const {
     return getType() == Lrn;
 }
 
-void MKLDNNLrnNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                     const std::vector<MemoryDescPtr> &outputDesc) {
+void MKLDNNLrnNode::createDescriptor(const std::vector<MemoryDescCPtr> &inputDesc,
+                                     const std::vector<MemoryDescCPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
-    DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
+    DnnlMemoryDescCPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
 
     MKLDNNDescriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(

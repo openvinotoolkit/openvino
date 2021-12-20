@@ -319,7 +319,7 @@ void MKLDNNRNN::fillCellDesc() {
 
     // Expected shapes
     Shape D_shape(VectorDims{N, DC}), S_shape(VectorDims{N, SC}), WShape(VectorDims{SC * G, DC}), RShape(VectorDims{SC * G, SC}), BShape(VectorDims{SC * Gb});
-    std::vector<MemoryDescPtr> in_candidate, out_candidate;
+    std::vector<MemoryDescCPtr> in_candidate, out_candidate;
     in_candidate.reserve(6);
 
     in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(D_shape, dataType, memory::format_tag::nc));
@@ -407,7 +407,7 @@ void MKLDNNRNN::fillSeqDesc() {
 
     copyWeightsData();
 
-    std::vector<MemoryDescPtr> in_candidate;
+    std::vector<MemoryDescCPtr> in_candidate;
     in_candidate.reserve(7);
 
     if (nativeOrder)
@@ -438,7 +438,7 @@ void MKLDNNRNN::fillSeqDesc() {
     in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{D, G * SC, SC}), memory::data_type::f32, memory::format_tag::ntc)); // R
     in_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{D, Gb * SC}), memory::data_type::f32, memory::format_tag::nc)); // B
 
-    std::vector<MemoryDescPtr> out_candidate;
+    std::vector<MemoryDescCPtr> out_candidate;
     out_candidate.reserve(3);
 
     if (nativeOrder) {
@@ -638,8 +638,8 @@ void MKLDNNRNN::copyWeightsData() {
     if (runtimePrecision == Precision::BF16 || runtimePrecision == Precision::FP32)
         fillBiases<Precision::FP32>(gate_map);
 }
-void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                 const std::vector<MemoryDescPtr> &outputDesc) {
+void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescCPtr> &inputDesc,
+                                 const std::vector<MemoryDescCPtr> &outputDesc) {
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
     auto weightsDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
     mkldnn::memory::desc w_data_d(weightsDims, dataType, w_format);
@@ -743,12 +743,12 @@ void MKLDNNRNN::createPrimitive() {
     }
 }
 
-std::shared_ptr<MemoryDesc> MKLDNNRNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<const MemoryDesc> MKLDNNRNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
     auto desc = supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].desc;
     return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
 }
 
-std::shared_ptr<MemoryDesc> MKLDNNRNN::getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<const MemoryDesc> MKLDNNRNN::getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
     auto desc = supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].desc;
     return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
 }

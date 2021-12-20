@@ -26,12 +26,8 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
 CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
                   const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
                   const VectorDims& strides) : MemoryDesc(shape, Blocked), precision(prc) {
-    auto lastIter = order.begin() + shape.getDims().size();
-    for (size_t dim = 0; dim < shape.getDims().size(); dim++) {
-        if (std::find(order.begin(), lastIter, dim) == lastIter) {
-            IE_THROW() << "Can not construct CpuBlockedMemoryDesc because of incorrect order:" << vec2str(order);
-        }
-    }
+    if (!checkOrder(order, shape))
+        IE_THROW() << "Can not construct CpuBlockedMemoryDesc because of incorrect order:" << vec2str(order);
 
     if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
         IE_THROW() << "CpuBlockedMemoryDesc do not support undefined order.";

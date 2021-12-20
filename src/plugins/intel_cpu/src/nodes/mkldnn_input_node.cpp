@@ -250,14 +250,14 @@ void MKLDNNInputNode::cloneBlobIfRequired() {
     Shape shape(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
     const auto prec = convertPrecision(constOp->get_element_type());
     const size_t size = shape.getRank();
-    DnnlBlockedMemoryDesc memDesc(prec, shape);
+    DnnlBlockedMemoryDescPtr memDesc = std::make_shared<DnnlBlockedMemoryDesc>(prec, shape);
 
     auto cloneBlob = [&, this] () {
         MKLDNNMemory memory{ getEngine() };
-        memory.Create(std::make_shared<DnnlBlockedMemoryDesc>(memDesc), constOp->get_data_ptr());
+        memory.Create(memDesc, constOp->get_data_ptr());
 
         MKLDNNMemoryPtr ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
-        ptr->Create(std::make_shared<DnnlBlockedMemoryDesc>(memDesc));
+        ptr->Create(memDesc);
         ptr->SetData(memory);
 
         return ptr;
@@ -340,13 +340,13 @@ void MKLDNNInputNode::cloneBlobIfRequired() {
 
     if (weightCache) {
         MKLDNNMemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
-        memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(ptr);
+        memoryPtr = ptr;
     } else if (isBlobAligned() && !hasSubnormals() && !isWA()) {
         auto ptr = new MKLDNNMemory(getEngine());
-        ptr->Create(std::make_shared<DnnlBlockedMemoryDesc>(memDesc), constOp->get_data_ptr());
+        ptr->Create(memDesc, constOp->get_data_ptr());
         memoryPtr = MKLDNNMemoryCPtr(ptr);
     } else {
-        memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(cloneBlob());
+        memoryPtr = cloneBlob();
     }
 }
 

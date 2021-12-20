@@ -31,9 +31,9 @@ public:
     // In that case the Convert node is instantiated with default CNNLayer and inp/out tensor descriptors are set via this method.
     // This is useful if the Convert node is added to the graph as an auxiliary operation at the MKLDNNGraph
     // initialization stage.
-    void setDescs(MemoryDescPtr input, MemoryDescPtr output) {
-        this->input = std::move(input);
-        this->output = std::move(output);
+    void setDescs(MemoryDescCPtr in, MemoryDescCPtr out) {
+        this->input = std::move(in);
+        this->output = std::move(out);
     }
 
     const MemoryDesc& getInput() const { return *input; }
@@ -47,8 +47,8 @@ public:
     static bool isSupportedDesc(const MemoryDesc &desc);
 
 private:
-    MemoryDescPtr input;
-    MemoryDescPtr output;
+    MemoryDescCPtr input;
+    MemoryDescCPtr output;
     InferenceEngine::Precision origPrc;
 
     std::string errorPrefix;

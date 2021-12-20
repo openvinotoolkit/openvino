@@ -30,6 +30,16 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
     return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
 }
 
+bool BlockedMemoryDesc::checkOrder(const VectorDims order, const Shape shape) const {
+    auto lastIter = order.begin() + shape.getDims().size();
+    for (size_t dim = 0; dim < shape.getDims().size(); dim++) {
+        if (std::find(order.begin(), lastIter, dim) == lastIter) {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::string BlockedMemoryDesc::serializeFormat() const {
     std::stringstream result;
     char startLetter = 'a';

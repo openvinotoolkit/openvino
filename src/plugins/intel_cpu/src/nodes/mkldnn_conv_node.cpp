@@ -533,9 +533,9 @@ MKLDNNConvolutionNode::createDescriptorInternal(const mkldnn::memory::desc& inpu
     return conv_desc;
 }
 
-void MKLDNNConvolutionNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                                             const std::vector<MemoryDescPtr>& outputDesc) {
-    MemoryDescPtr inpDesc;
+void MKLDNNConvolutionNode::createDescriptor(const std::vector<MemoryDescCPtr>& inputDesc,
+                                             const std::vector<MemoryDescCPtr>& outputDesc) {
+    MemoryDescCPtr inpDesc;
     if (inputDesc[0]->isDefined()) {
         inpDesc = inputDesc[0];
     } else {
@@ -543,8 +543,8 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<MemoryDescPtr>& i
         dummyInDims[1] = IC;
         inpDesc = inputDesc[0]->cloneWithNewDims(dummyInDims);
     }
-    DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
-    DnnlMemoryDescPtr definedOutMemDesc;
+    DnnlMemoryDescCPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
+    DnnlMemoryDescCPtr definedOutMemDesc;
 
     if (outputDesc[0]->isDefined()) {
         definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]);
@@ -765,7 +765,7 @@ bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) c
     return !isPossibleJitPlanar && isPlanarFloatConv;
 }
 
-std::shared_ptr<MemoryDesc> MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<const MemoryDesc> MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
     if (getInputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));

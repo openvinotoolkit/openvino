@@ -1815,13 +1815,14 @@ void MKLDNNEltwiseNode::appendBinPostOps(mkldnn::post_ops& ops, const VectorDims
         if (broadcastingPolicy == Undefined)
             IE_THROW() << errorPrefix << "cannot be performed since policy is Undefined";
 
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, broadcastingPolicy == PerTensor ? Shape(broadcastBinaryShape) : Shape(postOpDims));
+        DnnlBlockedMemoryDescPtr memoryDesc = std::make_shared<DnnlBlockedMemoryDesc>(Precision::FP32, broadcastingPolicy == PerTensor ?
+                                                                                      Shape(broadcastBinaryShape) : Shape(postOpDims));
 
-        ops.append_binary(alg, memoryDesc.getDnnlDesc());
+        ops.append_binary(alg, memoryDesc->getDnnlDesc());
 
         if (!memPtr) {
             memPtr.reset(new MKLDNNMemory(getEngine()));
-            memPtr->Create(std::make_shared<DnnlBlockedMemoryDesc>(memoryDesc), &data[0]);
+            memPtr->Create(memoryDesc, &data[0]);
 
             binaryPostOpsMem.push_back(memPtr);
         }

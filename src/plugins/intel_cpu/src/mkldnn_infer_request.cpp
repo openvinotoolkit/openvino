@@ -440,7 +440,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                     IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
             }
 
-            MemoryDescPtr actualDesc = graph->getInputNodeByName(name)->getBaseMemDescAtOutputPort(0);
+            MemoryDescCPtr actualDesc = graph->getInputNodeByName(name)->getBaseMemDescAtOutputPort(0);
             bool blobHasAnyLayout = blobDesc.getLayout() == InferenceEngine::Layout::ANY;
             if (!blobHasAnyLayout && !actualDesc->isDefined()) {
                 // we must define desc for dynamic case

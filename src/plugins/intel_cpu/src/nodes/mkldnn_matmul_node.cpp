@@ -258,8 +258,8 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
     createDescriptor({inDataDesc[0], inDataDesc[1]}, {outDataDesc});
 }
 
-void MKLDNNMatMulNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                                        const std::vector<MemoryDescPtr>& outputDesc) {
+void MKLDNNMatMulNode::createDescriptor(const std::vector<MemoryDescCPtr>& inputDesc,
+                                        const std::vector<MemoryDescCPtr>& outputDesc) {
     std::shared_ptr<mkldnn::matmul::desc> matmul_desc;
     if (withBiases) {
         matmul_desc.reset(new matmul::desc(inDataDesc[0]->getDnnlDesc(),
@@ -313,7 +313,7 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-MemoryDescPtr MKLDNNMatMulNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescCPtr MKLDNNMatMulNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1): primitive_desc_it.src_desc(idx);
 
     if (idx < 2) // inputs

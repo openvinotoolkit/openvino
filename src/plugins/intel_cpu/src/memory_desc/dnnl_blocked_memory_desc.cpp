@@ -103,11 +103,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
 
     size_t outer_ndims = dims.size();
 
-    auto lastIter = order.begin() + outer_ndims;
-    for (size_t dim = 0; dim < outer_ndims; dim++) {
-        if (std::find(order.begin(), lastIter, dim) == lastIter)
-            IE_THROW() << "Can not construct DnnlBlockedMemoryDesc because of incorrect order: " << vec2str(order);
-    }
+    if (!checkOrder(order, shape))
+        IE_THROW() << "Can not construct DnnlBlockedMemoryDesc because of incorrect order: " << vec2str(order);
 
     size_t inner_ndims = order.size() - dims.size();
 

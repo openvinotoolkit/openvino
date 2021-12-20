@@ -87,6 +87,8 @@ protected:
      */
     bool isCompatible(const BlockedMemoryDesc &rhs) const;
 
+    bool checkOrder(const VectorDims order, const Shape shape) const;
+
     mutable VectorDims blockedDims;
     mutable VectorDims strides;
     mutable VectorDims order;

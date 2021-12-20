@@ -20,14 +20,14 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &desc) {
+DnnlMemoryDescCPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescCPtr &desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
         const auto cpuDesc = desc->as<CpuBlockedMemoryDesc>();
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
                                                         cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                                         cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
     } else if (MemoryDescType::Mkldnn & desc->getType()) {
-        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
+        return std::dynamic_pointer_cast<const DnnlMemoryDesc>(desc);
     } else {
         IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";
     }
@@ -81,9 +81,9 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Infe
                                  blkDesc.getOffsetPaddingToData(), strides);
 }
 
-BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr &desc) {
+BlockedMemoryDescCPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescCPtr &desc) {
     if (desc->getType() & MemoryDescType::Blocked) {
-        return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
+        return std::dynamic_pointer_cast<const BlockedMemoryDesc>(desc);
     } else {
         IE_THROW() << "Can not convert unsupported memory descriptor";
     }
@@ -137,7 +137,7 @@ std::string MemoryDescUtils::dims2str(const VectorDims& dims) {
     return output.str();
 }
 
-std::shared_ptr<MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc &desc, Dim dummyVal) {
+std::shared_ptr<const MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc &desc, Dim dummyVal) {
     auto dummyShape = makeDummyShape(desc.getShape(), dummyVal);
     return desc.cloneWithNewDims(dummyShape.getStaticDims());
 }

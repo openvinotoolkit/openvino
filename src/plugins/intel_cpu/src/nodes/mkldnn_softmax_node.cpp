@@ -92,8 +92,8 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
     initDescriptor(config);
 }
 
-void MKLDNNSoftMaxNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                         const std::vector<MemoryDescPtr> &outputDesc) {
+void MKLDNNSoftMaxNode::createDescriptor(const std::vector<MemoryDescCPtr> &inputDesc,
+                                         const std::vector<MemoryDescCPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     auto definedInpMemDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*inpDesc);
     auto in_candidate = definedInpMemDesc.getDnnlDesc();

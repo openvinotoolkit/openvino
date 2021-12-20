@@ -35,7 +35,7 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override;
 
-    void setDescs(MemoryDescPtr input, MemoryDescPtr output) {
+    void setDescs(MemoryDescCPtr input, MemoryDescCPtr output) {
         this->input = std::move(input);
         inputShapes.clear();
         inputShapes.push_back(this->input->getShape());
@@ -55,8 +55,8 @@ public:
         return false;
     }
 
-    MemoryDescPtr getInputPtr() { return input; }
-    MemoryDescPtr getOutputPtr() { return output; }
+    MemoryDescCPtr getInputPtr() { return input; }
+    MemoryDescCPtr getOutputPtr() { return output; }
 
     const MemoryDesc& getInput() { return *input; }
     const MemoryDesc& getOutput() { return *output; }
@@ -66,8 +66,8 @@ public:
     static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size = 0);
 
 private:
-    std::shared_ptr<MemoryDesc> input;
-    std::shared_ptr<MemoryDesc> output;
+    std::shared_ptr<const MemoryDesc> input;
+    std::shared_ptr<const MemoryDesc> output;
 
     MKLDNNMemoryPtr dst_blocked;
     MKLDNNMemoryPtr src_blocked;
