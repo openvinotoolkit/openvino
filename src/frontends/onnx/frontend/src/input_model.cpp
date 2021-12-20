@@ -175,7 +175,7 @@ std::shared_ptr<Model> InputModel::decode() {
 
 std::shared_ptr<Model> InputModel::convert() {
     auto converted_model = m_editor->get_function();
-    converted_model ->reshape(m_places_to_reshape);
+    converted_model->reshape(m_places_to_reshape);
     return converted_model;
 }
 
