@@ -262,7 +262,12 @@ void inline fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t ra
                              const int32_t k = 1, const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
-    fill_data_random(rawBlobDataPtr, blob->size(), range, start_from, k, seed);
+    if (PRC == InferenceEngine::Precision::U4 || PRC == InferenceEngine::Precision::I4 ||
+        PRC == InferenceEngine::Precision::BIN) {
+        fill_data_random(rawBlobDataPtr, blob->byteSize(), range, start_from, k, seed);
+    } else {
+        fill_data_random(rawBlobDataPtr, blob->size(), range, start_from, k, seed);
+    }
 }
 
 /** @brief Fill blob with a sorted sequence of unique elements randomly generated.
