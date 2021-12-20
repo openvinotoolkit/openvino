@@ -129,7 +129,7 @@ public:
        mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
        auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
-       mockPlugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
+       mockPlugin = InferenceEngine::InferencePlugin{mockIPluginPtr, {}};
        // remove annoying ON CALL message
        EXPECT_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
        mockExeNetwork = mockPlugin.LoadNetwork(CNNNetwork{}, {});

@@ -38,8 +38,12 @@ namespace InferenceEngine {
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 struct InferencePlugin {
-    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IInferencePlugin> _ptr;
+    std::shared_ptr<void> _so;
+
+    ~InferencePlugin() {
+        _ptr = {};
+    }
 
     void SetName(const std::string & deviceName) {
         PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
@@ -62,17 +66,17 @@ struct InferencePlugin {
     }
 
     ov::runtime::SoPtr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config), _so});
     }
 
     ov::runtime::SoPtr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
                                                                const std::shared_ptr<RemoteContext>& context,
                                                                const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config, context), _so});
     }
 
     ov::runtime::SoPtr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(modelPath, config)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(modelPath, config), _so});
     }
 
     QueryNetworkResult QueryNetwork(const CNNNetwork& network,
@@ -85,34 +89,34 @@ struct InferencePlugin {
 
     ov::runtime::SoPtr<IExecutableNetworkInternal> ImportNetwork(const std::string& modelFileName,
                                                                  const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(modelFileName, config)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(modelFileName, config), _so});
     }
 
     ov::runtime::SoPtr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, config)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(networkModel, config), _so});
     }
 
     ov::runtime::SoPtr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
                                                                  const std::shared_ptr<RemoteContext>& context,
                                                                  const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(networkModel, context, config), _so});
     }
 
     Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetMetric(name, options)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->GetMetric(name, options), _so});
     }
 
     ov::runtime::SoPtr<RemoteContext> CreateContext(const ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->CreateContext(params)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->CreateContext(params), _so});
     }
 
     ov::runtime::SoPtr<RemoteContext> GetDefaultContext(const ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetDefaultContext(params)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->GetDefaultContext(params), _so});
     }
 
     Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetConfig(name, options)});
+        PLUGIN_CALL_STATEMENT(return {_ptr->GetConfig(name, options), _so});
     }
 };
 }  // namespace InferenceEngine
@@ -139,15 +143,19 @@ namespace runtime {
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class InferencePlugin {
-    std::shared_ptr<void> _so;
     std::shared_ptr<ie::IInferencePlugin> _ptr;
+    std::shared_ptr<void> _so;
 
 public:
     InferencePlugin() = default;
 
-    InferencePlugin(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IInferencePlugin>& impl) :
-        _so{so},
-        _ptr{impl} {
+    ~InferencePlugin() {
+        _ptr = {};
+    }
+
+    InferencePlugin(const std::shared_ptr<ie::IInferencePlugin>& ptr, const std::shared_ptr<void>& so) :
+        _ptr{ptr},
+        _so{so} {
         OPENVINO_ASSERT(_ptr != nullptr, "InferencePlugin was not initialized.");
     }
 
@@ -172,17 +180,17 @@ public:
     }
 
     SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network, const ConfigMap& config) {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network,
                                                         const std::shared_ptr<ie::RemoteContext>& context,
                                                         const ConfigMap& config) {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config, context), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::string& modelPath, const ConfigMap& config) {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(modelPath, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(modelPath, config), _so});
     }
 
     ie::QueryNetworkResult query_model(const ie::CNNNetwork& network,
@@ -195,34 +203,34 @@ public:
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(const std::string& modelFileName,
                                                        const ConfigMap& config) {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(modelFileName, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(modelFileName, config), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
                                     const ConfigMap& config) {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(networkModel, config), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
                                                        const std::shared_ptr<ie::RemoteContext>& context,
                                                        const ConfigMap& config) {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(networkModel, context, config), _so});
     }
 
     ie::Parameter get_metric(const std::string& name, const ie::ParamMap& options) const {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetMetric(name, options)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetMetric(name, options), _so});
     }
 
     SoPtr<ie::RemoteContext> create_context(const ie::ParamMap& params) {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->CreateContext(params)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->CreateContext(params), _so});
     }
 
     SoPtr<ie::RemoteContext> get_default_context(const ie::ParamMap& params) {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetDefaultContext(params)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetDefaultContext(params), _so});
     }
 
     ie::Parameter get_config(const std::string& name, const ie::ParamMap& options) const {
-        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetConfig(name, options)});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetConfig(name, options), _so});
     }
 };
 

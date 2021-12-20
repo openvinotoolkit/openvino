@@ -37,20 +37,46 @@ class CompiledModel;
  */
 class OPENVINO_RUNTIME_API RemoteContext {
 protected:
-    std::shared_ptr<void> _so;                              //!< Reference to shared object that loaded implementation
     std::shared_ptr<InferenceEngine::RemoteContext> _impl;  //!< Pointer to remote context implementation
+    std::shared_ptr<void> _so;                              //!< Reference to shared object that loaded implementation
 
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that RemoteContext can work properly even if plugin
      * object is destroyed.
-     * @param impl Initialized shared pointer
      */
-    RemoteContext(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::RemoteContext>& impl);
+    RemoteContext(const std::shared_ptr<InferenceEngine::RemoteContext>& impl, const std::shared_ptr<void>& so);
     friend class ov::runtime::Core;
     friend class ov::runtime::CompiledModel;
 
 public:
+    /// @brief Default constructor
+    RemoteContext() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other RemoteContext object
+    RemoteContext(const RemoteContext& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other RemoteContext object
+    /// @return reference to the current object
+    RemoteContext& operator=(const RemoteContext& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other RemoteContext object
+    RemoteContext(RemoteContext&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other RemoteContext object
+    /// @return reference to current object
+    RemoteContext& operator=(RemoteContext&& other) = default;
+
+    /**
+     * @brief Destructor presereves unload order of implementation object and reference to library
+     */
+    ~RemoteContext();
+
     /**
      * @brief Checks openvino remote type
      * @param remote_context a remote context which type will be checked
@@ -59,11 +85,6 @@ public:
      */
     static void type_check(const RemoteContext& remote_context,
                            const std::map<std::string, std::vector<std::string>>& type_info = {});
-
-    /**
-     * @brief Default constructor
-     */
-    RemoteContext() = default;
 
     /**
      * @brief Checks if the RemoteContext object can be cast to the type T

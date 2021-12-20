@@ -34,17 +34,17 @@ class InferRequest;
  * @brief This is an interface of an executable network
  */
 class OPENVINO_RUNTIME_API CompiledModel {
-    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs CompiledModel from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that CompiledModel can work properly even if plugin
      * object is destroyed.
-     * @param impl Initialized shared pointer
      */
-    CompiledModel(const std::shared_ptr<void>& so,
-                  const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl);
+    CompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl,
+                  const std::shared_ptr<void>& so);
     friend class ov::runtime::Core;
     friend class ov::runtime::InferRequest;
 
@@ -53,6 +53,11 @@ public:
      * @brief A default constructor.
      */
     CompiledModel() = default;
+
+    /**
+     * @brief Destructor presereves unload order of implementation object and reference to library
+     */
+    ~CompiledModel();
 
     /**
      * @brief Get executable graph information from a device
