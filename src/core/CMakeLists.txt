@@ -117,7 +117,6 @@ target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_
 # Export for build tree
 #-----------------------------------------------------------------------------------------------
 
-set_target_properties(ngraph PROPERTIES EXPORT_NAME core)
 export(TARGETS ngraph NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
