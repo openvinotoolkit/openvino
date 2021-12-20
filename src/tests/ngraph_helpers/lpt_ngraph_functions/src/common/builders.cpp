@@ -205,6 +205,36 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.outputHighValues));
 }
 
+std::shared_ptr<ngraph::opset1::Convolution> makeConvolution(const Output<Node>& output, const Convolution& convolution) {
+    auto parentOnActivations = output;
+    if (!convolution.zeroPointOnActivations.empty()) {
+        auto constant = std::make_shared<ngraph::opset1::Constant>(
+            convolution.zeroPointOnActivations.outPrecision,
+            convolution.zeroPointOnActivations.constantShape,
+            convolution.zeroPointOnActivations.values);
+        parentOnActivations = std::make_shared<ngraph::opset1::Subtract>(parentOnActivations, constant);
+    }
+
+    assert(!convolution.constantOnWeights.empty());
+
+    ngraph::Output<ngraph::Node> weights = std::make_shared<ngraph::opset1::Constant>(
+        convolution.constantOnWeights.outPrecision,
+        convolution.constantOnWeights.shape,
+        convolution.constantOnWeights.values);
+
+    if (!convolution.dequantizationOnWeights.empty()) {
+        weights = makeDequantization(weights, convolution.dequantizationOnWeights);
+    }
+
+    return std::make_shared<ngraph::opset1::Convolution>(
+        parentOnActivations,
+        weights,
+        ngraph::Strides{ 1, 1 },
+        ngraph::CoordinateDiff{ 0, 0 },
+        ngraph::CoordinateDiff{ 0, 0 },
+        ngraph::Strides{ 1, 1 });
+}
+
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const Output<ngraph::Node>& output,
     const ngraph::element::Type precision,

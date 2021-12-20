@@ -97,18 +97,14 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
-        FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(multiply, emptyPathIndex);
-        if ((updatePrecisions && !dequantizationEmptyPath.empty() && !dequantizationEmptyPath.isLowPrecision()) ||
-            (dequantizationEmptyPath.multiply == nullptr && dequantizationEmptyPath.subtract == nullptr)) {
-            return false;
+        if (updatePrecisions) {
+            const FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(multiply, emptyPathIndex);
+            if (!dequantizationEmptyPath.empty() && !dequantizationEmptyPath.isLowPrecision()) {
+                return false;
+            }
         }
 
-        FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::getDequantization(multiply, fullPathIndex);
-        if (updatePrecisions && !dequantizationFullPath.empty() && !dequantizationFullPath.isLowPrecision()) {
-            return false;
-        }
-
-        dequantizationEmptyPath = NetworkHelper::foldDequantization(multiply, emptyPathIndex);
+        FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::foldDequantization(multiply, emptyPathIndex);
         std::shared_ptr<Node> subtractValuesEmptyPath;
         std::shared_ptr<Node> multiplyValuesEmptyPath;
         std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath, deqPrecision);
@@ -118,7 +114,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             return false;
         }
 
-        dequantizationFullPath = NetworkHelper::foldDequantization(multiply, fullPathIndex);
+        FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::foldDequantization(multiply, fullPathIndex);
         std::shared_ptr<Node> subtractValuesFullPath;
         std::shared_ptr<Node> multiplyValuesFullPath;
         std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath, deqPrecision);

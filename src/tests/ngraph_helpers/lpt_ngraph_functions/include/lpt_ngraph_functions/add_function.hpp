@@ -8,8 +8,11 @@
 #include <ngraph/ngraph.hpp>
 #include <low_precision/layer_transformation.hpp>
 
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "elementwise_function.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
+#include "lpt_ngraph_functions/common/convolution.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -53,7 +56,7 @@ inline std::ostream& operator<<(std::ostream& out, const AddExpectedValues& valu
         "_mutliply" << values.mutliplyValuesAfter.size();
 }
 
-class AddFunction {
+class AddFunction : public ElementwiseFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,

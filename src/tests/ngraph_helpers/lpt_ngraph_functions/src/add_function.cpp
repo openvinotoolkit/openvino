@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "lpt_ngraph_functions/add_function.hpp"
+
 #include "low_precision/network_helper.hpp"
 #include "low_precision/layer_transformation.hpp"
 
@@ -9,7 +11,6 @@
 
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/add_function.hpp"
 
 using namespace ngraph::pass::low_precision;
 
