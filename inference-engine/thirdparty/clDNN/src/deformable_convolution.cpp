@@ -6,7 +6,7 @@
 #include "deformable_convolution_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -54,7 +54,7 @@ std::string deformable_conv_inst::to_string(deformable_conv_node const& node) {
     return primitive_description.str();
 }
 
-deformable_conv_inst::typed_primitive_inst(network_impl& network, deformable_conv_node const& node) : parent(network, node) {
+deformable_conv_inst::typed_primitive_inst(network& network, deformable_conv_node const& node) : parent(network, node) {
 }
 
 primitive_type_id deformable_interp::type_id() {
@@ -91,11 +91,12 @@ std::string deformable_interp_inst::to_string(deformable_interp_node const& node
 
     json_composite interp_info;
     interp_info.add("stride", strd.to_string());
-    interp_info.add("input offset", desc->input_offset.to_string());
+    interp_info.add("pad", desc->pad.to_string());
     interp_info.add("split", split);
     interp_info.add("dilation", dilation.to_string());
     interp_info.add("deformable_groups", desc->deformable_groups);
     interp_info.add("groups", desc->groups);
+    interp_info.add("bilinear_interpolation_pad", desc->bilinear_interpolation_pad);
 
     json_composite ud_out_size_info;
     ud_out_size_info.add("size", desc->output_size.to_string());
@@ -107,7 +108,7 @@ std::string deformable_interp_inst::to_string(deformable_interp_node const& node
     return primitive_description.str();
 }
 
-deformable_interp_inst::typed_primitive_inst(network_impl& network, deformable_interp_node const& node) : parent(network, node) {
+deformable_interp_inst::typed_primitive_inst(network& network, deformable_interp_node const& node) : parent(network, node) {
 }
 
 }  // namespace cldnn

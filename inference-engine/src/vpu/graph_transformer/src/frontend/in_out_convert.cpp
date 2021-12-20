@@ -22,8 +22,6 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
     env.log->trace("Add Data type conversion stages");
     VPU_LOGGER_SECTION(env.log);
 
-    const bool hasScaleBias = env.config.compileConfig().inputScale != 1.0f || env.config.compileConfig().inputBias != 0.0f;
-
     for (const auto& input : model->datas()) {
         if (input->usage() != DataUsage::Input) {
             continue;
@@ -33,37 +31,6 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
         VPU_LOGGER_SECTION(env.log);
 
         switch (input->desc().type()) {
-            case DataType::FP16: {
-                if (hasScaleBias) {
-                    env.log->trace("Apply deprecated scale/bias parameters");
-
-                    std::ostringstream postfix;
-                    if (env.config.compileConfig().inputScale != 1.0f) {
-                        postfix << "@SCALE=" << InferenceEngine::CNNLayer::ie_serialize_float(env.config.compileConfig().inputScale);
-                    }
-                    if (env.config.compileConfig().inputBias != 0.0f) {
-                        postfix << "@BIAS=" << InferenceEngine::CNNLayer::ie_serialize_float(env.config.compileConfig().inputBias);
-                    }
-
-                    const auto scaledInput = model->duplicateData(
-                            input,
-                            postfix.str());
-
-                    bindData(scaledInput, input->origData());
-
-                    _stageBuilder->addPowerStage(
-                            model,
-                            scaledInput->name(),
-                            nullptr,
-                            env.config.compileConfig().inputScale,
-                            1.0f,
-                            env.config.compileConfig().inputBias,
-                            input,
-                            scaledInput);
-                }
-                break;
-            }
-
             case DataType::U8:
             case DataType::FP32: {
                 env.log->trace("Convert to FP16");
@@ -89,8 +56,8 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
                         inputFP16->name(),
                         input,
                         inputFP16,
-                        env.config.compileConfig().inputScale,
-                        env.config.compileConfig().inputBias);
+                        1.0f,
+                        0.0f);
 
                 break;
             }

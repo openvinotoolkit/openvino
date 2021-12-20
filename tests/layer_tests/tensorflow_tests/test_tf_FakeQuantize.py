@@ -6,7 +6,7 @@ import pytest
 
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-from mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
     shaped_data, connect_front, regular_op
 
@@ -35,7 +35,7 @@ class TestFakeQuantize(CommonTFLayerTest):
             expected_nudged_input_max + expected_step
         ])}
 
-    def create_fake_quantize_net(self, il, ih, num_bits, narrow_range, nudged_il, nudged_ih, expected_step, ir_version):
+    def create_fake_quantize_net(self, il, ih, num_bits, narrow_range, nudged_il, nudged_ih, expected_step, ir_version, use_new_frontend):
         # original tf model
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
@@ -50,7 +50,7 @@ class TestFakeQuantize(CommonTFLayerTest):
 
         # reference graph to compare with IR
         ref_net = None
-        if check_ir_version(10, None, ir_version):
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
             levels = 2 ** num_bits - int(narrow_range)
 
             # data (shape, value) -> const (shape, vale) -> data (shape, no value)
@@ -120,6 +120,6 @@ class TestFakeQuantize(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_fake_quantize(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_fake_quantize_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input=params, temp_dir=temp_dir)
+    def test_fake_quantize(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_fake_quantize_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input=params, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

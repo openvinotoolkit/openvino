@@ -34,23 +34,23 @@ MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(
         if (op->get_input_shape(PER_SAMPLE_WEIGHTS_IDX) != op->get_input_shape(INDICES_IDX))
              IE_THROW() << logPrefix << "must have equal shapes for indices and per_sample_weights inputs.";
     }
+}
 
-    const auto& inDataDims = op->get_input_shape(EMB_TABLE_IDX);
+void MKLDNNEmbeddingBagSumNode::prepareParams(const VectorDims& indexStaticShape) {
     _embDepth = 1lu;
-    for (size_t i = 1lu; i < inDataDims.size(); i++) {
-        _embDepth *= inDataDims[i];
+    for (size_t i = 1lu; i < indexStaticShape.size(); i++) {
+        _embDepth *= indexStaticShape[i];
     }
 }
 
 template<typename T>
 void MKLDNNEmbeddingBagSumNode::processData(const T* srcData, const T* weightsData, T* dstData,
-                                            const InferenceEngine::TensorDesc& srcDesc, const InferenceEngine::TensorDesc& dstDesc) {
+                                            const InferenceEngine::SizeVector& inDataDims, const InferenceEngine::SizeVector& outDataDims) {
     std::string msgPrefix = std::string("Node EmbeddingBagSum with name '") + _layerName + "' ";
 
     initFromInputs();
 
-    const auto& inDataDims = srcDesc.getDims();
-    const size_t outputBagsNum = dstDesc.getDims()[0];
+    const size_t outputBagsNum = outDataDims[0];
 
     auto threadBody = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
@@ -115,27 +115,27 @@ void MKLDNNEmbeddingBagSumNode::processData(const T* srcData, const T* weightsDa
     parallel_nt(0, threadBody);
 }
 
-void MKLDNNEmbeddingBagSumNode::execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData,
-                                        const InferenceEngine::TensorDesc& srcDesc, const InferenceEngine::TensorDesc& dstDesc) {
-    switch (srcDesc.getPrecision()) {
+void MKLDNNEmbeddingBagSumNode::execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData, const InferenceEngine::Precision &srcPrc,
+                                        const InferenceEngine::SizeVector& inDims, const InferenceEngine::SizeVector& outDims) {
+    switch (srcPrc) {
         case Precision::FP32: {
             return processData<PrecisionTrait<Precision::FP32>::value_type>(reinterpret_cast<const float*>(srcData),
-                    reinterpret_cast<const float*>(weightsData), reinterpret_cast<float*>(dstData), srcDesc, dstDesc);
+                    reinterpret_cast<const float*>(weightsData), reinterpret_cast<float*>(dstData), inDims, outDims);
         }
         case Precision::I8: {
             return processData<PrecisionTrait<Precision::I8>::value_type>(reinterpret_cast<const int8_t*>(srcData),
-                    reinterpret_cast<const int8_t*>(weightsData), reinterpret_cast<int8_t*>(dstData), srcDesc, dstDesc);
+                    reinterpret_cast<const int8_t*>(weightsData), reinterpret_cast<int8_t*>(dstData), inDims, outDims);
         }
         case Precision::U8: {
-            return processData<PrecisionTrait<Precision::U8>::value_type>(srcData, weightsData, dstData, srcDesc, dstDesc);
+            return processData<PrecisionTrait<Precision::U8>::value_type>(srcData, weightsData, dstData, inDims, outDims);
         }
         case Precision::I32: {
             return processData<PrecisionTrait<Precision::I32>::value_type>(reinterpret_cast<const int32_t*>(srcData),
-                    reinterpret_cast<const int32_t*>(weightsData), reinterpret_cast<int32_t*>(dstData), srcDesc, dstDesc);
+                    reinterpret_cast<const int32_t*>(weightsData), reinterpret_cast<int32_t*>(dstData), inDims, outDims);
         }
         default: {
             IE_THROW() << "EmbeddingBagSum layer does not support precision '"
-                        + std::string(srcDesc.getPrecision().name()) + "'";
+                        + std::string(srcPrc.name()) + "'";
         }
     }
 }

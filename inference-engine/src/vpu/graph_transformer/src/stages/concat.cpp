@@ -296,7 +296,7 @@ void FrontEnd::parseConcat(
     auto inferRequirement = ConcatInferRequirement::CanBeReplaced;
     if (auto concatOp = std::dynamic_pointer_cast<ngraph::opset3::Concat>(layer->getNode())) {
         inferRequirement = concatOp->get_input_source_output(0).get_node_shared_ptr()->get_type_info() ==
-                           ngraph::vpu::op::DynamicShapeResolver::type_info
+                           ngraph::vpu::op::DynamicShapeResolver::get_type_info_static()
                            ? ConcatInferRequirement::NeedToInfer
                            : ConcatInferRequirement::CanBeReplaced;
     }

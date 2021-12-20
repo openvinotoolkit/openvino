@@ -81,15 +81,6 @@ enum mx_fw_status {
 };
 /**         MXLK data end       */
 
-#if !(defined(_WIN32) || defined(_WIN64))
-static inline void timeout_to_timeval(unsigned int timeout_ms,
-                                      struct timeval *timeval)
-{
-    timeval->tv_sec = timeout_ms / 1000;
-    timeval->tv_usec = (timeout_ms - (timeval->tv_sec * 1000)) * 1000;
-}
-#endif
-
 static inline void sleepForSeconds(const unsigned int seconds) {
 #if (!defined(_WIN32) && !defined(_WIN64))
     sleep(seconds);
@@ -140,7 +131,6 @@ int pcie_write(HANDLE fd, void * buf, size_t bufSize)
 {
     ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
     ASSERT_XLINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
-    ASSERT_XLINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
 
     HANDLE dev =  fd;
     OVERLAPPED Overlapped;
@@ -184,7 +174,7 @@ int pcie_write(void *fd, void * buf, size_t bufSize)
 {
     ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
     ASSERT_XLINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
-    ASSERT_XLINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
+    
 
     fd_set wrfds;
     int ret;
@@ -217,7 +207,6 @@ int pcie_read(HANDLE fd, void * buf, size_t bufSize)
 {
     ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
     ASSERT_XLINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
-    ASSERT_XLINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
 
     HANDLE dev =  fd;
     OVERLAPPED Overlapped;
@@ -261,7 +250,6 @@ int pcie_read(void *fd, void *buf, size_t bufSize)
 {
     ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
     ASSERT_XLINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
-    ASSERT_XLINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
 
     fd_set rdfds;
     int ret;
@@ -540,7 +528,6 @@ pcieHostError_t pcie_boot_device(HANDLE fd, const char  *buffer, size_t length)
 {
     ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
     ASSERT_XLINK_PLATFORM_R(buffer, PCIE_INVALID_PARAMETERS);
-    ASSERT_XLINK_PLATFORM_R(length >= 0, PCIE_INVALID_PARAMETERS);
 
     // Get device context
     enum mx_fw_status fw_status = MX_FW_STATUS_UNKNOWN_STATE;

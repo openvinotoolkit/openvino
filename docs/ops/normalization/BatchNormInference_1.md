@@ -60,7 +60,6 @@ For a particular activation, consider a mini-batch \f$\mathcal{B}\f$ of m values
   * **Description**: *epsilon* is a constant added to the variance for numerical stability.
   * **Range of values**: a floating-point number greater than or equal to zero
   * **Type**: `float`
-  * **Default value**: none
   * **Required**: *yes*
 
 **Inputs**

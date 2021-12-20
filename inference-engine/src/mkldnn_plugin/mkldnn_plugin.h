@@ -13,6 +13,7 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <cfloat>
 
 namespace MKLDNNPlugin {
 
@@ -36,10 +37,14 @@ public:
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
 
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
+                                                     const std::map<std::string, std::string>& config) override;
+
 private:
     Config engConfig;
     NumaNodesWeights weightsSharing;
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
+    bool streamsSet = false;
 };
 
 }  // namespace MKLDNNPlugin

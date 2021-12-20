@@ -103,7 +103,11 @@ static int global_lock_fd = -1;
 
 #define STRINGIFY(_text) #_text
 #define CASE(entry) case entry: return STRINGIFY(entry);
-
+#define FREE_AND_NULL(fDynMem, fPointer, sDynMem, sPointer) \
+    free(fDynMem); \
+    fPointer = NULL; \
+    free(sDynMem); \
+    sPointer = NULL
 
 // To suppress warning in the macro below
 #if defined __GNUC__ || defined __clang__
@@ -150,12 +154,8 @@ char* ncProtocolToStr(const ncDeviceProtocol_t deviceProtocol) {
     }
 }
 
-char* ncPlatformToStr(const ncDevicePlatform_t platform) {
-    switch(platform) {
-        case NC_MYRIAD_2:              return "NC_MYRIAD_2";
-        case NC_MYRIAD_X:              return "NC_MYRIAD_X";
-        default:                    return "NC_ANY_PLATFORM";
-    }
+char* ncPlatformToStr() {
+    return "NC_MYRIAD_X";
 }
 
 int mvnc_memcpy(void* dest, size_t destsz, void const* src, size_t count) {
@@ -1186,21 +1186,20 @@ ncStatus_t ncAvailableDevices(struct ncDeviceDescr_t *deviceDescrPtr,
     return NC_OK;
 }
 
-ncStatus_t ncDeviceLoadFirmware(const ncDevicePlatform_t devicePlatform, const char* customFirmwareDir) {
-    mvLog(MVLOG_WARN, "Boot (%s) without connecting to it", ncPlatformToStr(devicePlatform));
+ncStatus_t ncDeviceLoadFirmware(const char* customFirmwareDir) {
+    mvLog(MVLOG_WARN, "Boot (%s) without connecting to it", "");
     XLinkError_t rc;
     ncStatus_t sc;
 
     // Find device with specific platform
     deviceDesc_t deviceDesc = {0};
     deviceDesc_t in_deviceDesc = {
-        .platform = convertPlatformToXlink(devicePlatform),
         .protocol = X_LINK_USB_VSC
     };
 
     rc = XLinkFindFirstSuitableDevice(X_LINK_UNBOOTED, in_deviceDesc, &deviceDesc);
     if (rc) {
-        mvLog(MVLOG_WARN, "Failed to find (%s) platform device", ncPlatformToStr(devicePlatform));
+        mvLog(MVLOG_WARN, "Failed to find (%s) platform device", "");
         return NC_DEVICE_NOT_FOUND;
     }
 
@@ -1414,7 +1413,7 @@ static void* debugConsoleThreadReader(void* ctx) {
     fprintfsock(connfd, "=========================================\n");
     while(1){
         // use 0 as the timeout to prevent trigger false reset
-        xerr = XLinkReadDataWithTimeOut(streamId, &packet, 0);
+        xerr = XLinkReadDataWithTimeout(streamId, &packet, 0);
         if(X_LINK_SUCCESS != xerr || packet == NULL)
             break;
         fprintfsock(connfd, NULL, packet->data, packet->length);
@@ -1484,7 +1483,10 @@ static void printfOverXLinkOpen(struct _devicePrivate_t *d) {
 
     int portNum = 7788;
     int connfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
+    if (connfd != 0) {
+        fprintf(stderr,"ERROR in socket function, return value is : %d\n", connfd);
+        return;
+    }
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
@@ -2204,10 +2206,7 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
     CHECK_HANDLE_CORRECT_WINFO(g, MVLOG_ERROR, "Graph handle is corrupt or has been destroyed");
 
     if (g->state == NC_GRAPH_CREATED || g->state == NC_GRAPH_DEALLOCATED) {
-        free(g);
-        gh->private_data = NULL;
-        free(gh);
-        *graphHandle = NULL;
+        FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
         return NC_OK;
     }
     GLOBAL_LOCK();
@@ -2225,28 +2224,24 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
     cmd.id = g->id;
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
     rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
-    if(rc != 0){
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        return rc;
-    }
-    if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        return NC_ERROR;
+    if (rc != 0){
+        mvLog(MVLOG_WARN, "can't send command\n");
+        rc = NC_ERROR;
+    } else if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
+        mvLog(MVLOG_WARN, "myriad NACK\n");
+        rc = NC_ERROR;
     }
     XLinkCloseStream(g->graph_stream_id);
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->dev_data_m));
     if (deallocateGraph(gh->private_data)) {
         mvLog(MVLOG_ERROR, "This graph has already been destroyed");
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
-        return NC_INVALID_PARAMETERS;
+        rc =  NC_INVALID_PARAMETERS;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
-    free(g);
-    gh->private_data = NULL;
-    free(gh);
-    *graphHandle = NULL;
-    return NC_OK;
+    FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
+
+    return rc;
 }
 
 ncStatus_t ncGraphSetOption(struct ncGraphHandle_t * graphHandle,
@@ -2668,14 +2663,7 @@ static ncStatus_t getDeviceOption(struct _devicePrivate_t *d,
         mv_strncpy((char *) data, *dataLength, d->dev_addr, *dataLength - 1);
         break;
     case NC_RO_DEVICE_PLATFORM:
-        if (d->dev_attr.fw_version[1] == 0x2480){
-            *(ncDevicePlatform_t *) data = NC_MYRIAD_X;
-        } else if (d->dev_attr.fw_version[1] == 0x2450) {
-            *(ncDevicePlatform_t *) data = NC_MYRIAD_2;
-        } else {
-            *(ncDevicePlatform_t *) data = NC_ANY_PLATFORM;
-        }
-        *dataLength = sizeof(ncDevicePlatform_t);
+        *dataLength = sizeof(data);
         break;
     case NC_RO_DEVICE_PROTOCOL:
         *(ncDeviceProtocol_t *) data = convertProtocolToNC(d->protocol);
@@ -2821,7 +2809,7 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
     CHECK_HANDLE_CORRECT(deviceHandle);
     ncStatus_t rc;
 
-    if (!dataLength || (*dataLength != 0 && !data)) {
+    if (!dataLength) {
         mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
         return NC_INVALID_PARAMETERS;
     }
@@ -3033,10 +3021,6 @@ ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
 
     handle->datasize = handle->host_tensor_desc.totalSize;
 
-    if (d->fifos)
-        handle->next = d->fifos;
-    d->fifos = handle;
-
     bufferAllocateCommand_t cmd;
     cmd.type = GRAPH_BUFFER_ALLOCATE_CMD;
     struct tensorDescriptor_t privateDesc;
@@ -3089,6 +3073,10 @@ ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
         mvLog(MVLOG_ERROR, "myriad NACK\n");
         return NC_ERROR;
     }
+    if (d->fifos)
+        handle->next = d->fifos;
+    d->fifos = handle;
+
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
 
     handle->state = NC_FIFO_ALLOCATED;
@@ -3106,7 +3094,7 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
     }
 
     struct _fifoPrivate_t *handle = fh->private_data;
-
+    ncStatus_t rc = NC_OK;
     if (handle->state == NC_FIFO_CREATED || handle->state == NC_FIFO_DEALLOCATED) {
         pthread_mutex_t * fifo_mutex = &fh->private_data->fifo_mutex;
 #if !(defined(_WIN32) || defined(_WIN64))
@@ -3128,18 +3116,14 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(fifo_mutex));
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(fifo_mutex));
 
-        free(fh->private_data);
-        fh->private_data = NULL;
-
-        free(fh);
-        *fifoHandle = NULL;
+        FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
 
         return NC_OK;
     }
     if (!findFifo(handle)) {
         mvLog(MVLOG_ERROR,
               "fifo handle seems to be corrupt or has been destroyed");
-        return NC_INVALID_HANDLE;
+        rc = NC_INVALID_HANDLE;
     }
     //clean up fifo
     /*if (fifoReadAccess(handle)) {
@@ -3158,11 +3142,10 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
         if (XLinkWriteData(handle->streamId, (uint8_t *) & msg, sizeof(msg)) !=
             0) {
             mvLog(MVLOG_ERROR, "Failed to write to fifo before deleting it!");
-            return NC_ERROR;
+            rc = NC_ERROR;
         }
     }
 
-    ncStatus_t rc = NC_OK;
     graphCommonCommand_t cmd;
     cmd.type = GRAPH_BUFFER_DEALLOCATE_CMD;
     cmd.id = handle->id;
@@ -3170,30 +3153,24 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
     struct _devicePrivate_t *d = handle->dev;
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
     rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
-    if(rc != 0){
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
+    if (rc != 0) {
         mvLog(MVLOG_WARN, "can't send command\n");
-        return rc;
-    }
-    if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
+        rc = NC_ERROR;
+    } else if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
         mvLog(MVLOG_WARN, "myriad NACK\n");
-        return NC_ERROR;
+        rc = NC_ERROR;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
 
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->dev_data_m));
     if (deallocateFifo(handle)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
-        return NC_INVALID_PARAMETERS;
+        mvLog(MVLOG_WARN, "failed deallocateFifo\n");
+        rc =  NC_INVALID_PARAMETERS;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
 
-    free(fh->private_data);
-    fh->private_data = NULL;
-    free(fh);
-    *fifoHandle = NULL;
-    return NC_OK;
+    FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
+    return rc;
 
 }
 

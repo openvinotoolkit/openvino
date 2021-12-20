@@ -8,6 +8,7 @@
 #include <vpu/middleend/sw/utility.hpp>
 #include <vpu/compile_env.hpp>
 #include <vpu/model/data_contents/deconvolution_contents.hpp>
+#include <vpu/utils/hw_disabled.hpp>
 
 #include <tuple>
 #include <vector>
@@ -148,7 +149,7 @@ void PassImpl::run(const Model& model) {
         auto output = stage->output(0);
         const auto& env = CompileEnv::get();
 
-        if (env.config.compileConfig().hwDisabled(stage->origLayer()->name)) {
+        if (HwDisabled(env.config, stage->origLayer()->name)) {
             continue;
         }
 

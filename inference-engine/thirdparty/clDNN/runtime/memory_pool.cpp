@@ -6,9 +6,10 @@
 #include <fstream>
 #include <vector>
 
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/memory_pool.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory_pool.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <list>
 #include <string>
@@ -24,10 +25,6 @@ memory_record::memory_record(memory_set users,
     : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
 
 memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type) {
-    if (_max_peak_memory_used > _engine->get_device_info().max_global_mem_size) {
-        throw std::runtime_error("exceeded global device memory");
-    }
-
     return _engine->allocate_memory(layout, type);
 }
 
@@ -140,6 +137,10 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             ++it;
         }
     }
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "[" << id << ": output]" << std::endl;
+    }
     // didn't find anything for you? create new resource
     auto mem = alloc_memory(layout, type);
     {
@@ -177,6 +178,10 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
         first_level_cache->second.emplace_back(
             memory_record({{id, network_id}}, mem, network_id, type));
         return mem;
+    }
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "[" << id << ": output]" << std::endl;
     }
     auto mem = alloc_memory(layout, type);
     std::list<memory_record> list = {memory_record({{id, network_id}}, mem, network_id, type)};
@@ -298,26 +303,6 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
     }
 }
 
-memory_pool::memory_pool(engine& engine) : _engine(&engine), _temp_memory_used(0), _max_peak_memory_used(0) { }
-
-void memory_pool::add_memory_used(size_t value) {
-    // std::cerr << "ADD MEM: " << value
-    //           << " max: " << _engine->get_device_info().max_global_mem_size
-    //           << " peak: " << _max_peak_memory_used
-    //           << " tmp: " << _temp_memory_used << std::endl;
-
-    _temp_memory_used += value;
-    if (_temp_memory_used > _max_peak_memory_used) {
-        _max_peak_memory_used = _temp_memory_used.load();
-    }
-}
-
-void memory_pool::subtract_memory_used(size_t value) {
-    _temp_memory_used -= value;
-    // std::cerr << "FREE MEM: " << value
-    //           << " max: " << _engine->get_device_info().max_global_mem_size
-    //           << " peak: " << _max_peak_memory_used
-    //           << " tmp: " << _temp_memory_used << std::endl;
-}
+memory_pool::memory_pool(engine& engine) : _engine(&engine) { }
 
 }  // namespace cldnn

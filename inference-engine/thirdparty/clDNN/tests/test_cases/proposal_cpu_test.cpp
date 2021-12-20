@@ -4,8 +4,8 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/proposal.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/proposal.hpp>
 
 #include <fstream>
 
@@ -88,6 +88,7 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
                                         post_nms_topn,
                                         ratios,
                                         scales,
+                                        "",
                                         padding())
 {
     _topology.add(input_layout(cls_scores_name, _cls_scores_layout));

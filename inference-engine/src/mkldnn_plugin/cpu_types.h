@@ -4,11 +4,20 @@
 
 #pragma once
 
+#include "caseless.hpp"
+
+#include <vector>
+#include <string>
+
 namespace MKLDNNPlugin {
+
+using Dim = std::size_t;
+using VectorDims = std::vector<Dim>;
 
 enum Type {
     Unknown,
     Generic,
+    If,
     Reorder,
     Input,
     Output,
@@ -16,6 +25,7 @@ enum Type {
     Deconvolution,
     Lrn,
     Pooling,
+    AdaptivePooling,
     FullyConnected,
     Softmax,
     Split,
@@ -23,6 +33,8 @@ enum Type {
     Eltwise,
     MatMul,
     Reshape,
+    ShapeOf,
+    NonZero,
     Tile,
     ROIAlign,
     ROIPooling,
@@ -85,15 +97,21 @@ enum Type {
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
     ExtractImagePatches,
-    NonMaxSuppression
+    NonMaxSuppression,
+    MatrixNms,
+    MulticlassNms
 };
 
 enum Algorithm {
-    Undefined,
+    Default,
 
     // Pooling algorithms
     PoolingMax,
     PoolingAvg,
+
+    // Adaptive pooling algorithms
+    AdaptivePoolingMax,
+    AdaptivePoolingAvg,
 
     // Convolution algorithms
     ConvolutionCommon,
@@ -203,4 +221,11 @@ enum Algorithm {
     MathTan
 };
 
+extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;
+
+Type TypeFromName(const std::string& type);
+
+std::string NameFromType(const Type type);
+
+std::string algToString(const Algorithm alg);
 } // namespace MKLDNNPlugin

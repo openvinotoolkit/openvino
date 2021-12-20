@@ -11,6 +11,7 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/middleend/hw/utility.hpp>
 #include <vpu/middleend/sw/utility.hpp>
+#include <vpu/configuration/options/hw_pool_conv_merge.hpp>
 
 namespace vpu {
 
@@ -170,7 +171,7 @@ void PassImpl::run(const Model& model) {
         // Try to merge next Pooling layer
         //
 
-        if (env.config.compileConfig().mergeHwPoolToConv) {
+        if (env.config.get<HwPoolConvMergeOption>()) {
             if (stage->type() == StageType::StubConv) {
                 if (auto nextPoolStage = getNextPoolStage(stage, output)) {
                     output = nextPoolStage->output(0);

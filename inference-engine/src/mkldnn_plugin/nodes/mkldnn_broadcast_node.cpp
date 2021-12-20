@@ -10,26 +10,34 @@
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
 #include "mkldnn_broadcast_node.h"
-#include <nodes/common/tensor_desc_creator.h>
+#include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto broadcast = std::dynamic_pointer_cast<const ngraph::opset1::Broadcast>(op);
-        if (!broadcast) {
-            errorMessage = "Only opset1 Broadcast operation is supported";
+        if (!ov::is_type<ov::op::v1::Broadcast>(op)) {
+            errorMessage = "Only Broadcast operations from opset1 are supported.";
             return false;
         }
-        if (broadcast->get_broadcast_spec() != ngraph::op::AutoBroadcastSpec::NUMPY) {
-            errorMessage = "Only NUMPY broadcast type is supported";
+        if (!one_of(ov::as_type_ptr<const ov::op::v1::Broadcast>(op)->get_broadcast_spec().m_type,
+                ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::EXPLICIT)) {
+            errorMessage = "Only NUMPY and EXPLICIT broadcast types are supported.";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(broadcast->get_input_node_shared_ptr(BROADCAST_SHAPE)) == nullptr) {
-            errorMessage = "Only const 'shape' input is supported";
+        if (op->get_input_partial_shape(TARGET_SHAPE_IDX).is_dynamic() ||
+                (op->get_input_size() > AXES_MAPPING_IDX && op->get_input_partial_shape(AXES_MAPPING_IDX).is_dynamic())) {
+            errorMessage = "Only static shapes are supported for target shape and axes mapping inputs.";
+            return false;
+        }
+        if (!isDynamicNgraphNode(op) &&
+                (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)) ||
+                 (op->get_input_size() > AXES_MAPPING_IDX &&
+                 !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))))) {
+            errorMessage = "Only constant target shapes and axis mapping inputs are supported for static shapes.";
             return false;
         }
     } catch (...) {
@@ -38,88 +46,233 @@ bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<ngraph::Nod
     return true;
 }
 
-MKLDNNBroadcastNode::MKLDNNBroadcastNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+MKLDNNBroadcastNode::MKLDNNBroadcastNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng,
         MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    errorPrefix = "Broadcast node with name '" + op->get_friendly_name() + "'";
-    if (op->get_input_size() != 2 || op->get_output_size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+    errorPrefix = "Broadcast node with name '" + op->get_friendly_name() + "' ";
+    if (op->get_input_size() != 2 && op->get_input_size() != 3)
+        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+    if (op->get_output_size() == 0)
+        IE_THROW() << errorPrefix << "has no output edges.";
 
-    SizeVector shape_dims = op->get_input_shape(BROADCAST_SHAPE);
-    if (shape_dims.size() > 1)
-        IE_THROW() << errorPrefix << " has incorrect 'shape' input rank: " << shape_dims.size();
+    auto broadcastOp = ov::as_type_ptr<const ov::op::v1::Broadcast>(op);
+    if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY) {
+        broadcastType = NUMPY;
+    } else if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::EXPLICIT) {
+        if (op->get_input_size() <= AXES_MAPPING_IDX)
+            IE_THROW() << errorPrefix << " and EXPLICIT mode must have tree input edges: " << getParentEdges().size();
+        broadcastType = EXPLICIT;
+    } else {
+        IE_THROW() << errorPrefix << "has unexpected broadcast type: " << broadcastOp->get_broadcast_spec().m_type;
+    }
+
+    if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
+        constMap[TARGET_SHAPE_IDX] = true;
+        targetShape = (ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)))->get_vector<int32_t>();
+    }
+    if (broadcastType == EXPLICIT &&
+                ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))) {
+        constMap[AXES_MAPPING_IDX] = true;
+        axesMapping = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))->get_vector<int32_t>();
+    }
+}
+
+void MKLDNNBroadcastNode::getSupportedDescriptors() {
+    if (!isDynamicNode()) {
+        const auto& srcDims = getInputShapeAtPort(INPUT_DATA_IDX).getDims();
+        repeats.assign(targetShape.begin(), targetShape.end());
+        const auto ndims = repeats.size();
+
+        if (broadcastType == NUMPY) {
+            for (size_t i = 0lu; i < srcDims.size(); i++) {
+                repeats[ndims - 1lu - i] /= srcDims[srcDims.size() - 1lu - i];
+            }
+        } else if (broadcastType == EXPLICIT) {
+            for (size_t i = 0lu; i < axesMapping.size(); i++) {
+                repeats[axesMapping[i]] /= srcDims[i];
+            }
+        }
+        needPrepareParamsVar = true;
+    }
 }
 
 void MKLDNNBroadcastNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision prec = getOriginalInputPrecisionAtPort(BROADCAST_INPUT);
+    supportedPrimitiveDescriptors = getSupportedConfigs(this);
+}
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, prec},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
-                         {{TensorDescCreatorTypes::ncsp, prec}},
-                         impl_desc_type::ref_any);
+void MKLDNNBroadcastNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+bool MKLDNNBroadcastNode::needPrepareParams() const {
+    return needPrepareParamsVar;
+}
+
+void MKLDNNBroadcastNode::prepareParams() {
+    if (!constMap[TARGET_SHAPE_IDX]) {
+        const auto& targetShapeMem = getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory();
+        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.GetPtr());
+        targetShape.assign(targetShapeData, targetShapeData + targetShapeMem.getStaticDims()[0]);
+    }
+    if (broadcastType == EXPLICIT && !constMap[AXES_MAPPING_IDX]) {
+        const auto& axesMapMem = getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory();
+        const int32_t* axesMapData = reinterpret_cast<const int32_t *>(axesMapMem.GetPtr());
+        axesMapping.assign(axesMapData, axesMapData + axesMapMem.getStaticDims()[0]);
+    }
+
+    const auto& srcDims = getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemory().GetShape().getStaticDims();
+    repeats.assign(targetShape.begin(), targetShape.end());
+    const auto ndims = repeats.size();
+
+    auto srcBlockedDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+
+    if (broadcastType == NUMPY) {
+        for (size_t i = 0lu; i < srcDims.size(); i++) {
+            repeats[ndims - 1lu - i] /= srcDims[srcDims.size() - 1lu - i];
+        }
+    } else if (broadcastType == EXPLICIT) {
+        for (size_t i = 0; i < getInputShapeAtPort(AXES_MAPPING_IDX).getDims()[0]; i++) {
+            repeats[axesMapping[i]] /= srcDims[i];
+        }
+
+        SizeVector newSrcBlockedDims = SizeVector(dstBlockedDims.size(), 1);
+        for (size_t i = 0; i < getInputShapeAtPort(AXES_MAPPING_IDX).getDims()[0]; i++) {
+            newSrcBlockedDims[axesMapping[i]] = srcBlockedDims[i];
+        }
+        srcBlockedDims = newSrcBlockedDims;
+    }
+
+    optimizedCase = prepareOptimizedParams(this, srcBlockedDims, dstBlockedDims);
+}
+
+bool MKLDNNBroadcastNode::needShapeInfer() const {
+    needPrepareParamsVar = true;
+    if (inputShapesModified()) {
+        return true;
+    }
+
+    if (!constMap[TARGET_SHAPE_IDX]) {
+        if (targetShape.empty()) {
+            return true;
+        }
+        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetPtr());
+        for (size_t i = 0lu; i < targetShape.size(); i++) {
+            if (targetShape[i] != targetShapeData[i]) {
+                return true;
+            }
+        }
+    }
+    if (broadcastType == EXPLICIT && !constMap[AXES_MAPPING_IDX]) {
+        if (axesMapping.empty()) {
+            return true;
+        }
+        const int32_t* axesMappingData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetPtr());
+        for (size_t i = 0lu; i < axesMapping.size(); i++) {
+            if (axesMapping[i] != axesMappingData[i]) {
+                return true;
+            }
+        }
+    }
+    needPrepareParamsVar = false;
+    return false;
+}
+
+std::vector<VectorDims> MKLDNNBroadcastNode::shapeInfer() const {
+    ngraph::OutputVector inputsForShapeInfer {
+            std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(INPUT_DATA_IDX),
+                            getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemory().GetShape().toPartialShape()),
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
+                            getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetShape().getStaticDims(),
+                            getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetPtr())
+        };
+    if (opToShapeInfer->get_input_size() > AXES_MAPPING_IDX) {
+        inputsForShapeInfer.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
+                        getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetShape().getStaticDims(),
+                        getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetPtr()));
+    }
+    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
+
+    localShapeInferOp->validate_and_infer_types();
+
+    std::vector<VectorDims> newOutputShapes(outputShapes.size());
+    for (size_t i = 0lu; i < newOutputShapes.size(); i++) {
+        const auto &partShape = localShapeInferOp->get_output_partial_shape(i);
+        newOutputShapes[i] = partShape.get_shape();
+    }
+
+    return newOutputShapes;
 }
 
 void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
-    size_t shape_size = (getParentEdgeAt(BROADCAST_SHAPE)->getDesc().getDims())[0];
-    SizeVector dst_dims = getChildEdgeAt(0)->getDesc().getDims();
-    SizeVector src_dims = getParentEdgeAt(BROADCAST_INPUT)->getDesc().getDims();
-    SizeVector srcStrides = getParentEdgeAt(BROADCAST_INPUT)->getDesc().getBlockingDesc().getStrides();
-    size_t data_size = getParentEdgeAt(BROADCAST_INPUT)->getDesc().getPrecision().size();
+    if (optimizedCase) {
+        optimizedExecute(getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
+    } else {
+        plainExecute(strm);
+    }
+}
 
-    if (!src_dims.size())
-        src_dims = SizeVector(1, 1);
+void MKLDNNBroadcastNode::plainExecute(mkldnn::stream strm) {
+    VectorDims srcDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getStaticDims();
+    const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
+    const auto& dataSrcRank = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetShape().getRank();
+    const auto& dataDstRank = getChildEdgeAt(0)->getMemory().GetShape().getRank();
+
+    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    VectorDims srcStrides = srcDesc->getStrides();
+    const size_t dataSize = srcDesc->getPrecision().size();
+
+    if (!dataSrcRank)
+        srcDims = VectorDims(1, 1);
     if (!srcStrides.size())
-        srcStrides = SizeVector(1, 1);
+        srcStrides = VectorDims(1, 1);
 
-    if (dst_dims.size() != shape_size) {
-        IE_THROW() << "Output tensor dimension mismatch";
-    }
-
-    if (src_dims.size() > dst_dims.size()) {
-        IE_THROW() << "Output tensor dimension is smaller then input tensor dimension";
-    }
-
-    InferenceEngine::SizeVector dstStrides = getChildEdgeAt(0)->getDesc().getBlockingDesc().getStrides();
-    InferenceEngine::SizeVector src_aligned(dst_dims.size());
-    InferenceEngine::SizeVector srcStrides_aligned(dst_dims.size());
-    size_t prefix_size = dst_dims.size() - src_dims.size();
-    for (size_t i = 0; i < dst_dims.size(); i++) {
-        if (i < prefix_size) {
-            src_aligned[i] = 1;
-            srcStrides_aligned[i] = srcStrides[0];
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    VectorDims dstStrides = dstDesc->getStrides();
+    VectorDims srcAligned(dataDstRank);
+    VectorDims srcStridesAligned(dataDstRank);
+    const size_t prefixSize = dataDstRank - dataSrcRank;
+    for (size_t i = 0lu; i < dataDstRank; i++) {
+        if (i < prefixSize) {
+            srcAligned[i] = 1;
+            srcStridesAligned[i] = srcStrides[0];
         } else {
-            src_aligned[i] = src_dims[i - prefix_size];
-            srcStrides_aligned[i] = srcStrides[i - prefix_size];
+            srcAligned[i] = srcDims[i - prefixSize];
+            srcStridesAligned[i] = srcStrides[i - prefixSize];
         }
     }
 
-    size_t work_amount_dst = dstStrides[0] * dst_dims[0];
-    const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(BROADCAST_INPUT)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const size_t workAmountDst = dstStrides[0] * dstDims[0];
+    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr()->GetPtr());
+    auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t i, src_idx, start = 0, end = 0;
-        SizeVector counters(dst_dims.size(), 0);
-        splitter(work_amount_dst, nthr, ithr, start, end);
-        for (int j = dst_dims.size() - 1, i = start; j >= 0; j--) {
-            counters[j] = i % dst_dims[j];
-            i /= dst_dims[j];
+        size_t i = 0lu, srcIdx = 0lu, start = 0lu, end = 0lu;
+        VectorDims counters(dataDstRank, 0);
+        splitter(workAmountDst, nthr, ithr, start, end);
+        for (int j = dataDstRank - 1, i = start; j >= 0; j--) {
+            counters[j] = i % dstDims[j];
+            i /= dstDims[j];
         }
-        for (size_t iwork = start * data_size; iwork < end * data_size; iwork += data_size) {
-            for (i = 0, src_idx = 0; i < dst_dims.size(); ++i)
-                src_idx += counters[i] ? ((counters[i] % src_aligned[i]) * srcStrides_aligned[i]) : 0;
+        for (size_t iwork = start * dataSize; iwork < end * dataSize; iwork += dataSize) {
+            for (i = 0lu, srcIdx = 0lu; i < dataDstRank; ++i)
+                srcIdx += counters[i] ? ((counters[i] % srcAligned[i]) * srcStridesAligned[i]) : 0;
 
-            cpu_memcpy(&dst_data[iwork], &src_data[src_idx * data_size], data_size);
+            cpu_memcpy(&dstData[iwork], &srcData[srcIdx * dataSize], dataSize);
 
-            for (int j = dst_dims.size() - 1; j >= 0; j--) {
-                counters[j] = (counters[j] + 1) % dst_dims[j];
+            for (int j = dataDstRank - 1; j >= 0; j--) {
+                counters[j] = (counters[j] + 1) % dstDims[j];
                 if (counters[j] != 0) break;
             }
         }

@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "cldnn/runtime/utils.hpp"
-#include "cldnn/runtime/tensor.hpp"
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/primitives/eltwise.hpp"
-#include "cldnn/primitives/scale.hpp"
-#include "cldnn/primitives/quantize.hpp"
-#include "cldnn/primitives/activation.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "intel_gpu/runtime/tensor.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/scale.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/activation.hpp"
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
@@ -28,7 +28,7 @@ enum class data_types : size_t;
 enum class tuning_mode;
 struct format;
 struct layout;
-struct program_impl;
+struct program;
 struct program_node;
 }  // namespace cldnn
 
@@ -72,6 +72,7 @@ using shape_calculation_mode = kernel_selector::ShapeCalculationMode;
 using interpolate_axis = kernel_selector::InterpolateAxis;
 using border_type = kernel_selector::BorderType;
 using gather_axis = kernel_selector::GatherAxis;
+using gather_elements_axis = kernel_selector::GatherAxis;
 using scatter_update_axis = kernel_selector::ScatterUpdateAxis;
 using reduce_mode = kernel_selector::ReduceMode;
 using cum_sum_axis = kernel_selector::CumSumAxis;
@@ -159,7 +160,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
     params.layerID = arg.id();
 
     convert_fused_activation_func_params(arg, params.activations);
-    std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_op_id_map;
+    std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;
     size_t op_id = 0;
     for (auto& fused_prim : arg.get_fused_primitives()) {
         kernel_selector::fused_operation_desc desc;
@@ -168,22 +169,43 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
             CLDNN_ERROR_MESSAGE(arg.id(), "Invalid fused operation (" + fused_prim.node->id() + ") of type " +
                                            fused_prim.node->get_primitive()->type_string() );
         }
+
         desc.dep_idx_start = fused_prim.dep_start_idx;
         desc.dep_size = fused_prim.deps.size();
         desc.op_id = op_id++;
         desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
-        prim_op_id_map[fused_prim.node->id()] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
-        for (auto& dep : fused_prim.fused_deps) {
-            auto iter = prim_op_id_map.find(dep);
-            if (iter != prim_op_id_map.end()) {
-                desc.fused_op_ids.push_back(iter->second);
-            }
-        }
+        prim_id_type_map[fused_prim.node->id()] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
 
         for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
             desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout()));
         }
 
+        if (fused_prim.total_num_deps > 0) {
+            desc.dep_data.resize(fused_prim.total_num_deps);
+            for (auto& dep : fused_prim.fused_deps) {
+                auto iter = prim_id_type_map.find(dep.first);
+                if (iter != prim_id_type_map.end()) {
+                    auto& op_data = iter->second;
+                    desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::INTERNAL;
+                    desc.dep_data[dep.second].op_id     = op_data.first;
+                    desc.dep_data[dep.second].data_type = op_data.second;
+                }
+            }
+
+            int idx = 0;
+            for (auto& dep : fused_prim.deps) {
+                desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::EXTERNAL;
+                desc.dep_data[dep.second].op_id     = idx;
+                desc.dep_data[dep.second].data_type = desc.tensors[idx++].GetDType();
+            }
+
+            for (auto& dep : desc.dep_data) {
+                if (dep.dep_type == kernel_selector::DepType::UNDEFINED) {
+                    dep.dep_type    = kernel_selector::DepType::ORIGINAL;
+                    break;
+                }
+            }
+        }
         params.fused_ops.push_back(desc);
     }
 
@@ -232,16 +254,16 @@ params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t sp
     return params;
 }
 
-void set_optional_params(const program_impl& program, kernel_selector::optional_params& params);
+void set_optional_params(const program& program, kernel_selector::optional_params& params);
 
 template <typename optional_params_t>
-inline optional_params_t get_default_optional_params(const program_impl& program) {
+inline optional_params_t get_default_optional_params(const program& program) {
     optional_params_t params;
     set_optional_params(program, params);
     return params;
 }
 
 template <typename optional_params_t>
-inline optional_params_t get_default_weights_bias_optional_params(const program_impl& program) {
+inline optional_params_t get_default_weights_bias_optional_params(const program& program) {
     return get_default_optional_params<optional_params_t>(program);
 }

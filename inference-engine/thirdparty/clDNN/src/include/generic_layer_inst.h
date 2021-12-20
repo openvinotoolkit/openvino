@@ -15,7 +15,7 @@ namespace cldnn {
 template <>
 struct typed_program_node<generic_layer> : public typed_program_node_base<generic_layer> {
     using parent = typed_program_node_base<generic_layer>;
-    typed_program_node(const std::shared_ptr<generic_layer> prim, program_impl& prog);
+    typed_program_node(const std::shared_ptr<generic_layer> prim, program& prog);
 
 public:
     using parent::parent;
@@ -35,7 +35,7 @@ public:
     static std::string to_string(generic_layer_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, generic_layer_node const& node);
+    typed_primitive_inst(network& network, generic_layer_node const& node);
 };
 
 using generic_layer_inst = typed_primitive_inst<generic_layer>;

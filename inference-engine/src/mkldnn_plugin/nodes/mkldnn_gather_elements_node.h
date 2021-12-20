@@ -18,20 +18,24 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void prepareParams() override;
 
 private:
     const size_t dataIndex_ = 0;
     const size_t indicesIndex_ = 1;
 
     size_t axis_;
-    size_t dataTypeSize_;
-    int strideAxDst_;
-    int dstAxDim_;
+    size_t dataTypeSize_ = 0;
+    int strideAxDst_ = 0;
+    int dstAxDim_ = 0;
     int strideAx1Diff_ = 0;
     std::string errorPrefix_;
 

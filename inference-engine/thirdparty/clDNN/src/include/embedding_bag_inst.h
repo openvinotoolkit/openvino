@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/embedding_bag.hpp"
+#include "intel_gpu/primitives/embedding_bag.hpp"
 #include "primitive_inst.h"
 
 #include <string>
@@ -30,7 +30,7 @@ class typed_primitive_inst<embedding_bag> : public typed_primitive_inst_base<emb
 public:
     static layout calc_output_layout(embedding_bag_node const& node);
     static std::string to_string(embedding_bag_node const& node);
-    typed_primitive_inst(network_impl& network, embedding_bag_node const& desc);
+    typed_primitive_inst(network& network, embedding_bag_node const& desc);
 };
 
 using embedding_bag_inst = typed_primitive_inst<embedding_bag>;

@@ -169,13 +169,13 @@ You can also set attribute values using corresponding setter methods, for exampl
 node.set_axis(0)
 ```
 
-Currently, you can get all attributes of a node using the `_get_attributes` method. Please note that this is an internal API method and may change in future versions of OpenVINO.
+Currently, you can get all attributes of a node using the `get_attributes` method.
 
 The following code displays all attributes for all nodes in a function:
 
 ```python
 for node in function.get_ordered_ops():
-    attributes = node._get_attributes()
+    attributes = node.get_attributes()
     if(attributes):
         print('Operation {} of type {} has attributes:'.format(node.get_friendly_name(), node.get_type_name()))
         for attr, value in attributes.items():

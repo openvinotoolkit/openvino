@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -13,7 +12,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNCTCGreedyDecoderSeqLenNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNCTCGreedyDecoderSeqLenNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
         if (!greedyDecOp) {
@@ -39,7 +38,9 @@ MKLDNNCTCGreedyDecoderSeqLenNode::MKLDNNCTCGreedyDecoderSeqLenNode(const std::sh
     if (getOriginalOutputsNumber() != 2)
         IE_THROW() << errorPrefix << "has invalid number of outputs edges: " << getOriginalOutputsNumber();
 
-    if (op->get_input_shape(DATA_INDEX)[0] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[0])
+    const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
+    const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
+    if (!dimsEqualWeak(dataDims[0], seqDims[0]))
         IE_THROW() << errorPrefix << "has invalid input shapes.";
 
     auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
@@ -58,15 +59,15 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::initSupportedPrimitiveDescriptors() {
     if (seqLenPrecision != Precision::I32 && seqLenPrecision != Precision::I64)
         IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
-    std::vector<DataConfigurator> inDataConf;
-    inDataConf.reserve(getOriginalInputsNumber());
-    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
-    for (int i = 1; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
+    std::vector<PortConfigurator> inDataConf;
+    inDataConf.reserve(inputShapes.size());
+    inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    for (int i = 1; i < inputShapes.size(); ++i)
+        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{TensorDescCreatorTypes::ncsp, Precision::I32},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          impl_desc_type::ref_any);
 }
 
@@ -76,13 +77,13 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
     int* decodedClasses =  reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemoryPtr()->GetPtr());
     int* decodedClassesLength = reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_LENGTH_INDEX)[0]->getMemoryPtr()->GetPtr());
 
-    const size_t B = getParentEdgeAt(DATA_INDEX)->getDims()[0];;
-    const size_t T = getParentEdgeAt(DATA_INDEX)->getDims()[1];;
-    const int C = getParentEdgeAt(DATA_INDEX)->getDims()[2];;
+    const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];;
+    const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];;
+    const int C = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2];;
     const size_t TC = T * C;
 
     int blankIndex = C - 1;
-    if (inDims.size() > BLANK_INDEX)
+    if (inputShapes.size() > BLANK_INDEX)
         blankIndex = (reinterpret_cast<const int  *>(getParentEdgeAt(BLANK_INDEX)->getMemoryPtr()->GetPtr()))[0];
 
     size_t workAmount = 0;
@@ -91,7 +92,7 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
             std::string errorMsg = errorPrefix
                                    + ". Sequence length " + std::to_string(sequenceLengths[b])
                                    + " cannot be greater than according decoded classes dimension size "
-                                   + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getDims()[1]);
+                                   + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemory().getStaticDims()[1]);
             IE_THROW() << errorMsg;
         }
         workAmount += sequenceLengths[b];
@@ -165,6 +166,20 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
 
 bool MKLDNNCTCGreedyDecoderSeqLenNode::created() const {
     return getType() == CTCGreedyDecoderSeqLen;
+}
+
+void MKLDNNCTCGreedyDecoderSeqLenNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNCTCGreedyDecoderSeqLenNode::executeDynamicImpl(dnnl::stream strm) {
+    MKLDNNCTCGreedyDecoderSeqLenNode::execute(strm);
+}
+
+bool MKLDNNCTCGreedyDecoderSeqLenNode::needPrepareParams() const {
+    return false;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNCTCGreedyDecoderSeqLenNode, CTCGreedyDecoderSeqLen)

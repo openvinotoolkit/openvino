@@ -4,12 +4,12 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/average_unpooling.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/mutable_data.hpp>
-#include <cldnn/primitives/pooling.hpp>
-#include <cldnn/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/average_unpooling.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/mutable_data.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -186,7 +186,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, padding({ 0, 0, 1, 1 }, 0)));
+    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, "", padding({ 0, 0, 1, 1 }, 0)));
 
     network network(engine, topology);
 

@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/normalize.hpp"
+#include "intel_gpu/primitives/normalize.hpp"
 #include "primitive_inst.h"
 
 #include <string>
@@ -33,7 +33,7 @@ public:
     static std::string to_string(normalize_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, normalize_node const& node);
+    typed_primitive_inst(network& network, normalize_node const& node);
 
     memory::ptr scale_memory() const { return dep_memory_ptr(1); }
 };

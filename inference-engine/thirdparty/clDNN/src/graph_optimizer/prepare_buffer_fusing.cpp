@@ -5,7 +5,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pooling_inst.h"
-#include "fused_conv_eltwise_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
 #include "concatenation_inst.h"
@@ -92,6 +91,12 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     auto output_format = node.get_output_layout().format;
     auto output_datatype = node.get_output_layout().data_type;
     auto concat_axis = node.get_primitive()->axis;
+
+    // oneDNN doens't support paddings and such concat optimizations
+    for (auto& input : node.get_dependencies()) {
+        if (input->get_preferred_impl_type() == impl_types::onednn)
+            return false;
+    }
 
     for (auto& input : node.get_dependencies()) {
         if (input->is_type<reshape>())
@@ -240,7 +245,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 }  // namespace
 
 // ToDo remove friendship relation from  program_node
-void prepare_buffer_fusing::run(program_impl& p) {
+void prepare_buffer_fusing::run(program& p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     /*
     We need to take care of proper ordering by types.
@@ -307,6 +312,9 @@ void prepare_buffer_fusing::run(program_impl& p) {
                     if (input_layout.data_padding.lower_size().batch[0] != 0 || input_layout.data_padding.upper_size().batch[0] != 0 ||
                         input_layout.data_padding.lower_size().spatial[0] != 0 || input_layout.data_padding.upper_size().spatial[0] != 0 ||
                         input_layout.data_padding.lower_size().spatial[1] != 0 || input_layout.data_padding.upper_size().spatial[1] != 0)
+                        return;
+                    // oneDNN doesn't support paddings
+                    if (usr->get_preferred_impl_type() == impl_types::onednn)
                         return;
                 }
 

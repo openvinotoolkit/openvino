@@ -2,7 +2,7 @@
 
 **Versioned name**: *Cos-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Cos* performs element-wise cosine operation on a given input tensor.
 

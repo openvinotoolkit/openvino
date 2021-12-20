@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "cldnn/primitives/gather_nd.hpp"
+#include "intel_gpu/primitives/gather_nd.hpp"
 #include "primitive_inst.h"
 #include <string>
 
@@ -29,7 +29,7 @@ public:
     static std::string to_string(gather_nd_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, gather_nd_node const& desc);
+    typed_primitive_inst(network& network, gather_nd_node const& desc);
 };
 
 using gather_nd_inst = typed_primitive_inst<gather_nd>;

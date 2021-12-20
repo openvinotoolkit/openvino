@@ -5,9 +5,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "mutable_data_inst.h"
 #include "primitive_type_base.h"
-#include "cldnn/runtime/memory.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include <random>
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <memory>
@@ -20,7 +20,7 @@ primitive_type_id mutable_data::type_id() {
 }
 
 namespace {
-memory::ptr attach_or_copy_data(network_impl& network, memory::ptr mem, bool reuse) {
+memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {
     auto& engine = network.get_engine();
     auto& stream = network.get_stream();
 
@@ -29,15 +29,15 @@ memory::ptr attach_or_copy_data(network_impl& network, memory::ptr mem, bool reu
     }
 
     memory::ptr result = engine.allocate_memory(mem->get_layout(), false);
-    mem_lock<char> src(mem, stream);
-    mem_lock<char> dst(result, stream);
+    mem_lock<char, mem_lock_type::read> src(mem, stream);
+    mem_lock<char, mem_lock_type::write> dst(result, stream);
     std::copy(src.begin(), src.end(), dst.begin());
 
     return result;
 }
 }  // namespace
 
-mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim, program_impl& prog)
+mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim, program& prog)
     : parent(dprim, prog), mem(dprim->mem) {
     recalc_output_layout(false);
     can_share_buffer(false);
@@ -57,7 +57,26 @@ std::string mutable_data_inst::to_string(mutable_data_node const& node) {
     return primitive_description.str();
 }
 
-mutable_data_inst::typed_primitive_inst(network_impl& network, mutable_data_node const& node)
+void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check) {
+    auto& eng = _network.get_engine();
+    auto& mem_node = const_cast<program_node&>(_node).as<mutable_data>();
+    auto& mem_attached = mem_node.get_attached_memory();
+    const auto& mem_orig = *_output;
+
+    if (!eng.is_the_same_buffer(*mem_new, mem_attached)) {
+        if (_node.is_input()) {
+            mem_new->copy_from(_network.get_stream(), *_output);
+        }
+
+        // re-attach mutable_data internal memory if necessary
+        if (eng.is_the_same_buffer(mem_orig, mem_attached)) {
+            mem_node.attach_memory(eng.reinterpret_buffer(*mem_new, mem_attached.get_layout()));
+        }
+    }
+    primitive_inst::set_output_memory(mem_new, check);
+}
+
+mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
     : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {}
 
 }  // namespace cldnn

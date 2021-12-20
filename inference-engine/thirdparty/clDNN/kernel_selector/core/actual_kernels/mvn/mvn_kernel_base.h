@@ -20,7 +20,7 @@ struct mvn_params : public base_params {
     float epsilon = 0.0f;
     MVNEpsMode mvnEpsMode = MVNEpsMode::INSIDE_SQRT;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
 
         k.EnableMVNMode(mvnMode);

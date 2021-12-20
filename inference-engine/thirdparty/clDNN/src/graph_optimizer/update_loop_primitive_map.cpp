@@ -14,7 +14,7 @@
 
 using namespace cldnn;
 
-void update_loop_primitive_map::run(program_impl& p) {
+void update_loop_primitive_map::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (!node->is_type<loop>()) {
             continue;

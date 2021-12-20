@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -13,7 +12,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNCTCGreedyDecoderNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNCTCGreedyDecoderNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
         if (!greedyDecOp) {
@@ -39,8 +38,10 @@ MKLDNNCTCGreedyDecoderNode::MKLDNNCTCGreedyDecoderNode(const std::shared_ptr<ngr
     if (getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << "has invalid number of outputs edges: " << getOriginalOutputsNumber();
 
-    if (op->get_input_shape(DATA_INDEX)[0] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[0] &&
-        op->get_input_shape(DATA_INDEX)[1] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[1])
+    const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
+    const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
+
+    if (!dimsEqualWeak(dataDims[0], seqDims[0]) || !dimsEqualWeak(dataDims[1], seqDims[1]))
         IE_THROW() << errorPrefix << "has invalid input shapes.";
 
     auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
@@ -59,9 +60,9 @@ void MKLDNNCTCGreedyDecoderNode::initSupportedPrimitiveDescriptors() {
     if (seqLenPrecision != Precision::FP32 && seqLenPrecision != Precision::BF16)
         IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
@@ -70,9 +71,9 @@ void MKLDNNCTCGreedyDecoderNode::execute(mkldnn::stream strm) {
     const float* sequenceMask = reinterpret_cast<const float *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
     float* outputSequences = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    const size_t T = getParentEdgeAt(DATA_INDEX)->getDims()[0];
-    const size_t B = getParentEdgeAt(DATA_INDEX)->getDims()[1];
-    const int C = getParentEdgeAt(DATA_INDEX)->getDims()[2];
+    const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
+    const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];
+    const int C = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2];
     const size_t BC = B * C;
     const size_t CB1 = C * (B - 1);
 
@@ -162,6 +163,20 @@ void MKLDNNCTCGreedyDecoderNode::execute(mkldnn::stream strm) {
 
 bool MKLDNNCTCGreedyDecoderNode::created() const {
     return getType() == CTCGreedyDecoder;
+}
+
+void MKLDNNCTCGreedyDecoderNode::executeDynamicImpl(dnnl::stream strm) {
+    MKLDNNCTCGreedyDecoderNode::execute(strm);
+}
+
+void MKLDNNCTCGreedyDecoderNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
+}
+
+bool MKLDNNCTCGreedyDecoderNode::needPrepareParams() const {
+    return false;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNCTCGreedyDecoderNode, CTCGreedyDecoder)

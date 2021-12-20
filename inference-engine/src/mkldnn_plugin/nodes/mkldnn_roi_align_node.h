@@ -23,7 +23,10 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    bool needPrepareParams() const override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     int pooledH = 7;

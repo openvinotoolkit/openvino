@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/lstm.hpp"
+#include "intel_gpu/primitives/lstm.hpp"
 #include "primitive_inst.h"
 
 #include <string>
@@ -50,7 +50,7 @@ public:
     static std::string to_string(lstm_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, lstm_node const& node);
+    typed_primitive_inst(network& network, lstm_node const& node);
 
     memory& weights_memory() const { return dep_memory(1); }
     memory& recurrent_memory() const { return dep_memory(2); }

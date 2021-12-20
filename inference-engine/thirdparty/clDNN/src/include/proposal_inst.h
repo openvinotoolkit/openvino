@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/proposal.hpp"
+#include "intel_gpu/primitives/proposal.hpp"
 #include "primitive_inst.h"
 
 #include <string>
@@ -67,7 +67,7 @@ public:
     static std::string to_string(proposal_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, proposal_node const& desc);
+    typed_primitive_inst(network& network, proposal_node const& desc);
 
     const std::vector<anchor>& get_anchors() const { return _anchors; }
 

@@ -10,25 +10,25 @@
 
 namespace MKLDNNPlugin {
 
-inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ngraph::Variant>>& rtInfo, std::string paramName) {
+inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, std::string paramName) {
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
-        auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-        return value->get();
+        return it->second.as<std::string>();
     } else {
-        return "";
+        return {};
     }
 }
 
 inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
-    using PrimitivesPriorityWraper = ngraph::VariantWrapper<ngraph::PrimitivesPriority>;
 
-    if (!rtInfo.count(PrimitivesPriorityWraper::type_info.name)) return "";
+    auto it_info = rtInfo.find(ov::PrimitivesPriority::get_type_info_static());
 
-    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::type_info.name);
-    ngraph::PrimitivesPriority pp = ngraph::as_type_ptr<PrimitivesPriorityWraper>(attr)->get();
-    return pp.getPrimitivesPriority();
+    if (it_info == rtInfo.end()) {
+        return {};
+    }
+
+    return it_info->second.as<ov::PrimitivesPriority>().value;
 }
 
 template <typename T>
@@ -37,6 +37,14 @@ inline const std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ngraph::Node
     if (!typedOp)
         IE_THROW() << "Can't get ngraph node " << op->get_type_name() << " with name " << op->get_friendly_name();
     return typedOp;
+}
+
+inline bool isDynamicNgraphNode(const std::shared_ptr<const ngraph::Node>& op) {
+    bool ret = op->is_dynamic();
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        ret = ret || op->get_output_partial_shape(i).is_dynamic();
+    }
+    return ret;
 }
 
 }  // namespace MKLDNNPlugin

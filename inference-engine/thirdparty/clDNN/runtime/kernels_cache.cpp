@@ -5,7 +5,7 @@
 #include "kernels_factory.hpp"
 #include "kernels_cache.hpp"
 #include "ocl/ocl_engine.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -17,31 +17,22 @@
 #include <utility>
 
 #include "cldnn_itt.hpp"
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-#include <tbb/parallel_for.h>
-#include <tbb/blocked_range.h>
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-#include <thread>
-#include <future>
-#include <queue>
-#include <condition_variable>
-#endif
 #if defined(__unix__) && !defined(__ANDROID__)
 #include <malloc.h>
 #endif
 
-#ifndef ENABLE_UNICODE_PATH_SUPPORT
+#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 # ifdef _WIN32
 #  if defined __INTEL_COMPILER || defined _MSC_VER
-#   define ENABLE_UNICODE_PATH_SUPPORT
+#   define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #  endif
 # elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#  define ENABLE_UNICODE_PATH_SUPPORT
+#  define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 # endif
 #endif
 
 #ifndef _WIN32
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #include <locale>
 #include <codecvt>
 #endif
@@ -49,13 +40,10 @@
 #include <Windows.h>
 #endif
 
-#if (CLDNN_THREADING != CLDNN_THREADING_SEQ)
-#define DEFAULT_NUM_THREADS 2
-#endif
 namespace {
 std::mutex cacheAccessMutex;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 std::wstring multiByteCharToWString(const char* str) {
 #ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
@@ -69,12 +57,12 @@ std::wstring multiByteCharToWString(const char* str) {
     return result;
 #endif  // _WIN32
 }
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 
 static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
     std::lock_guard<std::mutex> lock(cacheAccessMutex);
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = multiByteCharToWString(path.c_str());
     const wchar_t* filename = widefilename.c_str();
     FILE *fp = _wfopen(filename, L"rb");
@@ -85,7 +73,12 @@ static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
 
     if (fp) {
         fseek(fp, 0, SEEK_END);
-        size_t nsize = (size_t)ftell(fp);
+        auto sz = ftell(fp);
+        if (sz < 0) {
+            fclose(fp);
+            return {};
+        }
+        auto nsize = static_cast<size_t>(sz);
 
         fseek(fp, 0, SEEK_SET);
 
@@ -101,7 +94,7 @@ static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
 }
 static void saveBinaryToFile(std::string path, const std::vector<unsigned char> buffer) {
     std::lock_guard<std::mutex> lock(cacheAccessMutex);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = multiByteCharToWString(path.c_str());
     const wchar_t* filename = widefilename.c_str();
 #else
@@ -193,20 +186,16 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
         auto& current_bucket = program_buckets[key];
         if (current_bucket.empty()) { // new bucket
-            const auto& bucket_id = program_buckets.size() - 1;
-            current_bucket.push_back(batch_program());
-            current_bucket.back().bucket_id = static_cast<int32_t>(bucket_id);
-            current_bucket.back().batch_id = 0;
-            current_bucket.back().options = options;
+            const auto& batch_id = 0;
+            const auto& bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
+            current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
 
         // Create new kernels batch when the limit is reached
         if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()) {
-            const auto& batch_id = current_bucket.size();
-            current_bucket.push_back(batch_program());
-            current_bucket.back().bucket_id = static_cast<int32_t>(program_buckets.size());
-            current_bucket.back().batch_id = static_cast<int32_t>(batch_id);
-            current_bucket.back().options = options;
+            const auto& bucket_id =  static_cast<int32_t>(program_buckets.size());
+            const auto& batch_id = static_cast<int32_t>(current_bucket.size());
+            current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
 
         auto& current_batch = current_bucket.back();
@@ -242,7 +231,7 @@ kernels_cache::kernels_cache(engine& engine) : _engine(engine) { }
 kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_string>& kernel_string,
     bool dump_custom_program) {
-
+    std::lock_guard<std::mutex> lock(_mutex);
     // we need unique id in order to avoid conflict across topologies.
     const auto kernel_num = _kernels.size() + _kernels_code.size();
     kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
@@ -279,12 +268,18 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
 
     bool dump_sources = !_engine.configuration().sources_dumps_dir.empty() || batch.dump_custom_program;
+    std::string dump_sources_dir = _engine.configuration().sources_dumps_dir;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
+        dump_sources = true;
+        dump_sources_dir = debug_config->dump_sources;
+    }
 
     std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
-        current_dump_file_name = _engine.configuration().sources_dumps_dir;
+        current_dump_file_name = dump_sources_dir;
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
@@ -375,9 +370,27 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     if (!err_log.empty()) {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose) {
+            std::cout << "-------- OpenCL build error" << std::endl;
             std::cout << err_log << std::endl;
+            std::cout << "-------- End of OpenCL build error" << std::endl;
         }
-        throw std::runtime_error("Program build failed. You may enable OCL source dump to see the error log.\n");
+        std::stringstream err_ss(err_log);
+        std::string line;
+        int cnt = 0;
+
+        while (std::getline(err_ss, line, '\n')) {
+            if (line.find("error") != std::string::npos)
+                cnt = 5;
+            cnt--;
+            if (cnt > 0)
+                std::cout << line << std::endl;
+            else if (cnt == 0)
+                std::cout << "...." << std::endl;
+        }
+
+        throw std::runtime_error("Program build failed(" + std::to_string(batch.bucket_id) + + "_part_"
+                                 + std::to_string(batch.batch_id)
+                                 + "): You may enable OCL source dump to see the error log.\n");
     }
 }
 
@@ -398,51 +411,35 @@ void kernels_cache::build_all() {
 
     std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
     if (_engine.type() == engine_types::ocl) {
-        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl, _engine.configuration()));
+        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl,
+                                                                    _engine.configuration(), _engine.get_task_executor()));
     }
     std::vector<batch_program> batches;
     {
         std::lock_guard<std::mutex> lock(_mutex);
         get_program_source(_kernels_code, &batches);
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-        int n_threads = _engine.configuration().n_threads;
-        arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
-        arena->initialize(n_threads);
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-        int n_threads = _engine.configuration().n_threads;
-        pool = std::unique_ptr<thread_pool>(new thread_pool(n_threads));
-#endif
     }
 
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-    arena->execute([this, &_build_engine, &batches] {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, batches.size()), [this, &_build_engine, &batches](const tbb::blocked_range<size_t>& r) {
-            for (auto i = r.begin(); i != r.end(); ++i) {
-                build_batch(*_build_engine, batches[i]);
+    auto _task_executor = _engine.get_task_executor();
+    std::exception_ptr exception;
+    std::vector<InferenceEngine::Task> tasks;
+    for (int idx = 0; idx < batches.size(); idx++) {
+        auto& batch = batches[idx];
+        tasks.push_back([this, &_build_engine, batch, &exception] {
+            try {
+                build_batch(*_build_engine, batch);
+            } catch(...) {
+                exception = std::current_exception();
             }
         });
-    });
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-    std::vector<std::future<void>> builds;
-    for (size_t i = 0; i < batches.size(); ++i) {
-        builds.push_back(pool->enqueue([this, &_build_engine, &batches, i] () {
-            build_batch(*_build_engine, batches[i]);
-        }));
     }
-    std::for_each(builds.begin(), builds.end(), [] (std::future<void>& f) { f.wait(); });
-#else
-    // no parallel build
-    for (const auto& batch : batches) {
-        build_batch(*_build_engine, batch);
-    }
-#endif
+    _task_executor->runAndWait(tasks);
+    tasks.clear();
 
     {
         std::lock_guard<std::mutex> lock(_mutex);
         _kernels_code.clear();
         _pending_compilation = false;
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-        arena.reset();
 #if defined(__unix__) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
@@ -450,12 +447,6 @@ void kernels_cache::build_all() {
     //  Also, this is not happening in Windows.
     //  So, added malloc_trim for linux build until we figure out a better solution.
         malloc_trim(0);
-#endif
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-        pool.reset();
-#if defined(__unix__) && !defined(__ANDROID__)
-        malloc_trim(0);
-#endif
 #endif
     }
 }

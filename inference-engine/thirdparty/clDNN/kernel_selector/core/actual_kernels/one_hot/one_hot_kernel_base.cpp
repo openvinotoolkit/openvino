@@ -22,14 +22,23 @@ JitConstants OneHotKernelBase::GetJitConstants(const one_hot_params& params) con
 
 OneHotKernelBase::DispatchData OneHotKernelBase::SetDefault(const one_hot_params& params) {
     const auto& input = params.inputs[0];
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     DispatchData dispatchData;
     if (params.output.GetDims().size() == 5) {
         dispatchData.gws = { input.Batch().v, input.Feature().v * input.Z().v, input.Y().v * input.X().v };
+        dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                       { Tensor::DataChannelName::Z, Tensor::DataChannelName::FEATURE },
+                       { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
     } else {
         dispatchData.gws = { input.Batch().v, input.Feature().v, input.Y().v * input.X().v };
+        dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                       { Tensor::DataChannelName::FEATURE },
+                       { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
     }
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -45,7 +54,7 @@ KernelsData OneHotKernelBase::GetCommonKernelsData(const Params& params,
     KernelData k_data = KernelData::Default<one_hot_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];

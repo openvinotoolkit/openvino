@@ -7,17 +7,17 @@
 #include "pass_manager.h"
 #include "border_inst.h"
 #include "convolution_inst.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include <memory>
 
 using namespace cldnn;
 
 // Some primitives support padding for input.
 // There are 2 types of padding: symmetric and asymettric.
-// Symmetric padding can be done using input_offset parameter for primitives.
+// Symmetric padding can be done using pad parameter for primitives.
 // Asymmetric padding can be done by adding border primitive before them. It's safe way without modyfing optimized
 // kernels.
-void handle_input_padding::run(program_impl& p) {
+void handle_input_padding::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (!node->is_type<convolution>()) {
             continue;
@@ -102,12 +102,12 @@ void handle_input_padding::run(program_impl& p) {
 
                 p.add_intermediate(b_prim_node, convolution_node, 0, true);
             } else {            // Symmetric padding
-                // set input_offset
-                convolution_prim->input_offset = convolution_prim->padding_above.negate().add(convolution_prim->input_offset);
+                // set pad
+                convolution_prim->pad = convolution_prim->padding_above.add(convolution_prim->pad);
 
-                // set padding_above/padding_below to zeros - input_offset do the job
-                convolution_prim->padding_above = tensor(0, 0, 0, 0);
-                convolution_prim->padding_below = tensor(0, 0, 0, 0);
+                // set padding_above/padding_below to zeros - pad do the job
+                convolution_prim->padding_above = tensor(0);
+                convolution_prim->padding_below = tensor(0);
 
                 convolution_node.recalc_output_layout(true);
             }

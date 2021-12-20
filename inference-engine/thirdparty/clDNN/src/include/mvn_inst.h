@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/mvn.hpp"
+#include "intel_gpu/primitives/mvn.hpp"
 #include "primitive_inst.h"
 
 #include <string>
@@ -32,7 +32,7 @@ public:
     static std::string to_string(mvn_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, mvn_node const& node);
+    typed_primitive_inst(network& network, mvn_node const& node);
 };
 
 using mvn_inst = typed_primitive_inst<mvn>;

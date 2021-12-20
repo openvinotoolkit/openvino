@@ -20,7 +20,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
     set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_COMPILER_IS_GNUCXX)
         # TODO: enable some day and fix all warnings
 #        target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-function")
@@ -38,7 +38,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
 
     target_include_directories(${TARGET_NAME}
         PUBLIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/include")
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
     target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -57,7 +57,6 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
             inference_engine_plugin_api
         PRIVATE
             openvino::itt
-            mvnc # TODO: remove once all options are migrated
     )
 
     if(WIN32)
@@ -67,7 +66,8 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
 
     if(NOT STATIC_IE)
         add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} CUSTOM_FILTERS "+runtime/explicit")
-        openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
+        openvino_developer_export_targets(COMPONENT vpu TARGETS ${TARGET_NAME})
+        ov_install_static_lib(${TARGET_NAME} myriad)
     endif()
 
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

@@ -4,8 +4,11 @@
 
 #pragma once
 
-#include <cassert>
 #include <inference_engine.hpp>
+#include "cpu_shape.h"
+
+#include <algorithm>
+#include <cassert>
 
 namespace MKLDNNPlugin {
 
@@ -40,24 +43,6 @@ constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
-inline std::string getExceptionDescWithoutStatus(const InferenceEngine::Exception& ex) {
-    std::string desc = ex.what();
-    IE_SUPPRESS_DEPRECATED_START
-    if (ex.getStatus() != 0) {
-        size_t pos = desc.find("]");
-        if (pos != std::string::npos) {
-            if (desc.size() == pos + 1) {
-                desc.erase(0, pos + 1);
-            } else {
-                desc.erase(0, pos + 2);
-            }
-        }
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    return desc;
-}
-
 template<typename T>
 std::string vec2str(const std::vector<T> &vec) {
     if (!vec.empty()) {
@@ -68,6 +53,83 @@ std::string vec2str(const std::vector<T> &vec) {
         return result.str();
     }
     return std::string("()");
+}
+
+/**
+ * @brief Compares that two dims are equal and defined
+ * @param lhs
+ * first dim
+ * @param rhs
+ * second dim
+ * @return result of comparison
+ */
+inline bool dimsEqualStrong(size_t lhs, size_t rhs) {
+    return (lhs == rhs && lhs != Shape::UNDEFINED_DIM && rhs != Shape::UNDEFINED_DIM);
+}
+
+/**
+ * @brief Compares that two shapes are equal
+ * @param lhs
+ * first shape
+ * @param rhs
+ * second shape
+ * @return result of comparison
+ */
+inline bool dimsEqualStrong(const std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
+    if (lhs.size() != rhs.size())
+        return false;
+
+    for (size_t i = 0; i < lhs.size(); i++) {
+        if (i != skipAxis && !dimsEqualStrong(lhs[i], rhs[i]))
+            return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief Compares that two dims are equal or undefined
+ * @param lhs
+ * first dim
+ * @param rhs
+ * second dim
+ * @return result of comparison
+ */
+inline bool dimsEqualWeak(size_t lhs, size_t rhs) {
+    return (lhs == Shape::UNDEFINED_DIM || rhs == Shape::UNDEFINED_DIM || lhs == rhs);
+}
+
+/**
+ * @brief Compares that two shapes are equal or undefined
+ * @param lhs
+ * first shape
+ * @param rhs
+ * second shape
+ * @param skipAxis
+ * marks shape axis which shouldn't be validated
+ * @return result of comparison
+ */
+inline bool dimsEqualWeak(const std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
+    if (lhs.size() != rhs.size())
+        return false;
+
+    for (size_t i = 0; i < lhs.size(); i++) {
+        if (i != skipAxis && !dimsEqualWeak(lhs[i], rhs[i]))
+            return false;
+    }
+
+    return true;
+}
+
+inline InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::Precision> precisions) {
+    if (!precisions.empty()) {
+        return *std::max_element(precisions.begin(), precisions.end(),
+                                 [](const InferenceEngine::Precision &lhs, const InferenceEngine::Precision &rhs) {
+                                     return lhs.size() > rhs.size();
+                                 });
+    }
+
+    return InferenceEngine::Precision::UNSPECIFIED;
 }
 
 }  // namespace MKLDNNPlugin

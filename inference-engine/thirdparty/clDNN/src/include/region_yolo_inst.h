@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/region_yolo.hpp"
+#include "intel_gpu/primitives/region_yolo.hpp"
 #include "primitive_inst.h"
 
 #include <string>
@@ -21,7 +21,7 @@ public:
     static std::string to_string(region_yolo_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, region_yolo_node const& desc);
+    typed_primitive_inst(network& network, region_yolo_node const& desc);
 };
 
 using region_yolo_inst = typed_primitive_inst<region_yolo>;

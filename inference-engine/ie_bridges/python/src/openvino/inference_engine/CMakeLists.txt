@@ -20,16 +20,18 @@ set_source_files_properties(${PYX_SOURCES} PROPERTIES CYTHON_IS_CXX ON)
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCES})
-set(INSTALLED_TARGETS ${TARGET_NAME})
+ov_python_disable_intel_warnings(${TARGET_NAME})
 
+set(INSTALLED_TARGETS ${TARGET_NAME})
 list(REMOVE_ITEM PYX_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
 
 foreach(PYX_FILE IN LISTS PYX_SOURCES)
     get_filename_component(PYX_NAME "${PYX_FILE}" NAME_WE)
     cython_add_module(${PYX_NAME} ${PYX_FILE})
+    ov_python_disable_intel_warnings(${PYX_NAME})
     add_dependencies(${TARGET_NAME} ${PYX_NAME})
     target_include_directories(${PYX_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(${PYX_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+    target_link_libraries(${PYX_NAME} PRIVATE openvino::runtime)
     list(APPEND INSTALLED_TARGETS ${PYX_NAME})
     ie_python_minimal_api(${PYX_NAME})
 endforeach()
@@ -51,31 +53,35 @@ python_disable_deprecated_warnings()
 ie_python_minimal_api(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(${TARGET_NAME} PRIVATE "-Wno-error=register")
 endif()
 
+find_package(Python COMPONENTS Interpreter Development)
+
 # perform copy
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/../../requirements.txt
-    COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
 )
 
 # install
 
 install(TARGETS ${INSTALLED_TARGETS}
-        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
-        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION})
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
+        COMPONENT ${PYTHON_COMPONENT}
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
+        COMPONENT ${PYTHON_COMPONENT})
 
 install(PROGRAMS __init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
-        COMPONENT ${PYTHON_VERSION})
+        COMPONENT ${PYTHON_COMPONENT})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")

@@ -6,16 +6,16 @@
 
 #include "test_utils/test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/concatenation.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/eltwise.hpp>
-#include <cldnn/primitives/fully_connected.hpp>
-#include <cldnn/primitives/pooling.hpp>
-#include <cldnn/primitives/crop.hpp>
-#include <cldnn/primitives/resample.hpp>
-#include <cldnn/primitives/reshape.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/resample.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 
 using namespace cldnn;
 using namespace tests;
@@ -117,7 +117,7 @@ void concat_basic_with_reorder() {
     auto& engine = get_test_engine();
     auto input1 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 1, 1}});
     auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 3, 1, 1}});
-    auto outs = {3.0f, 4.0f, 0.0f, 1.0f, 1.0f, 4.0f, -4.0f, -8.0f, 0.0f, 0.0f};
+    auto outs = {2.0f, 3.0f, 0.0f, 1.0f, 1.0f, 4.0f, -4.0f, -7.0f, 0.0f, 0.0f};
     set_values(input1, {2.5f, 3.7f, 0.2f, 1.4f});
     set_values(input2, {1.0f, 4.1f, -4.3f, -7.5f, 0.0f, -0.2f});
 
@@ -450,7 +450,7 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f, 0.0f }));
     topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "actv2", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(-1, -1, 0, 0))));
+    topology.add(convolution("conv", "actv2", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(1, 1, 0, 0))));
     topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
     topology.add(concatenation("depth2", { "depth1", "conv" }, concatenation::along_f));
     topology.add(reorder("output", "depth2", format::bfyx, data_types::f32));
@@ -528,7 +528,7 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
     topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", "depth1", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(-1, -1, 0, 0))));
+    topology.add(convolution("conv", "depth1", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(1, 1, 0, 0))));
     topology.add(reorder("output", "conv", format::bfyx, data_types::f32));
 
     cldnn::build_options options;
@@ -1013,7 +1013,7 @@ TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
 //////////////////////////////////////////////////////////////////////////////
 
 //TODO: this should be done using TEST_P or some equivallent construct
-static network setup_depth_concatatenate_network(const std::vector<data_types> dts, const std::vector<tensor> ts, const std::vector<cldnn::format> fmt) {
+static network::ptr setup_depth_concatatenate_network(const std::vector<data_types> dts, const std::vector<tensor> ts, const std::vector<cldnn::format> fmt) {
     assert(dts.size() == ts.size());
     const size_t sz = ts.size();
 
@@ -1034,7 +1034,7 @@ static network setup_depth_concatatenate_network(const std::vector<data_types> d
     //TODO: ask Uzi if something tests cases where there's missing input_names (nodes not present in the topology, etc.)
     topology.add(concatenation("depth_concat_node", input_names, concatenation::along_f));
 
-    return network(engine, topology);
+    return network::build_network(engine, topology);
 }
 
 TEST(NegativeDepthConcatenateTest, DISABLED_TestAll) {
@@ -1175,11 +1175,11 @@ public:
         return res;
     }
 
-    virtual bool is_format_supported(cldnn::format format) override {
+    bool is_format_supported(cldnn::format format) override {
         return format == cldnn::format::bfyx;
     }
 
-    virtual cldnn::tensor get_expected_output_tensor() override {
+    cldnn::tensor get_expected_output_tensor() override {
         cldnn::tensor::value_type features = 0;
         for (const auto& t : generic_params->input_layouts) {
             features += t.size.feature[0];

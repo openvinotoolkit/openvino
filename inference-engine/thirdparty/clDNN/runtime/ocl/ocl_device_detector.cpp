@@ -44,6 +44,9 @@ return true;
 namespace cldnn {
 namespace ocl {
 static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
+#ifdef _WIN32
+static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
+#endif // _WIN32
 
 static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     cl_uint maxSubDevices;
@@ -88,11 +91,14 @@ static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     return subDevices;
 }
 
-std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(void* user_context, void* user_device) const {
+std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(void* user_context,
+                                                                              void* user_device,
+                                                                              int ctx_device_id,
+                                                                              int target_tile_id) const {
     bool host_out_of_order = true;  // Change to false, if debug requires in-order queue.
     std::vector<device::ptr> dev_orig, dev_sorted;
     if (user_context != nullptr) {
-        dev_orig = create_device_list_from_user_context(host_out_of_order, user_context);
+        dev_orig = create_device_list_from_user_context(host_out_of_order, user_context, ctx_device_id);
     } else if (user_device != nullptr) {
         dev_orig = create_device_list_from_user_device(host_out_of_order, user_device);
     } else {
@@ -120,6 +126,10 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
         if (!subDevices.empty()) {
             uint32_t sub_idx = 0;
             for (auto& subdevice : subDevices) {
+                if (target_tile_id != -1 && static_cast<int>(sub_idx) != target_tile_id) {
+                    sub_idx++;
+                    continue;
+                }
                 auto subdPtr = std::make_shared<ocl_device>(subdevice, cl::Context(subdevice), rootDevice->get_platform());
                 ret[map_id+"."+std::to_string(sub_idx++)] = subdPtr;
             }
@@ -164,15 +174,16 @@ std::vector<device::ptr> ocl_device_detector::create_device_list(bool out_out_or
     return ret;
 }
 
-std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_context(bool out_out_order, void* user_context) const {
+std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_context(bool out_out_order, void* user_context, int ctx_device_id) const {
     cl::Context ctx = cl::Context(static_cast<cl_context>(user_context), true);
     auto all_devices = ctx.getInfo<CL_CONTEXT_DEVICES>();
 
     std::vector<device::ptr> ret;
-    for (auto& device : all_devices) {
-        if (!does_device_match_config(out_out_order, device))
+    for (size_t i = 0; i < all_devices.size(); i++) {
+        auto& device = all_devices[i];
+        if (!does_device_match_config(out_out_order, device) || i != ctx_device_id)
             continue;
-        ret.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), device.getInfo<CL_DEVICE_PLATFORM>()));
+        ret.emplace_back(std::make_shared<ocl_device>(device, ctx, device.getInfo<CL_DEVICE_PLATFORM>()));
     }
 
     if (ret.empty()) {
@@ -205,6 +216,18 @@ std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_devi
 
         std::vector<cl::Device> devices;
 #ifdef _WIN32
+        // From OpenCL Docs:
+        // A non-NULL return value for clGetExtensionFunctionAddressForPlatform
+        // does not guarantee that an extension function is actually supported
+        // by the platform. The application must also make a corresponding query
+        // using clGetPlatformInfo (platform, CL_PLATFORM_EXTENSIONS, …​ ) or
+        // clGetDeviceInfo (device,CL_DEVICE_EXTENSIONS, …​ )
+        // to determine if an extension is supported by the OpenCL implementation.
+        const std::string& ext = platform.getInfo<CL_PLATFORM_EXTENSIONS>();
+        if (ext.empty() || ext.find(INTEL_D3D11_SHARING_EXT_NAME) == std::string::npos) {
+            continue;
+        }
+
         platform.getDevices(CL_D3D11_DEVICE_KHR,
             user_device,
             CL_PREFERRED_DEVICES_FOR_D3D11_KHR,

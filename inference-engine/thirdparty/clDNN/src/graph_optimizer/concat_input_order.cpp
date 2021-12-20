@@ -9,8 +9,8 @@
 #include "convolution_inst.h"
 #include "fully_connected_inst.h"
 #include "data_inst.h"
-#include "cldnn/runtime/memory.hpp"
-#include "program_impl.h"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 #include <vector>
 #include <tuple>
@@ -64,8 +64,8 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     auto new_weights_memory = old_weights_memory->get_engine()->allocate_memory(wei_layout, old_weights_memory->get_allocation_type(), need_reset);
 
     auto bytes_per_elem = data_type_traits::size_of(wei_layout.data_type);
-    mem_lock<uint8_t> old_weights_memory_lock{old_weights_memory, stream};
-    mem_lock<uint8_t> new_weights_memory_lock{new_weights_memory, stream};
+    mem_lock<uint8_t, mem_lock_type::read> old_weights_memory_lock{old_weights_memory, stream};
+    mem_lock<uint8_t, mem_lock_type::write> new_weights_memory_lock{new_weights_memory, stream};
     auto old_ptr = old_weights_memory_lock.data();
     auto new_ptr = new_weights_memory_lock.data();
     for (int32_t ofi = 0; ofi < wei_layout.size.batch[0]; ++ofi) {
@@ -111,7 +111,7 @@ void shuffle_features(program_node& node, const std::vector<shuffle_range>& rang
 
 }  // namespace
 
-void concat_input_order::run(program_impl& p) {
+void concat_input_order::run(program& p) {
     for (auto node : p.get_processing_order()) {
         // Check that optimization can be performed:
         // 1. Not an output

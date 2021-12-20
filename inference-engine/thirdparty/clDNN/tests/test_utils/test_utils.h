@@ -6,33 +6,33 @@
 
 #pragma once
 
-#include <cldnn/runtime/memory.hpp>
-#include <cldnn/runtime/tensor.hpp>
-#include <cldnn/runtime/engine.hpp>
-#include <cldnn/runtime/stream.hpp>
-#include <cldnn/graph/program.hpp>
-#include <cldnn/graph/network.hpp>
-#include <cldnn/graph/topology.hpp>
-#include <cldnn/primitives/primitive.hpp>
-#include <cldnn/primitives/concatenation.hpp>
-#include <cldnn/primitives/lrn.hpp>
-#include <cldnn/primitives/roi_pooling.hpp>
-#include <cldnn/primitives/scale.hpp>
-#include <cldnn/primitives/softmax.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/normalize.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/activation.hpp>
-#include <cldnn/primitives/pooling.hpp>
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/runtime/memory.hpp>
+#include <intel_gpu/runtime/tensor.hpp>
+#include <intel_gpu/runtime/engine.hpp>
+#include <intel_gpu/runtime/stream.hpp>
+#include <intel_gpu/graph/program.hpp>
+#include <intel_gpu/graph/network.hpp>
+#include <intel_gpu/graph/topology.hpp>
+#include <intel_gpu/primitives/primitive.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/lrn.hpp>
+#include <intel_gpu/primitives/roi_pooling.hpp>
+#include <intel_gpu/primitives/scale.hpp>
+#include <intel_gpu/primitives/softmax.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/normalize.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "float16.h"
 #include "random_gen.h"
 #include "uniform_quantized_real_distribution.hpp"
-#include <src/include/to_string_utils.h>
+#include "to_string_utils.h"
 
 #include <iostream>
 #include <limits>
@@ -45,8 +45,11 @@
 
 namespace tests {
 
-std::shared_ptr<cldnn::engine> create_test_engine();
+std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
 cldnn::engine& get_test_engine();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+cldnn::engine& get_onednn_test_engine();
+#endif
 cldnn::stream& get_test_stream();
 
 #define USE_RANDOM_SEED 0
@@ -524,7 +527,7 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         auto convolution = std::static_pointer_cast<cldnn::convolution>(primitive);
         str << "Stride x: " << convolution->stride.spatial[0] << " Stride y: " << convolution->stride.spatial[1]
             << " Dilation x: " << convolution->dilation.spatial[0] << " Dilation y: " << convolution->dilation.spatial[1]
-            << " Input offset x: " << convolution->input_offset.spatial[0] << " Input offset y: " << convolution->input_offset.spatial[1];
+            << " Pad x: " << convolution->pad.spatial[0] << " Pad y: " << convolution->pad.spatial[1];
     } else if (primitive->type == cldnn::activation::type_id()) {
         auto activation = std::static_pointer_cast<cldnn::activation>(primitive);
         str << "Negative slope: " << activation->additional_params.a << " Negative slope input id: " << activation->additional_params_input;
@@ -532,7 +535,7 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         auto pooling = std::static_pointer_cast<cldnn::pooling>(primitive);
         std::string pooling_mode = (pooling->mode == cldnn::pooling_mode::max) ? "max" : "average";
         str << "Pooling mode: " << pooling_mode
-            << " Input offset x: " << pooling->input_offset.spatial[0] << " Input offset y: " << pooling->input_offset.spatial[1]
+            << " Pad x: " << pooling->pad.spatial[0] << " Pad y: " << pooling->pad.spatial[1]
             << " Stride x: " << pooling->stride.spatial[0] << " Stride y: " << pooling->stride.spatial[1]
             << " Size x: " << pooling->size.spatial[0] << " Size y: " << pooling->size.spatial[1];
     } else {

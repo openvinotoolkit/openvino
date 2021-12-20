@@ -5,10 +5,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/crop.hpp>
-#include <cldnn/primitives/eltwise.hpp>
-#include <cldnn/primitives/reorder.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -761,7 +761,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
     set_values(input, input_vec);
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitive_ids()));
+    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
 
     network network(engine, topology, bo);
     network.set_input_data("input", input);
@@ -877,7 +877,7 @@ TEST(crop_gpu, basic_i32_in1x4x1x1_split) {
     set_values(input, input_vec);
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitive_ids()));
+    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
 
     network network(engine, topology, bo);
     network.set_input_data("input", input);
@@ -952,7 +952,7 @@ TEST(crop_gpu, basic_i64_in1x4x1x1_split) {
     set_values(input, input_vec);
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitive_ids()));
+    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
 
     network network(engine, topology, bo);
     network.set_input_data("input", input);

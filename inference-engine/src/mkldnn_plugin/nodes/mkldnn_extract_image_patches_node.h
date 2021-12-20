@@ -11,7 +11,6 @@
 #include <vector>
 
 namespace MKLDNNPlugin {
-
 struct jit_extract_image_patches_params {
     size_t IW;
     size_t OH, OW;
@@ -46,11 +45,14 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    void prepareParams() override;
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     enum class ExtImgPatcherPadType {
@@ -62,15 +64,68 @@ private:
     std::vector<size_t> _ksizes;
     std::vector<size_t> _strides;
     std::vector<size_t> _rates;
-    size_t _pad_left;
-    size_t _pad_top;
-    std::shared_ptr<jit_uni_extract_image_patches_kernel> extract_image_patches_kernel;
     static const std::set<size_t> _supported_precisions_sizes;
-
     ExtImgPatcherPadType _auto_pad;
-    InferenceEngine::Precision precision;
 
     std::string errorPrefix;
+
+    struct ExtractImagePatchesExecutor {
+        ExtractImagePatchesExecutor() = default;
+        virtual void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) = 0;
+        jit_extract_image_patches_params fillJpp(
+            const VectorDims& inDims,
+            const VectorDims& outDims,
+            const VectorDims& kSizes,
+            const VectorDims& strides,
+            const VectorDims& rates,
+            const ExtImgPatcherPadType& padType,
+            const size_t prcSize);
+        virtual ~ExtractImagePatchesExecutor() = default;
+
+    protected:
+        size_t IC = 0;
+        size_t IH = 0;
+        size_t OB = 0;
+        size_t RH = 0;
+        size_t RW = 0;
+        size_t PT = 0;
+        size_t PL = 0;
+    };
+
+    using executorPtr = std::shared_ptr<ExtractImagePatchesExecutor>;
+    executorPtr execPtr = nullptr;
+
+    struct ExtractImagePatchesJitExecutor : public ExtractImagePatchesExecutor {
+        ExtractImagePatchesJitExecutor(
+            const VectorDims& inDims,
+            const VectorDims& outDims,
+            const VectorDims& kSizes,
+            const VectorDims& strides,
+            const VectorDims& rates,
+            const ExtImgPatcherPadType& padType,
+            const size_t prcSize);
+        void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
+        void executeOptimizedGeneric(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
+
+    private:
+        std::unique_ptr<jit_uni_extract_image_patches_kernel> pKernel;
+    };
+
+    struct ExtractImagePatchesRefExecutor : public ExtractImagePatchesExecutor {
+        ExtractImagePatchesRefExecutor(
+            const VectorDims& inDims,
+            const VectorDims& outDims,
+            const VectorDims& kSizes,
+            const VectorDims& strides,
+            const VectorDims& rates,
+            const ExtImgPatcherPadType& padType,
+            const size_t prcSize);
+        void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
+        void executeReference(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
+
+    private:
+        jit_extract_image_patches_params jpp;
+    };
 };
 
 }  // namespace MKLDNNPlugin

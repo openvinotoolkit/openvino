@@ -155,14 +155,16 @@ namespace cnpy {
             //below, we will write the the new data at the start of the global header then append the global header and footer below it
             size_t global_header_size;
             parse_zip_footer(fp,nrecs,global_header_size,global_header_offset);
-            fseek(fp,global_header_offset,SEEK_SET);
+            if(fseek(fp,global_header_offset,SEEK_SET)!=0 )
+                throw std::runtime_error("npz_save: failed fseek");
             global_header.resize(global_header_size);
             size_t res = fread(&global_header[0],sizeof(char),global_header_size,fp);
             if(res != global_header_size){
                 fclose(fp);
                 throw std::runtime_error("npz_save: header read error while adding to existing zip");
             }
-            fseek(fp,global_header_offset,SEEK_SET);
+            if(fseek(fp,global_header_offset,SEEK_SET) != 0)
+                throw std::runtime_error("npz_save: failed fseek");
         }
         else {
             fp = fopen(zipname.c_str(),"wb");

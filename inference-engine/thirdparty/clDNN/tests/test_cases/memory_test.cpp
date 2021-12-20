@@ -6,14 +6,14 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/activation.hpp>
-#include <cldnn/primitives/pooling.hpp>
-#include <cldnn/primitives/concatenation.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/reshape.hpp>
-#include <cldnn/primitives/crop.hpp>
-#include <cldnn/primitives/scale.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/scale.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -403,7 +403,7 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     network network_second(*engine, topo, bo);
     network_second.set_input_data("input", input_1);
     auto outputs_second = network_second.execute();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)3928);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)4328);
 }
 
 TEST(memory_pool, shared_dep_two_output) {
@@ -449,7 +449,7 @@ TEST(memory_pool, shared_dep_two_output) {
 
     network network(*engine, topo, bo);
     auto outputs = network.execute();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)256);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)192);
 }
 
 TEST(memory_pool, non_opt_intermidate_opt_after) {

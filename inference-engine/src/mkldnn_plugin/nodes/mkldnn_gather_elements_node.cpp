@@ -5,7 +5,6 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
 #include "ie_parallel.hpp"
 #include "mkldnn_gather_elements_node.h"
 #include <ngraph/opsets/opset1.hpp>
@@ -16,10 +15,10 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v6::GatherElements>(op);
-        if (!gatherElementsOp) {
+        if (!one_of(op->get_type_info(),
+                ov::op::v6::GatherElements::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherElements operation from operation set v6.";
             return false;
         }
@@ -38,32 +37,43 @@ MKLDNNGatherElementsNode::MKLDNNGatherElementsNode(const std::shared_ptr<ngraph:
     }
     errorPrefix_ = std::string("Layer GatherElements with name '") + op->get_friendly_name() + "'";
 
-    if (op->get_input_size() != 2 || op->get_output_size() != 1)
+    if (inputShapes.size() != 2 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix_ << " has invalid number of input/output edges.";
 
-    const auto& dataDims = op->get_input_shape(dataIndex_);
-    const auto& indicesDims = op->get_input_shape(indicesIndex_);
-    if (dataDims.size() != indicesDims.size())
+    const auto dataRank = getInputShapeAtPort(dataIndex_).getRank();
+    const auto indicesRank = getInputShapeAtPort(indicesIndex_).getRank();
+    if (dataRank != indicesRank)
         IE_THROW() << errorPrefix_ << " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.";
 
-    auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v6::GatherElements>(op);
+    auto gatherElementsOp = ov::as_type_ptr<ov::op::v6::GatherElements>(op);
     auto axis = gatherElementsOp->get_axis();
     if (axis < 0)
-        axis += dataDims.size();
-    if (axis < 0 || axis >= static_cast<int>(dataDims.size()))
+        axis += dataRank;
+    if (axis < 0 || axis >= static_cast<int>(dataRank))
         IE_THROW() << errorPrefix_ << " has invalid axis attribute: " << axis;
     axis_ = axis;
+}
 
-    auto outputShape = op->get_output_shape(0);
+void MKLDNNGatherElementsNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNGatherElementsNode::prepareParams() {
+    const auto& dataDims = getParentEdgesAtPort(dataIndex_)[0]->getMemory().getStaticDims();
+    const auto& dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
     strideAxDst_ = 1;
-    for (int i = outputShape.size() - 1; i > axis_; i--)
-        strideAxDst_ *= outputShape[i];
-    dstAxDim_ = op->get_output_shape(0)[axis_];
+    for (int i = dstDims.size() - 1; i > axis_; i--)
+        strideAxDst_ *= dstDims[i];
+    dstAxDim_ = dstDims[axis_];
     if (axis_ > 0) {
         strideAx1Diff_ = 1;
         for (int i = dataDims.size() - 1; i >= axis_; i--)
             strideAx1Diff_ *= dataDims[i];
-        strideAx1Diff_ -= strideAxDst_ * outputShape[axis_];
+        strideAx1Diff_ -= strideAxDst_ * dstDims[axis_];
     }
 }
 
@@ -86,9 +96,9 @@ void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
 
     dataTypeSize_ = inDataPrecision.size();
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, inDataPrecision},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
-                         {{TensorDescCreatorTypes::ncsp, inDataPrecision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
+                          {LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
 
@@ -98,7 +108,7 @@ void MKLDNNGatherElementsNode::directExecution() {
     const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(indicesIndex_)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    const int outSize = getChildEdgeAt(0)->getBlob()->size();
+    const int outSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
         int start(0lu), end(0lu);
         splitter(outSize, nthr, ithr, start, end);

@@ -6,7 +6,7 @@
 #include "deconvolution_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -33,7 +33,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
         data_type = node.get_fused_output_layout().data_type;
     }
 
-    auto input_offset = desc->input_offset;
+    auto pad = desc->pad;
     auto strd = desc->stride;
     auto group = desc->groups;
 
@@ -76,10 +76,10 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
         return {data_type, input_layout.format, output_size};
     }
 
-    // compute output_dim <= stride * (input_size - 1) + kernel_size + 2 * input_offset;
+    // compute output_dim <= stride * (input_size - 1) + kernel_size - 2 * pad;
     auto filter_size = weights_layout.size;
 
-    int32_t off_factor = 2;
+    int32_t off_factor = -2;
     size_t spatial_dims = cldnn::format::traits(input_layout.format).spatial_num;
     CLDNN_ERROR_GREATER_THAN(node.id(),
                                    "number of spatial dimensions",
@@ -88,14 +88,14 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
                                    3,
                                    "As for now, deconvolutions with more than 3 dimensions are not supported");
 
-    int32_t x = off_factor * input_offset.spatial[0] + (input_layout.size.spatial[0] - 1) * strd.spatial[0] + filter_size.spatial[0];
+    int32_t x = off_factor * pad.spatial[0] + (input_layout.size.spatial[0] - 1) * strd.spatial[0] + filter_size.spatial[0];
     int32_t y = 1;
     if (spatial_dims > 1) {
-        y = off_factor * input_offset.spatial[1] + (input_layout.size.spatial[1] - 1) * strd.spatial[1] + filter_size.spatial[1];
+        y = off_factor * pad.spatial[1] + (input_layout.size.spatial[1] - 1) * strd.spatial[1] + filter_size.spatial[1];
     }
     int32_t z = 1;
     if (spatial_dims > 2) {
-        z = off_factor * input_offset.spatial[2] + (input_layout.size.spatial[2] - 1) * strd.spatial[2] + filter_size.spatial[2];
+        z = off_factor * pad.spatial[2] + (input_layout.size.spatial[2] - 1) * strd.spatial[2] + filter_size.spatial[2];
     }
 
     tensor output_size(input_layout.size.batch[0],
@@ -132,7 +132,7 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     deconv_info.add("weights count", desc->weights.size());
     deconv_info.add("bias count", desc->bias.size());
     deconv_info.add("stride", strd.to_string());
-    deconv_info.add("input offset", desc->input_offset.to_string());
+    deconv_info.add("pad", desc->pad.to_string());
     deconv_info.add("split", split);
     deconv_info.add("groups", desc->groups);
     if (desc->with_output_size) {
@@ -145,7 +145,7 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     return primitive_description.str();
 }
 
-deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_node const& node)
+deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
     : parent(network, node) {
     auto stride = argument.stride;
 
@@ -169,7 +169,7 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
         auto filter_inst = node.weights(j).get_output_layout();  // deconvolution filter
-        auto input_offset = argument.input_offset;
+        auto pad = argument.pad;
         auto weights_ifm = filter_inst.size.feature[0];
         if (argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
             weights_ifm = filter_inst.size.spatial[filter_inst.format.spatial_num() - 1] * argument.groups;
@@ -216,7 +216,7 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
                               "Unknown padding mode in deconvolution.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Input offset size",
-                              input_offset.raw.size(),
+                              pad.raw.size(),
                               "input number of dimensions",
                               input_inst.size.raw.size(),
                               "");
@@ -240,7 +240,7 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
                               "Only one-dimensional features are supported");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              (input_inst.size.feature[0] - input_offset.feature[0]) / split,
+                              (input_inst.size.feature[0] + pad.feature[0]) / split,
                               "input feature maps number",
                               weights_ifm,
                               "Weights/ifm mimsmatch");

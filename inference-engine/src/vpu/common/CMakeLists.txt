@@ -15,7 +15,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
         UNITY
     )
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_COMPILER_IS_GNUCXX)
         # TODO: enable some day and fix all warnings
 #        target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-function")
@@ -33,7 +33,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     target_include_directories(${TARGET_NAME}
         PUBLIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/include")
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
     target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
             $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
@@ -50,7 +50,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-    openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
+    openvino_developer_export_targets(COMPONENT vpu TARGETS ${TARGET_NAME})
 
     target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations
                                          PRIVATE openvino::itt)
@@ -58,6 +58,8 @@ function(add_common_target TARGET_NAME STATIC_IE)
     if(NOT STATIC_IE)
         target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_legacy)
     endif()
+
+    ov_install_static_lib(${TARGET_NAME} myriad)
 endfunction()
 
 add_common_target("vpu_common_lib" FALSE)

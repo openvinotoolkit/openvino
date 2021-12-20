@@ -6,9 +6,9 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/reshape.hpp>
-#include <cldnn/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -62,7 +62,7 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
         tpl.add(reorder("reorder", "input", padded_input_layout));
         reshape_input = "reorder";
     }
-    tpl.add(reshape("reshape", reshape_input, reshape_size, output_padd));
+    tpl.add(reshape("reshape", reshape_input, reshape_size, "", output_padd));
 
     build_options bo;
     bo.set_option(build_option::outputs({reshape_input, "reshape"}));
@@ -525,7 +525,7 @@ TEST(reshape_gpu_f32, basic_bfwzyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reshape("reshape", "input", tensor(batch(1), feature(1), spatial(2, 2, 3, 3)), padding({0, 0, 0, 0, 0, 1}, 0.f)));
+    topology.add(reshape("reshape", "input", tensor(batch(1), feature(1), spatial(2, 2, 3, 3)), "", padding({0, 0, 0, 0, 0, 1}, 0.f)));
 
     // clang-format off
     std::vector<float> input_data = {

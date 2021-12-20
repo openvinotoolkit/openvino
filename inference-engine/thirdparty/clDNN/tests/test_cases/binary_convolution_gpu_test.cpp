@@ -4,10 +4,10 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/binary_convolution.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/binary_convolution.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 #include <iostream>
 
@@ -170,7 +170,7 @@ void compute_ref_conv_bin(const cldnn::memory::ptr src,
 }
 
 class binary_convolution_test : public ::testing::TestWithParam<TestParams> {
-    void SetUp() {
+    void SetUp() override {
         std::cout << GetParam() << std::endl;
         ASSERT_TRUE(GetParam().isConsistent());
     }
@@ -190,7 +190,7 @@ TEST_P(binary_convolution_test, conv) {
     TestParams p = GetParam();
 
     cldnn::tensor stride = cldnn::tensor{cldnn::batch(1), cldnn::feature(1), cldnn::spatial(p.sw, p.sh)};
-    cldnn::tensor pad = cldnn::tensor{cldnn::batch(0), cldnn::feature(0), cldnn::spatial(-p.pw, -p.ph)};
+    cldnn::tensor pad = cldnn::tensor{cldnn::batch(0), cldnn::feature(0), cldnn::spatial(p.pw, p.ph)};
     cldnn::tensor dilation = {1,1,1,1};
 
     cldnn::tensor is_size{ cldnn::batch(p.b),
@@ -364,6 +364,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
                                { 1,4,2,2 },
                                0, 0.0f,
                                data_types::f32,
+                               "",
                                padding{ { 0,0,0,0 }, 0 })
     );
 
@@ -447,6 +448,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
                                { 1,4,2,2 },
                                0, 0.0f,
                                data_types::f16,
+                               "",
                                padding{ { 0,0,0,0 }, 0 })
     );
 

@@ -9,6 +9,7 @@
 #include "ie_common.h"
 #include "utils/blob_dump.h"
 #include "utils/debug_capabilities.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 
 #include <array>
 #include <regex>
@@ -19,10 +20,9 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-NodeDumper::NodeDumper(const DebugCaps::Config& config, const int _count)
+NodeDumper::NodeDumper(const DebugCaps::Config& config)
     : dumpFormat(FORMAT::BIN)
-    , dumpDirName("mkldnn_dump")
-    , count(_count) {
+    , dumpDirName("mkldnn_dump") {
     if (!config.blobDumpDir.empty())
         dumpDirName = config.blobDumpDir;
 
@@ -42,7 +42,7 @@ NodeDumper::NodeDumper(const DebugCaps::Config& config, const int _count)
         dumpFilters[FILTER::BY_NAME] = config.blobDumpNodeName;
 }
 
-void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
+void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node, int count) const {
     if (!shouldBeDumped(node, "IN"))
         return;
 
@@ -65,21 +65,18 @@ void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
         auto dump_file = dumpDirName + "/#" + exec_order + "_" + file_name;
         std::cout << "Dump inputs: " << dump_file << std::endl;
 
-        TensorDesc desc = prEdge->getDesc();
+        auto& desc = prEdge->getMemory().getDesc();
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        BlobDumper dumper(prEdge->getBlob());
-        if (pr->ext_scales)
-            dumper.withScales(pr->ext_scales);
-
+        BlobDumper dumper(prEdge->getMemoryPtr());
         dump(dumper, dump_file);
     }
 
     dumpInternalBlobs(node);
 }
 
-void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node) const {
+void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node, int count) const {
     if (!shouldBeDumped(node, "OUT"))
         return;
 
@@ -101,14 +98,11 @@ void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node) const {
         auto dump_file = dumpDirName + "/#" + exec_order + "_" + file_name;
         std::cout << "Dump outputs:  " << dump_file << std::endl;
 
-        TensorDesc desc = childEdge->getDesc();
+        auto& desc = childEdge->getMemory().getDesc();
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        BlobDumper dumper(childEdge->getBlob());
-        if (node->ext_scales)
-            dumper.withScales(node->ext_scales);
-
+        BlobDumper dumper(childEdge->getMemoryPtr());
         dump(dumper, dump_file);
     }
 }
@@ -126,7 +120,9 @@ void NodeDumper::dumpInternalBlobs(const MKLDNNNodePtr& node) const {
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        BlobDumper dumper(blb);
+        MKLDNNMemoryPtr memory = std::make_shared<MKLDNNMemory>(node->getEngine());
+        memory->Create(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
+        BlobDumper dumper(memory);
         dump(dumper, dump_file);
     }
 }
@@ -211,6 +207,17 @@ void NodeDumper::formatNodeName(std::string& name) const {
     std::replace(name.begin(), name.end(), '/', '_');
     std::replace(name.begin(), name.end(), ' ', '_');
     std::replace(name.begin(), name.end(), ':', '-');
+}
+
+std::unique_ptr<NodeDumper> nd;
+
+void initNodeDumper(const DebugCaps::Config& config) {
+    nd.reset(new NodeDumper(config));
+}
+
+const std::unique_ptr<NodeDumper>& getNodeDumper() {
+    assert(nd.get() != nullptr);
+    return nd;
 }
 
 } // namespace MKLDNNPlugin

@@ -11,7 +11,15 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+void MKLDNNEmbeddingSegmentsSumNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+bool MKLDNNEmbeddingSegmentsSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto embBagSegSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingSegmentsSum>(op);
         if (!embBagSegSumOp) {
@@ -32,13 +40,13 @@ MKLDNNEmbeddingSegmentsSumNode::MKLDNNEmbeddingSegmentsSumNode(const std::shared
     }
 
     std::string errPrefix = std::string("EmbeddingSegmentsSum layer with name '") + _layerName + "' ";
-    if (op->get_input_shape(INDICES_IDX).size() != 1)
-        IE_THROW() << errPrefix << "has indices data with invalid shape: "
-                   << op->get_input_shape(INDICES_IDX).size();
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
+        IE_THROW() << errPrefix << "has indices data with invalid rank: "
+                   << getInputShapeAtPort(INDICES_IDX).getRank();
 
-    if (op->get_input_shape(SEGMENT_ID_IDX).size() != 1)
-        IE_THROW() << errPrefix << "has invalid segmentID data shape: "
-                   << op->get_input_shape(SEGMENT_ID_IDX).size();
+    if (getInputShapeAtPort(SEGMENT_ID_IDX).getRank() != 1ul)
+        IE_THROW() << errPrefix << "has invalid segmentID data rank: "
+                   << getInputShapeAtPort(SEGMENT_ID_IDX).getRank();
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
@@ -62,21 +70,25 @@ void MKLDNNEmbeddingSegmentsSumNode::initSupportedPrimitiveDescriptors() {
             IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
     }
 
-    std::vector<DataConfigurator> inDataConfigurators({{TensorDescCreatorTypes::ncsp, inDataPrecision},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32}});
-    if (getOriginalInputsNumber() > DEFAULT_INDEX_IDX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, Precision::I32});
-    if (getOriginalInputsNumber() > PER_SAMPLE_WEIGHTS_IDX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, inDataPrecision});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
+                                                       {LayoutType::ncsp, Precision::I32},
+                                                       {LayoutType::ncsp, Precision::I32},
+                                                       {LayoutType::ncsp, Precision::I32}});
+    if (inputShapes.size() > DEFAULT_INDEX_IDX)
+        inDataConfigurators.push_back({LayoutType::ncsp, Precision::I32});
+    if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX)
+        inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
-    addSupportedPrimDesc(inDataConfigurators, {{TensorDescCreatorTypes::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+}
+
+void MKLDNNEmbeddingSegmentsSumNode::prepareParams() {
+    MKLDNNEmbeddingBagSumNode::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
 }
 
 void MKLDNNEmbeddingSegmentsSumNode::initFromInputs() {
     indices_ = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
-    indicesSize_ = getParentEdgeAt(INDICES_IDX)->getBlob()->size();
+    indicesSize_ = getParentEdgeAt(INDICES_IDX)->getMemory().GetShape().getElementsCount();
 
     segmentIds_ = reinterpret_cast<const int *>(getParentEdgeAt(SEGMENT_ID_IDX)->getMemoryPtr()->GetPtr());
 
@@ -124,7 +136,9 @@ void MKLDNNEmbeddingSegmentsSumNode::execute(mkldnn::stream strm) {
     if (_withWeights)
         weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
-    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, getParentEdgeAt(0)->getDesc(), getChildEdgeAt(0)->getDesc());
+    const auto &inputMem  = getParentEdgeAt(0)->getMemory();
+    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
+                                       inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
 }
 
 bool MKLDNNEmbeddingSegmentsSumNode::created() const {

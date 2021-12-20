@@ -33,9 +33,10 @@
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
+#include <vpu/ngraph/transformations/convert_gatherND8.hpp>
 #include <transformations/convert_precision.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
@@ -51,6 +52,12 @@
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 #include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
+#include <vpu/configuration/options/ignore_unknown_layers.hpp>
+#include <vpu/configuration/options/custom_layers.hpp>
+#include <vpu/configuration/options/config_file.hpp>
+#include <vpu/utils/skip_layers.hpp>
+
 namespace vpu {
 FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core)
     : _stageBuilder(std::move(stageBuilder)),
@@ -150,6 +157,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICo
         {"ExpGatherElements",                                  LAYER_PARSER(parseGatherElements)},
         {"Round",                                              LAYER_PARSER(parseRound)},
         {"CTCGreedyDecoderSeqLen",                             LAYER_PARSER(parseCTCGreedyDecoderSeqLen)},
+        {"Abs",                                                LAYER_PARSER(parseAbs)}
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -169,18 +177,19 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
 
     ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
-    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
+
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<vpu::ConvertGatherND8ToGatherND5>();
     manager.register_pass<vpu::MergeGatherGatherElements>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
     manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t> {
-        ngraph::opset5::MatMul::type_info,
-        ngraph::opset5::Convolution::type_info,
-        ngraph::opset5::GroupConvolution::type_info
+        ngraph::opset5::MatMul::get_type_info_static(),
+        ngraph::opset5::Convolution::get_type_info_static(),
+        ngraph::opset5::GroupConvolution::get_type_info_static()
     });
     manager.register_pass<vpu::DynamicToStaticShape>();
     manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
@@ -436,7 +445,7 @@ void FrontEnd::processTrivialCases(const Model& model) {
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
-    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(env.config.compileConfig().ignoreUnknownLayers, "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
+    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(env.config.get<IgnoreUnknownLayersOption>(), "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
     _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
 }
 
@@ -466,15 +475,13 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     // Parse custom layers
     //
 
-    if (!env.config.compileConfig().customLayers.empty()) {
-        env.log->trace("Parse custom layers : %s", env.config.compileConfig().customLayers);
+    auto customLayers = env.config.get<CustomLayersOption>().empty()
+        ? env.config.get<ConfigFileOption>() : env.config.get<CustomLayersOption>();
+    if (!customLayers.empty()) {
+        env.log->trace("Parse custom layers : %s", customLayers);
         VPU_LOGGER_SECTION(env.log);
 
-        if (env.platform != ncDevicePlatform_t::NC_MYRIAD_X) {
-            VPU_THROW_FORMAT("Custom layers are not supported for %v platforms", env.platform);
-        }
-
-        _customLayers = CustomLayer::loadFromFile(env.config.compileConfig().customLayers);
+        _customLayers = CustomLayer::loadFromFile(customLayers);
     }
 
     //
@@ -493,10 +500,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     {
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
-
-        if (network.getFunction() && env.config.compileConfig().forceDeprecatedCnnConversion) {
-            network = convertNetwork(network);
-        }
 
         detectNetworkBatch(network, model);
 
@@ -545,7 +548,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         processTrivialCases(model);
 
-        if (!CompileEnv::get().config.compileConfig().disableConvertStages) {
+        if (!CompileEnv::get().config.get<DisableConvertStagesOption>()) {
             addDataTypeConvertStages(model);
         }
 
@@ -567,7 +570,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         getInputAndOutputData(model, layer, inputs, outputs);
 
-        if (env.config.compileConfig().skipAllLayers() || env.config.compileConfig().skipLayerType(layer->type)) {
+        if (skipAllLayers(env.config) || skipLayerType(env.config, layer->type)) {
             _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
             supportedLayer(layer);
             continue;

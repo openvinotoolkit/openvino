@@ -16,7 +16,7 @@
 using namespace cldnn;
 
 // This pass optimizes out nodes which have no impact on outputs
-void trim_to_outputs::run(program_impl& p) {
+void trim_to_outputs::run(program& p) {
     const size_t actual_nodes = p.get_processing_order().size();
     if (actual_nodes == 0 || actual_nodes == p.get_outputs().size()) {
         return;

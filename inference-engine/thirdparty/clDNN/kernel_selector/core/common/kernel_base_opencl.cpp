@@ -63,8 +63,10 @@ public:
 }  // namespace
 
 std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
-                                              const std::string& layerID,
-                                              const optional_params& options) const {
+                                            const std::string& layerID,
+                                            const Params& params,
+                                            const optional_params& options,
+                                            const size_t partID) const {
     std::string kernelID = layerID;
 
     if (kernelID.empty() || !options.meaningfulKernelsNames) {
@@ -74,7 +76,8 @@ std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
     std::replace(kernelID.begin(), kernelID.end(), '.', '_');
     std::replace(kernelID.begin(), kernelID.end(), '/', '_');
 
-    kernelID += "_" + toCodeString(UniqeID());
+    // UniqueID = program_id + processing_index + additional weight/reorder tag
+    kernelID += "_" + params.uniqueID + "_" + std::to_string(partID);
 
     return kernelID;
 }
@@ -181,7 +184,7 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         bool bias,
                                         int number_of_inputs,
                                         uint32_t number_of_inputs_for_fused_prims) const {
-    KernelBase::CheckDispatchData(kernelMapName, dispatchData);
+    KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;

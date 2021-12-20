@@ -21,7 +21,9 @@ struct Configuration {
     Configuration& operator=(const Configuration&) = default;
     Configuration& operator=(Configuration&&) = default;
 
-    explicit Configuration(const ConfigMap& config, const Configuration& defaultCfg = {}, const bool throwOnUnsupported = true);
+    explicit Configuration(const ConfigMap& config,
+                           const Configuration& defaultCfg = {},
+                           const bool throwOnUnsupported = true);
 
     InferenceEngine::Parameter Get(const std::string& name) const;
 

@@ -2,7 +2,7 @@
 
 **Versioned name**: *CTCGreedyDecoder-1*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *CTCGreedyDecoder* performs greedy decoding on the logits given in input (best path).
 
@@ -37,7 +37,7 @@ Sequences in the batch can have different length. The lengths of sequences are c
 * **1**: Output tensor of type *T_F* and shape `[N, T, 1, 1]` which is filled with integer elements containing final sequence class indices. A final sequence can be shorter that the size `T` of the tensor, all elements that do not code sequence classes are filled with `-1`.
 
 **Types**
-* *T_F*: any supported floating point type.
+* *T_F*: any supported floating-point type.
 
 **Example**
 

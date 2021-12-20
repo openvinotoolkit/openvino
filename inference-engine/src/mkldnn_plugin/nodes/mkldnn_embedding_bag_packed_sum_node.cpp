@@ -11,7 +11,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNEmbeddingBagPackedSumNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNEmbeddingBagPackedSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto embBagPackedSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagPackedSum>(op);
         if (!embBagPackedSumOp) {
@@ -31,10 +31,8 @@ MKLDNNEmbeddingBagPackedSumNode::MKLDNNEmbeddingBagPackedSumNode(const std::shar
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (op->get_input_shape(INDICES_IDX).size() != 2)
-        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid shape.";
-    _batch = op->get_input_shape(INDICES_IDX)[0];
-    _indicesPerBag = op->get_input_shape(INDICES_IDX)[1];
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul)
+        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
 }
 
 void MKLDNNEmbeddingBagPackedSumNode::initSupportedPrimitiveDescriptors() {
@@ -58,12 +56,26 @@ void MKLDNNEmbeddingBagPackedSumNode::initSupportedPrimitiveDescriptors() {
             IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
     }
 
-    std::vector<DataConfigurator> inDataConfigurators({{TensorDescCreatorTypes::ncsp, inDataPrecision},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32}});
-    if (getOriginalInputsNumber() > PER_SAMPLE_WEIGHTS_IDX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, inDataPrecision});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
+                                                       {LayoutType::ncsp, Precision::I32}});
+    if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX)
+        inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
-    addSupportedPrimDesc(inDataConfigurators, {{TensorDescCreatorTypes::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+}
+
+void MKLDNNEmbeddingBagPackedSumNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNEmbeddingBagPackedSumNode::prepareParams() {
+    _batch = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[0];
+    _indicesPerBag = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[1];
+    MKLDNNEmbeddingBagSumNode::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
 }
 
 void MKLDNNEmbeddingBagPackedSumNode::initFromInputs() {
@@ -89,7 +101,9 @@ void MKLDNNEmbeddingBagPackedSumNode::execute(mkldnn::stream strm) {
     if (_withWeights)
         weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
-    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, getParentEdgeAt(0)->getDesc(), getChildEdgeAt(0)->getDesc());
+    const auto &inputMem  = getParentEdgeAt(0)->getMemory();
+    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
+                                       inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
 }
 
 bool MKLDNNEmbeddingBagPackedSumNode::created() const {

@@ -20,22 +20,24 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCES})
+
 add_dependencies(${TARGET_NAME} ie_api)
+ov_python_disable_intel_warnings(${TARGET_NAME})
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION "Offline Transformatoins Python library")
 endif()
 
-if(TARGET offline_transformations)
-    list(APPEND InferenceEngine_LIBRARIES offline_transformations)
+if(InferenceEngineDeveloperPackage_FOUND)
+    list(APPEND link_libraries IE::offline_transformations)
 else()
-    list(APPEND InferenceEngine_LIBRARIES IE::offline_transformations)
+    list(APPEND link_libraries offline_transformations)
 endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${link_libraries})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -53,13 +55,10 @@ add_custom_command(TARGET ${TARGET_NAME}
 
 # install
 
-# TODO: use ${PYTHON_VERSION}_dev component below
-# ie_cpack_add_component(${PYTHON_VERSION}_dev DEPENDS ${PYTHON_VERSION})
-
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}
-        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION})
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_COMPONENT}
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_COMPONENT})
 
 install(PROGRAMS __init__.py
-        DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations
-        COMPONENT ${PYTHON_VERSION})
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/offline_transformations
+        COMPONENT ${PYTHON_COMPONENT})

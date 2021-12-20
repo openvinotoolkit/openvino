@@ -19,11 +19,15 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+protected:
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
 private:
     void initFromInputs() override;
@@ -34,8 +38,8 @@ private:
 
     int numSegments_ = 0;
 
-    const int* indices_;
-    const int* segmentIds_;
+    const int* indices_ = nullptr;
+    const int* segmentIds_ = nullptr;
     const int* defaultIndices_ = nullptr;
 
     size_t indicesSize_ = 0;

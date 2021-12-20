@@ -18,20 +18,27 @@
 #include <ngraph/ops.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include "common/cpu_convert.h"
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNConvolutionNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ngraph::is_type<ngraph::op::v1::Convolution>(op) && !ngraph::is_type<ngraph::op::v1::GroupConvolution>(op)) {
             errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
             return false;
         }
-        size_t ndims = op->get_input_shape(0).size();
-        if ((ndims < 4) || (ndims > 5)) {
+        size_t ndims = op->get_input_partial_shape(0).rank().get_length();
+        if ((ndims < 3) || (ndims > 5)) {
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(ndims);
+            return false;
+        }
+        if (op->get_input_partial_shape(1).is_dynamic()) {
+            errorMessage = "Doesn't support dynamic weights shape";
             return false;
         }
     } catch (...) {
@@ -44,7 +51,7 @@ bool MKLDNNConvolutionNode::isSupportedOperation(const std::shared_ptr<ngraph::N
 MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache), withBiases(false), withSum(false), withDWConv(false),
           isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef),
-          groupNum(1lu), eltwisePrecision(Precision::FP32) {
+          groupNum(1lu), IC(1), groupIC(1), groupOC(1), eltwisePrecision(Precision::FP32) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -68,13 +75,14 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         biasesDims = { groupOC };
 
         for (int i = 0; i < convolutionOp->get_strides().size(); i++) {
-            stride.push_back(static_cast<ptrdiff_t>(convolutionOp->get_strides()[i]));
+            stride.push_back(convolutionOp->get_strides()[i]);
         }
         for (int i = 0; i < convolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(convolutionOp->get_dilations()[i]) - 1);
         }
         paddingL = convolutionOp->get_pads_begin();
         paddingR = convolutionOp->get_pads_end();
+        autoPadding = one_of(convolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     } else if (groupConvolutionOp) {
         algorithm = ConvolutionGrouped;
 
@@ -90,13 +98,14 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         biasesDims = {groupOC * groupNum};
 
         for (int i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
-            stride.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_strides()[i]));
+            stride.push_back(groupConvolutionOp->get_strides()[i]);
         }
         for (int i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_dilations()[i]) - 1);
         }
         paddingL = groupConvolutionOp->get_pads_begin();
         paddingR = groupConvolutionOp->get_pads_end();
+        autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
 }
 
@@ -142,17 +151,6 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Input) : true);
     }
 
-    if (isWinograd()) {
-        internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-            return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(0));
-        });
-        internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-            if (!withBiases)
-                return MKLDNNMemoryDesc();
-            return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(1));
-        });
-    }
-
     withSum = false;
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
     for (int i = 0; i < fusedWith.size(); i++) {
@@ -167,36 +165,6 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 expectedInputEdgesNum++;
             }
         }
-    }
-
-    // we can't convert winograd memory descriptor to TensorDesc, so we removed weight and bias edges and put data into internalBlobs
-    if (isWinograd()) {
-        std::vector<MKLDNNEdgePtr> edgesToRemove;
-        internalBlobs.push_back(createInternalBlob(weightDims, 1, isGrouped));
-        edgesToRemove.push_back(getParentEdgeAt(1));
-
-        if (withBiases) {
-            internalBlobs.push_back(createInternalBlob(biasesDims, 2));
-            edgesToRemove.push_back(getParentEdgeAt(2));
-        }
-
-        if (expectedInputEdgesNum - getOriginalInputsNumber() > 0) {
-            size_t reconnectPort = 1;
-            for (size_t startPort = 2 + (withBiases ? 1 : 0); startPort < expectedInputEdgesNum; startPort++) {
-                getParentEdgeAt(startPort)->setChildPort(reconnectPort);
-                reconnectPort++;
-            }
-        }
-
-        for (size_t i = 0; i < edgesToRemove.size(); i++) {
-            removeEdge(edgesToRemove[i]);
-        }
-
-        expectedInputEdgesNum -= getOriginalInputsNumber() - 1;
-        if (withBiases) {
-            inDims.erase(inDims.begin() + 2);
-        }
-        inDims.erase(inDims.begin() + 1);
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
@@ -229,22 +197,29 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != expectedInputEdgesNum)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName() << ", expected: " << expectedInputEdgesNum
+                   << " actual: " << getParentEdges().size();
     if (getChildEdges().empty())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
-    int ndims = getParentEdgesAtPort(0)[0]->getDims().ndims();
-    MKLDNNDims weightsDims = MKLDNNDims(weightDims);
+    int ndims = getInputShapeAtPort(0).getRank();
 
     withDWConv = isFusedWith(Convolution);
+    if (withDWConv && isDynamicNode()) {
+        IE_THROW() << "DW convolution is fused into convolution node " << getName() << " with dynamic shape.";
+    }
 
     for (int i = 0; i < fusedWith.size(); i++) {
         auto *convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(fusedWith[i].get());
         if (convolutionNode) {
-            dw_conv_ih = convolutionNode->inDims[0][convolutionNode->inDims[0].ndims() - 2];
-            dw_conv_iw = convolutionNode->inDims[0][convolutionNode->inDims[0].ndims() - 1];
-            dw_conv_oc = convolutionNode->outDims[0][1];
-            const auto &dwWeightsDims = convolutionNode->inDims[1].ToSizeVector();
+            auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
+            dw_conv_ih = inActivationDims[convolutionNode->inputShapes[0].getRank() - 2];
+            dw_conv_iw = inActivationDims[convolutionNode->inputShapes[0].getRank() - 1];
+
+            auto& outDims = convolutionNode->outputShapes[0].getStaticDims();
+            dw_conv_oc = outDims[1];
+
+            const auto &dwWeightsDims = convolutionNode->inputShapes[1].getStaticDims();
             dw_conv_kernel.push_back(dwWeightsDims[dwWeightsDims.size() - 1]);
             dw_conv_kernel.push_back(dwWeightsDims[dwWeightsDims.size() - 2]);
             dw_conv_strides = convolutionNode->getStride();
@@ -261,9 +236,9 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
             for (int j = 0; j < paddingR.size(); j++) {
                 int with_group = isGrouped ? 1 : 0;
-                int krn = weightsDims[with_group + 2 + j];
-                int src = getParentEdgeAt(0)->getDims()[2 + j];
-                int dst = getChildEdgeAt(0)->getDims()[2 + j];
+                int krn = weightDims[with_group + 2 + j];
+                int src = getInputShapeAtPort(0).getStaticDims()[2 + j];
+                int dst = getOutputShapeAtPort(0).getStaticDims()[2 + j];
 
                 krn = (krn - 1)*(dilation[j] + 1) + 1;
                 int calc_dst = (src - krn + paddingL[j]) / stride[j] + 1;
@@ -272,18 +247,18 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         }
     }
 
-    MKLDNNMemoryDesc in_candidate, out_candidate;
+    MemoryDescPtr in_candidate, out_candidate;
     if (canBeExecutedInInt8()) {
         //  We have to extend convolution_x8s8s32x from oneDNN to support BF16 output data type
         if (outputDataType == memory::data_type::bf16)
             outputDataType = memory::data_type::f32;
         if (eltwisePrecision == Precision::BF16)
             eltwisePrecision = Precision::FP32;
-        in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, ndims == 5 ? memory::format_tag::ndhwc
-                                                                                                 : memory::format_tag::nhwc);
-        out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, ndims == 5 ? memory::format_tag::ndhwc
-                                                                                                  : memory::format_tag::nhwc);
-        createDescriptor({in_candidate}, {out_candidate});
+        in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType,
+            ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
+        out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType,
+            ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
+        createDescriptor({ in_candidate }, { out_candidate });
     } else {
         inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16
                 && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
@@ -314,63 +289,84 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             eltwisePrecision = Precision::FP32;
         }
 
-        if (one_of(ndims, 4, 5)) {
-            memory::format_tag ncsp = ndims == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw;
-            memory::format_tag nspc = ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc;
-            memory::format_tag nCsp16c = ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c;
-            memory::format_tag nCsp8c = ndims == 4 ? memory::format_tag::nChw8c : memory::format_tag::nCdhw8c;
+        if (one_of(ndims, 3, 4, 5)) {
+            memory::format_tag nspc = ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc);
+            memory::format_tag ncsp = ndims == 3 ? memory::format_tag::ncw : (ndims == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw);
+            memory::format_tag nCsp8c = ndims == 3 ? memory::format_tag::nCw8c : (ndims == 4 ? memory::format_tag::nChw8c : memory::format_tag::nCdhw8c);
+            memory::format_tag nCsp16c = ndims == 3 ? memory::format_tag::nCw16c : (ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c);
+
+            auto inputShape = getInputShapeAtPort(0);
+            auto outputShape = getOutputShapeAtPort(0);
 
             if (IC == 1 && groupOC == 1) {
-                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, ncsp);
-                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, ncsp);
-                createDescriptor({in_candidate}, {out_candidate});
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
+                createDescriptor({ in_candidate }, { out_candidate });
             } else if (IC < 4) {
-                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, ncsp);
-                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, nCsp16c);
-                createDescriptor({in_candidate}, {out_candidate});
-                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, nCsp8c);
-                createDescriptor({in_candidate}, {out_candidate});
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp16c);
+                createDescriptor({ in_candidate }, { out_candidate });
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp8c);
+                createDescriptor({ in_candidate }, { out_candidate });
             } else {
-                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, nCsp16c);
-                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, nCsp16c);
-                createDescriptor({in_candidate}, {out_candidate});
-                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, nCsp8c);
-                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, nCsp8c);
-                createDescriptor({in_candidate}, {out_candidate});
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nCsp16c);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp16c);
+                createDescriptor({ in_candidate }, { out_candidate });
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nCsp8c);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp8c);
+                createDescriptor({ in_candidate }, { out_candidate });
             }
 
-            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, ncsp);
-            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, ncsp);
-            createDescriptor({in_candidate}, {out_candidate});
+            in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
+            out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
+            createDescriptor({ in_candidate }, { out_candidate });
 
             if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
-                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, nspc);
-                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, nspc);
-                createDescriptor({in_candidate}, {out_candidate});
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
+                createDescriptor({ in_candidate }, { out_candidate });
             }
         }
     }
 }
 
-void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const {
+void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false) {
     mkldnn::post_ops ops;
+    bool useLegacyPostOps = true; // @todo remove after issue with performance of binary post ops fixed
+
+    auto getBinPostOpShape = [&](){
+        const auto outShape = getOutputShapeAtPort(0).getStaticDims();
+        const auto outShapeRank = getOutputShapeAtPort(0).getRank();
+        const auto chIdx = getFusingAxis();
+        std::vector<size_t> binaryShape(outShapeRank, 1);
+        binaryShape[chIdx] = outShape[chIdx];
+        return binaryShape;
+    };
 
     for (auto &node : fusedWith) {
         if (node->getType() == Split || node->getType() == Concatenation)
             continue;
 
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode) {
-            if (eltwiseNode->isSpecialConvolutionAddFusing())
+        if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
+            if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
-            else
-                eltwiseNode->appendPostOps(ops);
+            } else {
+                if (useLegacyPostOps || eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
+                    constexpr int align = 16;
+                    eltwiseNode->appendPostOps(ops, dims, align);
+                } else {
+                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+                }
+            }
             continue;
         }
 
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
-        if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+        if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
+            if (useLegacyPostOps) {
+                fakeQuantizeNode->appendPostOps(ops, dims);
+            } else {
+                fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            }
             continue;
         }
 
@@ -410,118 +406,173 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    mkldnn::primitive_attr attr;
-    addZeroPoints(attr);
-    setPostOps(attr);
+    // attr[0] - depthwise, quantize
+    // attr[1] - binary
+    mkldnn::primitive_attr attrs[1];
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims());
 
     bool containJitImpl = false;
 
     for (auto& desc : descs) {
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-        while (static_cast<bool>(itpd)) {
-            InferenceEngine::LayerConfig config;
-            config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
-                InferenceEngine::DataConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(itpd, i);
-                if (!isGrouped)
-                    dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
-                config.inConfs.push_back(dataConfig);
-            }
-
-            if (withDWConv) {
-                auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
-                auto biasPrc = memory::data_type::f32;
-
-                MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                MKLDNNDims dwBiasesDims({dw_conv_oc});
-
-                InferenceEngine::DataConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, memory::format_tag::Goihw8g);
-                config.inConfs.push_back(dataConfig);
-
-                dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format_tag::x);
-                config.inConfs.push_back(dataConfig);
-            }
-
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
-                InferenceEngine::DataConfig dataConfig;
-                if (withSum) {
-                    dataConfig.inPlace = getParentEdges().size() - 1;
-                }
-
-                dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(itpd, i);
-                if (!isGrouped)
-                    dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
-                config.outConfs.push_back(dataConfig);
-
-                if (withSum) {
+        for (auto &attr : attrs) {
+            addZeroPoints(attr);
+            auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+            while (static_cast<bool>(itpd)) {
+                NodeConfig config;
+                config.dynBatchSupport = true;
+                for (size_t i = 0; i < descInputNumbers(desc); i++) {
+                    PortConfig dataConfig;
                     dataConfig.inPlace = -1;
-                    dataConfig.desc.setPrecision(eltwisePrecision);
+                    dataConfig.constant = false;
+                    auto desc = getSrcMemDesc(itpd, i);
+                    if (desc->getType() & MemoryDescType::Blocked && !isGrouped) {
+                        dataConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    } else {
+                        dataConfig.desc = std::move(desc);
+                    }
+
                     config.inConfs.push_back(dataConfig);
                 }
-            }
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (impl_type & jit)
-                containJitImpl = true;
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-            if (!itpd.next_impl())
-                break;
+                if (withDWConv) {
+                    auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
+                    auto biasPrc = memory::data_type::f32;
+
+                    std::vector<size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                    std::vector<size_t> dwBiasesDims({dw_conv_oc});
+
+                    PortConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g);
+                    config.inConfs.push_back(dataConfig);
+
+                    dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x);
+                    config.inConfs.push_back(dataConfig);
+                 }
+
+                for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+                    PortConfig dataConfig;
+                    if (withSum) {
+                        dataConfig.inPlace = getParentEdges().size() - 1;
+                    }
+
+                    dataConfig.constant = false;
+                    auto desc = getDstMemDesc(itpd, i);
+                    if (desc->getType() & MemoryDescType::Blocked && !isGrouped) {
+                        dataConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    } else {
+                        dataConfig.desc = std::move(desc);
+                    }
+
+                    config.outConfs.push_back(dataConfig);
+
+                    if (withSum) {
+                        dataConfig.inPlace = -1;
+                        dataConfig.desc = dataConfig.desc->cloneWithNewPrecision(dataConfig.desc->getPrecision());
+                        config.inConfs.push_back(dataConfig);
+                    }
+                }
+                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+                if (impl_type & jit)
+                    containJitImpl = true;
+
+                supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+                if (!itpd.next_impl())
+                    break;
+            }
         }
     }
 }
 
 
 void MKLDNNConvolutionNode::createPrimitive() {
-    if (prim)
-        return;
-
-    mkldnn::primitive_attr attr;
-    addZeroPoints(attr);
-    setPostOps(attr, true);
-
-    auto prim_desc = createPrimitiveDescriptor<convolution_forward::primitive_desc,
-            convolution_forward::desc>(attr);
-
-    prim.reset(new convolution_forward(prim_desc));
-
-    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    if (withBiases)
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_BIAS, getBias()}, {DNNL_ARG_DST, dst}};
-    else
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DST, dst}};
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
 }
 
 bool MKLDNNConvolutionNode::created() const {
     return getType() == Convolution;
 }
 
-void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
-                                             const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
-    TensorDesc inDesc = inputDesc[0], outDesc = outputDesc[0];
+std::shared_ptr<mkldnn::convolution_forward::desc>
+MKLDNNConvolutionNode::createDescriptorInternal(const mkldnn::memory::desc& inputDesc,
+                                                const mkldnn::memory::desc& weightDesc,
+                                                const mkldnn::memory::desc& outputDesc,
+                                                mkldnn::algorithm alg) {
+    updatePadding();
+    std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
+    try {
+        conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
+                                                      inputDesc, weightDesc, outputDesc,
+                                                      mkldnn::memory::dims(stride.begin(), stride.end()),
+                                                      mkldnn::memory::dims(dilation.begin(), dilation.end()),
+                                                      mkldnn::memory::dims(paddingL.begin(), paddingL.end()),
+                                                      mkldnn::memory::dims(paddingR.begin(), paddingR.end())));
+    }
+    catch (...) {
+        IE_THROW() << "Cannot create convolution forward descriptor for layer: " << getName();
+    }
+    return conv_desc;
+}
 
-    memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc.getPrecision());
-    memory::data_type bdt = memory::data_type::f32;
+std::shared_ptr<mkldnn::convolution_forward::desc>
+MKLDNNConvolutionNode::createDescriptorInternal(const mkldnn::memory::desc& inputDesc,
+                                                const mkldnn::memory::desc& weightDesc,
+                                                const mkldnn::memory::desc& biasDesc,
+                                                const mkldnn::memory::desc& outputDesc,
+                                                mkldnn::algorithm alg) {
+    updatePadding();
+    std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
+    try {
+        conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
+                                                      inputDesc, weightDesc, biasDesc, outputDesc,
+                                                      mkldnn::memory::dims(stride.begin(), stride.end()),
+                                                      mkldnn::memory::dims(dilation.begin(), dilation.end()),
+                                                      mkldnn::memory::dims(paddingL.begin(), paddingL.end()),
+                                                      mkldnn::memory::dims(paddingR.begin(), paddingR.end())));
+    }
+    catch (...) {
+        IE_THROW() << "Cannot create convolution forward descriptor for layer: " << getName();
+    }
+    return conv_desc;
+}
 
-    if (inDesc.getPrecision() == Precision::U8 || inDesc.getPrecision() == Precision::I8) {
+void MKLDNNConvolutionNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                                             const std::vector<MemoryDescPtr>& outputDesc) {
+    auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
+    DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
+    DnnlMemoryDescPtr definedOutMemDesc;
+
+    if (outputDesc[0]->isDefined()) {
+        definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]);
+    } else {
+        std::vector<Shape> shapes = { definedInpMemDesc->getShape(), Shape(weightDims) };
+        auto outDims = shapeInferGeneric(shapes);
+        definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]->cloneWithNewDims(outDims.front()));
+    }
+
+    const auto& inDnnlDesc = definedInpMemDesc->getDnnlDesc();
+    const auto& outDnnlDesc = definedOutMemDesc->getDnnlDesc();
+
+    memory::data_type wdt = static_cast<memory::data_type>(inDnnlDesc.data.data_type);
+
+    if (inDnnlDesc.data.data_type == mkldnn_s8 || inDnnlDesc.data.data_type == mkldnn_u8) {
         wdt = memory::data_type::s8;
     }
 
-    MKLDNNMemoryDesc in_candidate(inDesc);
-    MKLDNNMemoryDesc out_candidate(outDesc);
+    mkldnn::memory::desc weightDnnlDesc(MKLDNNExtensionUtils::convertToDnnlDims(weightDims), wdt, memory::format_tag::any);
+    mkldnn::memory::desc biasDnnlDesc;
 
-    MKLDNNDims blocked_weightDims(weightDims);
-    MKLDNNDims blocked_biasesDims(biasesDims);
-    MKLDNNMemoryDesc wgh_candidate{blocked_weightDims, wdt, memory::format_tag::any};
+    if (withBiases) {
+        memory::data_type bdt = memory::data_type::f32;
+        biasDnnlDesc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(biasesDims), bdt, memory::format_tag::any);
+    }
 
     std::vector<mkldnn::algorithm> algorithms;
 
@@ -530,29 +581,10 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
     algorithms.push_back(mkldnn::algorithm::convolution_direct);
 
     for (auto alg : algorithms) {
-        try {
-            std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
-            if (withBiases) {
-                MKLDNNMemoryDesc bias_candidate{blocked_biasesDims, bdt, memory::format_tag::any};
-
-                conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
-                            in_candidate, wgh_candidate, bias_candidate, out_candidate,
-                            mkldnn::memory::dims(stride.begin(), stride.end()),
-                            mkldnn::memory::dims(dilation.begin(), dilation.end()),
-                            mkldnn::memory::dims(paddingL.begin(), paddingL.end()),
-                            mkldnn::memory::dims(paddingR.begin(), paddingR.end())));
-            } else {
-                conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
-                            in_candidate, wgh_candidate, out_candidate,
-                            mkldnn::memory::dims(stride.begin(), stride.end()),
-                            mkldnn::memory::dims(dilation.begin(), dilation.end()),
-                            mkldnn::memory::dims(paddingL.begin(), paddingL.end()),
-                            mkldnn::memory::dims(paddingR.begin(), paddingR.end())));
-            }
-
-            descs.emplace_back(conv_desc);
-        } catch (...) {
-            IE_THROW() << "Cannot create convolution forward descriptor for layer: " << getName();
+        if (withBiases) {
+            descs.emplace_back(createDescriptorInternal(inDnnlDesc, weightDnnlDesc, biasDnnlDesc, outDnnlDesc, alg));
+        } else {
+            descs.emplace_back(createDescriptorInternal(inDnnlDesc, weightDnnlDesc, outDnnlDesc, alg));
         }
     }
 }
@@ -569,8 +601,8 @@ void MKLDNNConvolutionNode::addZeroPoints(mkldnn::primitive_attr& attr) const {
     }
 }
 
-void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& config) {
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
+void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
+    auto *selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
         return;
     }
@@ -583,20 +615,16 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
     if (canBeExecutedInInt8()) {
         isStridedBlobsSupported = false;
     }
-    // TODO [NM]: fix strided blobs feature support for dynamic weights
-    // if (getOriginalInputsNumber() != 1) {
-    //     isStridedBlobsSupported = false;
-    // }
 
     if (isStridedBlobsSupported) {
         createDescriptor({config.inConfs[0].desc}, {config.outConfs[0].desc});
     }
+    // attr[0] - depthwise, quantize
+    // attr[1] - binary
+    mkldnn::primitive_attr attrs[1];
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims());
 
-    mkldnn::primitive_attr attr;
-    addZeroPoints(attr);
-    setPostOps(attr);
-
-    InferenceEngine::LayerConfig rightConfig = selectedPD->getConfig();
+    auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
 
     bool containJitImpl = false;
@@ -605,70 +633,73 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
         auto& desc = descs[i];
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-        while (static_cast<bool>(itpd)) {
-            InferenceEngine::LayerConfig cfg;
-            cfg.dynBatchSupport = true;
-            for (size_t j = 0; j < descInputNumbers(desc); j++) {
-                InferenceEngine::DataConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(itpd, j);
-                cfg.inConfs.push_back(dataConfig);
-            }
-
-            if (withDWConv) {
-                auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
-                auto biasPrc = memory::data_type::f32;
-
-                MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                MKLDNNDims dwBiasesDims({dw_conv_oc});
-
-                InferenceEngine::DataConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, memory::format_tag::Goihw8g);
-                cfg.inConfs.push_back(dataConfig);
-
-                dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format_tag::x);
-                cfg.inConfs.push_back(dataConfig);
-            }
-
-            for (size_t j = 0; j < descOutputNumbers(desc); j++) {
-                InferenceEngine::DataConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(itpd, j);
-                if (withSum) {
-                    auto eltwiseConfig = dataConfig;
-                    eltwiseConfig.desc.setPrecision(eltwisePrecision);
-                    cfg.inConfs.push_back(eltwiseConfig);
-                    dataConfig.inPlace = getParentEdges().size() - 1;
+        for (auto &attr : attrs) {
+            addZeroPoints(attr);
+            auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+            while (static_cast<bool>(itpd)) {
+                NodeConfig cfg;
+                cfg.dynBatchSupport = true;
+                for (size_t j = 0; j < descInputNumbers(desc); j++) {
+                    PortConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = getSrcMemDesc(itpd, j);
+                    cfg.inConfs.push_back(dataConfig);
                 }
 
-                cfg.outConfs.push_back(dataConfig);
-            }
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (impl_type & jit)
-                containJitImpl = true;
+                if (withDWConv) {
+                    auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
+                    auto biasPrc = memory::data_type::f32;
 
-            if (selected_count == selectedPrimitiveDescriptorIndex) {
-                if (impl_type != selectedPD->getImplementationType()) {
-                    IE_THROW() << "Cannot get the original layer configuration!";
+                    std::vector <size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                    std::vector <size_t> dwBiasesDims({dw_conv_oc});
+
+                    PortConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g);
+                    cfg.inConfs.push_back(dataConfig);
+
+                    dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x);
+                    cfg.inConfs.push_back(dataConfig);
                 }
-                rightConfig = cfg;
-            }
-            if (i == descs.size() - 1 && isStridedBlobsSupported) {
-                if (impl_type == selectedPD->getImplementationType()) {
-                    rightConfig = config;
+
+                for (size_t j = 0; j < descOutputNumbers(desc); j++) {
+                    PortConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = getDstMemDesc(itpd, j);
+                    if (withSum) {
+                        auto eltwiseConfig = dataConfig;
+                        eltwiseConfig.desc = eltwiseConfig.desc->cloneWithNewPrecision(eltwisePrecision);
+                        cfg.inConfs.push_back(eltwiseConfig);
+                        dataConfig.inPlace = getParentEdges().size() - 1;
+                    }
+
+                    cfg.outConfs.push_back(dataConfig);
                 }
+                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+                if (impl_type & jit)
+                    containJitImpl = true;
+
+                if (selected_count == selectedPrimitiveDescriptorIndex) {
+                    if (impl_type != selectedPD->getImplementationType()) {
+                        IE_THROW() << "Cannot get the original layer configuration!";
+                    }
+                    rightConfig = cfg;
+                }
+                if (i == descs.size() - 1 && isStridedBlobsSupported) {
+                    if (impl_type == selectedPD->getImplementationType()) {
+                        rightConfig = config;
+                    }
+                }
+                selected_count++;
+                if (!itpd.next_impl())
+                    break;
             }
-            selected_count++;
-            if (!itpd.next_impl())
-                break;
         }
     }
-    selectedPD->getConfig() = rightConfig;
+    selectedPD->setConfig(rightConfig);
 }
 
 void MKLDNNConvolutionNode::filterSupportedPrimitiveDescriptors() {
@@ -686,12 +717,12 @@ void MKLDNNConvolutionNode::filterSupportedDescriptors() {
         while (itd != descs.end()) {
             bool isSuitableDesc = true;
             if (!inputMemoryFormatsFilter.empty()) {
-                MKLDNNMemoryDesc src_tdesc(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.src_desc);
-                isSuitableDesc &= src_tdesc.isSame(inputMemoryFormatsFilter[0]);
+                auto src_tdesc = MKLDNNExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.src_desc);
+                isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
             }
             if (!outputMemoryFormatsFilter.empty()) {
-                MKLDNNMemoryDesc dst_tdesc(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.dst_desc);
-                isSuitableDesc &= dst_tdesc.isSame(outputMemoryFormatsFilter[0]);
+                auto dst_tdesc = MKLDNNExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.dst_desc);
+                isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
             }
             if (!isSuitableDesc) {
                 itd = descs.erase(itd);
@@ -725,48 +756,24 @@ bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) c
             isPossibleJitPlanar = false;
 
     std::shared_ptr<mkldnn::convolution_forward::desc> convDesc(desc);
-    auto srcMemDesc = MKLDNNMemoryDesc {convDesc->data.src_desc};
-    auto dstMemDesc = MKLDNNMemoryDesc {convDesc->data.dst_desc};
+    auto srcMemDesc = MKLDNNExtensionUtils::makeDescriptor(convDesc->data.src_desc);
+    auto dstMemDesc = MKLDNNExtensionUtils::makeDescriptor(convDesc->data.dst_desc);
     auto srcDataType = convDesc->data.src_desc.data_type;
     auto dstDataType = convDesc->data.dst_desc.data_type;
-    bool isPlanarFloatConv = srcMemDesc.isPlainFormat()
-                             && dstMemDesc.isPlainFormat()
+    bool isPlanarFloatConv = srcMemDesc->hasLayoutType(LayoutType::ncsp)
+                             && dstMemDesc->hasLayoutType(LayoutType::ncsp)
                              && srcDataType == memory::data_type::f32
                              && dstDataType == memory::data_type::f32;
 
     return !isPossibleJitPlanar && isPlanarFloatConv;
 }
 
-MKLDNNMemoryDesc MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    InferenceEngine::TensorDesc desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_desc(idx - 1))
-                                               : MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
-
-    if (desc.getLayout() == InferenceEngine::Layout::ANY) {
-        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                            getParentEdgeAt(idx)->getDims().ToSizeVector(),
-                                                            desc.getLayout()));
-    } else {
-        if (getParentEdgeAt(idx)->getDims().ToSizeVector().size() != *std::max_element(desc.getBlockingDesc().getOrder().begin(),
-                                                                                       desc.getBlockingDesc().getOrder().end()) + 1) {
-            auto old_dims = getParentEdgeAt(idx)->getDims().ToSizeVector();
-            auto new_dims = InferenceEngine::SizeVector({groupNum, div_up(old_dims[0], groupNum)});
-            for (int i = 1; i < old_dims.size(); i++) {
-                new_dims.push_back(old_dims[i]);
-            }
-
-            auto td = InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                  new_dims,
-                                                  desc.getBlockingDesc());
-            if (new_dims.size() == desc.getBlockingDesc().getBlockDims().size()) {
-                td.setLayout(BLOCKED);
-            }
-            return MKLDNNMemoryDesc(td);
-        } else {
-            return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                                getParentEdgeAt(idx)->getDims().ToSizeVector(),
-                                                                desc.getBlockingDesc()));
-        }
+std::shared_ptr<MemoryDesc> MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
+    if (getInputShapeAtPort(idx).isDynamic()) {
+        return MKLDNNExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
+    return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 
 bool MKLDNNConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
@@ -774,11 +781,11 @@ bool MKLDNNConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
 }
 
 const mkldnn::memory& MKLDNNConvolutionNode::getWeights() const {
-    return isWinograd() ? internalBlobMemory[0]->GetPrimitive() : getParentEdgeAt(1)->getMemory().GetPrimitive();
+    return getParentEdgeAt(1)->getMemory().GetPrimitive();
 }
 
 const mkldnn::memory& MKLDNNConvolutionNode::getBias() const {
-    return isWinograd() ? internalBlobMemory[1]->GetPrimitive() : getParentEdgeAt(2)->getMemory().GetPrimitive();
+    return getParentEdgeAt(2)->getMemory().GetPrimitive();
 }
 
 InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
@@ -792,7 +799,7 @@ InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
         }
     }
 
-    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
+    return getMaxPrecision(inputPrecisions);
 }
 
 bool MKLDNNConvolutionNode::isNspcAvailable() const {
@@ -809,13 +816,13 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
     }
 
     // A bunch of heuristics are designed to cut off not optimal nspc convolution applications
-    auto inpDims = getParentEdgeAt(0)->getDims().ToSizeVector();
-    auto outDims = getChildEdgeAt(0)->getDims().ToSizeVector();
+    auto inpDims = getInputShapeAtPort(0).getDims();
+    auto outDims = getOutputShapeAtPort(0).getDims();
     auto ndims = inpDims.size();
 
     if (isDepthWise()) {
         // 1d equivalent cases are painfully slow
-        if (1 == inpDims[inpDims.size() - 2]) {
+        if (inpDims.size() == 3 || 1 == inpDims[inpDims.size() - 2]) {
             return false;
         }
     } else {
@@ -826,15 +833,14 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
 
         if (!isGrouped) {
             auto weightDimsReversItr = weightDims.crbegin();
-            auto inpDimsReversItr = inpDims.crbegin();
-            auto outDimsReversItr = outDims.crbegin();
+            auto strideReversItr = stride.crbegin();
             auto paddingLreversItr = paddingL.crbegin();
             auto paddingRreversItr = paddingR.crbegin();
 
             for (size_t i = 0; i < spatialRank; ++i) {
                 is1x1 = true
                         && *(weightDimsReversItr++) == 1
-                        && *(inpDimsReversItr++) == *(outDimsReversItr++)
+                        && *(strideReversItr++) == 1
                         && *(paddingLreversItr++) == 0
                         && *(paddingRreversItr++) == 0;
             }
@@ -844,7 +850,7 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
         if (mayiuse(impl::cpu::x64::avx512_common) && is1x1) {
             auto end = inpDims.rbegin();
             std::advance(end, spatialRank);
-            if (std::all_of(inpDims.rbegin(), end, [](size_t x) { return 1 == x; })) {
+            if (std::all_of(inpDims.rbegin(), end, [](size_t x) { return dimsEqualStrong(1, x); })) {
                 return false;
             }
         }
@@ -880,7 +886,7 @@ InferenceEngine::Blob::Ptr MKLDNNConvolutionNode::createInternalBlob(InferenceEn
     if (blb == nullptr)
         IE_THROW() << "Cannot get const blob for node " << getName() << ".";
 
-    auto const elementsCount = blb->GetElementsCount();
+    auto const elementsCount = blb->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, dims, getWeightsLayoutByDims(dims, isGrouped));
 
@@ -898,6 +904,99 @@ InferenceEngine::Blob::Ptr MKLDNNConvolutionNode::createInternalBlob(InferenceEn
                 elementsCount);
 
     return internalBlob;
+}
+
+void MKLDNNConvolutionNode::prepareParams() {
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+
+    auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto weightMemoryDesc = getParentEdgesAtPort(1).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+
+    auto initPrimitiveAttr = [&]() {
+        mkldnn::primitive_attr attr;
+        addZeroPoints(attr);
+        setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), true);
+
+        return std::make_shared<mkldnn::primitive_attr>(std::move(attr));
+    };
+
+    AttrPtr pAttrLocal;
+
+    if (isDynamicNode()) {
+        if (!pAttr) {
+            pAttr = initPrimitiveAttr();
+        }
+        pAttrLocal = pAttr;
+    } else {
+        pAttrLocal = initPrimitiveAttr();
+    }
+
+    std::shared_ptr<mkldnn::convolution_forward::desc> dnnlConvDesc;
+    auto alg = isWinograd() ? mkldnn::algorithm::convolution_winograd : mkldnn::algorithm::convolution_direct;
+
+    if (withBiases) {
+        auto biasMemoryDesc = getParentEdgesAtPort(2).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+        // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
+        mkldnn::memory::desc dnnlBiasDesc = biasMemoryDesc->getDnnlDesc().reshape(MKLDNNExtensionUtils::convertToDnnlDims(biasesDims));
+        dnnlConvDesc = createDescriptorInternal(inMemoryDesc->getDnnlDesc(),
+                                                weightMemoryDesc->getDnnlDesc(),
+                                                dnnlBiasDesc,
+                                                outMemoryDesc->getDnnlDesc(),
+                                                alg);
+    } else {
+        dnnlConvDesc = createDescriptorInternal(inMemoryDesc->getDnnlDesc(),
+                                                weightMemoryDesc->getDnnlDesc(),
+                                                outMemoryDesc->getDnnlDesc(),
+                                                alg);
+    }
+
+    MKLDNNDescriptor desc(dnnlConvDesc);
+
+    auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *pAttrLocal);
+
+    convolution_forward::primitive_desc prim_desc;
+    while (static_cast<bool>(itpd))  {
+        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+        if (impl_type == selected_pd->getImplementationType()) {
+            prim_desc = convolution_forward::primitive_desc(itpd.get());
+            break;
+        }
+        if (!itpd.next_impl())
+            IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    prim.reset(new convolution_forward(prim_desc));
+
+    primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs[DNNL_ARG_WEIGHTS] = getWeights();
+    primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+
+    if (withBiases) {
+        primArgs[DNNL_ARG_BIAS] = getBias();
+    }
+
+    appendPostOpArgs(*pAttrLocal);
+}
+
+void MKLDNNConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
+}
+
+void MKLDNNConvolutionNode::updatePadding() {
+    //update padding. TODO [DS] : rewrite when the final shape inference interface is available
+    if (isDynamicNode() && autoPadding) {
+        if (auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(opToShapeInfer)) {
+            paddingL = convolutionOp->get_pads_begin();
+            paddingR = convolutionOp->get_pads_end();
+        } else if (auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(opToShapeInfer)) {
+            paddingL = groupConvolutionOp->get_pads_begin();
+            paddingR = groupConvolutionOp->get_pads_end();
+        }
+    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNConvolutionNode, Convolution);

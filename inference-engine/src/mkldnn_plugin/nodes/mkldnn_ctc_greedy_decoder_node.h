@@ -15,12 +15,13 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+    bool needPrepareParams() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
-
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 private:
     const size_t DATA_INDEX = 0lu;
     const size_t SEQUENCE_LENGTH_INDEX = 1lu;

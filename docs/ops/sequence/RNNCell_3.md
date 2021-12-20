@@ -2,9 +2,21 @@
 
 **Versioned name**: *RNNCell-3*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *RNNCell* represents a single RNN cell that computes the output using the formula described in the [article](https://hackernoon.com/understanding-architecture-of-lstm-cell-from-scratch-with-code-8da40f0b71f4).
+
+**Detailed description**:
+
+*RNNCell* represents a single RNN cell and is part of [RNNSequence](RNNSequence_5.md) operation.
+
+```
+Formula:
+  *  - matrix multiplication
+  ^T - matrix transpose
+  f  - activation function
+    Ht = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
+```
 
 **Attributes**
 
@@ -13,7 +25,6 @@
   * **Description**: *hidden_size* specifies hidden state size.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *activations*
@@ -44,7 +55,7 @@
 
 * **1**: `X` - 2D tensor of type *T* `[batch_size, input_size]`, input data. **Required.**
 
-* **2**: `initial_hidden_state` - 2D tensor of type *T* `[batch_size, hidden_size]`. **Required.**
+* **2**: `H` - 2D tensor of type *T* `[batch_size, hidden_size]`, initial hidden state. **Required.**
 
 * **3**: `W` - 2D tensor tensor of type *T* `[hidden_size, input_size]`, the weights for matrix multiplication. **Required.**
 
@@ -58,7 +69,7 @@
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 ```xml

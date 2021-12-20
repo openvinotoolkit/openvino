@@ -8,6 +8,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
@@ -18,11 +19,17 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     bool created() const override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                          const std::vector<MemoryDescPtr>& outputDesc) override;
 
     void execute(mkldnn::stream strm) override;
+
+    inline bool hasNativeOrder() const {
+        return nativeOrder;
+    }
 
 private:
     void initCell(const std::shared_ptr<ngraph::Node>& op);
@@ -56,29 +63,28 @@ private:
     /** activation type for vanilla RNN cell */
     mkldnn::algorithm cell_act = mkldnn::algorithm::eltwise_tanh;
 
-    // Internal attributes
-    ptrdiff_t N = 0;   /**< Batch value */
-    ptrdiff_t T = 0;   /**< Sequence value */
-    ptrdiff_t DC = 0;  /**< Input data channel size */
-    ptrdiff_t SC = 0;  /**< State channel size value */
-    ptrdiff_t G = 0;   /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */
-    ptrdiff_t Gb = 0;  /**< Gate size for biases. Gb = GRU_lbr ? G+1 : G */
-    ptrdiff_t S = 2;   /**< Num of state. LSTM - 2, GRU & RNN - 1 */
-    const ptrdiff_t L = 1;   /**< What is it??. Constant for mkldnn impl */
-    const ptrdiff_t D = 1;   /**< Num of direction. 1 or 2 */
+    /** Weights data and state memory format: ldigo or any */
+    mkldnn::memory::format_tag w_format = mkldnn::memory::format_tag::any;
 
-    std::vector<MKLDNNMemoryDesc> in_data_d;
-    std::vector<MKLDNNMemoryDesc> out_data_d;
+    // Internal attributes
+    size_t N = 0;   /**< Batch value */
+    size_t T = 0;   /**< Sequence value */
+    size_t DC = 0;  /**< Input data channel size */
+    size_t SC = 0;  /**< State channel size value */
+    size_t G = 0;   /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */
+    size_t Gb = 0;  /**< Gate size for biases. Gb = GRU_lbr ? G+1 : G */
+    size_t S = 2;   /**< Num of state. LSTM - 2, GRU & RNN - 1 */
+    const size_t L = 1;   /**< What is it??. Constant for mkldnn impl */
+    const size_t D = 1;   /**< Num of direction. 1 or 2 */
+
+    std::vector<DnnlBlockedMemoryDesc> in_data_d;
+    std::vector<DnnlBlockedMemoryDesc> out_data_d;
 
     enum RNNInOutKind {
         Layer       = 0,
         HiddenState = 1,
         CellState   = 2
     };
-
-    MKLDNNMemoryDesc w_data_d;
-    MKLDNNMemoryDesc w_state_d;
-    MKLDNNMemoryDesc w_bias_d;
 
     std::vector<size_t > in_data_dims;
     std::vector<size_t > out_data_dims;

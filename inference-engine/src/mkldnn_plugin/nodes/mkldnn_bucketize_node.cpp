@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -15,7 +13,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
         if (!bucketsize) {
@@ -37,6 +35,9 @@ MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op
 
     errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
     const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
+    if (bucketsize == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of Bucketize from opset3.";
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
@@ -44,22 +45,6 @@ MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op
 
     // check one attribute
     with_right = bucketsize->get_with_right_bound();
-
-    // check dimensions of input tensors
-    SizeVector input_tensor_dims = op->get_input_shape(INPUT_TENSOR_PORT);
-    if (input_tensor_dims.size() < 1) {
-        IE_THROW() << errorPrefix << " has incorrect dimensions of the input.";
-    }
-    SizeVector input_bin_dims = op->get_input_shape(INPUT_BINS_PORT);
-    if (input_bin_dims.size() != 1) {
-        IE_THROW() << errorPrefix << " has incorrect dimensions of the boundaries tensor.";
-    }
-    if (input_bin_dims[0] != 0) {
-        with_bins = true;
-    }
-    num_bin_values = input_bin_dims[0];
-
-    num_values = std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
 }
 
 void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
@@ -82,9 +67,9 @@ void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
         output_precision = Precision::I32;
     }
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, input_precision},
-                          {TensorDescCreatorTypes::ncsp, boundaries_precision}},
-                         {{TensorDescCreatorTypes::ncsp, output_precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
+                          {LayoutType::ncsp, boundaries_precision}},
+                         {{LayoutType::ncsp, output_precision}},
                          impl_desc_type::ref_any);
 }
 
@@ -185,6 +170,49 @@ void MKLDNNBucketizeNode::execute(mkldnn::stream strm) {
         default:
             IE_THROW() << errorPrefix << " has unsupported precision: " << precision_mask;
     }
+}
+
+void MKLDNNBucketizeNode::prepareParams() {
+    auto& inputTensorMemPtr = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr();
+    auto& inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Destination memory didn't allocate.";
+    if (!inputTensorMemPtr || !inputTensorMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Input tensor didn't allocate.";
+    if (!inputBinsMemPtr || !inputBinsMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Input bins didn't allocate.";
+    if (getSelectedPrimitiveDescriptor() == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set.";
+
+    // update with_bins/num_values/num_bin_values
+    auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
+    if (input_tensor_dims.size() < 1) {
+        IE_THROW() << errorPrefix << " has incorrect dimensions of the input.";
+    }
+    auto input_bin_dims = inputBinsMemPtr->getStaticDims();
+    if (input_bin_dims.size() != 1) {
+        IE_THROW() << errorPrefix << " has incorrect dimensions of the boundaries tensor.";
+    }
+    if (input_bin_dims[0] != 0) {
+        with_bins = true;
+    }
+    num_bin_values = input_bin_dims[0];
+
+    num_values =
+        std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
+}
+
+void MKLDNNBucketizeNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+std::vector<VectorDims> MKLDNNBucketizeNode::shapeInfer() const {
+    return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 template <typename T, typename T_BOUNDARIES, typename T_IND>

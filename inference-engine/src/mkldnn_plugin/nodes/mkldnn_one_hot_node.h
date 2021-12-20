@@ -23,7 +23,12 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    bool needShapeInfer() const override;
+    std::vector<VectorDims> shapeInfer() const override;
+    bool needPrepareParams() const override { return false; };
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); };
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     typedef InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type in_type;
@@ -41,10 +46,8 @@ private:
         }
     };
 
-    uint32_t depth;
+    mutable Dim depth = Shape::UNDEFINED_DIM;
     int32_t axis = -1;
-    InferenceEngine::SizeVector src_dims;
-    InferenceEngine::SizeVector dst_dims;
 
     InferenceEngine::Precision output_precision;
 

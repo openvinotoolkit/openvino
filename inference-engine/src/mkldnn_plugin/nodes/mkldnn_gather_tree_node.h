@@ -19,12 +19,12 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+private:
     template<typename DATA_T>
-    void gatherTreeKernel() noexcept;
+    void gatherTreeKernel();
 
-        private:
     static const size_t GATHER_TREE_STEP_IDX = 0;
     static const size_t GATHER_TREE_PARENT_IDX = 1;
     static const size_t GATHER_TREE_MAX_SEQ_LEN = 2;

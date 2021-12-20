@@ -16,16 +16,17 @@ public:
                    MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
-
     void initSupportedPrimitiveDescriptors() override;
-
-    void createPrimitive() override {};
-
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
-
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node> &op, std::string &errorMessage) noexcept;
+    bool needPrepareParams() const override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    bool needShapeInfer() const override;
+    std::vector<VectorDims> shapeInfer() const override;
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node> &op, std::string &errorMessage) noexcept;
 
 #if defined(HAVE_AVX512F)
     const int block_size = 16;
@@ -85,18 +86,14 @@ private:
     const size_t TOPK_VALUE = 0;
     const size_t TOPK_INDEX = 1;
 
-    InferenceEngine::SizeVector src_dims;
     size_t axis;
-    size_t axis_dim;
-    size_t axis_stride = 1;
-    size_t axis_step = 1;
-    bool is_last_dim = false;
     int src_k = 1;
 
     bool sort_value = false;
     bool mode_max = true;
 
-    int dim, before_num;
+    int dim = 0;
+    int before_num = 0;
 
     std::string errorPrefix;
 

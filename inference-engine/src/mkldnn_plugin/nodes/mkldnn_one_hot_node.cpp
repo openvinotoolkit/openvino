@@ -2,30 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
 #include <vector>
 #include <string>
 #include <mkldnn_types.h>
 #include "ie_parallel.hpp"
-#include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
 #include "mkldnn_one_hot_node.h"
-#include <nodes/common/tensor_desc_creator.h>
+#include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
+#include <ie_ngraph_utils.hpp>
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
 #include "common/cpu_memcpy.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
         if (!oneHot) {
             errorMessage = "Only opset1 OneHot operation is supported";
-            return false;
-        }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID)) == nullptr) {
-            errorMessage = "Only const 'depth' input is supported";
             return false;
         }
         if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
@@ -52,20 +49,21 @@ MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, cons
     errorPrefix = "OneHot layer with name '" + op->get_friendly_name() + "'";
     const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
     const auto depthNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
-    const auto onValueNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID));
-    const auto offValueNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID));
-    depth = depthNode->cast_vector<uint32_t>()[0];
-    axis = oneHot->get_axis();
-    src_dims = oneHot->get_input_shape(INDICES_ID);
-    if (ngraph::is_scalar(src_dims)) {
-        src_dims = SizeVector{1};
+    if (depthNode) {
+        depth = depthNode->cast_vector<uint32_t>()[0];
     }
-    dst_dims = oneHot->get_output_shape(0);
-    if (ngraph::is_scalar(dst_dims)) {
-        dst_dims = SizeVector{1};
+    axis = oneHot->get_axis();
+
+    VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
+    if (ngraph::is_scalar(srcDims)) {
+        srcDims = SizeVector{1};
+    }
+    VectorDims dstDims = getOutputShapeAtPort(0).getDims();
+    if (ngraph::is_scalar(dstDims)) {
+        dstDims = SizeVector{1};
     }
 
-    int output_dims_size = dst_dims.size();
+    int output_dims_size = dstDims.size();
     if (axis < 0) {
         axis += output_dims_size;
     }
@@ -73,9 +71,25 @@ MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << errorPrefix << " has unsupported 'axis' attribute: " << oneHot->get_axis();
     }
 
-    if (!( ((1 + src_dims.size()) == dst_dims.size()) ||
-           (src_dims.size() == 1 && dst_dims.size() == 1 && dst_dims[0] == depth && src_dims[0] == 1)))
+    if (!(((1 + srcDims.size()) == dstDims.size()) ||
+            (depthNode && (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1))))
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
+}
+
+bool MKLDNNOneHotNode::needShapeInfer() const {
+    const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
+    if (depth != depthNodePtr[0])
+        return true;
+    return MKLDNNNode::needShapeInfer();
+}
+
+std::vector<VectorDims> MKLDNNOneHotNode::shapeInfer() const {
+    depth = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr())[0];
+
+    auto result = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    result.insert(result.begin() + axis, depth);
+
+    return { result };
 }
 
 void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
@@ -89,11 +103,11 @@ void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
     }
     output_precision = getOriginalOutputPrecisionAtPort(0);
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, input_precision},
-                          {TensorDescCreatorTypes::ncsp, input_precision},
-                          {TensorDescCreatorTypes::ncsp, output_precision},
-                          {TensorDescCreatorTypes::ncsp, output_precision}},
-                         {{TensorDescCreatorTypes::ncsp, output_precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
+                          {LayoutType::ncsp, input_precision},
+                          {LayoutType::ncsp, output_precision},
+                          {LayoutType::ncsp, output_precision}},
+                         {{LayoutType::ncsp, output_precision}},
                          impl_desc_type::ref_any);
 }
 
@@ -125,13 +139,13 @@ void MKLDNNOneHotNode::one_hot(size_t prefix_size, size_t suffix_size) {
 
 void MKLDNNOneHotNode::execute(mkldnn::stream strm) {
     std::size_t prefix_size = 1;
-    auto input_dims = getParentEdgeAt(0)->getDesc().getDims();
+    auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
-    std::size_t actual_axis = (axis == -1) ? src_dims.size() : axis;
+    std::size_t actual_axis = (axis == -1) ? input_dims.size() : axis;
     for (size_t i = 0; i < actual_axis; ++i)
         prefix_size *= input_dims[i];
 
-    std::size_t suffix_size = getParentEdgeAt(0)->getBlob()->size() / prefix_size;
+    std::size_t suffix_size = getParentEdgeAt(0)->getMemory().GetShape().getElementsCount() / prefix_size;
 
     OneHotContext ctx = {this, prefix_size, suffix_size};
     OV_SWITCH(MKLDNNPlugin, OneHotExecute, ctx, output_precision.size(),

@@ -34,7 +34,6 @@ output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
   * **Description**: *alpha* represents the scaling attribute for the normalizing sum. For example, *alpha* equal `0.0001` means that the normalizing sum is multiplied by `0.0001`.
   * **Range of values**: no restrictions
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *beta*
@@ -42,7 +41,6 @@ output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
   * **Description**: *beta* represents the exponent for the normalizing sum. For example, *beta* equal `0.75` means that the normalizing sum is raised to the power of `0.75`.
   * **Range of values**: positive number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *bias*
@@ -50,7 +48,6 @@ output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
   * **Description**: *bias* represents the offset. Usually positive number to avoid dividing by zero.
   * **Range of values**: no restrictions
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *size*
@@ -58,7 +55,6 @@ output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
   * **Description**: *size* represents the side length of the region to be used for the normalization sum. The region can have one or more dimensions depending on the second input axes indices.
   * **Range of values**: positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
@@ -72,7 +68,7 @@ output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
 * **1**: Output tensor of type *T* and the same shape as the `data` input tensor.
 
 **Types**
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 * *T_IND*: any supported integer type.
 
 **Example**

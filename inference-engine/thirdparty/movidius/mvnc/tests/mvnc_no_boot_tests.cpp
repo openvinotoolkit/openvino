@@ -15,7 +15,6 @@ TEST_F(MvncNoBootOpenDevice, OpenAndClose) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_USB;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
@@ -28,7 +27,6 @@ TEST_F(MvncNoBootOpenDevice, OpenTwiceSameHandler) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_USB;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     char dev_addr_first_open[MAX_DEV_NAME];
     unsigned int data_length_first = MAX_DEV_NAME;
@@ -60,7 +58,6 @@ TEST_F(MvncNoBootOpenDevice, OpenDeviceWithOneXLinkInitializion) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_USB;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
@@ -93,7 +90,6 @@ TEST_F(MvncNoBootCloseDevice, AlreadyBootedDeviceWillNotReboot) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_USB;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));

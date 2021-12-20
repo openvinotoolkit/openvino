@@ -18,23 +18,40 @@ public:
     MKLDNNShuffleChannelsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNShuffleChannelsNode() override = default;
 
-    void getSupportedDescriptors() override;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void prepareParams() override;
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); };
 
 private:
-    ngraph::Shape inShape_;
-    int dataRank_;
-    int axis_;
-    size_t group_;
-    size_t groupSize_;
+    struct ShuffleChannelsAttributes {
+        LayoutType layoutType;
+        int dataRank = 0;
+        int axis = 0;
+        int spatialRank = 0;
+        size_t group = 0lu;
+        size_t dataSize = 1lu;
+    } attrs;
 
-    std::unique_ptr<PermuteKernel> permuteKernel_;
-    bool supportDynamicBatch_;
+    struct ShuffleChannelsExecutor final {
+        ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs, const VectorDims& srcDims, const VectorDims& srcBlockedDims);
+        void exec(const uint8_t* srcData, uint8_t* dstData, const int MB);
+        ~ShuffleChannelsExecutor() = default;
+
+    private:
+        std::unique_ptr<PermuteKernel> permuteKernel = nullptr;
+    };
+    using executorPtr = std::shared_ptr<ShuffleChannelsExecutor>;
+    executorPtr execPtr = nullptr;
+
+    bool supportDynamicBatch = false;
 };
 
 }  // namespace MKLDNNPlugin

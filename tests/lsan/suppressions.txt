@@ -12,6 +12,18 @@ leak:__pthread_once_slow
 # memory leaks in graphics driver
 leak:libigdrcl.so
 
+# leaks from python packages used by tests
+leak:site-packages/scipy/
+leak:site-packages/tensorflow/
+leak:site-packages/onnx/
+leak:site-packages/mxnet/
+
+# leaks from mostly tensorflow when used by tests
+leak:_PyObject_New
+leak:_PyLong_New
+leak:PyCode_NewWithPosOnlyArgs
+leak:PyLong_FromLongLong
+
 # Noisy leaks from pybind11. TODO: investigate.
 leak:pybind11
 

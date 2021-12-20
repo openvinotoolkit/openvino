@@ -6,9 +6,9 @@
 
 #include "test_utils.h"
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/pyramid_roi_align.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/pyramid_roi_align.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -108,7 +108,7 @@ TYPED_TEST(pyramid_roi_align_typed_test, smoke_4levels) {
                                { P2_scale, P3_scale, P4_scale, P5_scale },
                                starting_level));
 
-    auto net = network(engine, topo);
+    cldnn::network net(engine, topo);
     net.set_input_data("rois", rois_mem);
 
     std::vector<float> expected_out = {

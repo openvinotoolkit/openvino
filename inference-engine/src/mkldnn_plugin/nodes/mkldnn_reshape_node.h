@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include "mkldnn_input_node.h"
 
 namespace MKLDNNPlugin {
 
@@ -20,6 +21,21 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
+    bool isExecutable() const override {
+        return isDynamicNode();
+    }
+
+    bool needShapeInfer() const override;
+    std::vector<VectorDims> shapeInfer() const override;
+    bool needPrepareParams() const override { return false; }
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+private:
+    mutable std::vector<int> lastSecondInputValues;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

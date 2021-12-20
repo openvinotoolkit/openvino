@@ -4,7 +4,7 @@
 
 **Category**: *Data movement*
 
-**Short description**: The *SpaceToBatch* operation divides "spatial" dimensions `[1, ..., N - 1]` of the `data` input into a grid of blocks of shape `block_shape`, and interleaves these blocks with the batch dimension (0) such that in the output, the spatial dimensions `[1, ..., N - 1]` correspond to the position within the grid, and the batch dimension combines both the position within a spatial block and the original batch position. Prior to division into blocks, the spatial dimensions of the input are optionally zero padded according to `pads_begin` and `pads_end`. 
+**Short description**: The *SpaceToBatch* operation divides "spatial" dimensions `[1, ..., N - 1]` of the `data` input into a grid of blocks of shape `block_shape`, and interleaves these blocks with the batch dimension (0) such that in the output, the spatial dimensions `[1, ..., N - 1]` correspond to the position within the grid, and the batch dimension combines both the position within a spatial block and the original batch position. Prior to division into blocks, the spatial dimensions of the input are optionally zero padded according to `pads_begin` and `pads_end`.
 
 **Detailed description**:
 
@@ -33,10 +33,10 @@ where
 *   **2**: `block_shape` - input 1-D tensor of *T2* type with shape `[N]` that is equal to the size of `data` input shape. All values must be >= 1.  `block_shape[0]` is expected to be 1. **Required.**
 *   **3**: `pads_begin` - input 1-D tensor of *T2* type with shape `[N]` that is equal to the size of `data` input shape. All values must be non-negative. `pads_begin` specifies the padding for the beginning along each axis of `data` input . It is required that `block_shape[i]` divides `data_shape[i] + pads_begin[i] + pads_end[i]`. `pads_begin[0]` is expected to be 0. **Required.**
 *   **4**: `pads_end` - input 1-D tensor of *T2* type with shape `[N]` that is equal to the size of `data` input shape. All values must be non-negative. `pads_end` specifies the padding for the ending along each axis of `data` input. It is required that `block_shape[i]` divides `data_shape[i] + pads_begin[i] + pads_end[i]`. `pads_end[0]` is expected to be 0. **Required.**
- 
+
 **Outputs**
 
-*   **1**: N-D tensor with shape `[batch * block_shape[0] * block_shape[1] * ... * block_shape[N - 1], (D_1 + pads_begin[1] + pads_end[1]) / block_shape[1], (D_2 + pads_begin[2] + pads_end[2]) / block_shape[2], ..., (D_{N -1} + pads_begin[N - 1] + pads_end[N - 1]) / block_shape[N - 1]` of the same type as `data` input. 
+*   **1**: N-D tensor with shape `[batch * block_shape[0] * block_shape[1] * ... * block_shape[N - 1], (D_1 + pads_begin[1] + pads_end[1]) / block_shape[1], (D_2 + pads_begin[2] + pads_end[2]) / block_shape[2], ..., (D_{N -1} + pads_begin[N - 1] + pads_end[N - 1]) / block_shape[N - 1]` of the same type as `data` input.
 
 **Types**
 
@@ -54,9 +54,9 @@ where
             <dim>10</dim>   <!-- spatial dimension 2 -->
             <dim>3</dim>    <!-- spatial dimension 3 -->
             <dim>3</dim>    <!-- spatial dimension 4 -->
-        </port> 
+        </port>
         <port id="1">       <!-- block_shape value: [1, 2, 4, 3, 1] -->
-            <dim>5</dim>  
+            <dim>5</dim>
         </port>
         <port id="2">       <!-- pads_begin value: [0, 0, 1, 0, 0] -->
             <dim>5</dim>

@@ -4,6 +4,7 @@
 
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <map>
 #include <string>
@@ -148,6 +149,7 @@ bool get_imad_support(const cl::Device& device) {
 
 bool is_local_block_io_supported(const cl::Device& device) {
     try {
+        cl_int status = CL_SUCCESS;
         cl::Context ctx(device);
         std::string kernel_code =
             "__attribute__((intel_reqd_sub_group_size(8)))"
@@ -166,16 +168,23 @@ bool is_local_block_io_supported(const cl::Device& device) {
             return false;
         cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
         cl::Kernel kernel(program, "is_local_block_io_supported");
-        kernel.setArg(0, buffer);
+        status = kernel.setArg(0, buffer);
+
+        if (status != CL_SUCCESS)
+            return false;
 
         cl::Event ev;
         cl::CommandQueue queue(ctx, device);
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev);
+        status = queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev);
+        if (status != CL_SUCCESS)
+            return false;
         ev.wait();
 
         uint8_t result[8];
         uint8_t expected[8] = { 1, 3, 5, 7, 9, 11, 13, 15 };
-        queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(uint8_t) * 8, &result);
+        status = queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(uint8_t) * 8, &result);
+        if (status != CL_SUCCESS)
+            return false;
         for (int i = 0; i < 8; ++i) {
             if (result[i] != expected[i])
                 return false;
@@ -198,10 +207,6 @@ device_info init_device_info(const cl::Device& device) {
     info.gpu_frequency = static_cast<uint32_t>(device.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>());
 
     info.max_work_group_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>());
-
-    // looks like WA. Do we still need it?
-    if (info.max_work_group_size > 256)
-        info.max_work_group_size = 256;
 
     info.max_local_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>());
     info.max_global_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>());
@@ -226,13 +231,20 @@ device_info init_device_info(const cl::Device& device) {
     info.supports_imad = get_imad_support(device);
     info.supports_immad = false;
 
-    info.max_threads_per_execution_unit = 7;
-    info.max_threads_per_device = static_cast<uint32_t>(info.execution_units_count * info.max_threads_per_execution_unit);
-
     info.supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
 
     info.supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos &&
                                    is_local_block_io_supported(device);
+
+    info.supports_queue_families = extensions.find("cl_intel_command_queue_families") != std::string::npos;
+
+    bool sub_group_sizes_supported = extensions.find("cl_intel_required_subgroup_size") != std::string::npos;
+    if (sub_group_sizes_supported) {
+        info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
+    } else {
+        // Set these values as reasonable default for most of the supported platforms
+        info.supported_simd_sizes = {8, 16, 32};
+    }
 
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
 
@@ -246,6 +258,10 @@ device_info init_device_info(const cl::Device& device) {
         auto features = device.getInfo<CL_DEVICE_FEATURE_CAPABILITIES_INTEL>();
 
         info.supports_imad = info.supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
+        info.supports_immad = info.supports_immad || (features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->disable_onednn)
+            info.supports_immad = false;
     } else {
         info.gfx_ver = {0, 0, 0};
         info.device_id = driver_dev_id();
@@ -291,6 +307,14 @@ ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl_pl
 , _platform(platform)
 , _info(init_device_info(dev))
 , _mem_caps(init_memory_caps(dev, _info)) { }
+
+bool ocl_device::is_same(const device::ptr other) {
+    auto casted = downcast<ocl_device>(other.get());
+    if (!casted)
+        return false;
+
+    return _context == casted->get_context() && _device == casted->get_device() && _platform == casted->get_platform();
+}
 
 }  // namespace ocl
 }  // namespace cldnn

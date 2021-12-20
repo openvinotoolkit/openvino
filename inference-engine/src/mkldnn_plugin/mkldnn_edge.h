@@ -5,11 +5,9 @@
 #pragma once
 
 #include <ie_blob.h>
-#include <memory>
-#include "mkldnn_memory.h"
-#include "mkldnn_dims.h"
+#include "cpu_shape.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "mkldnn_weights_cache.hpp"
-#include "mkldnn/ie_mkldnn.h"
 
 #include <map>
 #include <memory>
@@ -37,6 +35,12 @@ public:
         Validated
     };
 
+    enum class ReorderStatus {
+        Regular = 0,
+        Optimized = 1,
+        No = 2
+    };
+
     inline Status getStatus() const noexcept {
         return status;
     }
@@ -53,14 +57,10 @@ public:
     const std::shared_ptr<MKLDNNNode> getParent() const;
     const std::shared_ptr<MKLDNNNode> getChild() const;
 
-    InferenceEngine::Blob::Ptr getBlob();
-    InferenceEngine::TensorDesc getDesc();
-
-    const MKLDNNDims &getDims();
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
-    bool needReorder();
+    ReorderStatus needReorder();
     bool isDropped() const;
     bool isUseExternalMemory() const;
 
@@ -73,34 +73,27 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
-    const InferenceEngine::TensorDesc& getInputDescRO() const;
-    const InferenceEngine::TensorDesc& getOutputDescRO() const;
+    bool hasDefinedMaxSize() const {
+        return getDesc().hasDefinedMaxSize();
+    }
 
 private:
-    std::string name();
+    std::string name() const;
 
     std::weak_ptr<MKLDNNNode> parent;
     std::weak_ptr<MKLDNNNode> child;
     int parent_port;
     int child_port;
 
-    bool externalMemoryPtr = false;
+    bool useExternalMemory = false;
     MKLDNNEdgeWeakPtr memoryFromEdge;
-    MKLDNNDims dims;
     MKLDNNMemoryPtr memoryPtr;
     Status status = Status::Uninitialized;
 
-    InferenceEngine::TensorDesc getInputDesc();
-    InferenceEngine::TensorDesc getOutputDesc();
-    InferenceEngine::TensorDesc getSpecifiedInputDesc(std::map<mkldnn::memory::format_tag, size_t> formats,
-                                                      size_t enterCountUp = 1, size_t enterCountDown = 0);
-    InferenceEngine::TensorDesc getSpecifiedOutputDesc(std::map<mkldnn::memory::format_tag, size_t> formats,
-                                                       size_t enterCountUp = 0, size_t enterCountDown = 1);
-
-    InferenceEngine::TensorDesc inputDesc;
-    InferenceEngine::TensorDesc outputDesc;
-
-    bool nodeCanChangeDesc(const std::shared_ptr<MKLDNNPlugin::MKLDNNNode>& node) const;
+    const MemoryDesc& getInputDesc() const;
+    const MemoryDesc& getOutputDesc() const;
+    const MemoryDesc& getDesc() const;
+    bool enforceReorder();
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 

@@ -1,18 +1,52 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-cmake_minimum_required(VERSION 3.13)
 
-project(python_tools)
+#
+# C++ tools
+#
 
-if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage QUIET)
-endif()
+add_subdirectory(compile_tool)
+
+#
+# Python tools
+#
+
+# install deployment_manager
+
+ie_cpack_add_component(deployment_manager REQUIRED)
+
+install(DIRECTORY deployment_manager
+        DESTINATION tools
+        COMPONENT deployment_manager
+        USE_SOURCE_PERMISSIONS)
+
+# outbound requirements.txt files for openvino-dev package
+
+set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
+set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
+ie_cpack_add_component(openvino_dev_req_files)
+
+foreach(EXTRAS ${EXTRAS_LIST})
+    if(${EXTRAS} STREQUAL "_")
+        set(REQUIREMENTS_OUT "requirements.txt")
+        set(EXTRAS "")
+    else()
+        set(REQUIREMENTS_OUT "requirements_${EXTRAS}.txt")
+        set(EXTRAS "[${EXTRAS}]")
+    endif()
+    configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
+
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
+        DESTINATION tools
+        COMPONENT openvino_dev_req_files
+        EXCLUDE_FROM_ALL)
+endforeach()
+
+# copy benchmark_app scripts
 
 if(ENABLE_PYTHON)
     find_package(PythonInterp 3 REQUIRED)
     set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-
-    set(TARGET_NAME "python_tools")
 
     if(WIN32)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
@@ -21,30 +55,36 @@ if(ENABLE_PYTHON)
     endif()
 
     # creates a copy inside bin directory for developers to have ability running python benchmark_app
-    add_custom_target(${TARGET_NAME} ALL
+    add_custom_target(python_tools_benchmark ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINO_SOURCE_DIR}/tools/benchmark ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_tool/openvino/tools/benchmark
+                                                   ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
     )
 
-    ie_cpack_add_component(python_tools_${PYTHON_VERSION})
-    ie_cpack_add_component(python_tools)
+    # install BA tool for tests
+    install(FILES benchmark_tool/README.md
+                  benchmark_tool/requirements.txt
+            DESTINATION tools/benchmark_tool
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 
-    install(DIRECTORY ../inference-engine/tools/benchmark_tool
-            DESTINATION deployment_tools/tools
-            COMPONENT python_tools)
+    install(PROGRAMS benchmark_tool/benchmark_app.py
+            DESTINATION tools/benchmark_tool
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 
-    install(DIRECTORY ../inference-engine/tools/cross_check_tool
-            DESTINATION deployment_tools/tools
-            COMPONENT python_tools)
-
-    install(FILES README.md
-            DESTINATION python/${PYTHON_VERSION}/openvino/tools
-            COMPONENT python_tools_${PYTHON_VERSION})
-
-    install(DIRECTORY benchmark
+    # install openvino/tools/benchmark as a python package
+    install(DIRECTORY benchmark_tool/openvino/tools/benchmark
             DESTINATION python/${PYTHON_VERSION}/openvino/tools
             USE_SOURCE_PERMISSIONS
-            COMPONENT python_tools_${PYTHON_VERSION})
-    
-    ie_cpack(python_tools python_tools_${PYTHON_VERSION})
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()
+
+add_subdirectory(mo)
+
+# build and install openvino-dev wheel
+
+if(ENABLE_WHEEL)
+    add_subdirectory(openvino_dev)
 endif()

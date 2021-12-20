@@ -10,6 +10,9 @@
 
 #include <cpu/ref_eltwise.hpp>
 #include <cpu/ref_depthwise_injector.hpp>
+#include "utils/bfloat16.hpp"
+#include "utils/cpu_utils.hpp"
+#include "ie_parallel.hpp"
 
 using namespace InferenceEngine;
 
@@ -75,7 +78,8 @@ class MKLDNNNormalizeL2Node : public MKLDNNNode {
 public:
     MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    void getSupportedDescriptors() override;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
@@ -83,72 +87,86 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
     bool canFuse(const MKLDNNNodePtr& node) const override;
+
+    std::vector<VectorDims> shapeInfer() const override;
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
 private:
     enum class NormEpsMode {
         ADD,
         MAX
     };
-    NormEpsMode epsMode = NormEpsMode::ADD;
 
-    float epsApply(const float &modulo) const {
-        if (epsMode == NormEpsMode::ADD) {
-            return modulo + eps;
-        } else if (epsMode == NormEpsMode::MAX) {
-            return std::max(modulo, eps);
-        } else {
-            IE_THROW() << errorPrefix << "has unsupported epsilon mode";
+    struct NormalizeL2Attrs {
+        NormEpsMode epsMode = NormEpsMode::ADD;
+        bool across_spatial = true;
+        bool cornerCase = false;
+        float eps = 1e-10f;
+
+        bool is_nchw = false;
+        bool is_nhwc = false;
+        bool is_blk = false;
+
+        InferenceEngine::Precision input_prec = Precision::UNSPECIFIED;
+        InferenceEngine::Precision output_prec = Precision::UNSPECIFIED;
+        size_t src_data_size = 0lu;
+        size_t dst_data_size = 0lu;
+    } attrs;
+
+    class NormalizeL2Executor {
+    public:
+        NormalizeL2Executor() = default;
+        virtual void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) = 0;
+        virtual ~NormalizeL2Executor() = default;
+
+        static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
+                                                                           const mkldnn::primitive_attr& kernel_attr,
+                                                                           const VectorDims& dims);
+
+    protected:
+        inline float epsApply(const float &modulo, const NormEpsMode mode, const float eps) const {
+            return mode == NormEpsMode::ADD ? modulo + eps : std::max(modulo, eps);
         }
-    }
 
-    bool cornerCase = false;
+    private:
+        template <typename in_data_t, typename out_data_t>
+        static std::shared_ptr<NormalizeL2Executor> makeExecutor(const NormalizeL2Attrs& attrs,
+                                                                 const mkldnn::primitive_attr& kernel_attrs,
+                                                                 const VectorDims& dims);
 
-    template<typename T>
-    struct NormalizeExecute;
+        struct NormalizeContext {
+            std::shared_ptr<NormalizeL2Executor> executor;
+            NormalizeL2Attrs attrs;
+            mkldnn::primitive_attr kernel_attrs;
+            VectorDims dims;
+        };
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+        template<typename T>
+        struct NormalizeExecutorCreation {
+            using src_t = typename std::tuple_element<0, T>::type;
+            using dst_t = typename std::tuple_element<1, T>::type;
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+            void operator()(NormalizeContext& ctx) {
+                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs, ctx.kernel_attrs, ctx.dims);
+            }
+        };
+    };
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+    template <typename in_data_t, typename out_data_t> struct NormalizeL2CornerCaseExecutor;
+    template <typename in_data_t, typename out_data_t> struct NormalizeL2JitExecutor;
+    template <typename in_data_t, typename out_data_t> struct NormalizeL2ReferenceExecutor;
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+    mkldnn::primitive_attr kernel_attrs;
 
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
-    inline void apply_post_ops_scalar(float &dst_value, int index_c);
+    void setPostOps(mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights = false);
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_function(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+    static constexpr size_t DATA = 0;
+    static constexpr size_t AXES = 1;
 
-    bool across_spatial = true;
-    float eps = 1e-10f;
-
-    InferenceEngine::Precision input_prec, output_prec;
-    size_t src_data_size, dst_data_size;
-
-    mkldnn::primitive_attr attr;
-
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-
-    std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
-    std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
-
-    std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
-    std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
-
-    jit_normalize_config_params jcp = {};
-
-    static const size_t DATA = 0;
-    static const size_t AXES = 1;
-
-    std::string errorPrefix;
+    using executorPtr = std::shared_ptr<NormalizeL2Executor>;
+    executorPtr execPtr = nullptr;
 };
 
 }  // namespace MKLDNNPlugin

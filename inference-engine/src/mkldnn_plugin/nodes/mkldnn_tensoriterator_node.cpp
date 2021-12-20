@@ -10,6 +10,9 @@
 #include <mkldnn_extension_utils.h>
 #include <ie_ngraph_utils.hpp>
 #include <utils/general_utils.h>
+#include "common/blocked_desc_creator.h"
+#include "utils/ngraph_utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -17,24 +20,28 @@ using namespace InferenceEngine::details;
 
 namespace MKLDNNPlugin {
 
-static InferenceEngine::LayerConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
-    InferenceEngine::LayerConfig config;
+static NodeConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
+    NodeConfig config;
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
-        const auto& dims = op->get_input_shape(i);
+        const auto &origShape = op->get_input_partial_shape(i);
+        const auto& shape = Shape(origShape.rank().get_length() == 0 ? ngraph::PartialShape{1} : origShape);
         const auto prec = InferenceEngine::details::convertPrecision(op->get_input_element_type(i));
 
-        InferenceEngine::DataConfig data_conf {};
-        data_conf.desc = InferenceEngine::TensorDesc { prec, dims, InferenceEngine::TensorDesc::getLayoutByDims(dims) };
+        PortConfig data_conf {};
+        auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
+        data_conf.desc = descCreator->createSharedDesc(prec, shape);
         config.inConfs.push_back(data_conf);
     }
 
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        const auto& dims = op->get_output_shape(i);
+        const auto &origShape = op->get_output_partial_shape(i);
+        const auto& shape = Shape(origShape.rank().get_length() == 0 ? ngraph::PartialShape{1} : origShape);
         const auto prec = InferenceEngine::details::convertPrecision(op->get_output_element_type(i));
 
-        InferenceEngine::DataConfig data_conf {};
-        data_conf.desc = InferenceEngine::TensorDesc { prec, dims, InferenceEngine::TensorDesc::getLayoutByDims(dims) };
+        PortConfig data_conf {};
+        auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
+        data_conf.desc = descCreator->createSharedDesc(prec, shape);
         config.outConfs.push_back(data_conf);
     }
 
@@ -53,8 +60,8 @@ public:
         auto axis = slice_rule.axis;
         auto stride = slice_rule.stride;
 
-        auto full_dims = full_blob->GetDims();
-        auto part_dims = part_blob->GetDims();
+        auto full_dims = full_blob->GetShape().getStaticDims();
+        auto part_dims = part_blob->GetShape().getStaticDims();
 
         auto abs_stride = std::abs(stride);
         auto sign_of_stride = stride < 0.0f ? -1 : 1;
@@ -65,7 +72,7 @@ public:
         IE_ASSERT(full_dims == part_dims) << "Shape mismatch for tensor iterator port";
 
         // make chunk view
-        auto chunk_desc =  full_blob->GetDescriptor();
+        auto chunk_desc = full_blob->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         chunk_desc.data.dims[axis] = abs_stride;
         chunk_desc.data.padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
@@ -129,7 +136,7 @@ public:
     IterCountPortHelper(const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
         // Only scalar I32 tensor is supported
         IE_ASSERT(to->GetDataType() == memory::data_type::s32);
-        IE_ASSERT(to->GetDims() == memory::dims{1});
+        IE_ASSERT(to->GetShape() == Shape(InferenceEngine::SizeVector{1}));
         mem_holder_dst = to->GetPrimitive();
     }
 
@@ -147,7 +154,7 @@ class asBoolCheck : public PortChecker {
 public:
     asBoolCheck(const MKLDNNMemoryPtr &mem) {
         IE_ASSERT(mem->GetDataType() == memory::data_type::u8);
-        IE_ASSERT(mem->GetDims() == memory::dims{1});
+        IE_ASSERT(mem->GetShape() == Shape(InferenceEngine::SizeVector{1}));
         mem_holder = mem->GetPrimitive();
     }
 
@@ -164,7 +171,8 @@ class asIntCheck : public PortChecker {
 public:
     asIntCheck(const MKLDNNMemoryPtr &mem) {
         IE_ASSERT(mem->GetDataType() == memory::data_type::s32);
-        IE_ASSERT(mem->GetDims() == memory::dims{1});
+        const auto a = Shape(InferenceEngine::SizeVector{1});
+        IE_ASSERT(mem->GetShape() == a);
         mem_holder = mem->GetPrimitive();
     }
 
@@ -190,7 +198,7 @@ private:
 
 }  // namespace MKLDNNPlugin
 
-int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) {
+static int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) {
     const auto isIterable = [](const PortMap& rule) { return rule.axis != -1; };
 
     const auto getNumIterations = [](const PortMap& rule, const std::vector<size_t>& dimensions) -> int {
@@ -270,9 +278,14 @@ int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::ve
 
 bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::TensorIterator::type_info,
-                ngraph::op::v5::Loop::type_info)) {
+                ngraph::op::v0::TensorIterator::get_type_info_static(),
+                ngraph::op::v5::Loop::get_type_info_static())) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
             return false;
         }
@@ -309,11 +322,8 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
 
     const auto &outMap = sub_graph.GetOutputNodesMap();
     for (const auto &out : tiOp->get_function()->get_results()) {
-        auto prev = out->get_input_node_shared_ptr(0);
-        std::string inputID = prev->get_friendly_name();
-        if (prev->get_output_size() > 1) {
-            inputID += "." + std::to_string(out->get_input_source_output(0).get_index());
-        }
+        const auto prev = out->input_value(0);
+        const auto inputID = ngraph::op::util::create_ie_output_name(prev);
         auto outNode = outMap.find(inputID);
         if (outNode != outMap.end()) {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();

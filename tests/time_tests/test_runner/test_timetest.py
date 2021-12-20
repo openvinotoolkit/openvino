@@ -18,21 +18,33 @@ from pathlib import Path
 import logging
 import os
 import shutil
+import sys
+
+# add utils folder to imports
+UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
+sys.path.insert(0, str(UTILS_DIR))
+
+from path_utils import expand_env_vars
+
+TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(TIME_TESTS_DIR)
 
 from scripts.run_timetest import run_timetest
-from test_runner.utils import expand_env_vars
 
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, temp_dir, validate_test_case,
-                  prepare_db_info):
+def test_timetest(instance, executable, niter, cl_cache_dir, cpu_cache, vpu_compiler, perf_hint, model_cache_dir,
+                  test_info, temp_dir, validate_test_case, prepare_db_info):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
     :param executable: timetest executable to run
     :param niter: number of times to run executable
     :param cl_cache_dir: directory to store OpenCL cache
+    :param cpu_cache: flag to enable model CPU cache
+    :param vpu_compiler: flag to change VPUX compiler type
+    :param perf_hint: performance hint (optimize device for latency or throughput settings)
     :param model_cache_dir: directory to store IE model cache
     :param test_info: custom `test_info` field of built-in `request` pytest fixture
     :param temp_dir: path to a temporary directory. Will be cleaned up after test run
@@ -54,7 +66,10 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, te
         "executable": Path(executable),
         "model": Path(model_path),
         "device": instance["device"]["name"],
-        "niter": niter
+        "niter": niter,
+        "perf_hint": perf_hint,
+        "cpu_cache": cpu_cache,
+        "vpu_compiler": vpu_compiler if vpu_compiler else ""
     }
     logging.info("Run timetest once to generate any cache")
     retcode, msg, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)

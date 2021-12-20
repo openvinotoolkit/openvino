@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/depth_to_space.hpp"
+#include "intel_gpu/primitives/depth_to_space.hpp"
 #include "primitive_inst.h"
 #include "kernel_selector/core/actual_kernels/depth_to_space/depth_to_space_kernel_base.h"
 
@@ -36,7 +36,7 @@ public:
     static std::string to_string(depth_to_space_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, depth_to_space_node const& desc);
+    typed_primitive_inst(network& network, depth_to_space_node const& desc);
 };
 
 using depth_to_space_inst = typed_primitive_inst<depth_to_space>;

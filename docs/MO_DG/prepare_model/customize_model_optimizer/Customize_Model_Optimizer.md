@@ -34,7 +34,7 @@
 
 <a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the 
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
-mechanism is a core part of the Model Optimizer. The Model Optimizer itself uses it under the hood, being a huge set of examples on how to add custom logic to support your model.
+mechanism is a core part of the Model Optimizer, which uses it under the hood, so the Model Optimizer itself is a huge set of examples for adding custom logic to support your model.
 
 There are several cases when the customization is needed:
 
@@ -285,10 +285,9 @@ More information on how to develop middle transformations and dedicated API desc
 ### NHWC to NCHW Layout Change <a name="layout-change"></a>
 There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations
 are triggered by default for TensorFlow\* models only because it is the only framework with Convolution operations in
-NHWC layout.
-
-> **NOTE**: If a TensorFlow\* model is in NCHW layout, you should specify the `--disable_nhwc_to_nchw` command line
-> parameter to disable these transformations.
+NHWC layout. This layout change is disabled if the model does not have operations that OpenVINO&trade needs to execute in
+NCHW layout, for example, Convolutions in NHWC layout. It is still possible to force Model Optimizer to do layout change
+using `--disable_nhwc_to_nchw` command-line parameter.
 
 The layout change is a complex problem and detailed explanation of it is out of this document scope. A very brief
 explanation of this process is provided below:

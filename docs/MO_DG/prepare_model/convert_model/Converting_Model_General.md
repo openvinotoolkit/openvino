@@ -1,11 +1,11 @@
 # Converting a Model Using General Conversion Parameters {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General}
 
-To simply convert a model trained by any supported framework, run the Model Optimizer launch script ``mo.py`` specifying a path to the input model file and an output directory where you have write permissions:
+To simply convert a model trained by any supported framework, run the Model Optimizer launch script ``mo`` specifying a path to the input model file and an output directory where you have write permissions:
 ```sh
-python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-The script is in `$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/`. The output directory must have write permissions, so you can run mo.py from the output directory or specify an output path with the `--output_dir` option.
+The script is in `$INTEL_OPENVINO_DIR/tools/model_optimizer/`. The output directory must have write permissions, so you can run mo from the output directory or specify an output path with the `--output_dir` option.
 
 > **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For details, refer to [When to Reverse Input Channels](#when_to_reverse_input_channels).
 
@@ -59,11 +59,14 @@ Framework-agnostic parameters:
   --reverse_input_channels
                         Switch the input channels order from RGB to BGR (or
                         vice versa). Applied to original inputs of the model
-                        if and only if a number of channels equals 3. Applied
-                        after application of --mean_values and --scale_values
-                        options, so numbers in --mean_values and
-                        --scale_values go in the order of channels used in the
-                        original model.
+                        if and only if a number of channels equals 3.
+                        When --mean_values/--scale_values are also specified,
+                        reversing of channels will be applied to user's input
+                        data first, so that numbers in --mean_values and
+                        --scale_values go in the order of channels used in
+                        the original model. In other words, if both options are
+                        specified then the data flow in the model looks as following:
+                        Parameter -> ReverseInputChannels -> Mean/Scale apply -> the original body of the model.
   --log_level {CRITICAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
                         Logger level
   --input INPUT         Quoted list of comma-separated input nodes names with
@@ -99,7 +102,7 @@ Framework-agnostic parameters:
   --data_type {FP16,FP32,half,float}
                         Data type for all intermediate tensors and weights. If
                         original model is in FP32 and --data_type=FP16 is
-                        specified, all model weights and biases are quantized
+                        specified, all model weights and biases are compressed
                         to FP16.
   --disable_fusing      Turn off fusing of linear operations to Convolution
   --disable_resnet_optimization
@@ -151,7 +154,7 @@ Usually neural network models are trained with the normalized input data. This m
  
 In the first case, the Model Optimizer generates the IR with required pre-processing layers and Inference Engine samples may be used to infer the model. 
  
-In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. 
+In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--scale`, `--scale_values`, `--mean_values`. 
 
 If both mean and scale values are specified, the mean is subtracted first and then scale is applied. Input values are *divided* by the scale value(s). 
 
@@ -174,55 +177,54 @@ Resulting Intermediate Representation will not be resizable with the help of Inf
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with debug log level:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --log_level DEBUG --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model bvlc_alexnet.caffemodel --log_level DEBUG --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with the output IR called `result.*` in the specified `output_dir`:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --model_name result --output_dir /../../models/ 
+ mo --input_model bvlc_alexnet.caffemodel --model_name result --output_dir /../../models/ 
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with one input with scale values:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59] --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model bvlc_alexnet.caffemodel --scale_values [59,59,59] --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale values:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model bvlc_alexnet.caffemodel --input data,rois --scale_values [59,59,59],[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with multiple inputs with scale and mean values specified for the particular nodes:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model bvlc_alexnet.caffemodel --input data,rois --mean_values data[59,59,59] --scale_values rois[5,5,5] --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with specified input layer, overridden input shape, scale 5, batch 8 and specified name of an output operation:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8 --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model bvlc_alexnet.caffemodel --input "data[1 3 224 224]" --output pool5 -s 5 -b 8 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with disabled fusing for linear operations to Convolution and grouped convolutions:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --disable_fusing --disable_gfusing --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model bvlc_alexnet.caffemodel --disable_fusing --disable_gfusing --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for the Caffe bvlc_alexnet model with reversed input channels order between RGB and BGR, specified mean values to be used for the input image per channel and specified data type for input tensor values:
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model bvlc_alexnet.caffemodel --reverse_input_channels --mean_values [255,255,255] --data_type FP16 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto.
- file For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
+Launch the Model Optimizer for the Caffe bvlc_alexnet model with extensions listed in specified directories, specified mean_images binaryproto file. For more information about extensions, please refer to [this](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md) page.
 ```sh
-python3 mo.py --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model bvlc_alexnet.caffemodel --extensions /home/,/some/other/path/ --mean_file /path/to/binaryproto --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for TensorFlow* FaceNet* model with a placeholder freezing value. 
 It replaces the placeholder with a constant layer that contains the passed value.
 For more information about FaceNet conversion, please refer to [this](tf_specific/Convert_FaceNet_From_Tensorflow.md) page
 ```sh
-python3 mo.py --input_model FaceNet.pb --input "phase_train->False" --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model FaceNet.pb --input "phase_train->False" --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Launch the Model Optimizer for any model with a placeholder freezing tensor of values. 
@@ -232,5 +234,5 @@ Tensor here is represented in square brackets with each value separated from ano
 If data type is set in the model, this tensor will be reshaped to a placeholder shape and casted to placeholder data type.
 Otherwise, it will be casted to data type passed to `--data_type` parameter (by default, it is FP32).
 ```sh
-python3 mo.py --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --output_dir <OUTPUT_MODEL_DIR>
 ```

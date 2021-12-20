@@ -11,7 +11,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNEmbeddingBagOffsetSumNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNEmbeddingBagOffsetSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto embBagOffsetSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagOffsetsSum>(op);
         if (!embBagOffsetSumOp) {
@@ -31,14 +31,11 @@ MKLDNNEmbeddingBagOffsetSumNode::MKLDNNEmbeddingBagOffsetSumNode(const std::shar
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (op->get_input_shape(INDICES_IDX).size() != 1)
-        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid shape.";
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
+        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
 
-    if (op->get_input_shape(OFFSETS_IDX).size() != 1)
-        IE_THROW() << "'" << _layerName << "' layer's offsets data has invalid shape.";
-
-    _indicesLen = op->get_input_shape(INDICES_IDX)[0];
-    _offsetsLen = op->get_input_shape(OFFSETS_IDX)[0];
+    if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1ul)
+        IE_THROW() << "'" << _layerName << "' layer's offsets data has invalid rank.";
 }
 
 void MKLDNNEmbeddingBagOffsetSumNode::initSupportedPrimitiveDescriptors() {
@@ -62,15 +59,29 @@ void MKLDNNEmbeddingBagOffsetSumNode::initSupportedPrimitiveDescriptors() {
             IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
     }
 
-    std::vector<DataConfigurator> inDataConfigurators({{TensorDescCreatorTypes::ncsp, inDataPrecision},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32}});
-    if (getOriginalInputsNumber() > DEFAULT_INDEX_IDX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, Precision::I32});
-    if (getOriginalInputsNumber() > PER_SAMPLE_WEIGHTS_IDX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, inDataPrecision});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
+                                                       {LayoutType::ncsp, Precision::I32},
+                                                       {LayoutType::ncsp, Precision::I32}});
+    if (inputShapes.size() > DEFAULT_INDEX_IDX)
+        inDataConfigurators.push_back({LayoutType::ncsp, Precision::I32});
+    if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX)
+        inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
-    addSupportedPrimDesc(inDataConfigurators, {{TensorDescCreatorTypes::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+}
+
+void MKLDNNEmbeddingBagOffsetSumNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNEmbeddingBagOffsetSumNode::prepareParams() {
+    _indicesLen = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[0];
+    _offsetsLen = getParentEdgesAtPort(OFFSETS_IDX)[0]->getMemory().getStaticDims()[0];
+    MKLDNNEmbeddingBagSumNode::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
 }
 
 void MKLDNNEmbeddingBagOffsetSumNode::initFromInputs() {
@@ -122,7 +133,9 @@ void MKLDNNEmbeddingBagOffsetSumNode::execute(mkldnn::stream strm) {
     if (_withWeights)
         weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
-    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, getParentEdgeAt(0)->getDesc(), getChildEdgeAt(0)->getDesc());
+    const auto &inputMem  = getParentEdgeAt(0)->getMemory();
+    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, inputMem .getDesc().getPrecision(),
+                                       inputMem .getStaticDims(), getChildEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims());
 }
 
 bool MKLDNNEmbeddingBagOffsetSumNode::created() const {

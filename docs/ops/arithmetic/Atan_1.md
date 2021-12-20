@@ -2,7 +2,7 @@
 
 **Versioned name**: *Atan-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Atan* performs element-wise inverse tangent (arctangent) operation with given tensor.
 

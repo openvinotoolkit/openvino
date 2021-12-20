@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/stream.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "ocl_common.hpp"
 #include "ocl_engine.hpp"
 
@@ -50,6 +50,7 @@ public:
     const ocl_queue_type& get_cl_queue() const { return _command_queue; }
 
     explicit ocl_stream(const ocl_engine& engine);
+    ocl_stream(const ocl_engine &engine, void *handle);
     ocl_stream(ocl_stream&& other)
         : stream(other._engine.configuration().queue_type)
         , _engine(other._engine)
@@ -79,6 +80,12 @@ public:
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
 
+    static queue_types detect_queue_type(void* queue_handle);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    dnnl::stream& get_onednn_stream() override;
+#endif
+
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
@@ -89,6 +96,10 @@ private:
     cl::Event _last_barrier_ev;
 
     sync_methods sync_method;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
+#endif
 };
 
 }  // namespace ocl

@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/stream.hpp"
-#include "cldnn/runtime/device_query.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
 
@@ -18,10 +19,10 @@
 
 namespace cldnn {
 
-engine::engine(const device::ptr device, const engine_configuration& configuration)
-: _memory_pool(new memory_pool(*this))
-, _device(device)
-, _configuration(configuration) {}
+engine::engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor)
+: _device(device)
+, _configuration(configuration)
+, _task_executor(task_executor) {}
 
 device_info engine::get_device_info() const {
     return _device->get_info();
@@ -32,6 +33,10 @@ const device::ptr engine::get_device() const {
 }
 
 bool engine::use_unified_shared_memory() const {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_usm) {
+        return false;
+    }
     if (_device->get_mem_caps().supports_usm() && _configuration.use_unified_shared_memory) {
         return true;
     }
@@ -67,17 +72,6 @@ allocation_type engine::get_lockable_preffered_memory_allocation_type(bool is_im
     throw std::runtime_error("[clDNN internal error] Could not find proper allocation type!");
 }
 
-memory::ptr engine::get_memory_from_pool(const layout& layout,
-                                         primitive_id id,
-                                         uint32_t network_id,
-                                         std::set<primitive_id> dependencies,
-                                         allocation_type type,
-                                         bool reusable) {
-    if (_configuration.use_memory_pool)
-        return _memory_pool->get_memory(layout, id, network_id, dependencies, type, reusable);
-    return _memory_pool->get_memory(layout, type);
-}
-
 memory::ptr engine::attach_memory(const layout& layout, void* ptr) {
     return std::make_shared<simple_attached_memory>(layout, ptr);
 }
@@ -89,6 +83,17 @@ memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
 
 memory_ptr engine::share_buffer(const layout& layout, shared_handle buf) {
     shared_mem_params params = { shared_mem_type::shared_mem_buffer, nullptr, nullptr, buf,
+#ifdef _WIN32
+        nullptr,
+#else
+        0,
+#endif
+        0 };
+    return reinterpret_handle(layout, params);
+}
+
+memory_ptr engine::share_usm(const layout& layout, shared_handle usm_ptr) {
+    shared_mem_params params = { shared_mem_type::shared_mem_usm, nullptr, nullptr, usm_ptr,
 #ifdef _WIN32
         nullptr,
 #else
@@ -126,35 +131,95 @@ memory_ptr engine::share_surface(const layout& layout, shared_surface surf, uint
 }
 #endif  // _WIN32
 
-memory_pool& engine::get_memory_pool() {
-    return *_memory_pool.get();
-}
-
 uint64_t engine::get_max_used_device_memory() const {
-    return _memory_pool->get_max_peak_device_memory_used();
+    std::lock_guard<std::mutex> guard(_mutex);
+    uint64_t total_peak_memory_usage {0};
+    for (auto const& m : _peak_memory_usage_map) {
+        total_peak_memory_usage += m.second.load();
+    }
+    return total_peak_memory_usage;
 }
 
-uint64_t engine::get_used_device_memory() const {
-    return _memory_pool->get_temp_memory_used();
+uint64_t engine::get_max_used_device_memory(allocation_type type) const {
+    std::lock_guard<std::mutex> guard(_mutex);
+    uint64_t peak_memory_usage {0};
+    auto iter = _peak_memory_usage_map.find(type);
+    if (iter != _peak_memory_usage_map.end()) {
+        peak_memory_usage = iter->second.load();
+    }
+    return peak_memory_usage;
+}
+
+uint64_t engine::get_used_device_memory(allocation_type type) const {
+    std::lock_guard<std::mutex> guard(_mutex);
+    uint64_t memory_usage {0};
+    auto iter = _memory_usage_map.find(type);
+    if (iter != _memory_usage_map.end()) {
+        memory_usage = iter->second.load();
+    }
+    return memory_usage;
+}
+
+std::map<std::string, uint64_t> engine::get_memory_statistics() const {
+    std::map<std::string, uint64_t> statistics;
+    for (auto const& m : _memory_usage_map) {
+        std::ostringstream oss;
+        oss << m.first << "_current";
+        statistics[oss.str()] = m.second.load();
+    }
+    for (auto const& m : _peak_memory_usage_map) {
+        std::ostringstream oss;
+        oss << m.first << "_peak";
+        statistics[oss.str()] = m.second.load();
+    }
+    return statistics;
+}
+
+void engine::add_memory_used(size_t bytes, allocation_type type) {
+    std::lock_guard<std::mutex> guard(_mutex);
+    if (!_memory_usage_map.count(type) && !_peak_memory_usage_map.count(type)) {
+        _memory_usage_map[type] = 0;
+        _peak_memory_usage_map[type] = 0;
+    }
+    _memory_usage_map[type] += bytes;
+    if (_memory_usage_map[type] > _peak_memory_usage_map[type]) {
+        _peak_memory_usage_map[type] = _memory_usage_map[type].load();
+    }
+}
+
+void engine::subtract_memory_used(size_t bytes, allocation_type type) {
+    std::lock_guard<std::mutex> guard(_mutex);
+    auto iter = _memory_usage_map.find(type);
+    if (iter != _memory_usage_map.end()) {
+        _memory_usage_map[type] -= bytes;
+    } else {
+        throw std::runtime_error("Attempt to free unallocated memory");
+    }
+}
+
+const InferenceEngine::ITaskExecutor::Ptr engine::get_task_executor() {
+    return _task_executor;
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               runtime_types runtime_type,
                                               const device::ptr device,
-                                              const engine_configuration& configuration) {
+                                              const engine_configuration& configuration,
+                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     switch (engine_type) {
-        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration);
+        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
         default: throw std::runtime_error("Invalid engine type");
     }
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               runtime_types runtime_type,
-                                              const engine_configuration& configuration) {
+                                              const engine_configuration& configuration,
+                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     device_query query(engine_type, runtime_type);
     device::ptr default_device = query.get_available_devices().begin()->second;
 
-    return engine::create(engine_type, runtime_type, default_device, configuration);
+    return engine::create(engine_type, runtime_type, default_device, configuration, task_executor);
 }
 
 }  // namespace cldnn

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 #include <vector>
 
@@ -14,8 +12,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNReverseSequenceNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNReverseSequenceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
         if (!revSeq) {
             errorMessage = "Only opset1 ReverseSequence operation is supported";
@@ -36,6 +38,9 @@ MKLDNNReverseSequenceNode::MKLDNNReverseSequenceNode(const std::shared_ptr<ngrap
 
     errorPrefix = "ReverseSequence layer with name '" + op->get_friendly_name() + "'";
     const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
+    if (revSeq == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of ReverseSequence from opset1.";
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
@@ -85,9 +90,9 @@ void MKLDNNReverseSequenceNode::initSupportedPrimitiveDescriptors() {
     if (lengthsPrecision != Precision::I32 && lengthsPrecision != Precision::FP32)
         lengthsPrecision = Precision::I32;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, lengthsPrecision}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, lengthsPrecision}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
@@ -96,7 +101,7 @@ void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getDesc().getPrecision()) {
+    switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()) {
         case Precision::FP32: {
             float *seq_lengths_data = reinterpret_cast<float *>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
             for (i = 0; i < src_dims[batch_axis]; i++) {
@@ -171,7 +176,7 @@ void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
         break;
         default:
             IE_THROW() << "ReverseSequence layer does not support "
-                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getDesc().getPrecision()  << " precision";
+                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()  << " precision";
     }
 }
 

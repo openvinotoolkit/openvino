@@ -35,7 +35,7 @@ operation.
 
 Here is a simplified example of the extractor for the custom operation Proposal from Faster-R-CNN model mentioned above.
 The full code with additional checks is provided in the
-`<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/caffe/proposal_python_ext.py`. The sample code uses
+`<INSTALL_DIR>/tools/model_optimizer/extensions/front/caffe/proposal_python_ext.py`. The sample code uses
 operation `ProposalOp` which corresponds to `Proposal` operation described in the [Available Operations Sets](../../../ops/opset.md)
 document. Refer to the source code below for a detailed explanation of the extractor.
 

@@ -27,28 +27,14 @@ target_include_directories(${TARGET_NAME} PRIVATE
 target_link_libraries(${TARGET_NAME} PRIVATE
     IE::inference_engine
     IE::inference_engine_transformations
+    interpreter_backend
+    ngraph::reference
     ${NGRAPH_LIBRARIES})
-
-# Link inference backend library to plugin. Here we use ngraph interpreter_backend as example
-target_link_libraries(${TARGET_NAME} PRIVATE
-    IE::interpreter_backend)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # ATTENTION: uncomment to register a plugin in the plugins.xml file
-if(ENABLE_TEMPLATE_PLUGIN)
-    ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                        POSSIBLE_PLUGINS ${TARGET_NAME})
-endif()
+# ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+#                     POSSIBLE_PLUGINS ${TARGET_NAME})
 # [cmake:plugin]
-
-# ATTENTION: uncomment to install component
-# install
-
-# set(component_name template)
-# ie_cpack_add_component(${component_name} REQUIRED)
-
-# install(TARGETS ${TARGET_NAME}
-#         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
-#         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
-#         COMPONENT ${component_name})
+ov_install_static_lib(interpreter_backend tests)

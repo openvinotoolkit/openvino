@@ -11,7 +11,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNCTCLossNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNCTCLossNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
         if (!ctcLossOp) {
@@ -46,15 +46,23 @@ void MKLDNNCTCLossNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::vector<DataConfigurator> inDataConf;
-    inDataConf.reserve(getOriginalInputsNumber());
-    inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
-    for (int i = 1; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
+    std::vector<PortConfigurator> inDataConf;
+    inDataConf.reserve(inputShapes.size());
+    inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    for (int i = 1; i < inputShapes.size(); ++i)
+        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
+}
+
+void MKLDNNCTCLossNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
 }
 
 void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
@@ -66,12 +74,13 @@ void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
     const int* labelsLength = reinterpret_cast<const int *>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr());
     float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    const size_t batchNum = getParentEdgeAt(0)->getDims()[0];
-    const size_t maxTime = getParentEdgeAt(0)->getDims()[1];
-    const size_t classesNum = getParentEdgeAt(0)->getDims()[2];
+    const auto &inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    const size_t batchNum = inDims[0];
+    const size_t maxTime = inDims[1];
+    const size_t classesNum = inDims[2];
 
     int blankIndex = classesNum - 1;
-    if (inDims.size() > 4) {
+    if (inputShapes.size() > 4) {
         blankIndex = reinterpret_cast<const int *>(getParentEdgeAt(4)->getMemoryPtr()->GetPtr())[0];
     }
 

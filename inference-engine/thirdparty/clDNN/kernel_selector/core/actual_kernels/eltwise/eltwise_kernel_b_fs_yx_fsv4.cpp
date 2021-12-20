@@ -39,7 +39,7 @@ KernelsData EltwiseKernel_b_fs_yx_fsv4::GetKernelsData(const Params& params, con
     KernelData kd = KernelData::Default<eltwise_params>(params);
     eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -268,12 +268,17 @@ JitConstants EltwiseKernel_b_fs_yx_fsv4::GetJitConstants(const eltwise_params& p
 
 EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv4::SetDefault(const eltwise_params& params) const {
     DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                                                                     {Tensor::DataChannelName::FEATURE},
+                                                                     {Tensor::DataChannelName::BATCH}};
 
     dispatchData.gws[0] = params.output.X().v * params.output.Y().v;
     dispatchData.gws[1] = CeilDiv(params.output.Feature().v, 4);
     dispatchData.gws[2] = params.output.Batch().v;
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
 

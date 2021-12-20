@@ -21,12 +21,12 @@ enum class KernelType {
     NORMALIZE,
     POOLING,
     ROI_POOLING,
+    ROI_ALIGN,
     FULLY_CONNECTED,
     ACTIVATION,
     SOFT_MAX,
     ELTWISE,
     SCALE,
-    FUSED_CONV_ELTWISE,
     REORDER,
     RESHAPE,
     PERMUTE,
@@ -48,6 +48,7 @@ enum class KernelType {
     ONE_HOT,
     GATHER,
     GATHER_ND,
+    GATHER_ELEMENTS,
     SCATTER_UPDATE,
     SCATTER_ND_UPDATE,
     SCATTER_ELEMENTS_UPDATE,
@@ -69,7 +70,11 @@ enum class KernelType {
     CUM_SUM,
     EMBEDDING_BAG,
     EXTRACT_IMAGE_PATCHES,
-    LOOP
+    LOOP,
+    NON_MAX_SUPPRESSION,
+    DETECTION_OUTPUT,
+    EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR,
+    CONVERT_COLOR
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -581,4 +586,30 @@ enum class EmbeddingBagType {
     OFFSETS_SUM,
     SEGMENTS_SUM
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BoxEncodingType
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class BoxEncodingType {
+    BOX_ENCODING_CORNER,
+    BOX_ENCODING_CENTER,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ConvertColor
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class color_format : uint32_t {
+    RGB,       ///< RGB color format
+    BGR,       ///< BGR color format, default in DLDT
+    RGBX,      ///< RGBX color format with X ignored during inference
+    BGRX,      ///< BGRX color format with X ignored during inference
+    NV12,      ///< NV12 color format represented as compound Y+UV blob
+    I420,      ///< I420 color format represented as compound Y+U+V blob
+};
+
+enum class memory_type : uint32_t {
+    buffer,
+    image
+};
+
 }  // namespace kernel_selector

@@ -29,12 +29,15 @@ public:
         return false;
     }
 
-    void initDescriptor(const InferenceEngine::LayerConfig& config) override;
+    void initDescriptor(const NodeConfig& config) override;
 
     void execLayer();
     void cleanup() override;
 
 protected:
+    NodeConfig convertLayerToNodeConfig(const InferenceEngine::LayerConfig &layerConfig);
+    InferenceEngine::LayerConfig convertNodeToLayerConfig(const NodeConfig &nodeConfig);
+
     InferenceEngine::ILayerImplFactory::Ptr extFactory;
     std::vector<InferenceEngine::ILayerExecImpl::Ptr> impls;
 

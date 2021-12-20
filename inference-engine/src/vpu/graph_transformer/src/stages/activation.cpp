@@ -16,9 +16,18 @@ void FrontEnd::parseLogicalNot(const Model &model, const ie::CNNLayerPtr &layer,
     parseEltwise(model, res, inputs, outputs);
 }
 
+void FrontEnd::parseAbs(const Model &model, const ie::CNNLayerPtr &layer, const DataVector &inputs, const DataVector &outputs) const {
+    LayerParams params = {layer->name, "Eltwise", layer->precision};
+    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
+    res->_operation = InferenceEngine::EltwiseLayer::Abs;
+
+    parseEltwise(model, res, inputs, outputs);
+}
+
 void FrontEnd::parseActivation(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     const ie::details::caseless_map<std::string, LayerParser> activationParsers {
         {"not", LAYER_PARSER(parseLogicalNot)},
+        {"abs", LAYER_PARSER(parseAbs)},
     };
 
     const auto type = layer->GetParamAsString("type");

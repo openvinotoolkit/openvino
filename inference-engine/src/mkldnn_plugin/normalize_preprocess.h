@@ -6,7 +6,7 @@
 
 #include "ie_input_info.hpp"
 
-#include "mkldnn_dims.h"
+#include "cpu_shape.h"
 #include "ie_parallel.hpp"
 #include <vector>
 #include <limits>
@@ -18,14 +18,15 @@ public:
     NormalizePreprocess();
 
 public:
-    void Load(const MKLDNNDims& inputDims, InferenceEngine::InputInfo::Ptr inputInfo);
-    void NormalizeImage(const MKLDNNDims &inputDims, float *input, InferenceEngine::Layout layout);
+    void Load(const Shape& inputShape, InferenceEngine::InputInfo::Ptr inputInfo);
+    void NormalizeImage(const Shape &inputShape, float *input, InferenceEngine::Layout layout);
 
     template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-    void NormalizeImage(const MKLDNNDims &inputDims, T *input, InferenceEngine::Layout layout) {
+    void NormalizeImage(const Shape &inputShape, T *input, InferenceEngine::Layout layout) {
         IE_ASSERT(input != nullptr);
 
-        if (inputDims.ndims() != 4) {
+        const auto inputDims = inputShape.getStaticDims();
+        if (inputDims.size() != 4) {
             IE_THROW() << "Expecting input as 4 dimension blob with format NxCxHxW.";
         }
 
@@ -34,7 +35,7 @@ public:
         }
 
         int MB = inputDims[0];
-        int srcSize = inputDims.size() / MB;
+        int srcSize = inputShape.getElementsCount() / MB;
 
         if (meanBuffer && meanBuffer->size()) {
             const float * meanBufferValues = meanBuffer->readOnly();
