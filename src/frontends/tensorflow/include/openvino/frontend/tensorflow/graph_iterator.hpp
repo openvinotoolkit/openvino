@@ -6,13 +6,14 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class FRONTEND_API GraphIterator : ov::RuntimeAttribute {
+class TENSORFLOW_C_API GraphIterator : ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("Variant::GraphIterator");
 
