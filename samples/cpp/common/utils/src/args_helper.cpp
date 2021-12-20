@@ -608,10 +608,7 @@ void setPrecisions(const ov::Model& network, const std::string& iop) {
     }
 }
 
-void processPrecision(const ov::Model& network,
-                      const std::string& ip,
-                      const std::string& op,
-                      const std::string& iop) {
+void processPrecision(const ov::Model& network, const std::string& ip, const std::string& op, const std::string& iop) {
     if (!ip.empty()) {
         const auto user_precision = getPrecision2(ip);
         for (auto&& layer : network.get_parameters()) {

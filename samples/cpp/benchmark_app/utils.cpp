@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <format_reader_ptr.h>
+
 #include <algorithm>
 #include <map>
 #include <regex>
 #include <string>
 #include <utility>
 #include <vector>
-#include <format_reader_ptr.h>
 
 // clang-format off
 #include <samples/args_helper.hpp>

@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "inputs_filling.hpp"
+
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <memory>
 #include <random>
 #include <string>
-#include <utility>  
+#include <utility>
 #include <vector>
 
 #include "format_reader_ptr.h"
-#include "inputs_filling.hpp"
 #include "shared_blob_allocator.hpp"
 #include "utils.hpp"
 
