@@ -126,7 +126,6 @@ void set_result_shape_pdpd(const ov::Node* op,
 
 template <typename T>
 void set_result_shape_bidirectional(const ov::Node* op, const T& arg_shape, T& target_shape, T& result_shape) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic()) {
         result_shape = PartialShape::dynamic();
         return;
@@ -166,7 +165,6 @@ void broadcase_base_shape_infer(
     const std::vector<T>& input_shapes,
     std::vector<T>& output_shapes,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
 
     // shape node should produce a one dimensional shape.
     auto broadcast_shape_rank = input_shapes[1].rank();
@@ -194,21 +192,19 @@ void broadcase_base_shape_infer(
     bool output_shape_defined = get_data_as_shape<T>(1, op, output_shape, constant_data);
 
     if (!output_shape_defined) {
-        if (auto concat = ov::as_type_ptr<ngraph::op::v0::Concat>(op->input_value(1).get_node_shared_ptr())) {
-            auto concat_inputs = concat->inputs();
+        if (auto concat = ov::as_type_ptr<ov::opset1::Concat>(op->get_input_node_shared_ptr(1))) {
+            const auto concat_inputs = concat->input_values();
             if (concat->get_output_partial_shape(0).is_static() && concat->get_shape().size() == 1 &&
                 concat_inputs.size() == shape_size(concat->get_shape())) {
-                auto output_partial_shape = std::vector<DimType>{};
                 for (const auto& concat_input : concat_inputs) {
-                    auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
-                    if (auto source_const_ptr = ov::as_type_ptr<ngraph::op::v0::Constant>(source_node_ptr)) {
-                        output_partial_shape.emplace_back(source_const_ptr->get_axis_vector_val()[0]);
+                    auto source_node_ptr = concat_input.get_node_shared_ptr();
+                    if (auto source_const_ptr = ov::as_type_ptr<ov::opset1::Constant>(source_node_ptr)) {
+                        output_shape.push_back(source_const_ptr->get_axis_vector_val()[0]);
                     } else {
-                        output_partial_shape.push_back(Dimension::dynamic());
+                        output_shape.push_back(Dimension::dynamic());
                     }
                 }
                 output_shape_defined = true;
-                output_shape = T(output_partial_shape);
             }
         }
     }
@@ -222,12 +218,11 @@ void broadcase_base_shape_infer(
             result_shape = PartialShape::dynamic();
         }
         // Validate axes_mapping
-        auto axes_shape = input_shapes[2];
+        const auto& axes_shape = input_shapes[2];
         if (input_shape.rank().is_static() && target_shape.rank().is_static() && axes_shape.is_static()) {
-            auto axes = axes_shape.to_shape();
-            auto input_rank = (input_shape.size() == 0 && axes[0] > 0) ? 1 : input_shape.size();
+            auto input_rank = (input_shape.size() == 0 && axes_shape[0].get_length() > 0) ? 1 : input_shape.size();
             NODE_VALIDATION_CHECK(op,
-                                  axes[0] == input_rank,
+                                  axes_shape[0].get_length() == input_rank,
                                   "Broadcast axes_mapping shape ",
                                   axes_shape,
                                   " doesn't match rank of input tensor ",
