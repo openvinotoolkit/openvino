@@ -39,28 +39,28 @@ public:
     ov::frontend::Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name,
                                                                          int output_port_index) override;
 
-    void set_name_for_tensor(ov::frontend::Place::Ptr tensor, const std::string& new_name) override;
-    void set_name_for_operation(ov::frontend::Place::Ptr operation, const std::string& new_name) override;
+    void set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) override;
+    void set_name_for_operation(const ov::frontend::Place::Ptr& operation, const std::string& new_name) override;
     void free_name_for_operation(const std::string& name) override;
-    void set_name_for_dimension(ov::frontend::Place::Ptr place,
+    void set_name_for_dimension(const ov::frontend::Place::Ptr& place,
                                 size_t shape_dim_index,
                                 const std::string& dim_name) override;
 
     /// \brief  Not applicable for ONNX model. Throws immediately
-    void add_name_for_tensor(ov::frontend::Place::Ptr tensor, const std::string& new_name) override;
+    void add_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) override;
     /// \brief  Not applicable for ONNX model. Throws immediately
     void free_name_for_tensor(const std::string& name) override;
 
-    void set_partial_shape(ov::frontend::Place::Ptr place, const ngraph::PartialShape& shape) override;
-    ngraph::PartialShape get_partial_shape(ov::frontend::Place::Ptr place) const override;
-    void set_element_type(ov::frontend::Place::Ptr place, const ngraph::element::Type& type) override;
-    ov::frontend::Place::Ptr add_output(ov::frontend::Place::Ptr place) override;
-    void remove_output(ov::frontend::Place::Ptr place) override;
+    void set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) override;
+    ngraph::PartialShape get_partial_shape(const ov::frontend::Place::Ptr& place) const override;
+    void set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) override;
+    ov::frontend::Place::Ptr add_output(const ov::frontend::Place::Ptr place) override;
+    void remove_output(const ov::frontend::Place::Ptr place) override;
 
     std::shared_ptr<Model> decode();
     std::shared_ptr<Model> convert();
 
-    void cut_and_add_new_input(ov::frontend::Place::Ptr place, const std::string& new_name_optional = "") override;
+    void cut_and_add_new_input(const ov::frontend::Place::Ptr place, const std::string& new_name_optional = "") override;
 
     // Editor features
     void override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) override;

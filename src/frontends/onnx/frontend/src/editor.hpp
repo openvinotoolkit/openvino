@@ -7,7 +7,6 @@
 #include <istream>
 #include <map>
 #include <memory>
-#include <openvino/frontend/telemetry_extension.hpp>
 
 #include "editor_types.hpp"
 #include "ngraph/function.hpp"
@@ -15,6 +14,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ov {
 namespace onnx_editor {
@@ -83,7 +83,7 @@ public:
     /// \param merge_inputs Flag indicates whether newly created inputs after cutting shall be independent or merged,
     ///                     false - each cutted edge will be connected with one new input (default),
     ///                     true - all input edges will be connected to one new input
-    void cut_graph_fragment(const std::vector<InputEdge>& inputs,
+    void extract_subgraph(const std::vector<InputEdge>& inputs,
                             const std::vector<OutputEdge>& outputs,
                             const bool merge_inputs = false);
 
@@ -116,6 +116,11 @@ public:
     /// \param node Handle to node.
     /// \param new_name New name of the node.
     void set_node_name(const EditorNode& node, const std::string& new_name);
+
+    /// \brief Retrieves a node name from the in-memory ONNX model.
+    ///
+    /// \param node Node descriptor for which the lookup should be performed.
+    std::string get_node_name(const EditorNode& node) const;
 
     /// \brief Removes node name for all nodes with given name.
     ///
