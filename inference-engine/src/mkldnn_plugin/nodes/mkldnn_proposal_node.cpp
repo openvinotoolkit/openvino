@@ -155,6 +155,10 @@ void MKLDNNProposalNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void MKLDNNProposalNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 void MKLDNNProposalNode::execute(mkldnn::stream strm) {
     try {
         const float* probabilitiesData = reinterpret_cast<const float *>(getParentEdgeAt(PROBABILITIES_IN_IDX)->getMemoryPtr()->GetPtr());

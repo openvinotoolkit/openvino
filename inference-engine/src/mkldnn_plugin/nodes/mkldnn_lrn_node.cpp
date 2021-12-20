@@ -110,14 +110,6 @@ std::shared_ptr<MemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_
     }
 }
 
-void MKLDNNLrnNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNLrnNode::prepareParams() {
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -174,8 +166,8 @@ std::vector<VectorDims> MKLDNNLrnNode::shapeInfer() const {
     return { getParentEdgesAtPort(0).front()->getMemory().getStaticDims() };
 }
 
-void MKLDNNLrnNode::executeDynamicImpl(dnnl::stream strm) {
-    MKLDNNNode::execute(strm);
+void MKLDNNLrnNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNLrnNode, Lrn);
