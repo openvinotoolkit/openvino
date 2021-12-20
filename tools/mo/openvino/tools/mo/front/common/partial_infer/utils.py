@@ -188,6 +188,10 @@ def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.nda
 
 
 def mo_array(value: Union[Iterable[Union[float, int]], float, int], dtype=None) -> np.ndarray:
+    """
+    This function acts in a same way as np.array except for the case when dtype is not provided
+    and np.array return fp64 array this function returns fp32 array
+    """
     x = np.array(value, dtype=dtype)
     if not isinstance(value, np.ndarray) and x.dtype == np.float64 and dtype != np.float64:
         x = x.astype(np.float32)

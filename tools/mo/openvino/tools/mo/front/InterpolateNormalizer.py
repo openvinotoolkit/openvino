@@ -110,7 +110,7 @@ class InterpolateNormalizer(FrontReplacementOp):
                         return None
 
                     node['debug_message'] = 'Interpolate layer replacer may be wrong, please, try to update it in the' \
-                                            ' file (extensions/front/InterpolateNormalizer.py at the line {}).' \
+                                            ' file (openvino/tools/mo/front/InterpolateNormalizer.py at the line {}).' \
                                             ''.format(inspect.currentframe().f_lineno) + refer_to_faq_msg(100)
 
                     # Reshape methods can be different in some cases
