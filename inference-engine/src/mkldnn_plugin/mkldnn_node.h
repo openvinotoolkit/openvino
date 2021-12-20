@@ -602,7 +602,7 @@ protected:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, int align = -1);
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
     virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
 
     virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() { return nullptr; }

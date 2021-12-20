@@ -120,10 +120,7 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
-    // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
-    // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}, int align = 16) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}) override;
     void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;

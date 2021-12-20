@@ -42,7 +42,7 @@ class TestMainFrontend(unittest.TestCase):
         clear_place_statistic()
         clear_setup()
         set_max_port_counts(10, 10)
-        self.fe = fem.load_by_framework('mock_mo_ov_frontend')
+        self.fe = fem.load_by_framework('ov_mock_mo_frontend')
         self.model = self.fe.load('abc.bin')
 
     # Mock model has 'tensor' tensor place
