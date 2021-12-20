@@ -360,8 +360,11 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& name = get_legacy_name_from_port(port);
-        OPENVINO_ASSERT(!_impl->GetBlobs(name), "get_tensor shall not be used together with batched "
-                                                "set_tensors/set_input_tensors for name '", name, "'");
+        OPENVINO_ASSERT(!_impl->GetBlobs(name),
+                        "get_tensor shall not be used together with batched "
+                        "set_tensors/set_input_tensors for name '",
+                        name,
+                        "'");
         auto blob = _impl->GetBlob(name);
         return {blob, _so};
     });

@@ -156,10 +156,5 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
  */
 INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
 
-std::tuple<std::vector<std::shared_ptr<const ov::Node>>, std::vector<std::shared_ptr<const ov::Node>>>
-CopyInputsOutputs(const std::shared_ptr<const ov::Model>& function,
-                  const ConstInputsDataMap& inputsInfo,
-                  const ConstOutputsDataMap& outputsInfo);
-
 }  // namespace details
 }  // namespace InferenceEngine

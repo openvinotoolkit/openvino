@@ -504,44 +504,12 @@ public:
         return res;
     }
 
-    static ie::InputsDataMap copyInfo(const ie::InputsDataMap& networkInputs) {
-        ie::InputsDataMap _networkInputs;
-        for (const auto& it : networkInputs) {
-            ie::InputInfo::Ptr newPtr;
-            if (it.second) {
-                newPtr = std::make_shared<ie::InputInfo>();
-                newPtr->getPreProcess() = it.second->getPreProcess();
-                newPtr->setInputData(std::make_shared<ie::Data>(*it.second->getInputData()));
-            }
-            _networkInputs.emplace(it.first, newPtr);
-        }
-        return _networkInputs;
-    }
-
-    static ie::OutputsDataMap copyInfo(const ie::OutputsDataMap& networkOutputs) {
-        ie::OutputsDataMap _networkOutputs;
-        for (const auto& it : networkOutputs) {
-            ie::DataPtr newData;
-            if (it.second) {
-                newData = std::make_shared<ie::Data>(*it.second);
-            }
-            _networkOutputs.emplace(it.first, newData);
-        }
-        return _networkOutputs;
-    }
-
     static void updateCNNInfo(ie::SoExecutableNetworkInternal& exe_net, const ie::CNNNetwork& network) {
         // Temporary workaround until all plugins support caching of original model inputs
         OPENVINO_SUPPRESS_DEPRECATED_START
         exe_net->setNetworkInputs(copyInfo(network.getInputsInfo()));
         exe_net->setNetworkOutputs(copyInfo(network.getOutputsInfo()));
-        std::vector<std::shared_ptr<const ov::Node>> const_params;
-        std::vector<std::shared_ptr<const ov::Node>> const_results;
-        std::tie(const_params, const_results) = InferenceEngine::details::CopyInputsOutputs(network.getFunction(),
-                                                                                            exe_net->GetInputsInfo(),
-                                                                                            exe_net->GetOutputsInfo());
-        exe_net->setInputs(const_params);
-        exe_net->setOutputs(const_results);
+        InferenceEngine::SetExeNetworkInfo(exe_net._ptr, network.getFunction());
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 

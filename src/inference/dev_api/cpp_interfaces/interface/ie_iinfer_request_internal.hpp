@@ -101,7 +101,7 @@ public:
      * To support 'set_input_tensors'/'set_tensors' plugin-specific implementations shall:
      *  - Inside SetBlobsImpl: update '_batched_inputs' map
      *  - Inside 'SetBlob': erase appropriate '_batched_inputs[name]' item
-     *  - If needed, override 'convertBatchedBlob' to perform custom concatenation and data copy to input blob
+     *  - If needed, override 'convertBatchedInputBlob' to perform custom concatenation and data copy to input blob
      * @param name - a name of input or output blob.
      * @param batched_blob - input blobs combined in batched blob. Called only if number of blobs > 1
      * precision and size.
@@ -124,7 +124,6 @@ public:
      * @return data - a reference to input batched blob.
      */
     virtual BatchedBlob::Ptr GetBlobs(const std::string& name);
-
 
     /**
      * @brief Sets pre-process for input data
@@ -267,7 +266,7 @@ protected:
      * It is expected that _batched_inputs map contains only valid BatchedBlob blobs with 2 or more blobs inside
      * @throws Exception if error occurs
      */
-    void convertBatchedBlobs();
+    void convertBatchedInputBlobs();
 
     /**
      * @brief Checks whether pre-processing step is required for a given input
@@ -288,7 +287,8 @@ protected:
      * Plugin is allowed to override this behavior
      * @throws Exception if error occurs
      */
-    virtual void convertBatchedBlob(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& blob);
+    virtual void convertBatchedInputBlob(const std::string& name,
+                                         const InferenceEngine::BatchedBlob::Ptr& batched_blob);
 
     /**
      * @brief Performs basic validation of user's blobs set via ov::runtime::InferRequest
