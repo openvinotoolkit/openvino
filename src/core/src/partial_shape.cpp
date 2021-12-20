@@ -135,7 +135,7 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
         }
         return (str << "}");
     } else {
-        return (str << "?");
+        return (str << "...");
     }
 }
 
@@ -353,37 +353,6 @@ ov::Dimension& ov::PartialShape::operator[](size_t i) {
     }
     m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];
-}
-
-const std::vector<int64_t>& ov::AttributeAdapter<ov::PartialShape>::get() {
-    if (!m_buffer_valid) {
-        m_buffer.clear();
-        if (m_ref.rank().is_dynamic()) {
-            m_buffer.push_back(-2);
-        } else {
-            for (int64_t i = 0; i < m_ref.rank().get_length(); ++i) {
-                const auto& elt = static_cast<const ov::PartialShape&>(m_ref)[i];
-                m_buffer.push_back(elt.is_dynamic() ? -1 : elt.get_length());
-            }
-        }
-        m_buffer_valid = true;
-    }
-    return m_buffer;
-}
-
-void ov::AttributeAdapter<ov::PartialShape>::set(const std::vector<int64_t>& value) {
-    m_ref = ov::PartialShape();
-    if (value.size() == 1 && value[0] == -2) {
-        m_ref = ov::PartialShape::dynamic();
-    } else {
-        std::vector<Dimension> dims;
-        dims.reserve(value.size());
-        for (auto elt : value) {
-            dims.push_back(elt == -1 ? Dimension::dynamic() : elt);
-        }
-        m_ref = ov::PartialShape(dims);
-    }
-    m_buffer_valid = false;
 }
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::PartialShape>);
