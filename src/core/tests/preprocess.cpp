@@ -1285,6 +1285,39 @@ TEST(pre_post_process, postprocess_convert_layout_invalid_dims_dyn_shape) {
                  p.build(), ov::AssertFailure);
 }
 
+TEST(pre_post_process, postprocess_keep_friendly_names_compatibility) {
+    auto f = create_simple_function(element::f32, Shape{1,3,10,10});
+    auto result_fr_name = f->get_results()[0]->get_friendly_name();
+    auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    auto node_name = node_before_result_old->get_friendly_name();
+    auto p = PrePostProcessor(f);
+    p.output().postprocess().convert_element_type(element::u8);
+    f = p.build();
+    EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
+    auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    // Compatibility check: verify that old name is assigned to new 'output' node
+    EXPECT_EQ(node_before_result_new->get_friendly_name(), node_name);
+    // Compatibility check: Verify that old name is not set for old 'output' node anymore
+    EXPECT_NE(node_before_result_old->get_friendly_name(), node_name);
+}
+
+TEST(pre_post_process, postprocess_keep_friendly_names_compatibility_implicit) {
+    auto f = create_simple_function(element::f32, Shape{1,3,10,10});
+    auto result_fr_name = f->get_results()[0]->get_friendly_name();
+    auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    auto node_name = node_before_result_old->get_friendly_name();
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NCHW");
+    p.output().tensor().set_layout("NHWC");
+    f = p.build();
+    EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
+    auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    // Compatibility check: verify that old name is assigned to new 'output' node
+    EXPECT_EQ(node_before_result_new->get_friendly_name(), node_name);
+    // Compatibility check: Verify that old name is not set for old 'output' node anymore
+    EXPECT_NE(node_before_result_old->get_friendly_name(), node_name);
+}
+
 // Postprocessing - other
 
 TEST(pre_post_process, postprocess_preserve_rt_info) {
