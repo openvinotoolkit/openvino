@@ -113,9 +113,9 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
             shape = None if isinstance(input_user_shapes, list) else input_user_shapes[input_name]
             if input_user_data_types.get(input_name) is not None:
                 data_type = input_user_data_types[input_name]
-                _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
+                _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type, 'input_name': input_name})
             else:
-                _input_shapes.append({'node': node, 'shape': shape})
+                _input_shapes.append({'node': node, 'shape': shape, 'input_name': input_name})
     elif isinstance(input_user_shapes, tuple):
         model_inputs = input_model.get_inputs()
         assert len(model_inputs) == 1
