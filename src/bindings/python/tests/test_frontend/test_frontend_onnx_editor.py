@@ -1264,3 +1264,20 @@ def test_set_partial_shape_with_range():
 
     ov_model = fe.convert(model)
     assert ov_model.input("in1").get_partial_shape() == ranged_shape
+
+
+def test_set_partial_shape_with_range_and_cut_it_off():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    input1 = model.get_place_by_tensor_name(tensor_name="in1")
+    ranged_shape = PartialShape([Dimension(1, 4), Dimension(2)])
+    model.set_partial_shape(input1, ranged_shape)
+
+    add_out = model.get_place_by_tensor_name("add_out")
+    model.extract_subgraph(inputs=[add_out], outputs=[])
+
+    ov_model = fe.convert(model)
+    for input in ov_model.inputs:
+        assert input.get_partial_shape() != ranged_shape
