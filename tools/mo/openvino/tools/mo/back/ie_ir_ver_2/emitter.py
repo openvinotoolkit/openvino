@@ -175,7 +175,17 @@ def xml_ports(node: Node, element: Element, edges: Element):
             if tensor_names:
                 port.set('names', ','.join(tensor_names))
             xml_shape(node.graph.node[v]['shape'], port)
-
+            if node.has('ports') and port_id in node.ports:
+                port_rt_info_value = node.ports[port_id][2]
+                if port_rt_info_value is not None:
+                    port_rt_info = SubElement(port, 'rt_info')
+                    for (name, version), info_elem in port_rt_info_value.items():
+                        attribute = SubElement(port_rt_info, 'attribute')
+                        attribute.set('name', name)
+                        attribute.set('version', str(version))
+                        params = info_elem.serialize(node) if not isinstance(info_elem, dict) else info_elem
+                        for key, value in params.items():
+                            attribute.set(key, value)
 
 def xml_consts(graph: Graph, node: Node, element: Element):
     blobs = None  # sub-element that will be created on-demand
