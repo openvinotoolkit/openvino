@@ -66,7 +66,7 @@ public:
     ~DynamicBuffer() = default;
 
     void execute(const mkldnn::engine& eng, const int iter);
-    void transfer(MKLDNNNode* node);
+    void transfer(const MKLDNNNode* node);
 
 private:
     void init(const mkldnn::engine& eng);
@@ -76,7 +76,7 @@ private:
     void move_buffer(std::shared_ptr<mkldnn::memory> new_buffer);
     void move_data();
 
-    static inline void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
+    static void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
     static uint8_t* get_ptr(mkldnn::memory& prim);
 
     size_t elem_size = 0lu;

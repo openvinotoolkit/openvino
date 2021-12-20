@@ -264,7 +264,7 @@ void DynamicBuffer::move_data() {
          src_stride, dst_stride, count, src_stride);
 }
 
-void DynamicBuffer::transfer(MKLDNNNode* node) {
+void DynamicBuffer::transfer(const MKLDNNNode* node) {
     const auto &currDesc = to->getDesc();
     if (!currDesc.getShape().isStatic() || currDesc.getShape().getStaticDims() != from->getStaticDims()) {
         const auto memDesc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
@@ -426,11 +426,7 @@ void MKLDNNTensorIteratorNode::createPrimitive() {
     if (isDynamicNode())
         prepareDynamicBuffers();
 
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
+    MKLDNNNode::createPrimitive();
 }
 
 bool MKLDNNTensorIteratorNode::needPrepareParams() const {

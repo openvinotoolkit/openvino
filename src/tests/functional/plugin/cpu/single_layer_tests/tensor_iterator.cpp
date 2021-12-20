@@ -63,9 +63,9 @@ protected:
             auto paramNode = std::make_shared<ngraph::opset1::Parameter>(inType, shape);
             body_params.push_back(paramNode);
         }
-        auto hswish = ngraph::builder::makeActivation(body_params[0], inType, ngraph::helpers::HSwish);
+        auto tanh = ngraph::builder::makeActivation(body_params[0], inType, ngraph::helpers::Tanh);
         auto relu = ngraph::builder::makeActivation(body_params[1], inType, ngraph::helpers::Relu);
-        auto add = std::make_shared<ngraph::opset1::Add>(hswish, relu);
+        auto add = std::make_shared<ngraph::opset1::Add>(tanh, relu);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{add}, body_params, "body");
         tensor_iterator->set_function(body);
@@ -96,7 +96,8 @@ namespace {
 
 const std::vector<ElementType> inputPrecisions = {
         ElementType::f32,
-        ElementType::bf16
+        ElementType::bf16,
+        ElementType::i8
 };
 
 std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,
