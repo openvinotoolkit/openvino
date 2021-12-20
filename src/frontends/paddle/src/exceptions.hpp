@@ -15,8 +15,8 @@ class NodeContext;
 class OpValidationFailure : public OpValidationFailure {
 public:
     OpValidationFailure(const CheckLocInfo& check_loc_info,
-                              const paddle::NodeContext& node,
-                              const std::string& explanation)
+                        const paddle::NodeContext& node,
+                        const std::string& explanation)
         : OpValidationFailure(check_loc_info, get_error_msg_prefix_paddle(node), explanation) {}
 
 private:

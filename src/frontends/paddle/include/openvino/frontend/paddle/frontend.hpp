@@ -6,8 +6,8 @@
 
 #include <openvino/frontend/extension/decoder_transformation.hpp>
 #include <openvino/frontend/extension/telemetry.hpp>
-#include <openvino/frontend/input_model.hpp>
 #include <openvino/frontend/frontend.hpp>
+#include <openvino/frontend/input_model.hpp>
 
 #include "exceptions.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
