@@ -43,6 +43,9 @@ JitConstants ConvertColorKernelBase::GetJitConstants(const convert_color_params&
         case color_format::NV12:
             jit.AddConstant(MakeJitConstant("CONVERT_FROM_NV12", ""));
             break;
+        case color_format::I420:
+            jit.AddConstant(MakeJitConstant("CONVERT_FROM_I420", ""));
+            break;
         default:
             IE_THROW() << "Not supported input color format";
     }

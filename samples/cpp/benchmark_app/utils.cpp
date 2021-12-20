@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// clang-format off
 #include <algorithm>
 #include <map>
 #include <regex>
@@ -10,8 +9,10 @@
 #include <utility>
 #include <vector>
 
-#include "samples/common.hpp"
-#include "samples/slog.hpp"
+// clang-format off
+#include <samples/args_helper.hpp>
+#include <samples/common.hpp>
+#include <samples/slog.hpp>
 
 #include "utils.hpp"
 // clang-format on
@@ -35,7 +36,7 @@ size_t InputInfo::getDimentionByLayout(char character) const {
     size_t pos = layout.find(character);
     if (pos == std::string::npos)
         throw std::runtime_error("Error: Can't get " + std::string(character, 1) + " from layout " + layout);
-    return shape.at(pos);
+    return dataShape.at(pos);
 }
 size_t InputInfo::width() const {
     return getDimentionByLayout('W');
@@ -152,8 +153,8 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
         std::size_t batch_index = info.second.layout.find("N");
         if (batch_index != std::string::npos) {
             if (batch_size == 0)
-                batch_size = info.second.shape[batch_index];
-            else if (batch_size != info.second.shape[batch_index])
+                batch_size = info.second.dataShape[batch_index];
+            else if (batch_size != info.second.dataShape[batch_index])
                 throw std::logic_error("Can't deterimine batch size: batch is "
                                        "different for different inputs!");
         }
@@ -161,6 +162,47 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
     if (batch_size == 0)
         batch_size = 1;
     return batch_size;
+}
+
+InferenceEngine::Layout getLayoutFromString(const std::string& string_layout) {
+    static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
+        {"NCHW", InferenceEngine::Layout::NCHW},
+        {"NHWC", InferenceEngine::Layout::NHWC},
+        {"NCDHW", InferenceEngine::Layout::NCDHW},
+        {"NDHWC", InferenceEngine::Layout::NDHWC},
+        {"C", InferenceEngine::Layout::C},
+        {"CHW", InferenceEngine::Layout::CHW},
+        {"HWC", InferenceEngine::Layout::HWC},
+        {"HW", InferenceEngine::Layout::HW},
+        {"NC", InferenceEngine::Layout::NC},
+        {"CN", InferenceEngine::Layout::CN}};
+    auto it = layouts.find(string_layout);
+    if (it != layouts.end()) {
+        return it->second;
+    }
+    IE_THROW() << "Unknown layout with name '" << string_layout << "'.";
+}
+
+std::string getShapeString(const InferenceEngine::SizeVector& shape) {
+    std::stringstream ss;
+    ss << "[";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (i > 0)
+            ss << ", ";
+        ss << shape.at(i);
+    }
+    ss << "]";
+    return ss.str();
+}
+
+std::string getShapesString(const benchmark_app::PartialShapes& shapes) {
+    std::stringstream ss;
+    for (auto& shape : shapes) {
+        if (!ss.str().empty())
+            ss << ", ";
+        ss << "\'" << shape.first << "': " << shape.second;
+    }
+    return ss.str();
 }
 
 std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& shapes) {
@@ -216,6 +258,120 @@ std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& sc
     if (!search_string.empty())
         throw std::logic_error("Can't parse input parameter string: " + scale_mean);
     return return_value;
+}
+
+std::vector<ngraph::Dimension> parsePartialShape(const std::string& partial_shape) {
+    std::vector<ngraph::Dimension> shape;
+    for (auto& dim : split(partial_shape, ',')) {
+        if (dim == "?" || dim == "-1") {
+            shape.push_back(ngraph::Dimension::dynamic());
+        } else {
+            const std::string range_divider = "..";
+            size_t range_index = dim.find(range_divider);
+            if (range_index != std::string::npos) {
+                std::string min = dim.substr(0, range_index);
+                std::string max = dim.substr(range_index + range_divider.length());
+                shape.push_back(ngraph::Dimension(min.empty() ? 0 : std::stoi(min),
+                                                  max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
+            } else {
+                shape.push_back(std::stoi(dim));
+            }
+        }
+    }
+
+    return shape;
+}
+
+InferenceEngine::SizeVector parseTensorShape(const std::string& dataShape) {
+    std::vector<size_t> shape;
+    for (auto& dim : split(dataShape, ',')) {
+        shape.push_back(std::stoi(dim));
+    }
+    return shape;
+}
+
+std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::string& file_paths_string) {
+    auto search_string = file_paths_string;
+    std::string input_name = "";
+    std::vector<std::string> file_paths;
+
+    // parse strings like <input1>:file1,file2,file3 and get name from them
+    size_t semicolon_pos = search_string.find_first_of(":");
+    size_t quote_pos = search_string.find_first_of("\"");
+    if (semicolon_pos != std::string::npos && quote_pos != std::string::npos && semicolon_pos > quote_pos) {
+        // if : is found after opening " symbol - this means that " belongs to pathname
+        semicolon_pos = std::string::npos;
+    }
+    if (search_string.length() > 2 && semicolon_pos == 1 && search_string[2] == '\\') {
+        // Special case like C:\ denotes drive name, not an input name
+        semicolon_pos = std::string::npos;
+    }
+
+    if (semicolon_pos != std::string::npos) {
+        input_name = search_string.substr(0, semicolon_pos);
+        search_string = search_string.substr(semicolon_pos + 1);
+    }
+
+    // parse file1,file2,file3 and get vector of paths
+    size_t coma_pos = 0;
+    do {
+        coma_pos = search_string.find_first_of(',');
+        file_paths.push_back(search_string.substr(0, coma_pos));
+        if (coma_pos == std::string::npos) {
+            search_string = "";
+            break;
+        }
+        search_string = search_string.substr(coma_pos + 1);
+    } while (coma_pos != std::string::npos);
+
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse file paths for input " + input_name +
+                               " in input parameter string: " + file_paths_string);
+
+    return {input_name, file_paths};
+}
+
+std::map<std::string, std::vector<std::string>> parseInputArguments(const std::vector<std::string>& args) {
+    std::map<std::string, std::vector<std::string>> mapped_files = {};
+    auto args_it = begin(args);
+    const auto is_image_arg = [](const std::string& s) {
+        return s == "-i";
+    };
+    const auto is_arg = [](const std::string& s) {
+        return s.front() == '-';
+    };
+    while (args_it != args.end()) {
+        const auto files_start = std::find_if(args_it, end(args), is_image_arg);
+        if (files_start == end(args)) {
+            break;
+        }
+        const auto files_begin = std::next(files_start);
+        const auto files_end = std::find_if(files_begin, end(args), is_arg);
+        for (auto f = files_begin; f != files_end; ++f) {
+            auto files = parseInputFiles(*f);
+            if (mapped_files.find(files.first) == mapped_files.end()) {
+                mapped_files[files.first] = {};
+            }
+
+            for (auto& file : files.second) {
+                readInputFilesArguments(mapped_files[files.first], file);
+            }
+        }
+        args_it = files_end;
+    }
+    size_t max_files = 20;
+    for (auto& files : mapped_files) {
+        if (files.second.size() <= max_files) {
+            slog::info << "For input " << files.first << " " << files.second.size() << " files were added. "
+                       << slog::endl;
+        } else {
+            slog::info << "For input " << files.first << " " << files.second.size() << " files were added. "
+                       << " The number of files will be limited to " << max_files << "." << slog::endl;
+            files.second.resize(20);
+        }
+    }
+
+    return mapped_files;
 }
 
 #ifdef USE_OPENCV

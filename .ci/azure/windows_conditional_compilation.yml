@@ -59,7 +59,7 @@ jobs:
 
   - script: |
       rem Speed up build
-      certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip ninja-win.zip
+      powershell -command "Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip -OutFile ninja-win.zip"
       powershell -command "Expand-Archive -Force ninja-win.zip"
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
