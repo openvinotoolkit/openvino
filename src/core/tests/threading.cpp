@@ -12,7 +12,7 @@
 
 #include "atomic_guard.hpp"
 #include "ngraph_ops/type_relaxed.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -20,7 +20,7 @@
 using namespace ngraph;
 using namespace std;
 
-std::shared_ptr<ov::Function> create_complex_function(size_t wide = 50) {
+std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
     const auto& split_subgraph = [](const ov::Output<ov::Node>& input) -> ov::OutputVector {
         auto relu = std::make_shared<ov::opset8::Relu>(input);
         auto type_relaxed =

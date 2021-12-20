@@ -51,7 +51,7 @@ from openvino.frontend import FrontEndManager
 def create_test_onnx_models():
     models = {}
     # Input model 1
-    add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
+    add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"], name="onnx_add_op")
     split = onnx.helper.make_node("Split", inputs=["add_out"],
                                   outputs=["out1", "out2"], name="split1", axis=0)
     relu = onnx.helper.make_node("Relu", inputs=["in3"], outputs=["out3"])
@@ -142,7 +142,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
-                                           outputs=["out1", "out2"])
+                                           outputs=["out1", "out2"], name="split1", axis=0)
     expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
                                          outputs=["out4"])
     graph = make_graph([expected_split, expected_mul], "test_graph", input_tensors, output_tensors)
@@ -201,7 +201,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
-                                           outputs=["out1", "out2"])
+                                           outputs=["out1", "out2"], name="split1", axis=0)
     expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
                                          outputs=["out4"])
     graph = make_graph([expected_split, relu, expected_mul], "test_graph", input_tensors, output_tensors)
@@ -1205,3 +1205,48 @@ def test_set_name_for_dimension():
     with pytest.raises(Exception) as e:
         model.set_name_for_dimension(one_const, 0, dim_name)
     assert "ONNX initializer shape dimension cannot be dynamic." in str(e)
+
+
+def test_set_input_partial_shape_using_input_edge():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    add_operator = model.get_place_by_operation_name("onnx_add_op")
+    add_input_edge = add_operator.get_input_port(inputPortIndex=0)
+    model.set_partial_shape(add_input_edge, PartialShape([10, 10]))
+    add_input_edge = add_operator.get_input_port(inputPortIndex=1)
+    model.set_partial_shape(add_input_edge, PartialShape([1]))
+
+    ov_model = fe.convert(model)
+    assert ov_model.input("in1").get_partial_shape() == PartialShape([10, 10])
+    assert ov_model.input("in2").get_partial_shape() == PartialShape([1])
+
+    assert ov_model.output("out4").get_partial_shape() == PartialShape([10, 10])
+
+
+def test_get_partial_shape_using_input_edge():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    add_operator = model.get_place_by_operation_name("onnx_add_op")
+    add_input_edge = add_operator.get_input_port(inputPortIndex=0)
+
+    pshape = model.get_partial_shape(add_input_edge)
+    assert pshape == PartialShape([2, 2])
+
+
+def test_get_partial_shape_using_output_edge():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    add_operator = model.get_place_by_operation_name("onnx_add_op")
+    add_output_edge = add_operator.get_output_port(outputPortIndex=0)
+
+    assert model.get_partial_shape(add_output_edge) == PartialShape([2, 2])
+
+    split_operator = model.get_place_by_tensor_name("out1").get_producing_operation()
+    out2_edge = split_operator.get_output_port(outputPortIndex=1)
+    assert model.get_partial_shape(out2_edge) == PartialShape([1, 2])

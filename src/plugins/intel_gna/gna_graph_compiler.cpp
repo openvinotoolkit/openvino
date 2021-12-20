@@ -759,7 +759,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         if (!gnaFlags->sw_fp32) {
             if (gnaFlags->uniformPwlDesign) {
                 uint32_t num_segments = POW_NUM_SEGMENTS;
-                if (activation_type.args.pow.exponent == 0.0f || activation_type.args.pow.exponent == 1.0f) {
+                if (activation_type.args.pow.exponent == 0.0f) {
                     num_segments = 3;
                 }
                 ptr_pwl_segments.resize(num_segments);
@@ -950,6 +950,16 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
                                 "input 0 precision is '" << concatLayer->insData[0].lock()->getPrecision().name() << "' but input " << layerIndex <<
                                 " precision is '" << concatLayer->insData[layerIndex].lock()->getPrecision().name() << "'";
         }
+    }
+
+    // Concat axis validation
+    if (!GNALimitations::ValidateConvConcatAxis(concatLayer) && gnaFlags->log_level == PluginConfigParams::LOG_WARNING) {
+        std::ostringstream in_dims_oss;
+        auto in_dims = concatLayer->insData[0].lock()->getDims();
+        std::copy(in_dims.begin(), in_dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
+        std::cout << "[ WARNING ] Topology with layer: " + layer->name + ", type: " + layer->type +
+            ", and concatenation axis(" + std::to_string(concatLayer->_axis) +
+            ") for input dimensions(" + in_dims_oss.str() + ") not supported\n";
     }
 
     auto& concatLayerInfo = concat_connection.find(concatLayer->name)->second;

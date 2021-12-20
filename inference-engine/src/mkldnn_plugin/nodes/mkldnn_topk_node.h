@@ -17,7 +17,6 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -92,7 +91,8 @@ private:
     bool sort_value = false;
     bool mode_max = true;
 
-    int dim, before_num;
+    int dim = 0;
+    int before_num = 0;
 
     std::string errorPrefix;
 

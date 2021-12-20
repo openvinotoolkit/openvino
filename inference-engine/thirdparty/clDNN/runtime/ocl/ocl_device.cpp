@@ -4,7 +4,7 @@
 
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <map>
 #include <string>

@@ -137,6 +137,10 @@ void MKLDNNOneHotNode::one_hot(size_t prefix_size, size_t suffix_size) {
     });
 }
 
+void MKLDNNOneHotNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 void MKLDNNOneHotNode::execute(mkldnn::stream strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();

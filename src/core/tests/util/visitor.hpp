@@ -96,7 +96,7 @@ public:
     virtual operator HostTensorPtr&() {
         NGRAPH_CHECK(false, "Invalid type access");
     }
-    virtual operator std::shared_ptr<ov::Function>&() {
+    virtual operator std::shared_ptr<ov::Model>&() {
         NGRAPH_CHECK(false, "Invalid type access");
     }
     virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>&() {
@@ -109,6 +109,12 @@ public:
         NGRAPH_CHECK(false, "Invalid type access");
     }
     virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator ov::PartialShape&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
+    virtual operator ov::Dimension&() {
         NGRAPH_CHECK(false, "Invalid type access");
     }
     uint64_t get_index() {
@@ -194,8 +200,8 @@ class DeserializeAttributeVisitor : public AttributeVisitor {
 public:
     DeserializeAttributeVisitor(ValueMap& value_map) : m_values(value_map) {}
 
-    void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override {
-        adapter.set(m_values.get<std::shared_ptr<ov::Function>>(name));
+    void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+        adapter.set(m_values.get<std::shared_ptr<ov::Model>>(name));
     }
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
@@ -209,6 +215,10 @@ public:
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
             a->set(m_values.get<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>(name));
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+            a->set(m_values.get<ov::PartialShape>(name));
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+            a->set(m_values.get<ov::Dimension>(name));
         } else {
             NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
         }
@@ -273,7 +283,7 @@ class SerializeAttributeVisitor : public AttributeVisitor {
 public:
     SerializeAttributeVisitor(ValueMap& value_map) : m_values(value_map) {}
 
-    void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override {
+    void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         m_values.insert(name, adapter.get());
     }
 
@@ -289,6 +299,10 @@ public:
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
                        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
             m_values.insert_vector(name, a->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+            m_values.insert_vector(name, a->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+            m_values.insert(name, a->get());
         } else {
             NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
         }

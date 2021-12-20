@@ -21,6 +21,7 @@ enum class KernelType {
     NORMALIZE,
     POOLING,
     ROI_POOLING,
+    ROI_ALIGN,
     FULLY_CONNECTED,
     ACTIVATION,
     SOFT_MAX,
@@ -54,6 +55,7 @@ enum class KernelType {
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHUFFLE_CHANNELS,
+    SLICE,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     BINARY_CONVOLUTION,
@@ -72,7 +74,8 @@ enum class KernelType {
     LOOP,
     NON_MAX_SUPPRESSION,
     DETECTION_OUTPUT,
-    EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR
+    EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR,
+    CONVERT_COLOR
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -592,4 +595,22 @@ enum class BoxEncodingType {
     BOX_ENCODING_CORNER,
     BOX_ENCODING_CENTER,
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ConvertColor
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class color_format : uint32_t {
+    RGB,       ///< RGB color format
+    BGR,       ///< BGR color format, default in DLDT
+    RGBX,      ///< RGBX color format with X ignored during inference
+    BGRX,      ///< BGRX color format with X ignored during inference
+    NV12,      ///< NV12 color format represented as compound Y+UV blob
+    I420,      ///< I420 color format represented as compound Y+U+V blob
+};
+
+enum class memory_type : uint32_t {
+    buffer,
+    image
+};
+
 }  // namespace kernel_selector

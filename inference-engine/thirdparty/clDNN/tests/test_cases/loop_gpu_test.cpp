@@ -6,15 +6,15 @@
 
 #include "test_utils/test_utils.h"
 
-#include <cldnn/runtime/memory.hpp>
-#include <cldnn/runtime/engine.hpp>
-#include <cldnn/graph/network.hpp>
-#include <cldnn/primitives/input_layout.hpp>
-#include "cldnn/primitives/eltwise.hpp"
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/loop.hpp>
-#include <cldnn/primitives/mutable_data.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <intel_gpu/runtime/memory.hpp>
+#include <intel_gpu/runtime/engine.hpp>
+#include <intel_gpu/graph/network.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include "intel_gpu/primitives/eltwise.hpp"
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/loop.hpp>
+#include <intel_gpu/primitives/mutable_data.hpp>
+#include <intel_gpu/primitives/data.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -337,7 +337,7 @@ TEST(loop_gpu, basic_concat_nested)
     EXPECT_EQ(output_layout.size.feature[0], 1);
     EXPECT_EQ(output_layout.size.spatial[0], 4);
     EXPECT_EQ(output_layout.size.spatial[1], 5);
-    
+
     // check output values
     EXPECT_EQ(output_layout.count(), expected.size());
     {

@@ -59,6 +59,11 @@
 [submodule "tools/pot/thirdparty/open_model_zoo"]
 	path = tools/pot/thirdparty/open_model_zoo
 	url = https://github.com/openvinotoolkit/open_model_zoo.git
-[submodule "thirdparty/nlohmann_json"]
-	path = thirdparty/nlohmann_json
+[submodule "thirdparty/json/nlohmann_json"]
+	path = thirdparty/json/nlohmann_json
 	url = https://github.com/nlohmann/json.git
+	shallow = true
+[submodule "thirdparty/json/nlohmann_json_schema_validator"]
+	path = thirdparty/json/nlohmann_json_schema_validator
+	url = https://github.com/pboettch/json-schema-validator.git
+	shallow = true

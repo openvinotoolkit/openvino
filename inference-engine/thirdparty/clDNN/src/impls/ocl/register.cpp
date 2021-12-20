@@ -54,6 +54,7 @@ void register_implementations() {
     REGISTER_OCL(reorg_yolo);
     REGISTER_OCL(reshape);
     REGISTER_OCL(reverse_sequence);
+    REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(scale);
     REGISTER_OCL(scatter_update);
@@ -64,6 +65,7 @@ void register_implementations() {
     REGISTER_OCL(softmax);
     REGISTER_OCL(space_to_batch);
     REGISTER_OCL(space_to_depth);
+    REGISTER_OCL(slice);
     REGISTER_OCL(strided_slice);
     REGISTER_OCL(tile);
     REGISTER_OCL(lstm_dynamic_input);
@@ -76,6 +78,7 @@ void register_implementations() {
     REGISTER_OCL(cum_sum);
     REGISTER_OCL(embedding_bag);
     REGISTER_OCL(extract_image_patches);
+    REGISTER_OCL(convert_color);
 }
 
 }  // namespace ocl

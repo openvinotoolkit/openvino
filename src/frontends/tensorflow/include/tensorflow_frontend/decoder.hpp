@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/core/any.hpp"
-#include "openvino/core/variant.hpp"
+#include <openvino/core/any.hpp>
+
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
@@ -18,8 +18,7 @@ public:
     /// \param name Attribute name
     /// \param type_info Attribute type information
     /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
-    virtual std::shared_ptr<ov::Variant> get_attribute(const std::string& name,
-                                                       const VariantTypeInfo& type_info) const = 0;
+    virtual ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const = 0;
 
     /// \brief Get a number of inputs
     virtual size_t get_input_size() const = 0;
