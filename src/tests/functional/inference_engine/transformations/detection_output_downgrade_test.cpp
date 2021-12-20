@@ -18,6 +18,8 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "transformations/init_node_info.hpp"
 
+#include "functional_test_utils/skip_tests_config.hpp"
+
 using namespace ngraph;
 using namespace testing;
 
@@ -50,6 +52,7 @@ void create_attributes_vectors(std::vector<opset1::DetectionOutput::Attributes>&
 }  // namespace
 
 TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::vector<opset1::DetectionOutput::Attributes> attrs_v1_vector;
     std::vector<opset8::DetectionOutput::Attributes> attrs_v8_vector;
     Dimension N = 5;
@@ -112,6 +115,7 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
 }
 
 TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // In this case num_classes attribute value is deduced using inputs shapes
     std::vector<opset1::DetectionOutput::Attributes> attrs_v1_vector;
     std::vector<opset8::DetectionOutput::Attributes> attrs_v8_vector;
