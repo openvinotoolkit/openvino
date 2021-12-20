@@ -31,7 +31,7 @@ def paddle_scale(name : str, x, scale, bias, attrs : dict, data_type):
 
 
 def paddle_scale_tensor(name : str, x, scale, bias, attrs : dict, data_type):
-    import paddle
+    import paddle as paddle
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
