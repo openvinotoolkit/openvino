@@ -1744,7 +1744,7 @@ void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     MKLDNNNode::fuseInto(parentNode);
 }
 
-void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align) {
+void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
     if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
@@ -1775,11 +1775,11 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &p
         }
     } else {
         const size_t chIdx = postOpDims.size() > 1 ? getFusingAxis() : 0;
+        constexpr int align = 16; // always align for legacy scale/shift post ops
         scalesBuffer = makeAlignedBuffer(postOpDims[chIdx], scales, align);
         if (getAlgorithm() != EltwisePrelu) {
             shiftsBuffer = makeAlignedBuffer(postOpDims[chIdx], shifts, align);
         }
-
         /* @todo legacy depthwise post ops are kept for now
          * for performance reasons
          */
