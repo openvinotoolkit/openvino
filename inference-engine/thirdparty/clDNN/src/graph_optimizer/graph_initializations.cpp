@@ -436,10 +436,5 @@ void graph_initializations::run(program& p) {
     }
     set_outputs(p);
     p.get_processing_order().calc_processing_order(p);
-
-    for (auto& node : p.get_processing_order()) {
-        if (!node->is_type<data>())
-            node->get_output_layout();
-    }
 }
 }  // namespace cldnn

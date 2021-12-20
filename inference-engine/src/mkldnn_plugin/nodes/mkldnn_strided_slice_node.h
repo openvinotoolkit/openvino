@@ -24,6 +24,8 @@ public:
         return false;
     }
 
+    bool isExecutable() const override;
+
 protected:
     void prepareParams() override;
     void executeDynamicImpl(mkldnn::stream strm) override;
