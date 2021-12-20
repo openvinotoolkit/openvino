@@ -3,6 +3,9 @@
 //
 #pragma once
 
+#include <map>
+#include <ostream>
+
 #include "openvino/core/core_visibility.hpp"
 
 /**
@@ -39,6 +42,12 @@ struct Version {
     const char* description;
 };
 #pragma pack(pop)
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const Version& version);
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const std::map<std::string, Version>& versions);
 
 /**
  * @brief Gets the current OpenVINO version

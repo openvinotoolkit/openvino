@@ -1978,7 +1978,7 @@ std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
                                                                               memory.getStaticDims(), memory.GetPtr())});
     }
 
-    std::vector<ov::StaticShape> output_shapes;
+    std::vector<ov::StaticShape> output_shapes = {{}};
     shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
 
     std::vector<VectorDims> result(output_shapes.size());
@@ -2075,7 +2075,7 @@ void MKLDNNInterpolateNode::createPrimitive() {
     interpAttrs.inPrc = srcMemPtr->getDesc().getPrecision();
     interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
 
-    if (shapesDefined()) {
+    if (shapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();

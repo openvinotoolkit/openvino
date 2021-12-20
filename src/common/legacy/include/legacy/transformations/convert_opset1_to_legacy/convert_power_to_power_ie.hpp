@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertPowerToPowerIEMatcher);
+class ConvertPowerToPowerIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph

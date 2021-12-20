@@ -10,8 +10,8 @@
 #include <sstream>
 
 #include <cnn_network_ngraph_impl.hpp>
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/deconvolution_ie.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "legacy/ngraph_ops/gather_ie.hpp"
@@ -391,8 +391,13 @@ void CNNLayerCreator::on_adapter(const std::string& name,
         params[name] = details::convertPrecision(type).name();
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::PartialShape>>(&adapter)) {
         std::string dims;
-        auto shape = static_cast<::ngraph::PartialShape&>(*a);
+        auto shape = a->get();
+        if (shape.rank().is_dynamic()) {
+            IE_THROW() << "Error converting ngraph to CNN network. Dynamic rank is not supported.";
+        }
         for (int64_t i = 0; i < shape.rank().get_length(); i++) {
+            if (shape[i].is_dynamic())
+                IE_THROW() << "Error converting ngraph to CNN network. Dynamic dimension is not supported.";
             if (!dims.empty()) dims += ",";
             dims += std::to_string(shape[i].get_length());
         }

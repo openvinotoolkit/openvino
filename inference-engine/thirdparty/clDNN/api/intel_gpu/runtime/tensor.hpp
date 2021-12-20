@@ -85,6 +85,7 @@ struct format {
         bs_fs_zyx_bsv16_fsv16,                  ///< format used for 3D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv16_fsv16,                   ///< format used for 2D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv4_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 4)
+        bs_fs_yx_bsv8_fsv4,                     ///< format used for 2D blocked convolution (batch and features blocked by 8 and 4)
         bs_fs_yx_bsv4_fsv2,                     ///< format used for 2D blocked convolution (batch blocked by 4, features blocked by 2)
         bs_fs_zyx_bsv4_fsv4,                    ///< format used for 3D blocked convolution (batch and features blocked by 4)
         bs_fs_zyx_bsv4_fsv2,                    ///< format used for 3D blocked convolution (batch blocked by 4, features blocked by 2)
@@ -158,6 +159,7 @@ struct format {
         os_is_zyx_osa4_isa8_osv8_isv2,                ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4,                ///< format for weights for MMAD fsv32 convolution
         os_is_yx_osa4_isa8_osv8_isv4,                 ///< format for weights for MMAD fsv32 convolution
+        os_is_yx_osa2_isa8_osv8_isv2,
         os_is_yx_osa2_isa8_osv16_isv2,
         os_is_yx_osa2_isa8_osv16_isv4,
         is_o_yx_isv32,                                ///< format for weights for 1x1 MMAD convolutions
@@ -254,6 +256,7 @@ struct format {
                 { bs_fs_zyx_bsv16_fsv16, { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 16 }, {1, 16}}}},
                 { bs_fs_yx_bsv16_fsv16,  { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 16 }, {1, 16}}}},
                 { bs_fs_yx_bsv4_fsv4,    { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 4 }, {1, 4}}}},
+                { bs_fs_yx_bsv8_fsv4,    { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 8 }, {1, 4}}}},
                 { bs_fs_yx_bsv4_fsv2,    { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{0, 4 }, {1, 2}}}},
                 { bs_fs_zyx_bsv4_fsv4,   { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 4 }, {1, 4}}}},
                 { bs_fs_zyx_bsv4_fsv2,   { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 4 }, {1, 2}}}},
@@ -291,6 +294,7 @@ struct format {
                 { os_is_yx_osa4_isa8_osv8_isv4,                { 1, 1, 2, 0, "oiyx",   "oixy",      {{0, 32}, {1, 32}}}},
                 { os_is_zyx_osa4_isa8_osv8_isv2,               { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 16}}}},
                 { os_is_zyx_osa4_isa8_osv8_isv4,               { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 32}}}},
+                { os_is_yx_osa2_isa8_osv8_isv2,                { 1, 1, 2, 0, "oiyx",   "oixy?",      {{0, 16}, {1, 16}}}},
                 { os_is_yx_osa2_isa8_osv16_isv2,               { 1, 1, 2, 0, "oiyx",   "oixy",       {{0, 32}, {1, 16}}}},
                 { os_is_yx_osa2_isa8_osv16_isv4,               { 1, 1, 2, 0, "oiyx",   "oixy",       {{0, 32}, {1, 32}}}},
                 { os_is_zyx_isa8_osv8_isv4,                    { 1, 1, 3, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 8}, {1, 4}}}},
