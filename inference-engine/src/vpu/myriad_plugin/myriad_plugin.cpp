@@ -161,21 +161,28 @@ QueryNetworkResult Engine::QueryNetwork(
             "GraphCompiler",
             _parsedConfig.get<LogLevelOption>(),
             consoleOutput());
+    std::set<std::string> namesToExclude;
+    const auto supportedNetworks = vpu::FrontEnd::checkSupportedNetworks(network, namesToExclude);
+    for (const auto supportedNetwork : supportedNetworks) {
+        const auto supportedLayers = getSupportedLayers(
+                supportedNetwork,
+                parsedConfigCopy,
+                log,
+                GetCore(),
+                namesToExclude);
 
-    const auto supportedLayers = getSupportedLayers(
-            network,
-            parsedConfigCopy,
-            log,
-            GetCore());
+        if (auto function = supportedNetwork.getFunction()) {
+            auto clonedNetwork = cloneNetwork(supportedNetwork);
+            auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
 
-    if (auto function = network.getFunction()) {
-        auto clonedNetwork = cloneNetwork(network);
-        auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
-
-        res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
-    } else {
-        for (const auto& layerName : supportedLayers) {
-            res.supportedLayersMap.insert({ layerName, GetName() });
+            QueryNetworkResult supportedRes = getQueryNetwork(clonedNetwork, function, GetName(), supportedLayers);
+            for (const auto& layer : supportedRes.supportedLayersMap) {
+                res.supportedLayersMap.insert(layer);
+            }
+        } else {
+            for (const auto& layerName : supportedLayers) {
+                res.supportedLayersMap.insert({ layerName, GetName() });
+            }
         }
     }
 
