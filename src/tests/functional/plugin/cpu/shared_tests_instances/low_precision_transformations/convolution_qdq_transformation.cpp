@@ -231,6 +231,26 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
         "Convolution",
         "U8"
     },
+
+    {
+        { 16ul, {{ 1, 1, 1, 1 }}, { -0.8f }, { 0.f }, { 0.f }, { 15.f }, ngraph::element::f32 },
+        { ngraph::element::u8, false },
+        {
+                { ngraph::element::f32, false },
+                { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::u8, true },
+                { {0.1f}, ngraph::element::f32, {}, false }
+        },
+        {{0.5f}, ngraph::element::i8},
+        {},
+        {},
+        {
+                { ngraph::element::f32, false },
+                {},
+                { {0.2f}, ngraph::element::f32, {}, false }
+        },
+        "Convolution",
+        "U8"
+    },
 };
 
 const std::vector<ngraph::PartialShape> shapes = {

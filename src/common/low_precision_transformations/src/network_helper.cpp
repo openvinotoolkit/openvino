@@ -1360,6 +1360,7 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
     const std::shared_ptr<opset1::Convert> convert = ov::as_type_ptr<opset1::Convert>(dataNode.get_node_shared_ptr());
     if (convert != nullptr) {
         if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
+            (convert->input(0).get_element_type() != element::i4) && (convert->input(0).get_element_type() != element::u4) &&
             (convert->output(0).get_element_type() != element::f32)) {
             return FakeQuantizeDequantization(dataNode, nullptr, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
         }
