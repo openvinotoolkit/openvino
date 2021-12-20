@@ -404,7 +404,6 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
         loopExecutionConditionIdx = 1;
     } else if (auto ti = ov::as_type_ptr<const ov::op::v0::TensorIterator>(ngraphOp)) {
         algorithm = TensorIteratorCommon;
-        n_iter = ti->get_num_iterations();
     } else {
         THROW_ERROR << "isn't supported!";
     }
@@ -616,7 +615,7 @@ void MKLDNNTensorIteratorNode::prepareInitialCond() {
 
 void MKLDNNTensorIteratorNode::prepareTripCount() {
     if (loopTripCountIdx == -1) {
-        trip_count_check.reset(new staticValueCheck(n_iter)); // use statically calculated num of iteration
+        trip_count_check.reset(new staticValueCheck(getNumIteration(inputPortMap, outputPortMap)));
     } else {
         auto mem = getParentEdgesAtPort(loopTripCountIdx)[0]->getMemoryPtr();
         trip_count_check.reset(new asIntCheck(mem));
@@ -666,6 +665,94 @@ void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
     for (auto buffer : buffers) {
         buffer->transfer(this);
     }
+}
+
+int MKLDNNTensorIteratorNode::getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) {
+    const auto isIterable = [](const PortMap& rule) {
+        return rule.axis != -1;
+    };
+
+    const auto getNumIterations = [this](const PortMap& rule, const std::vector<size_t>& dimensions) -> int {
+        const auto axis = rule.axis;
+        if (axis < 0 || static_cast<std::size_t>(axis) >= dimensions.size()) {
+            THROW_ERROR << ": Invalid \"axis\" value in an iteration component: "
+                        << rule.axis  << ", dimensions number = " << dimensions.size() << " (out of range)";
+        }
+        const auto space = dimensions[axis];
+        const int start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
+        const int end   = static_cast<int>((rule.end   < 0 ? (space + 1) : 0) + rule.end);
+
+        const auto stride = rule.stride;
+        if (stride == 0) {
+            THROW_ERROR << ": Invalid \"stride\" value in an iteration component: " << rule.stride << " (infinite loop)";
+        }
+        const auto step = std::abs(stride);
+
+        const auto src = stride < 0 ? end : start;
+        const auto dst = stride < 0 ? start : end;
+        const auto length = dst - src;
+        if (src < 0 || src >= dst || dst > static_cast<int64_t>(space) || length < step) {
+            THROW_ERROR << ": Invalid \"start\",\"stride\",\"end\" values in an iteration component"
+                        << ": \"start\" = " << rule.start << ", \"stride\" = " << rule.stride  << ", \"end\" = " << rule.end;
+        }
+
+        if (length % step != 0) {
+            THROW_ERROR << ": Each iteration must be the same size: length (" << length << ") is not divisible by step (" << step << ")";
+        }
+
+        return static_cast<int>(length / step);
+    };
+
+
+    int numIterations = 1;
+    bool isDefault = true;
+    for (const auto& rule : inputPortMap) {
+        const auto& dims = getParentEdgesAtPort(rule.from)[0]->getMemoryPtr()->GetShape().getDims();
+        if (!isIterable(rule)) {
+            continue;
+        }
+
+        if (dims[rule.axis] == Shape::UNDEFINED_DIM)
+            THROW_ERROR << ": Split by axis of dynamic dim isn't supported";
+
+        if (rule.from < 0 || rule.from >= static_cast<int64_t>(inputShapes.size())) {
+            THROW_ERROR << ": Invalid \"from\" value: \"from\" = " << rule.from
+                        << " inputs number = " << inputShapes.size() << " (out of range)";
+        }
+
+        const auto currentNumIterations = getNumIterations(rule, dims);
+        if (isDefault) {
+            isDefault = false;
+            numIterations = currentNumIterations;
+        } else if (numIterations != currentNumIterations) {
+            THROW_ERROR << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
+        }
+    }
+
+    for (const auto& rule : outputPortMap) {
+        const auto& dims = getBaseMemDescAtOutputPort(rule.to)->getShape().getDims();
+        if (!isIterable(rule)) {
+            continue;
+        }
+
+        if (dims[rule.axis] == Shape::UNDEFINED_DIM)
+            continue;
+
+        if (rule.from < 0 || rule.from >= static_cast<int64_t>(outputShapes.size())) {
+            THROW_ERROR << ": Invalid \"from\" value: \"from\" = " << rule.from
+                        << " inputs number = " << outputShapes.size() << " (out of range)";
+        }
+
+        const auto currentNumIterations = getNumIterations(rule, dims);
+        if (isDefault) {
+            isDefault = false;
+            numIterations = currentNumIterations;
+        } else if (numIterations != currentNumIterations) {
+            THROW_ERROR << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
+        }
+    }
+
+    return numIterations;
 }
 
 bool MKLDNNTensorIteratorNode::created() const {

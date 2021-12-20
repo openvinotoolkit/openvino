@@ -105,21 +105,21 @@ std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::Rec
 std::vector<std::vector<InputShape>> inputs = {
     {  //first test suit
         {   //dynamic shape for first input
-            {-1, 12, -1},
+            {-1, -1, -1},
             {  // target static shapes
                 {10, 12, 10},
-                {10, 12, 10},
-                {1, 12, 2},
-                {5, 12, 3}
+                {10, 8, 10},
+                {1, 8, 2},
+                {5, 3, 3}
             }
         },
         {   //dynamic shape for second input
-            {-1, 12, -1},
+            {-1, -1, -1},
             {  // target static shapes
                 {1, 12, 1},
-                {1, 12, 1},
-                {5, 12, 2},
-                {5, 12, 3}
+                {1, 8, 1},
+                {5, 8, 2},
+                {5, 3, 3}
             }
         },
     },

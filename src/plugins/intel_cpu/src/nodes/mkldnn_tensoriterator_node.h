@@ -129,8 +129,7 @@ private:
     /* Dynamic support */
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(mkldnn::stream strm);
-
-    int n_iter = 0;
+    int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap);
 
     MKLDNNExtensionManager::Ptr ext_mng;
     MKLDNNGraph sub_graph;
