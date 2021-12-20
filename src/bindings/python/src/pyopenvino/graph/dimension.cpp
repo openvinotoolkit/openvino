@@ -137,14 +137,14 @@ void regclass_graph_Dimension(py::module m) {
             )");
     dim.def("compatible",
             &ov::Dimension::compatible,
-            py::arg("d"),
+            py::arg("dim"),
             R"(
                 Check whether this dimension is capable of being merged
                 with the argument dimension.
 
                 Parameters
                 ----------
-                d : Dimension
+                dim : Dimension
                     The dimension to compare this dimension with.
 
                 Returns
@@ -154,7 +154,7 @@ void regclass_graph_Dimension(py::module m) {
             )");
     dim.def("relaxes",
             &ov::Dimension::relaxes,
-            py::arg("d"),
+            py::arg("dim"),
             R"(
                 Check whether this dimension is a relaxation of the argument.
                 This dimension relaxes (or is a relaxation of) d if:
@@ -166,7 +166,7 @@ void regclass_graph_Dimension(py::module m) {
 
                 Parameters
                 ----------
-                d : Dimension
+                dim : Dimension
                     The dimension to compare this dimension with.
 
                 Returns
@@ -176,7 +176,7 @@ void regclass_graph_Dimension(py::module m) {
             )");
     dim.def("refines",
             &ov::Dimension::refines,
-            py::arg("d"),
+            py::arg("dim"),
             R"(
                 Check whether this dimension is a refinement of the argument.
                 This dimension refines (or is a refinement of) d if:
@@ -188,7 +188,7 @@ void regclass_graph_Dimension(py::module m) {
 
                 Parameters
                 ----------
-                d : Dimension
+                dim : Dimension
                     The dimension to compare this dimension with.
 
                 Returns

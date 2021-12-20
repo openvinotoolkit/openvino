@@ -314,7 +314,7 @@ function(ie_generate_plugins_hpp)
     endforeach()
 
     # add plugins to libraries including ie_plugins.hpp
-    ie_target_link_plugins(inference_engine)
+    ie_target_link_plugins(ov_runtime)
     if(TARGET inference_engine_s)
         ie_target_link_plugins(inference_engine_s)
     endif()
@@ -344,7 +344,7 @@ function(ie_generate_plugins_hpp)
     add_dependencies(inference_engine _ie_plugins_hpp)
 
     # add dependency for object files
-    get_target_property(sources inference_engine SOURCES)
+    get_target_property(sources inference_engine_obj SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library
