@@ -243,7 +243,8 @@ std::set<std::string> getSupportedLayers(
     const ie::CNNNetwork& network,
     const PluginConfiguration& config,
     const Logger::Ptr& log,
-    const std::shared_ptr<ie::ICore> core) {
+    const std::shared_ptr<ie::ICore> core,
+    const std::set<std::string>& namesToExclude) {
     CompileEnv::init(config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
@@ -253,7 +254,7 @@ std::set<std::string> getSupportedLayers(
 
     auto stageBuilder = std::make_shared<StageBuilder>();
     auto frontEnd = std::make_shared<FrontEnd>(stageBuilder, core);
-    return frontEnd->checkSupportedLayers(network);
+    return frontEnd->checkSupportedLayers(network, namesToExclude);
 }
 
 int DeviceResources::numShaves() {
