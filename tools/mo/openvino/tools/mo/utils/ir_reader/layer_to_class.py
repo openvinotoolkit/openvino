@@ -278,8 +278,8 @@ def restore_tensor_names(op: Node):
     for out_port in op.ports:
         # op.ports is our internal attribute, dictionary, where keys are numbers of output ports
         # and values are tuples with shape and tensor name:
-        # {out_port_idx_1: (out_port_idx_1_shape, out_port_idx_1_tensor_name),
-        #  out_port_idx_2: (out_port_idx_2_shape, out_port_idx_2_tensor_name)}
+        # {out_port_idx_1: (out_port_idx_1_shape, out_port_idx_1_tensor_name, out_port_idx_1_rt_info),
+        #  out_port_idx_2: (out_port_idx_2_shape, out_port_idx_2_tensor_name, out_port_idx_2_rt_info)}
         out_tensor_names = op.ports[out_port][1]
 
         # handle Constant operations with old style output port numbering
@@ -406,7 +406,7 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
             op.out_node(0)['correct_data_type'] = True
 
             if op.has_and_set('rt_info'):
-                op.out_node(0)['save_rt_info'] = op.rt_info
+                op.out_node(0)['rt_info'] = op.rt_info
 
         restore_tensor_names(op)
 

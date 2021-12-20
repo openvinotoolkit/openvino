@@ -229,9 +229,12 @@ class IREngine(object):
                 for port in output:
                     port_id = int(port.attrib['id'])
                     output_shape = []
+                    port_rt_info = None
                     for dim in port:
                         if dim.tag == "dim":
                             output_shape.append(int(dim.text))
+                        if dim.tag == 'rt_info':
+                            port_rt_info = self.__read_rt_info_common(dim[0])
 
                     output_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in output_shape])
 
@@ -239,7 +242,7 @@ class IREngine(object):
                     if 'names' in port.attrib:
                         out_tensor_names = port.attrib['names']
 
-                    layer_attrs['ports'].update({port_id: (output_shape, out_tensor_names)})
+                    layer_attrs['ports'].update({port_id: (output_shape, out_tensor_names, port_rt_info)})
             elif attr.tag == 'blobs':
                 in_port = inputs_counter
                 for blob_attr in attr:
@@ -460,10 +463,10 @@ class IREngine(object):
             attr_name = attr.attrib['name']
             if attr_name == 'old_api_map_order':
                 rt_info.info.update(self.__read_old_api_map_order(attr, layer.attrib['type']))
-            if attr_name == 'old_api_map_element_type':
+            elif attr_name == 'old_api_map_element_type':
                 rt_info.info.update(self.__read_old_api_map_element_type(attr, layer.attrib['type']))
             else:
-                rt_info.info.update((self.__read_old_api_map_common(attr)))
+                rt_info.info.update((self.__read_rt_info_common(attr)))
 
         layer_attrs.update({'rt_info': rt_info})
         return layer_attrs
@@ -491,11 +494,11 @@ class IREngine(object):
         return {('old_api_map_element_type', version): old_api_map}
 
     @staticmethod
-    def __read_old_api_map_common(attr):
+    def __read_rt_info_common(attr):
         attr_name = attr.attrib['name']
         version = int(attr.attrib['version'])
-        old_api_map = OrderedDict()
+        rt_info = OrderedDict()
         for key in attr.attrib:
             if key not in ('name', 'version'):
-                old_api_map[key] = attr.attrib[key]
-        return {(attr_name, version): old_api_map}
+                rt_info[key] = attr.attrib[key]
+        return {(attr_name, version): rt_info}
