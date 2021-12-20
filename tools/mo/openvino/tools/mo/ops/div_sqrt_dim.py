@@ -14,7 +14,7 @@ class DivSqrtDimOp(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': self.op,
+            'op': __class__.op,
             'infer': None,
             'in_ports_count': 1,
             'out_ports_count': 1,

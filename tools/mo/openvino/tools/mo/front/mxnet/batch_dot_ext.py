@@ -3,7 +3,7 @@
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from openvino.tools.mo.graph.graph import Node
-from openvino.tools.mo.ops.batch_dot import MXNetBatchDot
+from openvino.tools.mo.ops.MatMul import MatMul
 
 
 class BatchDotExt(FrontExtractorOp):
@@ -23,7 +23,7 @@ class BatchDotExt(FrontExtractorOp):
         transpose_a = attrs.bool('transpose_a', False)
         transpose_b = attrs.bool('transpose_b', False)
 
-        MXNetBatchDot.update_node_stat(node, {
+        MatMul.update_node_stat(node, {
             'transpose_a': transpose_a,
             'transpose_b': transpose_b
         })

@@ -273,7 +273,6 @@ openvino/tools/mo/front/mxnet/add_input_data_to_prior_boxes.py
 openvino/tools/mo/front/mxnet/arange_ext.py
 openvino/tools/mo/front/mxnet/arange_replacer.py
 openvino/tools/mo/front/mxnet/batch_dot_ext.py
-openvino/tools/mo/front/mxnet/batch_dot_replacer.py
 openvino/tools/mo/front/mxnet/block_grad_ext.py
 openvino/tools/mo/front/mxnet/box_nms_ext.py
 openvino/tools/mo/front/mxnet/cast_ext.py
@@ -851,7 +850,6 @@ openvino/tools/mo/ops/assert_op.py
 openvino/tools/mo/ops/assign.py
 openvino/tools/mo/ops/aten.py
 openvino/tools/mo/ops/axpy.py
-openvino/tools/mo/ops/batch_dot.py
 openvino/tools/mo/ops/BatchNormInference.py
 openvino/tools/mo/ops/binarization.py
 openvino/tools/mo/ops/BlockLSTM.py
