@@ -115,6 +115,8 @@ void InputModel::set_name_for_dimension(const ov::frontend::Place::Ptr& tensor,
 }
 
 void InputModel::add_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) {
+    FRONT_END_GENERAL_CHECK(!new_name.empty(), "The additional tensor name cannot be empty.");
+
     ov::frontend::Place::Ptr tensor_place = tensor;
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(tensor);
     if (input_edge) {
@@ -125,10 +127,8 @@ void InputModel::add_name_for_tensor(const ov::frontend::Place::Ptr& tensor, con
     FRONT_END_GENERAL_CHECK(onnx_tensor != nullptr,
                             "Incorrect Place passed to add_name_for_tensor. This method expects a PlaceTensor object "
                             "pointing to the ONNX tensor.");
-    FRONT_END_GENERAL_CHECK(!onnx_tensor->get_names().empty(),
-                            "The current tensor name is empty. Can't add more names to it.");
 
-    auto& names_to_add = m_additional_tensor_names[onnx_tensor->get_names()[0]];
+    auto& names_to_add = m_additional_tensor_names[onnx_tensor->get_names().at(0)];
     names_to_add.insert(new_name);
 }
 

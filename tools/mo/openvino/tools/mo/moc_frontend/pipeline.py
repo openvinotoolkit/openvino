@@ -9,7 +9,7 @@ from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
 from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
 
 from openvino.runtime import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEnd, Place       # pylint: disable=no-name-in-module,import-error
+from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, Place # pylint: disable=no-name-in-module,import-error
 from openvino.runtime.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
 
 import numpy as np
@@ -39,7 +39,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             [item for item in places_original if any(
                 [item.is_equal(item2['node']) for item2 in places_new])]) == len(places_original)
 
-    def add_names_to_tensors(model, places):
+    def add_names_to_tensors(model: InputModel, places: List[Place]):
         """
         Adds additional names to some model input tensors. This helper should be used
         when a model modification is going to happen.
@@ -48,10 +48,11 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         """
         for new_input in places:
             try:
-                # some frontends might not implement this method
                 model.add_name_for_tensor(new_input['node'], new_input['input_name'])
-            except:
-                pass
+            except NotImplementedFailure as e:
+                # some frontends might not implement this method
+                log.warn('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
+                    new_input['input_name'], str(e)))
 
     inputs_equal = True
     if user_shapes:

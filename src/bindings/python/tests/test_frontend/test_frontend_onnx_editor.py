@@ -1259,6 +1259,7 @@ def test_add_name_for_tensor():
 
     add_input = ov_model.input(1)
     add_input_tensor_names = add_input.get_names()
+    assert "in2" in add_input_tensor_names
     assert "extra_name" in add_input_tensor_names
 
 
