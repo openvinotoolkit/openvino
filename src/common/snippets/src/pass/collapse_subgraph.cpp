@@ -268,10 +268,10 @@ TokenizeSnippets::TokenizeSnippets() {
         /* 
         * Called with subgraph->input_value(i) arg and used to 
         * Check that the attached node input subgraph has the same input as the node itself.
-        * If true, then ternary merge is intiated.
+        * If true, then ternary merge is initiated.
         *        input
         *        /   \
-        *  sungraph--node
+        *  subgraph--node
         */
         auto is_recurrent = [&input_values](const ngraph::Output<ngraph::Node>& to_find) -> bool {
             return std::any_of(input_values.begin(), input_values.end(),

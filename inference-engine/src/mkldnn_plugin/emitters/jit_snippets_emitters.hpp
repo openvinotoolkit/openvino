@@ -43,8 +43,8 @@ struct jit_snippets_compile_args {
 /// Note that Kernel params are passed directly to the emit_code(). The vector of inputs should contain 2 arguments, the
 /// output vector should be empty. Input parameters
 ///
-/// \param      num_inputs       The number of the node inputs
-/// \param      num_outputs      The number of the node outputs
+/// \param      in[0]       The number of the node inputs
+/// \param      in[1]      The number of the node outputs
 ///
 // Todo: Scheduler dims and offsets are currently calculated in MKLDNN Subgraph node and passed to the KernelEmitter.
 //  However, it seems more natural to calculate all the offsets right in the Kernel op, because the calculation is
@@ -77,16 +77,16 @@ private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
                             const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         if (in.size() != 2)
-            IE_THROW() << "Codegen Kernel got invalid number of inputs. Expected 2, got " << in.size();
+            IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 2, got " << in.size();
         if (out.size() != 0)
-            IE_THROW() << "Codegen Kernel got unexpected output arguments.";
+            IE_THROW() << "KernelEmitter got unexpected output arguments.";
         const size_t num_params = in[0] + in[1];
         if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
-            IE_THROW() << "Codegen Kernel supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
+            IE_THROW() << "KernelEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
                        " parameters, got " << num_params;
         const int64_t harness_num_dims = jcp.output_dims.size() - 1;
         if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS)
-            IE_THROW() << "Codegen Kernel supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
+            IE_THROW() << "KernelEmitter supports harness with up to " << SNIPPETS_MAX_HARNESS_DIMS <<
                        " dims, got " << harness_num_dims;
     }
 
@@ -141,12 +141,12 @@ private:
 /// it calculates the total number of iterations, performs operations specified by enclosed emitters, advances iteration counters
 /// and breaks when necessary.
 ///
-/// \param      inc           The number of input entities (or scheduler counts) processed during one iteration of the tile.
+/// \param      in[0]    The number of input entities (or scheduler counts) processed during one iteration of the tile.
 /// It is expected to be 1 for outer or scalar tiles and vlen for vector tiles.
-/// \param      previous_inc  Increment of the previous Tile in current dimension. Must be 0 if this is the first Tile.
+/// \param      in[1]    Increment of the previous Tile in current dimension. Must be 0 if this is the first Tile.
 /// So previous_inc is zero for outer and vector tiles (the are the first in dim) and vlen for scalar tiles (they usually go after vector Tiles).
-/// \param      num_params    sum number inputs and number of outputs of the node.
-/// \param      dim           dimension of the tile. Note that only 2d Tile are currently supported, so dim is 0 for outer tiles, 1 for inner tiles.
+/// \param      in[2]    sum number inputs and number of outputs of the node.
+/// \param      in[3]    dimension of the tile. Note that only 2d Tile are currently supported, so dim is 0 for outer tiles, 1 for inner tiles.
 ///
 // Todo: Inner and outer tiles have different semantics. For example, outer tile always has the increment == 1, and it can contain only
 //  tile emitters (one outer or two inner). So it seems better to create different classes for inner and outer tiles.
@@ -178,16 +178,16 @@ private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out,
                             const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         if (in.size() != 4)
-            IE_THROW() << "Codegen Tile got invalid number of inputs. Expected 4, got " << in.size();
+            IE_THROW() << "TileEmitter got invalid number of inputs. Expected 4, got " << in.size();
         if (out.size() != 0)
-            IE_THROW() << "Codegen Tile got unexpected output arguments.";
+            IE_THROW() << "TileEmitter got unexpected output arguments.";
         const size_t num_params = in[2];
         if (num_params > SNIPPETS_MAX_SNIPPETS_DIMS)
-            IE_THROW() << "Codegen Tile supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
+            IE_THROW() << "TileEmitter supports only up to " << SNIPPETS_MAX_SNIPPETS_DIMS <<
                        " parameters, got " << num_params;
         const size_t dim = in[3];
         if (dim >= SNIPPETS_MAX_TILE_RANK)
-            IE_THROW() << "Codegen Tile supports tile ranks up to " << SNIPPETS_MAX_TILE_RANK <<
+            IE_THROW() << "TileEmitter supports tile ranks up to " << SNIPPETS_MAX_TILE_RANK <<
                        " got " << dim;
     }
 
@@ -363,9 +363,9 @@ public:
     : jit_emitter(h, isa, n) {
         auto out_pshape = n->output(0).get_tensor().get_partial_shape();
         if (out_pshape.is_dynamic())
-            IE_THROW() << "Codegen Scalar supports only static input shapes";
+            IE_THROW() << "ScalarEmitter supports only static input shapes";
         if ( out_pshape.get_shape() != ov::Shape() && ov::shape_size(out_pshape.get_shape()) != 1)
-            IE_THROW() << "Codegen Scalar got invalid shape";
+            IE_THROW() << "ScalarEmitter got invalid shape";
         value = mkldnn::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
 
         push_arg_entry_of("scalar", value, true);
