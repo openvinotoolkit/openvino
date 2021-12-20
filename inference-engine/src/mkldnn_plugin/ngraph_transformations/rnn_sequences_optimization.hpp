@@ -26,10 +26,4 @@ public:
     OptimizeRNNSequenceTransposes();
 };
 
-class OptimizeSequenceTransposes : public ngraph::pass::GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    OptimizeSequenceTransposes();
-};
-
 }  // namespace MKLDNNPlugin

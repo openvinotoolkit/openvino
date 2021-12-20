@@ -20,7 +20,6 @@ namespace pass {
 class TRANSFORMATIONS_API ConvertTensorIteratorToLSTMSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
-class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -59,10 +58,4 @@ class ngraph::pass::ConvertTensorIteratorToGRUSequence: public ngraph::pass::Mat
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToGRUSequence();
-};
-
-class ngraph::pass::ConvertTensorIteratorToSequence : public GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertTensorIteratorToSequence();
 };
