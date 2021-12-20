@@ -1286,7 +1286,7 @@ TEST(pre_post_process, postprocess_convert_layout_invalid_dims_dyn_shape) {
 }
 
 TEST(pre_post_process, postprocess_keep_friendly_names_compatibility) {
-    auto f = create_simple_function(element::f32, Shape{1,3,10,10});
+    auto f = create_simple_function(element::f32, Shape{1, 3, 10, 10});
     auto result_fr_name = f->get_results()[0]->get_friendly_name();
     auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
     auto node_name = node_before_result_old->get_friendly_name();
@@ -1302,7 +1302,7 @@ TEST(pre_post_process, postprocess_keep_friendly_names_compatibility) {
 }
 
 TEST(pre_post_process, postprocess_keep_friendly_names_compatibility_implicit) {
-    auto f = create_simple_function(element::f32, Shape{1,3,10,10});
+    auto f = create_simple_function(element::f32, Shape{1, 3, 10, 10});
     auto result_fr_name = f->get_results()[0]->get_friendly_name();
     auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
     auto node_name = node_before_result_old->get_friendly_name();
