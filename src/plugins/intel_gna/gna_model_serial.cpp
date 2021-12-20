@@ -413,8 +413,8 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         ep.elements_count = desc.num_elements;
         ep.scaleFactor = desc.scale_factor;
         ep.element_size = desc.num_bytes_per_element;
-        ep.layout = desc.layout;
-        ep.precision = desc.blob_precision;
+        ep.layout = desc.model_layout;
+        ep.precision = desc.tensor_precision;
         ep.orientation = desc.orientation;
         ep.tensor_names_count = static_cast<uint8_t>(desc.tensor_names.size());
         ep.descriptor_offset = offsetFromBase(*desc.ptrs.begin());
@@ -868,10 +868,10 @@ void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::
         input.num_elements = ep.elements_count;
         input.num_bytes_per_element = ep.element_size;
         input.scale_factor = ep.scaleFactor;
-        input.precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        input.blob_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        input.layout = static_cast<InferenceEngine::Layout>(ep.layout);
-        input.allocated_size = input.getRequiredSize();
+        input.model_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
+        input.tensor_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
+        input.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
+        input.allocated_size = input.get_required_size();
 
         auto inputDims = InferenceEngine::SizeVector();
         for (auto i = 0; i < ep.shape.NumberOfDimensions; ++i) {
@@ -895,10 +895,10 @@ void GNAModelSerial::ImportOutputs(std::istream &is, void* basePtr, GNAPluginNS:
         output.num_elements = ep.elements_count;
         output.num_bytes_per_element = ep.element_size;
         output.scale_factor = ep.scaleFactor;
-        output.precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        output.blob_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        output.layout = static_cast<InferenceEngine::Layout>(ep.layout);
-        output.allocated_size = output.getRequiredSize();
+        output.model_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
+        output.tensor_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
+        output.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
+        output.allocated_size = output.get_required_size();
 
         auto outputDims = InferenceEngine::SizeVector();
         for (auto i = 0; i < ep.shape.NumberOfDimensions; ++i) {

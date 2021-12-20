@@ -2351,14 +2351,14 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         auto quantized = getInjectedData<QuantizedLayerParams>(prevLayer);
         if (quantized) {
             if (quantized->lowPrecision) {
-                inputs_ptr_->at(prevLayer->name).setPrecision(Precision::I8);
+                inputs_ptr_->at(prevLayer->name).set_precision(Precision::I8);
             } else {
-              inputs_ptr_->at(prevLayer->name).setPrecision(Precision::I16);
+              inputs_ptr_->at(prevLayer->name).set_precision(Precision::I16);
             }
         }
-        if (0 == inputs_ptr_->at(prevLayer->name).getAllocatedSize()) {
+        if (0 == inputs_ptr_->at(prevLayer->name).get_allocated_size()) {
             // if request for allocation less that realTensorInput - we need to extend request
-            auto minInput = inputs_ptr_->at(prevLayer->name).getRequiredSize();
+            auto minInput = inputs_ptr_->at(prevLayer->name).get_required_size();
             if (num_data_bytes_in < minInput) {
                 const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
                     GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
@@ -2380,11 +2380,11 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             }
             inputs_ptr_->at(prevLayer->name).allocated_size = num_data_bytes_in;
         }
-        if (ALIGN(num_data_bytes_in, 64) > ALIGN(inputs_ptr_->at(prevLayer->name).getAllocatedSize(), 64)) {
+        if (ALIGN(num_data_bytes_in, 64) > ALIGN(inputs_ptr_->at(prevLayer->name).get_allocated_size(), 64)) {
             THROW_GNA_EXCEPTION
                     << "Layer: " << layer->name
                     << " Cannot bind pointer to already allocated input(" << prevLayer->name
-                    << "), due to size_allocated=" << inputs_ptr_->at(prevLayer->name).getAllocatedSize()
+                    << "), due to size_allocated=" << inputs_ptr_->at(prevLayer->name).get_allocated_size()
                     << ", and size_requested=" << num_data_bytes_in;
         }
 

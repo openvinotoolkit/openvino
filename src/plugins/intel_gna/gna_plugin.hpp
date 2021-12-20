@@ -215,7 +215,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
-    void UpdateInputsAndOutputsInfoFromFunction(const std::shared_ptr<ov::Function> &function);
+    void UpdateInputsAndOutputsInfoFromModel(const std::shared_ptr<ov::Model> &model);
     /**
      * @brief Tries to init an output on the base of a layer data
      * @param portId output port identificator

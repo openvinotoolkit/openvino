@@ -23,12 +23,12 @@ namespace GNAPluginNS {
  */
 struct GnaDesc {
     // common OV properties
-    std::string name;
-    std::unordered_set<std::string> tensor_names;
-    InferenceEngine::Layout layout;
-    InferenceEngine::SizeVector dims;
-    InferenceEngine::Precision precision;
-    InferenceEngine::Precision blob_precision;
+    std::string name = "";
+    std::unordered_set<std::string> tensor_names = {};
+    InferenceEngine::Layout model_layout = InferenceEngine::Layout::ANY;
+    InferenceEngine::SizeVector dims = {};
+    InferenceEngine::Precision model_precision  = InferenceEngine::Precision::UNSPECIFIED;
+    InferenceEngine::Precision tensor_precision = InferenceEngine::Precision::UNSPECIFIED;
 
     // gna specific properties
     double scale_factor = GNAPluginNS::kScaleFactorDefault;
@@ -39,21 +39,21 @@ struct GnaDesc {
     std::vector<void *> ptrs = {};  // ptr per each infer request
 
     // help methods
-    uint32_t getRequiredSize() {
+    uint32_t get_required_size() {
         return num_elements * num_bytes_per_element;
     }
 
-    uint32_t getAllocatedSize() {
+    uint32_t get_allocated_size() {
         return allocated_size;
     }
 
-    void setPrecision(InferenceEngine::Precision precision) {
-        this->precision = precision;
+    void set_precision(InferenceEngine::Precision precision) {
+        this->model_precision = precision;
         this->num_bytes_per_element = precision.size();
     }
 
-    InferenceEngine::DataPtr ToIEData() {
-        return std::make_shared<InferenceEngine::Data>(name, InferenceEngine::TensorDesc(blob_precision, dims, layout));
+    InferenceEngine::DataPtr to_ie_data() {
+        return std::make_shared<InferenceEngine::Data>(name, InferenceEngine::TensorDesc(tensor_precision, dims, model_layout));
     }
 };
 
@@ -64,18 +64,18 @@ struct InputDesc : GnaDesc {
     InputDesc(const std::string &name) { this->name = name; }
 
     void Update(const InferenceEngine::InputInfo::Ptr inputInfo) {
-        this->precision = inputInfo->getPrecision();
-        this->blob_precision = inputInfo->getPrecision();
-        this->layout = inputInfo->getLayout();
+        this->model_precision = inputInfo->getPrecision();
+        this->tensor_precision = inputInfo->getPrecision();
+        this->model_layout = inputInfo->getLayout();
         this->dims = inputInfo->getTensorDesc().getDims();
         this->name = inputInfo->name();
-        this->num_bytes_per_element = precision.size();
+        this->num_bytes_per_element = model_precision.size();
         this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
     }
 
     InferenceEngine::InputInfo::Ptr ToIEInputInfo() {
         InferenceEngine::InputInfo::Ptr input_info = std::make_shared<InferenceEngine::InputInfo>();
-        input_info->setInputData(this->ToIEData());
+        input_info->setInputData(this->to_ie_data());
         return input_info;
     }
 };
@@ -87,12 +87,12 @@ struct OutputDesc : GnaDesc {
     OutputDesc(const std::string &name) { this->name = name; }
 
     void Update(const InferenceEngine::DataPtr outputData) {
-        this->precision = outputData->getPrecision();
-        this->blob_precision = outputData->getPrecision();
-        this->layout = outputData->getLayout();
+        this->model_precision = outputData->getPrecision();
+        this->tensor_precision = outputData->getPrecision();
+        this->model_layout = outputData->getLayout();
         this->dims = outputData->getTensorDesc().getDims();
         this->name = outputData->getName();
-        this->num_bytes_per_element = precision.size();
+        this->num_bytes_per_element = model_precision.size();
         this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
     }
 };

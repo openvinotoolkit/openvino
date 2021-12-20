@@ -497,13 +497,13 @@ void GNAPlugin::UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>
     }
 }
 
-void GNAPlugin::UpdateInputsAndOutputsInfoFromFunction(const std::shared_ptr<ov::Function> &function) {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromFunction");
+void GNAPlugin::UpdateInputsAndOutputsInfoFromModel(const std::shared_ptr<ov::Model> &model) {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromFModel");
 
     // update inputs
     {
         std::vector<std::shared_ptr<const ov::Node>> node_vector;
-        for (auto& param : function->get_parameters()) {
+        for (auto& param : model->get_parameters()) {
             node_vector.emplace_back(param);
         }
         UpdateInputs(node_vector);
@@ -512,7 +512,7 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromFunction(const std::shared_ptr<ov:
     // update outputs
     {
         std::vector<std::shared_ptr<const ov::Node>> node_vector;
-        for (auto& result : function->get_results()) {
+        for (auto& result : model->get_results()) {
             node_vector.emplace_back(result);
         }
         UpdateOutputs(node_vector);
@@ -773,7 +773,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // Set input and output information from ngraph function
     if (_network.getFunction()) {
-        UpdateInputsAndOutputsInfoFromFunction(_network.getFunction());
+        UpdateInputsAndOutputsInfoFromModel(_network.getFunction());
     }
 
     // Set input and output information from orginal network
@@ -950,7 +950,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     for (auto& inputLayer : inputLayers) {
         auto layerInfo = LayerInfo(inputLayer);
-        if (layerInfo.isInput() && 0 == inputs_ptr_->at(inputLayer->name).getAllocatedSize()) {
+        if (layerInfo.isInput() && 0 == inputs_ptr_->at(inputLayer->name).get_allocated_size()) {
             graphCompiler.connectOutput(inputLayer, &inputs_ptr_->at(inputLayer->name).ptrs.front(), 0);
         }
     }
@@ -998,7 +998,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // TODO: how active list will work in multioutput case
     // make room for active list
-    gnamem->reserve_ptr(nullptr, nullptr, ALIGN64(outputs_.Get().begin()->getRequiredSize()), 64);
+    gnamem->reserve_ptr(nullptr, nullptr, ALIGN64(outputs_.Get().begin()->get_required_size()), 64);
 
     void *pParallelExecutionData  = nullptr;
 
@@ -1301,9 +1301,9 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : (gnaFlags->input_low_precision ? 1 : 2);
         auto  importedBytes = importedElements * importedFrames * importedElementSizeBytes;
 
-        if (inputs_ptr_->at(input.first).getRequiredSize() < importedBytes) {
+        if (inputs_ptr_->at(input.first).get_required_size() < importedBytes) {
             THROW_GNA_EXCEPTION << "Cannot import input frames for :" << input.first
-                                  << ", allocated size: " << inputs_ptr_->at(input.first).getRequiredSize()
+                                  << ", allocated size: " << inputs_ptr_->at(input.first).get_required_size()
                                   << ", but input blob size: " << importedBytes;
         }
 
@@ -1760,7 +1760,7 @@ void GNAPlugin::SetNetworkInputs() {
 void GNAPlugin::SetNetworkOutputs() {
     outputs_data_map_.clear();
     for (auto & output : outputs_.Get()) {
-        outputs_data_map_[output.name] = output.ToIEData();
+        outputs_data_map_[output.name] = output.to_ie_data();
     }
 }
 
@@ -1769,7 +1769,7 @@ std::vector<std::shared_ptr<const ov::Node>> GNAPlugin::GetInputs() {
     params.reserve(inputs_ptr_->size());
     for (auto&& input : inputs_ptr_->Get()) {
         auto param = std::make_shared<ov::op::v0::Parameter>(
-            convertPrecision(input.precision),
+            convertPrecision(input.model_precision),
             ov::PartialShape(input.dims));
         param->set_friendly_name(input.name);
         param->get_output_tensor(0).add_names(input.tensor_names);
@@ -1783,7 +1783,7 @@ std::vector<std::shared_ptr<const ov::Node>> GNAPlugin::GetOutputs() {
     results.reserve(outputs_.size());
     for (auto&& output : outputs_.Get()) {
         auto param = std::make_shared<ov::op::v0::Parameter>(
-            convertPrecision(output.precision),
+            convertPrecision(output.model_precision),
             ov::PartialShape(output.dims));
         param->set_friendly_name(output.name);
         auto result = std::make_shared<ov::op::v0::Result>(param);
