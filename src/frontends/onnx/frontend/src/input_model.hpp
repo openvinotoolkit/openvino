@@ -66,6 +66,8 @@ public:
 
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
+
+    std::map<std::string, ov::PartialShape> m_places_to_reshape;
 };
 
 }  // namespace onnx

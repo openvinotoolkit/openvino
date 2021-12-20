@@ -137,6 +137,9 @@ void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const 
     }
 
     m_editor->set_input_shapes({{input_name, shape}});
+
+    if (shape.get_min_shape() != shape.get_max_shape())
+        m_places_to_reshape[input_name] = shape;
 }
 
 ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
@@ -171,7 +174,9 @@ std::shared_ptr<Model> InputModel::decode() {
 }
 
 std::shared_ptr<Model> InputModel::convert() {
-    return m_editor->get_function();
+    auto converted_model = m_editor->get_function();
+    converted_model ->reshape(m_places_to_reshape);
+    return converted_model;
 }
 
 // Editor features
