@@ -64,6 +64,10 @@ class ChangeOutputTypeAttributesTests(unittest.TestCase):
         graph, graph_ref = build_cast_test_graphs(input_data, dst_type_str='FP16')
         self.assertRaises(Error, ChangeOutputTypeAttributes().find_and_replace_pattern, graph)
 
+    def test_cast_without_len(self):
+        input_data = np.array(4)
+        graph, graph_ref = build_cast_test_graphs(input_data, dst_type_str='FP16')
+        self.assertRaises(Error, ChangeOutputTypeAttributes().find_and_replace_pattern, graph)
 
 def build_range_test_graphs(start=0, limit=10, delta=1, dst_type_str='FP16',
                             src_type_str='FP32', returns_shape_value=None):
