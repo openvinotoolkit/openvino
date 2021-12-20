@@ -10,11 +10,13 @@ Check GitHub PRs and set labels by type and categories, e.g. 'ExternalPR', 'cate
 import re
 import sys
 import datetime
-from argparse import ArgumentParser
 from enum import Enum
+from pathlib import Path
+from argparse import ArgumentParser
 
-import github_api
-from configs import Config
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from github_org_control import github_api
+from github_org_control.configs import Config
 
 
 class PrType(Enum):

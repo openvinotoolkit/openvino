@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 if sys.hexversion < 0x3060000:
-    raise Exception('Python version must be >= 3.6')
+    raise Exception("Python version must be >= 3.6")
 
 
 class ConfigException(Exception):
@@ -24,9 +24,11 @@ class ConfigException(Exception):
 
 class Config:
     """Configuration wrapper"""
+
     _instance = None
-    properties = None
-    default_cfg_path = Path(__file__).resolve().parent / 'config.json'
+    _properties = None
+
+    default_cfg_path = Path(__file__).resolve().parent / "config.json"
 
     def __new__(cls, *_args, **_kwargs):
         if not Config._instance:
@@ -41,7 +43,7 @@ class Config:
         :param args: List of argparse arguments with patterns: 'name=value' or 'name'
         :type args: list
         """
-        if Config.properties:
+        if Config._properties:
             return
 
         self._file_path = file_path or Config.default_cfg_path
@@ -53,10 +55,10 @@ class Config:
         self._load_cfg()
         self._parse_cli_args()
 
-        Config.properties = {}
+        Config._properties = {}
         for name, value in self._json_cfg.items():
             if hasattr(self, name):
-                raise ConfigException(f'Duplicating prosperity: {name}')
+                raise ConfigException(f"Duplicating prosperity: {name}")
             property_value = self._args.get(name) or os.getenv(name)
             if property_value:
                 # Try to set prosperity_value as Python literal structures, e.g. DRY_RUN=False
@@ -65,49 +67,54 @@ class Config:
                 except Exception:
                     pass
                 if not isinstance(property_value, type(value)):
-                    raise ConfigException(f'Python type of {name} parameter must be {type(value)}')
+                    raise ConfigException(f"Python type of {name} parameter must be {type(value)}")
             else:
                 property_value = value
-            setattr(self, name, property_value)
-            Config.properties[name] = property_value
+            Config._properties[name] = property_value
 
         self.set_proxy()
+
+    def __getattr__(self, attr_name):
+        if attr_name in self._properties:
+            return self._properties.get(attr_name)
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{attr_name}'")
 
     def _load_cfg(self):
         """Load the json configuration file"""
         try:
-            with open(self._file_path) as conf:
+            with open(self._file_path, encoding="utf-8") as conf:
                 self._json_cfg = json.load(conf)
-        except Exception:
-            print('Failed to load configuration from:', self._file_path)
-            raise
+        except Exception as exc:
+            raise ConfigException("Failed to load configuration from:", self._file_path) from exc
 
     def _parse_cli_args(self):
         """Parse argparse arguments with patterns: 'name=value' or 'name'"""
         for cli_arg in self._cli_args:
-            arg = cli_arg.split('=')
+            arg = cli_arg.split("=")
             if arg[0] not in self._json_cfg:
-                raise ConfigException(f'Unsupported argument: {arg}')
-            self._args[arg[0]] = True if len(arg) == 1 else '='.join(arg[1:])
+                raise ConfigException(f"Unsupported argument: {arg}")
+            self._args[arg[0]] = True if len(arg) == 1 else "=".join(arg[1:])
 
-    def get_properties(self):
+    @property
+    def properties(self):
         """Get all properties as Dict"""
-        return self.properties
+        return self._properties
 
     def set_proxy(self):
         """Set proxies"""
-        for proxy_name, url in self.properties['PROXIES'].items():
+        for proxy_name, url in self._properties["PROXIES"].items():
             if url is not None:
-                print(f'Set proxy: {proxy_name}={url}')
+                print(f"Set proxy: {proxy_name}={url}")
                 os.environ[proxy_name] = url
 
 
 def _test():
     """Test and debug"""
-    print('Config.default_cfg_path:', Config.default_cfg_path)
-    cfg = Config(cli_args=['DRY_RUN', 'PROXIES={"NO_PROXY": "localhost"}'])
-    print('Config.properties:', cfg.get_properties())
+    print("Config.default_cfg_path:", Config.default_cfg_path)
+    cfg = Config(cli_args=["DRY_RUN", 'PROXIES={"NO_PROXY": "localhost"}'])
+    print("Config.properties:", cfg.properties)
+    print("cfg.PROXIES:", cfg.PROXIES)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     _test()
