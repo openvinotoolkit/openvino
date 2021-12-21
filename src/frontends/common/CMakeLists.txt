@@ -66,7 +66,7 @@ add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
 add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
 add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 # Installation rules for shared version only
 

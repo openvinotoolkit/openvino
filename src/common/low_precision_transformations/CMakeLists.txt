@@ -51,7 +51,7 @@ target_include_directories(${TARGET_NAME} INTERFACE
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 # install
 
