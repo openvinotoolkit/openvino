@@ -87,7 +87,7 @@ private:
 
 class PreprocessGNAUnsupportedInputsTest : public PreprocessGNAUnsupportedTest {
 public:
-    PreprocessGNAUnsupportedInputsTest() : PreprocessGNAUnsupportedTest("The plugin does not support layer") {}
+    PreprocessGNAUnsupportedInputsTest() : PreprocessGNAUnsupportedTest("The plugin does not support input precision") {}
 };
 
 class PreprocessGNAUnsupportedOutputsTest : public PreprocessGNAUnsupportedTest {
@@ -119,12 +119,6 @@ ov::element::TypeVector inputTypesUnsupported = {
     ov::element::i32
 };
 
-ov::element::TypeVector inputTypesSupported = {
-    ov::element::u8,
-    ov::element::i16,
-    ov::element::f32
-};
-
 ov::element::TypeVector outputTypesUnsupported = {
     ov::element::u8,
     ov::element::i16,
@@ -135,10 +129,15 @@ ov::element::TypeVector outputTypesSupported = {
     ov::element::f32
 };
 
+ov::element::TypeVector netTypes = {
+    ov::element::f16,
+    ov::element::f32
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Preprocess, PreprocessGNATest,
                          ::testing::Combine(
+                                ::testing::ValuesIn(netTypes),
                                 ::testing::Values(ov::element::f32),
-                                ::testing::ValuesIn(inputTypesSupported),
                                 ::testing::ValuesIn(outputTypesSupported),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                 ::testing::Values(config)),
@@ -146,8 +145,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Preprocess, PreprocessGNATest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Preprocess, PreprocessGNAUnsupportedInputsTest,
                          ::testing::Combine(
+                                ::testing::ValuesIn(netTypes),
                                 ::testing::ValuesIn(inputTypesUnsupported),
-                                ::testing::ValuesIn(inputTypesSupported),
                                 ::testing::Values(ov::element::f32),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                 ::testing::Values(config)),
@@ -155,9 +154,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Preprocess, PreprocessGNAUnsupportedInputsTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Preprocess, PreprocessGNAUnsupportedOutputsTest,
                          ::testing::Combine(
-                                ::testing::ValuesIn(outputTypesUnsupported),
+                                ::testing::ValuesIn(netTypes),
                                 ::testing::Values(ov::element::f32),
-                                ::testing::ValuesIn(outputTypesSupported),
+                                ::testing::ValuesIn(outputTypesUnsupported),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                 ::testing::Values(config)),
                          PreprocessGNATest::getTestCaseName);
