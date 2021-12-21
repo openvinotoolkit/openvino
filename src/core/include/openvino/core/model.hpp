@@ -25,12 +25,12 @@
 
 namespace ov {
 namespace frontend {
-class FrontEndUtils;
+class FrontEnd;
 }
 class ModelAccessor;
 /// A user-defined function.
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
-    friend class ov::frontend::FrontEndUtils;
+    friend class ov::frontend::FrontEnd;
     std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
 
 public:
