@@ -7,7 +7,7 @@ for example of using the Inference Engine in applications.
 
 ## Use the Inference Engine API in Your Code
 
-The core `libinference_engine.so` library implements loading and parsing a model Intermediate Representation (IR), and triggers inference using a specified device. The core library has the following API:
+The core `libov_runtime.so` library implements loading and parsing a model Intermediate Representation (IR), and triggers inference using a specified device. The core library has the following API:
 
 * `InferenceEngine::Core`
 * `InferenceEngine::Blob`, `InferenceEngine::TBlob`,

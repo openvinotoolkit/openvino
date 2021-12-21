@@ -18,5 +18,5 @@
 #        define LP_TRANSFORMATIONS_API OPENVINO_CORE_EXPORTS
 #    else
 #        define LP_TRANSFORMATIONS_API OPENVINO_CORE_IMPORTS
-#    endif  // inference_engine_lp_transformations_EXPORTS
+#    endif  // IMPLEMENT_OPENVINO_API
 #endif      // OPENVINO_STATIC_LIBRARY
