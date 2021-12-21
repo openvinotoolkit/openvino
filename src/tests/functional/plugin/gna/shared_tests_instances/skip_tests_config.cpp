@@ -68,10 +68,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
+        // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
+        R"(.*OVExecGraphImportExportTest.*readFromV10IR.*)",
         // TODO: Issue: 29577
         R"(.*QueryNetwork.*)",
-        // TODO: GNA plugin does not support ExecGraph
-        R"(.*ExecGraphTests.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
         // TODO: Issue: 69639

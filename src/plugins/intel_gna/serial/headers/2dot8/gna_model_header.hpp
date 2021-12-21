@@ -7,14 +7,13 @@
 #include <cstdint>
 #include <map>
 #include "backend/dnn_types.h"
-#include "serial/headers/2dot4/gna_model_header.hpp"
-#include "serial/headers/2dot6/gna_model_header.hpp"
+#include "serial/headers/2dot7/gna_model_header.hpp"
 #include "gna_data_types.hpp"
 
 #pragma pack(push, 1)
 
 namespace GNAPluginNS {
-namespace Header2dot7 {
+namespace Header2dot8 {
 
 /**
  Maximal number of supported shape dimensions.
@@ -22,7 +21,7 @@ namespace Header2dot7 {
 #define GNA_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS 8
 
 /**
- * @brief Header version 2.7
+ * @brief Header version 2.8
  */
 struct ModelHeader {
     /**
@@ -45,7 +44,7 @@ struct ModelHeader {
          * @details Version of Format Minor – unsigned int,  corresponding to build revision for example
          * changes in minor version are not affected layout of model
          */
-        uint32_t minor = 7u;
+        uint32_t minor = 8u;
     } version;
     /**
      * @brief Memory required to be allocated using GNAAlloc()
@@ -84,7 +83,9 @@ struct ModelHeader {
     /**
      * Reserved Data might be here
      */
+
     ModelHeader() = default;
+
     ModelHeader(GNAPluginNS::Header2dot1::ModelHeader const &old) {
         gnaMemSize = old.gnaMemSize;
         layersCount = old.layersCount;
@@ -95,6 +96,7 @@ struct ModelHeader {
         nOutputs = old.nOutputs;
         version.minor = old.version.minor;
     }
+
     ModelHeader(GNAPluginNS::Header2dot4::ModelHeader const &old) {
         gnaMemSize = old.gnaMemSize;
         layersCount = old.layersCount;
@@ -157,25 +159,37 @@ struct RuntimeEndPoint {
      * Blob precision
      */
     uint8_t precision = InferenceEngine::Precision::FP32;
+    /**
+     * Number of tensor names
+     */
+    uint8_t tensor_names_count = 0;
 
     intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
 
     RuntimeEndPoint() = default;
+
+    // support of previous versions
     RuntimeEndPoint(const GNAPluginNS::Header2dot6::RuntimeEndPoint &old, uint32_t ngroup) {
+        GNAPluginNS::Header2dot7::RuntimeEndPoint ep_v7 = GNAPluginNS::Header2dot7::RuntimeEndPoint(old, ngroup);
+        *this = GNAPluginNS::Header2dot8::RuntimeEndPoint(ep_v7);
+    }
+
+    RuntimeEndPoint(GNAPluginNS::Header2dot7::RuntimeEndPoint &old) {
         scaleFactor = old.scaleFactor;
         descriptor_ptr = old.descriptor_ptr;
         element_size = old.element_size;
         elements_count = old.elements_count;
         orientation = old.orientation;
-        layout = InferenceEngine::Layout::NC;
-        precision = InferenceEngine::Precision::FP32;
+        layout = old.layout;
+        precision = old.precision;
         descriptor_offset = old.descriptor_offset;
-        InferenceEngine::SizeVector dims = {ngroup, elements_count / ngroup};
-        shape.NumberOfDimensions = static_cast<uint32_t>(dims.size());
-        for (auto i = 0; i < dims.size(); i++) {
-            shape.Dimensions[i] = dims[i];
+        shape.NumberOfDimensions = old.shape.NumberOfDimensions;
+        for (auto i = 0; i < shape.NumberOfDimensions; i++) {
+            shape.Dimensions[i] = old.shape.Dimensions[i];
         }
+        tensor_names_count = 0;
     }
+
     RuntimeEndPoint(double scaleFactor,
                     void* descriptor_ptr,
                     uint32_t element_size,
@@ -183,6 +197,7 @@ struct RuntimeEndPoint {
                     Shape shape,
                     uint8_t layout,
                     uint8_t precision,
+                    uint8_t tensor_names_count,
                     intel_dnn_orientation_t orientation) : scaleFactor(scaleFactor),
                                                            descriptor_ptr(descriptor_ptr),
                                                            element_size(element_size),
@@ -190,8 +205,8 @@ struct RuntimeEndPoint {
                                                            shape(shape),
                                                            layout(layout),
                                                            precision(precision),
+                                                           tensor_names_count(tensor_names_count),
                                                            orientation(orientation) { }
 };
-
-} // namespace Header2dot7
+} // namespace Header2dot8
 } // namespace GNAPluginNS
