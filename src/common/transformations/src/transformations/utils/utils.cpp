@@ -177,8 +177,12 @@ bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expe
     }
 }
 
-bool is_dequantization_subgraph(const Output<Node>& multiply) {
-    auto mul_inputs = multiply.get_node()->input_values();
+bool is_dequantization_subgraph(const Output<Node>& node) {
+    if (!is_type<opset8::Multiply>(node.get_node())) {
+        return false;
+    }
+
+    auto mul_inputs = node.get_node()->input_values();
     Node* sub = nullptr;
     Node* convert = nullptr;
 
@@ -214,8 +218,9 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Outp
         return false;
     }
 
-    if (is_type<opset8::Multiply>(eltwise) && is_dequantization_subgraph(eltwise))
+    if (is_dequantization_subgraph(eltwise)) {
         return false;
+    }
 
     // check if constant has a single value with either 0 (for Add, Subtract) or 1 (for Multiply, Divide)
     auto constant_ptr = std::dynamic_pointer_cast<opset8::Constant>(constant.get_node_shared_ptr());

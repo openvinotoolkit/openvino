@@ -207,9 +207,9 @@ TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_ind
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(
         const ngraph::Output<ngraph::Node>& shape_source, const std::vector<size_t>& indices);
 
-TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Output<Node>& constant, const Output<Node>& non_constant_input);
+TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
 
-TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& multiply);
+TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Output<Node>& constant, const Output<Node>& non_constant_input);
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph
