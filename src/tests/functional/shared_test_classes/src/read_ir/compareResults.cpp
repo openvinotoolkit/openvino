@@ -318,7 +318,6 @@ void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
             const int32_t classId = selected_indices_data[i+1];
             const int32_t boxId   = selected_indices_data[i+2];
             const float score = selected_scores_data[i+2];
-            std::cout << "batchId: " << batchId << " " << "boxId" << boxId << std::endl;
             if (batchId == -1 || classId == -1 || boxId == -1)
                 break;
 
