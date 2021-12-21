@@ -75,7 +75,8 @@ enum class KernelType {
     NON_MAX_SUPPRESSION,
     DETECTION_OUTPUT,
     EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR,
-    CONVERT_COLOR
+    CONVERT_COLOR,
+    RANDOM_UNIFORM
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
