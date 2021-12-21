@@ -133,6 +133,10 @@ function(addIeTarget)
     endif()
 endfunction()
 
+function(add_ov_target)
+    addIeTarget(${ARGV})
+endfunction()
+
 #[[
 Wrapper function over addIeTarget, that also adds a test with the same name.
 You could use
@@ -162,4 +166,8 @@ function(addIeTargetTest)
             RUNTIME DESTINATION tests
             COMPONENT tests
             EXCLUDE_FROM_ALL)
+endfunction()
+
+function(add_ov_test_target)
+    addIeTargetTest(${ARGV})
 endfunction()
