@@ -732,7 +732,9 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(const float* offsets, const float* modulation, bool enforceRef) {
+void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(MKLDNNDeformableConvolutionNode *node,
+        const float* offsets, const float* modulation, bool enforceRef) {
+    dcNode = node;
     const int MB = jcp.mb;
     const int OH = jcp.oh;
     const int OW = jcp.ow;
@@ -757,9 +759,6 @@ void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(co
 
     const bool with_bi_pad = jcp.with_bi_pad;
 
-    // prepare weights and indices
-    dcNode.sampledCoordsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
-    dcNode.interpWeightsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
     auto precompKer = [&](int mb, int dg, int oh, int ow) {
         int sampledCoordIndex = (mb * DG * OH * OW + dg * OH * OW + oh * OW + ow) * KH * KW * sampledPointsPerPixel;
         const int h_in = oh * KSH - padT;
@@ -828,24 +827,24 @@ void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(co
                     const int h_off_high = h_ind_high * srcStrides[2] / srcStrides[3];
                     const int w_off_low  = w_ind_low;
                     const int w_off_high = w_ind_high;
-                    dcNode.sampledCoordsVector[sampledCoordIndex] = h_off_high + w_off_high;
-                    dcNode.sampledCoordsVector[sampledCoordIndex + 1] = h_off_high + w_off_low;
-                    dcNode.sampledCoordsVector[sampledCoordIndex + 2] = h_off_low + w_off_high;
-                    dcNode.sampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
+                    dcNode->sampledCoordsVector[sampledCoordIndex] = h_off_high + w_off_high;
+                    dcNode->sampledCoordsVector[sampledCoordIndex + 1] = h_off_high + w_off_low;
+                    dcNode->sampledCoordsVector[sampledCoordIndex + 2] = h_off_low + w_off_high;
+                    dcNode->sampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
 
                     float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
                             w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
 
-                    dcNode.interpWeightsVector[sampledCoordIndex] = w11;
-                    dcNode.interpWeightsVector[sampledCoordIndex + 1] = w12;
-                    dcNode.interpWeightsVector[sampledCoordIndex + 2] = w21;
-                    dcNode.interpWeightsVector[sampledCoordIndex + 3] = w22;
+                    dcNode->interpWeightsVector[sampledCoordIndex] = w11;
+                    dcNode->interpWeightsVector[sampledCoordIndex + 1] = w12;
+                    dcNode->interpWeightsVector[sampledCoordIndex + 2] = w21;
+                    dcNode->interpWeightsVector[sampledCoordIndex + 3] = w22;
                 } else {
-                    dcNode.sampledCoordsVector[sampledCoordIndex] = 0;
-                    dcNode.interpWeightsVector[sampledCoordIndex] = 0;
-                    dcNode.interpWeightsVector[sampledCoordIndex + 1] = 0;
-                    dcNode.interpWeightsVector[sampledCoordIndex + 2] = 0;
-                    dcNode.interpWeightsVector[sampledCoordIndex + 3] = 0;
+                    dcNode->sampledCoordsVector[sampledCoordIndex] = 0;
+                    dcNode->interpWeightsVector[sampledCoordIndex] = 0;
+                    dcNode->interpWeightsVector[sampledCoordIndex + 1] = 0;
+                    dcNode->interpWeightsVector[sampledCoordIndex + 2] = 0;
+                    dcNode->interpWeightsVector[sampledCoordIndex + 3] = 0;
                 }
                 sampledCoordIndex += sampledPointsPerPixel;
             }
@@ -859,8 +858,7 @@ void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(co
 
 MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
                                 const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                                const std::vector<ptrdiff_t> &padL,
-                                MKLDNNDeformableConvolutionNode &node) : dcNode(node) {
+                                const std::vector<ptrdiff_t> &padL) {
     if (descVector.size() != 4 && descVector.size() != 5) {
         IE_THROW() << "Deformable Convolution executor got incorrect desc's count (" << descVector.size() << ")";
     }
@@ -937,9 +935,8 @@ MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvA
 
 MKLDNNDeformableConvolutionNode::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
                             const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                            const std::vector<ptrdiff_t> &padL,
-                            MKLDNNDeformableConvolutionNode &node) :
-                DefConvExecutor(defConvAttr, descVector, padL, node) {
+                            const std::vector<ptrdiff_t> &padL) :
+                DefConvExecutor(defConvAttr, descVector, padL) {
     if (mayiuse(cpu::x64::avx512_common)) {
         def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
@@ -956,9 +953,9 @@ MKLDNNDeformableConvolutionNode::DefConvJitExecutor::DefConvJitExecutor(const De
     }
 }
 
-void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(const float* src, const float* offsets,
+void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(MKLDNNDeformableConvolutionNode *node, const float* src, const float* offsets,
         const float* weights, const float* modulation, float* dst) {
-    prepareSamplingWeights(offsets, modulation, true);
+    prepareSamplingWeights(node, offsets, modulation, true);
     const int G = jcp.ngroups;
     const int MB = jcp.mb;
     const int OH = jcp.oh;
@@ -987,15 +984,15 @@ void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(const float* src,
             for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
                 for (int kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
                     // check if current addendum marked as equal zero
-                    if (dcNode.sampledCoordsVector[sampledCoordIndex] != -1) {
-                        const int v11 = dcNode.sampledCoordsVector[sampledCoordIndex];
-                        const int v12 = dcNode.sampledCoordsVector[sampledCoordIndex + 1];
-                        const int v21  = dcNode.sampledCoordsVector[sampledCoordIndex + 2];
-                        const int v22 = dcNode.sampledCoordsVector[sampledCoordIndex + 3];
-                        float val = dcNode.interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                        val += dcNode.interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];  // v12
-                        val += dcNode.interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];  // v21
-                        val += dcNode.interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
+                    if (dcNode->sampledCoordsVector[sampledCoordIndex] != -1) {
+                        const int v11 = dcNode->sampledCoordsVector[sampledCoordIndex];
+                        const int v12 = dcNode->sampledCoordsVector[sampledCoordIndex + 1];
+                        const int v21  = dcNode->sampledCoordsVector[sampledCoordIndex + 2];
+                        const int v22 = dcNode->sampledCoordsVector[sampledCoordIndex + 3];
+                        float val = dcNode->interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
+                        val += dcNode->interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];  // v12
+                        val += dcNode->interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];  // v21
+                        val += dcNode->interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
                         d += val * weights[weiIndex + kh_off + kw_off];
                     } else {
                         sampledCoordIndex += sampledPointsPerPixel;
@@ -1053,10 +1050,23 @@ void MKLDNNDeformableConvolutionNode::prepareParams() {
     }
     descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>());
 
+    const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
+    const int OH = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[2];
+    const int OW = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[3];
+
+    const int KH = getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[2];
+    const int KW = getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[3];
+
+    const int DG = defConvAttr.deformable_group;
+
+    // allocate sampling weights and indices
+    sampledCoordsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
+    interpWeightsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
+
     if (enforceRef) {
-        execPtr = std::make_shared<DefConvRefExecutor>(defConvAttr, descVector, paddingL, *this);
+        execPtr = std::make_shared<DefConvRefExecutor>(defConvAttr, descVector, paddingL);
     } else {
-        execPtr = std::make_shared<DefConvJitExecutor>(defConvAttr, descVector, paddingL, *this);
+        execPtr = std::make_shared<DefConvJitExecutor>(defConvAttr, descVector, paddingL);
     }
 }
 
@@ -1064,9 +1074,9 @@ void MKLDNNDeformableConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(const float* src, const float* offsets,
+void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(MKLDNNDeformableConvolutionNode *node, const float* src, const float* offsets,
         const float* weights, const float* modulation, float* dst) {
-    prepareSamplingWeights(offsets, modulation, false);
+    prepareSamplingWeights(node, offsets, modulation, false);
     size_t buffer_size = (size_t)jcp.nthr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic * jcp.typesize_in;
     std::vector<float> input_buffer(buffer_size, 0);
     float* input_buffer_ptr = input_buffer.data();
@@ -1081,8 +1091,8 @@ void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(const float* src,
 
         par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1] +
                             (oh * jcp.stride_h - jcp.t_pad) * srcStrides[2] - jcp.l_pad * srcStrides[3]];
-        par_conv.sampledWei = &(dcNode.interpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
-        par_conv.sampledCoords = &(dcNode.sampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+        par_conv.sampledWei = &(dcNode->interpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+        par_conv.sampledCoords = &(dcNode->sampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
         par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
         par_conv.dst = &dst[n * dstStrides[0] + _oc * jcp.oc_block * dstStrides[1] + oh * dstStrides[2]];
         par_conv.buf = input_buffer_ptr + ithr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic;
@@ -1117,7 +1127,7 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     if (execPtr) {
-        execPtr->exec(src, offsets, weights, modulation, dst);
+        execPtr->exec(this, src, offsets, weights, modulation, dst);
     } else {
         IE_THROW() << "Deformable Convolution executor doesn't exist";
     }

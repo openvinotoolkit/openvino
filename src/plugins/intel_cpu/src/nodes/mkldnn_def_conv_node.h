@@ -110,32 +110,34 @@ private:
         public:
             DefConvExecutor(const DefConvAttr &defConvAttr,
                                 const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                                const std::vector<ptrdiff_t> &padL,
-                                MKLDNNDeformableConvolutionNode &node);
+                                const std::vector<ptrdiff_t> &padL);
 
-            virtual void exec(const float* src, const float* offsets, const float* weights, const float* modulation, float* dst) = 0;
+            // we need passing of reference to outer class to have access to preallocated sampledCoords and interpWeights
+            virtual void exec(MKLDNNDeformableConvolutionNode *node, const float* src, const float* offsets,
+                const float* weights, const float* modulation, float* dst) = 0;
             virtual ~DefConvExecutor() = default;
 
         protected:
-            void prepareSamplingWeights(const float* offsets, const float* modulation = nullptr, bool enforceRef = false);
+            void prepareSamplingWeights(MKLDNNDeformableConvolutionNode *node, const float* offsets,
+                const float* modulation = nullptr, bool enforceRef = false);
             jit_def_conv_params jcp = {};
             VectorDims srcStrides;
             VectorDims offStrides;
             VectorDims weiStrides;
             VectorDims modStrides;
             VectorDims dstStrides;
-            MKLDNNDeformableConvolutionNode& dcNode;
+            MKLDNNDeformableConvolutionNode *dcNode;
     };
 
     class DefConvRefExecutor : public DefConvExecutor {
         public:
             DefConvRefExecutor(const DefConvAttr &defConvAttr,
                             const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                            const std::vector<ptrdiff_t> &padL,
-                            MKLDNNDeformableConvolutionNode &node) :
-                DefConvExecutor(defConvAttr, descVector, padL, node) {}
+                            const std::vector<ptrdiff_t> &padL) :
+                DefConvExecutor(defConvAttr, descVector, padL) {}
 
-            void exec(const float* src, const float* offsets, const float* weights, const float* modulation, float* dst) override;
+            void exec(MKLDNNDeformableConvolutionNode *node, const float* src, const float* offsets,
+                const float* weights, const float* modulation, float* dst) override;
     };
 
     class DefConvJitExecutor : public DefConvExecutor {
@@ -143,10 +145,10 @@ private:
         public:
             DefConvJitExecutor(const DefConvAttr &defConvAttr,
                             const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                            const std::vector<ptrdiff_t> &padL,
-                            MKLDNNDeformableConvolutionNode &node);
+                            const std::vector<ptrdiff_t> &padL);
 
-            void exec(const float* src, const float* offsets, const float* weights, const float* modulation, float* dst) override;
+            void exec(MKLDNNDeformableConvolutionNode *node, const float* src, const float* offsets,
+                const float* weights, const float* modulation, float* dst) override;
     };
 
     std::shared_ptr<DefConvExecutor> execPtr = nullptr;
