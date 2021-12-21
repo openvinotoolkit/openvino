@@ -251,11 +251,9 @@ void GNAModelSerial::Import(void *basePointer,
     is.exceptions(std::istream::failbit);
     // 2. Read inputs names
     if (model_header_.version.major == 2) {
-        if (model_header_.version.minor >= 3) {
-            for (auto inputIndex = 0; inputIndex < model_header_.nInputs; inputIndex++) {
-                std::string name = (model_header_.version.minor >= 3) ? readString(is) : std::string("input" + std::to_string(inputIndex));
-                inputs[name] = GNAPluginNS::InputDesc(name);
-           }
+        for (auto inputIndex = 0; inputIndex < model_header_.nInputs; inputIndex++) {
+            std::string name = (model_header_.version.minor >= 3) ? readString(is) : std::string("input" + std::to_string(inputIndex));
+            inputs[name] = GNAPluginNS::InputDesc(name);
         }
         if (model_header_.version.minor >= 5) {
             // 3. Read transposition input info
@@ -279,12 +277,7 @@ void GNAModelSerial::Import(void *basePointer,
     // 6. Read output names
     if (model_header_.version.major == 2) {
         for (auto outputIndex = 0; outputIndex < model_header_.nOutputs; outputIndex++) {
-            std::string name = "";
-            if (model_header_.version.minor >= 3) {
-                name = readString(is);
-            } else {
-                name = std::string("output" + std::to_string(outputIndex));
-            }
+            std::string name = (model_header_.version.minor >= 3) ? readString(is) : std::string("output" + std::to_string(outputIndex));
             outputs[name] = GNAPluginNS::OutputDesc(name);
         }
     }
