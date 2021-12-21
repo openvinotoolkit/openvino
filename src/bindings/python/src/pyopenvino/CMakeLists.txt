@@ -56,6 +56,8 @@ pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
 if(TARGET offline_transformations)
     set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
+elseif(TARGET IE::offline_transformations)
+    set(OFFLINE_TRANSFORMATIONS_LIB IE::offline_transformations)
 else()
     set(OFFLINE_TRANSFORMATIONS_LIB openvino::offline_transformations)
 endif()
