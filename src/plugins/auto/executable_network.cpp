@@ -121,8 +121,8 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
     HelperDeleter::Ptr helper = nullptr;
-    if (needRecycle && _helpDeleter) {
-        _helpDeleter->setPointerToExecutableNetwork(this);
+    if (needRecycle) {
+        HelperDeleter* _helpDeleter = new HelperDeleter(this);
         helper.reset(_helpDeleter);
     }
     for (auto&& workerRequest : workerRequests) {
@@ -292,7 +292,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _inferPipelineTasksDeviceSpecific["CPU_HELP"] = nullptr;
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
-        _helpDeleter = new HelperDeleter();
         auto recycleTask = [this]() mutable {
             size_t destroynum = 0;
             if (!_exitFlag) {

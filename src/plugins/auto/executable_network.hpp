@@ -144,16 +144,15 @@ public:
     class HelperDeleter {
     public:
         using Ptr = std::shared_ptr<HelperDeleter>;
-        HelperDeleter() = default;
+        HelperDeleter(MultiDeviceExecutableNetwork* exeNetwork):
+            _multiDeviceExecutableNetwork(exeNetwork) {
+            }
         ~HelperDeleter() {
             if (_multiDeviceExecutableNetwork) {
                 std::lock_guard<std::mutex> lock(_multiDeviceExecutableNetwork->_recycleMutex);
                 _multiDeviceExecutableNetwork->_recycleCond.notify_one();
                 _multiDeviceExecutableNetwork->_switchReady = true;
             }
-        }
-        void setPointerToExecutableNetwork(MultiDeviceExecutableNetwork* exeNetwork) {
-            _multiDeviceExecutableNetwork = exeNetwork;
         }
     private:
         MultiDeviceExecutableNetwork*                                   _multiDeviceExecutableNetwork = nullptr;
@@ -234,7 +233,6 @@ private:
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
     bool                                                                _exitFlag = {false};
-    HelperDeleter*                                                      _helpDeleter = nullptr;
     std::mutex                                                          _recycleMutex;
     std::condition_variable                                             _recycleCond;
     bool                                                                _switchReady = {false};
