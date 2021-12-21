@@ -296,7 +296,7 @@ void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, con
     } else {
         mem_blob = std::dynamic_pointer_cast<MemoryBlob>(make_blob_with_precision(batched_desc));
     }
-    OPENVINO_ASSERT(mem_blob, "Internal error - can't create hist memory blob");
+    OPENVINO_ASSERT(mem_blob, "Internal error - can't create host memory blob");
     mem_blob->allocate();
     auto ptr = mem_blob->wmap();
 
