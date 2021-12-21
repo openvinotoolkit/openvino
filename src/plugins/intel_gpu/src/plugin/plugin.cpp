@@ -721,16 +721,19 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         auto closest_pow_of_2 = [] (float x) {
             return pow(2, floor(log(x)/log(2)));
         };
+        auto model_param = options.find("MODEL_PTR");
+        if (model_param == options.end()) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "[GPU_OPTIMAL_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
+            }
+            IE_SET_METRIC_RETURN(OPTIMAL_BATCH_SIZE, static_cast<unsigned int>(1));
+        }
         std::shared_ptr<ngraph::Function> model;
         try {
-            auto model_param = options.find("MODEL_PTR")->second;
-            model = model_param.as<std::shared_ptr<ngraph::Function>>();
+            model = model_param->second.as<std::shared_ptr<ngraph::Function>>();
         } catch (...) {
             IE_THROW() << "[GPU_OPTIMAL_BATCH_SIZE] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
         }
-        Config config = _impl->m_configs.GetConfig(device_id);
-        auto networkCloned = CloneAndTransformNetwork(CNNNetwork(model), config);
-
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
             GPU_DEBUG_COUT << "DEVICE_INFO:"
                            << "gfx_version.major, " << device_info.gfx_ver.major
@@ -762,6 +765,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                                << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
             }
         }
+        Config config = _impl->m_configs.GetConfig(device_id);
+        auto networkCloned = CloneAndTransformNetwork(CNNNetwork(model), config);
         ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(networkCloned.getFunction(), L3_cache_size);
         unsigned int batch = 1;
         if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
