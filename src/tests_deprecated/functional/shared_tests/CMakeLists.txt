@@ -5,8 +5,8 @@
 set(TARGET_NAME IESharedTests)
 
 list(APPEND SHARED_LIBRARIES
-        ngraph
         commonTestUtils
+        openvino::runtime
         ngraphFunctions
         ieTestHelpers
         )

@@ -29,10 +29,7 @@ target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ov_intel_gpu_graph
-                                             pugixml::static
-                                             inference_engine_transformations
-                                             inference_engine_lp_transformations
-                                             ngraph)
+                                             pugixml::static)
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/
