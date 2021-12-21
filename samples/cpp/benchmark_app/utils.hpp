@@ -71,7 +71,7 @@ ov::Shape parseDataShape(const std::string& dataShapeStr);
 std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::string& file_paths_string);
 std::map<std::string, std::vector<std::string>> parseInputArguments(const std::vector<std::string>& args);
 
-std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string parameter_string,
+std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string& parameter_string,
                                                                      const ov::ParameterVector& input_info);
 
 /// <summary>

@@ -417,7 +417,7 @@ int main(int argc, char* argv[]) {
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"read network time (ms)", duration_ms}});
 
-            const ov::ParameterVector& inputInfo = cnnNetwork->get_parameters();
+            const ov::ParameterVector& inputInfo = model->get_parameters();
             if (inputInfo.empty()) {
                 throw std::logic_error("no inputs info is provided");
             }
@@ -442,7 +442,7 @@ int main(int argc, char* argv[]) {
                     shapes[item.first] = item.second.partialShape;
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
-                cnnNetwork->reshape(shapes);
+                model->reshape(shapes);
                 duration_ms = double_to_string(get_duration_ms_till_now(startTime));
                 slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
                 if (statistics)
@@ -453,10 +453,10 @@ int main(int argc, char* argv[]) {
             // ----------------- 6. Configuring inputs and outputs
             // ----------------------------------------------------------------------
             next_step();
-            auto preproc = ov::preprocess::PrePostProcessor(cnnNetwork);
+            auto preproc = ov::preprocess::PrePostProcessor(model);
 
-            processPrecision(*cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
-            for (auto& item : cnnNetwork->get_parameters()) {
+            processPrecision(*model, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            for (auto& item : model->get_parameters()) {
                 // if precision for input set by user, then set it to app_inputs
                 const auto& name = item->get_friendly_name();
                 if (!FLAGS_ip.empty() || FLAGS_iop.find(name) != std::string::npos) {
@@ -476,7 +476,7 @@ int main(int argc, char* argv[]) {
                 in.model().set_layout(app_inputs_info[0].at(name).layout);
             }
 
-            cnnNetwork = preproc.build();
+            model = preproc.build();
 
             // Check if network has dynamic shapes
             auto input_info = app_inputs_info[0];
@@ -486,27 +486,27 @@ int main(int argc, char* argv[]) {
                                                return i.second.partialShape.is_dynamic();
                                            });
 
-            topology_name = cnnNetwork->get_friendly_name();
+            topology_name = model->get_friendly_name();
             // use batch size according to provided layout and shapes (static case)
             if (batchSize == 0 || !isDynamicNetwork) {
-                batchSize = getFunctionInputBatchSize(*cnnNetwork);
+                batchSize = getFunctionInputBatchSize(*model);
             }
 
             slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
                        << slog::endl;
 
-            printInputAndOutputsInfoShort(*cnnNetwork);
+            printInputAndOutputsInfoShort(*model);
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
             startTime = Time::now();
-            exeNetwork = ie.compile_model(cnnNetwork, device_name);
+            exeNetwork = ie.compile_model(model, device_name);
             duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
-            runtimeFunction = std::const_pointer_cast<const ov::Model>(cnnNetwork);
+            runtimeFunction = std::const_pointer_cast<const ov::Model>(model);
         } else {
             next_step();
             slog::info << "Skipping the step for compiled network" << slog::endl;
