@@ -534,18 +534,18 @@ public:
                 if (disabled)
                     return;
             }
-        }
-        auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
-        if (device._deviceName.find("GPU") != std::string::npos) {
-            bool bThroughputEnabledInPlugin =
-                GetConfig(device._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() ==
-                CONFIG_VALUE(THROUGHPUT);
-            const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
-            if ((!bThroughputEnabledInPlugin &&
-                 (mode == config_with_batch.end() || mode->second != CONFIG_VALUE(THROUGHPUT))))
+            auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
+            if (device._deviceName.find("GPU") != std::string::npos) {
+                bool bThroughputEnabledInPlugin =
+                    GetConfig(device._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() ==
+                    CONFIG_VALUE(THROUGHPUT);
+                const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
+                if ((!bThroughputEnabledInPlugin &&
+                     (mode == config_with_batch.end() || mode->second != CONFIG_VALUE(THROUGHPUT))))
+                    return;
+            } else {
                 return;
-        } else {
-            return;
+            }
         }
 
         try {
