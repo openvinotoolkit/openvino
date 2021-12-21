@@ -16,7 +16,7 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
     list(APPEND DEPENDENCIES ov_auto_plugin)
 endif()
 
-if(ENABLE_BATCH)
+if(ENABLE_AUTO_BATCH)
     list(APPEND DEPENDENCIES ov_auto_batch_plugin)
 endif()
 

@@ -11,7 +11,7 @@ file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "BATCH"
               SOURCES ${SOURCES} ${HEADERS}
-              VERSION_DEFINES_FOR auto_batch.cpp)
+              VERSION_DEFINES_FOR auto_batch.cpp ADD_CLANG_FORMAT)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph inference_engine_transformations Threads::Threads)
 

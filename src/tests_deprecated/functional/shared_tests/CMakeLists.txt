@@ -25,7 +25,7 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} ov_auto_plugin)
 endif()
 
-if(ENABLE_BATCH)
+if(ENABLE_AUTO_BATCH)
     add_dependencies(${TARGET_NAME} ov_auto_batch_plugin)
 endif()
 

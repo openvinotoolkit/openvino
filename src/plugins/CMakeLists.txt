@@ -18,6 +18,6 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
     add_subdirectory(auto)
 endif()
 
-if(ENABLE_BATCH)
+if(ENABLE_AUTO_BATCH)
     add_subdirectory(auto_batch)
 endif()
