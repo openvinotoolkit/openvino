@@ -140,7 +140,7 @@ def align_stat_names_with_results(result_names, nodes_name, output2node, stats_l
 
 
 def process_raw_output(raw_output):
-    """ Processes raw output into the POT friendly format """
+    """ Process raw output into the POT friendly format """
     result = {}
     for result_node, result_data in raw_output.items():
         for name in result_node.get_tensor().get_names():
@@ -150,17 +150,25 @@ def process_raw_output(raw_output):
 
 
 def add_tensor_names(nodes, names):
-    """ Processes nGraph nodes and sets POT-friendly tensor name """
+    """ Process nGraph nodes and sets POT-friendly tensor name """
     for ng_node, node_name in zip(nodes, names):
         names = ng_node.get_tensor().get_names()
         names.add(convert_output_key(node_name))
         ng_node.get_tensor().set_names(names)
 
 def cast_friendly_names(nodes):
-    """ Processes nGraph nodes and sets POT-friendly tensor name
+    """ Process nGraph nodes and sets POT-friendly tensor name
     based on friendly_name
      """
     for ng_node in nodes:
         names = ng_node.get_tensor().get_names()
         names.add(ng_node.get_node().friendly_name)
         ng_node.get_tensor().set_names(names)
+
+def collect_model_outputs(ng_model):
+    """ Collect nGraph model outputs and their tensor names
+    """
+    model_output_names = []
+    for ng_output in ng_model.outputs:
+        model_output_names.extend(list(ng_output.get_tensor().get_names()))
+    return model_output_names

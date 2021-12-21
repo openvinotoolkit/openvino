@@ -11,7 +11,7 @@ import numpy as np
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    add_tensor_names, cast_friendly_names
+    add_tensor_names, cast_friendly_names, collect_model_outputs
 from ..api.engine import Engine
 from ..data_loaders.ac_data_loader import ACDataLoader
 from ..graph.model_utils import save_model, add_outputs
@@ -140,11 +140,8 @@ class ACEngine(Engine):
             self._model_evaluator.load_network(self._model)
 
             model_output_names = []
-            model_outputs = []
             for model in self._model:
-                model_outputs.extend(model['model'].outputs)
-            for ng_output in model_outputs:
-                model_output_names.extend(list(ng_output.get_tensor().get_names()))
+                model_output_names.extend(collect_model_outputs(model['model']))
 
             nodes_name = []
             for names_map in nodes_names_map.values():

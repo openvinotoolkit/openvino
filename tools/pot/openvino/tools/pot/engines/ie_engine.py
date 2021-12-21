@@ -11,7 +11,7 @@ from openvino.runtime import Core   # pylint: disable=E0611,E0401
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    add_tensor_names, cast_friendly_names
+    add_tensor_names, cast_friendly_names, collect_model_outputs
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -96,18 +96,16 @@ class IEEngine(Engine):
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
             nodes_names_map = nodes_names_map[self._model.friendly_name]
-
+            nodes_name = list(nodes_names_map.keys())
             cast_friendly_names(self._model.outputs)
 
             outputs = self._add_outputs(list(nodes_names_map.values()))
-            add_tensor_names(outputs, nodes_names_map.keys())
+            add_tensor_names(outputs, nodes_name)
 
-            model_output_names = []
-            for ng_output in self._model.outputs:
-                model_output_names.extend(list(ng_output.get_tensor().get_names()))
+            model_output_names = collect_model_outputs(self._model)
 
             align_stat_names_with_results(model_output_names,
-                                          list(nodes_names_map.keys()),
+                                          nodes_name,
                                           output_to_node_names,
                                           stats_layout,
                                           stat_aliases)
