@@ -109,11 +109,13 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: CVS-66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_Hetero_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+        R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-
+        R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+        R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
         // Issue: CVS-66780
         R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
@@ -127,11 +129,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_PrePostProcess.*two_inputs_trivial.*)",
         // TODO: CVS-67255
         R"(smoke_If.*SimpleIf2OutTest.*)",
-        // TODO: CVS-68525
-        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
-        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
 
         // Issue: 69086
         // need to add support convert BIN -> FP32
@@ -169,6 +166,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*BIN.*)",
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*CUSTOM.*)",
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
+        // Issue:
+        R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
     };
 
 #define FIX_62820 0
