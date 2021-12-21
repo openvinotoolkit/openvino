@@ -527,7 +527,7 @@ bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CN
         outputs_.at(portName).ptrs.resize(gnaFlags->gna_lib_async_threads_num);
         outputs_.at(portName).orientation = orientation;
         outputs_.at(portName).num_bytes_per_element = numBytesPerElem;
-        outputs_.at(portName).scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
+        outputs_.at(portName).scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : GNAPluginNS::kScaleFactorDefault;
         outputs_.at(portName).num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
@@ -1601,7 +1601,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     // for example to change the scale factors for the old models.
     if (!config.inputScaleFactors.empty()) {
         IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
-        // TODO: config should also uses map of inputs
+        // TODO: config should  use the map of inputs as well
         for (size_t id = 0; id < config.inputScaleFactors.size(); ++id) {
             if (id < inputs_ptr_->size() && config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
                 gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << id << std::endl;

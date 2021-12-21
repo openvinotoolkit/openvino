@@ -14,7 +14,7 @@ const std::vector<ov::element::Type_t> netPrecisions = {
         ov::element::f32
 };
 const std::vector<std::map<std::string, std::string>> configs = {
-        {},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
