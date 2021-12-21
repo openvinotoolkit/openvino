@@ -489,6 +489,7 @@ public:
         if (context == nullptr) {
             IE_THROW() << "Remote context is null";
         }
+        // have to deduce the device name/config from the context first
         auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
         std::string& deviceName = parsed._deviceName;
         std::map<std::string, std::string>& config_with_batch = parsed._config;
@@ -518,21 +519,35 @@ public:
                            std::map<std::string, std::string>& config_with_batch) {
         std::string deviceNameWithBatchSize;
         if (deviceName.find("BATCH") != std::string::npos) {
+            // explicitly enabled Auto-Batching
             auto pos = deviceName.find_first_of(":");
             if (pos != std::string::npos) {
                 deviceNameWithBatchSize = deviceName.substr(pos + 1);
-                config_with_batch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(YES);
+            }
+        } else {
+            // if the Auto-Batching is disabled explicitly
+            const auto &batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            if (batch_mode != config_with_batch.end()) {
+                const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
+                // no need for this config key in the rest of loading
+                config_with_batch.erase(batch_mode);
+                if (disabled)
+                    return;
             }
         }
+        auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
+        if (device._deviceName.find("GPU") != std::string::npos) {
+            bool bThroughputEnabledInPlugin =
+                        GetConfig(device._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() ==
+                        CONFIG_VALUE(THROUGHPUT);
+            const auto &mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
+            if ((!bThroughputEnabledInPlugin &&
+                 (mode == config_with_batch.end() || mode->second != CONFIG_VALUE(THROUGHPUT))))
+                return;
+        } else {
+            return;
+        }
 
-        const auto& batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-        if (batch_mode == config_with_batch.end())
-            return;
-        const auto enabled = batch_mode->second == CONFIG_VALUE(YES);
-        // no need for this config key in the rest of loading
-        config_with_batch.erase(batch_mode);
-        if (!enabled)
-            return;
         try {
             // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
             // the below code is a placeholder for the WIP (22.1) functionality
@@ -1338,23 +1353,7 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
-    std::map<std::string, std::string> config_with_batch = config;
-    auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
-    if (device._deviceName.find("GPU") != std::string::npos) {
-        bool bThroughputEnabledInPlugin = false;
-        try {
-            bThroughputEnabledInPlugin =
-                GetConfig(device._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() ==
-                CONFIG_VALUE(THROUGHPUT);
-        } catch (...) {
-        }
-        const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-        const auto& allow = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-        if ((bThroughputEnabledInPlugin || (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) &&
-            (allow == config.end() || allow->second != CONFIG_VALUE(NO)))
-            config_with_batch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(YES);
-    }
-    auto exec = _impl->LoadNetwork(network, deviceName, config_with_batch);
+    auto exec = _impl->LoadNetwork(network, deviceName, config);
     return {exec._ptr, exec._so};
 }
 

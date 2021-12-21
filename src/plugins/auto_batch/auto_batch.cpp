@@ -596,13 +596,16 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 footprint += s.second;
         return  footprint;
     };
+    auto deviceConfigNoAutoBatch = deviceConfig;
+    // avoid recursive auto-batching
+    deviceConfigNoAutoBatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
 
     size_t batch1_footprint = 0;
     if (deviceName.find("GPU") != std::string::npos)
         batch1_footprint = report_footprint(GetCore(), deviceName);
     auto executableNetworkWithoutBatch = ctx
-             ? GetCore()->LoadNetwork(network, ctx, deviceConfig)
-             : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+             ? GetCore()->LoadNetwork(network, ctx, deviceConfigNoAutoBatch)
+             : GetCore()->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
     if (deviceName.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(GetCore(), deviceName) - batch1_footprint;
         if (batch1_footprint) {
@@ -639,8 +642,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             }
             clonedNetwork.reshape(shapes);
             executableNetworkWithBatch = ctx
-                                         ? GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, ctx, deviceConfig)
-                                         : GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig);
+                                         ? GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, ctx, deviceConfigNoAutoBatch)
+                                         : GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfigNoAutoBatch);
         } catch (...) {
             executableNetworkWithBatch = {nullptr, nullptr};
         }
