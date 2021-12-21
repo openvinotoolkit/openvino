@@ -87,19 +87,18 @@ void op::v0::TensorIterator::validate_and_infer_types() {
         if (auto slice_input_description = ov::as_type_ptr<SliceInputDescription>(input_description)) {
             auto body_parameter = body->get_parameters().at(slice_input_description->m_body_parameter_index);
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            if (input_partial_shape.is_static()) {
-                auto input_shape = input_partial_shape.to_shape();
-                auto axis = slice_input_description->m_axis;
+            auto axis = slice_input_description->m_axis;
+            if (input_partial_shape.rank().is_static() && input_partial_shape[axis].is_static()) {
                 auto part_size = slice_input_description->m_part_size;
 
-                auto dim_size = input_shape[axis];
+                auto dim_size = input_partial_shape[axis].get_length();
                 auto start = make_positive(slice_input_description->m_start, dim_size);
                 auto end = make_positive(slice_input_description->m_end, dim_size);
 
                 // +1 because the left and right borders are included [start, end]
                 m_num_iterations = (abs(end - start) + 1) / part_size;
                 // infer type for m_body_parameter
-                ov::Shape out_shape{input_shape};
+                ov::PartialShape out_shape{input_partial_shape};
                 out_shape[axis] = part_size;
                 body_parameter->set_partial_shape(out_shape);
             } else {
@@ -224,12 +223,12 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
 
     op->m_num_iterations = m_num_iterations;
     auto func =
-        std::make_shared<Function>(m_bodies[0]->get_results(), m_bodies[0]->get_sinks(), m_bodies[0]->get_parameters());
+        std::make_shared<Model>(m_bodies[0]->get_results(), m_bodies[0]->get_sinks(), m_bodies[0]->get_parameters());
     NGRAPH_SUPPRESS_DEPRECATED_START;
     auto spec_func = specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
     NGRAPH_SUPPRESS_DEPRECATED_END;
     op->m_bodies[0] =
-        std::make_shared<Function>(spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
+        std::make_shared<Model>(spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(input_description->copy());

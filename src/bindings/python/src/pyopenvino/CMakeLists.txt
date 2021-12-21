@@ -44,9 +44,13 @@ if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(-Wno-deprecated-declarations -Wno-undef)
 endif()
 
+if(ENABLE_TESTS)
+    add_subdirectory(test_utils)
+endif()
+
 # create target
 
-file(GLOB_RECURSE SOURCES *.cpp)
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
@@ -57,7 +61,7 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB} openvino::frontend::common)
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)

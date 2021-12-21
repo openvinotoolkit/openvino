@@ -3,7 +3,9 @@
 //
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include <algorithm>
 #include <iostream>
+#include <iomanip>
 #include <memory>
 #include <vector>
 #include <sstream>
@@ -97,10 +99,39 @@ void get_common_debug_env_var(const std::string &var, T &val) {
     return get_debug_env_var(var, val, allowed_option_prefixes);
 }
 
+static void print_help_messages() {
+    std::vector<std::pair<std::string, std::string>> message_list;
+    message_list.emplace_back("OV_GPU_Help", "Print help messages");
+    message_list.emplace_back("OV_GPU_Verbose", "Verbose execution");
+    message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
+    message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
+    message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
+    message_list.emplace_back("OV_GPU_DumpGraphs", "Dump optimized graph");
+    message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
+    message_list.emplace_back("OV_GPU_DumpLayersPath", "Enable dumping intermediate buffers and set the dest path");
+    message_list.emplace_back("OV_GPU_DumpLayers", "Dump intermediate buffers of specified layers only, separated by space");
+    message_list.emplace_back("OV_GPU_DumpLayersDstOnly", "Dump only output of layers");
+    message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
+    message_list.emplace_back("OV_GPU_DryRunPath", "Dry run and serialize execution graph into the specified path");
+    message_list.emplace_back("OV_GPU_BaseBatchForMemEstimation", "Base batch size to be used in memory estimation");
+
+    auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
+        [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
+            return a.first.size() < b.first.size();
+    });
+    int name_width = static_cast<int>(max_name_length_item->first.size()) + 2;
+
+    GPU_DEBUG_COUT << "Supported environment variables for debugging" << std::endl;
+    for (auto& p : message_list) {
+        GPU_DEBUG_COUT << " - " << std::left << std::setw(name_width) << p.first + ": " << p.second << std::endl;
+    }
+}
+
 #endif
 
 debug_configuration::debug_configuration()
-        : verbose(0)
+        : help(0)
+        , verbose(0)
         , print_multi_kernel_perf(0)
         , disable_usm(0)
         , dump_graphs(std::string())
@@ -110,8 +141,10 @@ debug_configuration::debug_configuration()
         , dump_layers_dst_only(0)
         , dry_run_path(std::string())
         , disable_onednn(0)
+        , dump_layers_limit_batch(std::numeric_limits<int>::max())
         , base_batch_for_memory_estimation(-1) {
 #ifdef GPU_DEBUG_CONFIG
+    get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
     get_gpu_debug_env_var("PrintMultiKernelPerf", print_multi_kernel_perf);
     get_gpu_debug_env_var("DisableUsm", disable_usm);
@@ -120,14 +153,16 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayersPath", dump_layers_path);
     get_gpu_debug_env_var("DumpLayers", dump_layers);
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
+    get_gpu_debug_env_var("DumpLayersLimitBatch", dump_layers_limit_batch);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
 
-    if (dump_layers_path.length() > 0 && !disable_usm) {
-        disable_usm = 1;
-        GPU_DEBUG_COUT << "DisableUsm=1 because of DumpLayersPath" << std::endl;
+    if (help > 0) {
+        print_help_messages();
+        exit(0);
     }
+
     if (dump_layers.length() > 0)
         dump_layers = " " + dump_layers + " "; // Insert delimiter for easier parsing when used
 #endif

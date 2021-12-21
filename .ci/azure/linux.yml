@@ -232,7 +232,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
     displayName: 'nGraph Python Bindings Tests'
     continueOnError: false
 
@@ -241,7 +241,7 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/mo/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
-    enabled: false
+    enabled: true
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
@@ -334,7 +334,7 @@ jobs:
     displayName: 'Samples Smoke Tests'
     continueOnError: false
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
-    enabled: false
+    enabled: true
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -353,7 +353,7 @@ jobs:
     workingDirectory: $(LAYER_TESTS_DIR)
     displayName: 'Layer Tests'
     continueOnError: false
-    enabled: false
+    enabled: true
 
   - task: PublishTestResults@2
     condition: always()

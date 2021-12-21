@@ -18,11 +18,11 @@
 namespace InferenceEngine {
 namespace details {
 
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<CNNNetworkImpl>)
+std::shared_ptr<CNNNetworkImpl>
 convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
                              const CNNNetwork &network, bool keep_constant_inputs = false);
 
-INFERENCE_ENGINE_API_CPP(void)
+void
 convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
                              const CNNNetwork &ngraphNetwork,
                              CNNNetworkImpl* cnnNetworkImpl,
