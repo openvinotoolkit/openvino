@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <ie_icore.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <ie_performance_hints.hpp>
-#include <ie_plugin_config.hpp>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -18,8 +17,6 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include "ie_metric_helpers.hpp"
 
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
