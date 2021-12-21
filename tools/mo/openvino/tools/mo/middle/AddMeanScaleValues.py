@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 
 from openvino.tools.mo.ops.elementwise import Add, Mul
-from openvino.tools.mo.front.common.layout import get_features_dim
+from openvino.tools.mo.front.common.layout import get_channel_dim_from_layout
 from openvino.tools.mo.front.common.partial_infer.utils import compatible_dims
 from openvino.tools.mo.front.extractor import get_node_id_with_ports
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -42,8 +42,9 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         if all([x == optimize_value for x in value]):
             return
         assert input_node.has_valid('shape')
-        features_dim_idx = get_features_dim(graph.graph['layout'], len(input_node.shape))
-        assert compatible_dims(value.size, input_node.shape[features_dim_idx]) or value.size == 1
+        features_dim_idx = get_channel_dim_from_layout(input_node, graph.graph['layout'])
+        assert compatible_dims(value.size, input_node.shape[features_dim_idx]) or value.size == 1, \
+            "Incompatible layout, please specify correct layout for the node"
 
         shape = np.ones(len(input_node.shape), dtype=np.int64)
         shape[features_dim_idx] = value.size
