@@ -1707,7 +1707,24 @@ bool evaluate(const shared_ptr<op::v0::Log>& op, const HostTensorVector& outputs
 }
 
 namespace ctc_loss_v4 {
-template <element::Type_t t1, element::Type_t t2>
+template <element::Type_t t1,
+          element::Type_t t2,
+          typename std::enable_if<!std::is_floating_point<typename element_type_traits<t1>::value_type>::value &&
+                                      !std::is_same<typename element_type_traits<t1>::value_type, bfloat16>::value &&
+                                      !std::is_same<typename element_type_traits<t1>::value_type, float16>::value,
+                                  bool>::type = true>
+inline void evaluate(const shared_ptr<op::v4::CTCLoss>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    OPENVINO_ASSERT(false, "The data type for logits is expected to be a floating point type. Got:", element::Type(t1));
+}
+
+template <element::Type_t t1,
+          element::Type_t t2,
+          typename std::enable_if<std::is_floating_point<typename element_type_traits<t1>::value_type>::value ||
+                                      std::is_same<typename element_type_traits<t1>::value_type, bfloat16>::value ||
+                                      std::is_same<typename element_type_traits<t1>::value_type, float16>::value,
+                                  bool>::type = true>
 inline void evaluate(const shared_ptr<op::v4::CTCLoss>& op,
                      const HostTensorVector& outputs,
                      const HostTensorVector& inputs) {
@@ -1941,6 +1958,30 @@ bool evaluate(const shared_ptr<op::v0::RNNCell>& op, const HostTensorVector& out
                                     outputs[0]->get_data_ptr<ET>(),
                                     op->get_activations().front(),
                                     op->get_clip());
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::LSTMCell>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::lstm_cell<T>(inputs[0]->get_data_ptr<ET>(),
+                                     inputs[0]->get_shape(),
+                                     inputs[1]->get_data_ptr<ET>(),
+                                     inputs[1]->get_shape(),
+                                     inputs[2]->get_data_ptr<ET>(),
+                                     inputs[2]->get_shape(),
+                                     inputs[3]->get_data_ptr<ET>(),
+                                     inputs[3]->get_shape(),
+                                     inputs[4]->get_data_ptr<ET>(),
+                                     inputs[4]->get_shape(),
+                                     inputs[5]->get_data_ptr<ET>(),
+                                     inputs[5]->get_shape(),
+                                     outputs[0]->get_data_ptr<ET>(),
+                                     outputs[1]->get_data_ptr<ET>(),
+                                     op->get_activations()[0],
+                                     op->get_activations()[1],
+                                     op->get_activations()[2],
+                                     op->get_clip());
     return true;
 }
 
