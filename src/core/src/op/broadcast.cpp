@@ -85,17 +85,21 @@ ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
 
     result_shape = target_shape;
     for (size_t i = 0; i < target_shape.size(); ++i) {
-        if (arg_shape[i].is_dynamic()) {
-            if (target_shape[i].is_dynamic()) {
-                result_shape[i] = Dimension(std::min(arg_shape[i].get_min_length(), target_shape[i].get_min_length()),
-                                            std::max(arg_shape[i].get_max_length(), target_shape[i].get_max_length()));
-            } else if (target_shape[i] == 1) {
-                result_shape[i] = Dimension::dynamic();
+        const auto& arg_dim = arg_shape[i];
+        const auto& target_dim = target_shape[i];
+
+        if (arg_dim.is_dynamic() || target_dim.is_dynamic()) {
+            if (target_dim == 1 || (arg_dim.is_static() && arg_dim != 1)) {
+                result_shape[i] = arg_dim;
+            } else if (arg_dim == 1 || (target_dim.is_static() && target_dim != 1)) {
+                result_shape [i] = target_dim;
             } else {
-                result_shape[i] = target_shape[i];
+                result_shape[i] = Dimension(std::min(arg_dim.get_min_length(), target_dim.get_min_length()),
+                                            std::max(arg_dim.get_max_length(), target_dim.get_max_length()));
             }
             continue;
         }
+
         const auto& arg_shape_dim = arg_shape[i].get_length();
         const auto& target_shape_dim = target_shape[i].get_length();
         NODE_VALIDATION_CHECK(this_ptr,
