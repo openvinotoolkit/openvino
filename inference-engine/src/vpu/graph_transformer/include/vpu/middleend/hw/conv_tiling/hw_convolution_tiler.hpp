@@ -173,7 +173,7 @@ class HWConvolutionTiler final {
 public:
     HWConvolutionTiler() = delete;
     HWConvolutionTiler(const HWConvolutionTiler&) = default;
-    HWConvolutionTiler(ConvolutionOptions convolutionOptions, const Direction& direction, std::size_t maxTilingOptions);
+    HWConvolutionTiler(const ConvolutionOptions& convolutionOptions, const Direction& direction, std::size_t maxTilingOptions);
 
 
     bool isTilingPossible() const {

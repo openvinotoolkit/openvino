@@ -83,7 +83,7 @@ public:
     HWPoolingTiler() = delete;
 
     HWPoolingTiler(const HWPoolingTiler&) = default;
-    HWPoolingTiler(ConvolutionOptions convolutionOptions, const Direction& direction, std::size_t maxTilingOptions);
+    HWPoolingTiler(const ConvolutionOptions& convolutionOptions, const Direction& direction, std::size_t maxTilingOptions);
 
     bool isTilingPossible() const {
         return _tilingPossible;
