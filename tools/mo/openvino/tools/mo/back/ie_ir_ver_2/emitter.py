@@ -140,6 +140,19 @@ def xml_ports(node: Node, element: Element, edges: Element):
             assert node.graph.node[u]['shape'] is not None, 'Input shape is not calculated properly for node {}'.format(
                 node.id)
             xml_shape(node.graph.node[u]['shape'], port)
+
+            port_id = d['in']
+            if node.has('restored_input_ports') and port_id in node.restored_input_ports:
+                port_rt_info_value = node.restored_input_ports[port_id][2]
+                if port_rt_info_value != {}:
+                    port_rt_info = SubElement(port, 'rt_info')
+                    for (name, version), info_elem in port_rt_info_value.items():
+                        attribute = SubElement(port_rt_info, 'attribute')
+                        attribute.set('name', name)
+                        attribute.set('version', str(version))
+                        params = info_elem.serialize(node) if not isinstance(info_elem, dict) else info_elem
+                        for key, value in params.items():
+                            attribute.set(key, value)
             # u is a data node that has a single producer, let's find it
             assert (node.graph.node[u]['kind'] == 'data')
             in_nodes = list(node.graph.in_edges(u, data=True))

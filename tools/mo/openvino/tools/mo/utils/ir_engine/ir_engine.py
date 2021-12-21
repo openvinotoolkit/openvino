@@ -203,7 +203,7 @@ class IREngine(object):
         layer_id = layer.attrib['id']
 
         layer_attrs = layer.attrib
-        layer_attrs.update({'ports': {}, 'kind': 'op'})
+        layer_attrs.update({'ports': {}, 'restored_input_ports': {}, 'kind': 'op'})
 
         inputs_counter = 0
 
@@ -223,6 +223,26 @@ class IREngine(object):
                 layer_attrs.update(new_attrs)
             elif attr.tag == 'input':
                 inputs_counter = len(attr)
+
+                input = attr
+                for port in input:
+                    port_id = int(port.attrib['id'])
+                    input_shape = []
+                    port_rt_info = {}
+                    for dim in port:
+                        if dim.tag == "dim":
+                            input_shape.append(int(dim.text))
+                        if dim.tag == 'rt_info':
+                            for attr in dim:
+                                port_rt_info.update(self.__read_rt_info_common(attr))
+
+                    input_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in input_shape])
+
+                    in_tensor_names = None
+                    if 'names' in port.attrib:
+                        in_tensor_names = port.attrib['names']
+
+                    layer_attrs['restored_input_ports'].update({port_id: (input_shape, in_tensor_names, port_rt_info)})
             elif attr.tag == 'output':
                 output = attr
                 for port in output:
