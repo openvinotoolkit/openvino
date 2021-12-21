@@ -212,7 +212,7 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
 
 # Export for developer package
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_plugin_api)
+openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME}_plugin_api)
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
