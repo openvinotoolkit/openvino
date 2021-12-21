@@ -12,7 +12,7 @@ from functools import reduce
 import cv2
 import numpy as np
 from openvino.preprocess import PrePostProcessor
-from openvino.runtime import Core, InferRequest, Layout, Type, Model, Shape
+from openvino.runtime import Core, Layout, Type, Model, Shape, PartialShape
 import openvino
 
 
@@ -113,13 +113,12 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
         weights[weights_offset : weights_offset + 2 * reshape_1_length],
         dtype=np.int64,
     )
-    reshape_1_kernel = openvino.runtime.op.Constant(Type.f32, Shape(list(dtype_weights.shape)), dtype_weights)
+    reshape_1_kernel = openvino.runtime.op.Constant(Type.i64, Shape(list(dtype_weights.shape)), dtype_weights)
     weights_offset += 2 * reshape_1_length
     reshape_1_node = openvino.runtime.opset8.reshape(maxpool_2_node, reshape_1_kernel, True)
 
     # matmul 1
     matmul_1_kernel_shape, matmul_1_kernel_length = shape_and_length([500, 800])
-    print(matmul_1_kernel_shape)
     matmul_1_kernel = openvino.runtime.op.Constant(Type.f32, Shape(matmul_1_kernel_shape),
                                                    weights[weights_offset : weights_offset + matmul_1_kernel_length]
                                                    )
@@ -138,8 +137,8 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
     relu_node = openvino.runtime.opset8.relu(add_3_node)
 
     # reshape 2
-    reshape_2_kernel = openvino.runtime.op.Constant(Type.f32, Shape(list(dtype_weights.shape)), dtype_weights)
-    reshape_2_node = openvino.runtime.reshape(relu_node, reshape_2_kernel, True)
+    reshape_2_kernel = openvino.runtime.op.Constant(Type.i64, Shape(list(dtype_weights.shape)), dtype_weights)
+    reshape_2_node = openvino.runtime.opset8.reshape(relu_node, reshape_2_kernel, True)
 
     # matmul 2
     matmul_2_kernel_shape, matmul_2_kernel_length = shape_and_length([10, 500])
@@ -178,8 +177,7 @@ def main():
     # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation------------------------------
     log.info(f'Loading the network using ngraph function with weights from {args.model}')
     model = create_ngraph_function(args)
-    # ---------------------------Step 3. Configure input & output----------------------------------------------------------
-    log.info('Configuring input and output blobs')
+    # ---------------------------Step 3. Apply preprocessing----------------------------------------------------------
     # Get names of input and output blobs
     ppp = PrePostProcessor(model)
     # 1) Set input tensor information:
@@ -200,20 +198,15 @@ def main():
     model = ppp.build()
 
     # Set a batch size to a equal number of input images
-    model.batch_size = len(args.input)
+    model.reshape({model.input().get_any_name(): PartialShape((len(args.input), model.input().shape[1], model.input().shape[2], model.input().shape[3]))})
 
     # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
     compiled_model = core.compile_model(model, args.device)
 
-    # ---------------------------Step 5. Create infer request--------------------------------------------------------------
-    # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
-    # instance which stores infer requests. So you already created Infer requests in the previous step.
-
-    # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
+    # ---------------------------Step 5. Prepare input---------------------------------------------------------------------
     n, c, h, w = model.input().shape
     input_data = np.ndarray(shape=(n, c, h, w))
-
     for i in range(n):
         image = read_image(args.input[i])
 
@@ -231,11 +224,11 @@ def main():
 
         input_data[i] = image
 
-    # ---------------------------Step 7. Do inference----------------------------------------------------------------------
+    # ---------------------------Step 6. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
     results = compiled_model.infer_new_request({0: input_data})
 
-    # ---------------------------Step 8. Process output--------------------------------------------------------------------
+    # ---------------------------Step 7. Process output--------------------------------------------------------------------
     # Generate a label list
     if args.labels:
         with open(args.labels, 'r') as f:
