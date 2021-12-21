@@ -1283,6 +1283,23 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             impl_candidate = impl_types::ocl;
         }
 
+        // [WA] to avoid an onednn kernel issue of multiple sum post-ops
+        if (!node.get_fused_primitives().empty()) {
+            size_t sum_post_op_cnt = 0;
+            for (auto& fused_op : node.get_fused_primitives()) {
+                if (fused_op.node->is_type<eltwise>() && node.get_dependencies().size() > fused_op.dep_start_idx && fused_op.deps.size() == 1)  {
+                    auto& eltw_in = node.get_dependency(fused_op.dep_start_idx);
+                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in.get_output_layout(), node.get_output_layout()) &&
+                        fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in.get_output_layout())) {
+                        if (sum_post_op_cnt > 0)
+                            return impl_types::ocl;
+
+                        sum_post_op_cnt += 1;
+                    }
+                }
+            }
+        }
+
         if (node.is_type<convolution>()) {
             // oneDNN doesn't have good support for groups with fsv16 fmt
             auto& conv = node.as<convolution>();

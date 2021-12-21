@@ -75,7 +75,7 @@ public:
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) override;
     void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
     void fuseInto(MKLDNNNodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
@@ -90,13 +90,11 @@ public:
     bool isWithBroadcast();
     bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }
 
-    void createPrimitive() override;
-
     std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
     enum BroadcastingPolicy {
         PerChannel,

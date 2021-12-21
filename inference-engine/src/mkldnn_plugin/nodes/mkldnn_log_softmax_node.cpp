@@ -60,14 +60,6 @@ void MKLDNNLogSoftmaxNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNLogSoftmaxNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNLogSoftmaxNode::prepareParams() {
     const auto &dims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
     reducedAxisStride = 1;
@@ -85,6 +77,10 @@ void MKLDNNLogSoftmaxNode::prepareParams() {
     reducedAxisSize = dims[axis];
     for (size_t i = (axis + 1); i < dims.size(); i++)
         reducedAxisStride *= dims[i];
+}
+
+void MKLDNNLogSoftmaxNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNLogSoftmaxNode::execute(mkldnn::stream strm) {
