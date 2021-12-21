@@ -5,7 +5,7 @@ import os
 
 from ..conftest import model_path
 from openvino.runtime import Input, Shape, PartialShape, Type, Parameter, \
-    PyRTMap
+    RTMap
 
 from openvino.runtime import Core
 
@@ -97,7 +97,7 @@ def test_input_get_rt_info(device):
     input = exec_net.output(0)
     input_node = input.get_node().inputs()[0]
     rt_info = input_node.get_rt_info()
-    assert isinstance(rt_info, PyRTMap)
+    assert isinstance(rt_info, RTMap)
 
 
 def test_input_rt_info(device):
@@ -107,7 +107,7 @@ def test_input_rt_info(device):
     input = exec_net.output(0)
     input_node = input.get_node().inputs()[0]
     rt_info = input_node.rt_info
-    assert isinstance(rt_info, PyRTMap)
+    assert isinstance(rt_info, RTMap)
 
 
 def test_input_update_rt_info(device):
