@@ -12,8 +12,8 @@
 #include <vector>
 
 #ifdef HAVE_DEVICE_MEM_SUPPORT
-#    include <openvino/runtime/gpu/ocl/ocl.hpp>
-#    include <openvino/runtime/gpu/ocl/ocl_wrapper.hpp>
+#    include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
+#    include <openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp>
 #endif
 // clang-format off
 #include <samples/slog.hpp>
@@ -83,7 +83,7 @@ std::map<std::string, ov::runtime::TensorVector> getRemoteInputBlobs(
 
     std::map<std::string, ov::runtime::TensorVector> remoteBlobs;
     auto context = exeNetwork.get_context();
-    auto& oclContext = static_cast<ov::runtime::gpu::ocl::ClContext&>(context);
+    auto& oclContext = static_cast<ov::runtime::intel_gpu::ocl::ClContext&>(context);
     auto oclInstance = std::make_shared<gpu::OpenCL>(oclContext.get());
 
     for (auto& inputs_info : app_inputs_info) {
@@ -135,7 +135,7 @@ std::map<std::string, ov::runtime::Tensor> getRemoteOutputBlobs(const ov::runtim
     std::map<std::string, ov::runtime::Tensor> outputBlobs;
     for (auto& output : exeNetwork.outputs()) {
         auto context = exeNetwork.get_context();
-        auto& oclContext = static_cast<ov::runtime::gpu::ocl::ClContext&>(context);
+        auto& oclContext = static_cast<ov::runtime::intel_gpu::ocl::ClContext&>(context);
         auto oclInstance = std::make_shared<OpenCL>(oclContext.get());
 
         cl_int err;
