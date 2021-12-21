@@ -526,7 +526,7 @@ public:
             }
         } else {
             // if the Auto-Batching is disabled explicitly
-            const auto &batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            const auto& batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
             if (batch_mode != config_with_batch.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
                 // no need for this config key in the rest of loading
@@ -538,9 +538,9 @@ public:
         auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
         if (device._deviceName.find("GPU") != std::string::npos) {
             bool bThroughputEnabledInPlugin =
-                        GetConfig(device._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() ==
-                        CONFIG_VALUE(THROUGHPUT);
-            const auto &mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
+                GetConfig(device._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() ==
+                CONFIG_VALUE(THROUGHPUT);
+            const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
             if ((!bThroughputEnabledInPlugin &&
                  (mode == config_with_batch.end() || mode->second != CONFIG_VALUE(THROUGHPUT))))
                 return;
