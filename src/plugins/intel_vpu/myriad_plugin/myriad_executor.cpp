@@ -83,6 +83,10 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
+    auto st = config.get<DenableMXBootOption>();
+    if (st) {
+        return ncStatus_t(st);
+    }
 // #-17972, #-16790
 #if defined(NO_BOOT)
     if (!devicePool.empty()) {
@@ -251,35 +255,33 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
             }
         }
     }
-    auto st = config.get<DenableMXBootOption>();
-    if (!st) {
-        ncStatus_t booted = bootNextDevice(devicePool, config);
 
-        // TODO Is any tests for this case? #-19309
-        // In case, then there is no another not booted device, use already booted with minimum number of executors
-        if (booted != NC_OK) {
-            std::vector<DevicePtr> availableDevices;
+    ncStatus_t booted = bootNextDevice(devicePool, config);
 
-            // Get all suitable devices
-            std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
-                [&config](const DevicePtr &device) {
-                    return device->isBooted() && device->isNotFull()
-                        && device->isSuitableForConfig(config);
-                });
-            // Return mock device. If try infer with it, exception will be thrown
-            if (availableDevices.empty()) {
-                DeviceDesc device;
-                device._protocol = config.get<ProtocolOption>();
-                return std::make_shared<DeviceDesc>(device);
-            }
+    // TODO Is any tests for this case? #-19309
+    // In case, then there is no another not booted device, use already booted with minimum number of executors
+    if (booted != NC_OK) {
+        std::vector<DevicePtr> availableDevices;
 
-            auto deviceWithMinExecutors = std::min_element(availableDevices.begin(), availableDevices.end(),
-                [](const DevicePtr &lhs, const DevicePtr &rhs) { return lhs->_graphNum < rhs->_graphNum; });
-
-            auto &device = *deviceWithMinExecutors;
-            device->_graphNum++;
-            return device;
+        // Get all suitable devices
+        std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
+            [&config](const DevicePtr &device) {
+                return device->isBooted() && device->isNotFull()
+                    && device->isSuitableForConfig(config);
+            });
+        // Return mock device. If try infer with it, exception will be thrown
+        if (availableDevices.empty()) {
+            DeviceDesc device;
+            device._protocol = config.get<ProtocolOption>();
+            return std::make_shared<DeviceDesc>(device);
         }
+
+        auto deviceWithMinExecutors = std::min_element(availableDevices.begin(), availableDevices.end(),
+            [](const DevicePtr &lhs, const DevicePtr &rhs) { return lhs->_graphNum < rhs->_graphNum; });
+
+        auto &device = *deviceWithMinExecutors;
+        device->_graphNum++;
+        return device;
     }
 
     _log->info("Device #%d %s (%s protocol) allocated", devicePool.size() - 1,
