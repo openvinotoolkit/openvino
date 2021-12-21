@@ -69,7 +69,6 @@ struct RegionYoloParams {
     ov::runtime::Tensor refData;
     std::string testcaseName;
 
-public:
     template<typename T>
     inline static std::vector<T> read_binary_file(const std::string& filename) {
         std::string path = ov::util::path_join({TEST_FILES, filename});
@@ -123,7 +122,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const RegionYoloParams& params) {
+    std::shared_ptr<Model> CreateFunction(const RegionYoloParams& params) {
         const auto p = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
         const auto RegionYolo = std::make_shared<op::v0::RegionYolo>(p,
                                                                      params.coords,
