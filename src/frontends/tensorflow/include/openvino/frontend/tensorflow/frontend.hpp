@@ -14,7 +14,7 @@
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/visibility.hpp"
-#include "openvino/frontend/node_context.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
 
@@ -26,7 +26,7 @@ class NodeContext;
 
 class TENSORFLOW_API FrontEnd : public ov::frontend::FrontEnd {
 public:
-    using TranslatorDictionaryType = std::map<const std::string, const tf::CreatorFunction>;
+    using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
 
 private:
     TranslatorDictionaryType m_op_translators;

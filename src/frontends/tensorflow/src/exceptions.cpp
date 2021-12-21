@@ -4,12 +4,12 @@
 
 #include "exceptions.hpp"
 
-#include "tensorflow_frontend/node_context.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-std::string OpValidationFailure::get_error_msg_prefix_tf(const tensorflow::NodeContext& node) {
+std::string OpValidationFailure::get_error_msg_prefix_tf(const NodeContext& node) {
     std::stringstream ss;
     ss << "While validating node '" << node.get_op_type() << '\'';
     return ss.str();

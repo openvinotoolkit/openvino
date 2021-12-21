@@ -7,7 +7,7 @@
 #include "op_def.pb.h"
 #include "openvino/frontend/exception.hpp"
 #include "tensor.pb.h"
-#include "tensorflow_frontend/node_context.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "types.pb.h"
 
 namespace ov {

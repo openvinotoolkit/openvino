@@ -13,10 +13,11 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext {
+class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext<OutputVector> {
 public:
     explicit NodeContext(const ngraph::onnx_import::Node& _context)
-        : context(_context) {}
+        : ov::frontend::NodeContext<OutputVector>(_context.op_type(), _context.get_ng_inputs()),
+          context(_context) {}
 
 protected:
     const ngraph::onnx_import::Node& context;

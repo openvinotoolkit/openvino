@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include <common/conversion_extension.hpp>
-#include <manager.hpp>
+#include <openvino/frontend/extension/conversion.hpp>
+#include <openvino/frontend/manager.hpp>
 
 struct ConversionExtensionFEParam {
     std::string m_frontEndName;

@@ -24,7 +24,7 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
-    ov::frontend::tf::NodeContext node_ctx(*node->get_decoder(), node->input_values());
+    NodeContext node_ctx(*node->get_decoder(), node->input_values());
     auto new_node_outputs = translator_it->second(node_ctx);
 
     auto new_output = new_node_outputs.begin();
@@ -55,7 +55,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
     const auto& model_frozen_inputs = model_tf->get_tensor_values();
-    std::map<const std::string, const std::function<ov::OutputVector(const ov::frontend::tf::NodeContext&)>>
+    std::map<const std::string, const std::function<ov::OutputVector(const NodeContext&)>>
         translate_map;
 
     const auto& TRANSLATE_OP_MAP = m_op_translators;
@@ -105,10 +105,6 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
-<<<<<<< HEAD
-=======
-        ::ov::frontend::tensorflow::NamedInputs named_inputs;
->>>>>>> upstream/master
         for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
             std::string producer_name;
             size_t producer_port_idx;
@@ -158,11 +154,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
             // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
             // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
-<<<<<<< HEAD
-            ::ov::frontend::tf::NodeContext node_context(*operation_decoder, ng_inputs);
-=======
-            ::ov::frontend::tensorflow::NodeContext node_context(*operation_decoder, named_inputs);
->>>>>>> upstream/master
+            NodeContext node_context(*operation_decoder, ng_inputs);
             // generate OV node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {

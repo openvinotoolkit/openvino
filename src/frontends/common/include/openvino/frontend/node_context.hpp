@@ -31,7 +31,7 @@ public:
         return m_op_type;
     }
 
-    virtual ~NodeContext() = 0;
+    ~NodeContext() = default;
 private:
     std::string m_op_type;
     T m_inputs;

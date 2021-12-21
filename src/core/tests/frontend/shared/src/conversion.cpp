@@ -4,7 +4,7 @@
 
 #include "conversion_extension.hpp"
 
-#include <common/conversion_extension.hpp>
+#include <openvino/frontend/extension/conversion.hpp>
 
 #include "utils.hpp"
 
@@ -27,14 +27,16 @@ void FrontEndConversionExtensionTest::initParamTest() {
     m_param.m_modelName = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_modelName);
 }
 
-class ConversionExtensionMock : public ov::frontend::ConversionExtension {
+template <class T>
+class ConversionExtensionMock : public ov::frontend::ConversionExtensionBase {
 public:
-    ConversionExtensionMock(const std::string& op_type, const ov::frontend::CreatorFunction& converter)
-        : ov::frontend::ConversionExtension(op_type, converter){};
+    ConversionExtensionMock(const std::string& op_type, const ov::frontend::CreatorFunction<T>& converter)
+        : ov::frontend::ConversionExtensionBase(op_type),
+          m_converter(converter) {};
 
-    ConversionExtensionMock(const std::string& op_type, const CreatorFunctionNamed& converter)
-        : ov::frontend::ConversionExtension(op_type, converter) {}
     ~ConversionExtensionMock() override = default;
+private:
+    ov::frontend::CreatorFunction<T> m_converter;
 };
 
 ///////////////////////////////////////////////////////////////////
@@ -42,19 +44,18 @@ public:
 TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionMock) {
     std::shared_ptr<ov::Model> function;
     {
-        using namespace std::placeholders;
         ov::frontend::FrontEnd::Ptr m_frontEnd;
         ov::frontend::InputModel::Ptr m_inputModel;
         m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName);
         if (m_param.m_frontEndName != "pdpd") {
-            m_frontEnd->add_extension(std::make_shared<ConversionExtensionMock>(
+/*            m_frontEnd->add_extension(std::make_shared<ConversionExtensionMock>(
                 "NewOp",
                 [](const NodeContext& node) -> std::map<std::string, ov::OutputVector> {
                     return {};
-                }));
+                }));*/
         } else {
             m_frontEnd->add_extension(
-                std::make_shared<ConversionExtensionMock>("NewOp", [](const NodeContext& node) -> ov::OutputVector {
+                std::make_shared<ConversionExtensionMock<ov::OutputVector>>("NewOp", [](const ov::frontend::NodeContext<ov::OutputVector>& node) -> ov::OutputVector {
                     return {};
                 }));
         }

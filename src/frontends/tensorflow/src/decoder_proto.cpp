@@ -4,7 +4,7 @@
 
 #include "decoder_proto.hpp"
 
-#include "tensorflow_frontend/node_context.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 
 namespace ov {
 namespace frontend {

@@ -11,11 +11,8 @@
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "place.hpp"
-<<<<<<< HEAD:src/frontends/tensorflow/src/model.cpp
-#include "tensorflow_frontend/graph_iterator.hpp"
-#include "tensorflow_frontend/node_context.hpp"
-=======
->>>>>>> upstream/master:src/frontends/tensorflow/src/input_model.cpp
+#include "openvino/frontend/tensorflow/graph_iterator.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "utils.hpp"
 
 using namespace google;

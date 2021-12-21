@@ -111,6 +111,7 @@ inline NamedOutputs NodeContext::default_single_output_mapping(
     return named_outputs;
 }
 
+using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
 }  // namespace pdpd
 }  // namespace frontend
 }  // namespace ov
