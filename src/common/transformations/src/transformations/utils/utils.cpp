@@ -177,6 +177,35 @@ bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expe
     }
 }
 
+bool is_dequantization_subgraph(const Output<Node>& multiply) {
+    auto mul_inputs = multiply.get_node()->input_values();
+    Node* sub = nullptr;
+    Node* convert = nullptr;
+
+    if (is_type<opset8::Subtract>(mul_inputs[0].get_node())) {
+        sub = mul_inputs[0].get_node();
+    } else if (is_type<opset8::Convert>(mul_inputs[0].get_node())) {
+        convert = mul_inputs[0].get_node();
+    } else {
+        return false;
+    }
+
+    if (sub) {
+        auto sub_inputs = sub->input_values();
+        if (is_type<opset8::Convert>(sub_inputs[0].get_node())) {
+            convert = sub_inputs[0].get_node();
+        }
+    }
+
+    if (!convert) {
+        return false;
+    }
+
+    auto input_type = convert->get_input_element_type(0);
+    auto output_type = convert->get_output_element_type(0);
+    return input_type.is_integral() && output_type.is_real();
+}
+
 bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Output<Node>& constant, const Output<Node>& non_constant_input) {
     if (!is_type<opset8::Add>(eltwise) &&
         !is_type<opset8::Subtract>(eltwise) &&
@@ -184,6 +213,9 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Outp
         !is_type<opset8::Divide>(eltwise)) {
         return false;
     }
+
+    if (is_type<opset8::Multiply>(eltwise) && is_dequantization_subgraph(eltwise))
+        return false;
 
     // check if constant has a single value with either 0 (for Add, Subtract) or 1 (for Multiply, Divide)
     auto constant_ptr = std::dynamic_pointer_cast<opset8::Constant>(constant.get_node_shared_ptr());

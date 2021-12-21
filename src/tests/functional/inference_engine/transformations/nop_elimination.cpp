@@ -996,3 +996,25 @@ INSTANTIATE_TEST_SUITE_P(EliminateEltwise, EliminateEltwiseTests,
                             ::testing::ValuesIn(shape_params),
                             ::testing::ValuesIn(type_params)),
                         EliminateEltwiseTests::get_test_case_name);
+
+
+TEST_F(TransformationTestsF, eliminate_eltwise_dequantization_subgraph) {
+    {
+        auto constant = opset8::Constant::create(element::i8, Shape{}, {2});
+        auto convert = make_shared<opset8::Convert>(constant, element::f32);
+        auto sub = make_shared<opset8::Subtract>(convert, opset8::Constant::create(element::f32, Shape{}, {0}));
+        auto mul = make_shared<opset8::Multiply>(sub, opset8::Constant::create(element::f32, Shape{}, {1}));
+        function = make_shared<Function>(mul, ParameterVector{});
+    }
+    {
+        auto constant = opset8::Constant::create(element::i8, Shape{}, {2});
+        auto convert = make_shared<opset8::Convert>(constant, element::f32);
+        auto mul = make_shared<opset8::Multiply>(convert, opset8::Constant::create(element::f32, Shape{}, {1}));
+        function_ref = make_shared<Function>(mul, ParameterVector{});
+    }
+
+    manager.register_pass<pass::NopElimination>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    enable_accuracy_check();
+}
