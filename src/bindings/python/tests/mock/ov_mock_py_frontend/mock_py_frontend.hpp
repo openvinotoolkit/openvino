@@ -663,3 +663,8 @@ public:
         return m_stat;
     }
 };
+
+class MOCK_API ExtensionMockPy : public ov::Extension {
+public:
+    ExtensionMockPy() = default;
+};

@@ -12,6 +12,16 @@ from openvino.runtime import Model, Core, CompiledModel, Tensor, tensor_from_fil
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
+mock_available = True
+try:
+    from pybind_mock_frontend import MockExtension
+except Exception:
+    print("No mock frontend available")
+    mock_available = False
+
+mock_needed = pytest.mark.skipif(not mock_available,
+                                 reason="mock fe is not available")
+
 
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
@@ -395,3 +405,12 @@ def test_infer_new_request_return_type(device):
     assert arr.shape == (10,)
     assert arr.dtype == "float32"
     assert arr.nbytes == 40
+
+
+@mock_needed
+def test_add_extension():
+    core = Core()
+    core.add_extension(MockExtension())
+    core.add_extension([MockExtension(), MockExtension()])
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(model, Model)
