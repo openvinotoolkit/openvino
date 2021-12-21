@@ -99,8 +99,6 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     } else {
         realDeviceName = device;
     }
-    bool needRecycle = device.find("CPU_HELP") != std::string::npos && _loadContext[CPU].isEnabled &&
-         _loadContext[ACTUALDEVICE].isEnabled;
     auto itNumRequests = std::find_if(_devicePriorities.cbegin(), _devicePriorities.cend(),
                                       [&realDeviceName](const DeviceInformation& d){ return d.deviceName == realDeviceName;});
     unsigned int optimalNum = 0;
@@ -120,15 +118,8 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
-    HelperDeleter::Ptr helper = nullptr;
-    if (needRecycle) {
-        HelperDeleter* _helpDeleter = new HelperDeleter(this);
-        helper.reset(_helpDeleter);
-    }
     for (auto&& workerRequest : workerRequests) {
         workerRequest._inferRequest = {executableNetwork->CreateInferRequest(), executableNetwork._so};
-        if (needRecycle)
-            workerRequest._deleter = helper;
         auto* workerRequestPtr = &workerRequest;
         IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
         workerRequest._inferRequest->SetCallback(
@@ -149,14 +140,6 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                         ScheduleToWorkerInferRequest(std::move(t));
                     else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t))
                         ScheduleToWorkerInferRequest(std::move(t), device);
-                }
-                // just prepare to recycle the helper, will not delete immediately
-                {
-                    if (device == "CPU_HELP") {
-                        if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-                             workerRequestPtr->_deleter.reset();
-                        }
-                    }
                 }
             });
     }
@@ -257,15 +240,22 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                       std::call_once(_firstLoadOC, [this] () {
                               _firstLoadPromise.set_value();
                               });
-                      // if CPU/accelerator , any of them fail to load
-                      // notify release thread to exit directly
-                      // no need to recycle
-                      if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isEnabled
-                            && !contextPtr->isLoadSuccess) {
-                            _exitFlag = true;
-                            _switchReady = true;
-                            _recycleCond.notify_one();
-                        }
+                      {
+                          std::lock_guard<std::mutex> lock(_recycleMutex);
+                          if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
+                              _switchReady = true;
+                              _recycleCond.notify_one();
+                          }
+                          // if CPU/accelerator , any of them fail to load
+                          // notify release thread to exit directly
+                          // no need to recycle
+                          if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isEnabled
+                                && !contextPtr->isLoadSuccess) {
+                              _exitFlag = true;
+                              _switchReady = true;
+                              _recycleCond.notify_one();
+                          }
+                      }
              };
          }
     }
@@ -293,22 +283,21 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
         auto recycleTask = [this]() mutable {
-            size_t destroynum = 0;
-            if (!_exitFlag) {
-                // clean up helper heap
-                {
-                    std::unique_lock<std::mutex> lock(_recycleMutex);
+            {
+                std::unique_lock<std::mutex> lock(_recycleMutex);
+                while (!_exitFlag && !_loadContext[ACTUALDEVICE].isAlready)
                     _recycleCond.wait(lock, [this]{ return _switchReady; });
+            }
+            if (!_exitFlag) {
+                // clean up helper infer requests
+                // wait for all the remaining requests to finish
+                for (auto& iter : _workerRequests["CPU_HELP"]) {
+                    iter._inferRequest._ptr->Wait(InferRequest::WaitMode::RESULT_READY);
                 }
-                // for safety, check the workers from idle queue
-                while (!_exitFlag) {
-                    WorkerInferRequest *workerRequestPtr = nullptr;
-                    while (_idleWorkerRequests[_loadContext[CPU].workName].try_pop(workerRequestPtr))
-                        destroynum++;
-                    if (destroynum == _workerRequests[_loadContext[CPU].workName].size()) {
-                        _workerRequests[_loadContext[CPU].workName].clear();
-                        _exitFlag = true;
-                    }
+                // safe to clear now
+                {
+                    std::lock_guard<std::mutex> lock(_recycleMutex);
+                    _workerRequests["CPU_HELP"].clear();
                 }
             }
         };
@@ -547,7 +536,10 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
-    _workerRequests.clear();
+    {
+        std::lock_guard<std::mutex> lock(_recycleMutex);
+        _workerRequests.clear();
+    }
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {

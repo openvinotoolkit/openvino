@@ -141,27 +141,10 @@ class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkTh
                                      public InferenceEngine::ITaskExecutor {
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
-    class HelperDeleter {
-    public:
-        using Ptr = std::shared_ptr<HelperDeleter>;
-        HelperDeleter(MultiDeviceExecutableNetwork* exeNetwork):
-            _multiDeviceExecutableNetwork(exeNetwork) {
-            }
-        ~HelperDeleter() {
-            if (_multiDeviceExecutableNetwork) {
-                std::lock_guard<std::mutex> lock(_multiDeviceExecutableNetwork->_recycleMutex);
-                _multiDeviceExecutableNetwork->_recycleCond.notify_one();
-                _multiDeviceExecutableNetwork->_switchReady = true;
-            }
-        }
-    private:
-        MultiDeviceExecutableNetwork*                                   _multiDeviceExecutableNetwork = nullptr;
-    };
     struct WorkerInferRequest {
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
-        HelperDeleter::Ptr                        _deleter = nullptr;
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
