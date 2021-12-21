@@ -44,7 +44,7 @@ static int handleIncomingEvent(xLinkEvent_t* event);
 //adds a new event with parameters and returns event id
 int dispatcherEventSend(xLinkEvent_t *event)
 {
-    mvLog(MVLOG_DEBUG, "Send event: %s, size %d, streamId %ld.\n",
+    mvLog(MVLOG_DEBUG, "Send event: %s, size %u, streamId %u.\n",
         TypeToStr(event->header.type), event->header.size, event->header.streamId);
 
     int rc = XLinkPlatformWrite(&event->deviceHandle,
@@ -124,17 +124,17 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
             XLINK_EVENT_ACKNOWLEDGE(event);
             event->header.flags.bitField.localServe = 0;
 
-            if(!isStreamSpaceEnoughFor(stream, event->header.size)){
+            if (!isStreamSpaceEnoughFor(stream, event->header.size)) {
                 mvLog(MVLOG_DEBUG,"local NACK RTS. stream '%s' is full (event %d)\n", stream->name, event->header.id);
                 event->header.flags.bitField.block = 1;
                 event->header.flags.bitField.localServe = 1;
                 // TODO: easy to implement non-blocking read here, just return nack
                 mvLog(MVLOG_WARN, "Blocked event would cause dispatching thread to wait on semaphore infinitely\n");
-            }else{
+            } else {
                 event->header.flags.bitField.block = 0;
                 stream->remoteFillLevel += event->header.size;
                 stream->remoteFillPacketLevel++;
-                mvLog(MVLOG_DEBUG,"S%d: Got local write of %ld , remote fill level %ld out of %ld %ld\n",
+                mvLog(MVLOG_DEBUG,"S%u: Got local write of %u , remote fill level %u out of %u %u\n",
                       event->header.streamId, event->header.size, stream->remoteFillLevel, stream->writeSize, stream->readSize);
             }
             releaseStream(stream);
@@ -194,7 +194,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
                                                             event->header.streamName,
                                                             event->header.size, 0,
                                                             INVALID_STREAM_ID);
-            mvLog(MVLOG_DEBUG, "XLINK_CREATE_STREAM_REQ - stream has been just opened with id %ld\n",
+            mvLog(MVLOG_DEBUG, "XLINK_CREATE_STREAM_REQ - stream has been just opened with id %lu\n",
                   event->header.streamId);
 #else
             mvLog(MVLOG_DEBUG, "XLINK_CREATE_STREAM_REQ - do nothing. Stream will be "
@@ -295,7 +295,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             stream->remoteFillLevel -= event->header.size;
             stream->remoteFillPacketLevel--;
 
-            mvLog(MVLOG_DEBUG,"S%d: Got remote release of %ld, remote fill level %ld out of %ld %ld\n",
+            mvLog(MVLOG_DEBUG,"S%u: Got remote release of %u, remote fill level %u out of %u %u\n",
                   event->header.streamId, event->header.size, stream->remoteFillLevel, stream->writeSize, stream->readSize);
             releaseStream(stream);
 
@@ -321,7 +321,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             stream->remoteFillLevel -= event->header.size;
             stream->remoteFillPacketLevel--;
 
-            mvLog(MVLOG_DEBUG,"S%d: Got remote release of %ld, remote fill level %ld out of %ld %ld\n",
+            mvLog(MVLOG_DEBUG,"S%u: Got remote release of %u, remote fill level %u out of %u %u\n",
                   event->header.streamId, event->header.size, stream->remoteFillLevel, stream->writeSize, stream->readSize);
             releaseStream(stream);
 
@@ -537,7 +537,7 @@ int isStreamSpaceEnoughFor(streamDesc_t* stream, uint32_t size)
 {
     if(stream->remoteFillPacketLevel >= XLINK_MAX_PACKETS_PER_STREAM ||
        stream->remoteFillLevel + size > stream->writeSize){
-        mvLog(MVLOG_DEBUG, "S%d: Not enough space in stream '%s' for %ld: PKT %ld, FILL %ld SIZE %ld\n",
+        mvLog(MVLOG_DEBUG, "S%u: Not enough space in stream '%s' for %u: PKT %u, FILL %u SIZE %u\n",
               stream->id, stream->name, size, stream->remoteFillPacketLevel, stream->remoteFillLevel, stream->writeSize);
         return 0;
     }
@@ -568,7 +568,7 @@ int releasePacketFromStream(streamDesc_t* stream, uint32_t* releasedSize)
     }
 
     stream->localFillLevel -= currPack->length;
-    mvLog(MVLOG_DEBUG, "S%d: Got release of %ld , current local fill level is %ld out of %ld %ld\n",
+    mvLog(MVLOG_DEBUG, "S%u: Got release of %u , current local fill level is %u out of %u %u\n",
           stream->id, currPack->length, stream->localFillLevel, stream->readSize, stream->writeSize);
 
     XLinkPlatformDeallocateData(currPack->data,
@@ -606,7 +606,7 @@ int releaseSpecificPacketFromStream(streamDesc_t* stream, uint32_t* releasedSize
 
     stream->localFillLevel -= currPack->length;
 
-  mvLog(MVLOG_DEBUG, "S%d: Got release of %ld , current local fill level is %ld out of %ld %ld\n",
+  mvLog(MVLOG_DEBUG, "S%u: Got release of %u , current local fill level is %u out of %u %u\n",
           stream->id, currPack->length, stream->localFillLevel, stream->readSize, stream->writeSize);
     XLinkPlatformDeallocateData(currPack->data,
                                 ALIGN_UP_INT32((int32_t) currPack->length, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
@@ -665,12 +665,12 @@ int handleIncomingEvent(xLinkEvent_t* event) {
     ASSERT_XLINK(stream);
 
     stream->localFillLevel += event->header.size;
-    mvLog(MVLOG_DEBUG,"S%d: Got write of %ld, current local fill level is %ld out of %ld %ld\n",
+    mvLog(MVLOG_DEBUG,"S%u: Got write of %u, current local fill level is %u out of %u %u\n",
           event->header.streamId, event->header.size, stream->localFillLevel, stream->readSize, stream->writeSize);
 
     void* buffer = XLinkPlatformAllocateData(ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
     XLINK_OUT_WITH_LOG_IF(buffer == NULL,
-        mvLog(MVLOG_FATAL,"out of memory to receive data of size = %zu\n", event->header.size));
+        mvLog(MVLOG_FATAL,"out of memory to receive data of size = %lu\n", event->header.size));
 
     const int sc = XLinkPlatformRead(&event->deviceHandle, buffer, event->header.size);
     XLINK_OUT_WITH_LOG_IF(sc < 0, mvLog(MVLOG_ERROR,"%s() Read failed %d\n", __func__, sc));

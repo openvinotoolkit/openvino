@@ -4,19 +4,19 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/stream.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "cldnn/graph/program.hpp"
-#include "cldnn/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/network.hpp"
 
 #include "to_string_utils.h"
 #include "primitive_inst.h"
@@ -25,6 +25,7 @@
 #include "condition_inst.h"
 #include "loop_inst.h"
 #include "kernel_selector_helper.h"
+#include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 
 #include <algorithm>
@@ -109,8 +110,18 @@ template <class T>
 static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     auto&& size = mem->get_layout().size;
 
-    file_stream << "shape: " << size.to_string() << " ";
-    file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto batch_size = std::max(std::min(debug_config->dump_layers_limit_batch, size.batch[0]), 1);
+    tensor tmp_size(size);
+    tmp_size.batch[0] = batch_size;
+    if (tmp_size == size) {
+        file_stream << "shape: " << size.to_string() << " ";
+        file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
+    } else {
+        file_stream << "shape: " << tmp_size.to_string() << " ";
+        file_stream << "(count: " << tmp_size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+            << ", original shape: " << size.to_string() << ")" << std::endl;
+    }
 
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
@@ -118,7 +129,7 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     std::stringstream buffer;
 
     for (cldnn::tensor::value_type g = 0; g < size.group[0]; ++g) {
-        for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
+        for (cldnn::tensor::value_type b = 0; b < batch_size; ++b) {
             for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
                 for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
                     for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
@@ -505,26 +516,25 @@ void network::allocate_primitives() {
                     if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
                         continue;
 
-                    if (eltw_in_layout.size == out_layout.size &&
-                        eltw_in_layout.format == out_layout.format &&
-                        eltw_in_layout.data_padding == out_layout.data_padding &&
-                        data_type_traits::size_of(eltw_in_layout.data_type) == data_type_traits::size_of(out_layout.data_type)) {
-                        if (eltw_dep > 0) {
+                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout)) {
+                        if (eltw_dep > 0)
                             throw std::runtime_error("Unsupported multiple full size tensors.");
-                        }
+
                         eltw_dep = fused_op.dep_start_idx;
                         can_reuse_eltwise_mem = true;
                     }
 
-                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                        auto& eltw_inst = _primitives.at(eltw_in.id());
-                        auto& prim_inst = _primitives.at(node->id());
-                        auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
-                        auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
+                    if (!can_reuse_eltwise_mem) {
+                        if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
+                            auto& eltw_inst = _primitives.at(eltw_in.id());
+                            auto& prim_inst = _primitives.at(node->id());
+                            auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
+                            auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
 
-                        // Keep lockable memory type for `prim_inst` output if needed
-                        if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
-                            can_reuse_eltwise_mem = false;
+                            // Keep lockable memory type for `prim_inst` output if needed
+                            if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
+                                can_reuse_eltwise_mem = false;
+                        }
                     }
 
                     if (fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout) && !can_reuse_eltwise_mem) {

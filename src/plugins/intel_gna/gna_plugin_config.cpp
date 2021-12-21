@@ -24,14 +24,6 @@ static const caseless_unordered_map<std::string, uint32_t> supported_values = {
 };
 static const  std::vector<std::string> supported_values_on_gna2 = {
         GNAConfigParams::GNA_HW_WITH_SW_FBACK,
-        GNAConfigParams::GNA_GEN,
-        GNAConfigParams::GNA_GEN_EXACT,
-        GNAConfigParams::GNA_SSE,
-        GNAConfigParams::GNA_SSE_EXACT,
-        GNAConfigParams::GNA_AVX1,
-        GNAConfigParams::GNA_AVX1_EXACT,
-        GNAConfigParams::GNA_AVX2,
-        GNAConfigParams::GNA_AVX2_EXACT
 };
 #else
 static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
@@ -40,14 +32,6 @@ static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode
                 {GNAConfigParams::GNA_HW_WITH_SW_FBACK, {Gna2AccelerationModeHardwareWithSoftwareFallback, false}},
                 {GNAConfigParams::GNA_SW,               {Gna2AccelerationModeSoftware,                     false}},
                 {GNAConfigParams::GNA_SW_EXACT,         {Gna2AccelerationModeSoftware,                     true}},
-                {GNAConfigParams::GNA_GEN,              {Gna2AccelerationModeGeneric,                      false}},
-                {GNAConfigParams::GNA_GEN_EXACT,        {Gna2AccelerationModeGeneric,                      true}},
-                {GNAConfigParams::GNA_SSE,              {Gna2AccelerationModeSse4x2,                       false}},
-                {GNAConfigParams::GNA_SSE_EXACT,        {Gna2AccelerationModeSse4x2,                       true}},
-                {GNAConfigParams::GNA_AVX1,             {Gna2AccelerationModeAvx1,                         false}},
-                {GNAConfigParams::GNA_AVX1_EXACT,       {Gna2AccelerationModeAvx1,                         true}},
-                {GNAConfigParams::GNA_AVX2,             {Gna2AccelerationModeAvx2,                         false}},
-                {GNAConfigParams::GNA_AVX2_EXACT,       {Gna2AccelerationModeAvx2,                         true}},
         };
 #endif
 
@@ -100,8 +84,6 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             inputScaleFactors[input_index] = InferenceEngine::CNNLayer::ie_parse_float(value);
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)) {
             dumpXNNPath = value;
-        } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)) {
-            dumpXNNGeneration = value;
         } else if (key == GNA_CONFIG_KEY(DEVICE_MODE)) {
             auto procType = supported_values.find(value);
             if (procType == supported_values.end()) {
@@ -226,8 +208,15 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             } else if (value == PluginConfigParams::NO) {
                 gnaFlags.gna_openmp_multithreading = true;
             } else {
-                log << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
-                THROW_GNA_EXCEPTION << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
+                log << "SINGLE_THREAD should be YES/NO, but not" << value;
+                THROW_GNA_EXCEPTION << "SINGLE_THREAD should be YES/NO, but not" << value;
+            }
+        } else if (key == CONFIG_KEY(LOG_LEVEL)) {
+            if (value == PluginConfigParams::LOG_WARNING || value == PluginConfigParams::LOG_NONE) {
+                gnaFlags.log_level = value;
+            } else {
+                log << "Currently only LOG_LEVEL = LOG_WARNING or LOG_NONE is supported, not " << value;
+                THROW_GNA_EXCEPTION << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
             }
         } else {
             IE_THROW(NotFound)
@@ -260,7 +249,6 @@ void Config::AdjustKeyMapValues() {
                 std::to_string(inputScaleFactors[n]);
     }
     keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)] = dumpXNNPath;
-    keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)] = dumpXNNGeneration;
 
     std::string device_mode;
     if (gnaFlags.sw_fp32) {
@@ -298,6 +286,7 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);
     keyConfigMap[CONFIG_KEY(SINGLE_THREAD)] =
             gnaFlags.gna_openmp_multithreading ? PluginConfigParams::NO: PluginConfigParams::YES;
+    keyConfigMap[CONFIG_KEY(LOG_LEVEL)] = gnaFlags.log_level;
 }
 
 std::string Config::GetParameter(const std::string& name) const {

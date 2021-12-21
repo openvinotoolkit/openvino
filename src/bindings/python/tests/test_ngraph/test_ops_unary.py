@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime.impl import Shape, Type
+from openvino.runtime import Shape, Type
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -99,8 +99,19 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
-def test_softmax():
+def test_softmax_positive_axis():
     axis = 1
+    input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
+
+    result = run_op_node([input_tensor], ov.softmax, axis)
+
+    expected = [[0.09003056, 0.24472842, 0.6652409], [0.09003056, 0.24472842, 0.6652409]]
+
+    assert np.allclose(result, expected)
+
+
+def test_softmax_negative_axis():
+    axis = -1
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
 
     result = run_op_node([input_tensor], ov.softmax, axis)

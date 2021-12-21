@@ -13,6 +13,7 @@
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "transformations/utils/utils.hpp"
@@ -58,9 +59,13 @@ namespace InferenceEngine {
         OPENVINO_ASSERT(false, "Unexpected exception");                     \
     }
 
-InferRequest::InferRequest(const std::shared_ptr<void>& so, const IInferRequestInternal::Ptr& impl)
-    : _so(so),
-      _impl(impl) {
+InferRequest::~InferRequest() {
+    _impl = {};
+}
+
+InferRequest::InferRequest(const IInferRequestInternal::Ptr& impl, const std::shared_ptr<void>& so)
+    : _impl(impl),
+      _so(so) {
     IE_ASSERT(_impl != nullptr);
 }
 
@@ -151,7 +156,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet
 void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)> callbackToSet) {
     INFER_REQ_CALL_STATEMENT(
         auto weakThis =
-            InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}};
+            InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}, _so};
         _impl->SetCallback([callbackToSet, weakThis](std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
@@ -174,7 +179,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, St
 void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callbackToSet) {
     INFER_REQ_CALL_STATEMENT(
         IInferRequest::Ptr weakThis =
-            InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}};
+            InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}, _so};
         _impl->SetCallback([callbackToSet, weakThis](std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
@@ -202,7 +207,7 @@ std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
     INFER_REQ_CALL_STATEMENT(for (auto&& state
                                   : _impl->QueryState()) {
-        controller.emplace_back(VariableState{_so, state});
+        controller.emplace_back(VariableState{state, _so});
     })
     return controller;
 }
@@ -240,9 +245,13 @@ std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
 namespace ov {
 namespace runtime {
 
-InferRequest::InferRequest(const std::shared_ptr<void>& so, const ie::IInferRequestInternal::Ptr& impl)
-    : _so{so},
-      _impl{impl} {
+InferRequest::~InferRequest() {
+    _impl = {};
+}
+
+InferRequest::InferRequest(const ie::IInferRequestInternal::Ptr& impl, const std::shared_ptr<void>& so)
+    : _impl{impl},
+      _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
 }
 
@@ -311,7 +320,7 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& name = get_legacy_name_from_port(port);
         auto blob = _impl->GetBlob(name);
-        return {_so, blob};
+        return {blob, _so};
     });
 }
 
@@ -440,10 +449,14 @@ std::vector<VariableState> InferRequest::query_state() {
     std::vector<VariableState> variable_states;
     OV_INFER_REQ_CALL_STATEMENT({
         for (auto&& state : _impl->QueryState()) {
-            variable_states.emplace_back(VariableState{_so, state});
+            variable_states.emplace_back(VariableState{state, _so});
         }
     })
     return variable_states;
+}
+
+CompiledModel InferRequest::get_compiled_model() {
+    OV_INFER_REQ_CALL_STATEMENT(return {_impl->getPointerToExecutableNetworkInternal(), _so});
 }
 
 bool InferRequest::operator!() const noexcept {

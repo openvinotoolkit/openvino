@@ -5,8 +5,8 @@
 #pragma once
 
 #include "primitive_inst.h"
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/memory.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
 #include "utils.hpp"
@@ -107,6 +107,14 @@ protected:
                     post_ops.get_params_binary(static_cast<int>(onednn_post_op_idx), alg, desc);
                     args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_SRC_1,
                                  binary_op_mem->get_onednn_memory(desc)});
+                    break;
+                }
+
+                case onednn_post_op_type::binary_relu:
+                {
+                    auto binary_op_mem = instance.fused_memory(memory_offset);
+                    args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_WEIGHTS,
+                                 binary_op_mem->get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(0))});
                     break;
                 }
 

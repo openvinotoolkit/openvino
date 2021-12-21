@@ -89,7 +89,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const SqueezeParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const SqueezeParams& params) {
         const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
         std::shared_ptr<op::v0::Constant> axes_node = NULL;
         std::shared_ptr<op::v0::Squeeze> squeeze = NULL;
@@ -100,7 +100,7 @@ private:
             squeeze = std::make_shared<op::v0::Squeeze>(in);
         }
 
-        return std::make_shared<ov::Function>(squeeze, ParameterVector{in});
+        return std::make_shared<ov::Model>(squeeze, ParameterVector{in});
     }
 };
 

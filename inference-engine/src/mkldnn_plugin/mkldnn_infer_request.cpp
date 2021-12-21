@@ -190,8 +190,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::redefineMemoryForInputNodes() {
         const auto inputNode = cpuInputNodes.find(blob.first);
         if (inputNode == cpuInputNodes.end())
             IE_THROW() << "CPU execution graph doesn't contain input node with name: " << blob.first;
-        if (inputNode->second->isDynamicNode())
+        if (inputNode->second->isDynamicNode()) {
             inputNode->second->redefineOutputMemory({blob.second->getTensorDesc().getDims()});
+        }
     }
 }
 
@@ -467,14 +468,16 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             IE_THROW(ParameterMismatch) << "Failed to set output blob with precision: "
                                << blobDesc.getPrecision() << ", if CNNNetwork output blob precision is: " << foundOutput->getPrecision();
         }
-        size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-            ? InferenceEngine::details::product(foundOutput->getDims())
-            : 1;
 
         const bool isDynamic = outputNode->isDynamicNode();
-        if (!isDynamic && dataSize != outputSize) {
-            IE_THROW() << "Output blob size is not equal network output size ("
-                               << dataSize << "!=" << outputSize << ").";
+        if (!isDynamic) {
+            size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+                ? InferenceEngine::details::product(foundOutput->getDims())
+                : 1;
+            if (dataSize != outputSize) {
+                IE_THROW() << "Output blob size is not equal network output size ("
+                                   << dataSize << "!=" << outputSize << ").";
+            }
         }
         if (!isDynamic && foundOutput->getTensorDesc().getDims() != blobDesc.getDims()) {
             IE_THROW(ParameterMismatch) << "Failed to set output Blob. Dimensions mismatch.";
@@ -526,9 +529,12 @@ void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
                     break;
                 }
 
-                if (child->getType() == Concatenation && dynamic_cast<MKLDNNConcatNode*>(child.get())->isOptimized()) {
-                    canBeInPlace = false;
-                    break;
+                if (child->getType() == Concatenation) {
+                    auto concat = dynamic_cast<MKLDNNConcatNode*>(child.get());
+                    if (concat && concat->isOptimized()) {
+                        canBeInPlace = false;
+                        break;
+                    }
                 }
 
                 // Cannot be in-place before split because split is using different ptrs without offsets

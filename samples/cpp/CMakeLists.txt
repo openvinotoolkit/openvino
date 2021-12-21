@@ -119,6 +119,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json")
+    add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
+endif()
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     add_subdirectory(common/utils)
 endif()

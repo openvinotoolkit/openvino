@@ -215,12 +215,16 @@ static void nms_cf(const float* conf_data,
     detections = (post_nms_topn == -1 ? detections : (std::min)(post_nms_topn, detections));
 }
 
+bool MKLDNNExperimentalDetectronDetectionOutputNode::needShapeInfer() const {
+    return false;
+}
+
+bool MKLDNNExperimentalDetectronDetectionOutputNode::needPrepareParams() const {
+    return false;
+}
+
 bool MKLDNNExperimentalDetectronDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto doOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
         if (!doOp) {
             errorMessage = "Node is not an instance of the ExperimentalDetectronDetectionOutput from the operations set v6.";

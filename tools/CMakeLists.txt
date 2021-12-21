@@ -81,6 +81,10 @@ if(ENABLE_PYTHON)
             EXCLUDE_FROM_ALL)
 endif()
 
+add_subdirectory(mo)
+
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/pot/version.txt ${CI_BUILD_NUMBER})
+
 # build and install openvino-dev wheel
 
 if(ENABLE_WHEEL)

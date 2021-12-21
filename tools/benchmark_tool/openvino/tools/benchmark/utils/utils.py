@@ -3,8 +3,8 @@
 
 from collections import defaultdict
 import datetime
-from openvino.runtime import Core, Function, PartialShape, Dimension, Layout
-from openvino.runtime.impl import Type
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout
+from openvino.runtime import Type
 from openvino.preprocess import PrePostProcessor
 from openvino.offline_transformations_pybind import serialize
 
@@ -71,7 +71,7 @@ def get_element_type(precision):
     raise Exception("Can't find openvino element type for precision: " + precision)
 
 
-def pre_post_processing(function: Function, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+def pre_post_processing(function: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
     pre_post_processor = PrePostProcessor(function)
     if input_precision:
         element_type = get_element_type(input_precision)
@@ -114,7 +114,7 @@ def pre_post_processing(function: Function, app_inputs_info, input_precision: st
 
     # set layout for model input
     for port, info in enumerate(app_inputs_info):
-        pre_post_processor.input(port).network().set_layout(info.layout)
+        pre_post_processor.input(port).model().set_layout(info.layout)
 
     function = pre_post_processor.build()
 
@@ -148,7 +148,7 @@ def get_precision(element_type: Type):
     raise Exception("Can't find  precision for openvino element type: " + str(element_type))
 
 
-def print_inputs_and_outputs_info(function: Function):
+def print_inputs_and_outputs_info(function: Model):
     parameters = function.get_parameters()
     input_names = get_input_output_names(parameters)
     for i in range(len(parameters)):
@@ -236,11 +236,17 @@ def get_duration_in_secs(target_device):
 
 
 def check_for_static(app_input_info):
-    is_static = True
     for info in app_input_info:
         if info.is_dynamic:
             return False
-    return is_static
+    return True
+
+
+def can_measure_as_static(app_input_info):
+    for info in app_input_info:
+        if info.is_dynamic and (len(info.shapes) > 1 or info.original_shape.is_static):
+            return False
+    return True
 
 
 def parse_devices(device_string):
@@ -308,7 +314,7 @@ def process_help_inference_string(benchmark_app, device_number_streams):
 def dump_exec_graph(exe_network, model_path, weight_path = None):
     if not weight_path:
         weight_path = model_path[:model_path.find(".xml")] + ".bin"
-    serialize(exe_network.get_runtime_function(), model_path, weight_path)
+    serialize(exe_network.get_runtime_model(), model_path, weight_path)
 
 
 
@@ -428,6 +434,7 @@ class AppInputInfo:
     def __init__(self):
         self.element_type = None
         self.layout = Layout()
+        self.original_shape = None
         self.partial_shape = None
         self.data_shapes = []
         self.scale = []
@@ -550,6 +557,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         # Input name
         info.name = input_names[i]
         # Shape
+        info.original_shape = parameters[i].get_partial_shape()
         if info.name in shape_map.keys():
             info.partial_shape = parse_partial_shape(shape_map[info.name])
             reshape = True
@@ -625,7 +633,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
     return input_info, reshape
 
 
-def get_batch_size(inputs_info):
+def get_network_batch_size(inputs_info):
     null_dimension = Dimension(0)
     batch_size = null_dimension
     for info in inputs_info:

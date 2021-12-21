@@ -35,6 +35,10 @@ bool MKLDNNScatterUpdateNode::isSupportedOperation(const std::shared_ptr<const n
     return true;
 }
 
+bool MKLDNNScatterUpdateNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(DATA_ID);
+}
+
 MKLDNNScatterUpdateNode::MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache), dataSize(0lu), indicesSize(0lu), axisSize(0lu), dataPrec(Precision::UNSPECIFIED), indicesPrec(Precision::UNSPECIFIED),
           axisPrec(Precision::UNSPECIFIED) {
@@ -114,13 +118,16 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
                         << "which should be smaller than or equal to input tensor rank";
                 }
 
-                SizeVector expectUpdateShape = {};
                 size_t tupleRank = indicesRank - 1;
+                SizeVector expectUpdateShape(tupleRank + srcRank - k, 0);
+                int updateAxisIter = 0;
                 for (size_t ri = 0; ri < tupleRank; ri++) {
-                    expectUpdateShape.push_back(indicesDim[ri]);
+                    expectUpdateShape[updateAxisIter] = indicesDim[ri];
+                    updateAxisIter++;
                 }
                 for (size_t rd = k; rd < srcRank; rd++) {
-                    expectUpdateShape.push_back(srcDataDim[rd]);
+                    expectUpdateShape[updateAxisIter] = srcDataDim[rd];
+                    updateAxisIter++;
                 }
                 if (expectUpdateShape.size() != updateRank) {
                     IE_THROW() << errorPrefix << " do not have matched tensor rank relationship for input, indices and update";
@@ -208,34 +215,12 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
                           impl_desc_type::unknown);
 }
 
-void MKLDNNScatterUpdateNode::createPrimitive() {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto &indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
-    auto &updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
-
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " did not allocate destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " did not allocate input memory";
-    if (!indicesMemPtr || !indicesMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " did not allocate indices memory";
-    if (!updateMemPtr || !updateMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " did not allocate update memory";
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << errorPrefix << " did not set preferable primitive descriptor";
-
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
-}
-
 bool MKLDNNScatterUpdateNode::needPrepareParams() const {
     return false;
 }
 
 void MKLDNNScatterUpdateNode::executeDynamicImpl(mkldnn::stream strm) {
-    return execute(strm);
+    execute(strm);
 }
 
 int64_t MKLDNNScatterUpdateNode::getIndicesValue(uint8_t *indices, size_t offset) {
@@ -265,8 +250,8 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
 }
 
 void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
     auto &updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
 
@@ -315,13 +300,16 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
             SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
             size_t indicesRank = indicesDim.size();
             size_t updateRank = updateDim.size();
-            SizeVector expectUpdateShape = {};
+            SizeVector expectUpdateShape(srcRank + indicesRank - 1, 0);
+            int axisIter = 0;
             for (size_t rs = 0; rs < srcRank; rs++) {
                 if (rs != axis) {
-                    expectUpdateShape.push_back(srcDataDim[rs]);
+                    expectUpdateShape[axisIter] = srcDataDim[rs];
+                    axisIter++;
                 } else {
                     for (size_t ri = 0; ri < indicesRank; ri++) {
-                        expectUpdateShape.push_back(indicesDim[ri]);
+                        expectUpdateShape[axisIter] = indicesDim[ri];
+                        axisIter++;
                     }
                 }
             }
@@ -346,6 +334,10 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
             start *= dataSize;
             cpu_memcpy(dstPtr + start, srcPtr + start, size);
         });
+    }
+
+    if (isInputTensorAtPortEmpty(INDICES_ID)) {
+        return;
     }
 
     switch (scatterUpdateMode) {

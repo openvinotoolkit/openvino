@@ -85,8 +85,8 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 
     if (isa == cpu::x64::sse41) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->mulps(vmm_dst, vmm_src1);
-        h->addps(vmm_dst, vmm_src2);
+        h->uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
+        h->uni_vaddps(vmm_dst, vmm_dst, vmm_src2);
     } else {
         Vmm vmm_mul0;
         if (vmm_dst.getIdx() == vmm_src0.getIdx()) {
@@ -656,7 +656,7 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
     } else if (isa == cpu::x64::avx2) {
         h->vcmpeqps(vmm_aux0, vmm_src0, vmm_src1);
         h->uni_vmovups(vmm_dst, table_val("zero"));
-        h->vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
+        h->uni_vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
     } else {
         h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_eq_oq);
         h->uni_vmovups(vmm_dst, table_val("zero"));
@@ -1286,21 +1286,14 @@ size_t jit_logical_not_emitter::aux_vecs_count() const {
 /// POWER_STATIC ///
 jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
-    auto parent = node->input(1).get_source_output().get_node_shared_ptr();
-    if (!std::dynamic_pointer_cast<ngraph::op::Constant>(parent)) {
-        throw ngraph::ngraph_error("unsupported non constant power");
+    auto powerStaticNode = ov::as_type_ptr<ngraph::snippets::op::PowerStatic>(node);
+    if (powerStaticNode == nullptr) {
+        IE_THROW() << "Can't cast to snippets::op::PowerStatic";
     }
 
-    if (!(node->input(1).get_shape() == ngraph::Shape() || ngraph::shape_size(node->input(1).get_shape()) == 1)) {
-        throw ngraph::ngraph_error("unsupported non scalar power");
-    }
-    power = ngraph::as_type_ptr<ngraph::op::Constant>(parent)->get_data_ptr<float>()[0];
+    power = powerStaticNode->get_power();
     scale = 1.f;
     shift = 0.f;
-    push_arg_entry_of("power", cpu::x64::float2int(power), true);
-    push_arg_entry_of("scale", 0x3f800000, true);
-    push_arg_entry_of("shift", 0x00000000, true);
-    push_arg_entry_of("one",   0x3f800000, true);
 
     prepare_table();
 }
@@ -1607,6 +1600,11 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
 
 /// ERF ///
 jit_erf_emitter::jit_erf_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
+: jit_emitter(host, host_isa, node, exec_prc) {
+    prepare_table();
+}
+
+jit_erf_emitter::jit_erf_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }

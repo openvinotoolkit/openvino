@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/max_unpooling.hpp"
+#include "intel_gpu/primitives/max_unpooling.hpp"
 #include "primitive_inst.h"
 
 #include <string>

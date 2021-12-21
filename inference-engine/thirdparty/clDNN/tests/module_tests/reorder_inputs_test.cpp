@@ -4,12 +4,12 @@
 
 #include "test_utils.h"
 
-#include "cldnn/runtime/engine.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 
-#include "cldnn/graph/program.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "eltwise_inst.h"
-#include "cldnn/graph/network.hpp"
+#include "intel_gpu/graph/network.hpp"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
