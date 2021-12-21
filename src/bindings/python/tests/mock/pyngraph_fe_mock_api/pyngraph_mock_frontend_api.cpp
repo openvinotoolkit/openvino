@@ -119,16 +119,9 @@ static void register_mock_place_stat(py::module m) {
     placeStat.def_property_readonly("get_source_tensor", &PlaceStat::get_source_tensor);
 }
 
-void regclass_MockExtension(py::module m) {
-    py::class_<ov::Extension, std::shared_ptr<ov::Extension>>(m, "Extension", py::module_local());
-    py::class_<ExtensionMockPy, std::shared_ptr<ExtensionMockPy>, ov::Extension> ext(m, "MockExtension");
-    ext.def(py::init<>());
-}
-
 PYBIND11_MODULE(pybind_mock_frontend, m) {
     m.doc() = "Mock frontend call counters for testing Pyngraph frontend bindings";
     register_mock_frontend_stat(m);
     register_mock_model_stat(m);
     register_mock_place_stat(m);
-    regclass_MockExtension(m);
 }

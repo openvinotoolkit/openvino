@@ -12,16 +12,6 @@ from openvino.runtime import Model, Core, CompiledModel, Tensor, tensor_from_fil
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
-mock_available = True
-try:
-    from pybind_mock_frontend import MockExtension
-except Exception:
-    print("No mock frontend available")
-    mock_available = False
-
-mock_needed = pytest.mark.skipif(not mock_available,
-                                 reason="mock fe is not available")
-
 
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
@@ -256,7 +246,7 @@ def test_unregister_plugin(device):
 
 @pytest.mark.skip(reason="dlSym cannot locate method 'create_extensions': libtemplate_extension.so")
 @pytest.mark.template_extension
-def test_add_extension(device):
+def test_add_extension_as_path(device):
     model = bytes(b"""<net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
@@ -407,10 +397,13 @@ def test_infer_new_request_return_type(device):
     assert arr.nbytes == 40
 
 
-@mock_needed
 def test_add_extension():
     core = Core()
-    core.add_extension(MockExtension())
-    core.add_extension([MockExtension(), MockExtension()])
+    from openvino.pyopenvino import Extension
+    class EmptyExtension(Extension):
+        def __init__(self) -> None:
+            super().__init__()
+    core.add_extension(EmptyExtension())
+    core.add_extension([EmptyExtension(), EmptyExtension()])
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
     assert isinstance(model, Model)
