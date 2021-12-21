@@ -37,9 +37,9 @@ elseif(WIN32)
         # Patch primary configuration in setupvars.bat which is "Release" by default.
         # Note setupvars secondary configuration is always "Debug".
         file(READ "${_setupvars_file}" _setupvars_content)
-        string(REPLACE "Release" ${CMAKE_BUILD_TYPE} _setupvars_content ${_setupvars_content})
+        string(REPLACE "Release" ${CMAKE_BUILD_TYPE} _setupvars_content "${_setupvars_content}")
         set(_setupvars_file "${CMAKE_BINARY_DIR}/${_setupvars_file}")
-        file(WRITE "${_setupvars_file}" ${_setupvars_content})
+        file(WRITE "${_setupvars_file}" "${_setupvars_content}")
     endif()
 endif()
 install(PROGRAMS "${_setupvars_file}"
