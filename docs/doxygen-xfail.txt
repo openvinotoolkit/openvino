@@ -207,6 +207,7 @@ src/common/legacy/include/legacy/ngraph_ops/convolution_ie.hpp
 src/common/legacy/include/legacy/ngraph_ops/fully_connected.hpp
 src/core/reference/include/ngraph/runtime/reference/autobroadcast_binop.hpp
 src/common/snippets/include/snippets/emitter.hpp
+src/common/snippets/include/snippets/generator.hpp
 src/core/include/openvino/core/attribute_visitor.hpp
 src/core/include/openvino/core/node.hpp
 src/frontends/common/include/openvino/frontend/frontend.hpp
