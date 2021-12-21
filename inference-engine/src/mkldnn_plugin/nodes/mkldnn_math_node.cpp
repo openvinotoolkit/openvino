@@ -63,6 +63,10 @@ std::vector<VectorDims> MKLDNNMathNode::shapeInfer() const {
     return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
+void MKLDNNMathNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 void MKLDNNMathNode::execute(mkldnn::stream strm) {
     size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());

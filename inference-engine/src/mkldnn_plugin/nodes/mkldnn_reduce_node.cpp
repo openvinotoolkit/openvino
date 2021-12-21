@@ -1827,6 +1827,10 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool MKLDNNReduceNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(REDUCE_DATA);
+}
+
 void MKLDNNReduceNode::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
@@ -1864,6 +1868,9 @@ void MKLDNNReduceNode::prepareParams() {
 }
 
 void MKLDNNReduceNode::createPrimitive() {
+    if (!isExecutable()) {
+        return;
+    }
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
@@ -1917,6 +1924,10 @@ void MKLDNNReduceNode::createPrimitive() {
     if (reduce_kernel)
         reduce_kernel->create_ker();
     jit_mode = jit_mode && reduce_kernel;
+}
+
+void MKLDNNReduceNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNReduceNode::execute(mkldnn::stream strm) {
@@ -2768,8 +2779,7 @@ void MKLDNNReduceNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            constexpr int align = 16;
-            eltwiseNode->appendPostOps(ops, postOpDims, align);
+            eltwiseNode->appendPostOps(ops, postOpDims);
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";

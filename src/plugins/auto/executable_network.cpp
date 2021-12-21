@@ -126,7 +126,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
         helper.reset(_helpDeleter);
     }
     for (auto&& workerRequest : workerRequests) {
-        workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
+        workerRequest._inferRequest = {executableNetwork->CreateInferRequest(), executableNetwork._so};
         if (needRecycle)
             workerRequest._deleter = helper;
         auto* workerRequestPtr = &workerRequest;
