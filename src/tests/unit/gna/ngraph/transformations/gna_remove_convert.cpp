@@ -21,7 +21,7 @@ typedef std::tuple<
         ov::element::Type      // Convert precision
 > removeConvertTestParams;
 
-class RemoveConvertTest: public CommonTestUtils::TestsCommon,
+class RemoveInputConvertTest: public CommonTestUtils::TestsCommon,
                          public ::testing::WithParamInterface<removeConvertTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<removeConvertTestParams>& obj) {
@@ -38,137 +38,155 @@ public:
     virtual void Validate();
     virtual void Run();
 public:
-    std::shared_ptr<ngraph::Function> function_, ref_function_;
+    std::shared_ptr<ngraph::Function> func_, ref_func_no_convert_, ref_func_convert_;
+    ov::element::Type net_precision_, target_precision_;
 };
 
-void RemoveConvertTest::Run() {
+void RemoveInputConvertTest::Run() {
     SetUp();
     Validate();
 }
 
-void RemoveConvertTest::SetUp() {
-    ov::element::Type net_precision, target_precision;
+void RemoveInputConvertTest::SetUp() {
     const ngraph::Shape input_shape{10};
 
-    std::tie(net_precision, target_precision) = this->GetParam();
+    std::tie(net_precision_, target_precision_) = this->GetParam();
 
     // test function
     {
-        auto params = std::make_shared<ngraph::opset8::Parameter>(target_precision, input_shape);
-        auto conversion = ngraph::builder::makeConversion(params, net_precision, ngraph::helpers::ConversionTypes::CONVERT);
-        auto add_const = ngraph::opset8::Constant::create(net_precision, input_shape, {10});
+        auto params = std::make_shared<ngraph::opset8::Parameter>(target_precision_, input_shape);
+        auto conversion = ngraph::builder::makeConversion(params, net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+        auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
         auto add = std::make_shared<ngraph::opset8::Add>(conversion, add_const);
 
         auto result = std::make_shared<ngraph::opset8::Result>(add);
-        function_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+        func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                        ngraph::ParameterVector{params},
                                                        "Conversion");
     }
 
-    // ref function
+    // ref function convert should be removed
     {
-        auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision, input_shape);
-        auto add_const = ngraph::opset8::Constant::create(net_precision, input_shape, {10});
+        auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision_, input_shape);
+        auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
         auto add = std::make_shared<ngraph::opset8::Add>(params, add_const);
 
         auto result = std::make_shared<ngraph::opset8::Result>(add);
-        ref_function_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+        ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                            ngraph::ParameterVector{params},
                                                            "Conversion");
     }
+
+    // ref function convert should not be removed
+    ref_func_convert_ = ngraph::clone_function(*func_);
 }
 
-void RemoveConvertTest::Validate() {
+void RemoveInputConvertTest::Validate() {
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
     m.register_pass<GNAPluginNS::RemoveInputConvert>();
-    m.run_passes(function_);
-    ASSERT_NO_THROW(check_rt_info(function_));
+    m.run_passes(func_);
+    ASSERT_NO_THROW(check_rt_info(func_));
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(function_, ref_function_);
+    FunctionsComparator::Result result;
+    if (std::count(GNAPluginNS::kSupportedInputConverts.begin(),
+                   GNAPluginNS::kSupportedInputConverts.end(),
+                   std::make_pair(target_precision_, net_precision_)) == 0) {
+        result = func_comparator(func_, ref_func_convert_);
+    } else {
+        result = func_comparator(func_, ref_func_no_convert_);
+    }
+
     ASSERT_TRUE(result.valid);
 }
 
-class RemoveOutputConvertTest: public RemoveConvertTest {
+class RemoveOutputConvertTest: public RemoveInputConvertTest {
 public:
     void SetUp() override {
-        ov::element::Type net_precision, target_precision;
         const ngraph::Shape input_shape{10};
 
-        std::tie(net_precision, target_precision) = this->GetParam();
+        std::tie(net_precision_, target_precision_) = this->GetParam();
 
         // test function
         {
-            auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision, input_shape);
-            auto add_const = ngraph::opset8::Constant::create(net_precision, input_shape, {10});
+            auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision_, input_shape);
+            auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
             auto add = std::make_shared<ngraph::opset8::Add>(params, add_const);
-            auto conversion = ngraph::builder::makeConversion(add, target_precision, ngraph::helpers::ConversionTypes::CONVERT);
+            auto conversion = ngraph::builder::makeConversion(add, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
             auto result = std::make_shared<ngraph::opset8::Result>(conversion);
-            function_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                        ngraph::ParameterVector{params},
-                                                        "Conversion");
+            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params},
+                                                       "Conversion");
         }
 
         // ref function
         {
-            auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision, input_shape);
-            auto add_const = ngraph::opset8::Constant::create(net_precision, input_shape, {10});
+            auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision_, input_shape);
+            auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
             auto add = std::make_shared<ngraph::opset8::Add>(params, add_const);
 
             auto result = std::make_shared<ngraph::opset8::Result>(add);
-            ref_function_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                            ngraph::ParameterVector{params},
-                                                            "Conversion");
+            ref_func_no_convert_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params},
+                                                                      "Conversion");
         }
+
+        // ref function convert should not be removed
+        ref_func_convert_ = ngraph::clone_function(*func_);
     }
     void Validate() override {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::Serialize>("ngraph_init.xml", "ngraph_init.bin");
         m.register_pass<GNAPluginNS::RemoveOutputConvert>();
-        m.run_passes(function_);
-        ASSERT_NO_THROW(check_rt_info(function_));
+        m.register_pass<ngraph::pass::Serialize>("ngraph_after.xml", "ngraph_init.bin");
+        m.run_passes(func_);
+        ASSERT_NO_THROW(check_rt_info(func_));
 
         const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-        const FunctionsComparator::Result result = func_comparator(function_, ref_function_);
+            FunctionsComparator::Result result;
+        if (std::count(GNAPluginNS::kSupportedOutputConverts.begin(),
+                       GNAPluginNS::kSupportedOutputConverts.end(),
+                       std::make_pair(net_precision_, target_precision_)) == 0) {
+            result = func_comparator(func_, ref_func_convert_);
+        } else {
+            result = func_comparator(func_, ref_func_no_convert_);
+        }
+
         ASSERT_TRUE(result.valid);
     }
 };
 
-class LeaveConvertTest: public RemoveConvertTest {
+class LeaveConvertTest: public RemoveInputConvertTest {
 public:
     void SetUp() override {
-        ov::element::Type net_precision, target_precision;
         const ngraph::Shape input_shape{10};
 
-        std::tie(net_precision, target_precision) = this->GetParam();
+        std::tie(net_precision_, target_precision_) = this->GetParam();
 
         // test function
         {
-            auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision, input_shape);
-            auto add_const = ngraph::opset8::Constant::create(net_precision, input_shape, {10});
+            auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision_, input_shape);
+            auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
             auto add1 = std::make_shared<ngraph::opset8::Add>(params, add_const);
-            auto conversion = ngraph::builder::makeConversion(add1, net_precision, ngraph::helpers::ConversionTypes::CONVERT);
+            auto conversion = ngraph::builder::makeConversion(add1, net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
             auto add2 = std::make_shared<ngraph::opset8::Add>(conversion, add_const);
             auto result = std::make_shared<ngraph::opset8::Result>(add2);
-            function_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                        ngraph::ParameterVector{params},
-                                                        "Conversion");
+            func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{params}, "Conversion");
         }
 
         // ref function
-        ref_function_ = ngraph::clone_function(*function_);
+        ref_func_convert_ = ngraph::clone_function(*func_);
     }
     void Validate() override {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<GNAPluginNS::RemoveInputConvert>();
         m.register_pass<GNAPluginNS::RemoveOutputConvert>();
-        m.run_passes(function_);
-        ASSERT_NO_THROW(check_rt_info(function_));
+        m.run_passes(func_);
+        ASSERT_NO_THROW(check_rt_info(func_));
 
         const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-        const FunctionsComparator::Result result = func_comparator(function_, ref_function_);
+        const FunctionsComparator::Result result = func_comparator(func_, ref_func_convert_);
         ASSERT_TRUE(result.valid);
     }
 };
@@ -194,7 +212,7 @@ ov::element::TypeVector targetTypes = {
     ov::element::i64
 };
 
-TEST_P(RemoveConvertTest, CompareWithRefs) {
+TEST_P(RemoveInputConvertTest, CompareWithRefs) {
     Run();
 }
 
@@ -206,11 +224,11 @@ TEST_P(LeaveConvertTest, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveConvertTest,
+INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveInputConvertTest,
                          ::testing::Combine(
                                 ::testing::ValuesIn(netTypes),
                                 ::testing::ValuesIn(targetTypes)),
-                         RemoveConvertTest::getTestCaseName);
+                         RemoveInputConvertTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests, RemoveOutputConvertTest,
                          ::testing::Combine(

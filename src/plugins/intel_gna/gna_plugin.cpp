@@ -75,6 +75,7 @@
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/substitute_softsign.hpp"
+#include "transformations/convert_precision.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -317,7 +318,7 @@ void GNAPlugin::ImportFrames(
                   uint32_t num_vector_stride) {
     if (orientation == kDnnInterleavedOrientation) {
         // TODO : fix that as well
-        if (input_precision == Precision::U8) {
+        if (input_precision == Precision::U8 || input_precision == Precision::I8) {
             auto src = reinterpret_cast<const uint8_t *>(ptr_src);
             if (!gnaFlags->input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
@@ -326,7 +327,7 @@ void GNAPlugin::ImportFrames(
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
-        } else if (input_precision == Precision::I16) {
+        } else if (input_precision.size() == 2) {
             auto src = reinterpret_cast<const int16_t *>(ptr_src);
             if (!gnaFlags->input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
@@ -335,7 +336,7 @@ void GNAPlugin::ImportFrames(
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
-        } else if (input_precision == Precision::FP32) {
+        } else if (input_precision.size() == 4) {
             if (!gnadevice) {
                 auto dst = reinterpret_cast<float *>(ptr_dst);
                 auto src = reinterpret_cast<const float *>(ptr_src);
@@ -352,7 +353,7 @@ void GNAPlugin::ImportFrames(
             }
         }
     } else {
-        if (input_precision == Precision::U8) {
+        if (input_precision == Precision::U8 || input_precision == Precision::I8) {
             auto src = reinterpret_cast<const uint8_t *>(ptr_src);
             if (!gnadevice) {
                 auto dst = reinterpret_cast<float *>(ptr_dst);
@@ -364,7 +365,7 @@ void GNAPlugin::ImportFrames(
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
-        } else if (input_precision == Precision::I16) {
+        } else if (input_precision.size() == 2) {
             auto src = reinterpret_cast<const int16_t *>(ptr_src);
             if (!gnaFlags->input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
@@ -373,7 +374,7 @@ void GNAPlugin::ImportFrames(
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
-        } else if (input_precision.size() == Precision::FP32) {
+        } else if (input_precision.size() == 4) {
             if (!gnadevice) {
                 auto dst = reinterpret_cast<float *>(ptr_dst);
                 auto src = reinterpret_cast<const float *>(ptr_src);
@@ -685,18 +686,19 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     bool isNgraphPassesUsed = false;
     bool fake_quantized = false;
-    std::shared_ptr<ngraph::Function> model = _network.getFunction();
-    if (model) {
+
+    if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
-        manager.register_pass<RemoveInputConvert>();
-        manager.register_pass<RemoveOutputConvert>();
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
         manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
         manager.register_pass<DecomposeMVN>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<RemoveInputConvert>();
+        manager.register_pass<RemoveOutputConvert>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
         manager.register_pass<ConvertPaddedToValidConv>();
@@ -753,8 +755,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
         isNgraphPassesUsed = true;
-        // saving modified graph (it should be deprecated when migration to ngraph finished)
-        model = graph;
     }
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
@@ -767,8 +767,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     //  Check the network
     std::string error;
-    if (!GNAPluginNS::GNALimitations::ArePrecisionsSupported(model, error) ||
-        !GNAPluginNS::GNALimitations::AreLayersSupported(network, error, gnaFlags->log_level == PluginConfigParams::LOG_WARNING)) {
+    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error, gnaFlags->log_level == PluginConfigParams::LOG_WARNING)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
@@ -1441,8 +1440,8 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                         elementsPerBatch,
                         elementsPerBatch,
                         elementsPerBatch,
-                        outputBlob->getTensorDesc().getPrecision().size(),
-                        outputDesc.num_bytes_per_element);
+                        outputDesc.num_bytes_per_element,
+                        sizeof(float));
 
         if (gnadevice) {
 #ifdef PLOT

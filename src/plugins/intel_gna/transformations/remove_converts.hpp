@@ -24,6 +24,33 @@ namespace GNAPluginNS {
  *           |
  *        Any layer
  */
+const std::vector<ov::element::Type> kSupportedInputTypesFrom = {
+    ov::element::u8,
+    ov::element::i16,
+    ov::element::f32
+};
+
+const std::vector<ov::element::Type> kSupportedInputTypesTo = {
+    ov::element::u8,
+    ov::element::i8,
+    ov::element::i16,
+    ov::element::i32,
+    ov::element::f32
+};
+
+const std::vector<std::pair<ov::element::Type, ov::element::Type>> kSupportedInputConverts {
+    //     FROM      ->       TO
+    {ov::element::u8, ov::element::u8},
+    {ov::element::u8, ov::element::i8},
+    {ov::element::u8, ov::element::i16},
+    {ov::element::i16, ov::element::i8},
+    {ov::element::i16, ov::element::i16},
+    {ov::element::f32, ov::element::i8},
+    {ov::element::f32, ov::element::i16},
+    {ov::element::f32, ov::element::i32},
+    {ov::element::f32, ov::element::f32}
+};
+
 class RemoveInputConvert : public ngraph::pass::MatcherPass {
 public:
   NGRAPH_RTTI_DECLARATION;
@@ -46,6 +73,22 @@ public:
  *           |
  *    Any output layer
  */
+
+const std::vector<ov::element::Type> kSupportedOutputTypesFrom = {
+    ov::element::f32
+};
+
+const std::vector<ov::element::Type> kSupportedOutputTypesTo = {
+    ov::element::i32,
+    ov::element::f32
+};
+
+const std::vector<std::pair<ov::element::Type, ov::element::Type>> kSupportedOutputConverts {
+    //     FROM      ->       TO
+    {ov::element::f32, ov::element::f32},
+    {ov::element::f32, ov::element::i32}
+};
+
 class RemoveOutputConvert : public ngraph::pass::MatcherPass {
 public:
   NGRAPH_RTTI_DECLARATION;

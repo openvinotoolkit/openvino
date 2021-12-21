@@ -171,7 +171,10 @@ void Validator::ThrowIfNotEmpty(const std::string prefix, const std::string erro
 
 const std::vector<ov::element::Type> kSupportedOutputTypes = {
     ov::element::f32,
-    ov::element::i32
+    ov::element::i32,
+    ov::element::i16,
+    ov::element::u8,
+    ov::element::i8
 };
 
 const std::vector<ov::element::Type> kSupportedInputTypes = {
@@ -391,16 +394,27 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
 }
 
 bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning) {
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
     InferenceEngine::CNNLayerPtr startLayer;
-
     if (inputs.empty()) {
+        auto outputs = network.getOutputsInfo();
         IE_ASSERT(!outputs.empty());
         // If there are no inputs start search from an output
         startLayer = getCreatorLayer(outputs.begin()->second).lock();
     } else {
+        auto network_input_precision = inputs.begin()->second->getPrecision();
+
+        if (network_input_precision != InferenceEngine::Precision::FP32 &&
+            network_input_precision != InferenceEngine::Precision::I16 &&
+            network_input_precision != InferenceEngine::Precision::U8) {
+            errMessage = "The plugin does not support input precision with " +
+                         std::string(network_input_precision.name()) +
+                         " format. Supported  input precisions FP32, I16, U8\n";
+            return false;
+        }
+
         auto & secondLayers = getInputTo(inputs.begin()->second->getInputData());
         if (secondLayers.empty()) {
             errMessage = "Network consists of input layer only (GNA)\n";
