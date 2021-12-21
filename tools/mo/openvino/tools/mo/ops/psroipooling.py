@@ -96,7 +96,7 @@ class DeformablePSROIPoolingOp(PSROIPoolingOp):
         if node.in_port(1).data.get_shape() is None:
             node.in_port(1).data.set_shape(shape_array([dynamic_dimension_value, 5]))
 
-        if node.in_port(2).data.get_shape() is None:
+        if node.is_in_port_connected(2) and node.in_port(2).data.get_shape() is None:
             node.in_port(2).data.set_shape(shape_array([dynamic_dimension_value,
                                                         dynamic_dimension_value,
                                                         int(node.group_size),

@@ -118,8 +118,8 @@ class DetectionOutput(Op):
         if node.in_port(2).data.get_shape() is None:
             node.in_port(2).data.set_shape(undefined_shape_of_rank(3))
 
-        if node.in_port(3).data.get_shape() is None:
+        if node.is_in_port_connected(3) and node.in_port(3).data.get_shape() is None:
             node.in_port(3).data.set_shape(undefined_shape_of_rank(2))
 
-        if node.in_port(4).data.get_shape() is None:
+        if node.is_in_port_connected(4) and node.in_port(4).data.get_shape() is None:
             node.in_port(4).data.set_shape(undefined_shape_of_rank(2))

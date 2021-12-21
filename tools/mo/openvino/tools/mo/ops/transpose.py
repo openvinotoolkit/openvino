@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
-from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer, shape_array
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 
 
@@ -18,14 +18,14 @@ class Transpose(Op):
             'op': self.op,
             'version': 'opset1',
             'infer': self.infer,
-            'reverse_infer': reverse_bypass_infer,
+            'reverse_infer': self.reverse_infer,
             'force_precision_in_ports': {1: 'int64'},
             'in_ports_count': 2,
             'out_ports_count': 1,
         }, attrs)
 
     @staticmethod
-    def infer(node):
+    def infer(node: Node):
         # order parameter calculation and checks
         in_ports = node.in_ports()
         connected_ports = [port for port in in_ports.values() if not port.disconnected()]
@@ -50,3 +50,17 @@ class Transpose(Op):
             node.out_port(0).data.set_value(np.transpose(node.in_port(0).data.get_value(), axes=order))
         else:
             node.out_port(0).data.set_shape(input_shape[order])
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
+        output_shape = node.out_port(0).data.get_shape()
+        order = node.in_port(1).data.get_value()
+
+        if input_shape is None and output_shape is not None and order is not None:
+            output_shape_unmasked = output_shape.data.copy()
+            input_shape_unmasked = output_shape.data.copy()
+            for curr_out_size, order_axis in zip(output_shape_unmasked, order):
+                input_shape_unmasked[order_axis] = curr_out_size
+            input_shape = shape_array(input_shape_unmasked)
+            node.in_port(0).data.set_shape(input_shape)

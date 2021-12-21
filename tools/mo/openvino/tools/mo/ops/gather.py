@@ -103,23 +103,34 @@ class Gather(Op):
     @staticmethod
     def reverse_infer(node: Node):
         out_shape = node.out_port(0).data.get_shape()
-        data_shape = node.out_port(0).data.get_shape()
-        indices_shape = node.out_port(1).data.get_shape()
+        data_shape = node.in_port(0).data.get_shape()
+        indices_shape = node.in_port(1).data.get_shape()
         batch_dims = node.batch_dims
         batch_dims = batch_dims + len(indices_shape) if batch_dims < 0 else batch_dims
+        axis = node.in_port(2).data.get_value()
 
-        # out_rank = data_rank - 1 + indices_rank - batch_dims
-        # therefore we can calculate rank of data (indices)
-        # if out_rank and indices (data) ranks are defined
+        # we can deduce data or indices partial shapes from output shape calculation formula
+        # out_shape = Concat(data_shape[:axis], indices_shape[batch_dims:batch_dims + indices_rank], data_shape[axis + 1:])
+
+        # data partial shape is unknown
         if out_shape is not None and data_shape is None and indices_shape is not None:
             out_rank = len(out_shape)
             indices_rank = len(indices_shape)
-            node.in_port(0).data.set_shape(undefined_shape_of_rank(out_rank + 1 - indices_rank + batch_dims))
 
+            deduced_data_shape = out_shape.tolist(dynamic_dimension_value)
+            for i in range(indices_rank):
+                deduced_data_shape.pop(axis)
+            deduced_data_shape.insert(axis, dynamic_dimension_value)
+            node.in_port(0).data.set_shape(shape_array(deduced_data_shape))
+
+        # indices partial shape are unknown
         if out_shape is not None and indices_shape is None and data_shape is not None:
             out_rank = len(out_shape)
             data_rank = len(data_shape)
-            node.in_port(1).data.set_shape(undefined_shape_of_rank(out_rank + 1 - data_rank + batch_dims))
+            indices_rank = out_rank + 1 - data_rank + batch_dims
+
+            indices_shape = out_shape[axis:axis + indices_rank]
+            node.in_port(1).data.set_shape(indices_shape)
 
 
 class AttributedGather(Op):
@@ -134,7 +145,7 @@ class AttributedGather(Op):
             'axis': 0,
             'reinterp_shape': True,
             'infer': self.infer,
-            'reverse_infer': self.reverse_infer,
+            # reverse_infer is not needed since is replaced by Gather on the front (AttributedGatherNormalizer)
 
             'force_precision_in_ports': {1: 'int32'},
 
@@ -181,22 +192,3 @@ class AttributedGather(Op):
             shape = np.concatenate((shape, data_shape[axis + 1:]))
 
         node.out_port(0).data.set_shape(int64_array(shape))
-
-    @staticmethod
-    def reverse_infer(node: Node):
-        out_shape = node.out_port(0).data.get_shape()
-        data_shape = node.out_port(0).data.get_shape()
-        indices_shape = node.out_port(1).data.get_shape()
-
-        # out_rank = data_rank - 1 + indices_rank
-        # therefore we can calculate rank of data (indices)
-        # if out_rank and indices (data) ranks are defined
-        if out_shape is not None and data_shape is None and indices_shape is not None:
-            out_rank = len(out_shape)
-            indices_rank = len(indices_shape)
-            node.in_port(0).data.set_shape(undefined_shape_of_rank(out_rank + 1 - indices_rank))
-
-        if out_shape is not None and indices_shape is None and data_shape is not None:
-            out_rank = len(out_shape)
-            data_rank = len(data_shape)
-            node.in_port(1).data.set_shape(undefined_shape_of_rank(out_rank + 1 - data_rank))

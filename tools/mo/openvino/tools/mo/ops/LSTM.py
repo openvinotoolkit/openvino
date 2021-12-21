@@ -1,8 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.RNN import rnn_infer
+import numpy as np
+
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.RNN import rnn_infer
 from openvino.tools.mo.ops.op import Op
 
 
@@ -17,6 +20,7 @@ class LSTM(Op):
             'has_num_directions': False,  # if True, output shape has 4 dimensions; 3D otherwise
             'direction': 'forward',
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'multiplier': 4,
             'gate_order': None,
             'normalized': False,
@@ -68,3 +72,29 @@ class LSTM(Op):
         assert len(node.out_nodes()) <= 3
 
         rnn_infer(node, [1, 2])
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        W_size = np.prod(node.in_port(1).data.get_shape())
+
+        multiplier = node.multiplier
+        hidden_size = node.hidden_size
+        num_layers = node.num_layers
+        direction = 2 if node.has_num_directions else 1
+
+        size = hidden_size * direction * multiplier
+        other_layer_params_size = (hidden_size * direction + hidden_size + 2) * size
+
+        first_layer_params_size = W_size - (num_layers - 1) * other_layer_params_size
+        # first_layer_params_size = (input_size + rnn_layer.hidden_size + 2) * size
+
+        batch_size = 1
+        seq_len = 1
+        input_size = first_layer_params_size / size - 2 - hidden_size
+        if node.is_in_port_connected(3):
+            initial_cell_state_size = node.in_port(3).data.get_shape()
+            if initial_cell_state_size is not None:
+                batch_size = initial_cell_state_size[1]
+
+        input_shape = shape_array([seq_len, batch_size, input_size])
+        node.in_port(0).data.set_shape(input_shape)

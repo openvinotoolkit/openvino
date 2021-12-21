@@ -3,10 +3,11 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import unmask_shape
+from openvino.tools.mo.front.common.partial_infer.utils import unmask_shape, compatible_shapes
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.utils.error import Error
 
 
 class Parameter(Op):
@@ -73,11 +74,22 @@ class Parameter(Op):
         # update node 'shape' attribute (if it is not defined) from the output port shape which was calculated
         # during the reverse_infer phase
         shape = node.soft_get('shape', None)
+        name = node.soft_get('name', node.id)
         if shape is not None:
             return
+
+        # choose dimension with the least number of dynamic dimensions
+        most_defined_shape = None
+        last_num_dyn_dimension = np.iinfo(np.int64).max
         for i, out_port in node.out_ports().items():
             out_shape = out_port.data.get_shape()
-            # todo: add comparison and choose most defined partial shape,
-            # e.g. if it contains not only Rank but also number of channels
             if out_shape is not None:
-                node['shape'] = out_shape
+                if most_defined_shape is not None:
+                    if not compatible_shapes(out_shape, most_defined_shape):
+                        raise Error("Error occurred during Parameter shape deducing. Out shapes {} and {} "
+                                    "of node '{}' differ.".format(unmask_shape(out_shape), unmask_shape(most_defined_shape), name))
+
+                if np.ma.count_masked(out_shape) < last_num_dyn_dimension:
+                    most_defined_shape = out_shape
+                    last_num_dyn_dimension = np.ma.count_masked(out_shape)
+        node['shape'] = most_defined_shape

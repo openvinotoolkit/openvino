@@ -3,11 +3,12 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value, undefined_shape_of_rank
+from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error
 
 
-def eltwise_infer(node, op=None, **kwargs):
+def eltwise_infer(node: Node, op=None, **kwargs):
     def broadcast_dims(dim1, dim2):
         if dim1 is not dynamic_dimension and dim2 is not dynamic_dimension:
             mind = min(dim1, dim2)
@@ -78,6 +79,34 @@ def eltwise_infer(node, op=None, **kwargs):
         node.out_port(0).data.set_value(values[0])
         for i in range(len(values) - 1):
             node.out_port(0).data.set_value(op(node.out_node().value, values[i + 1]))
+
+
+def eltwise_reverse_infer(node: Node):
+    input_1_shape = node.in_port(0).data.get_shape()
+    input_2_shape = node.in_port(1).data.get_shape()
+    output_shape = node.out_port(0).data.get_shape()
+
+    if output_shape is not None:
+        out_rank = len(output_shape)
+        deduced_in_shape = undefined_shape_of_rank(out_rank)
+
+        if input_1_shape is not None and input_2_shape is None and out_rank > len(input_1_shape):
+            in_port_to_update = 1
+            defined_in_shape = input_1_shape
+        elif input_2_shape is not None and input_1_shape is None and out_rank > len(input_2_shape):
+            in_port_to_update = 0
+            defined_in_shape = input_2_shape
+        else:
+            return None
+        defined_in_rank = len(defined_in_shape)
+
+        # if defined_input_shape = [1] and output_shape = [x, 400, 400, 3]
+        # partial shape information about sizes should not be lost
+        for i, out_size in enumerate(reversed(output_shape)):
+            if i >= defined_in_rank or out_size > defined_in_shape[defined_in_rank - 1 - i]:
+                deduced_in_shape[out_rank - 1 - i] = out_size
+
+        node.in_port(in_port_to_update).data.set_shape(deduced_in_shape)
 
 
 def bias_add_infer(node, op):
