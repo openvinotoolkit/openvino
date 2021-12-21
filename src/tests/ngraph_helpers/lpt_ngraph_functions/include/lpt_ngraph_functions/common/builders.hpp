@@ -15,8 +15,9 @@
 #include "low_precision/network_helper.hpp"
 
 #include "lpt_ngraph_functions/common/add.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/common/convolution.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/reshape.hpp"
 #include "lpt_ngraph_functions/common/transpose.hpp"
 
@@ -77,6 +78,8 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
+
+std::shared_ptr<ngraph::opset1::Convolution> makeConvolution(const Output<Node>& output, const Convolution& convolution);
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const Output<ngraph::Node>& output,
