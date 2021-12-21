@@ -25,10 +25,10 @@
 #include "util/test_tools.hpp"
 
 using namespace ngraph;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
-
-using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_affine) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/affine.onnx"));
@@ -37,7 +37,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_affine) {
     auto input = test::NDArray<float, 2>{{{0.f, 1.f, 2.f}}}.get_vector();
     auto expected_output = test::NDArray<float, 2>{{{50.f, 50.5f, 51.f}}}.get_vector();
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 3}, input);
     test_case.add_expected_output(Shape{1, 3}, expected_output);
     test_case.run();
@@ -56,7 +56,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop) {
     // output shape (1, 1, 2, 2)
     auto expected_output = test::NDArray<float, 4>{{{{24.f, 25.f}, {28.f, 29.f}}}}.get_vector();
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 1, 4, 4}, input);
     test_case.add_expected_output(Shape{1, 1, 2, 2}, expected_output);
     test_case.run();
@@ -75,7 +75,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop_with_scale) {
     // output shape (1, 1, 2, 3)
     auto expected_output = test::NDArray<float, 4>{{{{24.f, 25.f, 26.f}, {28.f, 29.f, 30.f}}}}.get_vector();
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 1, 4, 4}, input);
     test_case.add_expected_output(Shape{1, 1, 2, 3}, expected_output);
     test_case.run();

@@ -318,10 +318,10 @@ private:
                         size_t ind_off_lh = ind_off_hl + 1;
                         size_t ind_off_ll = ind_off_lh + 1;
 
-                        movq(xmm_v1_off, qword[aux_reg_sampled_offs + ind_off_ll * jcp_.typesize_sampled_offsets]);
-                        movq(xmm_v2_off, qword[aux_reg_sampled_offs + ind_off_hl * jcp_.typesize_sampled_offsets]);
-                        movq(xmm_v3_off, qword[aux_reg_sampled_offs + ind_off_lh * jcp_.typesize_sampled_offsets]);
-                        movq(xmm_v4_off, qword[aux_reg_sampled_offs + ind_off_hh * jcp_.typesize_sampled_offsets]);
+                        uni_vmovq(xmm_v1_off, qword[aux_reg_sampled_offs + ind_off_ll * jcp_.typesize_sampled_offsets]);
+                        uni_vmovq(xmm_v2_off, qword[aux_reg_sampled_offs + ind_off_hl * jcp_.typesize_sampled_offsets]);
+                        uni_vmovq(xmm_v3_off, qword[aux_reg_sampled_offs + ind_off_lh * jcp_.typesize_sampled_offsets]);
+                        uni_vmovq(xmm_v4_off, qword[aux_reg_sampled_offs + ind_off_hh * jcp_.typesize_sampled_offsets]);
 
                         // w's computation
                         uni_vbroadcastss(vmm_w1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
@@ -339,29 +339,29 @@ private:
 
                             size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
 
-                            pmovsxdq(xmm_v1_off, xmm_v1_off);
-                            movq(reg_tmp_64, xmm_v1_off);
+                            uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
+                            uni_vmovq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
                             uni_vmovups(vmm_v1, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v1, vmm_v1, vmm_w1);
 
-                            pmovsxdq(xmm_v2_off, xmm_v2_off);
-                            movq(reg_tmp_64, xmm_v2_off);
+                            uni_vpmovsxdq(xmm_v2_off, xmm_v2_off);
+                            uni_vmovq(reg_tmp_64, xmm_v2_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
                             uni_vmovups(vmm_v2, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v2, vmm_v2, vmm_w2);
 
-                            pmovsxdq(xmm_v3_off, xmm_v3_off);
-                            movq(reg_tmp_64, xmm_v3_off);
+                            uni_vpmovsxdq(xmm_v3_off, xmm_v3_off);
+                            uni_vmovq(reg_tmp_64, xmm_v3_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
                             uni_vmovups(vmm_v3, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v3, vmm_v3, vmm_w3);
 
-                            pmovsxdq(xmm_v4_off, xmm_v4_off);
-                            movq(reg_tmp_64, xmm_v4_off);
+                            uni_vpmovsxdq(xmm_v4_off, xmm_v4_off);
+                            uni_vmovq(reg_tmp_64, xmm_v4_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
                             uni_vmovups(vmm_v4, ptr[reg_tmp_64]);
@@ -384,38 +384,38 @@ private:
                             jl(loop_end, T_NEAR);
 
                             size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
-                            pmovsxdq(xmm_v1_off, xmm_v1_off);
-                            movq(reg_tmp_64, xmm_v1_off);
+                            uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
+                            uni_vmovq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
-                            movss(xmm_v1, ptr[reg_tmp_64]);
-                            mulss(xmm_v1, xmm_w1);
+                            uni_vmovss(xmm_v1, ptr[reg_tmp_64]);
+                            uni_vmulss(xmm_v1, xmm_v1, xmm_w1);
 
-                            pmovsxdq(xmm_v2_off, xmm_v2_off);
-                            movq(reg_tmp_64, xmm_v2_off);
+                            uni_vpmovsxdq(xmm_v2_off, xmm_v2_off);
+                            uni_vmovq(reg_tmp_64, xmm_v2_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
-                            movss(xmm_v2, ptr[reg_tmp_64]);
-                            mulss(xmm_v2, xmm_w2);
+                            uni_vmovss(xmm_v2, ptr[reg_tmp_64]);
+                            uni_vmulss(xmm_v2, xmm_v2, xmm_w2);
 
-                            pmovsxdq(xmm_v3_off, xmm_v3_off);
-                            movq(reg_tmp_64, xmm_v3_off);
+                            uni_vpmovsxdq(xmm_v3_off, xmm_v3_off);
+                            uni_vmovq(reg_tmp_64, xmm_v3_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
-                            movss(xmm_v3, ptr[reg_tmp_64]);
-                            mulss(xmm_v3, xmm_w3);
+                            uni_vmovss(xmm_v3, ptr[reg_tmp_64]);
+                            uni_vmulss(xmm_v3, xmm_v3, xmm_w3);
 
-                            pmovsxdq(xmm_v4_off, xmm_v4_off);
-                            movq(reg_tmp_64, xmm_v4_off);
+                            uni_vpmovsxdq(xmm_v4_off, xmm_v4_off);
+                            uni_vmovq(reg_tmp_64, xmm_v4_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
-                            movss(xmm_v4, ptr[reg_tmp_64]);
-                            mulss(xmm_v4, xmm_w4);
+                            uni_vmovss(xmm_v4, ptr[reg_tmp_64]);
+                            uni_vmulss(xmm_v4, xmm_v4, xmm_w4);
 
-                            addss(xmm_v1, xmm_v2);
-                            addss(xmm_v1, xmm_v3);
-                            addss(xmm_v1, xmm_v4);
-                            movss(ptr[aux3_reg_input_buffer + input_buffer_off * jcp_.typesize_in], xmm_v1);
+                            uni_vaddss(xmm_v1, xmm_v1, xmm_v2);
+                            uni_vaddss(xmm_v1, xmm_v1, xmm_v3);
+                            uni_vaddss(xmm_v1, xmm_v1, xmm_v4);
+                            uni_vmovss(ptr[aux3_reg_input_buffer + input_buffer_off * jcp_.typesize_in], xmm_v1);
 
                             add(aux2_reg_input, jcp_.typesize_in);
                             add(aux3_reg_input_buffer, jcp_.typesize_in);
@@ -477,7 +477,7 @@ private:
                     } else {
                         for (int oc = 0; oc < tail_size; oc++) {
                             size_t out_off = (size_t) ow * jcp_.oc + oc + r * (jcp_.oc_block / 2);
-                            movq(reg_tmp_64, xmm_dst);
+                            uni_vmovq(reg_tmp_64, xmm_dst);
                             mov(ptr[aux_reg_output + out_off * jcp_.typesize_out], reg_tmp_32);
 
                             if (isa == cpu::x64::sse41) {

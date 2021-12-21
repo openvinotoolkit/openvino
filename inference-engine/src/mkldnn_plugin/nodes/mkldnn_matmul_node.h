@@ -22,7 +22,6 @@ public:
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initSupportedPrimitiveDescriptors() override;
     MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    void createPrimitive() override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
     bool created() const override;
     size_t getMaxBatch() const override;
@@ -32,6 +31,10 @@ public:
         return getOriginalInputsNumber();
     }
 
+    size_t getFusingAxis() const override {
+        return getOutputShapeAtPort(0).getRank() - 1;
+    }
+
     void prepareParams() override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
@@ -39,11 +42,15 @@ public:
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
 protected:
-    AttrPtr initPrimitiveAttr() const override;
-    AttrPtr initPrimitiveAttr(const VectorDims& dims) const;
+    AttrPtr initPrimitiveAttr() override;
+    AttrPtr initPrimitiveAttr(const VectorDims& dims);
 
 private:
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights) const;
+    mkldnn::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
+
+    bool withBiases;
+
+    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights);
 
     std::string errorPrefix;
 

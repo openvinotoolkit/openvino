@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(ENABLE_LTO)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
+
 add_subdirectory(common)
 
 if(ENABLE_OV_ONNX_FRONTEND)
@@ -19,6 +23,3 @@ endif()
 if(ENABLE_OV_TF_FRONTEND)
     add_subdirectory(tensorflow)
 endif()
-
-# used for static build
-ov_generate_frontends_hpp()

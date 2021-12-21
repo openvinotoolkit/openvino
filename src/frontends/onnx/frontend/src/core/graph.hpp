@@ -10,12 +10,12 @@
 #include <string>
 #include <vector>
 
-#include "common/telemetry_extension.hpp"
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -120,6 +120,8 @@ private:
 inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
     return (outs << "<Graph: " << graph.get_name() << ">");
 }
+
+static const char* const ONNX_GRAPH_RT_ATTRIBUTE = "onnx_graph";
 
 }  // namespace onnx_import
 

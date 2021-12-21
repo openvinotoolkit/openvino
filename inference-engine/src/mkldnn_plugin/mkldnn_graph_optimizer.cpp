@@ -59,7 +59,7 @@ MKLDNNGraphOptimizer::MKLDNNGraphOptimizer() {}
 
 void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::MKLDNN_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndBias");
-    FuseConvolutionAndBias(graph);
+    FuseConvolutionMatMulAndBias(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMultiplyAndAdd");
@@ -166,37 +166,38 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     graph.RemoveDroppedEdges();
 }
 
-void MKLDNNGraphOptimizer::FuseConvolutionAndBias(MKLDNNGraph &graph) {
+void MKLDNNGraphOptimizer::FuseConvolutionMatMulAndBias(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Convolution &&
+    auto isSuitableParentNode = [](const MKLDNNNodePtr& node) {
+        return (node->getType() == Convolution || node->getType() == MatMul) &&
                node->getChildEdges().size() == 1 &&
                node->getParentEdges().size() == 2 &&
                node->getFusedWith().empty();
     };
 
-    auto isSuitableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+    auto isSuitableChildNode = [&](const MKLDNNNodePtr& parentNode, const MKLDNNNodePtr& childNode) {
         if (childNode->getAlgorithm() != EltwiseAdd || !childNode->getFusedWith().empty() || childNode->getParentEdges().size() != 2)
             return false;
 
-        auto biasNode = childNode->getParentEdgesAtPort(1)[0]->getParent();
+        const auto biasNode = childNode->getParentEdgesAtPort(1)[0]->getParent();
         if (biasNode->getType() != Input || !biasNode->isConstant() || biasNode->getChildEdges().size() != 1)
             return false;
 
-        auto convOutDims = parentNode->getOutputShapeAtPort(0).getDims();
-        auto biasDims = getNormalizedDimsBySize(biasNode->getOutputShapeAtPort(0).getDims(),
-                                                convOutDims.size());
+        const auto parentOutDims = parentNode->getOutputShapeAtPort(0).getDims();
+        const auto biasDims = getNormalizedDimsBySize(biasNode->getOutputShapeAtPort(0).getDims(),
+                                                parentOutDims.size());
         // TODO [NM]: Legacy ConvBias fusion transformation supports both per-tensor (via explicit broadcasing) and per-channel cases.
         // Most of the real models contain per-channel bias, so we need to reavaluate the need to support per-tensor variant.
-        if (convOutDims.size() != biasDims.size() || biasDims.size() < 2)
+        if (parentOutDims.size() != biasDims.size() || biasDims.size() < 2)
             return false;
 
-        if (biasDims[0] != 1 || !dimsEqualStrong(biasDims[1], convOutDims[1]))
+        const auto channelAxis = parentNode->getFusingAxis();
+        if (!dimsEqualStrong(biasDims[channelAxis], parentOutDims[channelAxis]))
             return false;
 
-        for (int i = 2; i < biasDims.size(); i++) {
-            if (biasDims[i] != 1)
+        for (int i = 0; i < biasDims.size(); i++) {
+            if (biasDims[i] != 1 && i != channelAxis)
                 return false;
         }
 
@@ -262,13 +263,13 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndBias(MKLDNNGraph &graph) {
                     graph.RemoveEdge(remEdge);
                 }
 
-                auto parentEltwise = parentNode;
+                const auto& parentEltwise = parentNode;
                 MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, parentEltwise, inNum, parentEltwise->getParentEdges().size()));
-                auto &graphEdges = graph.GetEdges();
+                auto& graphEdges = graph.GetEdges();
                 graphEdges.push_back(newEdge);
                 parent->addEdge(newEdge);
 
-                auto partialShape = { parentEltwise->outputShapes[0].toPartialShape()[1] };
+                auto partialShape = { parentEltwise->outputShapes[0].toPartialShape()[parentEltwise->getFusingAxis()] };
                 parent->outputShapes[inNum] = Shape(partialShape);
                 parentEltwise->inputShapes.push_back(parent->outputShapes[0]);
             }
@@ -627,7 +628,15 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
     }
 }
 
-static bool BF16QuantizeNodeFusing(MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+/**
+ * @todo FQ fusing was disabled for BF16 output since oneDNN primitives lack support
+ *       for bf16 depthwise postops.
+ *       This is not the case anymore, because after migration to oneDNN 2.3 FQ will be fused as
+ *       multiple binary post ops.
+ *       This check can already be removed for FC fusing, but should be kept for Convolution,
+ *       which still uses legacy depthwise postops for performance reasons.
+ */
+static bool BF16QuantizeNodeFusing(const MKLDNNNodePtr& parentNode, const MKLDNNNodePtr& childNode) {
     return childNode->getType() == FakeQuantize &&
         one_of(Precision::BF16,
             parentNode->getOriginalOutputPrecisionAtPort(0),
@@ -638,7 +647,7 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == FullyConnected && node->getChildEdges().size() == 1 && node->getInputShapeAtPort(0).getRank() != 3;
+        return node->getType() == FullyConnected && node->getChildEdges().size() == 1;
     };
 
     auto parent = graphNodes.begin();
@@ -1125,8 +1134,38 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         if (!isSuitableParent1 && !isSuitableParent2)
             continue;
 
-        auto mergedConv = isSuitableParent1 ? parent1 : parent2;
-        auto peerNode = isSuitableParent1 ? parent2 : parent1;
+        std::shared_ptr<MKLDNNNode> mergedConv;
+        std::shared_ptr<MKLDNNNode> peerNode;
+
+        if (isSuitableParent1 && isSuitableParent2) {
+            // not merged operation (peerNode) has to be in low precision
+            const auto isBranchQuantized = [](const MKLDNNNodePtr& branchParent) {
+                const auto& fused = branchParent->getFusedWith();
+                const auto branchPrecision = fused.empty() ?
+                        branchParent->getOriginalOutputPrecisionAtPort(0) :
+                        fused[fused.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+                return (branchPrecision == Precision::I8) || (branchPrecision == Precision::U8);
+            };
+
+            const auto isBranch1Quantized = isBranchQuantized(graphNode->getParentEdgesAtPort(0)[0]->getParent());
+            const auto isBranch2Quantized = isBranchQuantized(graphNode->getParentEdgesAtPort(1)[0]->getParent());
+            if (isBranch1Quantized || isBranch2Quantized) {
+                // INT8
+                const auto parent1CanBeMerged = parent1->getChildEdges().size() == 1ul;
+
+                // if both branches are quantized, then parent1 is selected (result is not changed)
+                mergedConv = isBranch2Quantized && parent1CanBeMerged ? parent1 : parent2;
+                peerNode = isBranch2Quantized && parent1CanBeMerged ? parent2 : parent1;
+            } else {
+                // original FP32
+                mergedConv = isSuitableParent1 ? parent1 : parent2;
+                peerNode = isSuitableParent1 ? parent2 : parent1;
+            }
+        } else {
+            mergedConv = isSuitableParent1 ? parent1 : parent2;
+            peerNode = isSuitableParent1 ? parent2 : parent1;
+        }
+
         if (isSuitableParent1 && isSuitableParent2) {
             if ((peerNode->getType() == Convolution || peerNode->getType() == BinaryConvolution) &&
                 mergedConv->getChildEdges().size() != 1) {
