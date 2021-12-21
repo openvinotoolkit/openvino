@@ -57,8 +57,8 @@ protected:
         auto params = ngraph::builder::makeDynamicParams(net_type, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, 1);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
+        auto concat = std::make_shared<ngraph::opset8::Concat>(paramOuts, 1);
+        ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(concat)};
         function = std::make_shared<ngraph::Function>(results, params, "concat");
     }
 };
@@ -87,12 +87,12 @@ private:
 
 class PreprocessGNAUnsupportedInputsTest : public PreprocessGNAUnsupportedTest {
 public:
-    PreprocessGNAUnsupportedInputsTest() : PreprocessGNAUnsupportedTest("The plugin does not support input precision with") {}
+    PreprocessGNAUnsupportedInputsTest() : PreprocessGNAUnsupportedTest("The plugin does not support layer") {}
 };
 
 class PreprocessGNAUnsupportedOutputsTest : public PreprocessGNAUnsupportedTest {
 public:
-    PreprocessGNAUnsupportedOutputsTest() : PreprocessGNAUnsupportedTest("The plugin does not support output precision with") {}
+    PreprocessGNAUnsupportedOutputsTest() : PreprocessGNAUnsupportedTest("The plugin does not support layer") {}
 };
 
 TEST_P(PreprocessGNATest, CompareWithRefs) {
@@ -113,11 +113,6 @@ std::map<std::string, std::string> config = {
         {"GNA_SCALE_FACTOR_0", "1"},
         {"GNA_SCALE_FACTOR_1", "1"}
     }
-};
-
-ov::element::TypeVector netTypes = {
-    ov::element::f16,
-    ov::element::f32
 };
 
 ov::element::TypeVector inputTypesUnsupported = {
