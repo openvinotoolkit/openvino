@@ -100,6 +100,11 @@ void InputModel::set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, con
         m_additional_tensor_names[new_name] = m_additional_tensor_names[original_name];
         m_additional_tensor_names.erase(original_name);
     }
+
+    if (m_inputs_to_reshape.count(original_name) > 0) {
+        m_inputs_to_reshape[new_name] = m_inputs_to_reshape[original_name];
+        m_inputs_to_reshape.erase(original_name);
+    }
 }
 
 void InputModel::set_name_for_operation(const ov::frontend::Place::Ptr& operation, const std::string& new_name) {
@@ -157,6 +162,9 @@ void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const 
     }
 
     m_editor->set_input_shapes({{input_name, shape}});
+
+    if (shape.get_min_shape() != shape.get_max_shape())
+        m_inputs_to_reshape[input_name] = shape;
 }
 
 ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
@@ -193,6 +201,7 @@ std::shared_ptr<Model> InputModel::decode() {
 std::shared_ptr<Model> InputModel::convert() {
     auto converted_model = m_editor->get_function();
     add_tensor_names(converted_model);
+    reshape_model_inputs(converted_model);
     return converted_model;
 }
 
@@ -295,4 +304,22 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
             it->add_names(tensor_names.second);
         }
     }
+}
+
+void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
+    const auto& inputs = model->inputs();
+    const auto is_input_name = [&inputs](const std::string& name) {
+        return std::find_if(std::begin(inputs), std::end(inputs), [&name](const OutputVector::value_type& input) {
+                   return input.get_names().count(name) > 0;
+               }) != std::end(inputs);
+    };
+
+    // assure that names actually refer to model's inputs
+    std::map<std::string, ov::PartialShape> actual_inputs_to_reshape;
+    for (const auto& in : m_inputs_to_reshape)
+        if (is_input_name(in.first))
+            actual_inputs_to_reshape.insert(in);
+
+    if (!actual_inputs_to_reshape.empty())
+        model->reshape(actual_inputs_to_reshape);
 }

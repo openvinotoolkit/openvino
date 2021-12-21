@@ -5,7 +5,7 @@ import os
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
-from openvino.runtime import PartialShape
+from openvino.runtime import Dimension, PartialShape
 from openvino.frontend import FrontEndManager
 
 
@@ -1219,6 +1219,50 @@ def test_set_input_partial_shape_using_input_edge():
     assert ov_model.input("in2").get_partial_shape() == PartialShape([1])
 
     assert ov_model.output("out4").get_partial_shape() == PartialShape([10, 10])
+
+
+def test_set_partial_shape_with_range():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    input1 = model.get_place_by_tensor_name("in1")
+    ranged_shape = PartialShape([Dimension(1, 4), Dimension(2)])
+    model.set_partial_shape(input1, ranged_shape)
+
+    ov_model = fe.convert(model)
+    assert ov_model.input("in1").get_partial_shape() == ranged_shape
+
+
+def test_set_partial_shape_with_range_and_cut_it_off():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    input1 = model.get_place_by_tensor_name("in1")
+    ranged_shape = PartialShape([Dimension(1, 4), Dimension(2)])
+    model.set_partial_shape(input1, ranged_shape)
+
+    add_out = model.get_place_by_tensor_name("add_out")
+    model.extract_subgraph(inputs=[add_out], outputs=[])
+
+    ov_model = fe.convert(model)
+    for input in ov_model.inputs:
+        assert input.get_partial_shape() != ranged_shape
+
+
+def test_set_partial_shape_with_range_and_rename_it():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    input1 = model.get_place_by_tensor_name("in1")
+    ranged_shape = PartialShape([Dimension(1, 4), Dimension(2)])
+    model.set_partial_shape(input1, ranged_shape)
+    model.set_name_for_tensor(input1, "new_in1")
+
+    ov_model = fe.convert(model)
+    assert ov_model.input("new_in1").get_partial_shape() == ranged_shape
 
 
 def test_get_partial_shape_using_input_edge():
