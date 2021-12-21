@@ -14,7 +14,7 @@ namespace pass {
 /**
  * @interface InsertMoveBroadcast
  * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most warying dimension is needed.
- * The pass is used to convert function to a canonical form for code generation
+ * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */
 class InsertMoveBroadcast: public ngraph::pass::MatcherPass {
