@@ -6,7 +6,6 @@
 
 #include "cnn_network_ngraph_impl.hpp"
 #include "ie_itt.hpp"
-#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 namespace details {

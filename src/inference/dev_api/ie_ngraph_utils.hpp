@@ -6,11 +6,8 @@
 
 #include <algorithm>
 #include <string>
-#include <tuple>
 
 #include "cpp/ie_cnn_network.h"
-#include "ie_common.h"
-#include "ie_input_info.hpp"
 #include "ie_precision.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "openvino/core/type/element_type.hpp"
