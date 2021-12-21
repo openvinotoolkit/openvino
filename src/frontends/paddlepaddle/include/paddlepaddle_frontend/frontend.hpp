@@ -15,14 +15,14 @@ namespace ov {
 namespace frontend {
 class OpPlacePDPD;
 
-class PDPD_API FrontEndPDPD : public IFrontEnd {
+class PDPD_API FrontEndPDPD : public FrontEnd {
 public:
     FrontEndPDPD() = default;
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted OV Model
     /// \return fully converted OV Model
-    std::shared_ptr<ov::Model> convert(const IInputModel::Ptr& model) const override;
+    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override;
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted OV Model
@@ -34,14 +34,14 @@ public:
     /// conversion process.
     /// \param model Input model
     /// \return partially converted OV Model
-    std::shared_ptr<Model> convert_partially(const IInputModel::Ptr& model) const override;
+    std::shared_ptr<Model> convert_partially(const InputModel::Ptr& model) const override;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
     /// Each decoding node is an OV node representing a single FW operation node with
     /// all attributes represented in FW-independent way.
     /// \param model Input model
     /// \return OV Model after decoding
-    std::shared_ptr<Model> decode(const IInputModel::Ptr& model) const override;
+    std::shared_ptr<Model> decode(const InputModel::Ptr& model) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model
@@ -55,15 +55,15 @@ protected:
     /// \brief Check if FrontEndPDPD can recognize model from given parts
     /// \param params Can be path to folder which contains __model__ file or path to
     /// .pdmodel file
-    /// \return IInputModel::Ptr
+    /// \return InputModel::Ptr
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
     /// \brief Reads model from 1 or 2 given file names or 1 or 2 std::istream containing
     /// model in protobuf format and weights
     /// \param params Can contain path to folder with __model__ file or path to .pdmodel
     /// file or 1 or 2 streams with model and weights
-    /// \return IInputModel::Ptr
-    IInputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
+    /// \return InputModel::Ptr
+    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 private:
     static std::shared_ptr<Model> convert_each_node(

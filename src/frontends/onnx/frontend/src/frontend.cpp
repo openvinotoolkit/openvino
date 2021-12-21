@@ -30,7 +30,7 @@ ONNX_FRONTEND_C_API void* GetFrontEndData() {
     return res;
 }
 
-ov::frontend::IInputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.empty()) {
         return nullptr;
     }
@@ -61,7 +61,7 @@ ov::frontend::IInputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& v
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert(const IInputModel::Ptr& model) const {
+std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->convert();
@@ -71,7 +71,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) co
     ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::decode(const IInputModel::Ptr& model) const {
+std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();

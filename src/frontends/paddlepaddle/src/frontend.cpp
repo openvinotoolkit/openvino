@@ -243,7 +243,7 @@ bool FrontEndPDPD::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
-IInputModel::Ptr FrontEndPDPD::load_impl(const std::vector<ov::Any>& variants) const {
+InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() == 1) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (variants[0].is<std::string>()) {
@@ -276,7 +276,7 @@ IInputModel::Ptr FrontEndPDPD::load_impl(const std::vector<ov::Any>& variants) c
     PDPD_THROW("Model can be loaded either from 1 or 2 files/streams");
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::convert(const IInputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::convert(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     FRONT_END_GENERAL_CHECK(pdpd_model != nullptr, "Invalid input model");
 
@@ -313,7 +313,7 @@ void FrontEndPDPD::convert(const std::shared_ptr<ov::Model>& partiallyConverted)
     }
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(const IInputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     FRONT_END_GENERAL_CHECK(pdpd_model != nullptr, "Invalid input model");
 
@@ -344,7 +344,7 @@ std::shared_ptr<ov::Model> FrontEndPDPD::convert_partially(const IInputModel::Pt
     return f;
 }
 
-std::shared_ptr<ov::Model> FrontEndPDPD::decode(const IInputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEndPDPD::decode(const InputModel::Ptr& model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     FRONT_END_GENERAL_CHECK(pdpd_model != nullptr, "Invalid input model");
 

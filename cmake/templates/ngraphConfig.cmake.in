@@ -26,8 +26,6 @@
 #
 # Frontends:
 #
-#   ngraph::common                         - nGraph frontend common
-#
 #   ngraph_ov_onnx_frontend_FOUND          - True if the system has ov_onnx_frontend library
 #   ngraph::ov_onnx_frontend               - ONNX FrontEnd target (optional)
 #
@@ -49,19 +47,6 @@ find_dependency(OpenVINO
 if(TARGET openvino::runtime AND NOT TARGET ngraph::ngraph)
     add_library(ngraph::ngraph INTERFACE IMPORTED)
     set_target_properties(ngraph::ngraph PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::runtime)
-endif()
-
-if(TARGET openvino::runtime AND NOT TARGET openvino::frontend::common)
-    add_library(openvino::frontend::common INTERFACE IMPORTED)
-    set_target_properties(openvino::frontend::common PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::runtime)
-endif()
-
-
-if(TARGET openvino::runtime AND NOT TARGET ngraph::frontend_common)
-    add_library(ngraph::frontend_common INTERFACE IMPORTED)
-    set_target_properties(ngraph::frontend_common PROPERTIES
         INTERFACE_LINK_LIBRARIES openvino::runtime)
 endif()
 

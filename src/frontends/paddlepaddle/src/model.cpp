@@ -28,10 +28,10 @@ class InputModelPDPD::InputModelPDPDImpl {
 public:
     template <typename T>
     InputModelPDPDImpl(const std::basic_string<T>& path,
-                       const IInputModel& input_model,
+                       const InputModel& input_model,
                        const std::shared_ptr<TelemetryExtension>& telemetry);
     InputModelPDPDImpl(const std::vector<std::istream*>& streams,
-                       const IInputModel& input_model,
+                       const InputModel& input_model,
                        const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<Place::Ptr> getInputs() const;
     std::vector<Place::Ptr> getOutputs() const;
@@ -62,7 +62,7 @@ private:
     std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
     std::map<std::string, std::shared_ptr<TensorPlacePDPD>> m_var_places;
     std::shared_ptr<ProgramDesc> m_fw_ptr;
-    const IInputModel& m_input_model;
+    const InputModel& m_input_model;
     std::vector<Place::Ptr> m_inputs;
     std::vector<Place::Ptr> m_outputs;
     std::map<pdpd::TensorName, Output<Node>> m_tensor_values;
@@ -299,7 +299,7 @@ void InputModelPDPD::InputModelPDPDImpl::loadConsts(const std::basic_string<T>& 
 
 template <typename T>
 InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T>& path,
-                                                       const IInputModel& input_model,
+                                                       const InputModel& input_model,
                                                        const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
       m_input_model(input_model),
@@ -327,7 +327,7 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T
 }
 
 InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::vector<std::istream*>& streams,
-                                                       const IInputModel& input_model,
+                                                       const InputModel& input_model,
                                                        const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
       m_input_model(input_model),

@@ -275,7 +275,7 @@ struct MOCK_API ModelStat
 /// \brief Mock implementation of InputModel
 /// Every call increments appropriate counters in statistic and stores argument values to statistics
 /// as well
-class MOCK_API InputModelMockPy : public IInputModel
+class MOCK_API InputModelMockPy : public InputModel
 {
     static ModelStat m_stat;
     static PartialShape m_returnShape;
@@ -407,14 +407,14 @@ struct MOCK_API FeStat
 /// \brief Mock implementation of FrontEnd
 /// Every call increments appropriate counters in statistic and stores argument values to statistics
 /// as well
-class MOCK_API FrontEndMockPy : public IFrontEnd
+class MOCK_API FrontEndMockPy : public FrontEnd
 {
     static FeStat m_stat;
 
 public:
     FrontEndMockPy() = default;
 
-    std::shared_ptr<ov::Model> convert(const IInputModel::Ptr& model) const override
+    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override
     {
         std::cout << "MVN: convert called\n";
         m_stat.m_convert_model++;
@@ -426,7 +426,7 @@ public:
     static void clear_stat() { m_stat = {}; }
 
 private:
-    IInputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override
+    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override
     {
         if (!params.empty() && params[0].is<std::string>())
         {

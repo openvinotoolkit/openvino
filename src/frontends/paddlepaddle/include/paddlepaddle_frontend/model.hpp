@@ -13,7 +13,7 @@ namespace ov {
 namespace frontend {
 class OpPlacePDPD;
 class TensorPlacePDPD;
-class PDPD_API InputModelPDPD : public IInputModel {
+class PDPD_API InputModelPDPD : public InputModel {
     friend class FrontEndPDPD;
     class InputModelPDPDImpl;
     std::shared_ptr<InputModelPDPDImpl> _impl;

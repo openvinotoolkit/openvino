@@ -433,7 +433,7 @@ struct MOCK_API ModelStat {
     }
 };
 
-class MOCK_API InputModelMockPy : public IInputModel {
+class MOCK_API InputModelMockPy : public InputModel {
     static ModelStat m_stat;
 
 public:
@@ -617,13 +617,13 @@ struct MOCK_API FeStat {
     }
 };
 
-class MOCK_API FrontEndMockPy : public IFrontEnd {
+class MOCK_API FrontEndMockPy : public FrontEnd {
     static FeStat m_stat;
 
 public:
     FrontEndMockPy() = default;
 
-    IInputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override {
+    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override {
         if (!params.empty() && params[0].is<std::string>())
             m_stat.m_load_paths.push_back(params[0].as<std::string>());
         return std::make_shared<InputModelMockPy>();
@@ -640,7 +640,7 @@ public:
         return false;
     }
 
-    std::shared_ptr<ov::Model> convert(const IInputModel::Ptr& model) const override {
+    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
         m_stat.m_convert_model++;
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
@@ -649,12 +649,12 @@ public:
         m_stat.m_convert++;
     }
 
-    std::shared_ptr<ov::Model> convert_partially(const IInputModel::Ptr& model) const override {
+    std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const override {
         m_stat.m_convert_partially++;
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }
 
-    std::shared_ptr<ov::Model> decode(const IInputModel::Ptr& model) const override {
+    std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override {
         m_stat.m_decode++;
         return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
     }

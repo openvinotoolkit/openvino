@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 
-class InputModel : public ov::frontend::IInputModel {
+class InputModel : public ov::frontend::InputModel {
 public:
     InputModel(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -46,8 +46,8 @@ public:
                                 size_t shape_dim_index,
                                 const std::string& dim_name) override;
 
-    /// \brief  Not applicable for ONNX model. Throws immediately
     void add_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) override;
+
     /// \brief  Not applicable for ONNX model. Throws immediately
     void free_name_for_tensor(const std::string& name) override;
 
@@ -66,6 +66,9 @@ public:
 
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
+
+    std::unordered_map<std::string, std::unordered_set<std::string>> m_additional_tensor_names;
+    void add_tensor_names(std::shared_ptr<Model>& model);
 };
 
 }  // namespace onnx

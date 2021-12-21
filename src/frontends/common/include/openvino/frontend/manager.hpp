@@ -15,7 +15,7 @@
 namespace ov {
 namespace frontend {
 // -------------- FrontEndManager -----------------
-using FrontEndFactory = std::function<IFrontEnd::Ptr()>;
+using FrontEndFactory = std::function<FrontEnd::Ptr()>;
 
 /// \brief Frontend management class, loads available frontend plugins on construction
 /// Allows load of frontends for particular framework, register new and list available

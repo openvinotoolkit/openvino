@@ -17,19 +17,19 @@
 using namespace ngraph;
 using namespace ov::frontend;
 
-class InputModelMock : public IInputModel {};
+class InputModelMock : public InputModel {};
 
-class FrontEndMock : public IFrontEnd {
+class FrontEndMock : public FrontEnd {
 public:
     std::string get_name() const override {
         return "mock1";
     }
 
-    IInputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override {
+    InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override {
         return std::make_shared<InputModelMock>();
     }
 
-    std::shared_ptr<ov::Model> convert(const IInputModel::Ptr& model) const override {
+    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, Shape{1, 2, 3, 4});
         auto op = std::make_shared<ov::opset8::Relu>(param);
         auto res = std::make_shared<ov::opset8::Result>(op);
