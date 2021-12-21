@@ -69,6 +69,9 @@ private:
 
     std::unordered_map<std::string, std::unordered_set<std::string>> m_additional_tensor_names;
     void add_tensor_names(std::shared_ptr<Model>& model);
+
+    std::unordered_map<std::string, ov::PartialShape> m_inputs_to_reshape;
+    void reshape_model_inputs(std::shared_ptr<Model>& model);
 };
 
 }  // namespace onnx

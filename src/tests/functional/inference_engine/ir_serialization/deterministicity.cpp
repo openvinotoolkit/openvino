@@ -10,10 +10,9 @@
 #include "ie_core.hpp"
 
 #include <openvino/runtime/runtime.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset5.hpp>
+#include <openvino/opsets/opset8.hpp>
 
-using namespace ngraph;
+using namespace ov;
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
 #    error "IR_SERIALIZATION_MODELS_PATH is not defined"
@@ -114,22 +113,22 @@ protected:
 TEST_F(DeterministicityTest, IRInputsOrder) {
     const std::vector<std::string> friend_names = {"A", "B", "C"};
 
-    auto a = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-    auto b = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-    auto add = std::make_shared<opset5::Add>(a, b);
-    auto c = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-    auto relu = std::make_shared<opset5::Relu>(c);
-    auto add2 = std::make_shared<opset5::Add>(add, relu);
-    auto res = std::make_shared<opset5::Result>(add2);
+    auto a = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 2});
+    auto b = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 2});
+    auto add = std::make_shared<opset8::Add>(a, b);
+    auto c = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 2});
+    auto relu = std::make_shared<opset8::Relu>(c);
+    auto add2 = std::make_shared<opset8::Add>(add, relu);
+    auto res = std::make_shared<opset8::Result>(add2);
 
     a->set_friendly_name(friend_names[0]);
     b->set_friendly_name(friend_names[1]);
     c->set_friendly_name(friend_names[2]);
 
-    auto model = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{a, b, c});
+    auto model = std::make_shared<Model>(NodeVector{res}, ParameterVector{a, b, c});
 
-    ov::runtime::Core core;
-    auto serialize = ov::pass::Serialize(m_out_xml_path, m_out_bin_path);
+    runtime::Core core;
+    auto serialize = pass::Serialize(m_out_xml_path, m_out_bin_path);
     serialize.run_on_function(model);
     auto serialized_func = core.read_model(m_out_xml_path);
 
@@ -143,23 +142,23 @@ TEST_F(DeterministicityTest, IRInputsOrder) {
 TEST_F(DeterministicityTest, IROutputsOrder) {
     const std::vector<std::string> friend_names = {"D", "E", "F"};
 
-    auto a = std::make_shared<opset5::Parameter>(element::f32, Shape{4, 4});
-    auto axis_1 = ngraph::opset5::Constant::create(element::i64, Shape{}, {1});
-    auto split1 = std::make_shared<opset5::Split>(a, axis_1, 2);
-    auto res1 = std::make_shared<opset5::Result>(split1->output(0));
-    auto relu = std::make_shared<opset5::Relu>(split1->output(1));
-    auto split2 = std::make_shared<opset5::Split>(relu, axis_1, 2);
-    auto res2 = std::make_shared<opset5::Result>(split2->output(0));
-    auto res3 = std::make_shared<opset5::Result>(split2->output(1));
+    auto a = std::make_shared<opset8::Parameter>(element::f32, Shape{4, 4});
+    auto axis_1 = opset8::Constant::create(element::i64, Shape{}, {1});
+    auto split1 = std::make_shared<opset8::Split>(a, axis_1, 2);
+    auto res1 = std::make_shared<opset8::Result>(split1->output(0));
+    auto relu = std::make_shared<opset8::Relu>(split1->output(1));
+    auto split2 = std::make_shared<opset8::Split>(relu, axis_1, 2);
+    auto res2 = std::make_shared<opset8::Result>(split2->output(0));
+    auto res3 = std::make_shared<opset8::Result>(split2->output(1));
 
     res1->set_friendly_name(friend_names[0]);
     res2->set_friendly_name(friend_names[1]);
     res3->set_friendly_name(friend_names[2]);
 
-    auto model = std::make_shared<ov::Model>(NodeVector{res1, res2, res3}, ParameterVector{a});
+    auto model = std::make_shared<Model>(NodeVector{res1, res2, res3}, ParameterVector{a});
 
-    ov::runtime::Core core;
-    auto serialize = ov::pass::Serialize(m_out_xml_path, m_out_bin_path);
+    runtime::Core core;
+    auto serialize = pass::Serialize(m_out_xml_path, m_out_bin_path);
     serialize.run_on_function(model);
     auto serialized_func = core.read_model(m_out_xml_path);
 
