@@ -139,8 +139,8 @@ TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder) {
 TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     FrontEndManager fem;
     FrontEnd::Ptr fe;
+    ASSERT_NO_THROW(fe = fem.load_by_model(""));
     ASSERT_FALSE(fe);
-    fe = fem.load_by_model("");
     class MockFrontEnd : public FrontEnd {};
     std::unique_ptr<FrontEnd> fePtr(new MockFrontEnd());  // to verify base destructor
     fe = std::make_shared<MockFrontEnd>();
@@ -155,7 +155,8 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
 
 TEST(FrontEndManagerTest, testDefaultInputModel) {
     class MockInputModel : public InputModel {};
-    std::unique_ptr<MockInputModel> im(new MockInputModel());  // to verify base destructor
+    std::unique_ptr<MockInputModel> imPtr(new MockInputModel());  // to verify base destructor
+    InputModel::Ptr im = std::make_shared<MockInputModel>();
     ASSERT_EQ(im->get_inputs(), std::vector<Place::Ptr>{});
     ASSERT_EQ(im->get_outputs(), std::vector<Place::Ptr>{});
     ASSERT_ANY_THROW(im->override_all_inputs({nullptr}));
