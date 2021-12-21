@@ -16,7 +16,8 @@ def append_stats(accumulated_layer_stats, stats_layout, value, dataset_index):
     inplace_stats_mapping = get_inplace_stats_mapping(stats_layout)
     if isinstance(value, list):
         value = parse_sequential_stats(value, stats_layout)
-    value = process_raw_output(value)
+    else:
+        value = process_raw_output(value)
     for layer, stats in stats_layout.items():
         if layer not in accumulated_layer_stats:
             accumulated_layer_stats[layer] = {stat_name: [] for stat_name in stats_layout[layer]}
@@ -37,11 +38,12 @@ def parse_sequential_stats(value_sequential, stats_layout):
                                        stat_names_by_layer, old_names_mapping)
 
     for layer, act_seq in activation_seq.items():
+        seq_len = len(act_seq[0].shape)
         if not isinstance(stat_names_by_layer[layer], Statistic) or \
                 not stat_names_by_layer[layer].kwargs.get('inplace_statistics', False):
-            axis = 1 if len(act_seq[0].shape) == 2 else 2
+            axis = 1 if seq_len == 2 else 2
         else:
-            axis = 1 if len(act_seq[0].shape) == 1 else 2
+            axis = seq_len if seq_len in (0, 1) else 2
         activation_seq[layer] = np.stack(act_seq, axis=axis)
     return activation_seq
 
