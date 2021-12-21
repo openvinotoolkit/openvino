@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
 from unittest.mock import Mock
 from unittest.mock import patch
-import pytest
 
 from openvino.tools.mo.main import prepare_ir
 from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
@@ -59,14 +58,6 @@ def base_args_config():
     return args
 
 
-def event_call_args_to_dict(call_args):
-    result = {}
-    for call in call_args:
-        _, name, value, *_ = call.args # skip 'mo' and unused event param
-        result[name] = value
-    return result
-
-
 @generator
 class TestMoFallback(unittest.TestCase):
     def setUp(self):
@@ -107,9 +98,15 @@ class TestMoFallback(unittest.TestCase):
         for name, model in self.models.items():
             onnx.save(model, name)
 
+        trans_config = 'config.json'
+        with open(trans_config, 'w') as f:
+            f.write("[]") # json format
+        self.trans_config_file = os.path.abspath(trans_config)
+
     def tearDown(self):
         for name in self.models.keys():
             os.remove(name)
+        os.remove(self.trans_config_file)
 
 
     @generate(*[('dir_to_extension', False, True, 'mo_legacy'),
@@ -119,7 +116,7 @@ class TestMoFallback(unittest.TestCase):
                 (None, False, True, 'onnx_frontend'),
     ])
     def test_fallback_if_extension_specified(self, extension, use_legacy, use_new_fe, conversion_method):
-        # fix problem with incorrect extractors loading from UT
+        # fix problem with incorrect extractors loaded from UT
         with patch('openvino.tools.mo.utils.class_registration._update') as update_mock:
             update_mock.return_value=None
             args = base_args_config()
@@ -133,53 +130,37 @@ class TestMoFallback(unittest.TestCase):
             tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
 
 
-    @generate(*[('config.json', False, True, 'mo_legacy'),
-                ('config.json', True, False, 'mo_legacy'),
-                (None, False, True, 'onnx_frontend'),
+    @generate(*[(True, False, True, 'mo_legacy'),
+                (True, True, False, 'mo_legacy'),
+                (False, False, True, 'onnx_frontend'),
     ])
-    def test_fallback_if_tranformation_config_specified(self, trans_config, use_legacy, use_new_fe, expected_path):
+    def test_fallback_if_tranformation_config_specified(self, trans_config_used, use_legacy, use_new_fe, expected_path):
         args = base_args_config()
         args.use_legacy_frontend = use_legacy
         args.use_new_frontend = use_new_fe
         args.input_model = "test_model.onnx"
-        if trans_config is not None: # trans config provided
-            with open(trans_config, 'w') as f:
-                f.write("[]") # json format
-            args.transformations_config = os.path.abspath(trans_config)
-        else:
-            args.transformations_config = trans_config
+        args.transformations_config = self.trans_config_file if trans_config_used else None
 
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
 
-        if args.transformations_config is not None:
-            os.remove(args.transformations_config) # clean-up
 
-
-    @generate(*[('dir_to_extension', 'config.json', True, 'mo_legacy'),
-                (None, 'config.json', True, 'mo_legacy'),
-                ('dir_to_extension', None, True, 'mo_legacy'),
-                (None, None, True, 'onnx_frontend'),
+    @generate(*[('dir_to_extension', True, True, 'mo_legacy'),
+                (None, True, True, 'mo_legacy'),
+                ('dir_to_extension', False, True, 'mo_legacy'),
+                (None, False, True, 'onnx_frontend'),
     ])
-    def test_fallback_if_both_extension_and_trans_config_specified(self, extension, trans_config, use_new_fe, expected_path):
+    def test_fallback_if_both_extension_and_trans_config_specified(self, extension, trans_config_used, use_new_fe, expected_path):
         args = base_args_config()
         args.use_new_frontend = use_new_fe
         args.extensions = extension
         args.input_model = "test_model.onnx"
-        if trans_config is not None: # trans config provided
-            with open(trans_config, 'w') as f:
-                f.write("[]") # json format
-            args.transformations_config = os.path.abspath(trans_config)
-        else:
-            args.transformations_config = trans_config
+        args.transformations_config = self.trans_config_file if trans_config_used else None
 
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
-
-        if args.transformations_config is not None:
-            os.remove(args.transformations_config) # clean-up
 
 
     @generate(*[(True, False, 'mo_legacy'),
@@ -195,5 +176,4 @@ class TestMoFallback(unittest.TestCase):
 
         prepare_ir(args)
 
-        call_args_dict = event_call_args_to_dict(tm.Telemetry.send_event.call_args_list)
-        assert call_args_dict['conversion_method'] == expected_path
+        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)

@@ -345,7 +345,7 @@ def prepare_ir(argv : argparse.Namespace):
             fallback_reasons.append(f"frontend failure with exception: {e}")
     if len(fallback_reasons) > 0:
         reasons_message = ", ".join(fallback_reasons)
-        log.warning("The IR prepartion was executed by the legacy MO path. "
+        log.warning("The IR preparation was executed by the legacy MO path. "
                     "This is a fallback scenario applicable only for some specific cases. "
                    f"The detailed reason why fallback was executed: {reasons_message}. "
                     "You can specify --use_legacy_frontend flag to force using the legacy MO path to avoid additional checks.")
