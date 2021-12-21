@@ -92,7 +92,7 @@ ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
             if (target_dim == 1 || (arg_dim.is_static() && arg_dim != 1)) {
                 result_shape[i] = arg_dim;
             } else if (arg_dim == 1 || (target_dim.is_static() && target_dim != 1)) {
-                result_shape [i] = target_dim;
+                result_shape[i] = target_dim;
             } else {
                 result_shape[i] = Dimension(std::min(arg_dim.get_min_length(), target_dim.get_min_length()),
                                             std::max(arg_dim.get_max_length(), target_dim.get_max_length()));
