@@ -496,21 +496,13 @@ public:
             if (!loadedFromCache) {
                 res = compile_model_impl(network, plugin, parsed._config, context, hash);
             } else {
-                updateCNNInfo(res, network);
+                // Temporary workaround until all plugins support caching of original model inputs
+                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction());
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, context, {});
         }
         return res;
-    }
-
-    static void updateCNNInfo(ie::SoExecutableNetworkInternal& exe_net, const ie::CNNNetwork& network) {
-        // Temporary workaround until all plugins support caching of original model inputs
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        exe_net->setNetworkInputs(copyInfo(network.getInputsInfo()));
-        exe_net->setNetworkOutputs(copyInfo(network.getOutputsInfo()));
-        InferenceEngine::SetExeNetworkInfo(exe_net._ptr, network.getFunction());
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
@@ -534,7 +526,8 @@ public:
             if (!loadedFromCache) {
                 res = compile_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
             } else {
-                updateCNNInfo(res, network);
+                // Temporary workaround until all plugins support caching of original model inputs
+                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction());
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
