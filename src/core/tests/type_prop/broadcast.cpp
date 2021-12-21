@@ -863,7 +863,7 @@ TEST(type_prop, broadcast_v3_bidirectional_partially_dynamic_input) {
 TEST(type_prop, broadcast_i32_shape_value) {
     const auto arg = make_shared<op::Parameter>(element::f32, PartialShape({5, -1}));
     const auto shape = make_shared<op::v3::ShapeOf>(arg, element::i64);
-    const auto broadcast_spec = op::BroadcastType::NUMPY;
+    const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
 
