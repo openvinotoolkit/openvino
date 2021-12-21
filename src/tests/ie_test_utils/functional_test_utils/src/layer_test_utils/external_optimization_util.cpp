@@ -4,7 +4,7 @@
 
 #include "functional_test_utils/layer_test_utils/external_optimization_util.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "manager.hpp"
+#include "openvino/frontend/manager.hpp"
 
 using namespace LayerTestsUtils;
 
