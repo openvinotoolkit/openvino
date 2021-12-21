@@ -28,12 +28,6 @@
 #else
 #define MOCKTESTMACRO
 #endif
-
-namespace {
-    std::mutex                                                          recycleMutex;
-    std::condition_variable                                             recycleCond;
-    bool                                                                switchReady = {false};
-}
 namespace MultiDevicePlugin {
 
 class MultiDeviceInferencePlugin;
@@ -151,12 +145,18 @@ public:
     public:
         using Ptr = std::shared_ptr<HelperDeleter>;
         HelperDeleter() = default;
-
         ~HelperDeleter() {
-            std::lock_guard<std::mutex> lock(recycleMutex);
-            recycleCond.notify_one();
-            switchReady = true;
+            if (_multiDeviceExecutableNetwork) {
+                std::lock_guard<std::mutex> lock(_multiDeviceExecutableNetwork->_recycleMutex);
+                _multiDeviceExecutableNetwork->_recycleCond.notify_one();
+                _multiDeviceExecutableNetwork->_switchReady = true;
+            }
         }
+        void setPointerToExecutableNetwork(MultiDeviceExecutableNetwork* exeNetwork) {
+            _multiDeviceExecutableNetwork = exeNetwork;
+        }
+    private:
+        MultiDeviceExecutableNetwork*                                   _multiDeviceExecutableNetwork = nullptr;
     };
     struct WorkerInferRequest {
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
@@ -234,5 +234,9 @@ private:
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
     bool                                                                _exitFlag = {false};
+    HelperDeleter*                                                      _helpDeleter = nullptr;
+    std::mutex                                                          _recycleMutex;
+    std::condition_variable                                             _recycleCond;
+    bool                                                                _switchReady = {false};
 };
 }  // namespace MultiDevicePlugin

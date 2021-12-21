@@ -120,11 +120,15 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
-    std::shared_ptr<HelperDeleter> helperptr = std::make_shared<HelperDeleter>();
+    HelperDeleter::Ptr helper = nullptr;
+    if (needRecycle && _helpDeleter) {
+        _helpDeleter->setPointerToExecutableNetwork(this);
+        helper.reset(_helpDeleter);
+    }
     for (auto&& workerRequest : workerRequests) {
         workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
         if (needRecycle)
-            workerRequest._deleter = helperptr;
+            workerRequest._deleter = helper;
         auto* workerRequestPtr = &workerRequest;
         IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
         workerRequest._inferRequest->SetCallback(
@@ -259,8 +263,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                       if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isEnabled
                             && !contextPtr->isLoadSuccess) {
                             _exitFlag = true;
-                            switchReady = true;
-                            recycleCond.notify_one();
+                            _switchReady = true;
+                            _recycleCond.notify_one();
                         }
              };
          }
@@ -288,13 +292,14 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _inferPipelineTasksDeviceSpecific["CPU_HELP"] = nullptr;
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
+        _helpDeleter = new HelperDeleter();
         auto recycleTask = [this]() mutable {
             size_t destroynum = 0;
             if (!_exitFlag) {
                 // clean up helper heap
                 {
-                    std::unique_lock<std::mutex> lock(recycleMutex);
-                    recycleCond.wait(lock, [this]{ return switchReady; });
+                    std::unique_lock<std::mutex> lock(_recycleMutex);
+                    _recycleCond.wait(lock, [this]{ return _switchReady; });
                 }
                 // for safety, check the workers from idle queue
                 while (!_exitFlag) {
@@ -518,10 +523,10 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // this is necessary to guarantee member destroyed after getting future
         if (_loadContext[CPU].isEnabled) {
             {
-                std::lock_guard<std::mutex> lock(recycleMutex);
+                std::lock_guard<std::mutex> lock(_recycleMutex);
                 _exitFlag = true;
-                switchReady = true;
-                recycleCond.notify_one();
+                _switchReady = true;
+                _recycleCond.notify_one();
             }
             _loadContext[CPU].future.wait();
             WaitActualNetworkReady();
