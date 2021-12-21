@@ -89,9 +89,11 @@ public:
 
     /**
      * @brief Set batch of input data to infer. Default implementation performs basic validation and checks that all
-     * tensors are not remote Plugin-specific implementations may override this behavior to handle remote tensors case
-     * @param name - a name of input or output blob.
-     * @param blobs - input blobs. The type of Blob must correspond to the network input
+     * tensors are not remote. Plugin-specific implementations may override this behavior to handle remote tensors case.
+     * If plugin expects only memory blobs (not remote blobs), consider to override only SetBlobsImpl and reuse basic
+     * existing implementation
+     * @param name - an operation name of input or output blob.
+     * @param blobs - input blobs. The type of Blob must correspond to the model's input
      * precision and size.
      */
     virtual void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs);
@@ -101,8 +103,10 @@ public:
      * To support 'set_input_tensors'/'set_tensors' plugin-specific implementations shall:
      *  - Inside SetBlobsImpl: update '_batched_inputs' map
      *  - Inside 'SetBlob': erase appropriate '_batched_inputs[name]' item
+     *  - Inside 'InferImpl': call 'convertBatchedInputBlobs' on the beginning to convert many user blobs into single
+     * one
      *  - If needed, override 'convertBatchedInputBlob' to perform custom concatenation and data copy to input blob
-     * @param name - a name of input or output blob.
+     * @param name - an operation name of input or output blob.
      * @param batched_blob - input blobs combined in batched blob. Called only if number of blobs > 1
      * precision and size.
      */
