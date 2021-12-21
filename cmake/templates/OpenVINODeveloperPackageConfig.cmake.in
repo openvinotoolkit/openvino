@@ -6,11 +6,6 @@
 
 include(CMakeFindDependencyMacro)
 
-# TODO: remove after changing [private plugins]
-set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
-set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
-set_and_check(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # HDDL
-
 # Variables to export in plugin's projects
 
 set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH")
@@ -35,35 +30,20 @@ set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
 #
 
 find_dependency(IEDevScripts
-                PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
+                PATHS "@OpenVINO_SOURCE_DIR@/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
-find_dependency(InferenceEngine
+find_dependency(OpenVINO
                 PATHS "${CMAKE_CURRENT_LIST_DIR}"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
-find_dependency(ngraph
-                PATHS "${CMAKE_CURRENT_LIST_DIR}/src/core"
-                NO_CMAKE_FIND_ROOT_PATH
-                NO_DEFAULT_PATH)
-
-if(TARGET openvino::runtime AND NOT TARGET IE::runtime)
-    add_library(IE::runtime INTERFACE IMPORTED)
-    set_target_properties(IE::runtime PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::runtime)
-endif()
-
-# WA for cmake: it exports ngraph as IE::ngraph in the IE export list
-# while we already have ngraph export in its own export list as ngraph::ngraph
-if(TARGET ngraph::ngraph AND NOT TARGET IE::ngraph)
-    add_library(IE::ngraph INTERFACE IMPORTED)
-    set_target_properties(IE::ngraph PROPERTIES INTERFACE_LINK_LIBRARIES ngraph::ngraph)
-endif()
-
 foreach(component @openvino_export_components@)
-    include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
+    string(FIND "${component}" "_legacy" index)
+    if (index EQUAL -1)
+        include("${CMAKE_CURRENT_LIST_DIR}/ov_${component}_dev_targets.cmake")
+    endif()
 endforeach()
 
 if(ENABLE_SYSTEM_PUGIXML)
