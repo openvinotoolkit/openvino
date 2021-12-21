@@ -110,7 +110,7 @@ public:
     uint64_t get_used_device_memory(allocation_type type) const;
 
     /// Returns statistics of GPU memory allocated by engine in current process for all allocation types.
-    /// @note It contains information about both current and peak memory usage
+    /// @note It contains information about current memory usage
     std::map<std::string, uint64_t> get_memory_statistics() const;
 
     /// Adds @p bytes count to currently used memory size of the specified allocation @p type
