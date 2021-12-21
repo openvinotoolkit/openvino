@@ -26,6 +26,7 @@
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
+#include <vpu/configuration/options/denable_mx_boot.hpp>
 
 #include "myriad_executor.h"
 
@@ -250,33 +251,35 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
             }
         }
     }
+    auto st = config.get<DenableMXBootOption>();
+    if (!st) {
+        ncStatus_t booted = bootNextDevice(devicePool, config);
 
-    ncStatus_t booted = bootNextDevice(devicePool, config);
+        // TODO Is any tests for this case? #-19309
+        // In case, then there is no another not booted device, use already booted with minimum number of executors
+        if (booted != NC_OK) {
+            std::vector<DevicePtr> availableDevices;
 
-    // TODO Is any tests for this case? #-19309
-    // In case, then there is no another not booted device, use already booted with minimum number of executors
-    if (booted != NC_OK) {
-        std::vector<DevicePtr> availableDevices;
+            // Get all suitable devices
+            std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
+                [&config](const DevicePtr &device) {
+                    return device->isBooted() && device->isNotFull()
+                        && device->isSuitableForConfig(config);
+                });
+            // Return mock device. If try infer with it, exception will be thrown
+            if (availableDevices.empty()) {
+                DeviceDesc device;
+                device._protocol = config.get<ProtocolOption>();
+                return std::make_shared<DeviceDesc>(device);
+            }
 
-        // Get all suitable devices
-        std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
-            [&config](const DevicePtr &device) {
-                return device->isBooted() && device->isNotFull()
-                       && device->isSuitableForConfig(config);
-            });
-        // Return mock device. If try infer with it, exception will be thrown
-        if (availableDevices.empty()) {
-            DeviceDesc device;
-            device._protocol = config.get<ProtocolOption>();
-            return std::make_shared<DeviceDesc>(device);
+            auto deviceWithMinExecutors = std::min_element(availableDevices.begin(), availableDevices.end(),
+                [](const DevicePtr &lhs, const DevicePtr &rhs) { return lhs->_graphNum < rhs->_graphNum; });
+
+            auto &device = *deviceWithMinExecutors;
+            device->_graphNum++;
+            return device;
         }
-
-        auto deviceWithMinExecutors = std::min_element(availableDevices.begin(), availableDevices.end(),
-            [](const DevicePtr &lhs, const DevicePtr &rhs) { return lhs->_graphNum < rhs->_graphNum; });
-
-        auto &device = *deviceWithMinExecutors;
-        device->_graphNum++;
-        return device;
     }
 
     _log->info("Device #%d %s (%s protocol) allocated", devicePool.size() - 1,
