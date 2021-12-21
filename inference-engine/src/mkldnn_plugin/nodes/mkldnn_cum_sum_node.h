@@ -15,7 +15,6 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -47,6 +46,13 @@ private:
 
     InferenceEngine::Precision dataPrecision;
     std::string errorPrefix;
+
+    template<typename T>
+    struct CumSumExecute {
+        void operator()(MKLDNNCumSumNode* node) {
+            node->exec<T>();
+        }
+    };
 };
 
 }  // namespace MKLDNNPlugin

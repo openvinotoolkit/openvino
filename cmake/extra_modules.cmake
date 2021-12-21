@@ -93,9 +93,6 @@ endfunction()
 # Extra modules support
 #
 
-# for Template plugin
-openvino_developer_export_targets(COMPONENT core TARGETS ngraph_backend interpreter_backend)
-
 # this InferenceEngineDeveloperPackageConfig.cmake is not used
 # during extra modules build since it's generated after modules
 # are configured
@@ -110,3 +107,6 @@ register_extra_modules()
 # for static libraries case we need to generate final ie_plugins.hpp
 # with all the information about plugins
 ie_generate_plugins_hpp()
+
+# used for static build
+ov_generate_frontends_hpp()
