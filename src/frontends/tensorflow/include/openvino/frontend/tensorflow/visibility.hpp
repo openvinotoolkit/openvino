@@ -7,14 +7,14 @@
 #include "openvino/frontend/exception.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
-#    define TF_API
-#    define TF_C_API
+#    define TENSORFLOW_API
+#    define TENSORFLOW_C_API
 #else
 #    ifdef ov_tensorflow_frontend_EXPORTS
-#        define TF_API   OPENVINO_CORE_EXPORTS
-#        define TF_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
+#        define TENSORFLOW_API   OPENVINO_CORE_EXPORTS
+#        define TENSORFLOW_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #    else
-#        define TF_API   OPENVINO_CORE_IMPORTS
-#        define TF_C_API OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS
+#        define TENSORFLOW_API   OPENVINO_CORE_IMPORTS
+#        define TENSORFLOW_C_API OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS
 #    endif  // ov_tensorflow_frontend_EXPORTS
 #endif      // OPENVINO_STATIC_LIBRARY

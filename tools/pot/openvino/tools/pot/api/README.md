@@ -306,7 +306,7 @@ given `batch_size`. Returns a list of data items.
 ## Pipeline
 
 ```
-class compression.pipline.pipeline.Pipeline(engine)
+class compression.pipeline.pipeline.Pipeline(engine)
 ```
 Pipeline class represents the optimization pipeline.
 
@@ -319,7 +319,7 @@ The pipeline can be applied to the DL model by calling `run(model)` method where
 
 The POT Python* API provides the utility function to create and configure the pipeline:
 ```
-compression.pipline.initializer.create_pipeline(algo_config, engine)
+compression.pipeline.initializer.create_pipeline(algo_config, engine)
 ```
 *Parameters* 
 - `algo_config` - a list defining optimization algorithms and their parameters included in the optimization pipeline. 
