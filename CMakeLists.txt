@@ -20,6 +20,11 @@ find_package(IEDevScripts REQUIRED
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
+# make sure we are compatible with gcc-7 built binaries
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7.0)
+    ie_add_compiler_flags(-Wabi=11)
+endif()
+
 include(CTest)
 include(cmake/features.cmake)
 
