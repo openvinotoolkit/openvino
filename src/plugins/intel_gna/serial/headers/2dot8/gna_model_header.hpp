@@ -180,9 +180,13 @@ struct RuntimeEndPoint {
         element_size = old.element_size;
         elements_count = old.elements_count;
         orientation = old.orientation;
-        layout = InferenceEngine::Layout::NC;
-        precision = InferenceEngine::Precision::FP32;
+        layout = old.layout;
+        precision = old.precision;
         descriptor_offset = old.descriptor_offset;
+        shape.NumberOfDimensions = old.shape.NumberOfDimensions;
+        for (auto i = 0; i < shape.NumberOfDimensions; i++) {
+            shape.Dimensions[i] = old.shape.Dimensions[i];
+        }
         tensor_names_count = 0;
     }
 
