@@ -33,7 +33,9 @@ public:
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, Shape{1, 2, 3, 4});
         auto op = std::make_shared<ov::opset8::Relu>(param);
         auto res = std::make_shared<ov::opset8::Result>(op);
-        return std::make_shared<ov::Model>(ResultVector({res}), ParameterVector({param}), "mock1_model");
+        auto ov_model = std::make_shared<ov::Model>(ResultVector({res}), ParameterVector({param}), "mock1_model");
+        ov_model->get_rt_info()["mock_test"] = std::string(1024, 't');
+        return ov_model;
     }
 };
 

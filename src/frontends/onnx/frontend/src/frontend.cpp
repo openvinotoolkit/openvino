@@ -30,7 +30,7 @@ ONNX_FRONTEND_C_API void* GetFrontEndData() {
     return res;
 }
 
-ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.empty()) {
         return nullptr;
     }

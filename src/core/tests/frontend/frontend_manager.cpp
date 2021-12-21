@@ -132,6 +132,8 @@ TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder) {
         auto input_model = fe->load("test");
         model = fe->convert(input_model);
         ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+        ASSERT_TRUE(model->get_rt_info().count("mock_test"));
+        ASSERT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
     }
     ASSERT_EQ(model->get_friendly_name(), "mock1_model");
 }
@@ -141,6 +143,7 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(fe = fem.load_by_model(""));
     ASSERT_FALSE(fe);
+
     class MockFrontEnd : public FrontEnd {};
     std::unique_ptr<FrontEnd> fePtr(new MockFrontEnd());  // to verify base destructor
     fe = std::make_shared<MockFrontEnd>();
@@ -155,7 +158,7 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
 
 TEST(FrontEndManagerTest, testDefaultInputModel) {
     class MockInputModel : public InputModel {};
-    std::unique_ptr<MockInputModel> imPtr(new MockInputModel());  // to verify base destructor
+    std::unique_ptr<InputModel> imPtr(new MockInputModel());  // to verify base destructor
     InputModel::Ptr im = std::make_shared<MockInputModel>();
     ASSERT_EQ(im->get_inputs(), std::vector<Place::Ptr>{});
     ASSERT_EQ(im->get_outputs(), std::vector<Place::Ptr>{});

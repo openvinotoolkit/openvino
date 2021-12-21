@@ -127,12 +127,11 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     auto create_input_model = [&]() -> std::shared_ptr<InputModel> {
         if (provided_model_stream) {
-            auto input_model = std::make_shared<InputModel>(*provided_model_stream, weights, create_extensions_map());
-            return std::static_pointer_cast<InputModel>(input_model);
+            return std::make_shared<InputModel>(*provided_model_stream, weights, create_extensions_map());
         } else if (local_model_stream.is_open()) {
             auto input_model = std::make_shared<InputModel>(local_model_stream, weights, create_extensions_map());
             local_model_stream.close();
-            return std::static_pointer_cast<InputModel>(input_model);
+            return input_model;
         }
         return nullptr;
     };

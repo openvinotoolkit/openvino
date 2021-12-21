@@ -29,6 +29,7 @@ public:
                                             ov_model->get_variables(),
                                             ov_model->get_friendly_name());
         copy->m_shared_object = shared_object;
+        copy->get_rt_info() = ov_model->get_rt_info();
         return copy;
     }
 };
