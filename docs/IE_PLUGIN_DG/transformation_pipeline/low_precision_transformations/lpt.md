@@ -56,7 +56,7 @@ For example, if you would like to infer a model with `Convolution` operation in 
 
 ### Low precision tools
 There are two tools to quantize a model:
-1. [Post-Training Optimization Toolkit](@ref pot_README.html) (POT)
+1. [Post-Training Optimization Toolkit](@ref pot_docs_LowPrecisionOptimizationGuide) (POT)
 2. [Neural Network Compression Framework](https://github.com/openvinotoolkit/nncf) (NNCF)
 
 Additionally, low precision transformations can handle ONNX quantized models.
@@ -228,7 +228,7 @@ After that you should quantize model by the [Model Quantizer](@ref omz_tools_dow
 
 ### Inference
 
-The simplest way to infer the model and collect performance counters is [C++ Benchmark Application](../../inference-engine/samples/benchmark_app/README.md). 
+The simplest way to infer the model and collect performance counters is [Benchmark Application](../../samples/cpp/benchmark_app/README.md). 
 ```sh
 ./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
 ```
