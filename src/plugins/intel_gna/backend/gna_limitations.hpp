@@ -141,8 +141,6 @@ public:
 
 bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning);
 
-bool ArePrecisionsSupported(const std::shared_ptr<ngraph::Function> &model, std::string &error_msg);
-
 inline size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
     auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
     return total_size / bufferMaxSize + 1;
