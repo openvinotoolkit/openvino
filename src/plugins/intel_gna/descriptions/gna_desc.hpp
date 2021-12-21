@@ -48,12 +48,12 @@ struct GnaDesc {
     }
 
     void set_precision(InferenceEngine::Precision precision) {
-        this->model_precision = precision;
+        this->tensor_precision = precision;
         this->num_bytes_per_element = precision.size();
     }
 
     InferenceEngine::DataPtr to_ie_data() {
-        return std::make_shared<InferenceEngine::Data>(name, InferenceEngine::TensorDesc(tensor_precision, dims, model_layout));
+        return std::make_shared<InferenceEngine::Data>(name, InferenceEngine::TensorDesc(model_precision, dims, model_layout));
     }
 };
 
@@ -69,7 +69,7 @@ struct InputDesc : GnaDesc {
         this->model_layout = inputInfo->getLayout();
         this->dims = inputInfo->getTensorDesc().getDims();
         this->name = inputInfo->name();
-        this->num_bytes_per_element = model_precision.size();
+        this->num_bytes_per_element = tensor_precision.size();
         this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
     }
 
@@ -92,7 +92,7 @@ struct OutputDesc : GnaDesc {
         this->model_layout = outputData->getLayout();
         this->dims = outputData->getTensorDesc().getDims();
         this->name = outputData->getName();
-        this->num_bytes_per_element = model_precision.size();
+        this->num_bytes_per_element = tensor_precision.size();
         this->num_elements = InferenceEngine::details::product(dims.begin(), dims.end());
     }
 };

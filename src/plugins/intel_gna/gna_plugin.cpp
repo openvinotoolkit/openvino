@@ -1602,12 +1602,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     auto serial = GNAModelSerial(&std::get<0>(nnets.back())->obj, mt);
 #endif
 
-    // if (!inputsDesc->inputScaleFactors.empty()) {
-    //     gnalog() << "[Import Network] Clearing input scale factors defined in configuration. "
-    //              << "Scale factors provided in imported model will be used\n";
-    //     inputsDesc->inputScaleFactors.clear();
-    // }
-
     serial.setHeader(header);
     serial.Import(basePtr,
             header.gnaMemSize,
@@ -1625,13 +1619,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     if (!config.inputScaleFactors.empty()) {
         IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
         // TODO: config should also uses map of inputs
-        size_t id = 0;
-        for (auto &input : inputs_ptr_->Get()) {
-            if (config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
+        for (size_t id = 0; id < config.inputScaleFactors.size(); ++id) {
+            if (id < inputs_ptr_->size() && config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
                 gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << id << std::endl;
-                input.scale_factor = config.inputScaleFactors[id];
+                inputs_ptr_->Get().at(id).scale_factor = config.inputScaleFactors[id];
             }
-            id++;
         }
     }
 

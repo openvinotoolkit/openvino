@@ -414,7 +414,7 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         ep.scaleFactor = desc.scale_factor;
         ep.element_size = desc.num_bytes_per_element;
         ep.layout = desc.model_layout;
-        ep.precision = desc.tensor_precision;
+        ep.precision = desc.model_precision;
         ep.orientation = desc.orientation;
         ep.tensor_names_count = static_cast<uint8_t>(desc.tensor_names.size());
         ep.descriptor_offset = offsetFromBase(*desc.ptrs.begin());
