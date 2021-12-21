@@ -1,0 +1,23 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local itemArray = argArray[1]
+local namePrefix = argArray[2]
+
+for i = 1, #itemArray do
+	local item = itemArray[i]
+}
+	'$namePrefix$(item.name)' : 'doxid-$(item.id)',
+%{
+end -- for
+}

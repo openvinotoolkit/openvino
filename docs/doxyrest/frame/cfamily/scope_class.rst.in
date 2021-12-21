@@ -1,0 +1,74 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+local isOpen = argArray[2]
+
+if isOpen then
+	local decl = getClassDeclString(compound, g_simpleItemNameTemplate, "\t")
+
+	if #compound.baseTypeArray == 0 then
+}
+	$decl$g_preBodySpace{
+%{
+	elseif #compound.baseTypeArray == 1 then
+		local item = compound.baseTypeArray[1]
+		local protection = compound.baseTypeProtectionArray[1]
+}
+	$decl: $(getBaseClassString(item, protection))$g_preBodySpace{
+%{
+	else
+}
+	$decl:
+%{
+		for i = 1, #compound.baseTypeArray do
+			local item = compound.baseTypeArray[i]
+			local protection = compound.baseTypeProtectionArray[i]
+			local suffix = ""
+
+			if i < #compound.baseTypeArray then
+				suffix = ","
+			else
+				suffix = g_preBodySpace .. "{"
+			end
+}
+	    $(getBaseClassString(item, protection))$suffix
+%{
+		end -- for
+	end -- if
+else
+}
+	};
+%{
+	if #compound.derivedTypeArray > 0 and SHOW_DIRECT_DESCENDANTS then
+		-- always link derived types (even when no documentation)
+
+		local prevHasItemDocumentation = hasItemDocumentation
+		hasItemDocumentation = function(item)
+			return true
+		end
+
+		emit("\n")
+
+		includeFile(
+			"overview_common.rst.in",
+			compound,
+			compound.derivedTypeArray,
+			getClassDeclString,
+			"direct descendants"
+			)
+
+		hasItemDocumentation = prevHasItemDocumentation
+	end
+end -- if
+}

@@ -1,4 +1,4 @@
-## HSwish <a name="HSwish"></a> {#openvino_docs_ops_activation_HSwish_4}
+# HSwish {#openvino_docs_ops_activation_HSwish_4}
 
 **Versioned name**: *HSwish-4*
 

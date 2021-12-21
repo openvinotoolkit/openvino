@@ -1,4 +1,4 @@
-## NotEqual <a name="NotEqual"></a> {#openvino_docs_ops_comparison_NotEqual_1}
+# NotEqual {#openvino_docs_ops_comparison_NotEqual_1}
 
 **Versioned name**: *NotEqual-1*
 

@@ -1,4 +1,4 @@
-## Inverse Discrete Fourier Transformation (IDFT) <a name="IDFT"></a> {#openvino_docs_ops_signals_IDFT_7}
+# Inverse Discrete Fourier Transformation (IDFT) {#openvino_docs_ops_signals_IDFT_7}
 
 **Versioned name**: *IDFT-7*
 

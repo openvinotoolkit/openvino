@@ -27,7 +27,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 
 ## How It Works
 
-Upon the start-up, the application reads command line parameters, loads a specified model and input data to the Inference Engine plugin, performs synchronous inference on all speech utterances stored in the input file. Context-windowed speech frames are processed in batches of 1-8
+On startup, the application reads command line parameters, loads a specified model and input data to the Inference Engine plugin, performs synchronous inference on all speech utterances stored in the input file. Context-windowed speech frames are processed in batches of 1-8
 frames according to the `-bs` parameter.  Batching across utterances is not supported by this sample.  When inference is done, the application creates an output file.  If the `-r` option is given, error
 statistics are provided for each speech utterance as shown above.
 
@@ -46,7 +46,7 @@ Three modes are supported:
 utterance in the input file is scanned for dynamic range.  The scale factor (floating point scalar multiplier) required to scale the maximum input value of the first utterance to 16384 (15 bits) is used
 for all subsequent inputs.  The neural network is quantized to accommodate the scaled input dynamic range.
 - *dynamic* - The scale factor for each input batch is computed
-just before inference on that batch.  The input and network are (re)quantized on-the-fly using an efficient procedure.
+just before inference on that batch.  The input and network are (re)quantized on the fly using an efficient procedure.
 - *user-defined* - The user may specify a scale factor via the `-sf` flag that will be used for static quantization.
 
 The `-qb` flag provides a hint to the GNA plugin regarding the preferred target weight resolution for all layers.  For example, when `-qb 8` is specified, the plugin will use 8-bit weights wherever possible in the
@@ -72,7 +72,7 @@ Several execution modes are supported via the `-d` flag:
 
 The GNA plugin supports loading and saving of the GNA-optimized model (non-IR) via the `-rg` and `-wg` flags.  Thereby, it is possible to avoid the cost of full model quantization at run time. The GNA plugin also supports export of firmware-compatible embedded model images for the Intel® Speech Enabling Developer Kit and Amazon Alexa* Premium Far-Field Voice Development Kit via the `-we` flag (save only).
 
-In addition to performing inference directly from a GNA model file, these options make it possible to:
+In addition to performing inference directly from a GNA model file, these combinations of options make it possible to:
 
 - Convert from IR format to GNA format model file (`-m`, `-wg`)
 - Convert from IR format to embedded format model file (`-m`, `-we`)
@@ -86,7 +86,8 @@ To build the sample, please use instructions available at [Build the Sample Appl
 
 Running the application with the `-h` option yields the following usage message:
 
-```
+```sh
+./speech_sample -h
 [ INFO ] InferenceEngine:
         API version ............ <version>
         Build .................. <number>
@@ -128,14 +129,11 @@ Running the application with the empty list of options yields the usage message 
 
 ### Model Preparation
 
-You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
+Run Model Optimizer to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
 
-```
-python <path_to_mo>/mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
-```
+mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
 
-Assuming that the model optimizer (`mo.py`), Kaldi-trained neural network, `wsj_dnn5b.nnet`, and Kaldi class counts file, `wsj_dnn5b.counts`, are in the working directory this produces
-the IE IR network consisting of `wsj_dnn5b.xml` and `wsj_dnn5b.bin`.
+Assuming that the Kaldi-trained neural network, `wsj_dnn5b.nnet`, and Kaldi class counts file, `wsj_dnn5b.counts`, are in the working directory this produces the IR network consisting of `wsj_dnn5b.xml` and `wsj_dnn5b.bin`.
 
 The following pre-trained models are available:
 
@@ -147,9 +145,9 @@ All of them can be downloaded from [https://storage.openvinotoolkit.org/models_c
 
 ### Speech Inference
 
-Once the IR is created, you can use the following command to do inference on Intel&reg; Processors with the GNA co-processor (or emulation library):
+Once the IR is created, you can use the following command to do inference on Intel® Processors with the GNA co-processor (or emulation library):
 
-```
+```sh
 <path_to_sample>/speech_sample -d GNA_AUTO -bs 2 -i <path_to_ark>/dev93_10.ark -m <path_to_model>/wsj_dnn5b.xml -o scores.ark -r <path_to_ark>/dev93_scores_10.ark
 ```
 
@@ -168,7 +166,7 @@ All of them can be downloaded from [https://storage.openvinotoolkit.org/models_c
 The acoustic log likelihood sequences for all utterances are stored in the file. Example `scores.ark` or `scores.npz`.  If the `-r` option is used, a report on the statistical score error is generated for each utterance such as
 the following:
 
-```
+```sh
 ./speech_sample -d GNA_AUTO -bs 2 -i dev93_10.ark -m wsj_dnn5b.xml -o scores.ark -r dev93_scores_10.ark
 [ INFO ] InferenceEngine:
         API version ............ <version>
@@ -211,8 +209,8 @@ End of Utterance X
 
 ## Use of Sample in Kaldi* Speech Recognition Pipeline
 
-The Wall Street Journal DNN model used in this example was prepared using the Kaldi s5 recipe and the Kaldi Nnet (nnet1) framework.  It is possible to recognize speech by substituting the `speech_sample` for
-Kaldi's nnet-forward command. Since the speech_sample does not yet use pipes, it is necessary to use temporary files for speaker-transformed feature vectors and scores when running the Kaldi speech recognition pipeline. The following operations assume that feature extraction was already performed according to the `s5` recipe and that the working directory within the Kaldi source tree is `egs/wsj/s5`.
+The Wall Street Journal DNN model used in this example was prepared using the Kaldi s5 recipe and the Kaldi Nnet (nnet1) framework. It is possible to recognize speech by substituting the `speech_sample` for
+Kaldi's nnet-forward command. Since the `speech_sample` does not yet use pipes, it is necessary to use temporary files for speaker-transformed feature vectors and scores when running the Kaldi speech recognition pipeline. The following operations assume that feature extraction was already performed according to the `s5` recipe and that the working directory within the Kaldi source tree is `egs/wsj/s5`.
 
 1. Prepare a speaker-transformed feature set given the feature transform specified in `final.feature_transform` and the feature files specified in `feats.scp`:
 

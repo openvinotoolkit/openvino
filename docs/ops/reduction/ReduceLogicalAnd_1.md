@@ -1,4 +1,4 @@
-## ReduceLogicalAnd <a name="ReduceLogicalAnd"></a> {#openvino_docs_ops_reduction_ReduceLogicalAnd_1}
+# ReduceLogicalAnd {#openvino_docs_ops_reduction_ReduceLogicalAnd_1}
 
 **Versioned name**: *ReduceLogicalAnd-1*
 

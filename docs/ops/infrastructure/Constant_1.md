@@ -1,4 +1,4 @@
-## Constant <a name="Constant"></a> {#openvino_docs_ops_infrastructure_Constant_1}
+# Constant {#openvino_docs_ops_infrastructure_Constant_1}
 
 **Versioned name**: *Constant-1*
 

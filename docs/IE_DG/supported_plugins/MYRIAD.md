@@ -4,63 +4,14 @@
 
 The Inference Engine MYRIAD plugin has been developed for inference of neural networks on Intel&reg; Neural Compute Stick 2.
 
-## Installation on Linux* OS
+## Configuring the MYRIAD Plugin
 
-For installation instructions, refer to the [Installation Guide for Linux*](../../install_guides/installing-openvino-linux.md).
-
-
-## Installation on Windows* OS
-
-For installation instructions, refer to the [Installation Guide for Windows*](../../install_guides/installing-openvino-windows.md).
-
-## Supported networks
-
-The Inference Engine MYRIAD plugin supports the following networks:
-
-**Caffe\***:
-* AlexNet
-* CaffeNet
-* GoogleNet (Inception) v1, v2, v4
-* VGG family (VGG16, VGG19)
-* SqueezeNet v1.0, v1.1
-* ResNet v1 family (18\*\*\*, 50, 101, 152)
-* MobileNet (mobilenet-v1-1.0-224, mobilenet-v2)
-* Inception ResNet v2
-* DenseNet family (121,161,169,201)
-* SSD-300, SSD-512, SSD-MobileNet, SSD-GoogleNet, SSD-SqueezeNet
-
-**TensorFlow\***:
-* AlexNet
-* Inception v1, v2, v3, v4
-* Inception ResNet v2
-* MobileNet v1, v2
-* ResNet v1 family (50, 101, 152)
-* ResNet v2 family (50, 101, 152)
-* SqueezeNet v1.0, v1.1
-* VGG family (VGG16, VGG19)
-* Yolo family (yolo-v2, yolo-v3, tiny-yolo-v1, tiny-yolo-v2, tiny-yolo-v3)
-* faster_rcnn_inception_v2, faster_rcnn_resnet101
-* ssd_mobilenet_v1
-* DeepLab-v3+
-
-**MXNet\***:
-* AlexNet and CaffeNet
-* DenseNet family (121,161,169,201)
-* SqueezeNet v1.1
-* MobileNet v1, v2
-* NiN
-* ResNet v1 (101, 152)
-* ResNet v2 (101)
-* SqueezeNet v1.1
-* VGG family (VGG16, VGG19)
-* SSD-Inception-v3, SSD-MobileNet, SSD-ResNet-50, SSD-300
-
-\*\*\* Network is tested on Intel&reg; Neural Compute Stick 2 with BatchNormalization fusion optimization disabled during Model Optimizer import
+To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systemss, refer to the Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs section in the installation guides for [Linux](../../install_guides/installing-openvino-linux.md) or [Windows](../../install_guides/installing-openvino-windows.md).
 
 ## Supported Configuration Parameters
 
 See VPU common configuration parameters for the [VPU Plugins](VPU.md).
-When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
+When specifying key values as raw strings (that is, when using the Python API), omit the `KEY_` prefix.
 
 In addition to common parameters, the MYRIAD plugin accepts the following options:
 
@@ -73,9 +24,9 @@ In addition to common parameters, the MYRIAD plugin accepts the following option
 ## Device allocation <a name="MYRIAD_DEVICE_ALLOC">&nbsp;</a>
 
 Each `IExecutableNetwork` instance tries to allocate new device on `InferenceEngine::Core::LoadNetwork`, but if all available devices are already allocated it will use the one with the minimal number of uploaded networks.
-The maximum number of networks single device can handle depends on device memory capacity and the size of the networks.
+The maximum number of networks a single device can handle depends on device memory capacity and the size of the networks.
 
-If `KEY_VPU_MYRIAD_FORCE_RESET` option is set to `YES` the plugin will reset all VPU devices in the system.
+If the `KEY_VPU_MYRIAD_FORCE_RESET` option is set to `YES`, the plugin will reset all VPU devices in the system.
 
 Single device cannot be shared across multiple processes.
 

@@ -1,4 +1,4 @@
-## Convert <a name="Convert"></a> {#openvino_docs_ops_type_Convert_1}
+# Convert {#openvino_docs_ops_type_Convert_1}
 
 **Versioned name**: *Convert-1*
 

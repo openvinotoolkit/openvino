@@ -1,4 +1,4 @@
-# Build Plugin Using CMake* {#plugin_build}
+# Build Plugin Using CMake* {#openvino_docs_ie_plugin_dg_plugin_build}
 
 Inference Engine build infrastructure provides the Inference Engine Developer Package for plugin development.
 
@@ -35,7 +35,7 @@ Once the commands above are executed, the Inference Engine Developer Package is 
        * `IE::ngraphFunctions` - static library with the set of `ngraph::Function` builders
        * `IE::funcSharedTests` - static library with common functional tests
 
-> **Note:** it's enough just to run `cmake --build . --target ie_dev_targets` command to build only targets from the
+> **NOTE**: it's enough just to run `cmake --build . --target ie_dev_targets` command to build only targets from the
 > Inference Engine Developer package.
 
 Build Plugin using Inference Engine Developer Package

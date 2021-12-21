@@ -221,7 +221,7 @@ Use the Model Downloader to download the models to a models directory. This guid
 ```sh
 sudo python3 ./downloader.py --name <model_name> --output_dir <models_dir>
 ```
-> **NOTE:** Always run the downloader with `sudo`.
+> **NOTE**: Always run the downloader with `sudo`.
 
 Download the following models if you want to run the Image Classification Sample:
 

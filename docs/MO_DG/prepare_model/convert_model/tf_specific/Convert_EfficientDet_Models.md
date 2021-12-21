@@ -41,7 +41,7 @@ As a result the frozen model file `savedmodeldir/efficientdet-d4_frozen.pb` will
 
 > **NOTE**: For custom trained models, specify `--hparams` flag to `config.yaml` which was used during training.
 
-> **NOTE:** If you see an error `AttributeError: module 'tensorflow_core.python.keras.api._v2.keras.initializers' has no attribute 'variance_scaling'` apply the fix from the [patch](https://github.com/google/automl/pull/846).
+> **NOTE**: If you see an error `AttributeError: module 'tensorflow_core.python.keras.api._v2.keras.initializers' has no attribute 'variance_scaling'` apply the fix from the [patch](https://github.com/google/automl/pull/846).
 
 ### Convert EfficientDet TensorFlow Model to the IR
 
@@ -65,7 +65,7 @@ to the Model Optimizer on how to convert the model and trigger transformations i
 train the model yourself and modified the `hparams_config` file or the parameters are different from the ones used for EfficientDet-D4.
 The attribute names are self-explanatory or match the name in the `hparams_config` file.
 
-> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../Converting_Model_General.md).
+> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md).
 
 OpenVINO&trade; toolkit provides samples that can be used to infer EfficientDet model. For more information, refer to 
 [Open Model Zoo Demos](@ref omz_demos) and 

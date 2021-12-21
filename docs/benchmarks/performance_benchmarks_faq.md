@@ -68,17 +68,4 @@ The web site format has changed in order to support the more common search appro
 #### 13. How is Latency measured?
 Latency is measured by running the OpenVINO™ inference engine in synchronous mode. In synchronous mode each frame or image is processed through the entire set of stages (pre-processing, inference, post-processing) before the next frame or image is processed. This KPI is relevant for applications where the inference on a single image is required, for example the analysis of an ultra sound image in a medical application or the analysis of a seismic image in the oil & gas industry. Other use cases include real-time or near real-time applications like an industrial robot's response to changes in its environment and obstacle avoidance for autonomous vehicles where a quick response to the result of the inference is required.
 
-\htmlonly
-<style>
-    .footer {
-        display: none;
-    }
-</style>
-<div class="opt-notice-wrapper">
-<p class="opt-notice">
-\endhtmlonly
 For more complete information about performance and benchmark results, visit: [www.intel.com/benchmarks](https://www.intel.com/benchmarks) and [Optimization Notice](https://software.intel.com/articles/optimization-notice). [Legal Information](../Legal_Information.md).
-\htmlonly
-</p>
-</div>
-\endhtmlonly

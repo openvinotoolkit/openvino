@@ -1,6 +1,8 @@
-# Custom nGraph Operation {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
+# Custom nGraph Operations {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
 
-The Inference Engine Extension API allows you to register operation sets (opsets) with custom nGraph operations to support models with operations that OpenVINO™ does not support out-of-the-box.
+Inference Engine Extension API allows you to register operation sets (opsets) with custom nGraph operations to support models with operations which OpenVINO™ does not support out-of-the-box.
+
+Besides creating custom nGraph operations, to [support custom operations](../../HOWTO/Custom_Layers_Guide.md) in your model you must also create a Model Optimizer extension for the custom operations and an Inference Engine device plugin extension for the device you will use for inference.
 
 ## Operation Class
 
@@ -26,8 +28,8 @@ Based on that, declaration of an operation class can look as follows:
 
 The provided implementation has several fields:
 
- * `add` of type `int64_t` is an attribute of a custom operation.
- * `type_info` of type `ngraph::NodeTypeInfo` defines the type and version of an operation.
+ * `add` of type `int64_t` is an attribute of a custom operation
+ * `type_info` of type `ngraph::NodeTypeInfo` defines type and version of an operation
 
 ### Operation Constructors
 
@@ -67,14 +69,13 @@ To add custom operations to the [Extension](Extension.md) class, create an opera
 
 @snippet template_extension/old/extension.cpp extension:getOpSets
 
-This method returns a map of opsets that exist in the extension library.
-
-nGraph provides an opset mechanism to group operations into clusters. S. Different opsets distinguish between different versions of one operation.
+This method returns a map of opsets that exist in the [extension library](Extension.md). 
+nGraph provides an opset mechanism to group operations into clusters. Different opsets distinguish between different versions of one operation.
 
 When specifying opset names, follow the rules below:
 * Use unique opset names.
 * Do not use the following built-in opset names: `extension`, `experimental`, `opset1`, `opset2`, `opset3`, ... , `opsetN`.
-* Make sure that the Model Optimizer and your extension use the same opset names.
+* [Make sure that the Model Optimizer](../../HOWTO/Custom_Layers_Guide.md) and your extension use the same opset names.
 * IR v10 operations have the mandatory `version` attribute specifying the opset.
 Operations from the default opset cannot be redefined.
 
