@@ -3,9 +3,10 @@
 //
 
 #include "transformations/rt_info/reverse_input_channels.hpp"
+
 #include "ngraph/node.hpp"
 
-bool ov::is_reverse_input_channels(const std::shared_ptr<ngraph::Node> &node) {
+bool ov::is_reverse_input_channels(const std::shared_ptr<ngraph::Node>& node) {
     return node->get_rt_info().count(ReverseInputChannels::get_type_info_static());
 }
 

@@ -11,7 +11,6 @@
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/opsets/opset8.hpp"
-
 #include "transformations/rt_info/reverse_input_channels.hpp"
 
 namespace ov {
