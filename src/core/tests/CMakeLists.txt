@@ -422,13 +422,13 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
-if (ENABLE_MKL_DNN AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_cpu_plugin)
     endif()
 endif()
 
