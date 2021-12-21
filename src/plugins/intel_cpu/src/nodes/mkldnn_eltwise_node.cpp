@@ -962,8 +962,14 @@ const std::map<const ngraph::DiscreteTypeInfo, MKLDNNEltwiseNode::Initializer> M
     {ngraph::op::v0::Clamp::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         auto clampOp = getNgraphOpAs<ngraph::op::v0::Clamp>(op);
 
-        node.alpha = static_cast<float>(clampOp->get_min());
-        node.beta = static_cast<float>(clampOp->get_max());
+        float alpha_ = static_cast<float>(clampOp->get_min());
+        float beta_ = static_cast<float>(clampOp->get_max());
+        if (clampOp->get_input_element_type(0).is_integral_number()) {
+            alpha_ = std::ceil(alpha_);
+            beta_ = std::floor(beta_);
+        }
+        node.alpha = alpha_;
+        node.beta = beta_;
         node.algorithm = EltwiseClamp;
         node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_clip;
     }},
