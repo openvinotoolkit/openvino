@@ -295,8 +295,7 @@ protected:
                                          const InferenceEngine::BatchedBlob::Ptr& batched_blob);
 
     /**
-     * @brief Performs basic validation of user's blobs set via ov::runtime::InferRequest
-     * 'set_tensors/set_input_tensors'
+     * @brief Performs basic validation of user's blobs set via SetBlobs
      * @note Plugin-specific implementations may call this function to performs basic validation inside 'SetBlobs'
      * @param name - input name.
      * @param blobs - input blobs. The type of Blob must correspond to the network input
