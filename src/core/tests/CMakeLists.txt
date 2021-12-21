@@ -422,6 +422,34 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
+if (ENABLE_MKL_DNN AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+    message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
+    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
+    if (ENABLE_STRICT_DEPENDENCIES)
+        # For convinience add a runtime dependency to build along with this target.
+        # Warning: Parallel build with -GNinja may not be efficient.
+        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+    endif()
+endif()
+
+if (ENABLE_INTEL_GPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+    message(STATUS "OV_CORE_TESTS: IE:GPU enabled")
+    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
+    if (ENABLE_STRICT_DEPENDENCIES)
+        # For convinience add a runtime dependency to build along with this target.
+        # Warning: Parallel build with -GNinja may not be efficient.
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_gpu_plugin)
+    endif()
+endif()
+
+if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+    message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
+    set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
+    if (ENABLE_STRICT_DEPENDENCIES)
+        list(APPEND UNIT_TESTS_DEPENDENCIES templatePlugin)
+    endif()
+endif()
+
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
 # 2) They must be in the `test/backend` directory
@@ -437,6 +465,9 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
+)
+
+set(OP_EVAL_TEST_SRC 
     # It should be a part of template plugin
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
@@ -459,8 +490,7 @@ set(MULTI_TEST_SRC
     op_eval/swish.cpp
     op_eval/strided_slice.cpp
     op_eval/transpose.cpp
-    op_eval/variadic_split.cpp
-)
+    op_eval/variadic_split.cpp)
 
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND MULTI_TEST_SRC
@@ -470,7 +500,7 @@ if (ENABLE_OV_ONNX_FRONTEND)
             onnx/onnx_import_const_folding.in.cpp
             onnx/onnx_import_convpool.in.cpp
             onnx/onnx_import_deprecated.in.cpp
-            # onnx/onnx_import_dyn_shapes.in.cpp
+            onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
             onnx/onnx_import_org_openvino.in.cpp
             onnx/onnx_import_reshape.in.cpp
@@ -487,10 +517,11 @@ if (ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
+                             ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-foreach(src IN LISTS SRC MULTI_TEST_SRC)
+foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
         list(APPEND full_src_names ${src})
     else()
@@ -499,12 +530,26 @@ foreach(src IN LISTS SRC MULTI_TEST_SRC)
 endforeach()
 add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
-set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest)
+foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
+    string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
+    string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
+    set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
 
-foreach(TEST_SRC ${MULTI_TEST_SRC})
-    string(REPLACE ".in." "_TEMPLATE." TARGET_NAME ${TEST_SRC})
-    configure_file(${TEST_SRC} ${TARGET_NAME})
-    set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME} ${SRC})
+    foreach(TEST_SRC ${MULTI_TEST_SRC})
+        string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
+        string(REPLACE ".in." "_${BACKEND_NAME}." TARGET_NAME ${TEST_SRC})
+        configure_file(${TEST_SRC} ${TARGET_NAME})
+        set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME} ${SRC})
+    endforeach()
+
+    message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
+endforeach()
+
+set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
+
+foreach(TEST_SRC ${OP_EVAL_TEST_SRC})
+    configure_file(${TEST_SRC} ${TEST_SRC})
+    set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TEST_SRC} ${SRC})
 endforeach()
 
 add_executable(ov_core_unit_tests ${SRC})
@@ -512,8 +557,9 @@ add_executable(ov_core_unit_tests ${SRC})
 add_dependencies(ov_core_unit_tests template_extension)
 
 target_include_directories(ov_core_unit_tests PRIVATE ".")
+target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
-get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
+get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
 target_include_directories(ov_core_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
 
 target_compile_definitions(ov_core_unit_tests
@@ -527,8 +573,8 @@ endif()
 
 target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         engines_test_util
-                                        ngraph::builder
                                         ngraph_reference
+                                        ngraph::builder
                                         openvino::util
                                         pugixml::static
                                         ${CMAKE_DL_LIBS}
@@ -557,9 +603,9 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
-    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ov_frontend SOURCE_DIR)
+    get_target_property(ONNX_FRONTEND_SRC_DIR ov_onnx_frontend SOURCE_DIR)
     target_include_directories(ov_core_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(ov_core_unit_tests PRIVATE onnx_ov_frontend onnx_test_util)
+    target_link_libraries(ov_core_unit_tests PRIVATE ov_onnx_frontend onnx_test_util)
     if (LINUX)
         target_link_options(ov_core_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
@@ -568,7 +614,7 @@ if (ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 if(ENABLE_OV_IR_FRONTEND)
-    add_dependencies(ov_core_unit_tests ir_ov_frontend)
+    add_dependencies(ov_core_unit_tests ov_ir_frontend)
 endif()
 
 install(TARGETS ov_core_unit_tests
