@@ -34,23 +34,46 @@ class CompiledModel;
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class OPENVINO_RUNTIME_API InferRequest {
-    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IInferRequestInternal> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is
      * destroyed.
-     * @param impl Initialized shared pointer
      */
-    InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl);
+    InferRequest(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl, const std::shared_ptr<void>& so);
     friend class ov::runtime::CompiledModel;
 
 public:
-    /**
-     * @brief Default constructor
-     */
+    /// @brief Default constructor
     InferRequest() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other InferRequest object
+    InferRequest(const InferRequest& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other InferRequest object
+    /// @return reference to the current object
+    InferRequest& operator=(const InferRequest& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other InferRequest object
+    InferRequest(InferRequest&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other InferRequest object
+    /// @return reference to the current object
+    InferRequest& operator=(InferRequest&& other) = default;
+
+    /**
+     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @note To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
+     *       And use destructor to remove implementation object before reference to library explicitly
+     */
+    ~InferRequest();
 
     /**
      * @brief Sets input/output data to infer

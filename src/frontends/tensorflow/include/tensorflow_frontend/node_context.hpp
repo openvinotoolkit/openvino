@@ -9,12 +9,16 @@
 #include "openvino/frontend/node_context.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
-#include "tensorflow_frontend/utility.hpp"
 #include "types.pb.h"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
+
+using InPortName = size_t;
+using OutPortName = size_t;
+using NamedOutputs = std::map<OutPortName, OutputVector>;
+using NamedInputs = std::map<InPortName, OutputVector>;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
@@ -95,7 +99,8 @@ public:
     }
 };
 
-using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tf::NodeContext&)>;
-}  // namespace tf
+using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
+
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

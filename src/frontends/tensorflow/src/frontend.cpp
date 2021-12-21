@@ -2,23 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "tensorflow_frontend/frontend.hpp"
+#include "openvino/frontend/tensorflow/frontend.hpp"
 
-#include "model.hpp"
+#include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pass/transpose_sinking.hpp"
-#include "tensorflow_frontend/graph_iterator.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 
-using namespace ::ov::frontend;
-using namespace ::ov::frontend::tf;
+using namespace ov::frontend::tensorflow;
 
 namespace {
-void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
-                              const FrontEndTF::TranslatorDictionaryType& op_translators) {
+void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
+                              const FrontEnd::TranslatorDictionaryType& op_translators) {
     auto type = node->get_op_type();
 
     const auto& TRANSLATE_OP_MAP = op_translators;
@@ -38,19 +37,19 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 }
 }  // namespace
 
-FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {}
+FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) {}
 
-void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
-                                 const std::string& model_name,
-                                 bool fail_fast,
-                                 bool no_conversion,
-                                 std::shared_ptr<ov::Model>& ng_function) const {
+void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
+                               const std::string& model_name,
+                               bool fail_fast,
+                               bool no_conversion,
+                               std::shared_ptr<ov::Model>& ng_function) const {
     // a map from operation names to generated OV Output<TFNodeDecoder>
-    tf::OpMap ng_op_map;
+    tensorflow::OpMap ng_op_map;
 
     ov::ParameterVector params;
     ov::ResultVector results;
-    const auto& model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+    const auto& model_tf = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV function");
     const auto& operation_places = model_tf->get_op_places();
     const auto& model_inputs = model_tf->get_inputs();
@@ -85,7 +84,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
             // probably this input is frozen
             continue;
         }
-        const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlaceTF>(input_place);
+        const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlace>(input_place);
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
 
@@ -106,6 +105,10 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
+<<<<<<< HEAD
+=======
+        ::ov::frontend::tensorflow::NamedInputs named_inputs;
+>>>>>>> upstream/master
         for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
             std::string producer_name;
             size_t producer_port_idx;
@@ -155,7 +158,11 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
             auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
             // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
             // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
+<<<<<<< HEAD
             ::ov::frontend::tf::NodeContext node_context(*operation_decoder, ng_inputs);
+=======
+            ::ov::frontend::tensorflow::NodeContext node_context(*operation_decoder, named_inputs);
+>>>>>>> upstream/master
             // generate OV node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {
@@ -163,9 +170,9 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 // re-throw any exception
                 throw;
             } else {
-                auto ng_node = std::make_shared<TFFrameworkNode>(operation_decoder,
-                                                                 ng_inputs,
-                                                                 operation_place->get_output_ports().size());
+                auto ng_node = std::make_shared<FrameworkNode>(operation_decoder,
+                                                               ng_inputs,
+                                                               operation_place->get_output_ports().size());
                 set_node_name(operation_name, ng_node);
                 ng_outputs = ng_node->outputs();
             }
@@ -188,12 +195,15 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
     // create Result nodes for all model outputs
     for (const auto& model_output : model_outputs) {
-        auto model_output_tensor_place = std::dynamic_pointer_cast<TensorPlaceTF>(model_output);
+        auto model_output_tensor_place = std::dynamic_pointer_cast<TensorPlace>(model_output);
         auto model_output_name = model_output_tensor_place->get_names()[0];
         std::string operation_name;
         std::string port_type;
         size_t port_index;
-        ov::frontend::tf::extract_operation_name_and_port(model_output_name, operation_name, port_index, port_type);
+        ov::frontend::tensorflow::extract_operation_name_and_port(model_output_name,
+                                                                  operation_name,
+                                                                  port_index,
+                                                                  port_type);
 
         if (port_type == "none") {
             for (const auto& node_output : ng_op_map[operation_name]) {
@@ -207,7 +217,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
             results.push_back(std::make_shared<ov::opset8::Result>(node_outputs[port_index]));
         } else if (port_type == "in") {
             // TODO: avoid this traversing by having a map for OpPlace objects, for example
-            std::shared_ptr<OpPlaceTF> operation_place = nullptr;
+            std::shared_ptr<OpPlace> operation_place = nullptr;
             for (const auto& op_place : operation_places) {
                 FRONT_END_GENERAL_CHECK(!op_place->get_names().empty(), "No names for OpPlace found.");
                 if (op_place->get_names()[0] == operation_name) {
@@ -257,7 +267,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
 }
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
-bool FrontEndTF::supported_impl(const std::vector<ov::Any>& variants) const {
+bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() != 1)
         return false;
@@ -275,7 +285,7 @@ bool FrontEndTF::supported_impl(const std::vector<ov::Any>& variants) const {
     return false;
 }
 
-ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<ov::Any>& variants) const {
+ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() == 1) {
         // a case when binary protobuf format is provided
@@ -283,26 +293,26 @@ ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<ov::Any>& 
             std::string suffix = ".pb";
             std::string model_path = variants[0].as<std::string>();
             if (ov::util::ends_with(model_path, suffix.c_str())) {
-                return std::make_shared<InputModelTF>(
-                    std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path),
+                return std::make_shared<InputModel>(
+                    std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
                     m_telemetry);
             }
         } else if (variants[0].is<GraphIterator::Ptr>()) {
             auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
-            return std::make_shared<InputModelTF>(graph_iterator, m_telemetry);
+            return std::make_shared<InputModel>(graph_iterator, m_telemetry);
         }
     }
     return nullptr;
 }
 
-std::shared_ptr<ov::Model> FrontEndTF::convert(const ov::frontend::InputModel::Ptr& model) const {
-    auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
+    auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
 
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        pass::Manager manager;
+        ov::pass::Manager manager;
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -319,14 +329,14 @@ std::shared_ptr<ov::Model> FrontEndTF::convert(const ov::frontend::InputModel::P
     return f;
 }
 
-std::shared_ptr<ov::Model> FrontEndTF::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
-    auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
+    auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
 
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        pass::Manager manager;
+        ov::pass::Manager manager;
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -341,17 +351,17 @@ std::shared_ptr<ov::Model> FrontEndTF::convert_partially(const ov::frontend::Inp
     return f;
 }
 
-std::shared_ptr<ov::Model> FrontEndTF::decode(const ov::frontend::InputModel::Ptr& model) const {
-    auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr& model) const {
+    auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
     std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);
     return f;
 }
 
-void FrontEndTF::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
+void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
-        if (ov::is_type<TFFrameworkNode>(node)) {
-            translate_framework_node(std::dynamic_pointer_cast<TFFrameworkNode>(node), m_op_translators);
+        if (ov::is_type<FrameworkNode>(node)) {
+            translate_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -361,13 +371,13 @@ void FrontEndTF::convert(const std::shared_ptr<ov::Model>& partiallyConverted) c
     normalize(partiallyConverted);
 }
 
-void FrontEndTF::normalize(const std::shared_ptr<ov::Model>& function) const {
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     ov::pass::Manager manager;
-    manager.register_pass<ov::frontend::tf::pass::TransposeSinkingOVTF>();
+    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
     manager.run_passes(function);
 }
 
-void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
     } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
