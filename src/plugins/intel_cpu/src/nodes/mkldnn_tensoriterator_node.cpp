@@ -233,7 +233,12 @@ std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engin
 
     const auto old_desc = mem_holder_buffer->get_desc();
     auto dims = old_desc.dims();
-    dims[axis] += from->getStaticDims()[axis];
+
+    if (from->getStaticDims()[axis] != abs_stride)
+        IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
+        " is expected, but actual: " << from->getStaticDims()[axis];
+
+    dims[axis] += abs_stride;
     mkldnn::memory::desc new_buffer_desc(dims, old_desc.data_type(), MKLDNNExtensionUtils::GetPlainFormatByRank(dims.size()));
 
     if (stride > 0.0f) {
@@ -257,7 +262,7 @@ void DynamicBuffer::move_buffer(std::shared_ptr<mkldnn::memory> new_buffer) {
 
 void DynamicBuffer::move_data() {
     const auto axis = map_rule.axis;
-    const auto src_stride = from->GetPrimitive().get_desc().dims()[axis] * len;
+    const auto src_stride = abs(map_rule.stride) * len;
     const auto dst_stride = mem_holder_buffer->get_desc().dims()[axis] * len;
 
     copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()) + chunk_offset_in_byte,
