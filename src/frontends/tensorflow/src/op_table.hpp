@@ -15,12 +15,12 @@
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
-using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;
+using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tensorflow::NodeContext&)>;
 
 const std::map<const std::string, const CreatorFunction> get_supported_ops();
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

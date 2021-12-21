@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 ov::OutputVector translate_interpolate_op(const NodeContext& node) {
     auto input = node.get_input(0);
@@ -43,6 +43,6 @@ ov::OutputVector translate_interpolate_op(const NodeContext& node) {
     return {res};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

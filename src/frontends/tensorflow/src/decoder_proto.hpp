@@ -9,16 +9,16 @@
 
 #include "attr_value.pb.h"
 #include "node_def.pb.h"
-#include "tensorflow_frontend/decoder.hpp"
+#include "openvino/frontend/tensorflow/decoder.hpp"
 #include "types.pb.h"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 
-class DecoderTFProto : public DecoderBase {
+class DecoderProto : public ov::frontend::tensorflow::DecoderBase {
 public:
-    explicit DecoderTFProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
+    explicit DecoderProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
 
     ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const override;
 
@@ -36,6 +36,6 @@ private:
     std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
     const ::tensorflow::NodeDef* m_node_def;
 };
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

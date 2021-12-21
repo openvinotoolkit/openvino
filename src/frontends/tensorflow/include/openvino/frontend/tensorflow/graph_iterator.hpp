@@ -5,13 +5,15 @@
 #pragma once
 
 #include "openvino/core/any.hpp"
-#include "tensorflow_frontend/decoder.hpp"
-#include "tensorflow_frontend/utility.hpp"
+#include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
+namespace tensorflow {
+
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class TF_API GraphIterator : ov::RuntimeAttribute {
+class TENSORFLOW_API GraphIterator : ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("Variant::GraphIterator");
 
@@ -35,5 +37,7 @@ public:
     /// \brief Destructor
     virtual ~GraphIterator() = default;
 };
+
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

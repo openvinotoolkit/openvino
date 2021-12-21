@@ -6,11 +6,11 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::frontend::tf;
+using namespace ov::frontend::tensorflow;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 #define OP_T_CONVERTER(op) \
@@ -244,6 +244,6 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
     };
 };
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
