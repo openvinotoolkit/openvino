@@ -410,7 +410,7 @@ int main(int argc, char* argv[]) {
             slog::info << "Loading network files" << slog::endl;
 
             auto startTime = Time::now();
-            auto cnnNetwork = ie.read_model(FLAGS_m);
+            auto model = ie.read_model(FLAGS_m);
             auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
