@@ -21,18 +21,23 @@ namespace frontend {
 /// Provides an ability to load and convert of input model
 class FRONTEND_API FrontEnd {
     friend class FrontEndManager;
+
     std::shared_ptr<void> m_shared_object = {};  // Library handle
     std::shared_ptr<FrontEnd> m_actual = {};
 
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
 
-    /// \brief Constructor holding shared object and actual FrontEnd's implementation.
-    /// Used by FrontEndManager to create FrontEnd object in core runtime
-    FrontEnd(const std::shared_ptr<void>& so, const std::shared_ptr<FrontEnd>& actual);
-
     /// \brief Default constructor
     FrontEnd();
+
+    FrontEnd(const FrontEnd&) = delete;
+
+    FrontEnd(FrontEnd&&) = delete;
+
+    FrontEnd& operator=(const FrontEnd&) = delete;
+
+    FrontEnd& operator=(FrontEnd&&) = delete;
 
     virtual ~FrontEnd();
 
@@ -112,9 +117,11 @@ public:
     void add_extension(const std::string& library_path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
     void add_extension(const std::wstring& library_path);
+
 #endif
 
     /// @brief Registers extension
@@ -124,6 +131,7 @@ public:
         std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
         add_extension(ext);
     }
+
     /// @brief Registers extensions
     /// @param extension Extension class which is inherited from ov::Extension class
     template <class T,
@@ -137,7 +145,12 @@ public:
 
 protected:
     virtual bool supported_impl(const std::vector<ov::Any>& variants) const;
+
     virtual InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
+
+private:
+    static std::shared_ptr<ov::Model> create_copy(const std::shared_ptr<ov::Model>& ov_model,
+                                                  const std::shared_ptr<void>& shared_object);
 };
 
 template <>

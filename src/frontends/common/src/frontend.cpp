@@ -16,33 +16,22 @@
 using namespace ov;
 using namespace ov::frontend;
 
-namespace ov {
-namespace frontend {
-class FrontEndUtils {
-public:
-    static std::shared_ptr<ov::Model> create_copy(const std::shared_ptr<ov::Model>& ov_model,
-                                                  const std::shared_ptr<void>& shared_object) {
-        // Recreate ov::Model using main runtime, not FrontEnd's one
-        auto copy = std::make_shared<Model>(ov_model->get_results(),
-                                            ov_model->get_sinks(),
-                                            ov_model->get_parameters(),
-                                            ov_model->get_variables(),
-                                            ov_model->get_friendly_name());
-        copy->m_shared_object = shared_object;
-        copy->get_rt_info() = ov_model->get_rt_info();
-        return copy;
-    }
-};
-}  // namespace frontend
-}  // namespace ov
+std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model>& ov_model,
+                                                 const std::shared_ptr<void>& shared_object) {
+    // Recreate ov::Model using main runtime, not FrontEnd's one
+    auto copy = std::make_shared<Model>(ov_model->get_results(),
+                                        ov_model->get_sinks(),
+                                        ov_model->get_parameters(),
+                                        ov_model->get_variables(),
+                                        ov_model->get_friendly_name());
+    copy->m_shared_object = shared_object;
+    copy->get_rt_info() = ov_model->get_rt_info();
+    return copy;
+}
 
 FrontEnd::FrontEnd() = default;
 
 FrontEnd::~FrontEnd() = default;
-
-FrontEnd::FrontEnd(const std::shared_ptr<void>& so, const std::shared_ptr<FrontEnd>& actual)
-    : m_shared_object(so),
-      m_actual(actual) {}
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (m_actual) {
@@ -53,12 +42,15 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, load_impl);
-    return std::make_shared<InputModel>(m_shared_object, m_actual->load_impl(variants));
+    auto model = std::make_shared<InputModel>();
+    model->m_shared_object = m_shared_object;
+    model->m_actual = m_actual->load_impl(variants);
+    return model;
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, convert);
-    return FrontEndUtils::create_copy(m_actual->convert(model->m_actual), m_shared_object);
+    return FrontEnd::create_copy(m_actual->convert(model->m_actual), m_shared_object);
 }
 
 void FrontEnd::convert(const std::shared_ptr<Model>& model) const {
@@ -68,12 +60,12 @@ void FrontEnd::convert(const std::shared_ptr<Model>& model) const {
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, convert_partially);
-    return FrontEndUtils::create_copy(m_actual->convert_partially(model->m_actual), m_shared_object);
+    return FrontEnd::create_copy(m_actual->convert_partially(model->m_actual), m_shared_object);
 }
 
 std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, decode);
-    return FrontEndUtils::create_copy(m_actual->decode(model->m_actual), m_shared_object);
+    return FrontEnd::create_copy(m_actual->decode(model->m_actual), m_shared_object);
 }
 
 void FrontEnd::normalize(const std::shared_ptr<Model>& model) const {
