@@ -44,13 +44,9 @@ bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Fun
 
         NodeVector nodes_for_different_types[2];
         for (const auto& child : pair.second) {
-            if (auto shapeof = std::dynamic_pointer_cast<opset3::ShapeOf>(child)) {
-                const auto& type_of_output = shapeof->get_output_type();
-                size_t index = (type_of_output == element::i32) ? index_for_int32 : index_for_int64;
-                nodes_for_different_types[index].push_back(child);
-            } else if (auto shapeof = std::dynamic_pointer_cast<opset1::ShapeOf>(child)) {
-                 nodes_for_different_types[index_for_int64].push_back(child);
-            }
+            const auto& type_of_output = child->get_output_element_type(0);
+            size_t index = (type_of_output == element::i32) ? index_for_int32 : index_for_int64;
+            nodes_for_different_types[index].push_back(child);
         }
         for (const auto& v : nodes_for_different_types) {
             if (v.empty())
