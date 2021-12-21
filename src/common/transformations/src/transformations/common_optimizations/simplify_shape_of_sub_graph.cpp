@@ -42,7 +42,7 @@ bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Fun
         if (pair.second.size() < 2)
             continue;
 
-        std::vector<std::shared_ptr<ngraph::Node>> nodes_for_different_types[2];
+        NodeVector nodes_for_different_types[2];
         for (const auto& child : pair.second) {
             const auto child_as_shapeof_v8 =  std::dynamic_pointer_cast<opset8::ShapeOf>(child);
             if (child_as_shapeof_v8) {
