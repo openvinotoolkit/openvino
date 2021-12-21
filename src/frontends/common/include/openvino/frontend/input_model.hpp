@@ -41,13 +41,14 @@ class FRONTEND_API InputModel {
     friend class FrontEnd;
 
 public:
-    typedef std::shared_ptr<InputModel> Ptr;
+    using Ptr = std::shared_ptr<InputModel>;
 
     InputModel(const std::shared_ptr<void>& shared_object, const InputModel::Ptr& actual)
         : m_shared_object(shared_object),
           m_actual(actual) {}
 
     InputModel() = default;
+
     virtual ~InputModel() = default;
 
     /////  Searching for places  /////

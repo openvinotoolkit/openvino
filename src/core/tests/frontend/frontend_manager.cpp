@@ -137,7 +137,10 @@ TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder) {
 }
 
 TEST(FrontEndManagerTest, testDefaultFrontEnd) {
+    FrontEndManager fem;
     FrontEnd::Ptr fe;
+    ASSERT_FALSE(fe);
+    fe = fem.load_by_model("");
     class MockFrontEnd : public FrontEnd {};
     std::unique_ptr<FrontEnd> fePtr(new MockFrontEnd());  // to verify base destructor
     fe = std::make_shared<MockFrontEnd>();

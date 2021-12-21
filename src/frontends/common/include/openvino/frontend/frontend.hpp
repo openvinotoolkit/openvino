@@ -34,7 +34,7 @@ public:
     /// \brief Default constructor
     FrontEnd();
 
-    ~FrontEnd();
+    virtual ~FrontEnd();
 
     /// \brief Validates if FrontEnd can recognize model with parameters specified.
     /// Same parameters should be used to load model.
@@ -102,17 +102,19 @@ public:
     /// \brief Register base extension in the FrontEnd
     /// \param extension base extension
     virtual void add_extension(const std::shared_ptr<ov::Extension>& extension);
+
     /// \brief Register base extensions in the FrontEnd
     /// \param extensions vector of extensions
-    virtual void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
+    void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
+
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
-    virtual void add_extension(const std::string& library_path);
+    void add_extension(const std::string& library_path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
-    virtual void add_extension(const std::wstring& library_path);
+    void add_extension(const std::wstring& library_path);
 #endif
 
     /// @brief Registers extension
