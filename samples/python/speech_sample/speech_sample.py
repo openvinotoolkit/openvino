@@ -2,17 +2,20 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
 import argparse
 import logging as log
 import re
 import sys
+from os import name
 from timeit import default_timer
-from typing import Union
+from typing import List, Union
 
 import numpy as np
+from openvino.runtime import CompiledModel, Core, InferRequest, Model
+
 from arg_parser import parse_args
 from file_options import read_utterance_file, write_utterance_file
-from openvino.inference_engine import ExecutableNetwork, IECore, IENetwork
 
 # Operating Frequency for GNA HW devices for Core and Atom architecture
 GNA_CORE_FREQUENCY = 400
@@ -31,16 +34,15 @@ def get_scale_factor(matrix: np.ndarray) -> float:
 
 
 def infer_data(
-    data: dict, exec_net: ExecutableNetwork, input_blobs: list, output_blobs: list, cw_l: int = 0, cw_r: int = 0,
+    data: dict, infer_request: InferRequest, input_blobs: list, output_blobs: list, cw_l: int = 0, cw_r: int = 0,
 ) -> np.ndarray:
     """Do a synchronous matrix inference"""
     matrix_shape = next(iter(data.values())).shape
     result = {}
 
-    for blob_name in output_blobs:
-        output_shape = exec_net.outputs[blob_name].shape
-        batch_size = output_shape[0]
-        result[blob_name] = np.ndarray((matrix_shape[0], np.prod(output_shape[1:])))
+    for output in infer_request.outputs:
+        batch_size = output.shape[0]
+        result[output.any_name] = np.ndarray((matrix_shape[0], np.prod(tuple(output.shape)[1:])))
 
     for i in range(-cw_l, matrix_shape[0] + cw_r, batch_size):
         if i < 0:
@@ -50,29 +52,32 @@ def infer_data(
         else:
             index = i
 
-        vectors = {blob_name: data[blob_name][index:index + batch_size] for blob_name in input_blobs}
+        vectors = {_input.any_name: data[_input.any_name][index:index + batch_size] for _input in infer_request.inputs}
 
         num_of_vectors = next(iter(vectors.values())).shape[0]
 
         if num_of_vectors < batch_size:
-            temp = {blob_name: np.zeros((batch_size, vectors[blob_name].shape[1])) for blob_name in input_blobs}
+            temp = {
+                _input.any_name: np.zeros((batch_size, vectors[_input.any_name].shape[1]))
+                for _input in infer_request.inputs
+            }
 
-            for blob_name in input_blobs:
-                temp[blob_name][:num_of_vectors] = vectors[blob_name]
+            for _input in infer_request.inputs:
+                temp[_input.any_name][:num_of_vectors] = vectors[_input.any_name]
 
             vectors = temp
 
-        for blob_name in input_blobs:
-            vectors[blob_name] = vectors[blob_name].reshape(exec_net.input_info[blob_name].input_data.shape)
+        for _input in infer_request.inputs:
+            vectors[_input.any_name] = vectors[_input.any_name].reshape(_input.tensor.shape)
 
-        vector_results = exec_net.infer(vectors)
+        vector_results = infer_request.infer(vectors)
 
         if i - cw_r < 0:
             continue
 
-        for blob_name in output_blobs:
-            vector_result = vector_results[blob_name].reshape((batch_size, result[blob_name].shape[1]))
-            result[blob_name][i - cw_r:i - cw_r + batch_size] = vector_result[:num_of_vectors]
+        for output in vector_results.keys():
+            vector_result = vector_results[output].reshape((batch_size, result[output.any_name].shape[1]))
+            result[output.any_name][i - cw_r:i - cw_r + batch_size] = vector_result[:num_of_vectors]
 
     return result
 
@@ -93,13 +98,16 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
     log.info(f'stdev error: {stdev_error:.7f}')
 
 
-def get_input_layer_list(net: Union[IENetwork, ExecutableNetwork], args: argparse.Namespace) -> list:
+def get_input_layer_names(model: Union[Model, CompiledModel], args: argparse.Namespace) -> List[str]:
     """Get a list of input layer names"""
-    return re.split(', |,', args.input_layers) if args.input_layers else [next(iter(net.input_info))]
+    if args.input_layers:
+        return re.split(', |,', args.input_layers)
+    else:
+        return [_input.any_name for _input in model.inputs]
 
 
-def get_output_layer_list(net: Union[IENetwork, ExecutableNetwork],
-                          args: argparse.Namespace, with_ports: bool) -> list:
+def get_output_layer_list(model: Union[Model, CompiledModel],
+                          args: argparse.Namespace, with_ports: bool) -> List[str]:
     """Get a list of output layer names"""
     if args.output_layers:
         output_name_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
@@ -112,7 +120,7 @@ def get_output_layer_list(net: Union[IENetwork, ExecutableNetwork],
         else:
             return [blob_name for blob_name, _ in output_name_port]
     else:
-        return [list(net.outputs.keys())[-1]]
+        return [output.any_name for output in model.outputs]
 
 
 def parse_scale_factors(args: argparse.Namespace) -> list:
@@ -145,34 +153,31 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = parse_args()
 
-# ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
-    log.info('Creating Inference Engine')
-    ie = IECore()
+# --------------------------- Step 1. Initialize OpenVINO Runtime Core ------------------------------------------------
+    log.info('Creating OpenVINO Runtime Core')
+    core = Core()
 
-# ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation---------------
+# --------------------------- Step 2. Read a model --------------------------------------------------------------------
     if args.model:
         log.info(f'Reading the network: {args.model}')
-        # .xml and .bin files
-        net = ie.read_network(model=args.model)
+        # (.xml and .bin files) or (.onnx file)
+        model = core.read_model(args.model)
 
 # ---------------------------Step 3. Configure input & output----------------------------------------------------------
         log.info('Configuring input and output blobs')
         # Mark layers from args.output_layers as outputs
         if args.output_layers:
-            net.add_outputs(get_output_layer_list(net, args, with_ports=True))
+            model.add_outputs(get_output_layer_list(model, args, with_ports=True))
 
         # Get names of input and output blobs
-        input_blobs = get_input_layer_list(net, args)
-        output_blobs = get_output_layer_list(net, args, with_ports=False)
+        # input_blobs = get_input_layer_names(model, args)
+        # output_blobs = get_output_layer_list(model, args, with_ports=False)
 
-        # Set input and output precision manually
-        for blob_name in input_blobs:
-            net.input_info[blob_name].precision = 'FP32'
-
-        for blob_name in output_blobs:
-            net.outputs[blob_name].precision = 'FP32'
-
-        net.batch_size = args.batch_size if args.context_window_left + args.context_window_right == 0 else 1
+    # TODO use set_layout instead
+        # if args.context_window_left + args.context_window_right == 0:
+        #     set_batch(model, args.batch_size)
+        # else:
+        #     set_batch(model, 1)
 
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     devices = args.device.replace('HETERO:', '').split(',')
@@ -217,37 +222,35 @@ def main():
 
     log.info('Loading the model to the plugin')
     if args.model:
-        exec_net = ie.load_network(net, device_str, plugin_config)
+        compiled_model = core.compile_model(model, device_str, plugin_config)
     else:
-        exec_net = ie.import_network(args.import_gna_model, device_str, plugin_config)
-        input_blobs = get_input_layer_list(exec_net, args)
-        output_blobs = get_output_layer_list(exec_net, args, with_ports=False)
+        compiled_model = core.import_model(args.import_gna_model, device_str, plugin_config)
 
     if args.input:
         input_files = re.split(', |,', args.input)
 
-        if len(input_blobs) != len(input_files):
-            log.error(f'Number of network inputs ({len(input_blobs)}) is not equal '
+        if len(compiled_model.inputs) != len(input_files):
+            log.error(f'Number of network inputs ({len(compiled_model.inputs)}) is not equal '
                       f'to number of ark files ({len(input_files)})')
             sys.exit(-3)
 
     if args.reference:
         reference_files = re.split(', |,', args.reference)
 
-        if len(output_blobs) != len(reference_files):
+        if len(compiled_model.outputs) != len(reference_files):
             log.error('The number of reference files is not equal to the number of network outputs.')
             sys.exit(-5)
 
     if args.output:
         output_files = re.split(', |,', args.output)
 
-        if len(output_blobs) != len(output_files):
+        if len(compiled_model.outputs) != len(output_files):
             log.error('The number of output files is not equal to the number of network outputs.')
             sys.exit(-6)
 
     if args.export_gna_model:
         log.info(f'Writing GNA Model to {args.export_gna_model}')
-        exec_net.export(args.export_gna_model)
+        compiled_model.export_model(args.export_gna_model)
         return 0
 
     if args.export_embedded_gna_model:
@@ -256,11 +259,13 @@ def main():
         return 0
 
 # ---------------------------Step 5. Create infer request--------------------------------------------------------------
-# load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
-# instance which stores infer requests. So you already created Infer requests in the previous step.
+    infer_request = compiled_model.create_infer_request()
 
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
     file_data = [read_utterance_file(file_name) for file_name in input_files]
+    input_blobs = get_input_layer_names(compiled_model, args)
+    output_blobs = get_output_layer_list(compiled_model, args, with_ports=False)
+
     input_data = {
         utterance_name: {
             input_blobs[i]: file_data[i][utterance_name] for i in range(len(input_blobs))
@@ -280,12 +285,16 @@ def main():
         start_infer_time = default_timer()
 
         # Reset states between utterance inferences to remove a memory impact
-        for request in exec_net.requests:
-            for state in request.query_state():
-                state.reset()
+        for state in infer_request.query_state():
+            state.reset()
 
         result = infer_data(
-            input_data[key], exec_net, input_blobs, output_blobs, args.context_window_left, args.context_window_right,
+            input_data[key],
+            infer_request,
+            input_blobs,
+            output_blobs,
+            args.context_window_left,
+            args.context_window_right,
         )
 
         for blob_name in result.keys():
@@ -312,25 +321,26 @@ def main():
                 log.info('')
                 compare_with_reference(results[blob_name][key], references[blob_name][key])
 
-        if args.performance_counter:
-            if 'GNA' in args.device:
-                pc = exec_net.requests[0].get_perf_counts()
-                total_cycles = int(pc['1.1 Total scoring time in HW']['real_time'])
-                stall_cycles = int(pc['1.2 Stall scoring time in HW']['real_time'])
-                active_cycles = total_cycles - stall_cycles
-                frequency = 10**6
-                if args.arch == 'CORE':
-                    frequency *= GNA_CORE_FREQUENCY
-                else:
-                    frequency *= GNA_ATOM_FREQUENCY
-                total_inference_time = total_cycles / frequency
-                active_time = active_cycles / frequency
-                stall_time = stall_cycles / frequency
-                log.info('')
-                log.info('Performance Statistics of GNA Hardware')
-                log.info(f'   Total Inference Time: {(total_inference_time * 1000):.4f} ms')
-                log.info(f'   Active Time: {(active_time * 1000):.4f} ms')
-                log.info(f'   Stall Time:  {(stall_time * 1000):.4f} ms')
+        # TODO
+        # if args.performance_counter:
+        #     if 'GNA' in args.device:
+        #         pc = exec_net.requests[0].get_perf_counts()
+        #         total_cycles = int(pc['1.1 Total scoring time in HW']['real_time'])
+        #         stall_cycles = int(pc['1.2 Stall scoring time in HW']['real_time'])
+        #         active_cycles = total_cycles - stall_cycles
+        #         frequency = 10**6
+        #         if args.arch == 'CORE':
+        #             frequency *= GNA_CORE_FREQUENCY
+        #         else:
+        #             frequency *= GNA_ATOM_FREQUENCY
+        #         total_inference_time = total_cycles / frequency
+        #         active_time = active_cycles / frequency
+        #         stall_time = stall_cycles / frequency
+        #         log.info('')
+        #         log.info('Performance Statistics of GNA Hardware')
+        #         log.info(f'   Total Inference Time: {(total_inference_time * 1000):.4f} ms')
+        #         log.info(f'   Active Time: {(active_time * 1000):.4f} ms')
+        #         log.info(f'   Stall Time:  {(stall_time * 1000):.4f} ms')
 
     log.info('')
     log.info(f'Total sample time: {total_infer_time * 1000:.2f}ms')
