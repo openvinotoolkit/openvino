@@ -314,7 +314,7 @@ protected:
      * @param function Function with initial execution info
      */
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                           const std::shared_ptr<ov::Function>& function);
+                           const std::shared_ptr<ov::Model>& function);
 
     std::string _pluginName;                     //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values

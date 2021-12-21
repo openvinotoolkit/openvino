@@ -32,8 +32,7 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     if match_post:
         node_post = input_model.get_place_by_operation_name(match_post.group(1))
         if node_post:
-            node_post = node_post.get_output_port(
-                outputPortIndex=int(match_post.group(2)))
+            node_post = node_post.get_output_port(output_port_index=int(match_post.group(2)))
             if node_post:
                 found_node_names.append(match_post.group(1))
                 found_nodes.append(node_post)
@@ -43,8 +42,7 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     if match_pre:
         node_pre = input_model.get_place_by_operation_name(match_pre.group(2))
         if node_pre:
-            node_pre = node_pre.get_input_port(
-                inputPortIndex=int(match_pre.group(1)))
+            node_pre = node_pre.get_input_port(input_port_index=int(match_pre.group(1)))
             if node_pre:
                 found_node_names.append(match_pre.group(2))
                 found_nodes.append(node_pre)
@@ -115,10 +113,10 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
             shape = None if isinstance(input_user_shapes, list) else input_user_shapes[input_name]
             if input_user_data_types.get(input_name) is not None:
                 data_type = input_user_data_types[input_name]
-                _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
+                _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type, 'input_name': input_name})
             else:
-                _input_shapes.append({'node': node, 'shape': shape})
-    elif isinstance(input_user_shapes, np.ndarray):
+                _input_shapes.append({'node': node, 'shape': shape, 'input_name': input_name})
+    elif isinstance(input_user_shapes, tuple):
         model_inputs = input_model.get_inputs()
         assert len(model_inputs) == 1
         _input_shapes.append({'node': model_inputs[0], 'shape': input_user_shapes})

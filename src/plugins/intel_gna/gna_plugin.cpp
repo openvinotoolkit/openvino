@@ -761,7 +761,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     //  Check the input network
     std::string error;
-    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error)) {
+    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error, gnaFlags->log_level == PluginConfigParams::LOG_WARNING)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
@@ -1164,17 +1164,8 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
 #endif
 
 int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
-    constexpr uint32_t embeddedSuffix = 0xE;
     if (deviceString.empty())
-        return 0x100 + embeddedSuffix;
-    if (deviceString.size() == 4 && deviceString.substr(0, 3) == "GNA") {
-        int version = deviceString[3] - '0';
-            if (version > 0) {
-            version <<= 8;
-            version += embeddedSuffix;
-            return version;
-        }
-    }
+        return static_cast<int>(Gna2DeviceVersionEmbedded1_0);
     THROW_GNA_EXCEPTION << "Wrong GNA generation for embedded model dump: " << deviceString;
 }
 
@@ -1184,8 +1175,6 @@ void GNAPlugin::DumpXNNToFile() const {
     if (config.dumpXNNPath.empty()) {
         return;
     }
-
-    const auto versionInt = GetDeviceVersionFromString(config.dumpXNNGeneration);
 
     if (!gnadevice) {
         THROW_GNA_EXCEPTION << "Cannot generate XNNDump for float network";
@@ -1202,18 +1191,13 @@ void GNAPlugin::DumpXNNToFile() const {
     dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.model_size);
 #else
     auto const modelId = gnadevice->createModel(std::get<0>(gnaModels.front())->obj);
-    if (versionInt == Gna2DeviceVersionEmbedded1_0) {
-        auto dump = gnadevice->dumpXnn(modelId);
-        dump.header.RwRegionSize = gnamem->getRWBytes();
-        dump.header.InputScalingFactor = inputsDesc->inputScaleFactors.front();
-        dump.header.OutputScalingFactor = outputsDesc.front().scale_factor;
-        dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
-        dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
-    } else {
-        static_assert(sizeof(versionInt) >= sizeof(Gna2DeviceVersion), "");
-        gnadevice->dumpXnnForDeviceVersion(modelId, dumpStream,
-            *reinterpret_cast<const Gna2DeviceVersion*>(&versionInt));
-    }
+    auto dump = gnadevice->dumpXnn(modelId);
+    dump.header.RwRegionSize = gnamem->getRWBytes();
+    dump.header.InputScalingFactor = inputsDesc->inputScaleFactors.front();
+    dump.header.OutputScalingFactor = outputsDesc.front().scale_factor;
+    dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
+    dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
+
     gnadevice->releaseModel(modelId);
 #endif
 }

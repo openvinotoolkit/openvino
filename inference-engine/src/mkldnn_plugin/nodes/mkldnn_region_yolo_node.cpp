@@ -202,10 +202,10 @@ private:
     inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address &op, InferenceEngine::Precision src_dt) {
         switch (src_dt) {
             case InferenceEngine::Precision::FP32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case InferenceEngine::Precision::BF16:
-                pinsrw(xmm_src, op, 0x0);
+                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             default:
@@ -215,11 +215,11 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Xbyak::Xmm xmm_dst, InferenceEngine::Precision dst_dt) {
         switch (dst_dt) {
             case InferenceEngine::Precision::FP32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case InferenceEngine::Precision::BF16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
+                uni_vpextrw(op, xmm_dst, 0x0);
                 break;
            default:
                 assert(!"unknown dst_dt");
