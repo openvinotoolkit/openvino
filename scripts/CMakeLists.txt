@@ -30,14 +30,18 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
 ie_cpack_add_component(setupvars REQUIRED)
 
 if(UNIX)
-    install(PROGRAMS setupvars/setupvars.sh
-            DESTINATION .
-            COMPONENT setupvars)
+    set(_setupvars_file setupvars/setupvars.sh)
 elseif(WIN32)
-    install(PROGRAMS setupvars/setupvars.bat
-            DESTINATION .
-            COMPONENT setupvars)
+    set(_setupvars_file setupvars/setupvars.bat)
+    # Update setupvars.bat to support non "Release" build types
+    file(READ "${_setupvars_file}" _setupvars_content)
+    string(REPLACE "Release" ${CMAKE_BUILD_TYPE} _setupvars_content ${_setupvars_content})
+    set(_setupvars_file "${CMAKE_BINARY_DIR}/${_setupvars_file}")
+    file(WRITE "${_setupvars_file}" ${_setupvars_content})
 endif()
+install(PROGRAMS "${_setupvars_file}"
+        DESTINATION .
+        COMPONENT setupvars)
 
 # install install_dependencies
 
