@@ -1,11 +1,11 @@
 # Introduction to Inference Engine {#openvino_docs_IE_DG_inference_engine_intro}
 
-> **NOTE:** [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
+> **NOTE**: [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
 This Guide provides an overview of the Inference Engine describing the typical workflow for performing
 inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
-> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
+> **NOTE**: Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
 
 After you have used the Model Optimizer to create an Intermediate Representation (IR), use the Inference Engine to infer the result for a given input data.
 
@@ -46,11 +46,11 @@ This library contains the classes to:
 Starting from 2022.1 release, OpenVINO Runtime introduced a concept of frontend plugins. Such plugins can be automatically dynamically loaded by OpenVINO Runtime dynamically depending on file format:
 * Unix* OS:
     - `libov_ir_frontend.so` to read a network from IR
-    - `libov_paddlepaddle_frontend.so` to read a network from PaddlePaddle model format
+    - `libov_paddle_frontend.so` to read a network from PaddlePaddle model format
     - `libov_onnx_frontend.so` to read a network from ONNX model format
 * Windows* OS:
     - `ov_ir_frontend.dll` to read a network from IR
-    - `ov_paddlepaddle_frontend.dll` to read a network from PaddlePaddle model format
+    - `ov_paddle_frontend.dll` to read a network from PaddlePaddle model format
     - `ov_onnx_frontend.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###

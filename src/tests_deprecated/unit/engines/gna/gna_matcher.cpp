@@ -200,8 +200,8 @@ void GNAPropagateMatcher :: match() {
             }
 
             auto sp = plugin.ImportNetwork(inputStream);
-            inputsInfo = plugin.GetInputs();
-            outputsInfo = plugin.GetOutputs();
+            inputsInfo = plugin.GetNetworkInputs();
+            outputsInfo = plugin.GetNetworkOutputs();
         };
 
         std::map<std::string, Blob::Ptr> input;

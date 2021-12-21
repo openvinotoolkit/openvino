@@ -17,11 +17,10 @@
 namespace ov {
 namespace frontend {
 
-template<class T>
+template <class T>
 class FRONTEND_API NodeContext {
 public:
-    NodeContext(const std::string& _op_type, const T& inputs)
-    : m_op_type(_op_type), m_inputs(inputs) {}
+    NodeContext(const std::string& _op_type, const T& inputs) : m_op_type(_op_type), m_inputs(inputs) {}
 
     T get_inputs() const {
         return m_inputs;
@@ -32,12 +31,13 @@ public:
     }
 
     ~NodeContext() = default;
+
 private:
     std::string m_op_type;
     T m_inputs;
 };
 
-template<class T>
+template <class T>
 using CreatorFunction = std::function<OutputVector(const NodeContext<T>&)>;
 
 }  // namespace frontend

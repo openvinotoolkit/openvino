@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "openvino/frontend/tensorflow/visibility.hpp"
-#include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/core/extension.hpp"
+#include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/frontend.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/tensorflow/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -21,13 +21,17 @@ public:
     ConversionExtension() = delete;
 
     ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
-        : ov::frontend::ConversionExtensionBase(op_type), m_converter(converter) {}
+        : ov::frontend::ConversionExtensionBase(op_type),
+          m_converter(converter) {}
 
-    CreatorFunction get_converter() { return m_converter; }
+    CreatorFunction get_converter() {
+        return m_converter;
+    }
+
 private:
     CreatorFunction m_converter;
 };
 
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

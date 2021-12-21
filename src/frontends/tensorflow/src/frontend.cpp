@@ -55,8 +55,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
     const auto& model_frozen_inputs = model_tf->get_tensor_values();
-    std::map<const std::string, const std::function<ov::OutputVector(const NodeContext&)>>
-        translate_map;
+    std::map<const std::string, const std::function<ov::OutputVector(const NodeContext&)>> translate_map;
 
     const auto& TRANSLATE_OP_MAP = m_op_translators;
     if (no_conversion) {

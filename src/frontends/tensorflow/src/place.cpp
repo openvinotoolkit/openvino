@@ -6,8 +6,8 @@
 
 #include "op_def.pb.h"
 #include "openvino/frontend/exception.hpp"
-#include "tensor.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
+#include "tensor.pb.h"
 #include "types.pb.h"
 
 namespace ov {

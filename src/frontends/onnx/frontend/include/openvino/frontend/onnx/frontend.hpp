@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "openvino/frontend/onnx/visibility.hpp"
 #include <openvino/frontend/frontend.hpp>
+
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/onnx/visibility.hpp"
 
 namespace ov {
 namespace frontend {

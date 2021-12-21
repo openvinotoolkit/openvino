@@ -9,14 +9,14 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/input_model.hpp"
-#include "openvino/frontend/visibility.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {

@@ -3,7 +3,6 @@
 //
 
 #include "conversion_extension.hpp"
-
 #include "onnx_utils.hpp"
 
 using namespace ov::frontend;

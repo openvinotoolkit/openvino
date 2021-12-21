@@ -3,7 +3,6 @@
 //
 
 #include "conversion_extension.hpp"
-
 #include "tf_utils.hpp"
 
 using namespace ov::frontend;

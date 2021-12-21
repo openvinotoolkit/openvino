@@ -3,10 +3,10 @@
 //
 
 #pragma once
-#include "openvino/frontend/onnx/visibility.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
-#include "openvino/frontend/onnx/node_context.hpp"
 #include "openvino/frontend/node_context.hpp"
+#include "openvino/frontend/onnx/node_context.hpp"
+#include "openvino/frontend/onnx/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -16,8 +16,12 @@ public:
     using Ptr = std::shared_ptr<ConversionExtension>;
     ConversionExtension() = delete;
     ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
-        : ConversionExtensionBase(op_type), m_converter(converter) {}
-    CreatorFunction get_converter() { return m_converter; }
+        : ConversionExtensionBase(op_type),
+          m_converter(converter) {}
+    CreatorFunction get_converter() {
+        return m_converter;
+    }
+
 private:
     CreatorFunction m_converter;
 };
