@@ -10,10 +10,10 @@ import typing
 from functools import reduce
 
 import cv2
-import ngraph
-from ngraph.opset1 import max_pool
 import numpy as np
-from openvino.inference_engine import IECore, IENetwork
+from openvino.preprocess import PrePostProcessor
+from openvino.runtime import Core, InferRequest, Layout, Type, Model, Shape
+import openvino
 
 
 def parse_args() -> argparse.Namespace:
@@ -56,7 +56,7 @@ def read_image(image_path: str) -> np.ndarray:
     return image
 
 
-def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
+def create_ngraph_function(args: argparse.Namespace) -> Model:
     """Create a network on the fly from the source code using ngraph"""
 
     def shape_and_length(shape: list) -> typing.Tuple[list, int]:
@@ -69,43 +69,42 @@ def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
 
     # input
     input_shape = [64, 1, 28, 28]
-    param_node = ngraph.parameter(input_shape, np.float32, 'Parameter')
+    param_node = openvino.runtime.op.Parameter(Type.f32, Shape(input_shape))
 
     # convolution 1
     conv_1_kernel_shape, conv_1_kernel_length = shape_and_length([20, 1, 5, 5])
-    conv_1_kernel = ngraph.constant(weights[0:conv_1_kernel_length].reshape(conv_1_kernel_shape))
+    conv_1_kernel = openvino.runtime.op.Constant(Type.f32, Shape(conv_1_kernel_shape), weights[0:conv_1_kernel_length].tolist())
     weights_offset += conv_1_kernel_length
-    conv_1_node = ngraph.convolution(param_node, conv_1_kernel, [1, 1], padding_begin, padding_end, [1, 1])
+    conv_1_node = openvino.runtime.opset8.convolution(param_node, conv_1_kernel, [1, 1], padding_begin, padding_end, [1, 1])
 
     # add 1
     add_1_kernel_shape, add_1_kernel_length = shape_and_length([1, 20, 1, 1])
-    add_1_kernel = ngraph.constant(
-        weights[weights_offset : weights_offset + add_1_kernel_length].reshape(add_1_kernel_shape),
-    )
+    add_1_kernel = openvino.runtime.op.Constant(Type.f32, Shape(add_1_kernel_shape),
+                                                weights[weights_offset : weights_offset + add_1_kernel_length])
     weights_offset += add_1_kernel_length
-    add_1_node = ngraph.add(conv_1_node, add_1_kernel)
+    add_1_node = openvino.runtime.opset8.add(conv_1_node, add_1_kernel)
 
     # maxpool 1
-    maxpool_1_node = max_pool(add_1_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
+    maxpool_1_node = openvino.runtime.opset1.max_pool(add_1_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
 
     # convolution 2
     conv_2_kernel_shape, conv_2_kernel_length = shape_and_length([50, 20, 5, 5])
-    conv_2_kernel = ngraph.constant(
-        weights[weights_offset : weights_offset + conv_2_kernel_length].reshape(conv_2_kernel_shape),
-    )
+    conv_2_kernel = openvino.runtime.op.Constant(Type.f32, Shape(conv_2_kernel_shape),
+                                                 weights[weights_offset : weights_offset + conv_2_kernel_length]
+                                                 )
     weights_offset += conv_2_kernel_length
-    conv_2_node = ngraph.convolution(maxpool_1_node, conv_2_kernel, [1, 1], padding_begin, padding_end, [1, 1])
+    conv_2_node = openvino.runtime.opset8.convolution(maxpool_1_node, conv_2_kernel, [1, 1], padding_begin, padding_end, [1, 1])
 
     # add 2
     add_2_kernel_shape, add_2_kernel_length = shape_and_length([1, 50, 1, 1])
-    add_2_kernel = ngraph.constant(
-        weights[weights_offset : weights_offset + add_2_kernel_length].reshape(add_2_kernel_shape),
-    )
+    add_2_kernel = openvino.runtime.op.Constant(Type.f32, Shape(add_2_kernel_shape),
+                                                weights[weights_offset : weights_offset + add_2_kernel_length]
+                                                )
     weights_offset += add_2_kernel_length
-    add_2_node = ngraph.add(conv_2_node, add_2_kernel)
+    add_2_node = openvino.runtime.opset8.add(conv_2_node, add_2_kernel)
 
     # maxpool 2
-    maxpool_2_node = max_pool(add_2_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
+    maxpool_2_node = openvino.runtime.opset1.max_pool(add_2_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
 
     # reshape 1
     reshape_1_dims, reshape_1_length = shape_and_length([2])
@@ -114,56 +113,58 @@ def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
         weights[weights_offset : weights_offset + 2 * reshape_1_length],
         dtype=np.int64,
     )
-    reshape_1_kernel = ngraph.constant(dtype_weights)
+    reshape_1_kernel = openvino.runtime.op.Constant(Type.f32, Shape(list(dtype_weights.shape)), dtype_weights)
     weights_offset += 2 * reshape_1_length
-    reshape_1_node = ngraph.reshape(maxpool_2_node, reshape_1_kernel, True)
+    reshape_1_node = openvino.runtime.opset8.reshape(maxpool_2_node, reshape_1_kernel, True)
 
     # matmul 1
     matmul_1_kernel_shape, matmul_1_kernel_length = shape_and_length([500, 800])
-    matmul_1_kernel = ngraph.constant(
-        weights[weights_offset : weights_offset + matmul_1_kernel_length].reshape(matmul_1_kernel_shape),
-    )
+    print(matmul_1_kernel_shape)
+    matmul_1_kernel = openvino.runtime.op.Constant(Type.f32, Shape(matmul_1_kernel_shape),
+                                                   weights[weights_offset : weights_offset + matmul_1_kernel_length]
+                                                   )
     weights_offset += matmul_1_kernel_length
-    matmul_1_node = ngraph.matmul(reshape_1_node, matmul_1_kernel, False, True)
+    matmul_1_node = openvino.runtime.opset8.matmul(reshape_1_node, matmul_1_kernel, False, True)
 
     # add 3
     add_3_kernel_shape, add_3_kernel_length = shape_and_length([1, 500])
-    add_3_kernel = ngraph.constant(
-        weights[weights_offset : weights_offset + add_3_kernel_length].reshape(add_3_kernel_shape),
-    )
+    add_3_kernel = openvino.runtime.op.Constant(Type.f32, Shape(add_3_kernel_shape),
+                                                weights[weights_offset : weights_offset + add_3_kernel_length]
+                                                )
     weights_offset += add_3_kernel_length
-    add_3_node = ngraph.add(matmul_1_node, add_3_kernel)
+    add_3_node = openvino.runtime.opset8.add(matmul_1_node, add_3_kernel)
 
     # ReLU
-    relu_node = ngraph.relu(add_3_node)
+    relu_node = openvino.runtime.opset8.relu(add_3_node)
 
     # reshape 2
-    reshape_2_kernel = ngraph.constant(dtype_weights)
-    reshape_2_node = ngraph.reshape(relu_node, reshape_2_kernel, True)
+    reshape_2_kernel = openvino.runtime.op.Constant(Type.f32, Shape(list(dtype_weights.shape)), dtype_weights)
+    reshape_2_node = openvino.runtime.reshape(relu_node, reshape_2_kernel, True)
 
     # matmul 2
     matmul_2_kernel_shape, matmul_2_kernel_length = shape_and_length([10, 500])
-    matmul_2_kernel = ngraph.constant(
-        weights[weights_offset : weights_offset + matmul_2_kernel_length].reshape(matmul_2_kernel_shape),
-    )
+    matmul_2_kernel = openvino.runtime.op.Constant(Type.f32, Shape(matmul_2_kernel_shape),
+                                                   weights[weights_offset : weights_offset + matmul_2_kernel_length]
+                                                   )
     weights_offset += matmul_2_kernel_length
-    matmul_2_node = ngraph.matmul(reshape_2_node, matmul_2_kernel, False, True)
+    matmul_2_node = openvino.runtime.opset8.matmul(reshape_2_node, matmul_2_kernel, False, True)
 
     # add 4
     add_4_kernel_shape, add_4_kernel_length = shape_and_length([1, 10])
-    add_4_kernel = ngraph.constant(
-        weights[weights_offset : weights_offset + add_4_kernel_length].reshape(add_4_kernel_shape),
-    )
+    add_4_kernel = openvino.runtime.op.Constant(Type.f32, Shape(add_4_kernel_shape),
+                                                weights[weights_offset : weights_offset + add_4_kernel_length]
+                                                )
     weights_offset += add_4_kernel_length
-    add_4_node = ngraph.add(matmul_2_node, add_4_kernel)
+    add_4_node = openvino.runtime.opset8.add(matmul_2_node, add_4_kernel)
 
     # softmax
     softmax_axis = 1
-    softmax_node = ngraph.softmax(add_4_node, softmax_axis)
+    softmax_node = openvino.runtime.opset8.softmax(add_4_node, softmax_axis)
 
     # result
-    result_node = ngraph.result(softmax_node)
-    return ngraph.impl.Function(result_node, [param_node], 'lenet')
+    result_node = openvino.runtime.opset8.result(softmax_node)
+
+    return Model(softmax_node, [param_node], 'lenet')
 
 
 def main():
@@ -171,37 +172,46 @@ def main():
     args = parse_args()
 
     # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
-    log.info('Creating Inference Engine')
-    ie = IECore()
+    log.info('Creating OpenVINO Runtime Core')
+    core = Core()
 
     # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation------------------------------
     log.info(f'Loading the network using ngraph function with weights from {args.model}')
-    ngraph_function = create_ngraph_function(args)
-    net = IENetwork(ngraph.impl.Function.to_capsule(ngraph_function))
-
+    model = create_ngraph_function(args)
     # ---------------------------Step 3. Configure input & output----------------------------------------------------------
     log.info('Configuring input and output blobs')
     # Get names of input and output blobs
-    input_blob = next(iter(net.input_info))
-    out_blob = next(iter(net.outputs))
+    ppp = PrePostProcessor(model)
+    # 1) Set input tensor information:
+    # - input() provides information about a single model input
+    # - precision of tensor is supposed to be 'u8'
+    # - layout of data is 'NHWC'
+    ppp.input().tensor() \
+        .set_element_type(Type.u8) \
+        .set_layout(Layout('NHWC'))  # noqa: N400
 
-    # Set input and output precision manually
-    net.input_info[input_blob].precision = 'U8'
-    net.outputs[out_blob].precision = 'FP32'
+    # 2) Here we suppose model has 'NCHW' layout for input
+    ppp.input().model().set_layout(Layout('NCHW'))
+    # 3) Set output tensor information:
+    # - precision of tensor is supposed to be 'f32'
+    ppp.output().tensor().set_element_type(Type.f32)
+
+    # 4) Apply preprocessing modifing the original 'model'
+    model = ppp.build()
 
     # Set a batch size to a equal number of input images
-    net.batch_size = len(args.input)
+    model.batch_size = len(args.input)
 
     # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
-    exec_net = ie.load_network(network=net, device_name=args.device)
+    compiled_model = core.compile_model(model, args.device)
 
     # ---------------------------Step 5. Create infer request--------------------------------------------------------------
     # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
     # instance which stores infer requests. So you already created Infer requests in the previous step.
 
     # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
-    n, c, h, w = net.input_info[input_blob].input_data.shape
+    n, c, h, w = model.input().shape
     input_data = np.ndarray(shape=(n, c, h, w))
 
     for i in range(n):
@@ -223,7 +233,7 @@ def main():
 
     # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
-    res = exec_net.infer(inputs={input_blob: input_data})
+    results = compiled_model.infer_new_request({0: input_data})
 
     # ---------------------------Step 8. Process output--------------------------------------------------------------------
     # Generate a label list
@@ -231,10 +241,10 @@ def main():
         with open(args.labels, 'r') as f:
             labels = [line.split(',')[0].strip() for line in f]
 
-    res = res[out_blob]
+    predictions = next(iter(results.values()))
 
     for i in range(n):
-        probs = res[i]
+        probs = predictions[i]
         # Get an array of args.number_top class IDs in descending order of probability
         top_n_idexes = np.argsort(probs)[-args.number_top :][::-1]
 
