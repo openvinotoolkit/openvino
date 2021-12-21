@@ -1289,6 +1289,7 @@ TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
+            networks.clear();
         });
     }
 }
@@ -1327,6 +1328,7 @@ TEST_P(CachingTest, LoadHetero_OneDevice) {
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
+            networks.clear();
         });
     }
 }
@@ -1367,6 +1369,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             ie.SetConfig({{"TARGET_FALLBACK", "mock"}}, CommonTestUtils::DEVICE_HETERO);
             m_testFunction(ie);
+            networks.clear();
         });
     }
 }
@@ -1448,6 +1451,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
+            networks.clear();
         });
     }
 }
@@ -1509,6 +1513,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             ie.SetConfig({{"TARGET_FALLBACK", "mock.51"}}, CommonTestUtils::DEVICE_HETERO);
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
+            networks.clear();
         });
     }
 }
@@ -1687,6 +1692,7 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
             // Verify that inputs and outputs are set for Multi Executable Network
             ASSERT_EQ(exeNet.GetInputsInfo().size(), inputMap.size());
             ASSERT_EQ(exeNet.GetOutputsInfo().size(), outputMap.size());
+            networks.clear();
         });
     }
 }
