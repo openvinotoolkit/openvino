@@ -15,7 +15,7 @@ namespace ngraph {
 namespace pass {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(IETransform);
+    OV_ITT_DOMAIN(SnippetsTransform);
 }   // namespace domains
 }   // namespace itt
 }   // namespace pass

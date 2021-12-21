@@ -23,14 +23,12 @@ namespace MKLDNNPlugin {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
     manager.register_pass<ConvertTileToSeqTiles>();
     manager.register_pass<FullyConnectedBiasFusion>();
     manager.register_pass<ConvertToPowerStatic>();
     manager.register_pass<ConvertToLeakyRelu>();
-    manager.register_pass<ReshapePRelu>();
     manager.register_pass<ConvertToSwishCPU>();
     manager.register_pass<OptimizeSequenceTransposes>();
     if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
