@@ -347,7 +347,7 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::v
     return mapped_files;
 }
 
-std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string parameter_string,
+std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string& parameter_string,
                                                                      const ov::ParameterVector& input_info) {
     // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
     // inputs)
