@@ -31,6 +31,7 @@ def parse_sequential_stats(value_sequential, stats_layout):
     stat_names_by_layer, old_names_mapping = get_per_layer_stat_mapping(stats_layout)
     activation_seq = defaultdict(lambda: [])
     for value in value_sequential:
+        value = process_raw_output(value)
         for layer, activations in value.items():
             get_sequential_activations(activations, layer, activation_seq, stats_layout,
                                        stat_names_by_layer, old_names_mapping)
