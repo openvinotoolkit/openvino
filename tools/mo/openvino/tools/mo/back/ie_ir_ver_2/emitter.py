@@ -397,23 +397,60 @@ def add_meta_data(net: Element, meta_info: dict):
             SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
 
 
+def serialize_node(graph: Graph, node: Node, layers: SubElement, edges: SubElement, unsupported: UnsupportedOps):
+    if node.kind == 'op' and (not node.has('type') or node.type is None):
+        unsupported.add(node)
+        return
+    if not node.has('IE'):
+        return
+    try:
+        serialize_node_attributes(graph, node, node.IE, layers, edges, unsupported)
+    except Error as e:
+        raise Error(str(e).replace('<SUB-ELEMENT>', '{} (id = {})'.format(node.soft_get('name'), node.id))) from e
+
+
 def serialize_network(graph, net_element, unsupported):
     layers = SubElement(net_element, 'layers')
     edges = SubElement(net_element, 'edges')
     if graph is None:
         return
     nodes = sorted(graph.nodes())
+
+    ordered_results = []
+    for output_name in graph.outputs_order:
+        node = graph.get_op_nodes(name=output_name)
+        if len(node) == 0:
+            log.warning("Output node with name {} is not found in graph.".format(output_name))
+            continue
+        node = node[0]
+        assert len(node.out_nodes()) == 1, "Output node with name {} is not connected with Result.".format(output_name)
+
+        # After port renumbering port/connection API is not applicable
+        result_node = node.out_node(len(node.in_nodes())).out_node()
+
+        assert result_node.soft_get('type') == 'Result', \
+            "Output node with name {} is not connected with Result.".format(output_name)
+        ordered_results.append(result_node.soft_get('name'))
+
+    for input_name in graph.inputs_order:
+        node = graph.get_op_nodes(name=input_name)
+        if len(node) == 0:
+            log.warning("Input node with name {} is not found in graph.".format(input_name))
+            continue
+        serialize_node(graph, node[0], layers, edges, unsupported)
+
     for node in nodes:
         node = Node(graph, node)
-        if node.kind == 'op' and (not node.has('type') or node.type is None):
-            unsupported.add(node)
+        if node.soft_get('name') in graph.inputs_order:
             continue
-        if not node.has('IE'):
+        if node.soft_get('name') in ordered_results:
             continue
-        try:
-            serialize_node_attributes(graph, node, node.IE, layers, edges, unsupported)
-        except Error as e:
-            raise Error(str(e).replace('<SUB-ELEMENT>', '{} (id = {})'.format(node.soft_get('name'), node.id))) from e
+        serialize_node(graph, node, layers, edges, unsupported)
+
+    for output_name in ordered_results:
+        node = graph.get_op_nodes(name=output_name)
+        assert len(node) == 1, "Output node with name {} is not found in graph.".format(output_name)
+        serialize_node(graph, node[0], layers, edges, unsupported)
 
 
 def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_offset: tuple = (),

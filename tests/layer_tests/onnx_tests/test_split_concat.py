@@ -30,6 +30,31 @@ test_data_5D = [
                         [1, 50, 10, 80, 60]], axis=2),
     dict(input_shape=[1, 50, 50, 80, 60], output_shapes=[[1, 25, 50, 80, 60], [1, 25, 50, 80, 60]], axis=1)]
 
+test_multiple_out = [
+    dict(input_shape=[3, 10, 10],
+         output_shapes=[[1, 10, 10],
+                        [1, 10, 10],
+                        [1, 10, 10]],
+         axis=0,
+         output_names=['h', 'b', 'l']),
+    dict(input_shape=[1, 50, 50, 80, 60],
+         output_shapes=[[1, 50, 10, 80, 60],
+                        [1, 50, 10, 80, 60],
+                        [1, 50, 10, 80, 60],
+                        [1, 50, 10, 80, 60],
+                        [1, 50, 10, 80, 60]],
+         axis=2,
+         output_names=['k', 'p', 'a', 'r', 's']),
+    dict(input_shape=[1, 4, 3],
+         output_shapes=[[1, 1, 3],
+                        [1, 1, 3],
+                        [1, 1, 3],
+                        [1, 1, 3],
+                        [1, 1, 3]],
+         axis=1,
+         output_names=['inp4', 'inp1', 'inp3', 'inp2'])
+]
+
 
 class TestSplitConcat(Caffe2OnnxLayerTest):
     # TODO Add test with default values (axis=0)
@@ -288,6 +313,48 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         return onnx_net, ref_net
 
+
+    def create_split_net_ordered_outputs(self, input_shape, output_shapes, axis, output_names, ir_version):
+        """
+            ONNX net                             IR net
+
+            Input->Split->Output1   =>    Input->Split->Output1
+                        ->Output2   =>                ->Output2
+                        ->Output3   =>                ->Output3
+
+        """
+        #
+        #   Create ONNX model
+        #
+        import onnx
+        from onnx import helper
+        from onnx import TensorProto
+
+        shape = input_shape
+
+        input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
+
+        output_list = []
+        for i, output_name in enumerate(output_names):
+            output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
+
+        node = onnx.helper.make_node('Split', inputs=['input'], outputs=output_names, axis=axis)
+
+        # Create the graph (GraphProto)
+        graph_def = helper.make_graph(
+            [node],
+            'split_model',
+            [input],
+            output_list,
+        )
+
+        # Create the model (ModelProto)
+        onnx_net = helper.make_model(graph_def, producer_name='test_split_model_outputs_order')
+
+        ref_net = None
+
+        return onnx_net, ref_net
+
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir):
@@ -305,3 +372,8 @@ class TestSplit(Caffe2OnnxLayerTest):
     def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
                    temp_dir=temp_dir)
+
+    @pytest.mark.parametrize("params", test_multiple_out)
+    def test_split_outputs_order(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_split_net_ordered_outputs(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version, temp_dir=temp_dir, output_names=params['output_names'])
