@@ -273,12 +273,8 @@ void MKLDNNPoolingNode::prepareParams() {
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
-void MKLDNNPoolingNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
+void MKLDNNPoolingNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 bool MKLDNNPoolingNode::created() const {
@@ -511,7 +507,7 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(rightConfig);
 }
 
-MKLDNNNode::AttrPtr MKLDNNPoolingNode::initPrimitiveAttr() const {
+MKLDNNNode::AttrPtr MKLDNNPoolingNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
     setPostOps(*attr, true);

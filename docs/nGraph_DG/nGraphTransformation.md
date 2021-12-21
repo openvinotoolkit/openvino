@@ -10,8 +10,7 @@ Before creating a transformation, do the following:
 * Understand where to put your transformation code
 
 ### Transformation Library Structure
-Transformation library is independent from Inference Engine target library named as `inference_engine_transformations`
-and is located in the `src/common/transformations` directory.
+OpenVINO transformations are located in the `src/common/transformations` directory.
 
 Transformations root directory contains two folders:
 * `ngraph_ops` - Contains internal opset operations that are common for plugins.
@@ -430,7 +429,7 @@ PassConfig instance taken from pass::Manager is shared across all registered tra
 ## Transformations testing <a name="transformations_testing"></a>
 
 If you are developing new transformation inside plugin, you need to add test into the `template_plugin/tests/functional/transformations` folder.
-We have two types of tests: nGraph reader tests located in `inference-engine/tests/functional/inference_engine/ngraph_reader` and transformation tests located in `inference-engine/tests/functional/inference_engine/transformations`
+We have two types of tests: nGraph reader tests located in `src/tests/functional/inference_engine/ngraph_reader` and transformation tests located in `src/tests/functional/inference_engine/transformations`
 Reader tests are IR based and test end-to-end conversion from IR to CNNNetwork. Transformation tests test single ngraph transformations or low-level functions that are used inside transformations.
 
 The basic transformation test looks like this:

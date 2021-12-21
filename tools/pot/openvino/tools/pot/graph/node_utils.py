@@ -192,11 +192,8 @@ def get_quantized_input_key(quantized_node):
     Otherwise, key is tuple (fq_input name, output port number)
     """
     quantized_input = get_node_input(quantized_node, 0)
-    key = quantized_input.fullname
-    if len(quantized_input.out_ports()) > 1:
-        port_number = quantized_node.in_port(0).get_source().out
-        key = (quantized_input.fullname, port_number)
-    return key
+    quantized_key = create_node_name(quantized_input)
+    return quantized_key
 
 
 def node_with_quantized_weights(node):
@@ -265,6 +262,19 @@ def get_lstm_ends(read_value, assigns, ignore_nodes):
     lstm_outputs = [n for n in get_all_node_outputs(assign_input)
                     if n.name not in ignore_nodes]
     return lstm_outputs
+
+
+def create_node_name(input_node, mode=tuple):
+    """
+    Returns key for node input.
+    If input node has one output port -> key is name of input node.
+    Otherwise, key is tuple (input name, output port number)
+    """
+    key = input_node.fullname
+    if len(input_node.out_ports()) > 1:
+        port_number = input_node.in_port(0).get_source().out
+        key = (input_node.fullname, port_number) if mode == tuple else f"{input_node.fullname}.{port_number}"
+    return key
 
 
 def get_node_data_type(node, port_id=0):

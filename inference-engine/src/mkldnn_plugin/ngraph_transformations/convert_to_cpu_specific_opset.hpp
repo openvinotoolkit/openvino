@@ -7,7 +7,6 @@
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "reshape_fc_fusion.hpp"
-#include "reshape_fully_connected.hpp"
 #include "align_matmul_input_ranks.hpp"
 #include "reshape_prelu.hpp"
 #include "convert_broadcast_to_tiles.hpp"
@@ -24,19 +23,14 @@ namespace MKLDNNPlugin {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
     manager.register_pass<ConvertTileToSeqTiles>();
     manager.register_pass<FullyConnectedBiasFusion>();
-    manager.register_pass<ReshapeFullyConnected>();
     manager.register_pass<ConvertToPowerStatic>();
     manager.register_pass<ConvertToLeakyRelu>();
-    manager.register_pass<ReshapePRelu>();
     manager.register_pass<ConvertToSwishCPU>();
-    manager.register_pass<OptimizeGRUSequenceTransposes>();
-    manager.register_pass<OptimizeLSTMSequenceTransposes>();
-    manager.register_pass<OptimizeRNNSequenceTransposes>();
+    manager.register_pass<OptimizeSequenceTransposes>();
     if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         manager.register_pass<ReshapeFullyConnectedFusion>();
     }
