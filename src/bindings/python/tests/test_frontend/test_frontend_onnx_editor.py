@@ -1067,11 +1067,6 @@ def test_not_supported_methods():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     model = fe.load("test_place_names.onnx")
-    tensor = model.get_place_by_tensor_name(tensor_name="add_out")
-
-    with pytest.raises(Exception) as e:
-        model.add_name_for_tensor(tensor=tensor, new_name="new_name")
-    assert "not applicable for ONNX model" in str(e)
 
     with pytest.raises(Exception) as e:
         model.free_name_for_tensor("add_out")
@@ -1214,9 +1209,9 @@ def test_set_input_partial_shape_using_input_edge():
     model = fe.load("input_model.onnx")
 
     add_operator = model.get_place_by_operation_name("onnx_add_op")
-    add_input_edge = add_operator.get_input_port(inputPortIndex=0)
+    add_input_edge = add_operator.get_input_port(input_port_index=0)
     model.set_partial_shape(add_input_edge, PartialShape([10, 10]))
-    add_input_edge = add_operator.get_input_port(inputPortIndex=1)
+    add_input_edge = add_operator.get_input_port(input_port_index=1)
     model.set_partial_shape(add_input_edge, PartialShape([1]))
 
     ov_model = fe.convert(model)
@@ -1232,7 +1227,7 @@ def test_get_partial_shape_using_input_edge():
     model = fe.load("input_model.onnx")
 
     add_operator = model.get_place_by_operation_name("onnx_add_op")
-    add_input_edge = add_operator.get_input_port(inputPortIndex=0)
+    add_input_edge = add_operator.get_input_port(input_port_index=0)
 
     pshape = model.get_partial_shape(add_input_edge)
     assert pshape == PartialShape([2, 2])
@@ -1244,10 +1239,114 @@ def test_get_partial_shape_using_output_edge():
     model = fe.load("input_model.onnx")
 
     add_operator = model.get_place_by_operation_name("onnx_add_op")
-    add_output_edge = add_operator.get_output_port(outputPortIndex=0)
+    add_output_edge = add_operator.get_output_port(output_port_index=0)
 
     assert model.get_partial_shape(add_output_edge) == PartialShape([2, 2])
 
     split_operator = model.get_place_by_tensor_name("out1").get_producing_operation()
-    out2_edge = split_operator.get_output_port(outputPortIndex=1)
+    out2_edge = split_operator.get_output_port(output_port_index=1)
     assert model.get_partial_shape(out2_edge) == PartialShape([1, 2])
+
+
+def test_add_name_for_tensor():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensor_name="in2")
+    model.add_name_for_tensor(tensor, "extra_name")
+
+    ov_model = fe.convert(model)
+
+    add_input = ov_model.input(1)
+    add_input_tensor_names = add_input.get_names()
+    assert "in2" in add_input_tensor_names
+    assert "extra_name" in add_input_tensor_names
+
+
+def test_add_two_names_for_tensor():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensor_name="in2")
+    model.add_name_for_tensor(tensor, "extra_name1")
+    model.add_name_for_tensor(tensor, "extra_name2")
+
+    ov_model = fe.convert(model)
+
+    add_input = ov_model.input(1)
+    add_input_tensor_names = add_input.get_names()
+    assert len(add_input_tensor_names) == 3
+    assert "extra_name1" in add_input_tensor_names
+    assert "extra_name2" in add_input_tensor_names
+
+
+def test_add_the_same_name_to_tensor_twice():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensor_name="in2")
+    model.add_name_for_tensor(tensor, "extra_name")
+    model.add_name_for_tensor(tensor, "extra_name")
+
+    ov_model = fe.convert(model)
+
+    add_input = ov_model.input(1)
+    add_input_tensor_names = add_input.get_names()
+    assert len(add_input_tensor_names) == 2
+    assert "extra_name" in add_input_tensor_names
+
+
+def test_add_name_for_tensor_and_cut_it_off():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensor_name="in2")
+    model.add_name_for_tensor(tensor, "extra_name")
+
+    split_in = model.get_place_by_operation_name("split2").get_input_port(input_port_index=0)
+    model.extract_subgraph(inputs=[split_in], outputs=[])
+
+    ov_model = fe.convert(model)
+
+    model_input = ov_model.input(0)
+    input_tensor_names = model_input.get_names()
+    assert "extra_name" not in input_tensor_names
+
+
+def test_add_name_for_tensor_and_override_all_inputs():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    # test with an InputEdge type of Place
+    split_in = model.get_place_by_operation_name("split2").get_input_port(input_port_index=0)
+    model.add_name_for_tensor(split_in, "extra_name")
+    model.override_all_inputs([split_in])
+
+    ov_model = fe.convert(model)
+
+    model_input = ov_model.input(0)
+    input_tensor_names = model_input.get_names()
+    assert "extra_name" in input_tensor_names
+
+
+def test_add_name_for_tensor_and_rename_it():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    tensor = model.get_place_by_tensor_name(tensor_name="in2")
+    model.add_name_for_tensor(tensor, "extra_name")
+    model.set_name_for_tensor(tensor, "renamed_input")
+
+    ov_model = fe.convert(model)
+
+    model_input = ov_model.input(1)
+    input_tensor_names = model_input.get_names()
+    assert "renamed_input" in input_tensor_names
+    assert "extra_name" in input_tensor_names
+    assert "in2" not in input_tensor_names
