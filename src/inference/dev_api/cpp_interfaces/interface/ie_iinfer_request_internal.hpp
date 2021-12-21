@@ -101,8 +101,8 @@ public:
     /**
      * @brief Set batch of input data to infer. Default implementation throws "Not implemented" exception
      * To support 'set_input_tensors'/'set_tensors' plugin-specific implementations shall:
-     *  - Inside SetBlobsImpl: update '_batched_inputs' map
-     *  - Inside 'SetBlob': erase appropriate '_batched_inputs[name]' item
+     *  - Inside SetBlobsImpl: update 'InferenceEngine::IInferRequestInternal::batched_inputs' map
+     *  - Inside 'SetBlob': erase appropriate 'InferenceEngine::IInferRequestInternal::_batched_inputs[name]' item
      *  - Inside 'InferImpl': call 'convertBatchedInputBlobs' on the beginning to convert many user blobs into single
      * one
      *  - If needed, override 'convertBatchedInputBlob' to perform custom concatenation and data copy to input blob
@@ -302,7 +302,7 @@ protected:
      * @param blobs - input blobs. The type of Blob must correspond to the network input
      * precision and size.
      */
-    virtual void checkBatchedBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs);
+    virtual void checkBlobsForBatch(const std::string& name, const std::vector<Blob::Ptr>& blobs);
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
@@ -312,9 +312,8 @@ protected:
     std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
     std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input
-    //!< A map of user passed blobs via ov::runtime::InferRequest::set_tensors/set_input_tensors for network inputs
-    std::map<std::string, BatchedBlob::Ptr> _batched_inputs;
-    int m_curBatch = -1;  //!< Current batch value used in dynamic batching
+    std::map<std::string, BatchedBlob::Ptr> _batched_inputs;   //!< A map of user passed blobs for network inputs
+    int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
 
     /**
      * @brief A shared pointer to IInferRequestInternal

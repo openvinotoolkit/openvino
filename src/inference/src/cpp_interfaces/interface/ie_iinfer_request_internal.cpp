@@ -171,7 +171,7 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
     OPENVINO_ASSERT(all_memory,
                     "set_input_tensors/set_tensors error. Default implementation support only local memory tensors");
 
-    checkBatchedBlobs(name, blobs);
+    checkBlobsForBatch(name, blobs);
 
     SetBlobsImpl(name, std::make_shared<BatchedBlob>(blobs));
 }
@@ -180,13 +180,13 @@ void IInferRequestInternal::SetBlobsImpl(const std::string& name, const BatchedB
     IE_THROW(NotImplemented) << "set_input_tensors/set_tensors are not supported by this plugin";
 }
 
-void IInferRequestInternal::checkBatchedBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
+void IInferRequestInternal::checkBlobsForBatch(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
     OPENVINO_ASSERT(!blobs.empty(),
                     "set_input_tensors/set_tensors can't be called with empty blobs for input '",
                     name,
                     "'");
     OPENVINO_ASSERT(blobs.size() != 1,
-                    "Internal error (plugin): checkBatchedBlobs is not allowed to have only one blob inside batch "
+                    "Internal error (plugin): checkBlobsForBatch is not allowed to have only one blob inside batch "
                     "for input '",
                     name,
                     "'");
@@ -212,13 +212,17 @@ void IInferRequestInternal::checkBatchedBlobs(const std::string& name, const std
     if (batch_idx < 0) {
         batch_idx += static_cast<int64_t>(blobs[0]->getTensorDesc().getDims().size());
     }
-    auto input_size = std::accumulate(blobs.begin(), blobs.end(), 0, [&batch_idx](int res, const Blob::Ptr& item) {
+    OPENVINO_ASSERT(batch_idx == 0,
+                    "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
+                    batch_idx,
+                    " != 0");
+    std::for_each(blobs.begin(), blobs.end(), [&batch_idx](const Blob::Ptr& item) {
         OPENVINO_ASSERT(item->getTensorDesc().getDims()[batch_idx] == 1,
                         "set_input_tensors/set_tensors. Tensors shall represent one item in a batch, ",
                         item->getTensorDesc().getDims()[batch_idx],
                         " provided");
-        return res + item->getTensorDesc().getDims()[batch_idx];
     });
+    auto blobs_size = static_cast<int>(blobs.size());
     if (param->get_partial_shape().rank().is_static()) {
         OPENVINO_ASSERT(batch_idx >= 0 && batch_idx < param->get_partial_shape().rank().get_length(),
                         "set_input_tensors/set_tensors error. Layout ",
@@ -229,24 +233,20 @@ void IInferRequestInternal::checkBatchedBlobs(const std::string& name, const std
                         param->get_partial_shape());
         auto batch = param->get_partial_shape()[batch_idx];
 
-        OPENVINO_ASSERT(batch.is_dynamic() || batch.get_length() == input_size,
+        OPENVINO_ASSERT(batch.is_dynamic() || batch.get_length() == blobs_size,
                         "set_input_tensors/set_tensors error. Input shape ",
                         param->get_partial_shape(),
                         "batch ",
                         batch,
                         "doesn't match with total blobs count: ",
-                        input_size);
+                        blobs_size);
     }
-    OPENVINO_ASSERT(batch_idx == 0,
-                    "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
-                    batch_idx,
-                    " != 0");
 
     // In future consider checking if blobs point to contiguous range of memory and use single 'SetBlob' instead
     auto tmp_desc = blobs[0]->getTensorDesc();
-    tmp_desc.getDims()[batch_idx] = input_size;
+    tmp_desc.getDims()[batch_idx] = blobs_size;
     auto blockingDims = tmp_desc.getBlockingDesc().getBlockDims();
-    blockingDims[batch_idx] = input_size;
+    blockingDims[batch_idx] = blobs_size;
     auto blockingDesc = BlockingDesc(blockingDims, tmp_desc.getBlockingDesc().getOrder());
     auto batched_desc = InferenceEngine::TensorDesc(tmp_desc.getPrecision(), tmp_desc.getDims(), blockingDesc);
     auto desc_to_string = [](const TensorDesc& desc) {
@@ -287,14 +287,14 @@ void IInferRequestInternal::convertBatchedInputBlob(const std::string& name, con
         if (net) {
             remote_context = net->GetContext();
         }
-    } catch (...) {
+    } catch (const NotImplemented&) {
     }
     if (remote_context) {
         mem_blob = remote_context->CreateHostBlob(batched_desc);
     } else {
         mem_blob = std::dynamic_pointer_cast<MemoryBlob>(make_blob_with_precision(batched_desc));
     }
-    OPENVINO_ASSERT(mem_blob, "Internal error - can't create memory/remote blob");
+    OPENVINO_ASSERT(mem_blob, "Internal error - can't create hist memory blob");
     mem_blob->allocate();
     auto ptr = mem_blob->wmap();
 
