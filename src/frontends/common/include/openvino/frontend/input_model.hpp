@@ -89,13 +89,15 @@ public:
     /// \param operation_name Name of operation
     /// \param input_port_index Index of input port for this operation
     /// \return Place representing input port of operation or nullptr if not exists
-    virtual Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name, int input_port_index);
+    virtual Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
+                                                                  int input_port_index);
 
     /// \brief Returns an output port place by operation name and appropriate port index
     /// \param operation_name Name of operation
     /// \param output_port_index Index of output port for this operation
     /// \return Place representing output port of operation or nullptr if not exists
-    virtual Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name, int output_port_index);
+    virtual Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name,
+                                                                   int output_port_index);
 
     ///// Naming and annotation  /////
 

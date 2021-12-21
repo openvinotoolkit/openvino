@@ -32,8 +32,8 @@ public:
         return copy;
     }
 };
-}
-}
+}  // namespace frontend
+}  // namespace ov
 
 FrontEnd::FrontEnd() = default;
 
@@ -81,24 +81,38 @@ void FrontEnd::normalize(const std::shared_ptr<Model>& model) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
-    FRONT_END_CHECK_IMPLEMENTED(m_actual, add_extension);
-    m_actual->add_extension(extension);
+    if (m_actual) {
+        m_actual->add_extension(extension);
+        return;
+    }
+    // Left unimplemented intentionally.
+    // Each frontend can support own set of extensions, so this method should be implemented on the frontend side
 }
 
 void FrontEnd::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
-    FRONT_END_CHECK_IMPLEMENTED(m_actual, add_extension);
-    m_actual->add_extension(extensions);
+    if (m_actual) {
+        m_actual->add_extension(extensions);
+        return;
+    }
+    for (const auto& ext : extensions)
+        add_extension(ext);
 }
 
 void FrontEnd::add_extension(const std::string& library_path) {
-    FRONT_END_CHECK_IMPLEMENTED(m_actual, add_extension);
-    m_actual->add_extension(library_path);
+    if (m_actual) {
+        m_actual->add_extension(library_path);
+        return;
+    }
+    add_extension(ov::detail::load_extensions(library_path));
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void FrontEnd::add_extension(const std::wstring& library_path) {
-    FRONT_END_CHECK_IMPLEMENTED(m_actual, add_extension);
-    m_actual->add_extension(library_path);
+    if (m_actual) {
+        m_actual->add_extension(library_path);
+        return;
+    }
+    add_extension(ov::detail::load_extensions(library_path));
 }
 #endif
 

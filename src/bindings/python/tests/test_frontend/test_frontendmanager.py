@@ -592,16 +592,16 @@ def test_place_get_source_tensor():
     stat = get_place_stat()
     assert stat.get_source_tensor == 1
     assert stat.lastArgInt == -1
-    assert place.get_source_tensor(inputPortIndex=22) is not None
+    assert place.get_source_tensor(input_port_index=22) is not None
     stat = get_place_stat()
     assert stat.get_source_tensor == 2
     assert stat.lastArgInt == 22
-    assert place.get_source_tensor(inputName="2") is not None
+    assert place.get_source_tensor(input_name="2") is not None
     stat = get_place_stat()
     assert stat.get_source_tensor == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_source_tensor(inputName="3", inputPortIndex=33) is not None
+    assert place.get_source_tensor(input_name="3", input_port_index=33) is not None
     stat = get_place_stat()
     assert stat.get_source_tensor == 4
     assert stat.lastArgInt == 33
