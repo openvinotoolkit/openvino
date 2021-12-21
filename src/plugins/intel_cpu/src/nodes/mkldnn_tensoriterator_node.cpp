@@ -735,7 +735,7 @@ int MKLDNNTensorIteratorNode::getNumIteration(const std::vector<PortMap>& inputP
     }
 
     for (const auto& rule : outputPortMap) {
-        const auto& dims = getBaseMemDescAtOutputPort(rule.to)->getShape().getDims();
+        const auto& dims = getBaseMemDescAtOutputPort(rule.from)->getShape().getDims();
         if (!isIterable(rule)) {
             continue;
         }
