@@ -63,8 +63,8 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
 
 # --------------- OpenVINO runtime library dev ------------------------------
 add_library(${TARGET_NAME}_dev INTERFACE)
-target_link_libraries(${TARGET_NAME}_dev INTERFACE inference_engine_plugin_api)
 target_include_directories(${TARGET_NAME}_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
+                                                        $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
                                                         $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>)
 add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
