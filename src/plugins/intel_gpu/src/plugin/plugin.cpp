@@ -678,6 +678,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         metrics.push_back(METRIC_KEY(DEVICE_TYPE));
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
+        metrics.push_back(METRIC_KEY(OPTIMAL_BATCH_SIZE));
         metrics.push_back(GPU_METRIC_KEY(MAX_BATCH_SIZE));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
@@ -713,16 +714,22 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
               << static_cast<int>(device_info.gfx_ver.revision);
         }
         IE_SET_METRIC_RETURN(GPU_UARCH_VERSION, s.str());
-    } else if (name == METRIC_KEY(OPTIMAL_BATCH)) {
+    } else if (name == METRIC_KEY(OPTIMAL_BATCH_SIZE)) {
         auto next_pow_of_2 = [] (float x) {
             return pow(2, ceil(log(x)/log(2)));
         };
         auto closest_pow_of_2 = [] (float x) {
             return pow(2, floor(log(x)/log(2)));
         };
-        auto network = options.find("MODEL_PTR")->second.as<InferenceEngine::CNNNetwork const*>();
+        std::shared_ptr<ngraph::Function> model;
+        try {
+            auto model_param = options.find("MODEL_PTR")->second;
+            model = model_param.as<std::shared_ptr<ngraph::Function>>();
+        } catch (...) {
+            IE_THROW() << "[GPU_OPTIMAL_BATCH_SIZE] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
+        }
         Config config = _impl->m_configs.GetConfig(device_id);
-        auto networkCloned = CloneAndTransformNetwork(*network, config);
+        auto networkCloned = CloneAndTransformNetwork(CNNNetwork(model), config);
 
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
             GPU_DEBUG_COUT << "DEVICE_INFO:"
@@ -760,7 +767,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
             batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));
         std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
-        options_for_max_batch["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network->getFunction());
+        options_for_max_batch["MODEL_PTR"] = model;
         options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
         auto max_batch_size = GetMetric(GPU_METRIC_KEY(MAX_BATCH_SIZE), options_for_max_batch).as<unsigned int>();
         unsigned int closest = closest_pow_of_2(max_batch_size);
@@ -771,7 +778,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             GPU_DEBUG_COUT << "MAX_BATCH: " << max_batch_size << std::endl;
             GPU_DEBUG_COUT << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
         }
-        IE_SET_METRIC_RETURN(OPTIMAL_BATCH, batch);
+        IE_SET_METRIC_RETURN(OPTIMAL_BATCH_SIZE, batch);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";

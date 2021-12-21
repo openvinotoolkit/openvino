@@ -594,9 +594,9 @@ public:
                 // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
                 // let's query the optimal batch size
                 std::map<std::string, ie::Parameter> options;
-                options["MODEL_PTR"] = &network;
+                options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network.getFunction());
                 optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameWithoutBatch).getDeviceName())
-                                       .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
+                                       .get_metric(METRIC_KEY(OPTIMAL_BATCH_SIZE), options)
                                        .as<unsigned int>();
                 auto res =
                     GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();

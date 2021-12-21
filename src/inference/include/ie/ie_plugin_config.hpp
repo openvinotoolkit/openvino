@@ -118,7 +118,7 @@ DECLARE_METRIC_VALUE(BATCHED_BLOB);
  * String value for metric name is "RANGE_FOR_STREAMS".
  */
 DECLARE_METRIC_KEY(RANGE_FOR_STREAMS, std::tuple<unsigned int, unsigned int>);
-DECLARE_METRIC_KEY(OPTIMAL_BATCH, unsigned int);
+DECLARE_METRIC_KEY(OPTIMAL_BATCH_SIZE, unsigned int);
 
 /**
  * @brief Metric to provide a hint for a range for number of async infer requests. If device supports streams,

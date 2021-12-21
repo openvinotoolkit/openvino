@@ -682,10 +682,10 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                     const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
                     if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
                          std::map<std::string, InferenceEngine::Parameter> options;
-                         options["MODEL_PTR"] = &_network; // CNNntework
+                         options["MODEL_PTR"] = _network.getFunction(); // CNNntework
                          try {
                              auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
-                                     METRIC_KEY(OPTIMAL_BATCH), options).as<unsigned int>();
+                                     METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
                              auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
                                      METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
                              real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);

@@ -183,9 +183,9 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, cpuCustomerNum, ""});
         metaDevices.push_back({CommonTestUtils::DEVICE_GPU, {{CONFIG_KEY(PERFORMANCE_HINT),
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, gpuCustomerNum, ""});
-        IE_SET_METRIC(OPTIMAL_BATCH, optimalBatchNum, 256);
+        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, optimalBatchNum, 256);
         IE_SET_METRIC(RANGE_FOR_STREAMS, rangeOfStreams, std::make_tuple<unsigned int, unsigned int>(1, 2));
-        ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMAL_BATCH)), _))
+        ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
             .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
         ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));

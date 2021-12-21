@@ -115,6 +115,26 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("GPU")
 );
 
+using IEClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE = BehaviorTestsUtils::IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
+
+    std::map<std::string, InferenceEngine::Parameter> _options = {{"MODEL_PTR", simpleCnnNetwork.getFunction()}};
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(OPTIMAL_BATCH_SIZE), _options).as<unsigned int>());
+    unsigned int t = p;
+
+    std::cout << "GPU device optimal batch size: " << t << std::endl;
+
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(OPTIMAL_BATCH_SIZE));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassExecutableNetworkGetMetricTest, IEClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE,
+        ::testing::Values("GPU")
+);
+
 using IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -134,6 +154,7 @@ INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassExecutableNetworkGetMetricTest, IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT,
         ::testing::Values("GPU")
 );
+
 
 using IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPrintNoThrow) {
