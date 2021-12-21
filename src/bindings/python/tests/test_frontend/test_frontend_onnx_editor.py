@@ -897,7 +897,7 @@ def test_add_output_place_is_not_output():
     model = fe.load("input_model.onnx")
     assert model
 
-    place = model.get_place_by_tensor_name(tensorName="add_out")
+    place = model.get_place_by_tensor_name(tensor_name="add_out")
     model.add_output(place)
 
     out_names = [place.get_names()[0] for place in model.get_outputs()]
@@ -914,7 +914,7 @@ def test_add_output_place_is_output():
 
     orig_func = fe.convert(model)
 
-    place = model.get_place_by_tensor_name(tensorName="out1")
+    place = model.get_place_by_tensor_name(tensor_name="out1")
     model.add_output(place)
 
     result_func = fe.convert(model)
@@ -931,7 +931,7 @@ def test_add_output_place_is_input():
     model = fe.load("input_model.onnx")
     assert model
 
-    place = model.get_place_by_tensor_name(tensorName="in1")
+    place = model.get_place_by_tensor_name(tensor_name="in1")
     model.add_output(place)
     result_func = fe.convert(model)
 
@@ -1146,7 +1146,7 @@ def test_remove_output():
     model = fe.load("input_model.onnx")
     assert model
 
-    place = model.get_place_by_tensor_name(tensorName="out4")
+    place = model.get_place_by_tensor_name(tensor_name="out4")
     model.remove_output(place)
 
     expected_model = fe.load("remove_output.onnx")
@@ -1165,7 +1165,7 @@ def test_remove_output_when_place_is_input():
     model = fe.load("input_model.onnx")
     assert model
 
-    place = model.get_place_by_tensor_name(tensorName="in1")
+    place = model.get_place_by_tensor_name(tensor_name="in1")
     model.remove_output(place)
 
     expected_model = fe.load("input_model.onnx")
@@ -1214,7 +1214,7 @@ def test_cut_and_add_new_input_place():
     model = fe.load("input_model.onnx")
     assert model
 
-    place = model.get_place_by_tensor_name(tensorName="add_out")
+    place = model.get_place_by_tensor_name(tensor_name="add_out")
 
     model.cut_and_add_new_input(place, "new_input")
 
@@ -1234,9 +1234,9 @@ def test_cut_and_add_new_input_edge():
     model = fe.load("input_model.onnx")
     assert model
 
-    out4 = model.get_place_by_tensor_name(tensorName="out4")
+    out4 = model.get_place_by_tensor_name(tensor_name="out4")
     mul_op = out4.get_producing_operation()
-    edge_mul0 = mul_op.get_input_port(inputPortIndex=0)
+    edge_mul0 = mul_op.get_input_port(input_port_index=0)
 
     model.cut_and_add_new_input(edge_mul0, "new_input")
 
@@ -1258,7 +1258,7 @@ def test_set_tensor_value():
 
     new_values = np.array([[1, 2], [3, 4]], dtype=np.float32)
 
-    place1 = model.get_place_by_tensor_name(tensorName="in1")
+    place1 = model.get_place_by_tensor_name(tensor_name="in1")
     model.set_tensor_value(place1, new_values)
 
     model_func = fe.convert(model)
