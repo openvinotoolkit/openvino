@@ -177,7 +177,6 @@ int main(int argc, char* argv[]) {
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
-            gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE_GENERATION] = FLAGS_we_gen;
         }
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 2. Loading model to the device ------------------------------------------
@@ -232,9 +231,6 @@ int main(int argc, char* argv[]) {
         }
         if (!FLAGS_we.empty()) {
             slog::info << "Exported GNA embedded model to file " << FLAGS_we << slog::endl;
-            if (!FLAGS_we_gen.empty()) {
-                slog::info << "GNA embedded model export done for GNA generation: " << FLAGS_we_gen << slog::endl;
-            }
             return 0;
         }
         // ---------------------------------------------------------------------------------------------------------

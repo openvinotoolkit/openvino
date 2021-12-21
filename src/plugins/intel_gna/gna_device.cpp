@@ -473,28 +473,6 @@ GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
 
 #if GNA_LIB_VER == 2
 
-void GNADeviceHelper::dumpXnnForDeviceVersion(
-    const uint32_t modelId,
-    std::ostream & outStream,
-    const Gna2DeviceVersion targetDeviceVersion) {
-
-    Gna2ModelSueCreekHeader sueHeader;
-    auto ptr = ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &sueHeader);
-    gnaUserFree(ptr);
-
-    ExportGnaDescriptorPartiallyFilled(sueHeader.NumberOfLayers, outStream);
-
-    ExportLdForDeviceVersion(modelId, outStream, targetDeviceVersion);
-    if (dumpXNNROPtr == nullptr) {
-        THROW_GNA_EXCEPTION << "Bad RO pointer (nullptr)";
-    }
-    outStream.write(static_cast<const char*>(dumpXNNROPtr), dumpXNNROSize);
-
-    // TODO: GNA2: remove
-    outStream.write("Gna2ModelSueCreekHeader", 24);
-    outStream.write(reinterpret_cast<const char*>(&sueHeader), sizeof(sueHeader));
-}
-
 void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose) {
     const auto status = Gna2DeviceCreateForExport(devVersion, &nGnaDeviceIndex);
     GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + std::to_string(devVersion) + ")" + purpose);

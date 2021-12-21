@@ -15,7 +15,6 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
-    {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
     {GNA_CONFIG_KEY(EXEC_TARGET), ""},
     {GNA_CONFIG_KEY(COMPILE_TARGET), ""},
     {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT},
@@ -94,11 +93,6 @@ TEST_F(GNAPluginConfigTest, GnaConfigScaleFactorTest) {
 TEST_F(GNAPluginConfigTest, GnaConfigFirmwareModelImageTest) {
     SetAndCompare(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), "abc");
     EXPECT_EQ(config.dumpXNNPath, "abc");
-}
-
-TEST_F(GNAPluginConfigTest, GnaConfigFirmwareModelImageGeneratorTest) {
-    SetAndCompare(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), "def");
-    EXPECT_EQ(config.dumpXNNGeneration, "def");
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
