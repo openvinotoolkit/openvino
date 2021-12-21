@@ -306,90 +306,62 @@ void GNAPlugin::ExportScores(void *ptr_dst,
     }
 }
 
-void GNAPlugin::ImportFrames(
-                  void *ptr_dst,
-                  const void *ptr_src,
-                  Precision input_precision,
-                  float scaleFactor,
-                  intel_dnn_orientation_t orientation,
-                  uint32_t num_frames,
-                  uint32_t num_group,
-                  uint32_t num_vector_elements,
-                  uint32_t num_vector_stride) {
-    if (orientation == kDnnInterleavedOrientation) {
-        // TODO : fix that as well
-        if (input_precision == Precision::U8 || input_precision == Precision::I8) {
-            auto src = reinterpret_cast<const uint8_t *>(ptr_src);
+void GNAPlugin::ImportFrames(void *ptr_dst,
+                            const void *ptr_src,
+                            Precision input_precision,
+                            float scaleFactor,
+                            intel_dnn_orientation_t orientation,
+                            uint32_t num_frames,
+                            uint32_t num_group,
+                            uint32_t num_vector_elements,
+                            uint32_t num_vector_stride) {
+    //
+    switch (input_precision) {
+    case Precision::U8:
+    case Precision::I8:
+    {
+        auto src = reinterpret_cast<const uint8_t *>(ptr_src);
+        if (!gnaFlags->input_low_precision) {
+            auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        } else {
+            auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        }
+        break;
+    }
+    case Precision::I16:
+    {
+        auto src = reinterpret_cast<const int16_t *>(ptr_src);
+        if (!gnaFlags->input_low_precision) {
+            auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        } else {
+            auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        }
+        break;
+    }
+    case Precision::FP32:
+    case Precision::I32:
+    {
+        auto src = reinterpret_cast<const float *>(ptr_src);
+        if (!gnadevice) {
+            auto dst = reinterpret_cast<float *>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        } else {
             if (!gnaFlags->input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             } else {
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            }
-        } else if (input_precision.size() == 2) {
-            auto src = reinterpret_cast<const int16_t *>(ptr_src);
-            if (!gnaFlags->input_low_precision) {
-                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            }
-        } else if (input_precision.size() == 4) {
-            if (!gnadevice) {
-                auto dst = reinterpret_cast<float *>(ptr_dst);
-                auto src = reinterpret_cast<const float *>(ptr_src);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto src = reinterpret_cast<const float *>(ptr_src);
-                if (!gnaFlags->input_low_precision) {
-                    auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-                } else {
-                    auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-                }
             }
         }
-    } else {
-        if (input_precision == Precision::U8 || input_precision == Precision::I8) {
-            auto src = reinterpret_cast<const uint8_t *>(ptr_src);
-            if (!gnadevice) {
-                auto dst = reinterpret_cast<float *>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else if (!gnaFlags->input_low_precision) {
-                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            }
-        } else if (input_precision.size() == 2) {
-            auto src = reinterpret_cast<const int16_t *>(ptr_src);
-            if (!gnaFlags->input_low_precision) {
-                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            }
-        } else if (input_precision.size() == 4) {
-            if (!gnadevice) {
-                auto dst = reinterpret_cast<float *>(ptr_dst);
-                auto src = reinterpret_cast<const float *>(ptr_src);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto src = reinterpret_cast<const float *>(ptr_src);
-                if (!gnaFlags->input_low_precision) {
-                    auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-                } else {
-                    auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-                }
-            }
-        }
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -1303,7 +1275,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         ImportFrames(inputsDesc->getPtrInputsGlobal(input.first)[idx],
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
-                     gnaFlags->sw_fp32 ? 1.0f : inputsDesc->getScaleFactor(inputNum),
+                     gnaFlags->sw_fp32 ? GNAPluginNS::kScaleFactorDefault : inputsDesc->getScaleFactor(inputNum),
                      inputOrientation,
                      importedFrames,
                      targetGroups,
@@ -1467,19 +1439,15 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #endif
             switch (outputBlob->getTensorDesc().getPrecision()) {
             case InferenceEngine::Precision::FP32 :
-                ConvertToFloat(outputBlob->buffer(),
-                               outputBlob->buffer(),
-                               elementsPerBatch,
-                               batchSize,
-                               outputDesc.scale_factor);
+                CastPrecision(outputBlob->buffer().as<float*>(),
+                              outputBlob->buffer().as<int32_t*>(),
+                              elementsPerBatch, batchSize, outputDesc.scale_factor);
                 break;
 
             case InferenceEngine::Precision::I32 :
-                ConvertToInt32(outputBlob->buffer(),
-                               outputBlob->buffer(),
-                               elementsPerBatch,
-                               batchSize,
-                               outputDesc.scale_factor);
+                CastPrecision(outputBlob->buffer().as<int32_t*>(),
+                              outputBlob->buffer().as<int32_t*>(),
+                              elementsPerBatch, batchSize, outputDesc.scale_factor);
                 break;
 
             default:

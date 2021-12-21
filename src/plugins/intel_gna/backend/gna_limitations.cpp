@@ -5,7 +5,6 @@
 #include "gna_limitations.hpp"
 
 #include <cstdint>
-#include <algorithm>
 #include <unordered_set>
 #include <legacy/ie_layers.h>
 #include <legacy/graph_tools.hpp>
