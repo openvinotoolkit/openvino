@@ -176,9 +176,6 @@ public:
 #else
 
     DumpResult dumpXnn(const uint32_t modelId);
-    void dumpXnnForDeviceVersion(const uint32_t modelId,
-        std::ostream & outStream,
-        Gna2DeviceVersion targetDeviceVersion);
 #endif
     void free(void * ptr);
 
