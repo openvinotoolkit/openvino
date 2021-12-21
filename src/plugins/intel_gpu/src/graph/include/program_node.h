@@ -5,7 +5,9 @@
 #pragma once
 
 #include "intel_gpu/primitives/primitive.hpp"
+#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/activation.hpp"
+#endif
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
@@ -31,6 +33,7 @@ class pre_replace_deconv;
 
 template <class T>
 struct typed_program_node;
+struct program_node;
 
 class json_composite;
 class xml_composite;
@@ -69,8 +72,10 @@ struct fused_primitive_desc {
     std::vector<std::pair<primitive_id, size_t>> deps;
     std::map<primitive_id, size_t> fused_deps;
     size_t total_num_deps = 0;
+#if 0 // TODO(taylor)
     activation_func activation;
     activation_additional_params activation_params = { 0.f, 0.f };
+#endif
     layout input_layout = layout(data_types::f32, format::bfyx, tensor());
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 };
@@ -131,8 +136,9 @@ public:
     void set_preferred_impl_type(impl_types impl) { impl_type = impl; }
     impl_types get_preferred_impl_type() const { return impl_type; }
 
-    std::vector<program_node*> const& get_dependencies() const { return dependencies; }
-    program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
+    std::vector<std::pair<program_node*, int>> const& get_dependencies() const { return dependencies; }
+
+    std::pair<program_node*, int32_t> get_dependency(size_t idx) const { return dependencies.at(idx); }
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
     void replace_dependency(size_t idx, program_node& new_dep);
@@ -145,9 +151,9 @@ public:
     void remove_dependency(size_t idx);
     void remove_dependency(program_node& node);
 
-    std::set<primitive_id> get_memory_dependencies() const;
-    void add_memory_dependency(primitive_id);
-    void add_memory_dependency(std::vector<primitive_id>);
+    std::set<input_info, input_info::cmp> get_memory_dependencies() const;
+    void add_memory_dependency(input_info dep);
+    void add_memory_dependency(std::vector<input_info> deps);
 
     template <class PType>
     bool have_user_with_type() const {
@@ -170,34 +176,41 @@ public:
     // do not modify primitive directly to keep synchronisation with graph
     std::shared_ptr<const primitive> get_primitive() const { return desc; }
     // primitive modification functions
-    void set_output_padding(padding const& padd) {
+    void set_output_padding(padding const& padd, int32_t idx = 0) {
         // changing output padding shouldn't cause any changes to other primitives
         // so just change it
-        output_layout.data_padding = padd;
+        output_layouts[idx].data_padding = padd;
     }
 
-    void merge_output_padding(padding const& padd) {
-        set_output_padding(padding::max(padd, output_layout.data_padding));
+    void merge_output_padding(padding const& padd, int32_t idx = 0) {
+        set_output_padding(padding::max(padd, output_layouts[idx].data_padding));
     }
 
     // only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users
-    layout calc_output_layout() const;
+    layout calc_output_layout(int32_t idx = 0) const;
+    std::vector<layout> calc_output_layouts() const;
 
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
     // users if layout has changed and @p invalidate_users_if_changed is set to true
-    layout get_output_layout(bool invalidate_users_if_changed = true);
+    layout get_output_layout(int32_t idx) const;
+    layout get_output_layout(bool invalidate_users_if_changed = true, int32_t idx = 0);
+    std::vector<layout> get_output_layouts(bool invalidate_users_if_changed = true);
     // returns cached output layout if valid, otherwise throws an exception
     layout get_output_layout() const;
+    std::vector<layout> get_output_layouts() const;
     // returns result of get_output_layout without padding
     layout get_non_padded_output_layout(bool invalidate_users_if_changed = true);
 
     // sets cached output layout to an arbitrary value, invalidates users if new layout differs from previous one and @p
     // invalidate_users_if_changed is set to true returns whether output layout has changed
-    bool set_output_layout(layout& new_layout, bool invalidate_users_if_changed = true);
+    bool set_output_layout(layout& new_layout, bool invalidate_users_if_changed = true, int32_t idx = 0);
+    bool set_output_layouts(std::vector<layout>& new_layout, bool invalidate_users_if_changed = true);
+
+    size_t get_outputs_count() const { return num_outputs; }
 
     // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
     // @p invalidate_users_if_changed is set to true returns whether output layout has changed
-    bool recalc_output_layout(bool invalidate_users_if_changed = true);
+    bool recalc_output_layouts(bool invalidate_users_if_changed = true);
 
     bool is_padded() { return static_cast<bool>(get_output_layout().data_padding); }
     bool is_padded() const { return static_cast<bool>(get_output_layout().data_padding); }
@@ -210,8 +223,13 @@ public:
     void set_output(bool out) { output = out; }
     bool is_output() const { return output; }
 
-    bool is_valid_output_layout() const { return valid_output_layout; }
-
+    bool is_valid_output_layout(size_t idx) const { return valid_output_layouts[idx]; }
+    bool is_all_valid_output_layout() const {
+        for (auto l : valid_output_layouts) {
+            if (l == false) return false;
+        }
+        return true;
+    }
     uint8_t mark(uint8_t val = 1) {
         uint8_t ret = user_mark;
         user_mark = val;
@@ -221,7 +239,7 @@ public:
     bool is_marked() const { return user_mark != 0; }
     bool is_marked(uint8_t val) const { return user_mark == val; }
     uint8_t get_user_mark() const { return user_mark; }
-
+#if 0 // TODO(taylor)
     void add_fused_activation(activation_func activation_func,
                               activation_additional_params additional_params) {
         fused_activations.emplace_back(activation_func, additional_params);
@@ -244,11 +262,11 @@ public:
                        [](fused_activation_params const& p) { return p.params; });
         return params;
     }
-
     void copy_fused_activation(const program_node& rhs) {
         fused_activations = rhs.fused_activations;
     }
 
+#endif
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
@@ -265,7 +283,9 @@ public:
     // Checks if primitive supports any padding in specified axis
     bool support_padding(int axis) const { return _support_padding_in_axis[axis]; }
     // Checks whether with current format specified padding is supported;
+#if 0 // TODO(taylor)
     bool is_padding_supported(int axis, int padding) const;
+#endif
 
     primitive_id get_org_primitive_id() const { return org_id; }
 
@@ -371,14 +391,16 @@ protected:
 
     std::unique_ptr<primitive_impl> selected_impl;
 
-    bool valid_output_layout = false;
-    layout output_layout = layout(data_types::f32, format::bfyx, tensor());
+    std::vector<bool> valid_output_layouts;
+    std::vector<layout> output_layouts;
 
-    std::vector<program_node*> dependencies;
+    std::vector<std::pair<program_node*, int>> dependencies;
     std::list<program_node*> users;
+    std::map<int, std::list<program_node*>> idx_users;
+    std::map<program_node*, int32_t> users_idx;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::set<primitive_id> memory_dependencies;
+    std::set<input_info, input_info::cmp> memory_dependencies;
 
     impl_types impl_type = impl_types::any;
     bool constant = false;
@@ -396,14 +418,17 @@ protected:
     const primitive_id org_id;
 
     struct fused_activation_params {
+#if 0 // TODO(taylor)
         activation_func func = activation_func::none;
         activation_additional_params params = {0.0f, 0.0f};
-
+#endif
         fused_activation_params() {}
 
+#if 0 // TODO(taylor)
         fused_activation_params(activation_func _func, activation_additional_params _params) :
                 func(_func),
                 params(_params) {}
+#endif
     };
 
     std::vector<fused_activation_params> fused_activations;
@@ -427,7 +452,9 @@ private:
 
     bool has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& attr);
     dnnl::post_ops try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr, bool& optimization_is_completed);
+
 #endif // ENABLE_ONEDNN_FOR_GPU
+    size_t num_outputs = 1;
 };
 
 /*
@@ -468,7 +495,7 @@ template <class PType>
 struct typed_program_node : public typed_program_node_base<PType> {
     using typed_program_node_base<PType>::typed_program_node_base;
 
-    program_node& input() const { return program_node::get_dependency(0); }
+    program_node& input() const { return *program_node::get_dependency(0).first; }
 };
 
 }  // namespace cldnn

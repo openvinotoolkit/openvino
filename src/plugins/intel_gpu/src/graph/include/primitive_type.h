@@ -29,7 +29,10 @@ struct primitive_type {
     virtual std::unique_ptr<primitive_impl> choose_impl(const program_node& node) const = 0;
     virtual bool does_an_implementation_exist(const program_node& node) const = 0;
     virtual bool does_possible_implementation_exist(const program_node& node) const = 0;
-    virtual layout calc_output_layout(const program_node& node) const = 0;
+    virtual layout calc_output_layout(const program_node& node, int32_t idx = 0) const = 0;
+    virtual std::vector<layout> calc_output_layouts(const program_node& node) const { return {}; }
+#if 0 // TODO(taylor)
     virtual std::string to_string(const program_node& node) const = 0;
+#endif
 };
 }  // namespace cldnn

@@ -26,12 +26,12 @@ struct data : public primitive_base<data> {
     /// @param id This primitive id.
     /// @param mem @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
-    data(const primitive_id& id, memory::ptr mem, const primitive_id& ext_prim_id = "")
-        : primitive_base(id, {}, ext_prim_id, padding()), mem(mem) {}
+    data(const primitive_id& id, std::vector<memory::ptr> mems, const primitive_id& ext_prim_id = "")
+        : primitive_base(id, {}, ext_prim_id, {padding()}), mems(mems) {}
 
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
-    memory::ptr mem;
+    std::vector<memory::ptr> mems;
 };
 /// @}
 /// @}

@@ -18,12 +18,13 @@ struct typed_program_node<data> : public typed_program_node_base<data> {
 
     typed_program_node(const std::shared_ptr<data> prim, program& prog);
 
-    memory& get_attached_memory() const { return *mem; }
-    memory::ptr get_attached_memory_ptr() const { return mem; }
-    void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true);
+    memory& get_attached_memory(int32_t idx = 0) const { return *mems[idx]; }
+    memory::ptr get_attached_memory_ptr(int32_t idx = 0) const { return mems[idx]; }
+    std::vector<memory::ptr> get_attached_memory_ptrs() const { return mems; }
+    void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true, int32_t idx = 0);
 
 private:
-    memory::ptr mem;
+    std::vector<memory::ptr> mems;
 };
 
 using data_node = typed_program_node<data>;

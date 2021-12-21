@@ -4,11 +4,15 @@
 
 #include "primitive_inst.h"
 #include "data_inst.h"
+#if 0 // TODO(taylor)
 #include "mutable_data_inst.h"
 #include "generic_layer_inst.h"
+#endif
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
+#if 0 // TODO(taylor)
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#endif
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -116,26 +120,27 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
         }
     }
 }
-
 void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
     auto& eng = _network.get_engine();
-    // skip all the buzz if no action actually required
-    if (eng.is_the_same_buffer(*mem_new, *_output)) {
-        return;
+    // skip all the buzz if no action actually require
+    bool all_same_buffer = true;
+    for (auto a : _outputs) {
+        all_same_buffer &= eng.is_the_same_buffer(*mem_new, *a);
     }
+    if (all_same_buffer) return;
 
-    auto ol = _node.get_output_layout();
+    // TODO(taylor) to support multiple output
+    auto ol = _node.get_output_layout(0);
 
     if (check)
         check_memory_to_set(*mem_new, ol);
 
     if (_node.is_constant()) {
-        mem_new->copy_from(_network.get_stream(), *_output);
+        mem_new->copy_from(_network.get_stream(), *_outputs[0]);
     } else {
-        _output = mem_new;
+        _outputs[0] = mem_new;
     }
 }
-
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     CLDNN_ERROR_BOOL(primitive_id,
@@ -150,7 +155,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     std::vector<event::ptr> dependencies;
     dependencies.reserve(_exec_deps.size());
     for (auto& input : _exec_deps) {
-        auto id = input->id();
+        auto id = input.first->id();
         try {
             // if the requested event does not exits it means that it has not been executed, so the processing_order is
             // wrong or synchronization failed.
@@ -177,6 +182,20 @@ void primitive_inst::set_arguments() {
 
 void primitive_inst::build_deps() {
     if (_deps.empty() && !_node.get_dependencies().empty()) {
+#if 0 // TODO(taylor)
+        std::vector<program_node*> dep_nodes;
+        std::vector<int32_t> dep_idxes;
+        for (const auto& n : _node.get_dependencies()) {
+            dep_nodes.push_back(n.first);
+            dep_idxes.push_back(n.second);
+        }
+        //_deps = _network.get_primitives(dep_nodes);
+        auto prims = _network.get_primitives(dep_nodes);
+        for (int32_t i = 0; i < prims.size(); ++i) {
+            _deps.push_back(std::make_pair(prims[i], dep_idxes[i]));
+        }
+        _exec_deps = build_exec_deps(_deps);
+#endif
         _deps = _network.get_primitives(_node.get_dependencies());
         _exec_deps = build_exec_deps(_deps);
     }
@@ -184,8 +203,9 @@ void primitive_inst::build_deps() {
 
 primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
     : _network(network), _node(node), _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr),
-      _output(), _output_changed(false), _mem_allocated(allocate_memory) {
+      _outputs({}), _output_changed(false), _mem_allocated(allocate_memory) {
     if (allocate_memory) {
+#if 0 // TODO(taylor)
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
         auto users = node.get_users();
@@ -197,7 +217,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
                 mutable_data_count++;
             }
         }
-
         // TODO: Remove WA for arg_max_min node.
         // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
         // but kernels always write both outputs to the same memory object which leads to wrong result.
@@ -207,8 +226,12 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
                 if (user->is_type<mutable_data>())
                     _output = user->as<mutable_data>().get_attached_memory_ptr();
         } else {
-            _output = allocate_output();
+            _outputs = allocate_outputs();
         }
+#else
+
+        _outputs = allocate_outputs();
+#endif
     }
 }
 
@@ -217,13 +240,15 @@ void primitive_inst::allocate_internal_buffers(void) {
     const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
     if (ibuf_layouts.empty()) return;
 
-    auto device_mem_acc = [&](size_t a, std::shared_ptr<primitive_inst> b) {
-        if (!b->mem_allocated()) return a;
-        if (b->output_memory().get_allocation_type() == allocation_type::usm_device ||
-            b->output_memory().get_allocation_type() == allocation_type::cl_mem)
-            return a + b->output_memory().size();
-        else
-            return a;
+    auto device_mem_acc = [&](size_t a, std::pair<std::shared_ptr<primitive_inst>, int32_t> b) {
+        if (!b.first->mem_allocated()) return a;
+        auto res = a;
+        for (size_t i = 0; i < b.first->outputs_memory_count(); ++i) {
+            if (b.first->output_memory(i).get_allocation_type() == allocation_type::usm_device ||
+                    b.first->output_memory(i).get_allocation_type() == allocation_type::cl_mem)
+                res += b.first->output_memory(i).size();
+        }
+        return res;
     };
 
     auto& engine = get_network().get_engine();
@@ -231,18 +256,25 @@ void primitive_inst::allocate_internal_buffers(void) {
 
     // NOTE: Currently the ocl driver aborts at runtime when there are layers using device memory close to max size within multiple streams.
     // Decided the limitation as 85 % empirically, but still it needs further investigation.
+    std::vector<program_node*> dep_nodes;
+    for (const auto& n : _node.get_dependencies()) {
+        dep_nodes.push_back(n.first);
+    }
+
     const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
 
     auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), 0, device_mem_acc);
-    if (_output->get_allocation_type() ==  allocation_type::usm_device) {
-        total_device_mem_size += _output->size();
+    for (const auto& o : _outputs) {
+        if (o->get_allocation_type() ==  allocation_type::usm_device) {
+            total_device_mem_size += o->size();
+        }
     }
 
     int64_t available_device_mem_size = engine.get_device_info().max_global_mem_size - total_device_mem_size;
     // check if there is any device mem input
     if (engine.supports_allocation(allocation_type::usm_device)) {
         for (const auto& dep : inst_deps) {
-            if (dep->output_memory().get_allocation_type() == allocation_type::usm_device) {
+            if (dep.first->output_memory().get_allocation_type() == allocation_type::usm_device) {
                 input_device_mem = true;
                 break;
             }
@@ -260,6 +292,16 @@ void primitive_inst::allocate_internal_buffers(void) {
             _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_host));
     }
 }
+std::vector<memory::ptr> primitive_inst::allocate_outputs() {
+//    return allocate_outputs(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal());
+    std::vector<memory::ptr> outputs;
+    for (auto i = 0; i < get_node().get_outputs_count() ; ++i) {
+        // TODO(taylor) : temporal solution for argmax. Future impl should take care of different layouts
+        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal()));
+    }
+    return outputs;
+}
+
 memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node,
         bool is_internal) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
@@ -269,11 +311,16 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         return pool.get_memory(layout, type);
     };
 
-    auto layout = _node.get_output_layout();
+    // TODO(taylor) : temporal solution for argmax. Future impl should take care of different layouts
+    auto layout = _node.get_output_layout(0);
     // TODO: Add a preprocessing step to do  alloc_type check before actual allocation
     const auto& node_deps = _node.get_dependencies();
-    auto device_mem_acc = [&](size_t a, program_node* b) {
-        return a + b->get_output_layout().bytes_count();
+    auto device_mem_acc = [&](size_t a, std::pair<program_node*, int32_t> b) {
+        size_t res = a;
+        for (auto o : b.first->get_output_layouts()) {
+            res += o.bytes_count();
+        }
+        return res;
     };
 
     bool usm_device_allocatable = true;
@@ -291,18 +338,31 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     const auto& alloc_type = use_lockable_memory ? lockable_mem_type
         : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
 
+    std::set<primitive_id> dep_pids = {_node.id()};
+    for (const auto& d : _node.get_memory_dependencies()) {
+        dep_pids.insert(d.pid);
+    }
+#if 0 // TODO(taylor)
     if (is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
+#else
+    if (is_internal && (_node.can_be_optimized())) {
+#endif
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
         return get_memory_from_pool(_engine,
                 layout,
                 _node.id(),
-                _node.get_memory_dependencies(),
+                dep_pids,
                 alloc_type,
                 false);
+#if 0 // TODO(taylor)
     } else if (is_internal && _node.is_output() && _node.is_type<generic_layer>() &&
             _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
+#else
+    } else if (is_internal && _node.is_output() &&
+            _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
+#endif
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
@@ -320,29 +380,38 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         }
         return _engine.allocate_memory(layout, alloc_type);
     } else {
+#if 0 // TODO (taylor) turn on this once required memory reuse support is enabled for multiple output
         return get_memory_from_pool(_engine,
                 layout,
                 _node.id(),
-                _node.get_memory_dependencies(),
+                dep_pids,
                 alloc_type,
                 true);
+#else
+        return get_memory_from_pool(_engine,
+                layout,
+                _node.id(),
+                dep_pids,
+                alloc_type,
+                false);
+#endif
     }
 }
 memory::ptr primitive_inst::allocate_output() {
     return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal());
 }
 
-std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(
-    std::vector<std::shared_ptr<primitive_inst>> const& deps) {
-    std::vector<std::shared_ptr<primitive_inst>> exec_deps;
+std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> primitive_inst::build_exec_deps(
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& deps) {
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> exec_deps;
     exec_deps.reserve(deps.size());
     for (auto& dep : deps)
-        if (dep->get_impl() != nullptr)
+        if (dep.first->get_impl() != nullptr)
             exec_deps.push_back(dep);
 
     return exec_deps;
 }
-
+#if 0 // TODO(taylor)
 std::string primitive_inst::generic_to_string(program_node const& node, const char* type_name) {
     auto node_info = node.desc_to_json();
 
@@ -366,4 +435,5 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
 
     return primitive_description.str();
 }
+#endif
 }  // namespace cldnn

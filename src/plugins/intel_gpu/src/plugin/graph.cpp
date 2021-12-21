@@ -88,12 +88,14 @@ void Graph::Build() {
         m_networks.emplace_back(network);
     }
 
+#if 0
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dry_run_path.empty()) {
         CNNNetwork net(GetExecGraphInfo());
         net.serialize(debug_config->dry_run_path);
         exit(0);
     }
+#endif
 }
 
 bool Graph::use_external_queue() const {
@@ -116,7 +118,7 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
         network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
 
-
+#if 0
     if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
         static int net_id = 0;
         auto steps_info = network->get_optimizer_passes_info();
@@ -129,10 +131,10 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
         }
         net_id++;
     }
-
+#endif
     return network;
 }
-
+#if 0
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                           bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::GetExecGraphInfoByPrimitivesInfo");
@@ -269,7 +271,8 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         auto& deps = prim_info.c_dependencies;
 
         // Decrease expected dependencies count if there is a const input without original id in the IR
-        for (auto& dep : deps) {
+        for (auto& d : deps) {
+            auto dep = d.pid;
             auto dep_it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                 return entry.original_id == dep;
             });
@@ -466,12 +469,11 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
 
     return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
-
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
     return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
 }
-
+#endif
 
 void Graph::UpdatePerfStatistics() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::UpdatePerfStatistics");

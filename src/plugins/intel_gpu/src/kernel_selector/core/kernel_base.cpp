@@ -50,7 +50,7 @@ void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_s
 }
 
 static bool IsTypeUsedIn(Datatype type, const base_params& params) {
-    return params.output.GetDType() == type ||
+    return params.outputs[0].GetDType() == type ||
            std::any_of(params.inputs.begin(), params.inputs.end(), [=](const DataTensor& input) -> bool {
                return input.GetDType() == type;
            });
@@ -74,7 +74,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     auto unitType = GetUnitType(params);
 
     JitConstants jit{
-        MakeJitConstant("OUTPUT", params.output),
+//        MakeJitConstant("OUTPUT", params.outputs[0]),
         MakeJitConstant("FP64_SUPPORTED", params.engineInfo.bFP64Support),
         MakeJitConstant("FP16_SUPPORTED", params.engineInfo.bFP16Support),
         MakeJitConstant("FP16_UNIT_USED", IsTypeUsedIn(Datatype::F16, params)),
@@ -91,6 +91,12 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
 
     for (size_t i = 0; i < params.inputs.size(); i++) {
         jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i]));
+    }
+
+    // TODO: merge this once all kernels legacy is resolved
+    jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0]));
+    for (size_t i = 1; i < params.outputs.size(); i++) {
+        jit.AddConstant(MakeJitConstant("OUTPUT" + toCodeString(i), params.outputs[i]));
     }
 
 #ifndef NDEBUG
@@ -136,7 +142,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
                     continue;
 
                 auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
-                jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
+                jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.outputs[0])); // TODO: multiple outputs
                 jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_name));
 
                 bool can_use_preload = fused_dep_codegen.CanPreloadData(c);

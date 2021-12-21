@@ -176,7 +176,7 @@ TEST(set_output_memory_gpu, top_k1) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
-    topology.add(arg_max_min("arg_max", { "input", "const" }, arg_max_min::min, top_k, arg_max_min::batch));
+    topology.add(arg_max_min("arg_max", { "input", "const" }, { {"input", 0}, {"const", 0}}, arg_max_min::min, top_k, arg_max_min::batch));
     topology.add(reorder("reorder", "arg_max", output_mem->get_layout()));
 
     std::vector<float> input_vec = {
@@ -222,7 +222,7 @@ TEST(set_output_memory_gpu, top_k2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
     topology.add(mutable_data("second_output", second_output));
-    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, arg_max_min::min, top_k, arg_max_min::batch));
+    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, { {"input", 0}, {"const", 0}, {"second_output", 0}}, arg_max_min::min, top_k, arg_max_min::batch));
     topology.add(reorder("reorder", "arg_max", second_output->get_layout()));
 
     std::vector<float> input_vec = {
@@ -356,7 +356,7 @@ TEST(set_output_memory_gpu, mutable_output_data) {
     topology.add(input_layout("Add_1396", input->get_layout()));
     topology.add(cldnn::mutable_data("second_input", second_input));
     topology.add(cldnn::mutable_data("12220_md_write", final_output));
-    topology.add(arg_max_min("arg_max", { "Add_1396", "second_input", "12220_md_write" }, arg_max_min::min, top_k, arg_max_min::batch));
+    topology.add(arg_max_min("arg_max", { "Add_1396", "second_input", "12220_md_write" }, {{"Add_1396", 0}, {"second_input",0}, {"12220_md_write", 0}}, arg_max_min::min, top_k, arg_max_min::batch));
     topology.add(cldnn::mutable_data("pred/sink_port_0", {"arg_max"},final_output) );
 
     std::vector<float> input_vec = {

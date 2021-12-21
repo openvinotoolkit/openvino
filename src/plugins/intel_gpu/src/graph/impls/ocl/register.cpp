@@ -12,13 +12,18 @@ namespace ocl {
     static detail::attach_##prim##_impl attach_##prim
 
 void register_implementations() {
+#if 0
     REGISTER_OCL(activation);
+#endif
     REGISTER_OCL(arg_max_min);
+#if 0
     REGISTER_OCL(average_unpooling);
     REGISTER_OCL(binary_convolution);
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);
+#endif
     REGISTER_OCL(concatenation);
+#if 0
     REGISTER_OCL(convolution);
     REGISTER_OCL(crop);
     REGISTER_OCL(custom_gpu_primitive);
@@ -45,7 +50,9 @@ void register_implementations() {
     REGISTER_OCL(non_max_suppression);
     REGISTER_OCL(normalize);
     REGISTER_OCL(one_hot);
+#endif
     REGISTER_OCL(permute);
+#if 0
     REGISTER_OCL(pooling);
     REGISTER_OCL(pyramid_roi_align);
     REGISTER_OCL(quantize);
@@ -82,6 +89,7 @@ void register_implementations() {
     REGISTER_OCL(embedding_bag);
     REGISTER_OCL(extract_image_patches);
     REGISTER_OCL(convert_color);
+#endif
 }
 
 }  // namespace ocl

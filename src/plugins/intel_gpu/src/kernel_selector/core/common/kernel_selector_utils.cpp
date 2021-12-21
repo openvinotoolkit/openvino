@@ -480,7 +480,7 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
             }
         }
 
-        no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.output);
+        no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.outputs[0]);
     }
 
     return no_pitch_same_dims;

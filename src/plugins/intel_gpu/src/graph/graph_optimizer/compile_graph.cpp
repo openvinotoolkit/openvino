@@ -6,7 +6,9 @@
 
 #include "pass_manager.h"
 #include "data_inst.h"
+#if 0 // TODO(taylor)
 #include "mutable_data_inst.h"
+#endif
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
 #include "runtime/cldnn_itt.hpp"
@@ -23,7 +25,9 @@ void compile_graph::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         node->set_unique_id();
         if (!node->is_type<data>()) {
-            node->get_output_layout();
+            for (int i = 0; i < node->get_outputs_count() ; ++i) {
+                node->get_output_layout(true, i);
+            }
         }
     }
 
@@ -33,7 +37,11 @@ void compile_graph::run(program& p) {
     std::exception_ptr exception;
     for (int idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
+#if 0 // TODO(taylor)
         if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+#else
+        if (!node->is_type<data>()) {
+#endif
             tasks.push_back([node, &exception] {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);

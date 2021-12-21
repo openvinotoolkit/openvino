@@ -131,13 +131,14 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
                                                m_waitExecutor,
                                                _callbackExecutor);
 }
-
+#if 0
 std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
 
     return m_graphs.front()->GetExecGraphInfo();
 }
+#endif
 
 InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) const {
     const bool is_new_api = _plugin->GetCore()->isNewAPI();

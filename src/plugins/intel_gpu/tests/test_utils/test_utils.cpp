@@ -67,7 +67,7 @@ void generic_test::run_single_test() {
             topology.add(input_layout(input_name, input_mems[i]->get_layout()));
             input_layouts_names.push_back(input_name);
         } else {
-            topology.add(data(input_name, input_mems[i]));
+            topology.add(data(input_name, {input_mems[i]}));
         }
 
         if (!is_format_supported(generic_params->fmt)) {
@@ -76,15 +76,15 @@ void generic_test::run_single_test() {
         }
     }
 
-    if (generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled()) {
-        // Add reorder after the first input in case of optimize data flag since it might change the input layout.
-        topology.add(reorder("input0", "input0_init", input_mems[0]->get_layout()));
-    }
+//    if (generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled()) {
+//        // Add reorder after the first input in case of optimize data flag since it might change the input layout.
+//        topology.add(reorder("input0", input_info("input0_init"), input_mems[0]->get_layout()));
+//    }
 
-    if (layer_params->input[0] == "reorder0") {
-        // Add reorder layer with output padding as input to the tested layer.
-        topology.add(reorder("reorder0", "input0", input_mems[0]->get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
-    }
+//    if (layer_params->input[0].pid == "reorder0") {
+//        // Add reorder layer with output padding as input to the tested layer.
+//        topology.add(reorder("reorder0", input_info("input0"), input_mems[0]->get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
+//    }
 
     prepare_input_for_test(input_mems);
 

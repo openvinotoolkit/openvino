@@ -8,7 +8,9 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
+#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/activation.hpp"
+#endif
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "program_node.h"
@@ -75,7 +77,7 @@ inline std::string allocation_type_to_str(allocation_type type) {
     default: return "unknown";
     }
 }
-
+#if 0 // TODO(taylor)
 inline std::string activation_type_to_str(activation_func activation) {
     switch (activation) {
     case activation_func::none: return "none";
@@ -127,7 +129,7 @@ inline std::string activation_type_to_str(activation_func activation) {
     default: return "unknown activation";
     }
 }
-
+#endif // TODO(taylor)
 #ifdef ENABLE_ONEDNN_FOR_GPU
 inline std::string onednn_post_op_type_to_str(onednn_post_op_type type) {
     switch (type) {

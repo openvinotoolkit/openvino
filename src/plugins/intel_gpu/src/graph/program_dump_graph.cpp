@@ -7,7 +7,9 @@
 #include "program_dump_graph.h"
 #include "to_string_utils.h"
 #include "data_inst.h"
+#if 0 // TODO(taylor)
 #include "condition_inst.h"
+#endif
 
 #include <algorithm>
 #include <vector>
@@ -138,7 +140,11 @@ void close_stream(std::ofstream& graph) { graph.close(); }
 
 std::string get_node_id(const program_node* ptr) { return "node_" + std::to_string(reinterpret_cast<uintptr_t>(ptr)); }
 
-void dump_full_node(std::ofstream& out, const program_node* node) { out << node->type()->to_string(*node); }
+void dump_full_node(std::ofstream& out, const program_node* node) {
+#if 0 // TODO(taylor)
+     out << node->type()->to_string(*node);
+#endif
+}
 }  // namespace
 
 std::string get_dir_path(build_options opts) {
@@ -165,9 +171,10 @@ std::string get_load_program_name(build_options opts) {
 void dump_graph_init(std::ofstream& graph,
                      const program& program,
                      std::function<bool(program_node const&)> const& filter) {
+#if 0 // TODO(taylor)
     const std::string invalid_layout_msg = "(invalid layout)";
     const auto extr_oformat = [&invalid_layout_msg](const program_node* ptr) {
-        if (!ptr->is_valid_output_layout())
+        if (!ptr->is_all_valid_output_layout())
             return invalid_layout_msg;
 
         auto output_layout = ptr->get_output_layout();
@@ -177,7 +184,7 @@ void dump_graph_init(std::ofstream& graph,
     };
 
     const auto extr_odt = [&invalid_layout_msg](const program_node* ptr) {
-        if (!ptr->is_valid_output_layout())
+        if (!ptr->is_all_valid_output_layout())
             return invalid_layout_msg;
 
         auto output_layout = ptr->get_output_layout();
@@ -188,7 +195,7 @@ void dump_graph_init(std::ofstream& graph,
 
     const auto dump_mem_info = [&invalid_layout_msg](const program_node* ptr) {
         std::string out = "size_info: ";
-        if (!ptr->is_valid_output_layout()) {
+        if (!ptr->is_all_valid_output_layout()) {
             return out + invalid_layout_msg;
         }
 
@@ -254,8 +261,13 @@ void dump_graph_init(std::ofstream& graph,
                 continue;
             }
             bool doubled = true;
-            if (std::find(user->get_dependencies().begin(), user->get_dependencies().end(), node) ==
-                user->get_dependencies().end())
+            auto it = user->get_dependencies().begin();
+            while (it != user->get_dependencies().end()) {
+                if (it->first == node)
+                    break;
+                ++it;
+            }
+            if (it == user->get_dependencies().end())
                 doubled = false;
             graph << "    " << get_node_id(node) << " -> " << get_node_id(user);
 
@@ -273,20 +285,21 @@ void dump_graph_init(std::ofstream& graph,
         }
 
         for (auto& dep : node->get_dependencies()) {
-            if (filter && !filter(*dep)) {
+            if (filter && !filter(*dep.first)) {
                 continue;
             }
 
-            if (std::find(dep->get_users().begin(), dep->get_users().end(), node) != dep->get_users().end()) {
+            if (std::find(dep.first->get_users().begin(), dep.first->get_users().end(), node) != dep.first->get_users().end()) {
                 continue;
             }
 
-            graph << "   " << get_node_id(node) << " -> " << get_node_id(dep)
+            graph << "   " << get_node_id(node) << " -> " << get_node_id(dep.first)
                   << " [style=dashed, label=\"dep\", constraint=false];\n";
         }
     }
     graph << "}\n";
     close_stream(graph);
+#endif
 }
 
 void dump_graph_processing_order(std::ofstream& graph, const program& program) {

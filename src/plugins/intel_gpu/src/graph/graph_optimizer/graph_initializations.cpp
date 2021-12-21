@@ -6,19 +6,22 @@
 
 #include "pass_manager.h"
 #include "program_node.h"
-
+#if 0 // TODO(taylor)
 #include "split_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
 #include "lstm_inst.h"
 #include "reshape_inst.h"
 #include "resample_inst.h"
+#endif
 #include "permute_inst.h"
+#if 0 // TODO(taylor)
 #include "depth_to_space_inst.h"
 #include "lstm_dynamic_inst.h"
 #include "lstm_dynamic_input_inst.h"
 #include "lstm_dynamic_timeloop_inst.h"
 #include "mutable_data_inst.h"
+#endif
 #include "arg_max_min_inst.h"
 #include "kernel_selector_utils.h"
 
@@ -37,7 +40,7 @@ std::string get_id_string(size_t i) {
     ss << std::setw(5) << std::setfill('0') << i;
     return ss.str();
 }
-
+#if 0 // TODO(taylor)
 void graph_initializations::handle_split_node(program& p, split_node& node) {
     if (!node.get_users().empty()) {
         throw std::logic_error("Split layer cannot be used directly! Please use split output \"" + node.id() +
@@ -403,7 +406,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
 
     // we dont have to set output since it will be done in next graph_opts step
 }
-
+#endif
 void graph_initializations::set_outputs(program& p) {
     auto outputs_option = p.get_options().get<build_option_type::outputs>();
     if (!outputs_option->outputs.empty()) {
@@ -422,6 +425,7 @@ void graph_initializations::set_outputs(program& p) {
 }
 
 void graph_initializations::run(program& p) {
+#if 0 // TODO(taylor)
     auto itr = p.nodes_map.begin();
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;
@@ -434,6 +438,7 @@ void graph_initializations::run(program& p) {
             handle_dynamic_lstm_node(p, node->as<lstm_dynamic>());
         }
     }
+#endif
     set_outputs(p);
     p.get_processing_order().calc_processing_order(p);
 }

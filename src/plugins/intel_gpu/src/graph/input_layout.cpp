@@ -41,15 +41,15 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
 }
 
 void input_layout_inst::set_data(memory::ptr mem) {
-    auto ol = node.get_output_layout();
+    auto ol = node.get_output_layout(0);
 
     check_memory_to_set(*mem, ol);
 
     if (mem->is_allocated_by(get_network().get_engine())) {
-        _output = mem;
+        _outputs[0] = mem;
     } else {
         mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
-        mem_lock<char, mem_lock_type::write> dst(_output, get_network().get_stream());
+        mem_lock<char, mem_lock_type::write> dst(_outputs[0], get_network().get_stream());
         std::copy(src.begin(), src.end(), dst.begin());
     }
 

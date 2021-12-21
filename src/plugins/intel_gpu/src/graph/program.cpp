@@ -13,18 +13,23 @@
 #include "kernel_selector_helper.h"
 #include "device_cache_reader.h"
 #include "auto_tuner.h"
+#if 0 // TODO(taylor)
 #include "layout_optimizer.h"
+#endif
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
 #include "sliding_window_utils.h"
 #include "program_helpers.h"
 
+#if 0 // TODO(taylor)
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
 #include "softmax_inst.h"
+#endif
 #include "permute_inst.h"
+#if 0 // TODO(taylor)
 #include "custom_gpu_primitive_inst.h"
 #include "binary_convolution_inst.h"
 #include "resample_inst.h"
@@ -34,14 +39,22 @@
 #include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "convolution_inst.h"
+#endif
 #include "concatenation_inst.h"
+#if 0 // TODO(taylor)
 #include "crop_inst.h"
+#endif
 #include "data_inst.h"
+#if 0 // TODO(taylor)
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
+#endif
 #include "input_layout_inst.h"
+#if 0 // TODO(taylor)
 #include "shuffle_channels_inst.h"
+#endif
 #include "arg_max_min_inst.h"
+#if 0 // TODO(taylor)
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
@@ -59,6 +72,7 @@
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
+#endif
 #include "to_string_utils.h"
 #include "runtime/cldnn_itt.hpp"
 #include "runtime/kernels_cache.hpp"
@@ -66,7 +80,7 @@
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include "impls/onednn/register.hpp"
+//#include "impls/onednn/register.hpp"
 #endif
 
 #include "kernel_base.h"
@@ -142,7 +156,7 @@ void program::init_primitives() {
         cpu::register_implementations();
         ocl::register_implementations();
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        onednn::register_implementations();
+//        onednn::register_implementations();
 #endif
         is_initialized = true;
     }
@@ -208,6 +222,7 @@ program_node const& program::get_node(primitive_id const& id) const {
     }
 }
 
+#if 0 // TODO(taylor)
 // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
 bool program::analyze_output_size_handling_need() {
     bool handling_needed = false;
@@ -314,14 +329,15 @@ bool program::analyze_output_size_handling_need() {
 
     return handling_needed;
 }
-
+#endif
 // create new nodes for a program based on the set of nodes
 // method created to be used by propagate_constants to build sub program from constant nodes
 void program::prepare_nodes(std::set<std::shared_ptr<program_node>> const& nodes) {
+    //TODO
     for (const auto& itr : nodes) {
         if (itr.get()->is_type<data>()) {
             get_or_create(std::make_shared<input_layout>(itr.get()->id(),
-                                                         itr.get()->as<data>().get_primitive()->mem->get_layout()));
+                                                         itr.get()->as<data>().get_primitive()->mems[0]->get_layout())); // TODO
         } else {
             get_or_create(itr->desc);
         }
@@ -355,7 +371,9 @@ void program::prepare_nodes(topology const& topology) {
     for (const auto& prim : topo_map) {
         get_or_create(prim.second);
     }
+#if 0 // TODO(taylor)
     add_split_outputs();
+#endif
     for (const auto& node : nodes_map) {
         auto node_ptr = node.second.get();
         if (node_ptr == nullptr)
@@ -369,16 +387,19 @@ void program::prepare_nodes(topology const& topology) {
 
 // add node's dependecies from its primitive dependencies
 void program::add_node_dependencies(program_node* node) {
-    auto deps = node->get_primitive()->dependencies();
+    std::vector<input_info> deps = node->get_primitive()->dependencies();
     // add pointers to node's dependencies
     for (auto& dep : deps) {
         try {
-            auto dep_node = nodes_map.at(dep);
-            node->dependencies.push_back(dep_node.get());
+            auto dep_node = nodes_map.at(dep.pid);
+            node->dependencies.push_back({dep_node.get(), dep.idx});
+            // TODO (taylor) refactor this
+            dep_node->idx_users[dep.idx].push_back(node);
+            dep_node->users_idx[node] = dep.idx;
             dep_node->users.push_back(node);
         } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + dep +
-                                     " that is input to: " + node->get_primitive()->id);
+            throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
+                    " that is input to: " + node->get_primitive()->id);
         }
     }
 }
@@ -395,15 +416,15 @@ void program::copy_node_dependencies(program_node* dest_node, program_node* src_
     // add pointers to node's dependencies
     for (auto& src_dep : src_deps) {
         // do not copy dependencies to nodes which does not belong to the new (subgraph) topology
-        if (nodes_map.find(src_dep->get_primitive()->id) == nodes_map.end())
+        if (nodes_map.find(src_dep.first->get_primitive()->id) == nodes_map.end())
             continue;
 
         try {
-            auto dest_dep = nodes_map.at(src_dep->get_primitive()->id);
-            dest_node->dependencies.push_back(dest_dep.get());
+            auto dest_dep = nodes_map.at(src_dep.first->get_primitive()->id);
+            dest_node->dependencies.push_back({dest_dep.get(), src_dep.second}); // TODO(taylor)
             dest_dep->users.push_back(dest_node);
         } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + src_dep->get_primitive()->id +
+            throw std::runtime_error("Program doesn't contain primitive: " + src_dep.first->get_primitive()->id +
                                      " that is input to: " + src_node->get_primitive()->id);
         }
     }
@@ -432,9 +453,13 @@ void program::set_options() {
 
 void program::build_program(bool is_internal) {
     init_graph();
+#if 0 // TODO(taylor)
     { pre_optimize_graph(is_internal); }
+#endif
     run_graph_compilation();
+#if 0 // TODO(taylor)
     { post_optimize_graph(is_internal); }
+#endif
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
@@ -463,14 +488,15 @@ void program::build_program(bool is_internal) {
 void program::init_graph() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
-
+#if 0 // TODO(taylor)
     apply_opt_pass<calculate_prior_boxes>();
+#endif
 
     apply_opt_pass<mark_nodes>();
 }
 
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
-
+#if 0 // TODO(taylor)
 void program::pre_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PreOptimizeGraph");
 
@@ -548,7 +574,6 @@ void program::pre_optimize_graph(bool is_internal) {
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
 }
-
 void program::post_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PostOptimizeGraph");
     // input reorder for fully connected if necessary
@@ -571,9 +596,11 @@ void program::post_optimize_graph(bool is_internal) {
     // update loop input/output primitive mappings
     apply_opt_pass<update_loop_primitive_map>();
 }
+#endif
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
+#if 0 // TODO (taylor)
     if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
         return;
     }
@@ -584,10 +611,12 @@ void program::mark_if_constant(program_node& node) {
             return;
         }
     }
+#endif
+    return;
 }
-
 // mark if the node is in data flow assuming that all dependencies are marked properly
 void program::mark_if_data_flow(program_node& node) {
+#if 0 // TODO (taylor)
     if (node.is_type<mutable_data>() || node.is_type<input_layout>()) {
         node.data_flow = true;
     } else {
@@ -602,6 +631,8 @@ void program::mark_if_data_flow(program_node& node) {
             }
         }
     }
+#endif
+    return;
 }
 
 void program::transfer_memory_to_device() {
@@ -613,31 +644,34 @@ void program::transfer_memory_to_device() {
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
-            auto& mem = data_node.get_attached_memory();
-            auto mem_layout = mem.get_layout();
-            auto alloc_type = mem.get_allocation_type();
+            auto mems = data_node.get_attached_memory_ptrs();
+            for (size_t i = 0; i < mems.size() ; ++i) {
+                auto& mem = mems[i];
+                auto mem_layout = mem->get_layout();
+                auto alloc_type = mem->get_allocation_type();
 
-            if (!program_helpers::are_layouts_identical(mem_layout, data_node_layout).second) {
-                std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
-                throw std::invalid_argument(err_str);
-            }
-
-
-            if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-                GPU_DEBUG_GET_INSTANCE(debug_config);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
+                if (!program_helpers::are_layouts_identical(mem_layout, data_node_layout).second) {
+                    std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
+                    throw std::invalid_argument(err_str);
                 }
-                // Allocate and transfer memory
-                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
-                device_mem->copy_from(get_stream(), mem);
-                data_node.attach_memory(device_mem);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
+
+
+                if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+                    GPU_DEBUG_GET_INSTANCE(debug_config);
+                    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                        GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
+                    }
+                    // Allocate and transfer memory
+                    auto device_mem = mem->get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
+                    device_mem->copy_from(get_stream(), *mem);
+                    data_node.attach_memory(device_mem);
+                    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                        GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
+                    }
+                    const_cast<memory::ptr&>(data_node.get_primitive()->mems[i]).reset();
+                    // TODO: Do we need finish call here? Maybe call it in network::execute() ?
+                    get_stream().finish();
                 }
-                const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
-                // TODO: Do we need finish call here? Maybe call it in network::execute() ?
-                get_stream().finish();
             }
         }
     }
@@ -659,6 +693,7 @@ void program::cleanup() {
     }
 }
 
+#if 0 // TODO(taylor)
 void program::add_split_outputs() {
     auto itr = nodes_map.begin();
     while (itr != nodes_map.end()) {
@@ -667,7 +702,7 @@ void program::add_split_outputs() {
 
         if (node->is_type<split>()) {
             auto split_prim = node->as<split>().typed_desc();
-            primitive_id input_id = split_prim->input[0];
+            input_info input_id(split_prim->input[0]);
             auto split_num = split_prim->output_offsets.size();
 
             // create crop for each split output provided
@@ -682,20 +717,22 @@ void program::add_split_outputs() {
         }
     }
 }
-
+#endif
 program::nodes_ordering& program::get_processing_order() { return processing_order; }
 
 const program::nodes_ordering& program::get_processing_order() const { return processing_order; }
-
 void program::prepare_memory_dependencies() {
+#if 0 // (taylor)
     if (!get_engine().configuration().use_memory_pool)
         return;
 
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
     apply_opt_pass<oooq_memory_dependencies>();
+#endif
 }
 
+#if 0
 std::string program::get_memory_dependencies_string() const {
     std::string mem_dep = "Memory dependencies/restrictions:\n";
     auto itr = processing_order.begin();
@@ -737,7 +774,7 @@ void program::reverse_connection(program_node& dep_node, program_node& user_node
         throw std::runtime_error("Trying to reverse connection, but nodes are wrongly or not connected.");
     }
 }
-
+#endif
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
     auto itr = nodes_map.lower_bound(prim->id);
     if (itr != nodes_map.end() && itr->first == prim->id)
@@ -748,6 +785,7 @@ program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
     return *new_node;
 }
 
+#if 0 // TODO(taylor)
 void program::add_intermediate(program_node& node,
                                program_node& next,
                                size_t prev_idx,
@@ -814,7 +852,6 @@ void program::add_intermediate(program_node& node,
     }
     add_intermediate(node, next, idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
-
 void program::add_connection(program_node& prev, program_node& next) {
     prev.users.push_back(&next);
     next.dependencies.push_back(&prev);
@@ -1118,6 +1155,7 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
     }
 }
 
+#endif
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use
 // primitive_inst::to_string?)
 void program::dump_program(const char* stage,
@@ -1143,20 +1181,20 @@ void program::dump_program(const char* stage,
 
 data_types program::get_inference_precision(const program_node& node) const {
     if (node.is_input()) {
-        return node.get_output_layout().data_type;
+        return node.get_output_layout(0).data_type;
     }
     std::vector<data_types> input_dts;
     for (auto& dep : node.get_dependencies()) {
-        if (dep->is_valid_output_layout())
-            input_dts.push_back(dep->get_output_layout().data_type);
+        if (dep.first->is_valid_output_layout(dep.second))
+            input_dts.push_back(dep.first->get_output_layout().data_type);
     }
 
     // Return f32 data_type as default inference precision if any layout is invalid
-    if (input_dts.size() != node.get_dependencies().size() || !node.is_valid_output_layout())
+    if (input_dts.size() != node.get_dependencies().size() || !node.is_all_valid_output_layout())
         return data_types::f32;
 
+#if 0 // TODO(taylor)
     data_types output_dt = node.get_output_layout().data_type;
-
     assert(!input_dts.empty());
     if (node.is_type<reorder>()) {
         // If reorder has different input/output types - pick the max one as runtime precision
@@ -1181,7 +1219,7 @@ data_types program::get_inference_precision(const program_node& node) const {
             return data_type_traits::max_type(input_dts[0], input_dts[1]);
         }
     }
-
+#endif
     return input_dts[0];
 }
 
@@ -1206,9 +1244,9 @@ program::primitives_info program::get_current_stage_info() const {
         for (auto& user : p->users) {
             users.push_back(user->id());
         }
-        std::vector<primitive_id> dependencies;
+        std::vector<input_info> dependencies;
         for (auto& a : p->dependencies) {
-            dependencies.push_back(a->id());
+            dependencies.push_back(a.first->id());
         }
 
         std::vector<primitive_id> fused;
@@ -1221,20 +1259,25 @@ program::primitives_info program::get_current_stage_info() const {
         }
 
         // Initialize output_layout with dummy values and use them if layout is invalid
-        layout output_layout{ cldnn::data_types::f32, cldnn::format::any, {1, 1, 1, 1} };
-
-        if (p->is_valid_output_layout())
-            output_layout = p->get_output_layout();
-
+        std::vector<layout> output_layouts;
+        std::vector<std::string> layout_formats;
+        for (size_t i = 0; i < p->get_primitive()->num_outputs; ++i) {
+            layout output_layout{ cldnn::data_types::f32, cldnn::format::any, {1, 1, 1, 1} };
+            if (p->is_valid_output_layout(i)) {
+                output_layout = p->get_output_layout();
+            }
+            output_layouts.push_back(output_layout);
+            layout_formats.push_back(fmt_to_str(output_layout.format));
+        }
         primitive_info pi(p->id(),
                           type_to_str(p->get_primitive()),
                           dependencies,
                           users,
                           fused,
-                          output_layout,
-                          fmt_to_str(output_layout.format),
+                          output_layouts,
+                          layout_formats,
                           get_implementation_info(p->id()),
-                          p->is_valid_output_layout() ?
+                          p->is_all_valid_output_layout() ?
                             get_inference_precision(*p) : cldnn::data_types::f32,
                           p->selected_impl ? p->selected_impl->is_cpu() : false,
                           exec_id++);
@@ -1274,6 +1317,7 @@ const program::primitives_info& program::get_primitives_info() const { return pr
 
 void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 
+#if 0 // TODO(taylor)
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     lo.set_implementation_forcing(options.get<build_option_type::force_implementations>()->forcing);
 
@@ -1516,3 +1560,4 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
 
     return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
 }
+#endif

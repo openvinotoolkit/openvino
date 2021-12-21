@@ -619,7 +619,7 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
                                          std::to_string(static_cast<int>(l)) + " to cldnn format");
     }
 }
-
+#if 0 // TODO(taylor)
 kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
     switch (mode) {
         case cldnn::tuning_mode::tuning_disabled:
@@ -636,7 +636,7 @@ kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
             return kernel_selector::tuning_mode::TUNING_DISABLED;
     }
 }
-
+#endif
 kernel_selector::dev_type get_device_type(cldnn::device_type type) {
     switch (type) {
         case cldnn::device_type::integrated_gpu:
@@ -735,6 +735,7 @@ layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
     return layout(type, format, size);
 }
 
+#if 0 // TODO(taylor)
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation) {
     switch (activation) {
         case cldnn::activation_func::none:
@@ -834,6 +835,7 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             break;
     }
 }
+#endif
 
 void set_params(const program_node& node, kernel_selector::params& params) {
     const auto& program = node.get_program();
@@ -877,7 +879,9 @@ void set_optional_params(const program& program, kernel_selector::optional_param
     params.allowInputReordering = false;
     params.allowOutputReordering = false;
 
+#if 0 // TODO(taylor)
     const auto& tuning_config = program.get_options().get<build_option_type::tuning_config>();
     params.tuningParams.mode = to_tuning_mode(tuning_config->config.mode);
     params.tuningParams.cacheFilePath = tuning_config->config.cache_file_path;
+#endif
 }

@@ -12,7 +12,7 @@
 #include <vector>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include <oneapi/dnnl/dnnl.hpp>
+//#include <oneapi/dnnl/dnnl.hpp>
 #endif
 
 namespace cldnn {

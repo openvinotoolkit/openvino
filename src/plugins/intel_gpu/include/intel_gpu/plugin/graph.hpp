@@ -41,7 +41,9 @@ public:
 
     Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
     explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
+#if 0 // TODO(taylor)
     std::shared_ptr<ngraph::Function> GetExecGraphInfo();
+#endif
 
     bool IsLoaded() const;
 
@@ -104,8 +106,10 @@ protected:
     std::shared_ptr<cldnn::network> BuildNetwork(std::shared_ptr<cldnn::program> program);
     void Build();
     void UpdateLayersMaps();
+#if 0 // TODO(taylor)
     std::shared_ptr<ngraph::Function> GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,
                                                                        bool filter_const_primitives = true);
+#endif
 };
 
 }  // namespace intel_gpu

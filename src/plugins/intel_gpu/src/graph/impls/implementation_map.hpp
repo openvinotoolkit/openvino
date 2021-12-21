@@ -46,10 +46,11 @@ struct typed_program_node;
 
 template <typename primitive_kind>
 struct implementation_key {
+    // TODO(taylor) how to deal with this for multiple output?
     typedef std::tuple<data_types, format::type> type;
     type operator()(const typed_program_node<primitive_kind>& primitive) {
-        return std::make_tuple(primitive.get_dependency(0).get_output_layout().data_type,
-                               primitive.get_dependency(0).get_output_layout().format);
+        return std::make_tuple(primitive.get_dependency(0).first->get_output_layout().data_type,
+                               primitive.get_dependency(0).first->get_output_layout().format);
     }
     type operator()(const layout& proposed_layout) {
         return std::make_tuple(proposed_layout.data_type, proposed_layout.format);
@@ -179,8 +180,12 @@ public:
     // check if there exists a kernel implementation of a primitive with output set it primitive's output layout
     static bool check_io_eq(const typed_program_node<primitive_kind>& primitive) {
         impl_types target_impl_type = primitive.get_preferred_impl_type();
-        auto key = key_builder()(primitive.get_output_layout());
-        return check_key(target_impl_type, key);
+        bool res = true;
+        for (size_t i = 0; i < primitive.get_outputs_count(); ++i) {
+            auto key = key_builder()(primitive.get_output_layout(i));
+            res &= check_key(target_impl_type, key);
+        }
+        return res;
     }
 
     static bool check_key(impl_types target_impl_type, key_type key) {

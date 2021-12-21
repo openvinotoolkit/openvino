@@ -159,16 +159,28 @@ public:
     void set_arguments();
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
+#if 0 // TODO(taylor)
     std::string get_primitive_info(const primitive_id& id) const;
+#endif
     std::string get_implementation_info(const primitive_id& id) const;
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     bool has_event(const primitive_id& id) const { return _events.count(id); }
+#if 0 // TODO(taylor)
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
-    std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<program_node*>& nodes);
+#endif
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
+
+#if 0 // TODO(taylor)
+    std::vector<input_info> get_primitives(const std::vector<input_info>& nodes);
+    std::vector<input_info> get_primitives(const std::vector<std::pair<program_node*, int32_t>>& nodes);
+#endif
+
     void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                            const std::vector<event::ptr>& events);
     void allocate_primitives();
+#if 0 // TODO(taylor)
     void configure_primitives_second_output();
+#endif
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
     stream& get_stream() const { return *_stream; }

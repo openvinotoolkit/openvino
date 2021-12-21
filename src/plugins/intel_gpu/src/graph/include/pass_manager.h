@@ -5,6 +5,7 @@
 #pragma once
 
 #include "intel_gpu/graph/program.hpp"
+#if 0 // TODO(taylor)
 #include "layout_optimizer.h"
 #include "split_inst.h"
 #include "lstm_inst.h"
@@ -12,7 +13,8 @@
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
-#include "permute_inst.h"
+#endif
+#include "program_node.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -70,15 +72,14 @@ public:
 private:
     void run(program& p) override;
 };
-
+#if 0 // TODO(taylor)
 class calculate_prior_boxes : public base_pass {
 public:
     calculate_prior_boxes() : base_pass("calculated_prior_boxes") {}
-
 private:
     void run(program& p) override;
 };
-
+#endif
 class compile_graph : public base_pass {
 public:
     compile_graph() : base_pass("compile_graph") {}
@@ -110,9 +111,11 @@ public:
 
 private:
     void run(program& p) override;
+#if 0 // TODO(taylor)
     void handle_split_node(program& p, split_node& node);
     void handle_lstm_node(program& p, lstm_node& node);
     void handle_dynamic_lstm_node(program& p, lstm_dynamic_node& node);
+#endif
     void set_outputs(program& p);
 };
 
@@ -154,6 +157,7 @@ public:
 
 private:
     void run(program& p) override;
+#if 0 // TODO(taylor)
     void handle_quantize_node(program& p, quantize_node& quantize_node);
     void prepare_packed_quantize(program& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
@@ -161,8 +165,9 @@ private:
     void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);
     void prepare_scale_shift_opt(program &p, quantize_node& quantize_node);
     bool optimize_quantize(program &p, quantize_node& quantize_node);
+#endif
 };
-
+#if 0 // TODO(taylor)
 class prepare_conv_eltw_fusing : public base_pass {
 public:
     explicit prepare_conv_eltw_fusing(layout_optimizer& lo_ref, bool b_fs_yx_fsv16_opt = false) :
@@ -374,7 +379,6 @@ public:
     basic_memory_dependencies() : memory_dependency_pass("basic_memory_dependencies") {}
     void run(program& p) override;
 };
-
 class skipped_branch_memory_dependencies : public memory_dependency_pass {
 public:
     skipped_branch_memory_dependencies() : memory_dependency_pass("skipped_branch_memory_dependencies") {}
@@ -400,5 +404,5 @@ public:
     add_onednn_optimization_attributes() : base_pass("add_onednn_optimization_attributes") {}
     void run(program& p) override;
 };
-
+#endif
 }  // namespace cldnn

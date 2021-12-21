@@ -15,6 +15,7 @@
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/primitives/primitive.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
+#if 0
 #include <intel_gpu/primitives/lrn.hpp>
 #include <intel_gpu/primitives/roi_pooling.hpp>
 #include <intel_gpu/primitives/scale.hpp>
@@ -24,6 +25,7 @@
 #include <intel_gpu/primitives/convolution.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/pooling.hpp>
+#endif
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
@@ -476,6 +478,7 @@ protected:
 // When a test assertion such as EXPECT_EQ fails, Google-Test prints the argument values to help with debugging.
 // It does this using a user - extensible value printer.
 // This function will be used to print the test params in case of an error.
+#if 0
 inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::shared_ptr<cldnn::primitive>>& t, ::std::ostream* os) {
     std::stringstream str;
 
@@ -544,7 +547,7 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
 
     *os << str.str();
 }
-
+#endif
 template <typename T, typename U>
 T div_up(const T a, const U b) {
     assert(b);

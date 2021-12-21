@@ -3,11 +3,11 @@
 //
 
 #pragma once
-
+#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/detection_output.hpp"
 #include "intel_gpu/primitives/proposal.hpp"
 #include "intel_gpu/primitives/non_max_suppression.hpp"
-
+#endif
 namespace cldnn {
 namespace cpu {
 void register_implementations();
@@ -20,9 +20,11 @@ namespace detail {
         attach_##prim##_impl();   \
     }
 
+#if 0 // TODO(taylor)
 REGISTER_CPU(proposal);
 REGISTER_CPU(non_max_suppression);
 REGISTER_CPU(detection_output);
+#endif
 
 #undef REGISTER_CPU
 

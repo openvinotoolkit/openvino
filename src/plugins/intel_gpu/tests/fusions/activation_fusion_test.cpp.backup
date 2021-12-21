@@ -103,7 +103,7 @@ TEST_P(activation_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        activation("act", "input", activation_func::relu),
+        activation("act", input_info("input"), activation_func::relu),
         data("in_low", get_mem(get_single_element_layout(p), min_random, 0)),
         data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -127, 0)),

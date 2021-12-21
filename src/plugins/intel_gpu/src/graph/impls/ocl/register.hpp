@@ -4,15 +4,19 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-
+#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/activation.hpp"
+#endif
 #include "intel_gpu/primitives/arg_max_min.hpp"
+#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/average_unpooling.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
 #include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
+#endif
 #include "intel_gpu/primitives/concatenation.hpp"
+#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
@@ -36,7 +40,9 @@
 #include "intel_gpu/primitives/non_max_suppression.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/one_hot.hpp"
+#endif
 #include "intel_gpu/primitives/permute.hpp"
+#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/pooling.hpp"
 #include "intel_gpu/primitives/pyramid_roi_align.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
@@ -69,7 +75,7 @@
 #include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
 #include "intel_gpu/primitives/convert_color.hpp"
 #include "generic_layer.hpp"
-
+#endif
 
 namespace cldnn {
 namespace ocl {
@@ -82,18 +88,25 @@ namespace detail {
         attach_##prim##_impl();          \
     }
 
+#if 0 // TODO(taylor)
 REGISTER_OCL(activation);
+#endif
 REGISTER_OCL(arg_max_min);
+#if 0 // TODO(taylor)
 REGISTER_OCL(average_unpooling);
 REGISTER_OCL(batch_to_space);
 REGISTER_OCL(binary_convolution);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
+#endif
 REGISTER_OCL(concatenation);
+#if 0 // TODO(taylor)
 REGISTER_OCL(convolution);
 REGISTER_OCL(crop);
 REGISTER_OCL(custom_gpu_primitive);
+#endif
 REGISTER_OCL(data);
+#if 0 // TODO(taylor)
 REGISTER_OCL(deconvolution);
 REGISTER_OCL(deformable_conv);
 REGISTER_OCL(deformable_interp);
@@ -117,7 +130,9 @@ REGISTER_OCL(mvn);
 REGISTER_OCL(non_max_suppression);
 REGISTER_OCL(normalize);
 REGISTER_OCL(one_hot);
+#endif
 REGISTER_OCL(permute);
+#if 0 // TODO(taylor)
 REGISTER_OCL(pooling);
 REGISTER_OCL(pyramid_roi_align);
 REGISTER_OCL(quantize);
@@ -154,7 +169,7 @@ REGISTER_OCL(cum_sum);
 REGISTER_OCL(embedding_bag);
 REGISTER_OCL(extract_image_patches);
 REGISTER_OCL(convert_color);
-
+#endif
 #undef REGISTER_OCL
 
 }  // namespace detail

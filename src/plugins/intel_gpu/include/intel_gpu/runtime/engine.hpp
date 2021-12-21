@@ -19,7 +19,9 @@
 #include <atomic>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#if 0 // TODO(taylor)
 #include <oneapi/dnnl/dnnl.hpp>
+#endif
 #endif
 
 namespace cldnn {

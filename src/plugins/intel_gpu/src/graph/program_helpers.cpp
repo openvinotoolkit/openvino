@@ -22,7 +22,7 @@ void program_helpers::merge_buffers(engine& engine,
     auto& stream = node.get_program().get_stream();
 
     for (size_t i = begin_offset; i < end_offset; i++) {
-        auto& weights = node.get_dependency(i).as<data>();
+        auto& weights = node.get_dependency(i).first->as<data>();
         mem_lock<char, mem_lock_type::read> src{weights.get_attached_memory_ptr(), stream};
         mem_lock<char, mem_lock_type::write> dst{data_to_allocate, stream};
         std::copy(src.begin(), src.end(), dst.begin() + (i - begin_offset) * src.size());
@@ -30,7 +30,7 @@ void program_helpers::merge_buffers(engine& engine,
 
     for (size_t i = 0; i < end_offset - begin_offset - 1; i++) node.remove_dependency(begin_offset + 1);
 
-    auto& data_node = node.get_dependency(begin_offset).as<data>();
+    auto& data_node = node.get_dependency(begin_offset).first->as<data>();
     data_node.attach_memory(data_to_allocate, false);
 }
 
@@ -190,7 +190,7 @@ bool program_helpers::are_layouts_identical_for_onednn_sum_post_op(layout input_
 
     return false;
 }
-
+#if 0 // TODO(taylor)
 bool program_helpers::needs_onednn_sum_post_op(const eltwise_node& n, layout input_layout) {
     auto output_layout = n.get_output_layout();
     if (n.get_primitive()->mode == eltwise_mode::sum &&
@@ -201,7 +201,7 @@ bool program_helpers::needs_onednn_sum_post_op(const eltwise_node& n, layout inp
 
     return false;
 }
-
+#endif
 
 
 

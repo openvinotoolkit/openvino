@@ -11,10 +11,12 @@ namespace cpu {
     static detail::attach_##prim##_impl attach_##prim
 
 void register_implementations() {
+#if 0 // TODO(taylor)
     REGISTER_CPU(detection_output);
     REGISTER_CPU(proposal);
     REGISTER_CPU(non_max_suppression);
+#endif
 }
-
+//
 }  // namespace cpu
 }  // namespace cldnn

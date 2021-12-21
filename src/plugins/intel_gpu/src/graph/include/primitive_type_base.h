@@ -11,6 +11,7 @@
 #include "primitive_type.h"
 #include "program_node.h"
 #include "primitive_inst.h"
+#include "arg_max_min_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "impls/implementation_map.hpp"
 
@@ -58,19 +59,32 @@ struct primitive_type_base : primitive_type {
         return implementation_map<PType>::check_io_eq(node);
     }
 
-    cldnn::layout calc_output_layout(const cldnn::program_node& node) const override {
+    cldnn::layout calc_output_layout(const cldnn::program_node& node, int32_t idx = 0) const override {
         if (node.type() != this)
             throw std::invalid_argument("primitive_type_base::calc_output_layout: primitive type mismatch");
 
         return typed_primitive_inst<PType>::calc_output_layout(node);
     }
 
+    std::vector<cldnn::layout> calc_output_layouts(const cldnn::program_node& node) const override {
+        std::cout << "[" << __FILE__ << "] calc_output_layouts called for " << node.id() << std::endl;
+        if (node.type() != this)
+            throw std::invalid_argument("primitive_type_base::calc_output_layout: primitive type mismatch");
+        std::vector<cldnn::layout> layouts;
+        for (size_t i = 0; i < node.get_outputs_count(); ++i) {
+            layouts.push_back(calc_output_layout(node, i));
+        }
+        return { typed_primitive_inst<PType>::calc_output_layout(node) };
+    }
+
+#if 0 // TODO(taylor)
     std::string to_string(const cldnn::program_node& node) const override {
         if (node.type() != this)
             throw std::invalid_argument("primitive_type_base::to_string: primitive type mismatch");
 
         return typed_primitive_inst<PType>::to_string(node);
     }
+#endif
 };
 
 }  // namespace cldnn

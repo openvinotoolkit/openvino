@@ -7,14 +7,16 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
+#if 0 // TODO(taylor)
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/scale.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
-
+#endif
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
+#include "program_node.h"
 
 #include <cstdint>
 #include <string>
@@ -46,12 +48,15 @@ using kernel_scalar_argument_types = kernel_selector::ScalarDescriptor::Types;
 using data_type = kernel_selector::Datatype;
 using kernel_type = kernel_selector::KernelType;
 using weights_type = kernel_selector::WeightsType;
+#if 0 // TODO(taylor)
 using activation_function = kernel_selector::ActivationFunction;
 using pool_type = kernel_selector::PoolType;
 using pool_remainder = kernel_selector::PoolRemainder;
+#endif
 using argm_axis = kernel_selector::ArgMaxMinAxis;
 using argm_output = kernel_selector::ArgMaxMinOut;
 using argm_sort = kernel_selector::ArgMaxMinSortType;
+#if 0 // TODO(taylor)
 using lookt_axis = kernel_selector::LookUpTableAxis;
 using lrn_mode = kernel_selector::LRNMode;
 using normalize_mode = kernel_selector::NormalizeMode;
@@ -63,7 +68,9 @@ using eltwise_input_mode = kernel_selector::EltwiseInputMode;
 using softmax_dim = kernel_selector::SoftmaxDim;
 using mean_subtruct_mode = kernel_selector::MeanSubtractMode;
 using mean_op = kernel_selector::MeanOp;
+#endif
 using concat_axis = kernel_selector::ConcatAxis;
+#if 0 // TODO(taylor)
 using tuning_mode = kernel_selector::TuningMode;
 using sample_type = kernel_selector::ResampleType;
 using coordinate_transformation_mode = kernel_selector::CoordinateTransformationMode;
@@ -77,7 +84,7 @@ using scatter_update_axis = kernel_selector::ScatterUpdateAxis;
 using reduce_mode = kernel_selector::ReduceMode;
 using cum_sum_axis = kernel_selector::CumSumAxis;
 using depth_to_space_mode = kernel_selector::DepthToSpaceMode;
-
+#endif
 using data_tensor = kernel_selector::DataTensor;
 using weights_tensor = kernel_selector::WeightsTensor;
 template <typename T>
@@ -100,11 +107,11 @@ kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode);
+//kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode);
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split = 1, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
-kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
+//kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 
 template <typename T = std::uint32_t>
 kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
@@ -117,6 +124,7 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
             static_cast<T>(sizes[5])};
 }
 
+#if 0 // TODO(taylor)
 template <typename p_type>
 inline void convert_activation_func_params(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
     const float negative_slope = primitive->activation_negative_slope;
@@ -142,7 +150,7 @@ inline void convert_new_activation_func(const p_type primitive, std::vector<kern
                                    primitive->additional_params.a,
                                    primitive->additional_params.b});
 }
-
+#endif
 void set_params(const program_node& node, kernel_selector::params& params);
 
 template <typename params_t, typename arg_t>
@@ -151,15 +159,18 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
 
     set_params(arg, params);
 
-    const auto& input_layout = arg.input().get_output_layout();
-    const auto& output_layout = arg.get_output_layout();
+    // TODO (taylor) : currently it is assumed that all output layouts are same. Need to deal with mulitple outputs with different layout
+    const auto& input_node = arg.input();
+    const auto& input_layout = input_node.get_output_layout(0);
+    const auto& output_layout = arg.get_output_layout(0);
 
     params.inputs[0] = convert_data_tensor(input_layout, split);
-    params.output = convert_data_tensor(output_layout, split);
+    params.outputs[0] = convert_data_tensor(output_layout, split); // TODO(taylor) need fix for multiple output ?
 
     params.layerID = arg.id();
-
+#if 0 // TODO(taylor)
     convert_fused_activation_func_params(arg, params.activations);
+#endif
     std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;
     size_t op_id = 0;
     for (auto& fused_prim : arg.get_fused_primitives()) {
@@ -177,7 +188,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
         prim_id_type_map[fused_prim.node->id()] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
 
         for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
-            desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout()));
+            desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).first->get_output_layout()));
         }
 
         if (fused_prim.total_num_deps > 0) {
