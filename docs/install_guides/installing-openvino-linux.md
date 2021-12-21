@@ -210,15 +210,6 @@ PRC developers might encounter pip errors during OpenVINO™ installation. To re
    ```
 Use the `--trusted-host` parameter if the URL above is `http` instead of `https`.
 
-* Modify or create the `~/.pip/pip.conf` file to change the default download source with the content below:
-
-   ```
-   [global]
-   index-url = http://mirrors.aliyun.com/pypi/simple/
-   [install]
-   trusted-host = mirrors.aliyun.com
-   ```
-
 * If you run into incompatibility issues between components after installing new OpenVINO version, try running `requirements.txt` with the following command:
 
    ```
