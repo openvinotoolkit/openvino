@@ -8,8 +8,10 @@
         "lab-nerval",
         "lab-nerval-onnx-ci",
         "onnx-watchdog-agent",
-        "dependabot"
+        "workbench-ci-bot",
+        "openvino-pot-ci"
     ],
+    "MAX_MEMBERS_TO_REMOVE": 15,
     "EMAILS_FILE_PATH": "dev_emails-test.txt",
     "PROXIES": {
         "HTTP_PROXY": null,
@@ -28,12 +30,16 @@
         "openvino-ie-lpt-maintainers": "category: LP transformations",
         "openvino-ie-multi-maintainers": "category: MULTI",
         "openvino-ie-python-api-maintainers": "category: python api",
+        "openvino-ie-template-maintainers": "category: TEMPLATE",
         "openvino-ie-tests-maintainers": "category: IE Tests",
         "openvino-ie-vpu-maintainers": "category: VPU",
         "openvino-mo-maintainers": "category: MO",
         "openvino-ngraph-maintainers": "category: nGraph",
+        "openvino-scripts-maintainers": "category: build",
         "openvino-tests-maintainers": "category: IE Tests",
         "openvino-tools-maintainers": "category: tools",
-        "openvino-configuration-mgmt": "category: dependency_changes"
+        "openvino-pot-maintainers": "category: POT",
+        "openvino-configuration-mgmt": "category: dependency_changes",
+        "openvino-samples-maintainers": "category: samples"
     }
 }

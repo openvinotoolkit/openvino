@@ -23,6 +23,8 @@ addIeTargetTest(
             ov_shape_inference
             inference_engine_s
             unitTestUtils
+            inference_engine_snippets
+            ngraphFunctions
         ADD_CPPLINT
         LABELS
             CPU
@@ -31,3 +33,8 @@ addIeTargetTest(
 ie_faster_build(${TARGET_NAME}
     UNITY
 )
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include)
