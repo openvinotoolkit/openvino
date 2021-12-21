@@ -35,6 +35,7 @@ from .algorithms.quantization.ranger.algorithm import Ranger
 
 from .api.data_loader import DataLoader
 from .api.metric import Metric
+from .api.engine import Engine
 from .engines.ie_engine import IEEngine
 from .graph import load_model, save_model
 from .graph.model_utils import compress_model_weights
