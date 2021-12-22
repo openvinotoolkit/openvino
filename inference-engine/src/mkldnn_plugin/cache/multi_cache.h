@@ -44,10 +44,6 @@ public:
     template<typename KeyType, typename BuilderType, typename ValueType = typename std::result_of<BuilderType&(const KeyType&)>::type>
     typename CacheEntry<KeyType, ValueType>::ResultType
     getOrCreate(const KeyType& key, BuilderType builder) {
-        if (0 == _capacity) {
-            // fast track
-            return {builder(key), CacheEntryBase::LookUpStatus::Miss};
-        }
         auto entry = getEntry<KeyType, ValueType>();
         return entry->getOrCreate(key, std::move(builder));
     }

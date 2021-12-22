@@ -65,7 +65,7 @@ public:
     }
 
     /**
-     * @brief Evicts n last recently used cache records
+     * @brief Evicts n least recently used cache records
      * @param n number of records to be evicted, can be greater than capacity
      */
 
@@ -75,6 +75,14 @@ public:
             _lruList.pop_back();
         }
     }
+
+    /**
+     * @brief Returns the current capacity value
+     * @return the current capacity value
+     */
+     size_t getCapacity() const noexcept {
+         return _capacity;
+     }
 
 private:
     struct key_hasher {

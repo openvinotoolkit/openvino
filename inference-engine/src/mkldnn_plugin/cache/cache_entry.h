@@ -49,6 +49,10 @@ public:
      */
 
     ResultType getOrCreate(const KeyType& key, std::function<ValType(const KeyType&)> builder) {
+        if (0 == _impl.getCapacity()) {
+            // fast track
+            return {builder(key), CacheEntryBase::LookUpStatus::Miss};
+        }
         auto retStatus = LookUpStatus::Hit;
         ValType retVal = _impl.get(key);
         if (retVal == ValType()) {
