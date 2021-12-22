@@ -71,22 +71,22 @@ def get_element_type(precision):
     raise Exception("Can't find openvino element type for precision: " + precision)
 
 
-def pre_post_processing(function: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
-    pre_post_processor = PrePostProcessor(function)
+def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+    pre_post_processor = PrePostProcessor(model)
     if input_precision:
         element_type = get_element_type(input_precision)
-        for i in range(len(function.inputs)):
+        for i in range(len(model.inputs)):
             pre_post_processor.input(i).tensor().set_element_type(element_type)
             app_inputs_info[i].element_type = element_type
     if output_precision:
         element_type = get_element_type(output_precision)
-        for i in range(len(function.outputs)):
+        for i in range(len(model.outputs)):
             pre_post_processor.output(i).tensor().set_element_type(element_type)
     user_precision_map = {}
     if input_output_precision:
         user_precision_map = _parse_arg_map(input_output_precision)
-        input_names = get_input_output_names(function.inputs)
-        output_names = get_input_output_names(function.outputs)
+        input_names = get_input_output_names(model.inputs)
+        output_names = get_input_output_names(model.outputs)
         for node_name, precision in user_precision_map.items():
             user_precision_map[node_name] = get_element_type(precision)
         for name, element_type in user_precision_map.items():
@@ -101,7 +101,7 @@ def pre_post_processing(function: Model, app_inputs_info, input_precision: str, 
 
     # update app_inputs_info
     if not input_precision:
-        inputs = function.inputs
+        inputs = model.inputs
         for i in range(len(inputs)):
             if app_inputs_info[i].name in user_precision_map.keys():
                 app_inputs_info[i].element_type = user_precision_map[app_inputs_info[i].name]
@@ -113,7 +113,7 @@ def pre_post_processing(function: Model, app_inputs_info, input_precision: str, 
     for info in app_inputs_info:
         pre_post_processor.input(info.name).model().set_layout(info.layout)
 
-    function = pre_post_processor.build()
+    model = pre_post_processor.build()
 
 
 def _parse_arg_map(arg_map: str):
@@ -145,14 +145,14 @@ def get_precision(element_type: Type):
     raise Exception("Can't find  precision for openvino element type: " + str(element_type))
 
 
-def print_inputs_and_outputs_info(function: Model):
-    inputs = function.inputs
+def print_inputs_and_outputs_info(model: Model):
+    inputs = model.inputs
     input_names = get_input_output_names(inputs)
     for i in range(len(inputs)):
         logger.info(f"Model input '{input_names[i]}' precision {get_precision(inputs[i].element_type)}, "
                                                     f"dimensions ({str(inputs[i].node.layout)}): "
                                                     f"{' '.join(str(x) for x in inputs[i].partial_shape)}")
-    outputs = function.outputs
+    outputs = model.outputs
     output_names = get_input_output_names(outputs)
     for i in range(len(outputs)):
         logger.info(f"Model output '{output_names[i]}' precision {get_precision(outputs[i].element_type)}, "

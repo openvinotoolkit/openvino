@@ -233,8 +233,8 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            function = benchmark.read_model(args.path_to_model)
-            topology_name = function.get_name()
+            model = benchmark.read_model(args.path_to_model)
+            topology_name = model.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Read model took {duration_ms} ms")
             if statistics:
@@ -246,13 +246,13 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.inputs)
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, model.inputs)
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.partial_shape for info in app_inputs_info }
                 logger.info(
                     'Reshaping model: {}'.format(', '.join("'{}': {}".format(k, str(v)) for k, v in shapes.items())))
-                function.reshape(shapes)
+                model.reshape(shapes)
                 duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
                 logger.info(f"Reshape model took {duration_ms} ms")
                 if statistics:
@@ -268,14 +268,14 @@ def run(args):
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
 
-            pre_post_processing(function, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
-            print_inputs_and_outputs_info(function)
+            pre_post_processing(model, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
+            print_inputs_and_outputs_info(model)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.core.compile_model(function, benchmark.device)
+            exe_network = benchmark.core.compile_model(model, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
