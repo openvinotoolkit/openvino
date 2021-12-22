@@ -9,6 +9,7 @@ from pathlib import Path
 
 import openvino.runtime.opset8 as ov
 from openvino.runtime import Model, Core, CompiledModel, Tensor, tensor_from_file, compile_model
+from openvino.pyopenvino import Extension
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
@@ -398,11 +399,11 @@ def test_infer_new_request_return_type(device):
 
 
 def test_add_extension():
-    core = Core()
-    from openvino.pyopenvino import Extension
     class EmptyExtension(Extension):
         def __init__(self) -> None:
             super().__init__()
+
+    core = Core()
     core.add_extension(EmptyExtension())
     core.add_extension([EmptyExtension(), EmptyExtension()])
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
