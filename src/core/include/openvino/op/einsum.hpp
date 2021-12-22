@@ -37,7 +37,7 @@ public:
     ///
     /// \return     Einsum equation
     ///
-    std::string get_equation() const {
+    const std::string& get_equation() const {
         return m_equation;
     }
 
