@@ -357,7 +357,7 @@ def random_uniform(
     return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
 
 
-@nameable_op
+"""@nameable_op
 def if_op(
         condition: NodeInput,
         inputs: List[Node],
@@ -365,8 +365,8 @@ def if_op(
         input_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
         output_desc: Tuple[List[TensorIteratorBodyOutputDesc], List[TensorIteratorBodyOutputDesc]],
         name: Optional[str] = None,
-) -> Node:
-    """Execute one of the bodies depending on condtion value.
+) -> Node:"""
+"""Execute one of the bodies depending on condtion value.
 
     @param      condition:             A scalar or 1D tensor with 1 element specifying body will be executed.
                                        If condition is True, then body will be executed, False - else_body.
@@ -381,7 +381,7 @@ def if_op(
 
     @return: The new node which performs If operation.
     """
-    attributes = {
+"""attributes = {
         "then_body": bodies[0].serialize(),
         "else_body": bodies[1].serialize(),
         "then_inputs": {"invariant_input_desc": [desc.serialize() for desc in input_desc[0]]},
@@ -390,7 +390,7 @@ def if_op(
         "else_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[1]]}
     }
     return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs),
-                                             attributes)
+                                             attributes)"""
 
 
 @nameable_op
