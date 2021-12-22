@@ -25,7 +25,11 @@ namespace runtime {
 
 void Tensor::type_check(const Tensor&) {}
 
-Tensor::Tensor(const std::shared_ptr<void>& so, const std::shared_ptr<ie::Blob>& impl) : _so{so}, _impl{impl} {
+Tensor::~Tensor() {
+    _impl = {};
+}
+
+Tensor::Tensor(const std::shared_ptr<ie::Blob>& impl, const std::shared_ptr<void>& so) : _impl{impl}, _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
 

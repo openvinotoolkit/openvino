@@ -7,7 +7,7 @@ To convert this model to the TensorFlow\* format, you can use [Reproduce Keras* 
 
 After you convert the model to TensorFlow* format, run the Model Optimizer command below:
 ```sh
- mo --input "input_1[1 1333 1333 3]" --input_model retinanet_resnet50_coco_best_v2.1.0.pb --data_type FP32 --transformations_config front/tf/retinanet.json
+mo --input "input_1[1 1333 1333 3]" --input_model retinanet_resnet50_coco_best_v2.1.0.pb --data_type FP32 --transformations_config front/tf/retinanet.json
 ```
 
 Where `transformations_config` command-line parameter specifies the configuration json file containing model conversion hints for the Model Optimizer.

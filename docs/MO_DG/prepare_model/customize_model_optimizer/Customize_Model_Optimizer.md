@@ -1,5 +1,18 @@
 # Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers
+
+@endsphinxdirective
+
 - <a href="#model-representation-in-memory">Model Representation in Memory</a>
 - <a href="#model-conversion-pipeline">Model Conversion Pipeline</a>
   - <a href="#model-loading">Model Loading</a>
@@ -34,7 +47,7 @@
 
 <a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the 
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
-mechanism is a core part of the Model Optimizer, which uses it under the hood, so the Model Optimizer itself is a huge set of examples for adding custom logic to support your model.
+mechanism is a core part of the Model Optimizer. The Model Optimizer itself uses it under the hood, being a huge set of examples on how to add custom logic to support your model.
 
 There are several cases when the customization is needed:
 
@@ -639,9 +652,9 @@ graph. Consider the extractor for the TensorFlow\* operation `Const` (refer to t
 `extensions/front/tf/const_ext.py`):
 
 ```py
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, tf_tensor_content
-from mo.ops.const import Const
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, tf_tensor_content
+from openvino.tools.mo.ops.const import Const
 
 
 class ConstExtractor(FrontExtractorOp):
@@ -679,9 +692,9 @@ Consider another example with an extractor of ONNX\* operation `Constant` (refer
 from onnx import numpy_helper
 from onnx.numpy_helper import to_array
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.const import Const
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.ops.const import Const
 
 
 class ConstantExtractor(FrontExtractorOp):
@@ -814,11 +827,11 @@ fusing of the sub-graph defining the [Mish](../../../ops/activation/Mish_4.md) a
 operation:
 
 ```py
-from extensions.front.Softplus_fusion import SoftplusFusion
-from extensions.ops.activation_ops import Mish
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.front.Softplus_fusion import SoftplusFusion
+from openvino.tools.mo.ops.activation_ops import Mish
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
 
 
 class MishFusion(FrontReplacementSubgraph):
@@ -886,12 +899,12 @@ transformation.
 Consider an example transformation from the file is `extensions/front/Pack.py`  which replaces operation `Pack` from
 the TensorFlow\*:
 ```py
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementOp
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Node, Graph, rename_nodes
-from mo.ops.concat import Concat
-from mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Node, Graph, rename_nodes
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 
 class Pack(FrontReplacementOp):
@@ -932,11 +945,11 @@ specification.
 ```py
 import logging as log
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph
-from mo.ops.const import Const
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.utils.error import Error
 
 
 class SqueezeNormalize(FrontReplacementPattern):
@@ -1200,13 +1213,13 @@ The example of the configuration file for this type of transformation is `extens
 and the corresponding transformation file is `./extensions/front/YOLO.py`:
 
 ```py
-from extensions.front.no_op_eraser import NoOpEraser
-from extensions.front.standalone_const_eraser import StandaloneConstEraser
-from extensions.ops.regionyolo import RegionYoloOp
-from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
-from mo.graph.graph import Node, Graph
-from mo.ops.result import Result
-from mo.utils.error import Error
+from openvino.tools.mo.front.no_op_eraser import NoOpEraser
+from openvino.tools.mo.front.standalone_const_eraser import StandaloneConstEraser
+from openvino.tools.mo.ops.regionyolo import RegionYoloOp
+from openvino.tools.mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.result import Result
+from openvino.tools.mo.utils.error import Error
 
 
 class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):

@@ -1,4 +1,4 @@
-# Operation Set `opset6` Specification {#openvino_docs_ops_opset6}
+# opset6 {#openvino_docs_ops_opset6}
 
 This specification document describes `opset6` operation set supported in OpenVINO.
 Support for each particular operation from the list below depends on the capabilities available in a inference plugin
