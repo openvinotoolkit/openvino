@@ -23,6 +23,7 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    bool isExecutable() const override { return true; }
 
     void inline setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 

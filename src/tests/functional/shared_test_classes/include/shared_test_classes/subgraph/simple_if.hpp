@@ -27,6 +27,10 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<SimpleIfParamsTuple> &obj);
 protected:
     void SetUp() override;
+    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
+
+private:
+    size_t inferNum = 0;
 };
 
 class SimpleIf2OutTest : public SimpleIfTest {

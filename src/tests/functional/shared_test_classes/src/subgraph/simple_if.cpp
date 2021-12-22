@@ -29,6 +29,19 @@ std::string SimpleIfTest::getTestCaseName(const testing::TestParamInfo<SimpleIfP
     return results.str();
 }
 
+void SimpleIfTest::compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) {
+    // in bodies there aren't nodes that work with dimension 0. So we shouldn't call SubgraphBaseTest::compare
+    bool hasZero = false;
+    for (auto shape : targetStaticShapes[inferNum]) {
+        hasZero = hasZero || std::any_of(shape.begin(), shape.end(), [](size_t dim) { return dim == 0; });
+    }
+    if (!hasZero) {
+        SubgraphBaseTest::compare(expected, actual);
+    }
+
+    inferNum++;
+}
+
 void SimpleIfTest::SetUp() {
     std::vector<ov::test::InputShape> shapes;
     ov::test::ElementType inType;
