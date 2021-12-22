@@ -9,26 +9,6 @@
 
 namespace ov {
 namespace frontend {
-struct FRONTEND_API ProgressCounter {
-    explicit ProgressCounter(unsigned int steps);
-
-    unsigned int completed_steps() const {
-        return m_completed_steps;
-    }
-
-    float current_progress() const;
-
-    float advance(unsigned int steps = 1u);
-
-    ProgressCounter& operator++();
-
-    ProgressCounter& operator++(int);
-
-private:
-    unsigned int m_total_steps = 0u;
-    unsigned int m_completed_steps = 0u;
-};
-
 class FRONTEND_API ProgressReporterExtension : public ov::Extension {
 public:
     /// \brief A progress reporting callback signature. A FunctionObject that matches this signature should be passed
@@ -40,6 +20,8 @@ public:
     /// \param completed_completed The current number of completed steps (out of the total number of steps to take)
     using progress_notifier_callback = std::function<void(float, unsigned int, unsigned int)>;
 
+    /// \brief The default constructor which creates a reporter that doesn't report progress
+    ProgressReporterExtension() : m_callback{[](float, unsigned int, unsigned int) {}} {}
     ProgressReporterExtension(const progress_notifier_callback& callback) : m_callback{callback} {}
     ProgressReporterExtension(progress_notifier_callback&& callback) : m_callback{std::move(callback)} {}
 

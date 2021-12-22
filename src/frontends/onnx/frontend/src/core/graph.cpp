@@ -58,16 +58,20 @@ bool common_node_for_all_outputs(const OutputVector& outputs) {
 }  // namespace detail
 
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
-             const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : Graph(model_proto, common::make_unique<GraphCache>(), telemetry) {}
+             const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+             const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
+    : Graph(model_proto, common::make_unique<GraphCache>(), telemetry, progress_reporter) {}
 
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
-             const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+             const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+             const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
     : m_model{common::make_unique<Model>(model_proto)},
       m_cache{std::move(cache)},
-      m_telemetry(telemetry) {
+      m_telemetry(telemetry),
+      m_progress_reporter{progress_reporter} {
     std::map<std::string, Tensor> initializers;
+
     // Process all initializers in the graph
     for (const auto& initializer_tensor : m_model->get_graph().initializer()) {
         if (initializer_tensor.has_name()) {
@@ -143,6 +147,8 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
 }
 
 void Graph::convert_to_ngraph_nodes() {
+    unsigned int total = m_model->get_graph().node().size();
+    unsigned int completed = 0u;
     // Process ONNX graph nodes, convert to nGraph nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         const Node node{node_proto, *this};
@@ -154,6 +160,8 @@ void Graph::convert_to_ngraph_nodes() {
             }
         }
         OutputVector ng_nodes{make_ng_nodes(node)};
+        float progress = ++completed / static_cast<float>(total);
+        m_progress_reporter->report_progress(progress, total, completed);
     }
 }
 
@@ -344,7 +352,10 @@ const OpsetImports& Graph::get_opset_imports() const {
 }
 
 Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph* parent_graph)
-    : Graph(model_proto, common::make_unique<GraphCache>(), parent_graph->get_telemetry()),
+    : Graph(model_proto,
+            common::make_unique<GraphCache>(),
+            parent_graph->get_telemetry(),
+            std::make_shared<ov::frontend::ProgressReporterExtension>()),
       m_parent_graph(parent_graph) {}
 
 bool Subgraph::is_ng_node_in_cache(const std::string& name) const {

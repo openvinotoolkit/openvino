@@ -8,26 +8,36 @@
 #include <fstream>
 #include <openvino/frontend/input_model.hpp>
 
+#include "openvino/frontend/extension/progress_reporter_extension.hpp"
+
 namespace ov {
 namespace frontend {
 namespace onnx {
 
 class InputModel : public ov::frontend::InputModel {
 public:
-    InputModel(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(const std::string& path,
+               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+               const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    InputModel(const std::wstring& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(const std::wstring& path,
+               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+               const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
 #endif
-    InputModel(std::istream& model_stream, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    InputModel(std::istream& model_stream,
+               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+               const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
     InputModel(std::istream& model_stream,
                const std::string& path,
-               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+               const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     InputModel(std::istream& model_stream,
                const std::wstring& path,
-               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+               const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
 #endif
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;

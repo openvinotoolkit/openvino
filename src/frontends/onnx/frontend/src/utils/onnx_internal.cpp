@@ -87,20 +87,23 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
     detail::remove_dangling_results(function);
 }
 
-std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                            const std::string& model_path,
-                                            const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry) {
+std::shared_ptr<Function> import_onnx_model(
+    std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+    const std::string& model_path,
+    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+    const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter) {
     apply_transformations(*model_proto, model_path);
-    Graph graph{model_proto, telemetry};
+    Graph graph{model_proto, telemetry, progress_reporter};
     return graph.convert();
 }
 
 std::shared_ptr<Function> decode_to_framework_nodes(
     std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
     const std::string& model_path,
-    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry) {
+    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+    const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter) {
     apply_transformations(*model_proto, model_path);
-    auto graph = std::make_shared<Graph>(model_proto, telemetry);
+    auto graph = std::make_shared<Graph>(model_proto, telemetry, progress_reporter);
     return graph->decode();
 }
 }  // namespace detail

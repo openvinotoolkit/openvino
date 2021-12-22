@@ -15,14 +15,16 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/frontend/extension/progress_reporter_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto2,
-          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+          const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
     Graph() = delete;
 
     Graph(const Graph&) = delete;
@@ -49,10 +51,15 @@ public:
         return m_telemetry;
     }
 
+    const std::shared_ptr<ov::frontend::ProgressReporterExtension>& get_progress_reporter() const {
+        return m_progress_reporter;
+    }
+
 protected:
     Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
-          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+          const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
 
     void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
 
@@ -69,6 +76,7 @@ protected:
 private:
     std::vector<Node> m_nodes;
     std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
+    std::shared_ptr<ov::frontend::ProgressReporterExtension> m_progress_reporter;
 };
 
 /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.

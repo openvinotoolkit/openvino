@@ -220,29 +220,38 @@ struct onnx_editor::ONNXModelEditor::Impl {
 #endif
 };
 
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
-                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(
+    const std::string& model_path,
+    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+    const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
     : m_model_path{model_path},
-      m_telemetry(telemetry),
+      m_telemetry{telemetry},
+      m_progress_reporter{progress_reporter},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
-                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(
+    const std::wstring& model_path,
+    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+    const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
     : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
-      m_telemetry(telemetry),
+      m_telemetry{telemetry},
+      m_progress_reporter{progress_reporter},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
 #endif
 
-onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
-                                              const std::string& model_path,
-                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(
+    std::istream& model_stream,
+    const std::string& model_path,
+    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+    const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
     : m_model_path{model_path},
-      m_telemetry(telemetry),
+      m_telemetry{telemetry},
+      m_progress_reporter{progress_reporter},
       m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -415,7 +424,10 @@ std::string onnx_editor::ONNXModelEditor::model_string() const {
 }
 
 std::shared_ptr<Model> onnx_editor::ONNXModelEditor::get_function() const {
-    return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto, m_model_path, m_telemetry);
+    return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto,
+                                                          m_model_path,
+                                                          m_telemetry,
+                                                          m_progress_reporter);
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
@@ -604,5 +616,9 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const Ed
 }
 
 std::shared_ptr<Model> onnx_editor::ONNXModelEditor::decode() {
-    return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path, m_telemetry);
+    // TODO: REPORT PROGRESS HERE?
+    return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto,
+                                                                  m_model_path,
+                                                                  m_telemetry,
+                                                                  m_progress_reporter);
 }

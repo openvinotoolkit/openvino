@@ -64,6 +64,10 @@ void regclass_frontend_ProgressReporterExtension(py::module m) {
 
     ext.doc() = "An extension class intented to use as progress reporting utility";
 
+    ext.def(py::init([]() {
+        return std::make_shared<ProgressReporterExtension>();
+    }));
+
     ext.def(py::init([](const ProgressReporterExtension::progress_notifier_callback& callback) {
         return std::make_shared<ProgressReporterExtension>(callback);
     }));

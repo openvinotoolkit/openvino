@@ -6,6 +6,7 @@
 
 #include <openvino/frontend/frontend.hpp>
 
+#include "openvino/frontend/extension/progress_reporter_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -39,7 +40,7 @@ protected:
 
 private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
-    //std::shared_ptr<ProgressReporterExtension> m_progress_reporter;
+    std::shared_ptr<ProgressReporterExtension> m_progress_reporter;
 };
 
 }  // namespace onnx

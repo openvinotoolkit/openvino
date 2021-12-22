@@ -14,6 +14,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/frontend/extension/progress_reporter_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ov {
@@ -30,10 +31,12 @@ public:
     ///
     /// \param model_path Path to the file containing the model.
     ONNXModelEditor(const std::string& model_path,
-                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+                    const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     ONNXModelEditor(const std::wstring& model_path,
-                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+                    const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded
@@ -44,7 +47,8 @@ public:
     ///                   for ONNX external weights feature support.
     ONNXModelEditor(std::istream& model_stream,
                     const std::string& path = "",
-                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
+                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {},
+                    const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter = {});
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
@@ -280,6 +284,7 @@ private:
     void update_mapper_if_needed() const;
 
     std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
+    std::shared_ptr<ov::frontend::ProgressReporterExtension> m_progress_reporter;
     const std::string m_model_path;
 
     struct Impl;

@@ -14,27 +14,35 @@ using namespace ov::frontend::onnx;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-InputModel::InputModel(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry)} {}
+InputModel::InputModel(const std::string& path,
+                       const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+                       const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry, progress_reporter)} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry)} {}
+InputModel::InputModel(const std::wstring& path,
+                       const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+                       const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry, progress_reporter)} {}
 #endif
 
-InputModel::InputModel(std::istream& model_stream, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", telemetry)} {}
+InputModel::InputModel(std::istream& model_stream,
+                       const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+                       const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", telemetry, progress_reporter)} {}
 
 InputModel::InputModel(std::istream& model_stream,
                        const std::string& path,
-                       const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, telemetry)} {}
+                       const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+                       const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, telemetry, progress_reporter)} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 InputModel::InputModel(std::istream& model_stream,
                        const std::wstring& path,
-                       const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : InputModel(model_stream, ov::util::wstring_to_string(path), telemetry) {}
+                       const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+                       const std::shared_ptr<ov::frontend::ProgressReporterExtension>& progress_reporter)
+    : InputModel(model_stream, ov::util::wstring_to_string(path), telemetry, progress_reporter) {}
 #endif
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {

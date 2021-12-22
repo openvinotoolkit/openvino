@@ -36,27 +36,27 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     }
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
-        return std::make_shared<InputModel>(path, m_telemetry);
+        return std::make_shared<InputModel>(path, m_telemetry, m_progress_reporter);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
-        return std::make_shared<InputModel>(path, m_telemetry);
+        return std::make_shared<InputModel>(path, m_telemetry, m_progress_reporter);
     }
 #endif
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1 && variants[1].is<std::string>()) {
             const auto path = variants[0].as<std::string>();
-            return std::make_shared<InputModel>(*stream, path, m_telemetry);
+            return std::make_shared<InputModel>(*stream, path, m_telemetry, m_progress_reporter);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         if (variants.size() > 1 && variants[1].is<std::wstring>()) {
             const auto path = variants[1].as<std::wstring>();
-            return std::make_shared<InputModel>(*stream, path, m_telemetry);
+            return std::make_shared<InputModel>(*stream, path, m_telemetry, m_progress_reporter);
         }
 #endif
-        return std::make_shared<InputModel>(*stream, m_telemetry);
+        return std::make_shared<InputModel>(*stream, m_telemetry, m_progress_reporter);
     }
     return nullptr;
 }
@@ -136,5 +136,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
+        m_progress_reporter = progress_reporter;
     }
 }
