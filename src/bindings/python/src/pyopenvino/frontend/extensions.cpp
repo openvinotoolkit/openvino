@@ -13,6 +13,7 @@
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "pyopenvino/graph/function.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
 
 namespace py = pybind11;
 
@@ -53,4 +54,8 @@ void regclass_frontend_JsonConfigExtension(py::module m) {
     ext.def(py::init([](const std::string& path) {
         return std::make_shared<ov::frontend::JsonConfigExtension>(path);
     }));
+}
+
+void regclass_frontend_ConversionExtension(py::module m) {
+
 }

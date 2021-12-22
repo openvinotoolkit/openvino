@@ -31,6 +31,14 @@ public:
         return m_op_type;
     }
 
+    template <class D>
+    D get_attribute (const std::string& name) {
+        return get_attribute_as_any(name).template as<D>();
+    }
+
+protected:
+
+    virtual ov::Any get_attribute_as_any (const std::string& name) const = 0;
 private:
     std::string m_op_type;
     T m_inputs;
