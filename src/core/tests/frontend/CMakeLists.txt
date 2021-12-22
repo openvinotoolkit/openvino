@@ -3,8 +3,8 @@
 #
 add_subdirectory(shared)
 
-if (ENABLE_OV_PDPD_FRONTEND)
-    add_subdirectory(paddlepaddle)
+if (ENABLE_OV_PADDLE_FRONTEND)
+    add_subdirectory(paddle)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)

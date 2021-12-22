@@ -80,6 +80,8 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
+#include <snippets/pass/collapse_subgraph.hpp>
+#include "ngraph_transformations/snippets_mark_skipped.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -125,6 +127,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+
 Engine::Engine() {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<MKLDNNPlugin::MKLDNNExtension>());
@@ -136,7 +139,8 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT) {
+static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
+                                               const bool _enableSnippets) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -468,6 +472,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     ngraph::pass::Manager postLPTPassManager;
     postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
+    postLPTPassManager.register_pass<ReshapePRelu>();
 
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
         std::string errMsg;
@@ -478,6 +483,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
 
+
     postLPTPassManager.register_pass<MoveEltwiseUpThroughDataMov>();
     postLPTPassManager.get_pass_config()->set_callback<MoveEltwiseUpThroughDataMov>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         if (node->get_input_size() >= 2) {
@@ -486,12 +492,41 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         return false;
     });
 
+    postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
     postLPTPassManager.run_passes(nGraphFunc);
+
+    if (!useLpt && _enableSnippets && with_cpu_x86_avx2()) {
+        ngraph::pass::Manager tokenization_manager;
+        tokenization_manager.register_pass<SnippetsMarkSkipped>();
+        tokenization_manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
+        tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
+        tokenization_manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
+                [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                    const auto& inputs = n->inputs();
+                    // todo: clarify whether we can evaluate snippets on const paths
+                    const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
+                                [](const ov::Input<const ov::Node> &in) {
+                                        return ov::is_type<ov::op::v0::Constant>(in.get_source_output().get_node_shared_ptr());
+                                      });
+                    // todo: clarify whether we can evaluate snippets on inputs with larger ranks
+                    auto rank_is_too_large = [](const ov::descriptor::Tensor& t ) {
+                        // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
+                        return t.get_partial_shape().rank().get_length() > 6;
+                    };
+                    const bool bad_input_rank = std::any_of(inputs.begin(), inputs.end(),
+                                                            [&](const ov::Input<const ov::Node>& in) {return  rank_is_too_large(in.get_tensor());});
+                    const auto& outputs = n->outputs();
+                    const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
+                                                             [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
+                    return has_only_const_inputs || bad_input_rank || bad_output_rank;
+                });
+        tokenization_manager.run_passes(nGraphFunc);
+    }
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
+static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets) {
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets);
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
@@ -526,8 +561,18 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
+    const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
+    const bool enableBF16 = ((BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
+            || engConfig.enforceBF16) && with_cpu_x86_avx512_core();
+    const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
+    const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty())
+            || !engConfig.cache_dir.empty();
+    const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
+    const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
+            || engConfig.enableDynamicBatch;
+    const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets);
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
@@ -590,12 +635,14 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     num_streams = std::max(default_num_streams, num_streams_less_aggressive);
                 }
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-                if (engConfig.perfHintsConfig.ovPerfHintNumRequests)  // set thru SetConfig to the plugin
-                    num_streams = std::min(engConfig.perfHintsConfig.ovPerfHintNumRequests,
-                            engConfig.perfHintsConfig.ovPerfHintNumRequests);
-                if (num_requests != config.end())   // arrived with config to the LoadNetwork (and thus higher pri)
+                if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
+                    auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
+                    if (val > 0)
+                        num_streams = std::min(num_streams, val);
+                } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  //set thru SetConfig to the plugin, 2nd priority
                     num_streams = std::min(num_streams,
-                            PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
+                                           engConfig.perfHintsConfig.ovPerfHintNumRequests);
+                }
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
            }
         }
@@ -736,7 +783,8 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-        Transformation(clonedNetwork, enableLPT);
+        const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16 && with_cpu_x86_avx512_core()));
+        Transformation(clonedNetwork, enableLPT, enableSnippets);
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;

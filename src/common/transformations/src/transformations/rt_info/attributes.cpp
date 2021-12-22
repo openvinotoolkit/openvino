@@ -16,6 +16,7 @@ ov::pass::Attributes::Attributes() {
     register_factory<Decompression>();
     register_factory<ov::preprocess::TensorInfoMemoryType>();
     register_factory<StridesPropagation>();
+    register_factory<ReverseInputChannels>();
 }
 
 ov::Any ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) {
