@@ -63,6 +63,7 @@ jobs:
                  --confcutdir="./docs/scripts/tests/" \
                  --html="./build/docs/_artifacts/doc-generation.html" \
                  --doxygen-strip="$(pwd)" \
+                 --sphinx-strip="$(pwd)/build/docs/rst" \
                  --doxygen-xfail="./docs/doxygen-xfail.txt" \
                  --self-contained-html ./docs/scripts/tests/test_docs.py
 
