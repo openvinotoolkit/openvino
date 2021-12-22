@@ -85,11 +85,12 @@ KERNEL(gemm_tiled_opt)(
     const uint sglid = (uint)get_sub_group_local_id();
 
     // Setting x and y for fusings indexing
-#if B_VEC_SIZE == 1
+    // TODO: investigate how we can use only TILE_N_NOT_DIVISIBLE here for getting stable results in fusings
+#if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
     const uint x = (uint)get_global_id(0);
-#else // B_VEC_SIZE == 1
+#else // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
     const uint x = tile_n_num * SIMD_WIDTH * B_VEC_SIZE;
-#endif // B_VEC_SIZE == 1
+#endif // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
     uint y = tile_m_offset;
 
 #if TILE_M_NOT_DIVISIBLE
@@ -282,7 +283,7 @@ KERNEL(gemm_tiled_opt)(
 #endif // TILE_K_NOT_DIVISIBLE
 
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
-#if TILE_N_NOT_DIVISIBLE
+#if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
     FUSED_OPS_PRELOAD_SCALAR;
 #else // TILE_N_NOT_DIVISIBLE
     FUSED_OPS_PRELOAD_VEC;
@@ -291,7 +292,7 @@ KERNEL(gemm_tiled_opt)(
 
     // Writing result in the global memory
     unroll_for (uint write_id = 0; write_id < tile_m_iterations; write_id++) {
-#if TILE_N_NOT_DIVISIBLE
+#if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
         if (b_raw_global_id < N) {
 #ifdef INPUT2_TYPE
             ACCUMULATOR_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
@@ -312,7 +313,7 @@ KERNEL(gemm_tiled_opt)(
 #endif // HAS_FUSED_OPS
         }
 
-#else // TILE_N_NOT_DIVISIBLE
+#else // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
 
 #ifdef INPUT2_TYPE
         B_FLOATN c_val = BLOCK_READ_B(c_ptr, 0);
@@ -333,7 +334,7 @@ KERNEL(gemm_tiled_opt)(
         BLOCK_WRITE_C(d_ptr, 0, dequantized);
 #endif // HAS_FUSED_OPS
 
-#endif // TILE_N_NOT_DIVISIBLE
+#endif // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
         d_ptr += N;
 #ifdef INPUT2_TYPE
         c_ptr += N;
