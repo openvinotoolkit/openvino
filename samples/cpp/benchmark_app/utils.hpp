@@ -35,11 +35,11 @@ inline std::string double_to_string(const double number) {
 
 namespace benchmark_app {
 struct InputInfo {
-    ov::element::Type precision;
+    ov::element::Type type;
     ov::PartialShape partialShape;
     ov::Shape dataShape;
     ov::Layout layout;
-    ov::Layout originalLayout;
+    //ov::Layout originalLayout;
     std::vector<float> scale;
     std::vector<float> mean;
     bool isImage() const;
@@ -83,7 +83,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(const std::
 /// <param name="tensors_shape_string">command-line tensor_shape string</param>
 /// <param name="scale_string">command-line iscale string</param>
 /// <param name="mean_string">command-line imean string</param>
-/// <param name="input_info">ParametersVector obtained from ov::Model</param>
+/// <param name="input_info">inputs vector obtained from ov::Model</param>
 /// <param name="reshape_required">returns true to this parameter if reshape is required</param>
 /// <returns>vector of benchmark_app::InputsInfo elements.
 /// Each element is a configuration item for every test configuration case
@@ -96,7 +96,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                                      const std::map<std::string, std::vector<std::string>>& fileNames,
                                                      const std::string& scale_string,
                                                      const std::string& mean_string,
-                                                     const ov::ParameterVector& input_info,
+                                                     const std::vector<ov::Output<const ov::Node>>& input_info,
                                                      bool& reshape_required);
 
 /// <summary>
@@ -108,7 +108,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
 /// <param name="tensors_shape_string">command-line tensor_shape string</param>
 /// <param name="scale_string">command-line iscale string</param>
 /// <param name="mean_string">command-line imean string</param>
-/// <param name="input_info">ParametersVector obtained from ov::Model</param>
+/// <param name="input_info">inputs vector obtained from ov::Model</param>
 /// <param name="reshape_required">returns true to this parameter if reshape is required</param>
 /// <returns>vector of benchmark_app::InputsInfo elements.
 /// Each element is a configuration item for every test configuration case
@@ -122,7 +122,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                                      const std::map<std::string, std::vector<std::string>>& fileNames,
                                                      const std::string& scale_string,
                                                      const std::string& mean_string,
-                                                     const ov::ParameterVector& input_info);
+                                                     const std::vector<ov::Output<const ov::Node>>& input_info);
 
 #ifdef USE_OPENCV
 void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config);

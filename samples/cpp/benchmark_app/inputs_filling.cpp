@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "format_reader_ptr.h"
-#include "shared_blob_allocator.hpp"
+#include "shared_tensor_allocator.hpp"
 #include "utils.hpp"
 
 template <typename T>
@@ -24,7 +24,7 @@ using uniformDistribution = typename std::conditional<
     typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
 
 template <typename T>
-ov::runtime::Tensor createBlobFromImage(const std::vector<std::string>& files,
+ov::runtime::Tensor createTensorFromImage(const std::vector<std::string>& files,
                                         size_t inputId,
                                         size_t batchSize,
                                         const benchmark_app::InputInfo& inputInfo,
@@ -32,7 +32,7 @@ ov::runtime::Tensor createBlobFromImage(const std::vector<std::string>& files,
                                         std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedBlobAllocator>(tensor_size * sizeof(T));
+    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
     auto data = reinterpret_cast<T*>(allocator->getBuffer());
 
     /** Collect images data ptrs **/
@@ -92,18 +92,18 @@ ov::runtime::Tensor createBlobFromImage(const std::vector<std::string>& files,
         }
     }
 
-    auto tensor = ov::runtime::Tensor(inputInfo.precision, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
     return tensor;
 }
 
 template <typename T>
-ov::runtime::Tensor createBlobImInfo(const std::pair<size_t, size_t>& image_size,
+ov::runtime::Tensor createTensorImInfo(const std::pair<size_t, size_t>& image_size,
                                      size_t batchSize,
                                      const benchmark_app::InputInfo& inputInfo,
                                      const std::string& inputName) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedBlobAllocator>(tensor_size * sizeof(T));
+    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
     auto data = reinterpret_cast<T*>(allocator->getBuffer());
 
     size_t infoBatchSize = 1;
@@ -127,12 +127,12 @@ ov::runtime::Tensor createBlobImInfo(const std::pair<size_t, size_t>& image_size
         }
     }
 
-    auto tensor = ov::runtime::Tensor(inputInfo.precision, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
     return tensor;
 }
 
 template <typename T>
-ov::runtime::Tensor createBlobFromBinary(const std::vector<std::string>& files,
+ov::runtime::Tensor createTensorFromBinary(const std::vector<std::string>& files,
                                          size_t inputId,
                                          size_t batchSize,
                                          const benchmark_app::InputInfo& inputInfo,
@@ -140,7 +140,7 @@ ov::runtime::Tensor createBlobFromBinary(const std::vector<std::string>& files,
                                          std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedBlobAllocator>(tensor_size * sizeof(T));
+    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
     char* data = allocator->getBuffer();
     size_t binaryBatchSize = 1;
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
@@ -185,17 +185,17 @@ ov::runtime::Tensor createBlobFromBinary(const std::vector<std::string>& files,
         }
     }
 
-    auto tensor = ov::runtime::Tensor(inputInfo.precision, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
     return tensor;
 }
 
 template <typename T, typename T2>
-ov::runtime::Tensor createBlobRandom(const benchmark_app::InputInfo& inputInfo,
+ov::runtime::Tensor createTensorRandom(const benchmark_app::InputInfo& inputInfo,
                                      T rand_min = std::numeric_limits<uint8_t>::min(),
                                      T rand_max = std::numeric_limits<uint8_t>::max()) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedBlobAllocator>(tensor_size * sizeof(T));
+    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
     auto data = reinterpret_cast<T*>(allocator->getBuffer());
 
     std::mt19937 gen(0);
@@ -204,141 +204,141 @@ ov::runtime::Tensor createBlobRandom(const benchmark_app::InputInfo& inputInfo,
         data[i] = static_cast<T>(distribution(gen));
     }
 
-    auto tensor = ov::runtime::Tensor(inputInfo.precision, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
     return tensor;
 }
 
-ov::runtime::Tensor getImageBlob(const std::vector<std::string>& files,
+ov::runtime::Tensor getImageTensor(const std::vector<std::string>& files,
                                  size_t inputId,
                                  size_t batchSize,
                                  const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
                                  std::string* filenames_used = nullptr) {
-    auto precision = inputInfo.second.precision;
-    if (precision == ov::element::f32) {
-        return createBlobFromImage<float>(files, inputId, batchSize, inputInfo.second, inputInfo.first, filenames_used);
-    } else if (precision == ov::element::f16) {
-        return createBlobFromImage<short>(files, inputId, batchSize, inputInfo.second, inputInfo.first, filenames_used);
-    } else if (precision == ov::element::i32) {
-        return createBlobFromImage<int32_t>(files,
+    auto type = inputInfo.second.type;
+    if (type == ov::element::f32) {
+        return createTensorFromImage<float>(files, inputId, batchSize, inputInfo.second, inputInfo.first, filenames_used);
+    } else if (type == ov::element::f16) {
+        return createTensorFromImage<short>(files, inputId, batchSize, inputInfo.second, inputInfo.first, filenames_used);
+    } else if (type == ov::element::i32) {
+        return createTensorFromImage<int32_t>(files,
                                             inputId,
                                             batchSize,
                                             inputInfo.second,
                                             inputInfo.first,
                                             filenames_used);
-    } else if (precision == ov::element::i64) {
-        return createBlobFromImage<int64_t>(files,
+    } else if (type == ov::element::i64) {
+        return createTensorFromImage<int64_t>(files,
                                             inputId,
                                             batchSize,
                                             inputInfo.second,
                                             inputInfo.first,
                                             filenames_used);
-    } else if (precision == ov::element::u8) {
-        return createBlobFromImage<uint8_t>(files,
+    } else if (type == ov::element::u8) {
+        return createTensorFromImage<uint8_t>(files,
                                             inputId,
                                             batchSize,
                                             inputInfo.second,
                                             inputInfo.first,
                                             filenames_used);
     } else {
-        IE_THROW() << "Input precision is not supported for " << inputInfo.first;
+        IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
 }
 
-ov::runtime::Tensor getImInfoBlob(const std::pair<size_t, size_t>& image_size,
+ov::runtime::Tensor getImInfoTensor(const std::pair<size_t, size_t>& image_size,
                                   size_t batchSize,
                                   const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
-    auto precision = inputInfo.second.precision;
-    if (precision == ov::element::f32) {
-        return createBlobImInfo<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
-    } else if (precision == ov::element::f16) {
-        return createBlobImInfo<short>(image_size, batchSize, inputInfo.second, inputInfo.first);
-    } else if (precision == ov::element::i32) {
-        return createBlobImInfo<int32_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
-    } else if (precision == ov::element::i64) {
-        return createBlobImInfo<int64_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    auto type = inputInfo.second.type;
+    if (type == ov::element::f32) {
+        return createTensorImInfo<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    } else if (type == ov::element::f16) {
+        return createTensorImInfo<short>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    } else if (type == ov::element::i32) {
+        return createTensorImInfo<int32_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    } else if (type == ov::element::i64) {
+        return createTensorImInfo<int64_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else {
-        IE_THROW() << "Input precision is not supported for " << inputInfo.first;
+        IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
 }
 
-ov::runtime::Tensor getBinaryBlob(const std::vector<std::string>& files,
+ov::runtime::Tensor getBinaryTensor(const std::vector<std::string>& files,
                                   size_t inputId,
                                   size_t batchSize,
                                   const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
                                   std::string* filenames_used = nullptr) {
-    const auto& precision = inputInfo.second.precision;
-    if (precision == ov::element::f32) {
-        return createBlobFromBinary<float>(files,
+    const auto& type = inputInfo.second.type;
+    if (type == ov::element::f32) {
+        return createTensorFromBinary<float>(files,
                                            inputId,
                                            batchSize,
                                            inputInfo.second,
                                            inputInfo.first,
                                            filenames_used);
-    } else if (precision == ov::element::f16) {
-        return createBlobFromBinary<short>(files,
+    } else if (type == ov::element::f16) {
+        return createTensorFromBinary<short>(files,
                                            inputId,
                                            batchSize,
                                            inputInfo.second,
                                            inputInfo.first,
                                            filenames_used);
-    } else if (precision == ov::element::i32) {
-        return createBlobFromBinary<int32_t>(files,
+    } else if (type == ov::element::i32) {
+        return createTensorFromBinary<int32_t>(files,
                                              inputId,
                                              batchSize,
                                              inputInfo.second,
                                              inputInfo.first,
                                              filenames_used);
-    } else if (precision == ov::element::i64) {
-        return createBlobFromBinary<int64_t>(files,
+    } else if (type == ov::element::i64) {
+        return createTensorFromBinary<int64_t>(files,
                                              inputId,
                                              batchSize,
                                              inputInfo.second,
                                              inputInfo.first,
                                              filenames_used);
-    } else if ((precision == ov::element::u8) || (precision == ov::element::boolean)) {
-        return createBlobFromBinary<uint8_t>(files,
+    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
+        return createTensorFromBinary<uint8_t>(files,
                                              inputId,
                                              batchSize,
                                              inputInfo.second,
                                              inputInfo.first,
                                              filenames_used);
     } else {
-        IE_THROW() << "Input precision is not supported for " << inputInfo.first;
+        IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
 }
 
-ov::runtime::Tensor getRandomBlob(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
-    auto precision = inputInfo.second.precision;
-    if (precision == ov::element::f32) {
-        return createBlobRandom<float, float>(inputInfo.second);
-    } else if (precision == ov::element::f16) {
-        return createBlobRandom<short, short>(inputInfo.second);
-    } else if (precision == ov::element::i32) {
-        return createBlobRandom<int32_t, int32_t>(inputInfo.second);
-    } else if (precision == ov::element::i64) {
-        return createBlobRandom<int64_t, int64_t>(inputInfo.second);
-    } else if (precision == ov::element::u8) {
+ov::runtime::Tensor getRandomTensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+    auto type = inputInfo.second.type;
+    if (type == ov::element::f32) {
+        return createTensorRandom<float, float>(inputInfo.second);
+    } else if (type == ov::element::f16) {
+        return createTensorRandom<short, short>(inputInfo.second);
+    } else if (type == ov::element::i32) {
+        return createTensorRandom<int32_t, int32_t>(inputInfo.second);
+    } else if (type == ov::element::i64) {
+        return createTensorRandom<int64_t, int64_t>(inputInfo.second);
+    } else if (type == ov::element::u8) {
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
-        return createBlobRandom<uint8_t, uint32_t>(inputInfo.second);
-    } else if (precision == ov::element::i8) {
+        return createTensorRandom<uint8_t, uint32_t>(inputInfo.second);
+    } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
-        return createBlobRandom<int8_t, int32_t>(inputInfo.second);
-    } else if (precision == ov::element::u16) {
-        return createBlobRandom<uint16_t, uint16_t>(inputInfo.second);
-    } else if (precision == ov::element::i16) {
-        return createBlobRandom<int16_t, int16_t>(inputInfo.second);
-    } else if (precision == ov::element::boolean) {
-        return createBlobRandom<uint8_t, uint32_t>(inputInfo.second, 0, 1);
+        return createTensorRandom<int8_t, int32_t>(inputInfo.second);
+    } else if (type == ov::element::u16) {
+        return createTensorRandom<uint16_t, uint16_t>(inputInfo.second);
+    } else if (type == ov::element::i16) {
+        return createTensorRandom<int16_t, int16_t>(inputInfo.second);
+    } else if (type == ov::element::boolean) {
+        return createTensorRandom<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else {
-        IE_THROW() << "Input precision is not supported for " << inputInfo.first;
+        IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
 }
 
 std::string getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
     std::stringstream strOut;
-    strOut << "(" << inputInfo.layout.to_string() << ", " << inputInfo.precision.get_type_name() << ", "
+    strOut << "(" << inputInfo.layout.to_string() << ", " << inputInfo.type.get_type_name() << ", "
            << getShapeString(inputInfo.dataShape) << ", ";
     if (inputInfo.partialShape.is_dynamic()) {
         strOut << std::string("dyn:") << inputInfo.partialShape << "):\t";
@@ -348,7 +348,7 @@ std::string getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
     return strOut.str();
 }
 
-std::map<std::string, ov::runtime::TensorVector> getBlobs(std::map<std::string, std::vector<std::string>>& inputFiles,
+std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string, std::vector<std::string>> inputFiles,
                                                           std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
     std::map<std::string, ov::runtime::TensorVector> tensors;
     if (app_inputs_info.empty()) {
@@ -458,21 +458,21 @@ std::map<std::string, ov::runtime::TensorVector> getBlobs(std::map<std::string, 
                 // Fill random
                 tensor_src_info =
                     "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
-                tensors[input_name].push_back(getRandomBlob({input_name, input_info}));
+                tensors[input_name].push_back(getRandomTensor({input_name, input_info}));
             } else if (files.second[0] == "image_info") {
                 // Most likely it is image info: fill with image information
                 auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
                 tensor_src_info =
                     "Image size tensor " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
-                tensors[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, input_info}));
+                tensors[input_name].push_back(getImInfoTensor(image_size, batchSize, {input_name, input_info}));
             } else if (input_info.isImage()) {
                 // Fill with Images
                 tensors[input_name].push_back(
-                    getImageBlob(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
+                    getImageTensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
             } else {
                 // Fill with binary files
                 tensors[input_name].push_back(
-                    getBinaryBlob(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
+                    getBinaryTensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
             }
 
             // Preparing info
@@ -504,7 +504,7 @@ std::map<std::string, ov::runtime::TensorVector> getBlobs(std::map<std::string, 
     return tensors;
 }
 
-std::map<std::string, ov::runtime::TensorVector> getBlobsStaticCase(const std::vector<std::string>& inputFiles,
+std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std::vector<std::string>& inputFiles,
                                                                     const size_t& batchSize,
                                                                     benchmark_app::InputsInfo& app_inputs_info,
                                                                     size_t requestsNum) {
@@ -621,7 +621,7 @@ std::map<std::string, ov::runtime::TensorVector> getBlobsStaticCase(const std::v
                 if (!imageFiles.empty()) {
                     // Fill with Images
                     blobs[input_name].push_back(
-                        getImageBlob(files.second, imageInputId, batchSize, {input_name, input_info}, &blob_src_info));
+                        getImageTensor(files.second, imageInputId, batchSize, {input_name, input_info}, &blob_src_info));
                     imageInputId = (imageInputId + batchSize) % files.second.size();
                     logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;
@@ -629,7 +629,7 @@ std::map<std::string, ov::runtime::TensorVector> getBlobsStaticCase(const std::v
             } else {
                 if (!binaryFiles.empty()) {
                     // Fill with binary files
-                    blobs[input_name].push_back(getBinaryBlob(files.second,
+                    blobs[input_name].push_back(getBinaryTensor(files.second,
                                                               binaryInputId,
                                                               batchSize,
                                                               {input_name, input_info},
@@ -643,7 +643,7 @@ std::map<std::string, ov::runtime::TensorVector> getBlobsStaticCase(const std::v
                     auto image_size = net_input_im_sizes.at(0);
                     blob_src_info = "Image size blob " + std::to_string(image_size.first) + " x " +
                                     std::to_string(image_size.second);
-                    blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, input_info}));
+                    blobs[input_name].push_back(getImInfoTensor(image_size, batchSize, {input_name, input_info}));
                     logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;
                 }
@@ -651,7 +651,7 @@ std::map<std::string, ov::runtime::TensorVector> getBlobsStaticCase(const std::v
             // Fill random
             blob_src_info =
                 "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
-            blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
+            blobs[input_name].push_back(getRandomTensor({input_name, input_info}));
             logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
         }
     }
@@ -673,7 +673,7 @@ std::map<std::string, ov::runtime::TensorVector> getBlobsStaticCase(const std::v
     return blobs;
 }
 
-void copyBlobData(ov::runtime::Tensor& dst, const ov::runtime::Tensor& src) {
+void copyTensorData(ov::runtime::Tensor& dst, const ov::runtime::Tensor& src) {
     if (src.get_shape() != dst.get_shape() || src.get_byte_size() != dst.get_byte_size()) {
         throw std::runtime_error(
             "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");

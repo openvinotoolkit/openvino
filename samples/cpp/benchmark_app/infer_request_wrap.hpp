@@ -18,7 +18,7 @@
 
 // clang-format off
 
-#include "remote_blobs_filling.hpp"
+#include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
 // clang-format on
@@ -33,8 +33,8 @@ public:
 
     ~InferReqWrap() = default;
 
-    explicit InferReqWrap(ov::runtime::CompiledModel& net, size_t id, QueueCallbackFunction callbackQueue)
-        : _request(net.create_infer_request()),
+    explicit InferReqWrap(ov::runtime::CompiledModel& model, size_t id, QueueCallbackFunction callbackQueue)
+        : _request(model.create_infer_request()),
           _id(id),
           _lat_group_id(0),
           _callbackQueue(callbackQueue),
@@ -71,11 +71,11 @@ public:
         _request.get_tensor(name).set_shape(dims);
     }
 
-    ov::runtime::Tensor getBlob(const std::string& name) {
+    ov::runtime::Tensor get_tensor(const std::string& name) {
         return _request.get_tensor(name);
     }
 
-    void setBlob(const std::string& name, const ov::runtime::Tensor& data) {
+    void setTensor(const std::string& name, const ov::runtime::Tensor& data) {
         _request.set_tensor(name, data);
     }
 
@@ -107,10 +107,10 @@ private:
 
 class InferRequestsQueue final {
 public:
-    InferRequestsQueue(ov::runtime::CompiledModel& net, size_t nireq, size_t lat_group_n, bool enable_lat_groups)
+    InferRequestsQueue(ov::runtime::CompiledModel& model, size_t nireq, size_t lat_group_n, bool enable_lat_groups)
         : enable_lat_groups(enable_lat_groups) {
         for (size_t id = 0; id < nireq; id++) {
-            requests.push_back(std::make_shared<InferReqWrap>(net,
+            requests.push_back(std::make_shared<InferReqWrap>(model,
                                                               id,
                                                               std::bind(&InferRequestsQueue::putIdleRequest,
                                                                         this,

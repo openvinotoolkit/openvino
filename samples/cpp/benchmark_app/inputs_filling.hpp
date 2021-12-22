@@ -13,12 +13,12 @@
 #include "utils.hpp"
 // clang-format on
 
-std::map<std::string, ov::runtime::TensorVector> getBlobs(std::map<std::string, std::vector<std::string>>& inputFiles,
+std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string, std::vector<std::string>> inputFiles,
                                                           std::vector<benchmark_app::InputsInfo>& app_inputs_info);
 
-std::map<std::string, ov::runtime::TensorVector> getBlobsStaticCase(const std::vector<std::string>& inputFiles,
+std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std::vector<std::string>& inputFiles,
                                                                     const size_t& batchSize,
                                                                     benchmark_app::InputsInfo& app_inputs_info,
                                                                     size_t requestsNum);
 
-void copyBlobData(ov::runtime::Tensor& dst, const ov::runtime::Tensor& src);
+void copyTensorData(ov::runtime::Tensor& dst, const ov::runtime::Tensor& src);

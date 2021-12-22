@@ -57,12 +57,12 @@ struct OpenCL {
 using BufferType = void*;
 #endif
 
-std::map<std::string, ov::runtime::TensorVector> getRemoteInputBlobs(
+std::map<std::string, ov::runtime::TensorVector> getRemoteInputTensors(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
-    const ov::runtime::CompiledModel& exeNetwork,
+    const ov::runtime::CompiledModel& compiledModel,
     std::vector<BufferType>& clBuffer);
 
-std::map<std::string, ov::runtime::Tensor> getRemoteOutputBlobs(const ov::runtime::CompiledModel& exeNetwork,
+std::map<std::string, ov::runtime::Tensor> getRemoteOutputTensors(const ov::runtime::CompiledModel& compiledModel,
                                                                 std::map<std::string, ::gpu::BufferType>& clBuffer);
 }  // namespace gpu

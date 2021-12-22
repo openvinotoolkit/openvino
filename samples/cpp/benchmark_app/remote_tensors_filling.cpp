@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remote_blobs_filling.hpp"
-
 #include <memory>
 #include <random>
 #include <samples/slog.hpp>
@@ -11,14 +9,13 @@
 #include <utility>
 #include <vector>
 
+#include <samples/slog.hpp>
+#include "remote_tensors_filling.hpp"
+
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 #    include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #    include <openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp>
 #endif
-// clang-format off
-#include <samples/slog.hpp>
-#include "remote_blobs_filling.hpp"
-// clang-format on
 
 namespace gpu {
 
@@ -41,38 +38,38 @@ void fillBufferRandom(void* inputBuffer,
     }
 }
 
-void fillBuffer(void* inputBuffer, size_t elementsNum, ov::element::Type precision) {
-    if (precision == ov::element::f32) {
+void fillBuffer(void* inputBuffer, size_t elementsNum, ov::element::Type type) {
+    if (type == ov::element::f32) {
         fillBufferRandom<float, float>(inputBuffer, elementsNum);
-    } else if (precision == ov::element::f16) {
+    } else if (type == ov::element::f16) {
         fillBufferRandom<short, short>(inputBuffer, elementsNum);
-    } else if (precision == ov::element::i32) {
+    } else if (type == ov::element::i32) {
         fillBufferRandom<int32_t, int32_t>(inputBuffer, elementsNum);
-    } else if (precision == ov::element::i64) {
+    } else if (type == ov::element::i64) {
         fillBufferRandom<int64_t, int64_t>(inputBuffer, elementsNum);
-    } else if (precision == ov::element::u8) {
+    } else if (type == ov::element::u8) {
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
         fillBufferRandom<uint8_t, uint32_t>(inputBuffer, elementsNum);
-    } else if (precision == ov::element::i8) {
+    } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
         fillBufferRandom<int8_t, int32_t>(inputBuffer, elementsNum);
-    } else if (precision == ov::element::u16) {
+    } else if (type == ov::element::u16) {
         fillBufferRandom<uint16_t, uint16_t>(inputBuffer, elementsNum);
-    } else if (precision == ov::element::i16) {
+    } else if (type == ov::element::i16) {
         fillBufferRandom<int16_t, int16_t>(inputBuffer, elementsNum);
-    } else if (precision == ov::element::boolean) {
+    } else if (type == ov::element::boolean) {
         fillBufferRandom<uint8_t, uint32_t>(inputBuffer, elementsNum, 0, 1);
     } else {
-        IE_THROW() << "Requested precision is not supported";
+        IE_THROW() << "Requested type is not supported";
     }
 }
 
-std::map<std::string, ov::runtime::TensorVector> getRemoteInputBlobs(
+std::map<std::string, ov::runtime::TensorVector> getRemoteInputTensors(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
-    const ov::runtime::CompiledModel& exeNetwork,
+    const ov::runtime::CompiledModel& compiledModel,
     std::vector<BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     slog::info << "Device memory will be used for input and output blobs" << slog::endl;
@@ -81,8 +78,8 @@ std::map<std::string, ov::runtime::TensorVector> getRemoteInputBlobs(
                    << slog::endl;
     }
 
-    std::map<std::string, ov::runtime::TensorVector> remoteBlobs;
-    auto context = exeNetwork.get_context();
+    std::map<std::string, ov::runtime::TensorVector> remoteTensors;
+    auto context = compiledModel.get_context();
     auto& oclContext = static_cast<ov::runtime::intel_gpu::ocl::ClContext&>(context);
     auto oclInstance = std::make_shared<gpu::OpenCL>(oclContext.get());
 
@@ -93,9 +90,8 @@ std::map<std::string, ov::runtime::TensorVector> getRemoteInputBlobs(
                        << std::string((input.second.isImage() ? "image" : "some binary data")) << " is expected)"
                        << slog::endl;
 
-            auto tensor =
-                oclContext.create_tensor(input.second.precision, input.second.dataShape, clBuffer.back().get());
-            remoteBlobs[input.first].push_back(tensor);
+            auto tensor = oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
+            remoteTensors[input.first].push_back(tensor);
 
             // Creating and filling shared buffers
             cl_int err;
@@ -103,7 +99,7 @@ std::map<std::string, ov::runtime::TensorVector> getRemoteInputBlobs(
                                                end(input.second.dataShape),
                                                1,
                                                std::multiplies<size_t>());
-            auto inputSize = elementsNum * input.second.precision.bitwidth() / 8;
+            auto inputSize = elementsNum * input.second.type.bitwidth() / 8;
 
             clBuffer.push_back(
                 cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
@@ -115,7 +111,7 @@ std::map<std::string, ov::runtime::TensorVector> getRemoteInputBlobs(
                                                                    (cl::size_type)inputSize);
             if (inputFiles.empty()) {
                 // Filling in random data
-                fillBuffer(mappedPtr, elementsNum, input.second.precision);
+                fillBuffer(mappedPtr, elementsNum, input.second.type);
             } else {
                 // TODO: add filling with real image data
             }
@@ -123,18 +119,18 @@ std::map<std::string, ov::runtime::TensorVector> getRemoteInputBlobs(
         }
     }
 
-    return remoteBlobs;
+    return remoteTensors;
 #else
     IE_THROW() << "Device memory requested for GPU device, but OpenCL was not linked";
 #endif
 }
 
-std::map<std::string, ov::runtime::Tensor> getRemoteOutputBlobs(const ov::runtime::CompiledModel& exeNetwork,
+std::map<std::string, ov::runtime::Tensor> getRemoteOutputTensors(const ov::runtime::CompiledModel& compiledModel,
                                                                 std::map<std::string, ::gpu::BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
-    std::map<std::string, ov::runtime::Tensor> outputBlobs;
-    for (auto& output : exeNetwork.outputs()) {
-        auto context = exeNetwork.get_context();
+    std::map<std::string, ov::runtime::Tensor> outputTensors;
+    for (auto& output : compiledModel.outputs()) {
+        auto context = compiledModel.get_context();
         auto& oclContext = static_cast<ov::runtime::intel_gpu::ocl::ClContext&>(context);
         auto oclInstance = std::make_shared<OpenCL>(oclContext.get());
 
@@ -154,12 +150,12 @@ std::map<std::string, ov::runtime::Tensor> getRemoteOutputBlobs(const ov::runtim
                 buff = cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
             }
         }
-        outputBlobs[output.get_any_name()] = oclContext.create_tensor(output.get_element_type(),
+        outputTensors[output.get_any_name()] = oclContext.create_tensor(output.get_element_type(),
                                                                       output.get_shape(),
                                                                       clBuffer[output.get_any_name()].get());
     }
 
-    return outputBlobs;
+    return outputTensors;
 #else
     IE_THROW() << "Device memory requested for GPU device, but OpenCL was not linked";
 #endif

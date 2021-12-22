@@ -6,13 +6,13 @@
 
 #include "openvino/runtime/allocator.hpp"
 
-class SharedBlobAllocator : public ov::runtime::AllocatorImpl {
+class SharedTensorAllocator : public ov::runtime::AllocatorImpl {
 public:
-    SharedBlobAllocator(size_t sizeBytes) : size(sizeBytes) {
+    SharedTensorAllocator(size_t sizeBytes) : size(sizeBytes) {
         data = new char[size];
     }
 
-    ~SharedBlobAllocator() {
+    ~SharedTensorAllocator() {
         delete[] data;
     }
 
@@ -28,7 +28,7 @@ public:
     }
 
     bool is_equal(const AllocatorImpl& other) const override {
-        auto other_blob_allocator = dynamic_cast<const SharedBlobAllocator*>(&other);
+        auto other_blob_allocator = dynamic_cast<const SharedTensorAllocator*>(&other);
         return other_blob_allocator != nullptr && other_blob_allocator == this;
     }
 

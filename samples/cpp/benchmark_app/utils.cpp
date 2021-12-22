@@ -347,8 +347,9 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::v
     return mapped_files;
 }
 
-std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string& parameter_string,
-                                                                     const ov::ParameterVector& input_info) {
+std::map<std::string, std::vector<std::string>> parseInputParameters(
+    const std::string& parameter_string,
+    const std::vector<ov::Output<const ov::Node>>& input_info) {
     // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
     // inputs)
     std::map<std::string, std::vector<std::string>> return_value;
@@ -366,7 +367,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(const std::
             return_value[input_name].push_back(input_value);
         } else {
             for (auto& item : input_info) {
-                return_value[item->get_friendly_name()].push_back(input_value);
+                return_value[item.get_any_name()].push_back(input_value);
             }
         }
         search_string = search_string.substr(end_pos + 1);
@@ -388,7 +389,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                                      const std::map<std::string, std::vector<std::string>>& fileNames,
                                                      const std::string& scale_string,
                                                      const std::string& mean_string,
-                                                     const ov::ParameterVector& input_info,
+                                                     const std::vector<ov::Output<const ov::Node>>& input_info,
                                                      bool& reshape_required) {
     std::map<std::string, std::vector<std::string>> shape_map = parseInputParameters(shape_string, input_info);
     std::map<std::string, std::vector<std::string>> data_shapes_map =
@@ -444,7 +445,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
 
     std::map<std::string, int> currentFileCounters;
     for (auto& item : input_info) {
-        currentFileCounters[item->get_friendly_name()] = 0;
+        currentFileCounters[item.get_any_name()] = 0;
     }
 
     std::vector<benchmark_app::InputsInfo> info_maps;
@@ -453,10 +454,10 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
 
         for (auto& item : input_info) {
             benchmark_app::InputInfo info;
-            auto name = item->get_friendly_name();
+            auto name = item.get_any_name();
 
             // Layout
-            info.originalLayout = item->get_layout();
+            //info.originalLayout = item.get_layout();
             if (layout_map.count(name)) {
                 if (layout_map.at(name).size() > 1) {
                     throw std::logic_error(
@@ -465,20 +466,20 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 info.layout = ov::Layout(layout_map.at(name)[0]);
                 // reshape_required = true;
             } else {
-                info.layout = item->get_layout();
+                info.layout = dynamic_cast<const ov::op::v0::Parameter&>(*item.get_node()).get_layout();
             }
 
             // Calculating default layout values if needed
             std::string newLayout = "";
             if (info.layout.empty()) {
-                switch (item->get_partial_shape().size()) {
+                switch (item.get_partial_shape().size()) {
                 case 3:
                     newLayout = "CHW";
                     break;
                 case 4:
                     // Rough check for layout type, basing on max number of image channels
-                    newLayout = (item->get_partial_shape()[3].get_max_length() <= 4 &&
-                                 item->get_partial_shape()[1].get_max_length() > 4)
+                    newLayout = (item.get_partial_shape()[3].get_max_length() <= 4 &&
+                                 item.get_partial_shape()[1].get_max_length() > 4)
                                     ? "NHWC"
                                     : "NCHW";
                     break;
@@ -488,7 +489,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 }
                 if (info_maps.empty()) {  // Show warnings only for 1st test case config, as for other test cases
                                           // they will be the same
-                    slog::warn << item->get_friendly_name() << ": layout is not set explicitly"
+                    slog::warn << item.get_node()->get_friendly_name()<< ": layout is not set explicitly"
                                << (newLayout != "" ? std::string(", so it is defaulted to ") + newLayout : "")
                                << ". It is STRONGLY recommended to set layout manually to avoid further issues."
                                << slog::endl;
@@ -496,7 +497,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             }
 
             // Precision
-            info.precision = item->get_element_type();
+            info.type = item.get_element_type();
             // Partial Shape
             if (shape_map.count(name)) {
                 std::vector<ngraph::Dimension> parsed_shape;
@@ -507,7 +508,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 info.partialShape = parsePartialShape(shape_map.at(name)[0]);
                 reshape_required = true;
             } else {
-                info.partialShape = item->get_partial_shape();
+                info.partialShape = item.get_partial_shape();
             }
 
             // Files might be mapped without input name. In case of only one input we may map them to the only input
@@ -521,7 +522,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.isImage()) {
                 auto& namesVector = fileNames.at(filesInputName);
                 if (containsBinaries(namesVector)) {
-                    throw std::logic_error("Input files list for input " + item->get_friendly_name() +
+                    throw std::logic_error("Input files list for input " + item.get_any_name() +
                                            " contains binary file(s) and input shape is dynamic. Tensor shape should "
                                            "be defined explicitly (using -tensor_shape).");
                 }
@@ -545,8 +546,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
 
                 size_t w = 0;
                 size_t h = 0;
-                size_t fileIdx = currentFileCounters[item->get_friendly_name()];
-                for (; fileIdx < currentFileCounters[item->get_friendly_name()] + tensorBatchSize; fileIdx++) {
+                size_t fileIdx = currentFileCounters[item.get_any_name()];
+                for (; fileIdx < currentFileCounters[item.get_any_name()] + tensorBatchSize; fileIdx++) {
                     if (fileIdx >= namesVector.size()) {
                         throw std::logic_error(
                             "Not enough files to fill in full batch (number of files should be a multiple of batch "
@@ -561,7 +562,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     w = reader->width();
                     h = reader->height();
                 }
-                currentFileCounters[item->get_friendly_name()] = fileIdx;
+                currentFileCounters[item.get_any_name()] = fileIdx;
 
                 if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
                     info.dataShape[ov::layout::height_idx(info.layout)] = h;
@@ -575,7 +576,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     })) {
                     throw std::logic_error("Not enough information in shape and image to determine tensor shape "
                                            "automatically autmatically. Input: " +
-                                           item->get_friendly_name() + ", File name: " + namesVector[fileIdx - 1]);
+                                           item.get_node()->get_friendly_name() +
+                                           ", File name: " + namesVector[fileIdx - 1]);
                 }
 
             } else if (info.partialShape.is_static()) {
@@ -641,7 +643,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                                      const std::map<std::string, std::vector<std::string>>& fileNames,
                                                      const std::string& scale_string,
                                                      const std::string& mean_string,
-                                                     const ov::ParameterVector& input_info) {
+                                                     const std::vector<ov::Output<const ov::Node>>& input_info) {
     bool reshape_required = false;
     return getInputsInfo(shape_string,
                          layout_string,
