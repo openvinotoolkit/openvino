@@ -26,7 +26,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.output, argv.freeze_placeholder_with_value)
+        argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
 
     def check_places_are_same(places_original: List[Place], places_new: List[Place]):
         """
@@ -74,7 +74,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         if user_shapes:
             user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
                 input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-                argv.output, argv.freeze_placeholder_with_value)
+                argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
         add_names_to_tensors(input_model, user_shapes)
@@ -84,7 +84,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         if user_shapes:
             user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
                 input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-                argv.output, argv.freeze_placeholder_with_value)
+                argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
         add_names_to_tensors(input_model, user_shapes)
