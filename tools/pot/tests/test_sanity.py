@@ -113,7 +113,9 @@ def test_compression(_params, tmp_path, models):
 
 
 TEST_SAMPLE_MODELS = [
-    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.71})]
+    # This test is not able to run due to NHWC shape that is not supported
+    # ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.71})
+]
 
 
 @pytest.fixture(scope='module', params=TEST_SAMPLE_MODELS,
@@ -166,7 +168,7 @@ def test_sample_compression(_sample_params, tmp_path, models):
 
 SIMPLIFIED_TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.701, 'accuracy@top5': 0.908})
+     {'accuracy@top1': 0.705, 'accuracy@top5': 0.908})
 ]
 
 

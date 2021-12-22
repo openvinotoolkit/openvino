@@ -24,16 +24,18 @@ from ..statistics.function_selector import ACTIVATIONS, get_stats_function
 class StatisticGraphBuilder:
     def insert_statistic(self, model, stats_layout, stat_aliases=None):
         output_to_node_names = {}
-        if stat_aliases is None or model is None:
-            nodes_names_map = {layer_name: convert_to_outputs_name(layer_name)
-                               for layer_name in stats_layout.keys()}
-            return model, nodes_names_map, output_to_node_names
         nodes_names_map = {m['model'].name: {} for m in model.models}
+        if stat_aliases is None or model is None:
+            for node_name in stats_layout.keys():
+                node_name_in_graph = self.get_graph_node_name(node_name)
+                node = get_node_by_name(model, node_name_in_graph)
+                node_graph = node.graph
+                nodes_names_map[node_graph.name][node_name] = convert_to_outputs_name(node_name)
+            return model, nodes_names_map, output_to_node_names
         copy_stat_aliases = deepcopy(stat_aliases)
         for algo_name, node_stats in copy_stat_aliases.items():
             for node_name, stats in node_stats.items():
-                node_name_in_graph = node_name[0] if isinstance(node_name, tuple) else node_name
-                node_name_in_graph = node_name_in_graph.replace('/pre_fq_input', '')
+                node_name_in_graph = self.get_graph_node_name(node_name)
                 node = get_node_by_name(model, node_name_in_graph)
                 node_in_main_graph = get_node_by_name(model, node_name_in_graph.split('|')[0])
                 model_graph = node_in_main_graph.graph
@@ -156,3 +158,9 @@ class StatisticGraphBuilder:
             axis_const.pop(axis)
             axis_const.pop(0)
         return axis_const
+
+    @staticmethod
+    def get_graph_node_name(layout_name):
+        node_name_in_graph = layout_name[0] if isinstance(layout_name, tuple) else layout_name
+        node_name_in_graph = node_name_in_graph.replace('/pre_fq_input', '')
+        return node_name_in_graph
