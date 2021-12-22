@@ -20,6 +20,7 @@
 #include <transformations/rt_info/old_api_map_order_attribute.hpp>
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
 #include <transformations/rt_info/strides_property.hpp>
+#include <transformations/rt_info/reverse_input_channels.hpp>
 #include <transformations/rt_info/decompression.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>
