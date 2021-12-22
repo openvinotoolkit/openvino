@@ -5,7 +5,7 @@
 # [cmake:functional_tests]
 set(TARGET_NAME templateFuncTests)
 
-add_ov_test_target(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES

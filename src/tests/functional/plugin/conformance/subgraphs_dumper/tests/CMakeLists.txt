@@ -10,7 +10,6 @@ addIeTargetTest(
         ADDITIONAL_SOURCE_DIRS ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/src/matchers
         INCLUDES
             ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include
-            $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         LINK_LIBRARIES
             PRIVATE
                 funcTestUtils

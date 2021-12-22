@@ -99,7 +99,7 @@ ie_faster_build(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-                                                      $<TARGET_PROPERTY:ov_runtime,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<TARGET_PROPERTY:openvino::runtime,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
 

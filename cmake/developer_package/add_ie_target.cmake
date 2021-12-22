@@ -133,7 +133,7 @@ function(addIeTarget)
     endif()
 endfunction()
 
-function(add_ov_target)
+function(ov_add_target)
     addIeTarget(${ARGV})
 endfunction()
 
@@ -168,6 +168,6 @@ function(addIeTargetTest)
             EXCLUDE_FROM_ALL)
 endfunction()
 
-function(add_ov_test_target)
+function(ov_add_test_target)
     addIeTargetTest(${ARGV})
 endfunction()

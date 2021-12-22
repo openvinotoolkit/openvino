@@ -66,7 +66,7 @@ function(register_extra_modules)
     set(OpenVINODeveloperPackage_DIR "${CMAKE_BINARY_DIR}/runtime")
 
     function(generate_fake_dev_package NS)
-        if ("${NS}" STREQUAL "openvino")
+        if (NS STREQUAL "openvino")
             set(devconfig_file "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig.cmake")
         else()
             set(devconfig_file "${InferenceEngineDeveloperPackage_DIR}/InferenceEngineDeveloperPackageConfig.cmake")
