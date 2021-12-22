@@ -50,8 +50,8 @@ Dimension Dimension::operator/(const value_type divisor) const {
     if (m_dimension.get_max_val() / divisor == m_dimension.get_min_val() / divisor &&
         m_dimension.get_min_val() > (m_dimension.get_min_val() / divisor * divisor))
         OPENVINO_UNREACHABLE("Dimension value: [ ",
-                            m_dimension.get_min_val(),
-                            ", ",
+                             m_dimension.get_min_val(),
+                             ", ",
                              m_dimension.get_max_val(),
                              "]",
                              " must be a multiple of divisor: ",

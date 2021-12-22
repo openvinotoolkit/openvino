@@ -101,7 +101,7 @@ TEST(type_prop, space_to_depth_blocksize_not_matched) {
         auto space_to_depth = make_shared<op::SpaceToDepth>(A, op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 4);
         FAIL() << "Not matched blocksize SpaceToDepth exception not thrown";
     } catch (const ngraph_error& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Dimension value: 7 must be a multiple of divisor: 4");
+        EXPECT_HAS_SUBSTRING(error.what(), "Dimension value: [ 7, 7] must be a multiple of divisor: 4");
     } catch (...) {
         FAIL() << "SpaceToDepth decomposition failed for unexpected reason";
     }
