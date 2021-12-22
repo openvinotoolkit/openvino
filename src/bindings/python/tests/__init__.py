@@ -24,7 +24,6 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
-xfail_issue_FLOAT_LIKE = xfail_test(reason="Use of bfloat16 or float16")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
