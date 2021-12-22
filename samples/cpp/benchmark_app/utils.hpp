@@ -39,7 +39,7 @@ struct InputInfo {
     ov::PartialShape partialShape;
     ov::Shape dataShape;
     ov::Layout layout;
-    //ov::Layout originalLayout;
+    // ov::Layout originalLayout;
     std::vector<float> scale;
     std::vector<float> mean;
     bool isImage() const;

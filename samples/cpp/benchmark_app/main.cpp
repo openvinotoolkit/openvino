@@ -676,11 +676,11 @@ int main(int argc, char* argv[]) {
                 if (newInputType) {
                     inputsData = getTensors(inputFiles, app_inputs_info);
                 } else {
-                    inputsData =
-                        getTensorsStaticCase(inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
-                                           batchSize,
-                                           app_inputs_info[0],
-                                           nireq);
+                    inputsData = getTensorsStaticCase(
+                        inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                        batchSize,
+                        app_inputs_info[0],
+                        nireq);
                 }
             } else {
                 IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
@@ -691,9 +691,9 @@ int main(int argc, char* argv[]) {
             } else {
                 inputsData =
                     getTensorsStaticCase(inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
-                                       batchSize,
-                                       app_inputs_info[0],
-                                       nireq);
+                                         batchSize,
+                                         app_inputs_info[0],
+                                         nireq);
             }
         }
         // ----------------- 10. Measuring performance
@@ -768,7 +768,8 @@ int main(int argc, char* argv[]) {
                 }
 
                 if (useGpuMem) {
-                    auto outputTensors = ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
+                    auto outputTensors =
+                        ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
                     for (auto& output : compiledModel.outputs()) {
                         inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                     }
@@ -851,7 +852,8 @@ int main(int argc, char* argv[]) {
                 }
 
                 if (useGpuMem) {
-                    auto outputTensors = ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
+                    auto outputTensors =
+                        ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
                     for (auto& output : compiledModel.outputs()) {
                         inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                     }

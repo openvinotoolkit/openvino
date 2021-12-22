@@ -457,7 +457,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             auto name = item.get_any_name();
 
             // Layout
-            //info.originalLayout = item.get_layout();
+            // info.originalLayout = item.get_layout();
             if (layout_map.count(name)) {
                 if (layout_map.at(name).size() > 1) {
                     throw std::logic_error(
@@ -489,7 +489,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 }
                 if (info_maps.empty()) {  // Show warnings only for 1st test case config, as for other test cases
                                           // they will be the same
-                    slog::warn << item.get_node()->get_friendly_name()<< ": layout is not set explicitly"
+                    slog::warn << item.get_node()->get_friendly_name() << ": layout is not set explicitly"
                                << (newLayout != "" ? std::string(", so it is defaulted to ") + newLayout : "")
                                << ". It is STRONGLY recommended to set layout manually to avoid further issues."
                                << slog::endl;

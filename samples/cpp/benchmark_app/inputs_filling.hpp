@@ -14,11 +14,11 @@
 // clang-format on
 
 std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string, std::vector<std::string>> inputFiles,
-                                                          std::vector<benchmark_app::InputsInfo>& app_inputs_info);
+                                                            std::vector<benchmark_app::InputsInfo>& app_inputs_info);
 
 std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std::vector<std::string>& inputFiles,
-                                                                    const size_t& batchSize,
-                                                                    benchmark_app::InputsInfo& app_inputs_info,
-                                                                    size_t requestsNum);
+                                                                      const size_t& batchSize,
+                                                                      benchmark_app::InputsInfo& app_inputs_info,
+                                                                      size_t requestsNum);
 
 void copyTensorData(ov::runtime::Tensor& dst, const ov::runtime::Tensor& src);

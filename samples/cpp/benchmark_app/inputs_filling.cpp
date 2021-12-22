@@ -25,11 +25,11 @@ using uniformDistribution = typename std::conditional<
 
 template <typename T>
 ov::runtime::Tensor createTensorFromImage(const std::vector<std::string>& files,
-                                        size_t inputId,
-                                        size_t batchSize,
-                                        const benchmark_app::InputInfo& inputInfo,
-                                        const std::string& inputName,
-                                        std::string* filenames_used = nullptr) {
+                                          size_t inputId,
+                                          size_t batchSize,
+                                          const benchmark_app::InputInfo& inputInfo,
+                                          const std::string& inputName,
+                                          std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -98,9 +98,9 @@ ov::runtime::Tensor createTensorFromImage(const std::vector<std::string>& files,
 
 template <typename T>
 ov::runtime::Tensor createTensorImInfo(const std::pair<size_t, size_t>& image_size,
-                                     size_t batchSize,
-                                     const benchmark_app::InputInfo& inputInfo,
-                                     const std::string& inputName) {
+                                       size_t batchSize,
+                                       const benchmark_app::InputInfo& inputInfo,
+                                       const std::string& inputName) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -133,11 +133,11 @@ ov::runtime::Tensor createTensorImInfo(const std::pair<size_t, size_t>& image_si
 
 template <typename T>
 ov::runtime::Tensor createTensorFromBinary(const std::vector<std::string>& files,
-                                         size_t inputId,
-                                         size_t batchSize,
-                                         const benchmark_app::InputInfo& inputInfo,
-                                         const std::string& inputName,
-                                         std::string* filenames_used = nullptr) {
+                                           size_t inputId,
+                                           size_t batchSize,
+                                           const benchmark_app::InputInfo& inputInfo,
+                                           const std::string& inputName,
+                                           std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -191,8 +191,8 @@ ov::runtime::Tensor createTensorFromBinary(const std::vector<std::string>& files
 
 template <typename T, typename T2>
 ov::runtime::Tensor createTensorRandom(const benchmark_app::InputInfo& inputInfo,
-                                     T rand_min = std::numeric_limits<uint8_t>::min(),
-                                     T rand_max = std::numeric_limits<uint8_t>::max()) {
+                                       T rand_min = std::numeric_limits<uint8_t>::min(),
+                                       T rand_max = std::numeric_limits<uint8_t>::max()) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -209,44 +209,54 @@ ov::runtime::Tensor createTensorRandom(const benchmark_app::InputInfo& inputInfo
 }
 
 ov::runtime::Tensor getImageTensor(const std::vector<std::string>& files,
-                                 size_t inputId,
-                                 size_t batchSize,
-                                 const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
-                                 std::string* filenames_used = nullptr) {
+                                   size_t inputId,
+                                   size_t batchSize,
+                                   const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                                   std::string* filenames_used = nullptr) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
-        return createTensorFromImage<float>(files, inputId, batchSize, inputInfo.second, inputInfo.first, filenames_used);
+        return createTensorFromImage<float>(files,
+                                            inputId,
+                                            batchSize,
+                                            inputInfo.second,
+                                            inputInfo.first,
+                                            filenames_used);
     } else if (type == ov::element::f16) {
-        return createTensorFromImage<short>(files, inputId, batchSize, inputInfo.second, inputInfo.first, filenames_used);
+        return createTensorFromImage<short>(files,
+                                            inputId,
+                                            batchSize,
+                                            inputInfo.second,
+                                            inputInfo.first,
+                                            filenames_used);
     } else if (type == ov::element::i32) {
         return createTensorFromImage<int32_t>(files,
-                                            inputId,
-                                            batchSize,
-                                            inputInfo.second,
-                                            inputInfo.first,
-                                            filenames_used);
+                                              inputId,
+                                              batchSize,
+                                              inputInfo.second,
+                                              inputInfo.first,
+                                              filenames_used);
     } else if (type == ov::element::i64) {
         return createTensorFromImage<int64_t>(files,
-                                            inputId,
-                                            batchSize,
-                                            inputInfo.second,
-                                            inputInfo.first,
-                                            filenames_used);
+                                              inputId,
+                                              batchSize,
+                                              inputInfo.second,
+                                              inputInfo.first,
+                                              filenames_used);
     } else if (type == ov::element::u8) {
         return createTensorFromImage<uint8_t>(files,
-                                            inputId,
-                                            batchSize,
-                                            inputInfo.second,
-                                            inputInfo.first,
-                                            filenames_used);
+                                              inputId,
+                                              batchSize,
+                                              inputInfo.second,
+                                              inputInfo.first,
+                                              filenames_used);
     } else {
         IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
 }
 
 ov::runtime::Tensor getImInfoTensor(const std::pair<size_t, size_t>& image_size,
-                                  size_t batchSize,
-                                  const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+                                    size_t batchSize,
+                                    const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return createTensorImInfo<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
@@ -262,46 +272,46 @@ ov::runtime::Tensor getImInfoTensor(const std::pair<size_t, size_t>& image_size,
 }
 
 ov::runtime::Tensor getBinaryTensor(const std::vector<std::string>& files,
-                                  size_t inputId,
-                                  size_t batchSize,
-                                  const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
-                                  std::string* filenames_used = nullptr) {
+                                    size_t inputId,
+                                    size_t batchSize,
+                                    const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                                    std::string* filenames_used = nullptr) {
     const auto& type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return createTensorFromBinary<float>(files,
-                                           inputId,
-                                           batchSize,
-                                           inputInfo.second,
-                                           inputInfo.first,
-                                           filenames_used);
+                                             inputId,
+                                             batchSize,
+                                             inputInfo.second,
+                                             inputInfo.first,
+                                             filenames_used);
     } else if (type == ov::element::f16) {
         return createTensorFromBinary<short>(files,
-                                           inputId,
-                                           batchSize,
-                                           inputInfo.second,
-                                           inputInfo.first,
-                                           filenames_used);
+                                             inputId,
+                                             batchSize,
+                                             inputInfo.second,
+                                             inputInfo.first,
+                                             filenames_used);
     } else if (type == ov::element::i32) {
         return createTensorFromBinary<int32_t>(files,
-                                             inputId,
-                                             batchSize,
-                                             inputInfo.second,
-                                             inputInfo.first,
-                                             filenames_used);
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
     } else if (type == ov::element::i64) {
         return createTensorFromBinary<int64_t>(files,
-                                             inputId,
-                                             batchSize,
-                                             inputInfo.second,
-                                             inputInfo.first,
-                                             filenames_used);
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
     } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
         return createTensorFromBinary<uint8_t>(files,
-                                             inputId,
-                                             batchSize,
-                                             inputInfo.second,
-                                             inputInfo.first,
-                                             filenames_used);
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
     } else {
         IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
@@ -349,7 +359,7 @@ std::string getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
 }
 
 std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string, std::vector<std::string>> inputFiles,
-                                                          std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
+                                                            std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
     std::map<std::string, ov::runtime::TensorVector> tensors;
     if (app_inputs_info.empty()) {
         throw std::logic_error("Inputs Info for network is empty!");
@@ -505,9 +515,9 @@ std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string
 }
 
 std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std::vector<std::string>& inputFiles,
-                                                                    const size_t& batchSize,
-                                                                    benchmark_app::InputsInfo& app_inputs_info,
-                                                                    size_t requestsNum) {
+                                                                      const size_t& batchSize,
+                                                                      benchmark_app::InputsInfo& app_inputs_info,
+                                                                      size_t requestsNum) {
     std::map<std::string, ov::runtime::TensorVector> blobs;
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
@@ -620,8 +630,11 @@ std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std:
             if (input_info.isImage()) {
                 if (!imageFiles.empty()) {
                     // Fill with Images
-                    blobs[input_name].push_back(
-                        getImageTensor(files.second, imageInputId, batchSize, {input_name, input_info}, &blob_src_info));
+                    blobs[input_name].push_back(getImageTensor(files.second,
+                                                               imageInputId,
+                                                               batchSize,
+                                                               {input_name, input_info},
+                                                               &blob_src_info));
                     imageInputId = (imageInputId + batchSize) % files.second.size();
                     logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;
@@ -630,10 +643,10 @@ std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std:
                 if (!binaryFiles.empty()) {
                     // Fill with binary files
                     blobs[input_name].push_back(getBinaryTensor(files.second,
-                                                              binaryInputId,
-                                                              batchSize,
-                                                              {input_name, input_info},
-                                                              &blob_src_info));
+                                                                binaryInputId,
+                                                                batchSize,
+                                                                {input_name, input_info},
+                                                                &blob_src_info));
                     binaryInputId = (binaryInputId + batchSize) % files.second.size();
                     logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;

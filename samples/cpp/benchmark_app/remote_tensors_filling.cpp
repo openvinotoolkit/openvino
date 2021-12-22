@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "remote_tensors_filling.hpp"
+
 #include <memory>
 #include <random>
 #include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <samples/slog.hpp>
-#include "remote_tensors_filling.hpp"
 
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 #    include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
@@ -126,7 +125,7 @@ std::map<std::string, ov::runtime::TensorVector> getRemoteInputTensors(
 }
 
 std::map<std::string, ov::runtime::Tensor> getRemoteOutputTensors(const ov::runtime::CompiledModel& compiledModel,
-                                                                std::map<std::string, ::gpu::BufferType>& clBuffer) {
+                                                                  std::map<std::string, ::gpu::BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::map<std::string, ov::runtime::Tensor> outputTensors;
     for (auto& output : compiledModel.outputs()) {
@@ -151,8 +150,8 @@ std::map<std::string, ov::runtime::Tensor> getRemoteOutputTensors(const ov::runt
             }
         }
         outputTensors[output.get_any_name()] = oclContext.create_tensor(output.get_element_type(),
-                                                                      output.get_shape(),
-                                                                      clBuffer[output.get_any_name()].get());
+                                                                        output.get_shape(),
+                                                                        clBuffer[output.get_any_name()].get());
     }
 
     return outputTensors;
