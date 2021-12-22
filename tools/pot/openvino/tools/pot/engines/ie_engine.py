@@ -329,12 +329,12 @@ class IEEngine(Engine):
         progress_log_fn = logger.info if print_progress else logger.debug
 
         # Load model to the plugin
-        executable_model = self._ie.compile_model(model=self._model, device_name=self.config.device)
+        compiled_model = self._ie.compile_model(model=self._model, device_name=self.config.device)
         free_irs = []
-        optimal_requests_num = executable_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
+        optimal_requests_num = compiled_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
         requests_num = optimal_requests_num if requests_num == 0 else requests_num
         for _ in range(requests_num):
-            infer_request = executable_model.create_infer_request()
+            infer_request = compiled_model.create_infer_request()
             free_irs.append(infer_request)
         queued_irs = []
 
@@ -344,7 +344,7 @@ class IEEngine(Engine):
         # Start inference
         start_time = time()
         while free_irs or queued_irs:
-            self._populate_free_requests(executable_model, free_irs, queued_irs, sampler_iter)
+            self._populate_free_requests(compiled_model, free_irs, queued_irs, sampler_iter)
 
             ready_irs, queued_irs = self._wait_for_any(queued_irs)
             if ready_irs:
@@ -376,8 +376,8 @@ class IEEngine(Engine):
         progress_log_fn = logger.info if print_progress else logger.debug
 
         # Load model to the plugin
-        executable_model = self._ie.compile_model(model=self._model, device_name=self.config.device)
-        infer_request = executable_model.create_infer_request()
+        compiled_model = self._ie.compile_model(model=self._model, device_name=self.config.device)
+        infer_request = compiled_model.create_infer_request()
 
         progress_log_fn('Start inference of %d images', len(sampler))
 
@@ -387,7 +387,7 @@ class IEEngine(Engine):
             batch_annotations, image_batch, batch_meta = self._process_batch(batch)
 
             # Infer batch of images
-            predictions = infer_request.infer(self._fill_input(executable_model, image_batch))
+            predictions = infer_request.infer(self._fill_input(compiled_model, image_batch))
             outputs = predictions
 
             self._process_infer_output(stats_layout, outputs,
