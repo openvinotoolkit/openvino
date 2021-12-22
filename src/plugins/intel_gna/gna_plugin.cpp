@@ -49,6 +49,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
@@ -731,6 +732,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
         // TransposeReduction can be enabled when Transpose-Conv-Transpose patterns will be handled in ngraph transformations
         pass_config->disable<ngraph::pass::TransposeReduction>();
+        pass_config->disable<ngraph::pass::ConcatReduceFusion>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
         isNgraphPassesUsed = true;
