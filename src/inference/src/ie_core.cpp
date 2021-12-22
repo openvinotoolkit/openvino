@@ -701,8 +701,11 @@ public:
         for (const auto& op : func->get_ops()) {
             if (opNames.find(op->get_friendly_name()) == opNames.end() ||
                 (!res.supportedLayersMap.count(op->get_friendly_name()) &&
-                 std::dynamic_pointer_cast<ngraph::op::Constant>(op)))
-                res.supportedLayersMap[op->get_friendly_name()] = defDevice;
+                 std::dynamic_pointer_cast<ngraph::op::Constant>(op) &&
+                 // Mark constant operation as supported only if its output is supported
+                 res.supportedLayersMap.count(op->output(0).get_target_inputs().begin()->get_node()->get_friendly_name()))) {
+                    res.supportedLayersMap[op->get_friendly_name()] = defDevice;
+                 }
         }
         return res;
     }
