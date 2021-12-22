@@ -4,9 +4,8 @@
 import os
 
 from ..conftest import model_path
-import openvino.runtime.opset8 as ops
-from openvino.runtime import ConstOutput, Shape, PartialShape, Type, \
-    Output, Parameter, RTMap
+from openvino.runtime import Input, Shape, PartialShape, Type, Parameter, \
+    RTMap
 
 from openvino.runtime import Core
 
@@ -25,109 +24,100 @@ def model_path(is_myriad=False):
     return (test_xml, test_bin)
 
 
-def test_const_output_type(device):
+def test_input_type(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    node = exec_net.input(0)
-    assert isinstance(node, ConstOutput)
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    assert isinstance(input_node, Input)
 
 
 def test_const_output_docs(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    node = exec_net.input(0)
-    exptected_string = "openvino.runtime.ConstOutput wraps ov::Output<Const ov::Node >"
-    assert node.__doc__ == exptected_string
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    exptected_string = "openvino.runtime.Input wraps ov::Input<Node>"
+    assert input_node.__doc__ == exptected_string
 
 
-def test_const_output_get_index(device):
+def test_input_get_index(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    node = exec_net.input("data")
-    assert node.get_index() == 0
-    assert node.index == 0
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    assert input_node.get_index() == 0
 
 
-def test_const_output_get_element_type(device):
+def test_input_element_type(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    node = exec_net.input("data")
-    assert node.get_element_type() == Type.f32
-    assert node.element_type == Type.f32
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    assert input_node.get_element_type() == Type.f32
 
 
-def test_const_output_get_shape(device):
+def test_input_get_shape(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    node = exec_net.input("data")
-    expected_shape = Shape([1, 3, 32, 32])
-    assert str(node.get_shape()) == str(expected_shape)
-    assert str(node.shape) == str(expected_shape)
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    assert str(input_node.get_shape()) == str(Shape([1, 10]))
 
 
-def test_const_output_get_partial_shape(device):
+def test_input_get_partial_shape(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    node = exec_net.input("data")
-    expected_partial_shape = PartialShape([1, 3, 32, 32])
-    assert node.get_partial_shape() == expected_partial_shape
-    assert node.partial_shape == expected_partial_shape
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    expected_partial_shape = PartialShape([1, 10])
+    assert input_node.get_partial_shape() == expected_partial_shape
 
 
-def test_const_output_get_target_inputs(device):
+def test_input_get_source_output(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    outputs = exec_net.outputs
-    for node in outputs:
-        assert isinstance(node.get_target_inputs(), set)
-        assert isinstance(node.target_inputs, set)
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    name = input_node.get_source_output().get_node().get_friendly_name()
+    assert name == "fc_out"
 
 
-def test_const_output_get_names(device):
+def test_input_get_rt_info(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input_name = "data"
-    node = exec_net.input(input_name)
-    expected_names = set()
-    expected_names.add(input_name)
-    assert node.get_names() == expected_names
-    assert node.names == expected_names
-    assert node.get_any_name() == input_name
-    assert node.any_name == input_name
-
-
-def test_const_get_rf_info(device):
-    core = Core()
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(func, device)
-    output_node = exec_net.output(0)
-    rt_info = output_node.get_rt_info()
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    rt_info = input_node.get_rt_info()
     assert isinstance(rt_info, RTMap)
 
 
-def test_const_output_runtime_info(device):
+def test_input_rt_info(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input_name = "data"
-    output_node = exec_net.input(input_name)
-    rt_info = output_node.rt_info
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    rt_info = input_node.rt_info
     assert isinstance(rt_info, RTMap)
 
 
-def test_update_rt_info(device):
-    relu = ops.relu(5)
-    output_node = Output._from_node(relu)
-    rt = output_node.get_rt_info()
+def test_input_update_rt_info(device):
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, device)
+    input = exec_net.output(0)
+    input_node = input.get_node().inputs()[0]
+    rt = input_node.get_rt_info()
     rt["test12345"] = "test"
-    for k, v in output_node.get_rt_info().items():
+    for k, v in input_node.get_rt_info().items():
         assert k == "test12345"
         assert isinstance(v, Parameter)
