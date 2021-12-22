@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_x_div_y_op(const NodeContext& node) {
@@ -27,6 +27,6 @@ OutputVector translate_x_div_y_op(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

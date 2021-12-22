@@ -10,13 +10,17 @@
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 
 #include "assign_shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
+#include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
+#include "ctc_greedy_decoder_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 #include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
 #include "experimental_detectron_topkrois_shape_inference.hpp"
+#include "extract_image_patches_shape_inference.hpp"
 #include "fake_quantize.hpp"
 #include "gather_elements_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
@@ -26,10 +30,28 @@
 #include "one_hot_shape_inference.hpp"
 #include "read_value_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
+#include "reverse_sequence_shape_inference.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
+#include "ctc_loss_shape_inference.hpp"
+#include "fft_base_shape_inference.hpp"
 #include "shape_inference.hpp"
 #include "shape_nodes.hpp"
+#include "fake_quantize.hpp"
+#include "experimental_detectron_detection_output_shape_inference.hpp"
+#include "bucketize_shape_inference.hpp"
+#include "embedding_segments_sum_shape_inference.hpp"
+#include "embeddingbag_offsets_shape_inference.hpp"
+#include "experimental_detectron_roi_feature_shape_inference.hpp"
+#include "pad_shape_inference.hpp"
+#include "range_shape_inference.hpp"
+#include "region_yolo_shape_inference.hpp"
+#include "reorg_yolo_shape_inference.hpp"
+#include "split_shape_inference.hpp"
+#include "topk_shape_inference.hpp"
+#include "variadic_split_shape_inference.hpp"
+#include "einsum_shape_inference.hpp"
+#include "strided_slice_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "tile_shape_inference.hpp"
 #include "utils.hpp"
@@ -104,6 +126,34 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronDetectionOutput>(op)) {
         shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset3::TopK>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset3::Bucketize>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset3::EmbeddingSegmentsSum>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset3::EmbeddingBagOffsetsSum>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::Pad>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset4::Range>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Range>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::RegionYolo>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset2::ReorgYolo>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::Split>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::VariadicSplit>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset7::Einsum>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::StridedSlice>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::opset3::Assign>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::Assign>(op)) {
@@ -132,7 +182,7 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::opset4::ScatterNDUpdate>(op)) {
         shape_infer(node, input_shapes, output_shapes);
-        } else if (auto node = ov::as_type<ov::opset6::GatherElements>(op)) {
+    } else if (auto node = ov::as_type<ov::opset6::GatherElements>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::op::util::GatherBase>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
@@ -140,6 +190,20 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::OneHot>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset4::CTCLoss>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset7::DFT>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset7::IDFT>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset6::CTCGreedyDecoderSeqLen>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset6::CTCGreedyDecoder>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset3::ExtractImagePatches>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::ReverseSequence>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
