@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/paddle/exceptions.hpp"
+
 #include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
