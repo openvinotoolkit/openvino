@@ -21,7 +21,7 @@ MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MK
 }
 
 void MKLDNNIfNode::PortMapHelper::execute(mkldnn::stream& strm) {
-    // if condition was changed or there are new input shapes,
+    // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
