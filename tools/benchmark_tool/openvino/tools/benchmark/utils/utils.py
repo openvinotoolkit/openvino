@@ -307,10 +307,10 @@ def process_help_inference_string(benchmark_app, device_number_streams):
     return output_string
 
 
-def dump_exec_graph(exe_network, model_path, weight_path = None):
+def dump_exec_graph(compiled_model, model_path, weight_path = None):
     if not weight_path:
         weight_path = model_path[:model_path.find(".xml")] + ".bin"
-    serialize(exe_network.get_runtime_model(), model_path, weight_path)
+    serialize(compiled_model.get_runtime_model(), model_path, weight_path)
 
 
 
