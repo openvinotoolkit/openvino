@@ -90,7 +90,7 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
     # convolution 2
     conv_2_kernel_shape, conv_2_kernel_length = shape_and_length([50, 20, 5, 5])
     conv_2_kernel = openvino.runtime.op.Constant(Type.f32, Shape(conv_2_kernel_shape),
-                                                 weights[weights_offset : weights_offset + conv_2_kernel_length]
+                                                 weights[weights_offset : weights_offset + conv_2_kernel_length],
                                                  )
     weights_offset += conv_2_kernel_length
     conv_2_node = openvino.runtime.opset8.convolution(maxpool_1_node, conv_2_kernel, [1, 1], padding_begin, padding_end, [1, 1])
@@ -98,7 +98,7 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
     # add 2
     add_2_kernel_shape, add_2_kernel_length = shape_and_length([1, 50, 1, 1])
     add_2_kernel = openvino.runtime.op.Constant(Type.f32, Shape(add_2_kernel_shape),
-                                                weights[weights_offset : weights_offset + add_2_kernel_length]
+                                                weights[weights_offset : weights_offset + add_2_kernel_length],
                                                 )
     weights_offset += add_2_kernel_length
     add_2_node = openvino.runtime.opset8.add(conv_2_node, add_2_kernel)
@@ -120,7 +120,7 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
     # matmul 1
     matmul_1_kernel_shape, matmul_1_kernel_length = shape_and_length([500, 800])
     matmul_1_kernel = openvino.runtime.op.Constant(Type.f32, Shape(matmul_1_kernel_shape),
-                                                   weights[weights_offset : weights_offset + matmul_1_kernel_length]
+                                                   weights[weights_offset : weights_offset + matmul_1_kernel_length],
                                                    )
     weights_offset += matmul_1_kernel_length
     matmul_1_node = openvino.runtime.opset8.matmul(reshape_1_node, matmul_1_kernel, False, True)
@@ -128,7 +128,7 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
     # add 3
     add_3_kernel_shape, add_3_kernel_length = shape_and_length([1, 500])
     add_3_kernel = openvino.runtime.op.Constant(Type.f32, Shape(add_3_kernel_shape),
-                                                weights[weights_offset : weights_offset + add_3_kernel_length]
+                                                weights[weights_offset : weights_offset + add_3_kernel_length],
                                                 )
     weights_offset += add_3_kernel_length
     add_3_node = openvino.runtime.opset8.add(matmul_1_node, add_3_kernel)
@@ -143,7 +143,7 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
     # matmul 2
     matmul_2_kernel_shape, matmul_2_kernel_length = shape_and_length([10, 500])
     matmul_2_kernel = openvino.runtime.op.Constant(Type.f32, Shape(matmul_2_kernel_shape),
-                                                   weights[weights_offset : weights_offset + matmul_2_kernel_length]
+                                                   weights[weights_offset : weights_offset + matmul_2_kernel_length],
                                                    )
     weights_offset += matmul_2_kernel_length
     matmul_2_node = openvino.runtime.opset8.matmul(reshape_2_node, matmul_2_kernel, False, True)
@@ -151,7 +151,7 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
     # add 4
     add_4_kernel_shape, add_4_kernel_length = shape_and_length([1, 10])
     add_4_kernel = openvino.runtime.op.Constant(Type.f32, Shape(add_4_kernel_shape),
-                                                weights[weights_offset : weights_offset + add_4_kernel_length]
+                                                weights[weights_offset : weights_offset + add_4_kernel_length],
                                                 )
     weights_offset += add_4_kernel_length
     add_4_node = openvino.runtime.opset8.add(matmul_2_node, add_4_kernel)
@@ -159,9 +159,6 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
     # softmax
     softmax_axis = 1
     softmax_node = openvino.runtime.opset8.softmax(add_4_node, softmax_axis)
-
-    # result
-    result_node = openvino.runtime.opset8.result(softmax_node)
 
     return Model(softmax_node, [param_node], 'lenet')
 
