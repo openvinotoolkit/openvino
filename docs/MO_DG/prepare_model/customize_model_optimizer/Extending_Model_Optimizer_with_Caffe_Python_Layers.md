@@ -40,8 +40,8 @@ operation `ProposalOp` which corresponds to `Proposal` operation described in th
 document. Refer to the source code below for a detailed explanation of the extractor.
 
 ```py
-from extensions.ops.proposal import ProposalOp
-from mo.front.extractor import CaffePythonFrontExtractorOp
+from openvino.tools.mo.ops.proposal import ProposalOp
+from openvino.tools.mo.front.extractor import CaffePythonFrontExtractorOp
 
 
 class ProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):

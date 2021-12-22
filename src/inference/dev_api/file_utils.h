@@ -16,6 +16,7 @@
 #include "ie_api.h"
 #include "openvino/util/file_util.hpp"
 
+/// @ingroup ie_dev_api_file_utils
 namespace FileUtils {
 
 /**

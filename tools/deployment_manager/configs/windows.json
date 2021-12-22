@@ -16,17 +16,14 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/bin/intel64/Release/inference_engine.dll",
-        "runtime/bin/intel64/Release/inference_engine_transformations.dll",
+        "runtime/bin/intel64/Release/ov_runtime.dll",
         "runtime/bin/intel64/Release/inference_engine_preproc.dll",
         "runtime/bin/intel64/Release/inference_engine_c_api.dll",
         "runtime/bin/intel64/Release/ov_hetero_plugin.dll",
         "runtime/bin/intel64/Release/ov_auto_plugin.dll",
-        "runtime/bin/intel64/Release/ngraph.dll",
-        "runtime/bin/intel64/Release/frontend_common.dll",
-        "runtime/bin/intel64/Release/ir_ov_frontend.dll",
-        "runtime/bin/intel64/Release/onnx_ov_frontend.dll",
-        "runtime/bin/intel64/Release/paddlepaddle_ov_frontend.dll",
+        "runtime/bin/intel64/Release/ov_ir_frontend.dll",
+        "runtime/bin/intel64/Release/ov_onnx_frontend.dll",
+        "runtime/bin/intel64/Release/ov_paddlepaddle_frontend.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -36,7 +33,6 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
         "runtime/bin/intel64/Release/MKLDNNPlugin.dll"
       ]
     },
@@ -46,7 +42,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/bin/intel64/Release/cache.json",
-        "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
         "runtime/bin/intel64/Release/ov_intel_gpu_plugin.dll"
       ]
     },

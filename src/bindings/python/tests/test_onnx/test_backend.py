@@ -27,7 +27,6 @@ from tests import (
     xfail_issue_38735,
     xfail_issue_39658,
     xfail_issue_39662,
-    xfail_issue_44854,
     xfail_issue_44858,
     xfail_issue_44956,
     xfail_issue_44965,
@@ -101,16 +100,9 @@ tests_expected_to_fail = [
     (
         xfail_issue_FLOAT_LIKE,
         "OnnxBackendNodeModelTest.test_cast_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_cast_FLOAT_to_BFLOAT16_cpu",
         "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_max_float16_cpu",
-        "OnnxBackendNodeModelTest.test_min_float16_cpu",
-        "OnnxBackendNodeModelTest.test_mod_mixed_sign_float16_cpu",
     ),
     (
         xfail_issue_49207,
@@ -209,7 +201,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_38706,
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
-        "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (
         xfail_issue_33538,
@@ -271,12 +262,6 @@ tests_expected_to_fail = [
         xfail_issue_45180,
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_random_cpu",
-    ),
-    (
-        xfail_issue_44854,
-        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_cpu",
     ),
     (
         xfail_issue_44858,

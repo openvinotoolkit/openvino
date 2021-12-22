@@ -9,7 +9,7 @@
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>
-#include "manager.hpp"
+#include "openvino/frontend/manager.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph/ngraph.hpp"

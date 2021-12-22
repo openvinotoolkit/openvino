@@ -48,6 +48,7 @@ void register_implementations() {
     REGISTER_OCL(pooling);
     REGISTER_OCL(pyramid_roi_align);
     REGISTER_OCL(quantize);
+    REGISTER_OCL(random_uniform);
     REGISTER_OCL(reduce);
     REGISTER_OCL(region_yolo);
     REGISTER_OCL(reorder);
@@ -65,6 +66,7 @@ void register_implementations() {
     REGISTER_OCL(softmax);
     REGISTER_OCL(space_to_batch);
     REGISTER_OCL(space_to_depth);
+    REGISTER_OCL(slice);
     REGISTER_OCL(strided_slice);
     REGISTER_OCL(tile);
     REGISTER_OCL(lstm_dynamic_input);
