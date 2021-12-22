@@ -79,7 +79,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    ```sh
    ./l_openvino_toolkit_p_<version>.sh
    ```
-   <br>You should see the following dialog open up:
+   <br>You should see the following dialog box open up:
 
    @sphinxdirective
    
