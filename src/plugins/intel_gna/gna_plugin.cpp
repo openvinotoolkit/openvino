@@ -70,10 +70,12 @@
 #include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "transformations/remove_single_input_concat.hpp"
+#include "transformations/remove_converts.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/substitute_softsign.hpp"
+#include "transformations/convert_precision.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -270,90 +272,61 @@ void GNAPlugin::ExportScores(void *ptr_dst,
     }
 }
 
-void GNAPlugin::ImportFrames(
-                  void *ptr_dst,
-                  const void *ptr_src,
-                  Precision input_precision,
-                  float scaleFactor,
-                  intel_dnn_orientation_t orientation,
-                  uint32_t num_frames,
-                  uint32_t num_group,
-                  uint32_t num_vector_elements,
-                  uint32_t num_vector_stride) {
-    if (orientation == kDnnInterleavedOrientation) {
-        // TODO : fix that as well
-        if (input_precision == Precision::U8) {
-            auto src = reinterpret_cast<const uint8_t *>(ptr_src);
+void GNAPlugin::ImportFrames(void *ptr_dst,
+                            const void *ptr_src,
+                            Precision input_precision,
+                            float scaleFactor,
+                            intel_dnn_orientation_t orientation,
+                            uint32_t num_frames,
+                            uint32_t num_group,
+                            uint32_t num_vector_elements,
+                            uint32_t num_vector_stride) {
+    switch (input_precision) {
+    case Precision::U8:
+    case Precision::I8:
+    {
+        auto src = reinterpret_cast<const uint8_t *>(ptr_src);
+        if (!gnaFlags->input_low_precision) {
+            auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        } else {
+            auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        }
+        break;
+    }
+    case Precision::I16:
+    {
+        auto src = reinterpret_cast<const int16_t *>(ptr_src);
+        if (!gnaFlags->input_low_precision) {
+            auto dst = reinterpret_cast<int16_t*>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        } else {
+            auto dst = reinterpret_cast<int8_t*>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        }
+        break;
+    }
+    case Precision::FP32:
+    case Precision::I32:
+    {
+        auto src = reinterpret_cast<const float *>(ptr_src);
+        if (!gnadevice) {
+            auto dst = reinterpret_cast<float *>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
+        } else {
             if (!gnaFlags->input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             } else {
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            }
-        } else if (input_precision.size() == 2) {
-            auto src = reinterpret_cast<const int16_t *>(ptr_src);
-            if (!gnaFlags->input_low_precision) {
-                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            }
-        } else if (input_precision.size() == 4) {
-            if (!gnadevice) {
-                auto dst = reinterpret_cast<float *>(ptr_dst);
-                auto src = reinterpret_cast<const float *>(ptr_src);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto src = reinterpret_cast<const float *>(ptr_src);
-                if (!gnaFlags->input_low_precision) {
-                    auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-                } else {
-                    auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-                }
             }
         }
-    } else {
-        if (input_precision == Precision::U8) {
-            auto src = reinterpret_cast<const uint8_t *>(ptr_src);
-            if (!gnadevice) {
-                auto dst = reinterpret_cast<float *>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else if (!gnaFlags->input_low_precision) {
-                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            }
-        } else if (input_precision.size()== 2) {
-            auto src = reinterpret_cast<const int16_t *>(ptr_src);
-            if (!gnaFlags->input_low_precision) {
-                auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            }
-        } else if (input_precision.size() == 4) {
-            if (!gnadevice) {
-                auto dst = reinterpret_cast<float *>(ptr_dst);
-                auto src = reinterpret_cast<const float *>(ptr_src);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-            } else {
-                auto src = reinterpret_cast<const float *>(ptr_src);
-                if (!gnaFlags->input_low_precision) {
-                    auto dst = reinterpret_cast<int16_t*>(ptr_dst);
-                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-                } else {
-                    auto dst = reinterpret_cast<int8_t*>(ptr_dst);
-                    copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
-                }
-            }
-        }
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -690,15 +663,21 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     bool isNgraphPassesUsed = false;
     bool fake_quantized = false;
+
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
+        // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
+        // and we need to run the ConvertPrecision transformation to support old networks.
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
         manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
         manager.register_pass<DecomposeMVN>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<RemoveInputConvert>();
+        manager.register_pass<RemoveOutputConvert>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
         manager.register_pass<ConvertPaddedToValidConv>();
@@ -754,7 +733,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::TransposeReduction>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
-
         isNgraphPassesUsed = true;
     }
     IE_SUPPRESS_DEPRECATED_START
@@ -765,7 +743,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
 
-    //  Check the input network
+
+    //  Check the network
     std::string error;
     if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error, gnaFlags->log_level == PluginConfigParams::LOG_WARNING)) {
         THROW_GNA_EXCEPTION << error.c_str();
@@ -1293,7 +1272,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         ImportFrames(inputs_ptr_->at(input.first).ptrs[idx],
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
-                     gnaFlags->sw_fp32 ? 1.0f : inputs_ptr_->at(input.first).scale_factor,
+                     gnaFlags->sw_fp32 ? GNAPluginNS::kScaleFactorDefault : inputs_ptr_->at(input.first).scale_factor,
                      inputOrientation,
                      importedFrames,
                      targetGroups,
@@ -1455,11 +1434,24 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                 fprintf(f, "\n\n");
             }
 #endif
-            ConvertToFloat(outputBlob->buffer(),
-                outputBlob->buffer(),
-                elementsPerBatch,
-                batchSize,
-                outputDesc.scale_factor);
+            switch (outputBlob->getTensorDesc().getPrecision()) {
+            case InferenceEngine::Precision::FP32 :
+                UnscaleAndCast(outputBlob->buffer().as<float*>(),
+                              outputBlob->buffer().as<int32_t*>(),
+                              elementsPerBatch, batchSize, outputDesc.scale_factor);
+                break;
+
+            case InferenceEngine::Precision::I32 :
+                UnscaleAndCast(outputBlob->buffer().as<int32_t*>(),
+                              outputBlob->buffer().as<int32_t*>(),
+                              elementsPerBatch, batchSize, outputDesc.scale_factor);
+                break;
+
+            default:
+                THROW_GNA_EXCEPTION << "Unsupported target precision: " << outputBlob->getTensorDesc().getPrecision() << std::endl;
+                break;
+            }
+
 #ifdef PLOT
             if (f) {
                 if (isScalar) {
