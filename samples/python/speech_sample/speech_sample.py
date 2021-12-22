@@ -7,12 +7,12 @@ import argparse
 import logging as log
 import re
 import sys
-from os import name
 from timeit import default_timer
-from typing import List, Union
+from typing import Dict, List, Tuple
 
 import numpy as np
-from openvino.runtime import CompiledModel, Core, InferRequest, Model
+from openvino.preprocess import PrePostProcessor
+from openvino.runtime import Core, InferRequest, Layout, Type, set_batch
 
 from arg_parser import parse_args
 from file_options import read_utterance_file, write_utterance_file
@@ -33,51 +33,46 @@ def get_scale_factor(matrix: np.ndarray) -> float:
         return target_max / max_val
 
 
-def infer_data(
-    data: dict, infer_request: InferRequest, input_blobs: list, output_blobs: list, cw_l: int = 0, cw_r: int = 0,
-) -> np.ndarray:
+def infer_data(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
     """Do a synchronous matrix inference"""
-    matrix_shape = next(iter(data.values())).shape
+    frames_to_infer = {}
     result = {}
 
-    for output in infer_request.outputs:
-        batch_size = output.shape[0]
-        result[output.any_name] = np.ndarray((matrix_shape[0], np.prod(tuple(output.shape)[1:])))
+    batch_size = infer_request.get_input_tensor(0).shape[0]
+    num_of_frames = next(iter(data.values())).shape[0]
 
-    for i in range(-cw_l, matrix_shape[0] + cw_r, batch_size):
+    for output in infer_request.outputs:
+        result[output.any_name] = np.ndarray((num_of_frames, np.prod(tuple(output.shape)[1:])))
+
+    for i in range(-cw_l, num_of_frames + cw_r, batch_size):
         if i < 0:
             index = 0
-        elif i >= matrix_shape[0]:
-            index = matrix_shape[0] - 1
+        elif i >= num_of_frames:
+            index = num_of_frames - 1
         else:
             index = i
 
-        vectors = {_input.any_name: data[_input.any_name][index:index + batch_size] for _input in infer_request.inputs}
-
-        num_of_vectors = next(iter(vectors.values())).shape[0]
-
-        if num_of_vectors < batch_size:
-            temp = {
-                _input.any_name: np.zeros((batch_size, vectors[_input.any_name].shape[1]))
-                for _input in infer_request.inputs
-            }
-
-            for _input in infer_request.inputs:
-                temp[_input.any_name][:num_of_vectors] = vectors[_input.any_name]
-
-            vectors = temp
-
         for _input in infer_request.inputs:
-            vectors[_input.any_name] = vectors[_input.any_name].reshape(_input.tensor.shape)
+            frames_to_infer[_input.any_name] = data[_input.any_name][index:index + batch_size]
+            num_of_frames_to_infer = len(frames_to_infer[_input.any_name])
 
-        vector_results = infer_request.infer(vectors)
+            # Add [batch_size - num_of_frames_to_infer] zero rows to 2d numpy array
+            # Used to infer fewer frames than the batch size
+            frames_to_infer[_input.any_name] = np.pad(
+                frames_to_infer[_input.any_name],
+                [(0, batch_size - num_of_frames_to_infer), (0, 0)],
+            )
+
+            frames_to_infer[_input.any_name] = frames_to_infer[_input.any_name].reshape(_input.tensor.shape)
+
+        frame_results = infer_request.infer(frames_to_infer)
 
         if i - cw_r < 0:
             continue
 
-        for output in vector_results.keys():
-            vector_result = vector_results[output].reshape((batch_size, result[output.any_name].shape[1]))
-            result[output.any_name][i - cw_r:i - cw_r + batch_size] = vector_result[:num_of_vectors]
+        for output in frame_results.keys():
+            vector_result = frame_results[output].reshape((batch_size, result[output.any_name].shape[1]))
+            result[output.any_name][i - cw_r:i - cw_r + batch_size] = vector_result[:num_of_frames_to_infer]
 
     return result
 
@@ -98,29 +93,19 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
     log.info(f'stdev error: {stdev_error:.7f}')
 
 
-def get_input_layer_names(model: Union[Model, CompiledModel], args: argparse.Namespace) -> List[str]:
-    """Get a list of input layer names"""
-    if args.input_layers:
-        return re.split(', |,', args.input_layers)
-    else:
-        return [_input.any_name for _input in model.inputs]
+def parse_inputs_from_args(args: argparse.Namespace) -> List[str]:
+    """Get a list of inputs specified in the args"""
+    return re.split(', |,', args.input_layers)
 
 
-def get_output_layer_list(model: Union[Model, CompiledModel],
-                          args: argparse.Namespace, with_ports: bool) -> List[str]:
-    """Get a list of output layer names"""
-    if args.output_layers:
-        output_name_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
-        if with_ports:
-            try:
-                return [(blob_name, int(port)) for blob_name, port in output_name_port]
-            except ValueError:
-                log.error('Incorrect value for -oname/--output_layers option, please specify a port for output layer.')
-                sys.exit(-4)
-        else:
-            return [blob_name for blob_name, _ in output_name_port]
-    else:
-        return [output.any_name for output in model.outputs]
+def parse_outputs_from_args(args: argparse.Namespace) -> Tuple[List[str], List[int]]:
+    """Get a list of outputs specified in the args"""
+    name_and_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
+    try:
+        return [name for name, _ in name_and_port], [int(port) for _, port in name_and_port]
+    except ValueError:
+        log.error('Incorrect value for -oname/--output_layers option, please specify a port for each output layer.')
+        sys.exit(-4)
 
 
 def parse_scale_factors(args: argparse.Namespace) -> list:
@@ -159,27 +144,35 @@ def main():
 
 # --------------------------- Step 2. Read a model --------------------------------------------------------------------
     if args.model:
-        log.info(f'Reading the network: {args.model}')
+        log.info(f'Reading the model: {args.model}')
         # (.xml and .bin files) or (.onnx file)
         model = core.read_model(args.model)
 
-# ---------------------------Step 3. Configure input & output----------------------------------------------------------
-        log.info('Configuring input and output blobs')
-        # Mark layers from args.output_layers as outputs
+# --------------------------- Step 3. Apply preprocessing -------------------------------------------------------------
         if args.output_layers:
-            model.add_outputs(get_output_layer_list(model, args, with_ports=True))
+            output_names, output_ports = parse_outputs_from_args(args)
+            model.add_outputs(list(zip(output_names, output_ports)))
 
-        # Get names of input and output blobs
-        # input_blobs = get_input_layer_names(model, args)
-        # output_blobs = get_output_layer_list(model, args, with_ports=False)
+        ppp = PrePostProcessor(model)
 
-    # TODO use set_layout instead
-        # if args.context_window_left + args.context_window_right == 0:
-        #     set_batch(model, args.batch_size)
-        # else:
-        #     set_batch(model, 1)
+        for i in range(len(model.inputs)):
+            ppp.input(i).tensor() \
+                .set_element_type(Type.f32) \
+                .set_layout(Layout('NC'))  # noqa: N400
 
-# ---------------------------Step 4. Loading model to the device-------------------------------------------------------
+            ppp.input(i).model().set_layout(Layout('NC'))
+
+        for i in range(len(model.outputs)):
+            ppp.output(i).tensor().set_element_type(Type.f32)
+
+        model = ppp.build()
+
+        if args.context_window_left == args.context_window_right == 0:
+            set_batch(model, args.batch_size)
+        else:
+            set_batch(model, 1)
+
+# ---------------------------Step 4. Configure plugin ---------------------------------------------------------
     devices = args.device.replace('HETERO:', '').split(',')
     plugin_config = {}
 
@@ -220,34 +213,14 @@ def main():
 
     device_str = f'HETERO:{",".join(devices)}' if 'HETERO' in args.device else devices[0]
 
+# --------------------------- Step 5. Loading model to the device -----------------------------------------------------
     log.info('Loading the model to the plugin')
     if args.model:
         compiled_model = core.compile_model(model, device_str, plugin_config)
     else:
         compiled_model = core.import_model(args.import_gna_model, device_str, plugin_config)
 
-    if args.input:
-        input_files = re.split(', |,', args.input)
-
-        if len(compiled_model.inputs) != len(input_files):
-            log.error(f'Number of network inputs ({len(compiled_model.inputs)}) is not equal '
-                      f'to number of ark files ({len(input_files)})')
-            sys.exit(-3)
-
-    if args.reference:
-        reference_files = re.split(', |,', args.reference)
-
-        if len(compiled_model.outputs) != len(reference_files):
-            log.error('The number of reference files is not equal to the number of network outputs.')
-            sys.exit(-5)
-
-    if args.output:
-        output_files = re.split(', |,', args.output)
-
-        if len(compiled_model.outputs) != len(output_files):
-            log.error('The number of output files is not equal to the number of network outputs.')
-            sys.exit(-6)
-
+# --------------------------- Exporting GNA model using InferenceEngine AOT API ---------------------------------------
     if args.export_gna_model:
         log.info(f'Writing GNA Model to {args.export_gna_model}')
         compiled_model.export_model(args.export_gna_model)
@@ -258,27 +231,55 @@ def main():
         log.info(f'GNA embedded model export done for GNA generation {args.embedded_gna_configuration}')
         return 0
 
+# --------------------------- Step 6. Set up input --------------------------------------------------------------------
+    input_names = [_input.any_name for _input in compiled_model.inputs]
+
+    if args.output_layers:
+        output_names, _ = parse_outputs_from_args(args)
+    else:
+        output_names = [compiled_model.outputs[0].any_name]
+
+    if args.input:
+        input_files = re.split(', |,', args.input)
+
+        if len(input_names) != len(input_files):
+            log.error(f'Number of network inputs ({len(compiled_model.inputs)}) is not equal '
+                      f'to number of ark files ({len(input_files)})')
+            sys.exit(-3)
+
+    if args.reference:
+        reference_files = re.split(', |,', args.reference)
+
+        if len(output_names) != len(reference_files):
+            log.error('The number of reference files is not equal to the number of network outputs.')
+            sys.exit(-5)
+
+    if args.output:
+        output_files = re.split(', |,', args.output)
+
+        if len(output_names) != len(output_files):
+            log.error('The number of output files is not equal to the number of network outputs.')
+            sys.exit(-6)
+
 # ---------------------------Step 5. Create infer request--------------------------------------------------------------
     infer_request = compiled_model.create_infer_request()
 
 # ---------------------------Step 6. Prepare input---------------------------------------------------------------------
     file_data = [read_utterance_file(file_name) for file_name in input_files]
-    input_blobs = get_input_layer_names(compiled_model, args)
-    output_blobs = get_output_layer_list(compiled_model, args, with_ports=False)
 
     input_data = {
         utterance_name: {
-            input_blobs[i]: file_data[i][utterance_name] for i in range(len(input_blobs))
+            input_names[i]: file_data[i][utterance_name] for i in range(len(input_names))
         }
         for utterance_name in file_data[0].keys()
     }
 
     if args.reference:
-        references = {output_blobs[i]: read_utterance_file(reference_files[i]) for i in range(len(output_blobs))}
+        references = {output_names[i]: read_utterance_file(reference_files[i]) for i in range(len(output_names))}
 
 # ---------------------------Step 7. Do inference----------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
-    results = {blob_name: {} for blob_name in output_blobs}
+    results = {name: {} for name in output_names}
     total_infer_time = 0
 
     for i, key in enumerate(sorted(input_data)):
@@ -291,14 +292,12 @@ def main():
         result = infer_data(
             input_data[key],
             infer_request,
-            input_blobs,
-            output_blobs,
             args.context_window_left,
             args.context_window_right,
         )
 
-        for blob_name in result.keys():
-            results[blob_name][key] = result[blob_name]
+        for name in output_names:
+            results[name][key] = result[name]
 
         infer_time = default_timer() - start_infer_time
         total_infer_time += infer_time
@@ -312,42 +311,40 @@ def main():
         log.info(f'Frames in utterance: {num_of_frames}')
         log.info(f'Average Infer time per frame: {avg_infer_time_per_frame * 1000:.2f}ms')
 
-        for blob_name in output_blobs:
+        for name in output_names:
             log.info('')
-            log.info(f'Output blob name: {blob_name}')
-            log.info(f'Number scores per frame: {results[blob_name][key].shape[1]}')
+            log.info(f'Output blob name: {name}')
+            log.info(f'Number scores per frame: {results[name][key].shape[1]}')
 
             if args.reference:
                 log.info('')
-                compare_with_reference(results[blob_name][key], references[blob_name][key])
+                compare_with_reference(results[name][key], references[name][key])
 
-        # TODO
-        # if args.performance_counter:
-        #     if 'GNA' in args.device:
-        #         pc = exec_net.requests[0].get_perf_counts()
-        #         total_cycles = int(pc['1.1 Total scoring time in HW']['real_time'])
-        #         stall_cycles = int(pc['1.2 Stall scoring time in HW']['real_time'])
-        #         active_cycles = total_cycles - stall_cycles
-        #         frequency = 10**6
-        #         if args.arch == 'CORE':
-        #             frequency *= GNA_CORE_FREQUENCY
-        #         else:
-        #             frequency *= GNA_ATOM_FREQUENCY
-        #         total_inference_time = total_cycles / frequency
-        #         active_time = active_cycles / frequency
-        #         stall_time = stall_cycles / frequency
-        #         log.info('')
-        #         log.info('Performance Statistics of GNA Hardware')
-        #         log.info(f'   Total Inference Time: {(total_inference_time * 1000):.4f} ms')
-        #         log.info(f'   Active Time: {(active_time * 1000):.4f} ms')
-        #         log.info(f'   Stall Time:  {(stall_time * 1000):.4f} ms')
+        if args.performance_counter:
+            if 'GNA' in args.device:
+                total_cycles = infer_request.profiling_info[0].real_time.total_seconds()
+                stall_cycles = infer_request.profiling_info[1].real_time.total_seconds()
+                active_cycles = total_cycles - stall_cycles
+                frequency = 10**6
+                if args.arch == 'CORE':
+                    frequency *= GNA_CORE_FREQUENCY
+                else:
+                    frequency *= GNA_ATOM_FREQUENCY
+                total_inference_time = total_cycles / frequency
+                active_time = active_cycles / frequency
+                stall_time = stall_cycles / frequency
+                log.info('')
+                log.info('Performance Statistics of GNA Hardware')
+                log.info(f'   Total Inference Time: {(total_inference_time * 1000):.4f} ms')
+                log.info(f'   Active Time: {(active_time * 1000):.4f} ms')
+                log.info(f'   Stall Time:  {(stall_time * 1000):.4f} ms')
 
     log.info('')
     log.info(f'Total sample time: {total_infer_time * 1000:.2f}ms')
 
     if args.output:
-        for i, blob_name in enumerate(results):
-            write_utterance_file(output_files[i], results[blob_name])
+        for i, name in enumerate(results):
+            write_utterance_file(output_files[i], results[name])
             log.info(f'File {output_files[i]} was created!')
 
 # ----------------------------------------------------------------------------------------------------------------------
