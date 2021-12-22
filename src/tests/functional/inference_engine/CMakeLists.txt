@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
-set(INCLUDES $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src)
+set(INCLUDES $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src)
 
 set(LINK_LIBRARIES
     gmock
@@ -52,7 +52,7 @@ if (NOT ENABLE_OV_ONNX_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
-if (NOT ENABLE_OV_PDPD_FRONTEND)
+if (NOT ENABLE_OV_PADDLE_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader")
 endif()
 
@@ -77,10 +77,10 @@ if(ENABLE_OV_ONNX_FRONTEND)
     add_dependencies(${TARGET_NAME} ov_onnx_frontend)
 endif()
 
-if(ENABLE_OV_PDPD_FRONTEND)
+if(ENABLE_OV_PADDLE_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
-    add_dependencies(${TARGET_NAME} ov_paddlepaddle_frontend)
+    add_dependencies(${TARGET_NAME} ov_paddle_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
@@ -148,18 +148,18 @@ function(ie_headers_compilation_with_custom_flags)
                                                 "gpu/gpu_context_api_va.hpp"
                                                 "gpu/gpu_context_api_dx.hpp"
                                                 "gpu/gpu_ocl_wrapper.hpp"
-                                                "openvino/runtime/gpu/ocl/ocl_wrapper.hpp"
-                                                "openvino/runtime/gpu/ocl/ocl.hpp"
-                                                "openvino/runtime/gpu/ocl/va.hpp"
-                                                "openvino/runtime/gpu/ocl/dx.hpp")
+                                                "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
+                                                "openvino/runtime/intel_gpu/ocl/ocl.hpp"
+                                                "openvino/runtime/intel_gpu/ocl/va.hpp"
+                                                "openvino/runtime/intel_gpu/ocl/dx.hpp")
         endif()
         if(NOT WIN32)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp"
-                                                "openvino/runtime/gpu/ocl/dx.hpp")
+                                                "openvino/runtime/intel_gpu/ocl/dx.hpp")
         endif()
         if(NOT LIBVA_FOUND)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp"
-                                                "openvino/runtime/gpu/ocl/va.hpp")
+                                                "openvino/runtime/intel_gpu/ocl/va.hpp")
         endif()
     endif()
 

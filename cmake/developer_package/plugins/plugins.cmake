@@ -126,8 +126,8 @@ function(ie_add_plugin)
             if(TARGET ov_onnx_frontend)
                 add_dependencies(${IE_PLUGIN_NAME} ov_onnx_frontend)
             endif()
-            if(TARGET ov_paddlepaddle_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ov_paddlepaddle_frontend)
+            if(TARGET ov_paddle_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} ov_paddle_frontend)
             endif()
             if(TARGET ov_tensorflow_frontend)
                 add_dependencies(${IE_PLUGIN_NAME} ov_tensorflow_frontend)
@@ -314,7 +314,7 @@ function(ie_generate_plugins_hpp)
     endforeach()
 
     # add plugins to libraries including ie_plugins.hpp
-    ie_target_link_plugins(inference_engine)
+    ie_target_link_plugins(ov_runtime)
     if(TARGET inference_engine_s)
         ie_target_link_plugins(inference_engine_s)
     endif()
@@ -344,7 +344,7 @@ function(ie_generate_plugins_hpp)
     add_dependencies(inference_engine _ie_plugins_hpp)
 
     # add dependency for object files
-    get_target_property(sources inference_engine SOURCES)
+    get_target_property(sources inference_engine_obj SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library
