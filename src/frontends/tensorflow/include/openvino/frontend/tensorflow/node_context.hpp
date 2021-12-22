@@ -90,6 +90,13 @@ public:
     const DecoderBase* get_decoder() const {
         return &m_decoder;
     }
+
+protected:
+    ov::Any get_attribute_as_any (const std::string& name, const std::type_info& type_info) const override {
+        auto res = m_decoder.get_attribute(name, type_info);
+        FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
+        return res;
+    }
 };
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;

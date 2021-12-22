@@ -93,6 +93,13 @@ public:
 
     NamedOutputs default_single_output_mapping(const std::shared_ptr<Node>& node,
                                                const std::vector<OutPortName>& required_pdpd_out_names) const;
+
+protected:
+    ov::Any get_attribute_as_any (const std::string& name, const std::type_info& type_info) const override {
+        auto res = decoder.get_attribute(name, type_info);
+        FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
+        return res;
+    }
 };
 
 inline NamedOutputs NodeContext::default_single_output_mapping(

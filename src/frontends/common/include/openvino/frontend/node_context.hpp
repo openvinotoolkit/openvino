@@ -33,12 +33,12 @@ public:
 
     template <class D>
     D get_attribute (const std::string& name) {
-        return get_attribute_as_any(name).template as<D>();
+        return get_attribute_as_any(name, typeid(T)).template as<D>();
     }
 
 protected:
 
-    virtual ov::Any get_attribute_as_any (const std::string& name) const = 0;
+    virtual ov::Any get_attribute_as_any (const std::string& name, const std::type_info& type_info) const = 0;
 private:
     std::string m_op_type;
     T m_inputs;
