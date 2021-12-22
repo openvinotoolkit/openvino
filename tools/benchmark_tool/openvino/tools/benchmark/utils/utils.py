@@ -85,18 +85,17 @@ def pre_post_processing(function: Model, app_inputs_info, input_precision: str, 
     user_precision_map = {}
     if input_output_precision:
         user_precision_map = _parse_arg_map(input_output_precision)
-        input_names = get_input_output_names(function.get_parameters())
-        output_names = get_input_output_names(function.get_results())
+        input_names = get_input_output_names(function.inputs)
+        output_names = get_input_output_names(function.outputs)
         for node_name, precision in user_precision_map.items():
             user_precision_map[node_name] = get_element_type(precision)
         for name, element_type in user_precision_map.items():
             if name in input_names:
                 port = input_names.index(name)
                 app_inputs_info[port].element_type = element_type
-                pre_post_processor.input(port).tensor().set_element_type(element_type)
+                pre_post_processor.input(name).tensor().set_element_type(element_type)
             elif name in output_names:
-                port = output_names.index(name)
-                pre_post_processor.output(port).tensor().set_element_type(element_type)
+                pre_post_processor.output(name).tensor().set_element_type(element_type)
             else:
                 raise Exception(f"Node '{name}' does not exist in network")
 
@@ -113,8 +112,8 @@ def pre_post_processing(function: Model, app_inputs_info, input_precision: str, 
                 app_inputs_info[i].element_type = inputs[i].get_element_type()
 
     # set layout for model input
-    for port, info in enumerate(app_inputs_info):
-        pre_post_processor.input(port).model().set_layout(info.layout)
+    for info in app_inputs_info:
+        pre_post_processor.input(info.name).model().set_layout(info.layout)
 
     function = pre_post_processor.build()
 
@@ -149,19 +148,18 @@ def get_precision(element_type: Type):
 
 
 def print_inputs_and_outputs_info(function: Model):
-    parameters = function.get_parameters()
-    input_names = get_input_output_names(parameters)
-    for i in range(len(parameters)):
-        logger.info(f"Network input '{input_names[i]}' precision {get_precision(parameters[i].get_element_type())}, "
-                                                    f"dimensions ({str(parameters[i].get_layout())}): "
-                                                    f"{' '.join(str(x) for x in parameters[i].get_partial_shape())}")
-    results = function.get_results()
-    output_names = get_input_output_names(results)
-    results = function.get_results()
-    for i in range(len(results)):
-        logger.info(f"Network output '{output_names[i]}' precision {get_precision(results[i].get_element_type())}, "
-                                        f"dimensions ({str(results[i].get_layout())}): "
-                                        f"{' '.join(str(x) for x in  results[i].get_output_partial_shape(0))}")
+    inputs = function.inputs
+    input_names = get_input_output_names(inputs)
+    for i in range(len(inputs)):
+        logger.info(f"Model input '{input_names[i]}' precision {get_precision(inputs[i].element_type)}, "
+                                                    f"dimensions ({str(inputs[i].node.layout)}): "
+                                                    f"{' '.join(str(x) for x in inputs[i].partial_shape)}")
+    outputs = function.outputs
+    output_names = get_input_output_names(outputs)
+    for i in range(len(outputs)):
+        logger.info(f"Model output '{output_names[i]}' precision {get_precision(outputs[i].element_type)}, "
+                                        f"dimensions ({str(outputs[i].node.layout)}): "
+                                        f"{' '.join(str(x) for x in  outputs[i].partial_shape)}")
 
 
 def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, api_type: str):
@@ -361,8 +359,8 @@ def get_command_line_arguments(argv):
     return parameters
 
 
-def get_input_output_names(nodes):
-    return [node.friendly_name for node in nodes]
+def get_input_output_names(ports):
+    return [port.any_name for port in ports]
 
 
 def get_data_shapes_map(data_shape_string, input_names):
@@ -544,31 +542,31 @@ def parse_batch_size(batch_size_str):
         return Dimension(0)
 
 
-def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, scale_string, mean_string, parameters):
-    input_names = get_input_output_names(parameters)
+def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, scale_string, mean_string, inputs):
+    input_names = get_input_output_names(inputs)
     shape_map = parse_input_parameters(shape_string, input_names)
     data_shape_map = get_data_shapes_map(data_shape_string, input_names)
     layout_map = parse_input_parameters(layout_string, input_names)
     batch_size = parse_batch_size(batch_size)
     reshape = False
     input_info = []
-    for i in range(len(parameters)):
+    for i in range(len(inputs)):
         info = AppInputInfo()
         # Input name
         info.name = input_names[i]
         # Shape
-        info.original_shape = parameters[i].get_partial_shape()
+        info.original_shape = inputs[i].partial_shape
         if info.name in shape_map.keys():
             info.partial_shape = parse_partial_shape(shape_map[info.name])
             reshape = True
         else:
-            info.partial_shape = parameters[i].get_partial_shape()
+            info.partial_shape = inputs[i].partial_shape
 
         # Layout
         if info.name in layout_map.keys():
             info.layout = Layout(layout_map[info.name])
-        elif parameters[i].get_layout() != Layout():
-            info.layout = parameters[i].get_layout()
+        elif inputs[i].node.layout != Layout():
+            info.layout = inputs[i].node.layout
         else:
             image_colors_dim = Dimension(3)
             shape = info.partial_shape
