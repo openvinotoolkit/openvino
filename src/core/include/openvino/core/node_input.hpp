@@ -7,8 +7,8 @@
 #include <cstring>
 #include <map>
 
-#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/shape.hpp"

@@ -20,7 +20,7 @@ using FrontEndFactory = std::function<FrontEnd::Ptr()>;
 /// \brief Frontend management class, loads available frontend plugins on construction
 /// Allows load of frontends for particular framework, register new and list available
 /// frontends This is a main frontend entry point for client applications
-class FRONTEND_API FrontEndManager final {
+class OPENVINO_API FrontEndManager final {
 public:
     /*/ \brief Default constructor. Searches and loads of available frontends*/ FrontEndManager();
 
@@ -77,7 +77,7 @@ private:
 };
 
 template <>
-FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants);
+OPENVINO_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants);
 
 // --------- Plugin exporting information --------------
 

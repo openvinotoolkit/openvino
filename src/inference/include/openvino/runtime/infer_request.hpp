@@ -33,7 +33,7 @@ class CompiledModel;
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class OPENVINO_RUNTIME_API InferRequest {
+class OPENVINO_API InferRequest {
     std::shared_ptr<InferenceEngine::IInferRequestInternal> _impl;
     std::shared_ptr<void> _so;
 

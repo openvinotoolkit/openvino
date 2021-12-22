@@ -3,7 +3,7 @@
 //
 
 #include "ngraph/visibility.hpp"
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 
 #define NGRAPH_API      OPENVINO_API
 #define NGRAPH_API_C    OPENVINO_API_C

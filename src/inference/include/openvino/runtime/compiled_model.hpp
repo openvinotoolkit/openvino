@@ -33,7 +33,7 @@ class InferRequest;
 /**
  * @brief This is an interface of an executable network
  */
-class OPENVINO_RUNTIME_API CompiledModel {
+class OPENVINO_API CompiledModel {
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
     std::shared_ptr<void> _so;
 

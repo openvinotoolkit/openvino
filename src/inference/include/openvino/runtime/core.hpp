@@ -39,7 +39,7 @@ namespace runtime {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class OPENVINO_RUNTIME_API Core {
+class OPENVINO_API Core {
     class Impl;
     std::shared_ptr<Impl> _impl;
 

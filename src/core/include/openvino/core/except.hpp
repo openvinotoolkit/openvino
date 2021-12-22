@@ -7,7 +7,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 
 namespace ov {
 /// Base error for ov runtime errors.

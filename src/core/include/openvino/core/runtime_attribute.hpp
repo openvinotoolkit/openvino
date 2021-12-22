@@ -7,8 +7,8 @@
 #include <map>
 #include <string>
 
-#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 

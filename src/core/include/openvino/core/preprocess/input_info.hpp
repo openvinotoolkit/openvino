@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/preprocess/input_model_info.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"

@@ -14,9 +14,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/op/parameter.hpp"
 
 namespace ov {

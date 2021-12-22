@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/type.hpp"
 
 // Use extern "C" in order to avoid issues with mangling

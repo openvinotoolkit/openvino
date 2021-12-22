@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {

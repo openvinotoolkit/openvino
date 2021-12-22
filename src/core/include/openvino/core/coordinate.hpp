@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/shape.hpp"
 

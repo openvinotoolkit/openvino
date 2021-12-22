@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
-
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -24,8 +21,7 @@ class ConvertNMS5ToLegacyMatcher;
  *      Convert NMS-5 directly to inner NMS.
  */
 
-
-class ngraph::pass::ConvertNMS5ToLegacyMatcher: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertNMS5ToLegacyMatcher : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertNMS5ToLegacyMatcher(bool force_i32_output_type = true);

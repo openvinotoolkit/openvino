@@ -10,12 +10,12 @@
 namespace ov {
 namespace runtime {
 /// Thrown in case of canceled asynchronous operation
-class OPENVINO_RUNTIME_API Cancelled : public Exception {
+class OPENVINO_API Cancelled : public Exception {
     using Exception::Exception;
 };
 
 /// Thrown in case of busy infer request
-class OPENVINO_RUNTIME_API Busy : public Exception {
+class OPENVINO_API Busy : public Exception {
     using Exception::Exception;
 };
 }  // namespace runtime

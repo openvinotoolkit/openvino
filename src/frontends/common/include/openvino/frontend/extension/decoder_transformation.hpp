@@ -22,7 +22,7 @@ namespace frontend {
 /// FunctionPass or MathcerPass derivatives or as a function that can be used to build corresponding
 /// FunctionPass or MatcherPass object. The type of the extension is determined in the moment of creation by
 /// calling corresponding ctor.
-class FRONTEND_API DecoderTransformationExtension : public ov::Extension {
+class OPENVINO_API DecoderTransformationExtension : public ov::Extension {
 public:
     DecoderTransformationExtension() = default;
 

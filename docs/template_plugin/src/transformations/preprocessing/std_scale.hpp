@@ -9,8 +9,6 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <string>
 
-#include "transformations_visibility.hpp"
-
 namespace ngraph {
 namespace pass {
 

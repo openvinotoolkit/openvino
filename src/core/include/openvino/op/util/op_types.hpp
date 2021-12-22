@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/ov_visibility.hpp"
 
 namespace ov {
 namespace op {

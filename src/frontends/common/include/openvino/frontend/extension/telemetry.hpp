@@ -18,7 +18,7 @@ namespace ov {
 namespace frontend {
 
 /// \brief Provides callback to report telemetry information back to Python code
-class FRONTEND_API TelemetryExtension : public ov::Extension {
+class OPENVINO_API TelemetryExtension : public ov::Extension {
 public:
     using error_callback = std::function<void(const std::string& category, const std::string& error_message)>;
     using event_callback = std::function<

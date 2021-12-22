@@ -57,7 +57,7 @@ namespace frontend {
 ///                    V
 ///                [Tensor C]
 ///
-class FRONTEND_API Place {
+class OPENVINO_API Place {
 public:
     typedef std::shared_ptr<Place> Ptr;
 

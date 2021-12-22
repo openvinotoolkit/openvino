@@ -7,9 +7,9 @@
 #include <memory>
 #include <string>
 
-#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/ov_visibility.hpp"
 
 #ifdef _WIN32
 #    pragma warning(push)

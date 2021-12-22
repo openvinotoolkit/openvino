@@ -6,7 +6,7 @@
 #include <map>
 #include <ostream>
 
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 
 /**
  * @def OPENVINO_VERSION_MAJOR

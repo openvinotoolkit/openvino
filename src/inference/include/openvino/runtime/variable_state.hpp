@@ -28,7 +28,7 @@ class InferRequest;
 /**
  * @brief VariableState class
  */
-class OPENVINO_RUNTIME_API VariableState {
+class OPENVINO_API VariableState {
     std::shared_ptr<InferenceEngine::IVariableStateInternal> _impl;
     std::shared_ptr<void> _so;
 

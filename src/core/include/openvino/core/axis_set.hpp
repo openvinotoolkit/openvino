@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
 
 namespace ov {

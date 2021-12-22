@@ -22,7 +22,7 @@ class RemoteContext;
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
+class OPENVINO_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
     friend class ov::runtime::RemoteContext;
 

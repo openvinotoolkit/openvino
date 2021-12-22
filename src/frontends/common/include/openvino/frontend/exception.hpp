@@ -12,13 +12,13 @@
 
 namespace ov {
 namespace frontend {
-class FRONTEND_API GeneralFailure : public AssertFailure {
+class OPENVINO_API GeneralFailure : public AssertFailure {
 public:
     GeneralFailure(const CheckLocInfo& check_loc_info, const std::string& context, const std::string& explanation)
         : AssertFailure(check_loc_info, "FrontEnd API failed with GeneralFailure: " + context, explanation) {}
 };
 
-class FRONTEND_API InitializationFailure : public AssertFailure {
+class OPENVINO_API InitializationFailure : public AssertFailure {
 public:
     InitializationFailure(const CheckLocInfo& check_loc_info,
                           const std::string& context,
@@ -26,19 +26,19 @@ public:
         : AssertFailure(check_loc_info, "FrontEnd API failed with InitializationFailure: " + context, explanation) {}
 };
 
-class FRONTEND_API OpValidationFailure : public AssertFailure {
+class OPENVINO_API OpValidationFailure : public AssertFailure {
 public:
     OpValidationFailure(const CheckLocInfo& check_loc_info, const std::string& context, const std::string& explanation)
         : AssertFailure(check_loc_info, "FrontEnd API failed with OpValidationFailure: " + context, explanation) {}
 };
 
-class FRONTEND_API OpConversionFailure : public AssertFailure {
+class OPENVINO_API OpConversionFailure : public AssertFailure {
 public:
     OpConversionFailure(const CheckLocInfo& check_loc_info, const std::string& context, const std::string& explanation)
         : AssertFailure(check_loc_info, "FrontEnd API failed with OpConversionFailure: " + context, explanation) {}
 };
 
-class FRONTEND_API NotImplementedFailure : public AssertFailure {
+class OPENVINO_API NotImplementedFailure : public AssertFailure {
 public:
     NotImplementedFailure(const CheckLocInfo& check_loc_info,
                           const std::string& context,

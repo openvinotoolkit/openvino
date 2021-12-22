@@ -35,7 +35,7 @@ class CompiledModel;
  * Such context represents a scope on the device within which executable
  * networks and remote memory blobs can exist, function and exchange data.
  */
-class OPENVINO_RUNTIME_API RemoteContext {
+class OPENVINO_API RemoteContext {
 protected:
     std::shared_ptr<InferenceEngine::RemoteContext> _impl;  //!< Pointer to remote context implementation
     std::shared_ptr<void> _so;                              //!< Reference to shared object that loaded implementation
