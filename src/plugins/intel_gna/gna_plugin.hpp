@@ -16,8 +16,7 @@
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "descriptions/gna_flags.hpp"
-#include "descriptions/gna_input_desc.hpp"
-#include "descriptions/gna_output_desc.hpp"
+#include "descriptions/gna_desc.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "gna_data_types.hpp"
 #include "gna_graph_compiler.hpp"
@@ -38,7 +37,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
-    std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc;
+    std::shared_ptr<GNAPluginNS::GnaInputs> inputs_ptr_;
+    GNAPluginNS::GnaOutputs outputs_;
 
     GNAPluginNS::GNAGraphCompiler graphCompiler;
 
@@ -62,10 +62,6 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     uint32_t num_active_indices = 0;
     uint32_t num_group_in = 0;
     uint32_t dnn_dump_write_index = 0;
-
-    // index matches iterating order of cnnnetwork outputs info
-    std::vector<GNAPluginNS::OutputDesc> outputsDesc = std::vector<OutputDesc>();
-
     intel_dnn_number_type_t output_type = kDnnInt;
 
 #if GNA_LIB_VER == 2
@@ -80,8 +76,9 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      */
     uint32_t rwSegmentSize = 0;
 
-    InferenceEngine::InputsDataMap inputsDataMap;
-    InferenceEngine::OutputsDataMap outputsDataMap;
+    InferenceEngine::InputsDataMap inputs_data_map_;    //!< Holds information about network inputs info
+    InferenceEngine::OutputsDataMap outputs_data_map_;  //!< Holds information about network outputs data
+
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     bool trivialTopology = false;
 
@@ -150,8 +147,20 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     /**
      * helpers to provide inputs info on AOT network
      */
-    InferenceEngine::InputsDataMap GetInputs() {return inputsDataMap;}
-    InferenceEngine::OutputsDataMap GetOutputs() {return outputsDataMap;}
+    InferenceEngine::InputsDataMap GetNetworkInputs() {return inputs_data_map_;}
+    InferenceEngine::OutputsDataMap GetNetworkOutputs() {return outputs_data_map_;}
+    std::vector<std::shared_ptr<const ov::Node>> GetOutputs();
+    std::vector<std::shared_ptr<const ov::Node>> GetInputs();
+    /**
+     * helpers to set inputs/output info on AOT network
+     */
+    void SetNetworkInputs();
+    void SetNetworkOutputs();
+    /**
+     * helpers to update internal inputs/output descriptions from loaded network
+     */
+    void UpdateInputs(const std::vector<std::shared_ptr<const ov::Node>>& params);
+    void UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results);
     /**
      * QueryState API
      * @return
@@ -203,23 +212,17 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                     intel_dnn_orientation_t orientation,
                     float scaleFactor);
 
-    template <typename T, typename U>
-    void copyInputDataWithSplit(T *const dst,
-                    const U *src,
-                    const GNASplitLayer& splitInfo,
-                    size_t precision_size,
-                    int idx = 0);
-
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
+    void UpdateInputsAndOutputsInfoFromModel(const std::shared_ptr<ov::Model> &model);
     /**
      * @brief Tries to init an output on the base of a layer data
      * @param portId output port identificator
      * @param layer layer pointer
      * @return true if the output is initiated, false otherwise
     */
-    bool TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer);
+    bool TryToInitOutput(const std::string &portName, InferenceEngine::CNNLayerPtr layer);
 
     /**
      * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.
