@@ -169,6 +169,8 @@ void lstm_cell_v1(const T* X,
                const Shape& R_shape,
                const T* B,
                const Shape& B_shape,
+               const T* P,
+               const Shape& P_shape,
                T* out_Ht,
                T* out_Ct,
                const std::string& activation_f,
@@ -209,10 +211,10 @@ void lstm_cell_v1(const T* X,
     //
     // ---- Equations ----
     // f, g, h - are activation functions.
-    // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
-    // ft = f(Xt*(Wf^T) + Ht-1*(Rf^T) + Wbf + Rbf)
+    // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Pi (.) Ct-1 + Wbi + Rbi)
+    // ft = f(Xt*(Wf^T) + Ht-1*(Rf^T) + Pf (.) Ct-1 + Wbf + Rbf)
     // ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
-    // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo)
+    // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Po (.) Ct + Wbo + Rbo)
     // Ct = ft (.) Ct-1 + it (.) ct
     // Ht = ot (.) h(Ct)
     // --------------------
