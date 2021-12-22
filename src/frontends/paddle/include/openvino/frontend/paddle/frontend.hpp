@@ -4,15 +4,15 @@
 
 #pragma once
 
+#include <openvino/core/extension.hpp>
 #include <openvino/frontend/extension/decoder_transformation.hpp>
 #include <openvino/frontend/extension/telemetry.hpp>
 #include <openvino/frontend/frontend.hpp>
 #include <openvino/frontend/input_model.hpp>
-#include <openvino/core/extension.hpp>
 
-#include "exceptions.hpp"
-#include "openvino/frontend/paddle/visibility.hpp"
+#include "openvino/frontend/paddle/exceptions.hpp"
 #include "openvino/frontend/paddle/extension/conversion.hpp"
+#include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -70,7 +70,7 @@ protected:
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
-private:
+protected:
     static std::shared_ptr<Model> convert_each_node(
         const std::shared_ptr<InputModel>& frontend_model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,

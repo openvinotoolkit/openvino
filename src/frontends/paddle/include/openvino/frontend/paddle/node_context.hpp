@@ -3,10 +3,10 @@
 //
 
 #pragma once
-#include "exceptions.hpp"
 #include "ngraph/compatibility.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/paddle/decoder.hpp"
+#include "openvino/frontend/paddle/exceptions.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
@@ -25,10 +25,10 @@ class NodeContext : public ov::frontend::NodeContext<NamedOutputs> {
     const NamedInputs& name_map;
 
 public:
-    NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map) :
-        ov::frontend::NodeContext<NamedOutputs>(_decoder.get_op_type(), _name_map),
-        decoder(_decoder),
-        name_map(_name_map) {}
+    NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map)
+        : ov::frontend::NodeContext<NamedOutputs>(_decoder.get_op_type(), _name_map),
+          decoder(_decoder),
+          name_map(_name_map) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <class T>

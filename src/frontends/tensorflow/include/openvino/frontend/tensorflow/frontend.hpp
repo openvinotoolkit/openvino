@@ -66,7 +66,6 @@ protected:
 
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
-private:
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
                          const std::string& model_name,
                          bool fail_fast,

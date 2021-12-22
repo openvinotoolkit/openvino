@@ -24,6 +24,7 @@ public:
     }
 
     ~ConversionExtensionBase() override = 0;
+
 private:
     std::string m_op_type;
 };
@@ -38,6 +39,8 @@ public:
     const CreatorFunction<T>& get_converter() {
         return m_converter;
     };
+
+    ~ConversionExtension() override = default;
 
 private:
     CreatorFunction<T> m_converter;

@@ -8,18 +8,18 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "openvino/frontend/extension/conversion.hpp"
 
 #include "decoder.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
-#include "so_extension.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
+#include "so_extension.hpp"
 
 using namespace ov::opset7;
 using namespace ov;
@@ -133,7 +133,6 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
     return &ext_stream;
 }
 }  // namespace
-
 
 FrontEnd::FrontEnd() : m_op_translators(paddle::get_supported_ops()) {}
 
@@ -308,8 +307,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
-            paddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node),
-                                             m_op_translators);
+            paddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -364,14 +362,15 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_telemetry = telemetry;
     } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_transformation_extensions.push_back(transformation);
-    }  else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+    } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_extensions.push_back(so_ext);
-    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension<NamedOutputs>>(extension)) {
+    } else if (auto common_conv_ext =
+                   std::dynamic_pointer_cast<ov::frontend::ConversionExtension<NamedOutputs>>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         m_op_translators.insert({common_conv_ext->get_op_type(), [=](const NodeContext& context) {
-            return common_conv_ext->get_converter()(context);}
-        });
+                                     return common_conv_ext->get_converter()(context);
+                                 }});
     } else if (const auto& paddle_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(paddle_conv_ext);
         m_op_translators.insert({common_conv_ext->get_op_type(), paddle_conv_ext->get_converter()});

@@ -5,11 +5,9 @@
 #pragma once
 #include <openvino/core/any.hpp>
 
+#include "decoder.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "place.hpp"
-#include "tensor.pb.h"
-#include "types.pb.h"
 
 namespace ov {
 namespace frontend {

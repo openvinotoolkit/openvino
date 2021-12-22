@@ -6,8 +6,8 @@
 
 #include <openvino/frontend/frontend.hpp>
 
-#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
 namespace ov {
@@ -26,7 +26,6 @@ public:
 protected:
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
-private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;

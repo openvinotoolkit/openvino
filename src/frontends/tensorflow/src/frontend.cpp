@@ -6,8 +6,8 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
+#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pass/transpose_sinking.hpp"
@@ -374,11 +374,12 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_telemetry = telemetry;
     } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_transformation_extensions.push_back(transformation);
-    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension<OutputVector>>(extension)) {
+    } else if (auto common_conv_ext =
+                   std::dynamic_pointer_cast<ov::frontend::ConversionExtension<OutputVector>>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         m_op_translators.insert({common_conv_ext->get_op_type(), [=](const NodeContext& context) {
-            return common_conv_ext->get_converter()(context);}
-                                });
+                                     return common_conv_ext->get_converter()(context);
+                                 }});
     } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
         m_op_translators.insert({common_conv_ext->get_op_type(), tensorflow_conv_ext->get_converter()});

@@ -13,6 +13,8 @@ struct ConversionExtensionFEParam {
     std::string m_frontEndName;
     std::string m_modelsPath;
     std::string m_modelName;
+    std::string m_translatorName;
+    std::shared_ptr<ov::frontend::FrontEnd> m_frontend;
 };
 
 class FrontEndConversionExtensionTest : public ::testing::TestWithParam<ConversionExtensionFEParam> {
