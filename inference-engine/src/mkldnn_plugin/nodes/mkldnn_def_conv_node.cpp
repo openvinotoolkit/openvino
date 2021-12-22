@@ -679,6 +679,7 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     || ((getOutputShapeAtPort(0).getStaticDims()[1] / group) % simd_w != 0))) {
         enforceRef = true;
     }
+    enforceRef = true;
 
     if (enforceRef) {
         impl_type = impl_desc_type::ref;

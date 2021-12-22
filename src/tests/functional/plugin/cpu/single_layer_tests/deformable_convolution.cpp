@@ -329,7 +329,7 @@ const auto params1_Smoke = ::testing::Combine(
                                  defConvSpecificParams_Smoke,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                             ::testing::ValuesIn(filterCPUInfoForDevice()));
+                             ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params2_Smoke = ::testing::Combine(
                              ::testing::Combine(
                                  spParams2,
@@ -337,7 +337,7 @@ const auto params2_Smoke = ::testing::Combine(
                                  defConvSpecificParams_Smoke,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                             ::testing::ValuesIn(filterCPUInfoForDevice()));
+                             ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params3_Smoke = ::testing::Combine(
                              ::testing::Combine(
                                  spParams3,
@@ -345,7 +345,7 @@ const auto params3_Smoke = ::testing::Combine(
                                  defConvSpecificParams_Smoke,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                             ::testing::ValuesIn(filterCPUInfoForDevice()));
+                             ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params4_Smoke = ::testing::Combine(
                              ::testing::Combine(
                                  spParams4,
@@ -353,7 +353,7 @@ const auto params4_Smoke = ::testing::Combine(
                                  defConvSpecificParams_Smoke,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                             ::testing::ValuesIn(filterCPUInfoForDevice()));
+                             ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params5_Smoke = ::testing::Combine(
                              ::testing::Combine(
                                  spParams4,
@@ -375,7 +375,7 @@ const auto params1 = ::testing::Combine(
                              defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+                         ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params2 = ::testing::Combine(
                          ::testing::Combine(
                              spParams2,
@@ -383,7 +383,7 @@ const auto params2 = ::testing::Combine(
                              defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+                         ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params3 = ::testing::Combine(
                          ::testing::Combine(
                              spParams3,
@@ -391,7 +391,7 @@ const auto params3 = ::testing::Combine(
                              defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+                         ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params4 = ::testing::Combine(
                          ::testing::Combine(
                              spParams4,
@@ -399,7 +399,7 @@ const auto params4 = ::testing::Combine(
                              defConvSpecificParams,
                              ::testing::ValuesIn(netPrecisions),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+                         ::testing::ValuesIn(filterCPUInfoForDevice(true)));
 const auto params5 = ::testing::Combine(
                          ::testing::Combine(
                              spParams4,
