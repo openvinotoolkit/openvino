@@ -128,6 +128,7 @@ ie_faster_build(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
+                                                      IMPLEMENT_OPENVINO_API
                                                       $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_COMPILE_DEFINITIONS>)
