@@ -288,16 +288,23 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 while (!_exitFlag && !_loadContext[ACTUALDEVICE].isAlready)
                     _recycleCond.wait(lock, [this]{ return _switchReady; });
             }
-            if (!_exitFlag) {
+            while (!_exitFlag) {
                 // clean up helper infer requests
-                // wait for all the remaining requests to finish
+                // first, wait for all the remaining requests to finish
                 for (auto& iter : _workerRequests["CPU_HELP"]) {
                     iter._inferRequest._ptr->Wait(InferRequest::WaitMode::RESULT_READY);
                 }
-                // safe to clear now
-                {
-                    std::lock_guard<std::mutex> lock(_recycleMutex);
+                // late enough to check the idle queue now
+                // second, check the idle queue if all requests are in place
+                size_t destroynum = 0;
+                WorkerInferRequest *workerRequestPtr = nullptr;
+                while (_idleWorkerRequests["CPU_HELP"].try_pop(workerRequestPtr))
+                    destroynum++;
+                if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     _workerRequests["CPU_HELP"].clear();
+                    _loadContext[CPU].executableNetwork._ptr.reset();
+                    _loadContext[CPU].executableNetwork._so.reset();
+                    break;
                 }
             }
         };
