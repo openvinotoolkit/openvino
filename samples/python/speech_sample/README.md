@@ -108,8 +108,7 @@ Options:
   -i INPUT, --input INPUT
                         Required. Path to an input file (.ark or .npz).
   -o OUTPUT, --output OUTPUT
-                        Optional. Output file name to save inference results
-                        (.ark or .npz).
+                        Optional. Output file name to save inference results (.ark or .npz).
   -r REFERENCE, --reference REFERENCE
                         Optional. Read reference score file and compare
                         scores.
@@ -176,8 +175,8 @@ Options:
 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
 
-```
-python <path_to_mo>/mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <path_to_dir>
+```sh
+mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 The following pre-trained models are available:
