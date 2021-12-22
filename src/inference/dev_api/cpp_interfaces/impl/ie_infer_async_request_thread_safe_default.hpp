@@ -244,6 +244,16 @@ public:
         _syncRequest->SetBlob(name, data, info);
     }
 
+    void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) override {
+        CheckState();
+        _syncRequest->SetBlobs(name, blobs);
+    }
+
+    BatchedBlob::Ptr GetBlobs(const std::string& name) override {
+        CheckState();
+        return _syncRequest->GetBlobs(name);
+    }
+
     Blob::Ptr GetBlob(const std::string& name) override {
         CheckState();
         return _syncRequest->GetBlob(name);

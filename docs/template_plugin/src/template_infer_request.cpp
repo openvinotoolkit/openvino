@@ -269,6 +269,7 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
 void TemplateInferRequest::inferPreprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Preprocess]);
     auto start = Time::now();
+    convertBatchedInputBlobs();
     // NOTE: After IInferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
     IInferRequestInternal::execDataPreprocessing(_deviceInputs);
@@ -480,6 +481,7 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
             _inputs[name] = userBlob;
             devBlob = userBlob;
         }
+        _batched_inputs.erase(name);
     } else {
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
@@ -512,6 +514,12 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
     }
 }
 // ! [infer_request:set_blob]
+
+// ! [infer_request:set_blobs_impl]
+void TemplateInferRequest::SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batchedBlob) {
+    _batched_inputs[name] = batchedBlob;
+}
+// ! [infer_request:set_blobs_impl]
 
 // ! [infer_request:get_performance_counts]
 std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerformanceCounts() const {
