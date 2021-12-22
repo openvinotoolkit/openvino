@@ -111,7 +111,7 @@ inline NamedOutputs NodeContext::default_single_output_mapping(
 }
 
 using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
-using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
+using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov

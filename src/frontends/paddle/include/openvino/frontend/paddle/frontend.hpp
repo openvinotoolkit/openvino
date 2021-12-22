@@ -22,7 +22,7 @@ class OpPlace;
 
 class PADDLE_API FrontEnd : public ov::frontend::FrontEnd {
 public:
-    FrontEnd() = default;
+    FrontEnd();
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted OV Model

@@ -134,6 +134,9 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
 }
 }  // namespace
 
+
+FrontEnd::FrontEnd() : m_op_translators(paddle::get_supported_ops()) {}
+
 std::shared_ptr<ov::Model> FrontEnd::convert_each_node(
     const std::shared_ptr<ov::frontend::InputModel>& frontend_model,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
@@ -294,11 +297,10 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
         return function;
     }
 
-    std::map<std::string, paddle::CreatorFunction> CREATORS_MAP = paddle::get_supported_ops();
     auto f = convert_each_node(
         paddle_model,
         [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlace>& op_place) {
-            return paddle::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+            return paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
         });
     return f;
 }
@@ -307,7 +309,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
             paddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node),
-                                             paddle::get_supported_ops());
+                                             m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -331,13 +333,12 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
         return function;
     }
 
-    std::map<std::string, paddle::CreatorFunction> CREATORS_MAP = paddle::get_supported_ops();
     auto f = convert_each_node(
         paddle_model,
         [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlace>& op_place) {
             paddle::NamedOutputs named_outputs;
             try {
-                named_outputs = paddle::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+                named_outputs = paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
             } catch (const OpConversionFailure&) {
                 named_outputs = paddle::make_framework_node(nodes_dict, op_place);
             }
@@ -350,7 +351,6 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const 
     auto paddle_model = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(paddle_model != nullptr, "Invalid input model");
 
-    std::map<std::string, paddle::CreatorFunction> CREATORS_MAP = paddle::get_supported_ops();
     auto f = convert_each_node(paddle_model, paddle::make_framework_node);
     return f;
 }
