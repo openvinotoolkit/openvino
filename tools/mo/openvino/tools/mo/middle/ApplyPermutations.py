@@ -83,8 +83,7 @@ class ApplyPermutation(MiddleReplacementPattern):
                 permutation_data_node = get_node_with_permutation(node, port_info)
 
                 if permutation_data_node.has_and_set('permutation') and \
-                        not is_input_data_in_correct_layout(node, in_port) and \
-                        not is_input_data_in_correct_layout(node, port) and check_shape(port_to_check):
+                        not is_input_data_in_correct_layout(node, in_port) and check_shape(port_to_check):
                     permutation(node, port_info, in_port)
             if node.has_and_set('need_shape_inference'):
                 node.infer(node)
