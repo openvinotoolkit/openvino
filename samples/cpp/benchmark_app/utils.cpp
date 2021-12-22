@@ -370,7 +370,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(const std::
             }
         }
         search_string = search_string.substr(end_pos + 1);
-        if (search_string.empty() || search_string.front() != ',' && search_string.front() != '[')
+        if (search_string.empty() || (search_string.front() != ',' && search_string.front() != '['))
             break;
         if (search_string.front() == ',')
             search_string = search_string.substr(1);
