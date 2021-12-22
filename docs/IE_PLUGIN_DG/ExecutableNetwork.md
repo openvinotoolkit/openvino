@@ -1,5 +1,16 @@
 # Executable Network {#openvino_docs_ie_plugin_dg_executable_network}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Executable Network
+   :hidden:
+
+   Low Precision Transformations <openvino_docs_IE_DG_lpt>
+
+@endsphinxdirective
+
 `ExecutableNetwork` class functionality:
 - Compile an InferenceEngine::ICNNNetwork instance to a backend specific graph representation
 - Create an arbitrary number of `InferRequest` objects

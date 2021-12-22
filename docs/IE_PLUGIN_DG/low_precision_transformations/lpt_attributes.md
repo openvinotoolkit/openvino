@@ -1,5 +1,21 @@
 # Attributes {#openvino_docs_IE_DG_lpt_attributes}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Attributes
+   :hidden:
+
+   AvgPoolPrecisionPreserved <openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved>
+   IntervalsAlignment <openvino_docs_IE_DG_lpt_IntervalsAlignment>
+   PerTensorQuantization <openvino_docs_IE_DG_lpt_PerTensorQuantization>
+   PrecisionPreserved <openvino_docs_IE_DG_lpt_PrecisionPreserved>
+   Precisions <openvino_docs_IE_DG_lpt_Precisions>
+   QuantizationAlignment <openvino_docs_IE_DG_lpt_QuantizationAlignment>
+
+@endsphinxdirective
+
 ## Introduction
 
 | Name                                                                                | Target                 | Required | Mutable |
