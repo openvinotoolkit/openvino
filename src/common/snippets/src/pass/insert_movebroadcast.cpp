@@ -3,7 +3,7 @@
 //
 
 #include "remarks.hpp"
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -138,6 +138,7 @@ auto reset_broacast_config(const std::shared_ptr<ngraph::Node>& op) -> void {
 ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
     MATCHER_SCOPE(InsertMoveBroadcast);
     ngraph::graph_rewrite_callback callback = [this](ngraph::pattern::Matcher &m) {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertMoveBroadcast")
         auto root = m.get_match_root();
         const auto& values = root->input_values();
         if (values.empty()) {
@@ -173,8 +174,8 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
     auto any = std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
             // should add supports_auto_broadcast to SquaredDifference
-            return (ngraph::op::supports_auto_broadcast(n) || !!as_type_ptr<opset1::SquaredDifference>(n) || !!as_type_ptr<opset1::Mod>(n))
-                && n->get_autob().m_type == ngraph::op::AutoBroadcastType::NUMPY; });
+            return ((ngraph::op::supports_auto_broadcast(n) || is_type<opset1::SquaredDifference>(n) || is_type<opset1::Mod>(n)) &&
+                 n->get_autob().m_type == ngraph::op::AutoBroadcastType::NUMPY) || is_type<opset1::PRelu>(n); });
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(any), callback);
 }
