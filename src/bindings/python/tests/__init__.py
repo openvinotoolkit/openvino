@@ -24,7 +24,6 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
-xfail_issue_FLOAT_LIKE = xfail_test(reason="Use of bfloat16 or float16")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
@@ -77,7 +76,6 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44851 = xfail_test(reason="Expected: Unsupported dynamic op: Broadcast")
-xfail_issue_44854 = xfail_test(reason="Expected: Unsupported dynamic op: VariadicSplit")
 xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsqueeze")
 xfail_issue_44956 = xfail_test(reason="Expected: Unsupported dynamic op: Loop")
 xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero")

@@ -160,7 +160,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                                                "dequantized",
                                                input_dt,
                                                1,
-                                               LoadType::LT_ALIGNED_READ,
+                                               LoadType::LT_UNALIGNED,
                                                BoundaryCheck::ENABLED,
                                                IndexType::TENSOR_COORD,
                                                Tensor::DataChannelName::Y };
