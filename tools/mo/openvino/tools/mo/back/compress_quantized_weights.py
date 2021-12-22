@@ -144,18 +144,6 @@ class CompressQuantizeWeights(BackReplacementPattern):
         cast.out_port(0).connect(fake_quantize.in_port(0))
 
     @staticmethod
-    def convert_to(source_port: Port, dst_type: type):
-        precise_in_low = Cast(source_port.node.graph, {
-            'name': source_port.node.name + '_precise',
-            'dst_type': dst_type}).create_node()
-        precise_in_low.in_port(0).connect(source_port)
-        return precise_in_low.out_port(0)
-
-    @staticmethod
-    def make_precise(source_port):
-        return CompressQuantizeWeights.convert_to(source_port, np.float32)
-
-    @staticmethod
     def dequantize_data(fake_quantize: Node, dst_type: type, quantized_type: type) -> Node:
         graph = fake_quantize.graph
         quantized_data = fake_quantize.in_port(0).get_source().node
@@ -169,14 +157,11 @@ class CompressQuantizeWeights(BackReplacementPattern):
             dst_type=dst_type, stop_value_propagation=True)).create_node()
         fake_quantize.in_port(0).get_connection().set_destination(dequantizing_cast.in_port(0))
 
-        # performing calculation based on fq limits (scale and zero point) in fp32
-        make_precise = CompressQuantizeWeights.make_precise
-
         # limits of dequantize
-        in_low = make_precise(fake_quantize.in_port(1).get_source())
-        in_high = make_precise(fake_quantize.in_port(2).get_source())
-        out_low = make_precise(fake_quantize.in_port(3).get_source())
-        out_high = make_precise(fake_quantize.in_port(4).get_source())
+        in_low = fake_quantize.in_port(1).get_source()
+        in_high = fake_quantize.in_port(2).get_source()
+        out_low = fake_quantize.in_port(3).get_source()
+        out_high = fake_quantize.in_port(4).get_source()
 
         # scale calculation
         output_range = Sub(graph, {'name': name + '/output_range'}).create_node()
@@ -210,23 +195,28 @@ class CompressQuantizeWeights(BackReplacementPattern):
         zero_point.in_port(1).connect(zero.out_port(0))
         zero_point.in_port(2).connect(shift.out_port(0))
         
-        convert_to = CompressQuantizeWeights.convert_to
-        
-        scale = convert_to(scale.out_port(0), dst_type)
-        zero_point = convert_to(zero_point.out_port(0), dst_type)
-        
         # DeQuantize(x) == Mul(Sub(x, zero_point), scale)
         sub_zp = Sub(graph, {'name': name + '/minus_zp'}).create_node()
         sub_zp.in_port(0).connect(dequantizing_cast.out_port(0))
-        sub_zp.in_port(1).connect(zero_point)
+        sub_zp.in_port(1).connect(zero_point.out_port(0))
 
         mul_scale = Mul(graph, {'name': name + '/mulpiply_by_scale'}).create_node()
         mul_scale.in_port(0).connect(sub_zp.out_port(0))
-        mul_scale.in_port(1).connect(scale)
+        mul_scale.in_port(1).connect(scale.out_port(0))
 
         fake_quantize.out_port(0).get_connection().set_source(mul_scale.out_port(0))
 
         graph.remove_nodes_from([fake_quantize.id, fake_quantize.out_node(0)])
+
+    @staticmethod
+    def make_calculations_precise(graph: Graph, fake_quantize: Node):
+        name = fake_quantize.soft_get('name', fake_quantize.id) + '_precise_in_port_'
+        for i in range(5):
+            convert = Cast(graph, {'name': name + str(i), 'dst_type': np.float32}).create_node()
+            in_node = fake_quantize.in_port(i).get_connection().get_source().node
+            fake_quantize.in_port(i).get_connection().insert_node(convert)
+            in_node.infer(in_node)
+            convert.infer(convert)
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         fake_quantize = match['fake_quantize']
@@ -240,6 +230,10 @@ class CompressQuantizeWeights(BackReplacementPattern):
             if quantization_levels >= fake_quantize.levels:
                 quantized_type, mode = self.QUANTIZATION_MAP[quantization_levels]
                 break
+
+        if np.issubdtype(dst_type, np.floating):
+            # this piece is to force f32 precision intermediate calculations
+            self.make_calculations_precise(graph, fake_quantize)
 
         self.quantize_data(fake_quantize, dst_type, quantized_type, mode)
         self.dequantize_data(fake_quantize, dst_type, quantized_type)
