@@ -47,7 +47,7 @@ jobs:
 
       - name: Build doc
         run: |
-          cmake --build . --target sphinx_docs
+          cmake --build . --target sphinx_docs -j8
         working-directory: build
       
       - name: Archive HTML
@@ -58,6 +58,8 @@ jobs:
       - name: Run Pytest
         run: |
           pytest --doxygen="./build/docs/doxygen.log" \
+                 --sphinx="./build/docs/sphinx.log" \
+                 --suppress-warnings="./docs/suppress_warnings.txt" \
                  --confcutdir="./docs/scripts/tests/" \
                  --html="./build/docs/_artifacts/doc-generation.html" \
                  --doxygen-strip="$(pwd)" \

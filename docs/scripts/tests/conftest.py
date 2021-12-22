@@ -26,10 +26,20 @@ def pytest_addoption(parser):
     """ Define extra options for pytest options
     """
     parser.addoption('--doxygen', help='Doxygen log path to run tests for')
+    parser.addoption('--sphinx', help='Sphinx log path to run tests for')
     parser.addoption(
         '--doxygen-strip',
         default='tmp_docs/',
         help='Path to strip from paths found in doxygen log')
+    parser.addoption(
+        '--sphinx-strip',
+        default='tmp_docs/',
+        help='Path to strip from paths found in sphinx log')
+    parser.addoption(
+        '--suppress-warnings',
+        action='append',
+        default=[],
+        help='A list of warning patterns to suppress')
     parser.addoption(
         '--doxygen-xfail',
         action='append',
@@ -88,9 +98,20 @@ def read_lists(configs):
 def pytest_generate_tests(metafunc):
     """ Generate tests depending on command line options
     """
-    # read log
+
+    # warnings to ignore
+    suppress_warnings = read_lists(metafunc.config.getoption('suppress_warnings'))
+    # read doxygen log
     with open(metafunc.config.getoption('doxygen'), 'r') as log:
-        all_files = parse(log.read(), metafunc.config.getoption('doxygen_strip'))
+        doxygen_warnings = parse(log.read(), metafunc.config.getoption('doxygen_strip'), suppress_warnings)
+
+    # read sphinx log
+    with open(metafunc.config.getoption('sphinx'), 'r', encoding='windows-1252') as log:
+        sphinx_warnings = parse(log.read(), metafunc.config.getoption('sphinx_strip'), suppress_warnings)
+
+    all_warnings = dict()
+    all_warnings.update(doxygen_warnings)
+    all_warnings.update(sphinx_warnings)
 
     exclude_links = {'open_model_zoo', 'workbench', 'pot',  'gst', 'omz', 'ovms'}
     if metafunc.config.getoption('include_omz'):
@@ -104,8 +125,8 @@ def pytest_generate_tests(metafunc):
     if metafunc.config.getoption('include_ovms'):
         exclude_links.remove('ovms')
 
-    filtered_keys = filter(lambda line: not any([line.startswith(repo) for repo in exclude_links]), all_files)
-    files = {key: all_files[key] for key in filtered_keys}
+    filtered_keys = filter(lambda line: not any([line.startswith(repo) for repo in exclude_links]), all_warnings)
+    files = {key: all_warnings[key] for key in filtered_keys}
     # read mute lists
     marks = dict()
     marks.update(

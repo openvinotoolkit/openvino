@@ -24,7 +24,8 @@ def strip_timestmp(text):
 def strip_path(path, strip):
     """Strip `path` components ends on `strip`
     """
-    strip = strip.replace('\\', '/')
+    path = path.replace('\\', '/').lower()
+    strip = strip.replace('\\', '/').lower()
     if not strip.endswith('/'):
         strip = strip + '/'
     new_path = path.split(strip)[-1]
@@ -37,6 +38,8 @@ def _get_file_line(text):
     """Extracts file and line from Doxygen warning line
     """
     if text:
+        if text.count(':') == 1:
+            return text, ''
         location = text.split()[-1]
         file_line = location.rsplit(':', 1)
         if len(file_line) == 2:
@@ -44,17 +47,19 @@ def _get_file_line(text):
     return '', ''
 
 
-def parse(log, strip):
+def parse(log, strip, suppress_warnings=list()):
     """Extracts {file: errors} from doxygen log
     """
     log = log.splitlines()
     files = defaultdict(lambda: set())  # pylint: disable=unnecessary-lambda
     idx = 0
     prev_file = ''
-    prev_line = ''
     while idx < len(log):  # pylint: disable=too-many-nested-blocks
         try:
-            log_line = strip_timestmp(log[idx]).strip()
+            errors = []
+            log_line = strip_timestmp(log[idx]).strip().lower()
+            # remove unnecessary characters
+            log_line = log_line.replace('\x1b[91m', '')
             processing_verb = next(
                 filter(log_line.startswith,
                        ('Reading /', 'Parsing file /', 'Preprocessing /')),
@@ -64,32 +69,38 @@ def parse(log, strip):
                                  strip)] = set()
             elif 'warning:' in log_line:
                 warning = list(map(str.strip, log_line.split(': warning:')))
-                file, line = _get_file_line(warning[0])
-                file = strip_path(file, strip)
                 if len(warning) == 1:
                     file = prev_file
-                    line = prev_line
                     error = warning[0]
                 else:
+                    file = warning[0]
                     error = warning[1]
+                error = error.replace('[39;49;00m', '')
+                file, line = _get_file_line(file)
+                file = strip_path(file, strip)
+                errors.append(error)
                 if error.endswith(':'):
-                    continuation = []
                     while idx + 1 < len(log):
-                        peek = strip_timestmp(log[idx + 1])
+                        peek = strip_timestmp(log[idx + 1]).replace('[39;49;00m', '')
                         if not peek.startswith('  '):
                             break
-                        continuation += [peek]
+                        errors.append(peek)
                         idx += 1
-                    error += ';'.join(continuation)
+
+                errors = list(filter(lambda item: not any([re.match(warning, item) for warning in suppress_warnings]), errors))
+
+                if not errors:
+                    idx += 1
+                    continue
+
                 if line:
-                    error = '{error} (line: {line})'.format(
-                        line=line, error=error)
+                    errors[0] = '{error} (line: {line})'.format(
+                        line=line, error=errors[0])
                 if not file or 'deprecated' in file:
-                    files['doxygen_errors'].update([error])
+                    files['doxygen_errors'].update(errors)
                 else:
                     prev_file = file
-                    prev_line = line
-                    files[file].update([error])
+                    files[file].update(errors)
             elif log_line.startswith('explicit link request') and 'in layout file' in log_line:
                 match = re.search(r"\'(.+?)\'", log_line)
                 if match:
