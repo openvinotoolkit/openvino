@@ -22,15 +22,14 @@ class FRONTEND_API NodeContext {
 public:
     NodeContext(const std::string& _op_type, const T& inputs) : m_op_type(_op_type), m_inputs(inputs) {}
 
-    T get_inputs() const {
+    virtual T get_inputs() const {
         return m_inputs;
     }
 
-    const std::string& op_type() const {
+    /// Get operation type
+    virtual const std::string& get_op_type() const {
         return m_op_type;
     }
-
-    ~NodeContext() = default;
 
 private:
     std::string m_op_type;

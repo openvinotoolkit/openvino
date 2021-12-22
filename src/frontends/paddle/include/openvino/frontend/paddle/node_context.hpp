@@ -91,10 +91,6 @@ public:
         return decoder.get_out_port_type(port_name);
     }
 
-    std::string get_op_type() const {
-        return decoder.get_op_type();
-    }
-
     NamedOutputs default_single_output_mapping(const std::shared_ptr<Node>& node,
                                                const std::vector<OutPortName>& required_pdpd_out_names) const;
 };

@@ -83,11 +83,6 @@ public:
         return m_inputs.size();
     }
 
-    /// Get operation type
-    std::string get_op_type() const {
-        return m_decoder.get_op_type();
-    }
-
     /// Get a node name
     std::string get_name() const {
         return m_decoder.get_op_name();
