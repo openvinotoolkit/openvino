@@ -18,7 +18,7 @@ public:
     ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
-    CreatorFunction get_converter() {
+    const CreatorFunction& get_converter() {
         return m_converter;
     }
 

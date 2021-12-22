@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include "openvino/core/extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/frontend.hpp"
-#include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/visibility.hpp"
 
@@ -25,7 +23,7 @@ public:
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
 
-    CreatorFunction get_converter() {
+    const CreatorFunction& get_converter() {
         return m_converter;
     }
 

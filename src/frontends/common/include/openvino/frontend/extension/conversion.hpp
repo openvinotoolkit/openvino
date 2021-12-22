@@ -8,13 +8,9 @@
 #include <iostream>
 #include <type_traits>
 
-#include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/visibility.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace frontend {
@@ -28,7 +24,6 @@ public:
     }
 
     ~ConversionExtensionBase() override = 0;
-
 private:
     std::string m_op_type;
 };
@@ -39,7 +34,7 @@ public:
     ConversionExtension(const std::string& op_type, const CreatorFunction<T>& converter)
         : ConversionExtensionBase(op_type) {}
 
-    CreatorFunction<T> get_converter() {
+    const CreatorFunction<T>& get_converter() {
         return m_converter;
     };
 
