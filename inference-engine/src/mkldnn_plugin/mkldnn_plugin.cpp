@@ -635,12 +635,14 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     num_streams = std::max(default_num_streams, num_streams_less_aggressive);
                 }
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-                if (engConfig.perfHintsConfig.ovPerfHintNumRequests)  // set thru SetConfig to the plugin
-                    num_streams = std::min(engConfig.perfHintsConfig.ovPerfHintNumRequests,
-                            engConfig.perfHintsConfig.ovPerfHintNumRequests);
-                if (num_requests != config.end())   // arrived with config to the LoadNetwork (and thus higher pri)
+                if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
+                    auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
+                    if (val > 0)
+                        num_streams = std::min(num_streams, val);
+                } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  //set thru SetConfig to the plugin, 2nd priority
                     num_streams = std::min(num_streams,
-                            PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
+                                           engConfig.perfHintsConfig.ovPerfHintNumRequests);
+                }
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
            }
         }
