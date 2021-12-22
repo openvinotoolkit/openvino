@@ -207,7 +207,7 @@ For more information about the Model Optimizer, refer to the [Model Optimizer De
    sudo ./install_prerequisites.sh
    ```
 
-3. **Optional:** You can choose to install Model Optimizer support for only certain frameworks. In the same directory are individual scripts for Caffe, TensorFlow 1.x, TensorFlow 2.x, MXNet, Kaldi, and ONNX (`install_prerequisites_caffe.sh`, etc.). If you see error messages, make sure you installed all dependencies. 
+3. **Optional:** You can choose to install Model Optimizer support for only certain frameworks. In the same directory are individual scripts for Caffe, TensorFlow, MXNet, Kaldi, and ONNX (`install_prerequisites_caffe.sh`, etc.). If you see error messages, make sure you installed all dependencies. 
    
 The Model Optimizer is configured for one or more frameworks.
 
