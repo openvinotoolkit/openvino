@@ -281,7 +281,6 @@ void GNAPlugin::ImportFrames(void *ptr_dst,
                             uint32_t num_group,
                             uint32_t num_vector_elements,
                             uint32_t num_vector_stride) {
-    //
     switch (input_precision) {
     case Precision::U8:
     case Precision::I8:
@@ -1437,13 +1436,13 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #endif
             switch (outputBlob->getTensorDesc().getPrecision()) {
             case InferenceEngine::Precision::FP32 :
-                CastPrecision(outputBlob->buffer().as<float*>(),
+                UnscaleAndCast(outputBlob->buffer().as<float*>(),
                               outputBlob->buffer().as<int32_t*>(),
                               elementsPerBatch, batchSize, outputDesc.scale_factor);
                 break;
 
             case InferenceEngine::Precision::I32 :
-                CastPrecision(outputBlob->buffer().as<int32_t*>(),
+                UnscaleAndCast(outputBlob->buffer().as<int32_t*>(),
                               outputBlob->buffer().as<int32_t*>(),
                               elementsPerBatch, batchSize, outputDesc.scale_factor);
                 break;
