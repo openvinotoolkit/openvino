@@ -33,8 +33,6 @@ protected:
     /// \param axes Axes to perform FFT
     /// \param signal_size Signal sizes for 'axes'
     FFTBase(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size);
-
-    void validate();
 };
 }  // namespace util
 }  // namespace op
