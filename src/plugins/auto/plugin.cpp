@@ -217,7 +217,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
     } else {
-        IE_THROW() << "Unsupported metric key " << name;
+        IE_THROW() << "Unsupported metric key: " << name;
     }
 }
 
@@ -271,7 +271,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
         if (supportDevicesByConfig.size() == 0) {
-             IE_THROW() << "there is no device support the configure";
+             IE_THROW() << "There is no device support the configure";
         }
         auto supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
         // replace the configure with configure that auto want to pass to device
