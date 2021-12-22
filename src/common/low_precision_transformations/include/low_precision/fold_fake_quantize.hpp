@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API FoldFakeQuantizeTransformation : public LayerTransformation {
+class OPENVINO_API FoldFakeQuantizeTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     FoldFakeQuantizeTransformation(const Params& params = Params());

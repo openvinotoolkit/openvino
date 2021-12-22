@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API ReshapeTransformation : public LayerTransformation {
+class OPENVINO_API ReshapeTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReshapeTransformation(const Params& params = Params());

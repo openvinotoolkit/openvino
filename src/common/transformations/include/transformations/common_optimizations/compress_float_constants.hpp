@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "transformations_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API CompressFloatConstantsImpl;
-class TRANSFORMATIONS_API AddOldApiMapToParameters;
-class TRANSFORMATIONS_API CompressFloatConstants;
+class OPENVINO_API CompressFloatConstantsImpl;
+class OPENVINO_API AddOldApiMapToParameters;
+class OPENVINO_API CompressFloatConstants;
 
 }  // namespace pass
 }  // namespace ov

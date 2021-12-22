@@ -6,14 +6,14 @@
 
 #include <memory>
 #include <vector>
-#include <low_precision/lpt_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API PullTransposeThroughDequantization;
+class OPENVINO_API PullTransposeThroughDequantization;
 
 }  // namespace low_precision
 }  // namespace pass

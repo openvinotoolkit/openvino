@@ -5,12 +5,12 @@
 #pragma once
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertDetectionOutput1ToDetectionOutput8;
+class OPENVINO_API ConvertDetectionOutput1ToDetectionOutput8;
 
 }  // namespace pass
 }  // namespace ngraph

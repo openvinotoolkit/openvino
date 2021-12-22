@@ -19,7 +19,7 @@
 #include <openvino/core/rtti.hpp>
 #include <set>
 #include <string>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <utility>
 
 namespace ov {
@@ -39,7 +39,7 @@ class OldApiMapOrder;
  *  Order of the transpose which should be applied to Result with new API layout to
  *  obtain Result with old API layout.
  */
-class TRANSFORMATIONS_API OldApiMapOrder : public RuntimeAttribute {
+class OPENVINO_API OldApiMapOrder : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("old_api_map_order", "0");
 

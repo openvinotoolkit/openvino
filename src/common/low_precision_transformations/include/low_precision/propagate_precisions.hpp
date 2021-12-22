@@ -10,13 +10,13 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <low_precision/lpt_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API PropagatePrecisions;
+class OPENVINO_API PropagatePrecisions;
 
 }  // namespace low_precision
 }  // namespace pass

@@ -10,17 +10,17 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertTensorIteratorToLSTMSequence;
-class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
-class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
-class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
+class OPENVINO_API ConvertTensorIteratorToLSTMSequence;
+class OPENVINO_API ConvertTensorIteratorToRNNSequence;
+class OPENVINO_API ConvertTensorIteratorToGRUSequence;
+class OPENVINO_API ConvertTensorIteratorToSequence;
 
 }  // namespace pass
 }  // namespace ngraph

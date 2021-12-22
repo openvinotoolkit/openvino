@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertMVN1ToMVN6;
+class OPENVINO_API ConvertMVN1ToMVN6;
 
 }  // namespace pass
 }  // namespace ngraph

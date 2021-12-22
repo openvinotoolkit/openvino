@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API MultiplyTransformation : public EltwiseBaseTransformation {
+class OPENVINO_API MultiplyTransformation : public EltwiseBaseTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     MultiplyTransformation(const Params& params = Params());

@@ -13,7 +13,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API VariadicSplitTransformation : public SplitTransformation {
+class OPENVINO_API VariadicSplitTransformation : public SplitTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     VariadicSplitTransformation(const Params& params = Params());

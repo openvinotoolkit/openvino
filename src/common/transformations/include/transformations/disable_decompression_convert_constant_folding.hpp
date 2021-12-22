@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "transformations_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API DisableDecompressionConvertConstantFolding;
+class OPENVINO_API DisableDecompressionConvertConstantFolding;
 
 }  // namespace pass
 }  // namespace ov

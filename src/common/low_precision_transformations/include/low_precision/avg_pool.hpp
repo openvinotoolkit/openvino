@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API AvgPoolTransformation : public LayerTransformation {
+class OPENVINO_API AvgPoolTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     AvgPoolTransformation(const Params& params = Params());

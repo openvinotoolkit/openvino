@@ -19,7 +19,7 @@
 #include <openvino/core/rtti.hpp>
 #include <set>
 #include <string>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <utility>
 
 namespace ov {
@@ -28,7 +28,7 @@ namespace ov {
  * @brief OldApiMapElementType class represents runtime info attribute that stores legacy type
  * that is required for obtaining IR in old API.
  */
-class TRANSFORMATIONS_API OldApiMapElementType : public RuntimeAttribute {
+class OPENVINO_API OldApiMapElementType : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("old_api_map_element_type", "0");
 

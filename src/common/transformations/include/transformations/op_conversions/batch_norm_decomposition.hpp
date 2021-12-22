@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
 
@@ -18,7 +18,7 @@ using namespace std;
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API BatchNormDecomposition;
+class OPENVINO_API BatchNormDecomposition;
 
 }  // namespace pass
 }  // namespace ngraph

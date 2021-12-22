@@ -13,13 +13,13 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/variant.hpp>
 
-#include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
 namespace ngraph {
 
-class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedAttribute<std::vector<ngraph::element::Type>> {
+class OPENVINO_API PrecisionsAttribute : public SharedAttribute<std::vector<ngraph::element::Type>> {
 public:
     OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute, 0);
     PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions);

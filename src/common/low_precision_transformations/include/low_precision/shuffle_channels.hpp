@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API ShuffleChannelsTransformation : public LayerTransformation {
+class OPENVINO_API ShuffleChannelsTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     ShuffleChannelsTransformation(const Params& params = Params());

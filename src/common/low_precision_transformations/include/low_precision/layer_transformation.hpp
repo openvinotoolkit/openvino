@@ -39,7 +39,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API DataPrecision {
+class OPENVINO_API DataPrecision {
 public:
     DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
 
@@ -193,7 +193,7 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 }
 
 // Base class for all LP transformations, holds some common data structures
-class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
+class OPENVINO_API LayerTransformation : public ngraph::pass::MatcherPass {
     static std::vector<ngraph::element::Type> defaultPrecisions;
     static std::mutex defaultPrecisionsMutex;
 

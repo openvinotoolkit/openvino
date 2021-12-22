@@ -7,13 +7,13 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API RemoveConcatZeroDimInput;
+class OPENVINO_API RemoveConcatZeroDimInput;
 
 }  // namespace pass
 }  // namespace ov

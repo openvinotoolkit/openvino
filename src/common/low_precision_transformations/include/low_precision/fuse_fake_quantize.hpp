@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API FuseFakeQuantizeTransformation : public LayerTransformation {
+class OPENVINO_API FuseFakeQuantizeTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     FuseFakeQuantizeTransformation(const Params& params);

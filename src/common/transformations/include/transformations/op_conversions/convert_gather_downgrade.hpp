@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertGather7ToGather1;
-class TRANSFORMATIONS_API ConvertGather8ToGather7;
+class OPENVINO_API ConvertGather7ToGather1;
+class OPENVINO_API ConvertGather8ToGather7;
 
 }  // namespace pass
 }  // namespace ngraph

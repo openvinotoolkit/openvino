@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
@@ -17,10 +17,10 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API StridedSliceOptimization;
-class TRANSFORMATIONS_API UselessStridedSliceEraser;
-class TRANSFORMATIONS_API SharedStridedSliceEraser;
-class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
+class OPENVINO_API StridedSliceOptimization;
+class OPENVINO_API UselessStridedSliceEraser;
+class OPENVINO_API SharedStridedSliceEraser;
+class OPENVINO_API GroupedStridedSliceOptimizer;
 
 }  // namespace pass
 }  // namespace ngraph

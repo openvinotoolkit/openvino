@@ -10,7 +10,7 @@
 #include <vector>
 #include <limits>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -154,31 +154,31 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
     return const_values == values;
 }
 
-TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
+OPENVINO_API bool get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<op::Constant> & constant,
+OPENVINO_API std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<op::Constant> & constant,
                                                                            const PartialShape & shape);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> broadcastTo(const Output<Node>& input, const Shape& shape);
+OPENVINO_API std::shared_ptr<ngraph::Node> broadcastTo(const Output<Node>& input, const Shape& shape);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node> & input, const Shape& shape);
+OPENVINO_API std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node> & input, const Shape& shape);
 
-TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps = 1e-5);
+OPENVINO_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps = 1e-5);
 
-TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function);
+OPENVINO_API bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function);
 
-TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &other_shape);
+OPENVINO_API bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &other_shape);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
+OPENVINO_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
                                                              const ngraph::Output<ngraph::Node>& apply_to);
 
-TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len);
+OPENVINO_API bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len);
 
-TRANSFORMATIONS_API std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node);
+OPENVINO_API std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node);
 
-TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const OutputVector& inputs);
+OPENVINO_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const OutputVector& inputs);
 
-TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected, const ngraph::PartialShape& actual);
+OPENVINO_API bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected, const ngraph::PartialShape& actual);
 
 template <typename T, typename... Args>
 std::shared_ptr<Node> make_try_fold(Args&&... args) {
@@ -199,12 +199,12 @@ Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & inpu
     return output[0];
 }
 
-TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
+OPENVINO_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node(
+OPENVINO_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node(
         const std::shared_ptr<ngraph::Node>& shape_node, const std::vector<size_t>& indices);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(
+OPENVINO_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(
         const ngraph::Output<ngraph::Node>& shape_source, const std::vector<size_t>& indices);
 }  // namespace util
 }  // namespace op

@@ -13,7 +13,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public LayerTransformation {
+class OPENVINO_API MultiplyToGroupConvolutionTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     MultiplyToGroupConvolutionTransformation(

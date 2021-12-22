@@ -9,11 +9,11 @@
 #include <vector>
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 namespace ngraph {
-class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
+class OPENVINO_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:
     OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
     using PrecisionPreservedAttribute::PrecisionPreservedAttribute;

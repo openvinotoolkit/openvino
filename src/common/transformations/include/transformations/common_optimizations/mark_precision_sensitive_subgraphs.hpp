@@ -5,12 +5,12 @@
 #pragma once
 
 #include "openvino/pass/pass.hpp"
-#include "transformations_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API MarkPrecisionSensitiveSubgraphs;
+class OPENVINO_API MarkPrecisionSensitiveSubgraphs;
 
 }  // namespace pass
 }  // namespace ov

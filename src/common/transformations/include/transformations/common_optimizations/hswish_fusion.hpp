@@ -7,17 +7,17 @@
 #include <memory>
 #include <utility>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API HSwishFusion;
-class TRANSFORMATIONS_API HSwishFusionWithReluDiv;
-class TRANSFORMATIONS_API HSwishFusionWithReluMul;
-class TRANSFORMATIONS_API HSwishFusionWithHSigmoid;
-class TRANSFORMATIONS_API HSwishFusionWithClamp;
+class OPENVINO_API HSwishFusion;
+class OPENVINO_API HSwishFusionWithReluDiv;
+class OPENVINO_API HSwishFusionWithReluMul;
+class OPENVINO_API HSwishFusionWithHSigmoid;
+class OPENVINO_API HSwishFusionWithClamp;
 
 }  // namespace pass
 }  // namespace ngraph

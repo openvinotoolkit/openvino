@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API UnsqueezeTransformation : public LayerTransformation {
+class OPENVINO_API UnsqueezeTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     UnsqueezeTransformation(const Params& params = Params());

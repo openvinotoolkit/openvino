@@ -8,18 +8,18 @@
 #include <memory>
 #include <string>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API BidirectionalSequenceDecomposition;
+class OPENVINO_API BidirectionalSequenceDecomposition;
 
-class TRANSFORMATIONS_API BidirectionalLSTMSequenceDecomposition;
-class TRANSFORMATIONS_API BidirectionalGRUSequenceDecomposition;
-class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
+class OPENVINO_API BidirectionalLSTMSequenceDecomposition;
+class OPENVINO_API BidirectionalGRUSequenceDecomposition;
+class OPENVINO_API BidirectionalRNNSequenceDecomposition;
 
 }  // namespace pass
 }  // namespace ngraph

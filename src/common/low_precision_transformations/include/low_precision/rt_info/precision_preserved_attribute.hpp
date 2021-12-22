@@ -9,11 +9,11 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
 namespace ngraph {
-class LP_TRANSFORMATIONS_API PrecisionPreservedAttribute : public SharedAttribute<bool> {
+class OPENVINO_API PrecisionPreservedAttribute : public SharedAttribute<bool> {
 public:
     OPENVINO_RTTI("LowPrecision::PrecisionPreserved", "", ov::RuntimeAttribute, 0);
 

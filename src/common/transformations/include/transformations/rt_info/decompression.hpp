@@ -12,23 +12,23 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
-#include "transformations_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 
 
 namespace ov {
 
-TRANSFORMATIONS_API void mark_as_decompression(const std::shared_ptr<Node>& node);
+OPENVINO_API void mark_as_decompression(const std::shared_ptr<Node>& node);
 
-TRANSFORMATIONS_API void unmark_as_decompression(const std::shared_ptr<Node>& node);
+OPENVINO_API void unmark_as_decompression(const std::shared_ptr<Node>& node);
 
-TRANSFORMATIONS_API bool is_decompression(const std::shared_ptr<Node>& node);
+OPENVINO_API bool is_decompression(const std::shared_ptr<Node>& node);
 
 /**
  * @ingroup ie_runtime_attr_api
  * @brief Decompression class represents runtime info attribute that marks operation
  * as used as decompression for Compressed Only format.
  */
-class TRANSFORMATIONS_API Decompression : public RuntimeAttribute {
+class OPENVINO_API Decompression : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("decompression", "0");
 

@@ -7,14 +7,14 @@
 #include <memory>
 #include <utility>
 
-#include <low_precision/lpt_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
+class OPENVINO_API ConvertSubtractConstant;
 
 }  // namespace low_precision
 }  // namespace pass

@@ -14,7 +14,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API ReduceSumTransformation : public ReduceBaseTransformation {
+class OPENVINO_API ReduceSumTransformation : public ReduceBaseTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReduceSumTransformation(const Params& params = Params());

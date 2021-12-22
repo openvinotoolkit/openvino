@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerTransformation {
+class OPENVINO_API ConvolutionTransformation : public WeightableLayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvolutionTransformation(const Params& params = Params());

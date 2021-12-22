@@ -12,16 +12,16 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
 
-TRANSFORMATIONS_API bool has_nms_selected_indices(const Node * node);
+OPENVINO_API bool has_nms_selected_indices(const Node * node);
 
-TRANSFORMATIONS_API void set_nms_selected_indices(Node * node);
+OPENVINO_API void set_nms_selected_indices(Node * node);
 
-class TRANSFORMATIONS_API NmsSelectedIndices : ov::RuntimeAttribute {
+class OPENVINO_API NmsSelectedIndices : ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("nms_selected_indices", "0");
     NmsSelectedIndices() = default;

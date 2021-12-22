@@ -6,16 +6,16 @@
 
 #include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <utility>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API GeluFusion;
-class TRANSFORMATIONS_API GeluFusionWithErfOne;
-class TRANSFORMATIONS_API GeluFusionWithErfTwo;
-class TRANSFORMATIONS_API GeluFusionWithErfThree;
+class OPENVINO_API GeluFusion;
+class OPENVINO_API GeluFusionWithErfOne;
+class OPENVINO_API GeluFusionWithErfTwo;
+class OPENVINO_API GeluFusionWithErfThree;
 
 }  // namespace pass
 }  // namespace ngraph

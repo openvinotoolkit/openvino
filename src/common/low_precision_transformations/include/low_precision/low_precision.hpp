@@ -19,7 +19,7 @@
 #include <low_precision/align_quantization_intervals.hpp>
 
 
-#include <low_precision/lpt_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
 #include "low_precision/layer_transformation.hpp"
@@ -29,15 +29,15 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API TypeRelaxedReplacer;
-class LP_TRANSFORMATIONS_API MarkupOptimizations;
-class LP_TRANSFORMATIONS_API LowPrecision;
+class OPENVINO_API TypeRelaxedReplacer;
+class OPENVINO_API MarkupOptimizations;
+class OPENVINO_API LowPrecision;
 
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::MarkupOptimizations : public ngraph::pass::FunctionPass {
+class OPENVINO_API ngraph::pass::low_precision::MarkupOptimizations : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     MarkupOptimizations(
@@ -49,13 +49,13 @@ private:
     const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions;
 };
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::TypeRelaxedReplacer : public ngraph::pass::GraphRewrite {
+class OPENVINO_API ngraph::pass::low_precision::TypeRelaxedReplacer : public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     TypeRelaxedReplacer();
 };
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
+class OPENVINO_API ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     LowPrecision(

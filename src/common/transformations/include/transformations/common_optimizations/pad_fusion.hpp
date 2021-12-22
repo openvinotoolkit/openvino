@@ -4,19 +4,19 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API PadFusion;
-class TRANSFORMATIONS_API PadFusionAvgPool;
-class TRANSFORMATIONS_API PadFusionConvolution;
-class TRANSFORMATIONS_API PadFusionConvolutionBackpropData;
-class TRANSFORMATIONS_API PadFusionGroupConvolution;
-class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
+class OPENVINO_API PadFusion;
+class OPENVINO_API PadFusionAvgPool;
+class OPENVINO_API PadFusionConvolution;
+class OPENVINO_API PadFusionConvolutionBackpropData;
+class OPENVINO_API PadFusionGroupConvolution;
+class OPENVINO_API PadFusionGroupConvolutionBackpropData;
 
 }  // namespace pass
 }  // namespace ngraph

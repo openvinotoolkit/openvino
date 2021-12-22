@@ -7,14 +7,14 @@
 #include <utility>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API DivisionByZeroFP16Resolver;
+class OPENVINO_API DivisionByZeroFP16Resolver;
 
 }  // namespace pass
 }  // namespace ov

@@ -12,10 +12,10 @@
 
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
-#include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 
 namespace ngraph {
-class LP_TRANSFORMATIONS_API IntervalsAlignmentSharedValue {
+class OPENVINO_API IntervalsAlignmentSharedValue {
 public:
     class Interval {
     public:
@@ -45,7 +45,7 @@ public:
 #endif
 };
 
-class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
+class OPENVINO_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:
     OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute, 0);
     IntervalsAlignmentAttribute() = default;

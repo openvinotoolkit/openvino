@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API MatMulTransformation : public LayerTransformation {
+class OPENVINO_API MatMulTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     MatMulTransformation(const Params& params = Params());

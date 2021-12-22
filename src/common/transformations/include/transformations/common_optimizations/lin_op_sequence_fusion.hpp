@@ -7,16 +7,16 @@
 #include <memory>
 #include <utility>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API LinOpSequenceFusion;
-class TRANSFORMATIONS_API AddMultiplyFusion;
-class TRANSFORMATIONS_API AddAddFusion;
-class TRANSFORMATIONS_API MultiplyMultiplyFusion;
+class OPENVINO_API LinOpSequenceFusion;
+class OPENVINO_API AddMultiplyFusion;
+class OPENVINO_API AddAddFusion;
+class OPENVINO_API MultiplyMultiplyFusion;
 
 }  // namespace pass
 }  // namespace ngraph

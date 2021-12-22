@@ -7,14 +7,14 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API RNNCellDecomposition;
+class OPENVINO_API RNNCellDecomposition;
 
 }  // namespace pass
 }  // namespace ngraph

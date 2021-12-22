@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API PReluTransformation : public LayerTransformation {
+class OPENVINO_API PReluTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     PReluTransformation(const Params& params = Params());

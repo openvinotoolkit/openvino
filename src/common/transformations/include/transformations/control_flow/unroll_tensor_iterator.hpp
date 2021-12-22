@@ -7,14 +7,14 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API UnrollTensorIterator;
+class OPENVINO_API UnrollTensorIterator;
 
 }  // namespace pass
 }  // namespace ngraph

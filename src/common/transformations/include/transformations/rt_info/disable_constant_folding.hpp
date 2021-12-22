@@ -12,7 +12,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include "openvino/pass/constant_folding.hpp"
 
 namespace ov {

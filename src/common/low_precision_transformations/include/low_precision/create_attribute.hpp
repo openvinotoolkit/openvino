@@ -11,7 +11,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/variant.hpp>
-#include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "low_precision/base_matcher_pass.hpp"
 #include "low_precision/lpt_itt.hpp"
 

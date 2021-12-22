@@ -13,7 +13,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API SplitTransformation : public LayerTransformation {
+class OPENVINO_API SplitTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     SplitTransformation(const Params& params = Params());

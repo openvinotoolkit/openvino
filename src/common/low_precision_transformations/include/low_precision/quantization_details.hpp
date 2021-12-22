@@ -8,7 +8,7 @@
 #include <ostream>
 #include <vector>
 
-#include <low_precision/lpt_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -18,7 +18,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API QuantizationDetails {
+class OPENVINO_API QuantizationDetails {
 public:
     QuantizationDetails();
     QuantizationDetails(const QuantizationDetails& quantizationDetails);

@@ -12,7 +12,7 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-#include <low_precision/lpt_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {

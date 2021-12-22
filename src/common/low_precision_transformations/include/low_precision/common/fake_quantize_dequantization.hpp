@@ -8,7 +8,7 @@
 #include <tuple>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <low_precision/lpt_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -16,7 +16,7 @@ namespace low_precision {
 
 typedef std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> FakeQuantizeDequantizationValues;
 
-class LP_TRANSFORMATIONS_API FakeQuantizeDequantization {
+class OPENVINO_API FakeQuantizeDequantization {
 public:
     FakeQuantizeDequantization();
 

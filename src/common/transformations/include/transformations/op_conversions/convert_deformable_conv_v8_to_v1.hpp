@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertDeformableConv8To1;
+class OPENVINO_API ConvertDeformableConv8To1;
 
 }  // namespace pass
 }  // namespace ngraph

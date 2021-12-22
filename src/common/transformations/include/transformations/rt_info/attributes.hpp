@@ -21,12 +21,12 @@
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
 #include <transformations/rt_info/strides_property.hpp>
 #include <transformations/rt_info/decompression.hpp>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <utility>
 
 namespace ov {
 namespace pass {
-class TRANSFORMATIONS_API Attributes {
+class OPENVINO_API Attributes {
 public:
     Attributes();
 

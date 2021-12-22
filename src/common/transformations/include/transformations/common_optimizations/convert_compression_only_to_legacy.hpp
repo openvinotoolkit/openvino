@@ -6,14 +6,14 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
-#include "transformations_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertPrecisionCompressedOnly;
-class TRANSFORMATIONS_API EnableDecompressionConvertConstantFolding;
-class TRANSFORMATIONS_API ConvertCompressedOnlyToLegacy;
+class OPENVINO_API ConvertPrecisionCompressedOnly;
+class OPENVINO_API EnableDecompressionConvertConstantFolding;
+class OPENVINO_API ConvertCompressedOnlyToLegacy;
 
 }  // namespace pass
 }  // namespace ov

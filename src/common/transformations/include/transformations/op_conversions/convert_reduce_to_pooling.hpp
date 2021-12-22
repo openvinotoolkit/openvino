@@ -8,7 +8,7 @@
 #include <memory>
 #include <algorithm>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
@@ -21,10 +21,10 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertReduceToPooling;
-class TRANSFORMATIONS_API ConvertReduceMeanToPooling;
-class TRANSFORMATIONS_API ConvertReduceMaxToPooling;
-class TRANSFORMATIONS_API ConvertReduceSumToPooling;
+class OPENVINO_API ConvertReduceToPooling;
+class OPENVINO_API ConvertReduceMeanToPooling;
+class OPENVINO_API ConvertReduceMaxToPooling;
+class OPENVINO_API ConvertReduceSumToPooling;
 
 }  // namespace pass
 }  // namespace ngraph

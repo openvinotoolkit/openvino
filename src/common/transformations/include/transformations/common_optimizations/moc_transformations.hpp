@@ -6,14 +6,14 @@
 
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API MOCTransformations;
+class OPENVINO_API MOCTransformations;
 
 }  // namespace pass
 }  // namespace ngraph

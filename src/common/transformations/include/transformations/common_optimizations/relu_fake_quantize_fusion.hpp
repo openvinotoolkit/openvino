@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ReluFakeQuantizeFusion;
+class OPENVINO_API ReluFakeQuantizeFusion;
 
 }  // namespace pass
 }  // namespace ngraph

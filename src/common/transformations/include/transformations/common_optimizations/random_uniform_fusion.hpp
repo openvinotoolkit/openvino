@@ -5,12 +5,12 @@
 #pragma once
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API RandomUniformFusion;
+class OPENVINO_API RandomUniformFusion;
 
 }  // namespace pass
 }  // namespace ngraph

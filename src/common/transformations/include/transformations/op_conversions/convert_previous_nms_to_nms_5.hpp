@@ -7,15 +7,15 @@
 #include <memory>
 #include <utility>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertNMS1ToNMS5;
-class TRANSFORMATIONS_API ConvertNMS3ToNMS5;
-class TRANSFORMATIONS_API ConvertNMS4ToNMS5;
+class OPENVINO_API ConvertNMS1ToNMS5;
+class OPENVINO_API ConvertNMS3ToNMS5;
+class OPENVINO_API ConvertNMS4ToNMS5;
 
 }  // namespace pass
 }  // namespace ngraph

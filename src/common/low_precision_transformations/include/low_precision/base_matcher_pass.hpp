@@ -11,13 +11,13 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API BaseMatcherPass;
+class OPENVINO_API BaseMatcherPass;
 
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::BaseMatcherPass : public ngraph::pass::MatcherPass {
+class OPENVINO_API ngraph::pass::low_precision::BaseMatcherPass : public ngraph::pass::MatcherPass {
 public:
     BaseMatcherPass(const AttributeParameters& params = AttributeParameters());
     AttributeParameters params;

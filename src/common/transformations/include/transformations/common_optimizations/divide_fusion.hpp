@@ -6,12 +6,12 @@
 
 #include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API DivideFusion;
+class OPENVINO_API DivideFusion;
 
 }  // namespace pass
 }  // namespace ngraph

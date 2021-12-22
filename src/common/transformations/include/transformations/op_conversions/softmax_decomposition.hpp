@@ -6,14 +6,14 @@
 
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API SoftmaxDecomposition;
+class OPENVINO_API SoftmaxDecomposition;
 
 }  // namespace pass
 }  // namespace ngraph

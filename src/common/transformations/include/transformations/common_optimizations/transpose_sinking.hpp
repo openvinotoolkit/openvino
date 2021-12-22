@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
@@ -16,11 +16,11 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API TransposeSinking;
-class TRANSFORMATIONS_API TransposeConvert;
-class TRANSFORMATIONS_API TransposeReduction;
-class TRANSFORMATIONS_API TransposeFQReduction;
-class TRANSFORMATIONS_API TransposeFuse;
+class OPENVINO_API TransposeSinking;
+class OPENVINO_API TransposeConvert;
+class OPENVINO_API TransposeReduction;
+class OPENVINO_API TransposeFQReduction;
+class OPENVINO_API TransposeFuse;
 
 }  // namespace pass
 }  // namespace ngraph

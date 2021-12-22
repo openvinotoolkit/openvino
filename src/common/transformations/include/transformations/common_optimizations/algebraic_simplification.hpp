@@ -7,12 +7,12 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/pass.hpp>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API AlgebraicSimplification;
+class OPENVINO_API AlgebraicSimplification;
 
 }  // namespace pass
 }  // namespace ngraph

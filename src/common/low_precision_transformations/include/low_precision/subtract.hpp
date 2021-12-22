@@ -11,7 +11,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation {
+class OPENVINO_API SubtractTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     SubtractTransformation(const Params& params);

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
@@ -13,8 +13,8 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API EliminateUnsqueezeGather;
-class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
+class OPENVINO_API EliminateUnsqueezeGather;
+class OPENVINO_API EliminateGatherUnsqueeze;
 
 }  // namespace pass
 }  // namespace ngraph

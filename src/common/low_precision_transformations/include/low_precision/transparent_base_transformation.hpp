@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API TransparentBaseTransformation : public LayerTransformation {
+class OPENVINO_API TransparentBaseTransformation : public LayerTransformation {
 public:
     TransparentBaseTransformation(const Params& params) : LayerTransformation(params) {}
     ~TransparentBaseTransformation() override {};

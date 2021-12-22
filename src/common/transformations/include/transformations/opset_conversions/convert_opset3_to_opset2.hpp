@@ -5,13 +5,13 @@
 #pragma once
 
 #include <memory>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertOpSet3ToOpSet2;
+class OPENVINO_API ConvertOpSet3ToOpSet2;
 
 }  // namespace pass
 }  // namespace ngraph

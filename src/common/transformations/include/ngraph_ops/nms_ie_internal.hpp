@@ -5,9 +5,8 @@
 #pragma once
 
 #include <memory>
+#include <openvino/core/ov_visibility.hpp>
 #include <string>
-
-#include <transformations_visibility.hpp>
 
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
@@ -16,7 +15,7 @@ namespace ngraph {
 namespace op {
 namespace internal {
 
-class TRANSFORMATIONS_API NonMaxSuppressionIEInternal : public Op {
+class OPENVINO_API NonMaxSuppressionIEInternal : public Op {
 public:
     OPENVINO_OP("NonMaxSuppressionIEInternal", "util");
     BWDCMP_RTTI_DECLARATION;
@@ -48,7 +47,7 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     int m_center_point_box;
     bool m_sort_result_descending = true;

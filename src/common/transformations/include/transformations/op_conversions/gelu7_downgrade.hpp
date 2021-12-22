@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API Gelu7Downgrade;
+    class OPENVINO_API Gelu7Downgrade;
 
 }  // namespace pass
 }  // namespace ngraph

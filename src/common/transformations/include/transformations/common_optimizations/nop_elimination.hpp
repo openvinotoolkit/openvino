@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/pass.hpp>
@@ -15,13 +15,13 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API EliminatePad;
-class TRANSFORMATIONS_API EliminateConvert;
-class TRANSFORMATIONS_API EliminateConvertNonZero;
-class TRANSFORMATIONS_API EliminateConcat;
-class TRANSFORMATIONS_API EliminateSplit;
-class TRANSFORMATIONS_API EliminateTranspose;
-class TRANSFORMATIONS_API NopElimination;
+class OPENVINO_API EliminatePad;
+class OPENVINO_API EliminateConvert;
+class OPENVINO_API EliminateConvertNonZero;
+class OPENVINO_API EliminateConcat;
+class OPENVINO_API EliminateSplit;
+class OPENVINO_API EliminateTranspose;
+class OPENVINO_API NopElimination;
 
 }  // namespace pass
 }  // namespace ngraph

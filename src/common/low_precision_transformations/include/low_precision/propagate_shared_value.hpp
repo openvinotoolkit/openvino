@@ -11,7 +11,7 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-#include <low_precision/lpt_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "low_precision/network_helper.hpp"
 #include "lpt_itt.hpp"
@@ -21,7 +21,7 @@ namespace pass {
 namespace low_precision {
 
 template <class AttributeType>
-class LP_TRANSFORMATIONS_API PropagateSharedValue;
+class OPENVINO_API PropagateSharedValue;
 
 }  // namespace low_precision
 }  // namespace pass

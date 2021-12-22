@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <openvino/pass/pass.hpp>
 #include <openvino/core/model.hpp>
@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ReverseInputChannelsFusion;
+class OPENVINO_API ReverseInputChannelsFusion;
 
 }  // namespace pass
 }  // namespace ngraph

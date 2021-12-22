@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 #include <ngraph/util.hpp>
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
@@ -13,10 +13,10 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvStridesPropagation;
-class TRANSFORMATIONS_API SupportedNodesStridesPropagation;
-class TRANSFORMATIONS_API UnsupportedNodesStridesPropagation;
-class TRANSFORMATIONS_API StridesOptimization;
+class OPENVINO_API ConvStridesPropagation;
+class OPENVINO_API SupportedNodesStridesPropagation;
+class OPENVINO_API UnsupportedNodesStridesPropagation;
+class OPENVINO_API StridesOptimization;
 
 }  // namespace pass
 }  // namespace ngraph

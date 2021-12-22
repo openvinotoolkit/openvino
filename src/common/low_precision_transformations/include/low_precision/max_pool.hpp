@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API MaxPoolTransformation : public LayerTransformation {
+class OPENVINO_API MaxPoolTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     MaxPoolTransformation(const Params& params = Params());

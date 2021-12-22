@@ -7,14 +7,14 @@
 #include <memory>
 #include <vector>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API FakeQuantizeMulFusion;
+class OPENVINO_API FakeQuantizeMulFusion;
 
 } // namespace pass
 } // namespace ngraph

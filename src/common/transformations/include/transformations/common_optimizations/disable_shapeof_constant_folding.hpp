@@ -6,14 +6,14 @@
 
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API DisableShapeOfConstantFolding;
+class OPENVINO_API DisableShapeOfConstantFolding;
 
 }  // namespace pass
 }  // namespace ngraph

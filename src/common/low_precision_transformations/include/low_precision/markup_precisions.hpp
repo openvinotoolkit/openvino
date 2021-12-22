@@ -9,14 +9,14 @@
 #include <vector>
 
 #include <ngraph/pass/pass.hpp>
-#include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/ov_visibility.hpp"
 #include "low_precision/common/operation_precision_restriction.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API MarkupPrecisions;
+class OPENVINO_API MarkupPrecisions;
 
 }  // namespace low_precision
 }  // namespace pass

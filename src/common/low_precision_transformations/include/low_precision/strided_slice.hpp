@@ -12,7 +12,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API StridedSliceTransformation : public LayerTransformation {
+class OPENVINO_API StridedSliceTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
     StridedSliceTransformation(const Params& params = Params());

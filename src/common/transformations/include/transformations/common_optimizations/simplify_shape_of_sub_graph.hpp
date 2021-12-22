@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <openvino/core/ov_visibility.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -17,12 +17,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API SimplifyShapeOfSubGraph;
-class TRANSFORMATIONS_API SharedShapeOf;
-class TRANSFORMATIONS_API GroupedGatherElimination;
-class TRANSFORMATIONS_API GatherNopElimination;
-class TRANSFORMATIONS_API SimplifyGatherShapeOf;
-class TRANSFORMATIONS_API SimplifySecondInputOfReshape;
+class OPENVINO_API SimplifyShapeOfSubGraph;
+class OPENVINO_API SharedShapeOf;
+class OPENVINO_API GroupedGatherElimination;
+class OPENVINO_API GatherNopElimination;
+class OPENVINO_API SimplifyGatherShapeOf;
+class OPENVINO_API SimplifySecondInputOfReshape;
 
 }  // namespace pass
 }  // namespace ngraph
