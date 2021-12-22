@@ -17,7 +17,7 @@ TEST(StaticShapeInferenceTest, CTCLossTest) {
     const auto& logit_length = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
     const auto& labels = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, -1});
     const auto& label_length = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    const auto& blank_index = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
+    const auto& blank_index = std::make_shared<ov::op::v0::Parameter>(element::i32, ov::Shape{});
 
     // create CTCLoss node
     auto ctc_loss = std::make_shared<op::v4::CTCLoss>(logits, logit_length, labels, label_length, blank_index);
@@ -26,7 +26,7 @@ TEST(StaticShapeInferenceTest, CTCLossTest) {
                                                     StaticShape{10},
                                                     StaticShape{10, 120},
                                                     StaticShape{10},
-                                                    Shape{}},
+                                                    ov::Shape{}},
                              static_output_shapes = {StaticShape{}};
     shape_inference(ctc_loss.get(), static_input_shapes, static_output_shapes);
 
