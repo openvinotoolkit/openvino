@@ -272,12 +272,6 @@ void MKLDNNExperimentalDetectronDetectionOutputNode::initSupportedPrimitiveDescr
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNExperimentalDetectronDetectionOutputNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNExperimentalDetectronDetectionOutputNode::execute(mkldnn::stream strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));

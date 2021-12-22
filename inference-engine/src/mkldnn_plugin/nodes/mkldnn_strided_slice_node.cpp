@@ -300,7 +300,14 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool MKLDNNStridedSliceNode::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
+}
+
 void MKLDNNStridedSliceNode::createPrimitive() {
+    if (!isExecutable()) {
+        return;
+    }
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
@@ -670,9 +677,8 @@ void MKLDNNStridedSliceNode::StridedSliceExecutor::exec(const uint8_t* srcData, 
 void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
     if (!execPtr)
         THROW_ERROR << "doesn't have compiled executor!";
-
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemory().GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetPtr());
     execPtr->exec(srcData, dstData);
 }
 
