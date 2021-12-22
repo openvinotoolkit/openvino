@@ -30,7 +30,12 @@ void prepare_padding::run(program& p) {
             auto add_required_padding = [&p](program_node& node, padding& needed_padding) {
                 // Add extra reorder for cldnn primitive to handle required padding if needed
                 auto& input = node.get_dependency(0);
-                if (input.get_preferred_impl_type() == impl_types::onednn &&
+                bool is_usr_onednn = false;
+                for (auto& input_usr : input.get_users())
+                    if (input_usr->get_preferred_impl_type() == impl_types::onednn)
+                        is_usr_onednn = true;
+
+                if ((input.get_preferred_impl_type() == impl_types::onednn || is_usr_onednn) &&
                     node.get_preferred_impl_type() == impl_types::ocl &&
                     static_cast<bool>(needed_padding)) {
                     auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
