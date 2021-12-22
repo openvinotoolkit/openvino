@@ -28,6 +28,7 @@ void shape_infer(const ov::op::v1::SpaceToBatch* op,
     const auto& pads_begin_shape = input_shapes[2];
     const auto& pads_end_shape = input_shapes[3];
     const ov::Rank data_rank = data_shape.rank();
+    bool got_const_data = false;
 
     auto inputs_same_ps = pads_begin_shape;
     NODE_VALIDATION_CHECK(op,
@@ -58,6 +59,7 @@ void shape_infer(const ov::op::v1::SpaceToBatch* op,
         if (get_data_as_int64<T>(1, op, block_val, constant_data) &&
             get_data_as_int64<T>(2, op, pads_begin_val, constant_data) &&
             get_data_as_int64<T>(3, op, pads_end_val, constant_data)) {
+            got_const_data = true;
             int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
 
             output_shape[0] = data_shape[0] * static_cast<ValType>(block_prod);
@@ -74,11 +76,10 @@ void shape_infer(const ov::op::v1::SpaceToBatch* op,
         }
     }
 
-    else {
+    if (!got_const_data)
         // For PartialShape, Set the output to be dynamic;
         // For StaticShape, throw error caused by implicitly constructing StaticShape with PartialShape argument;
         output_shapes[0] = ov::PartialShape::dynamic(data_rank);
-    }
 }
 
 }  // namespace v1

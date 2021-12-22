@@ -47,9 +47,13 @@ Dimension Dimension::operator/(const value_type divisor) const {
     if (m_dimension.get_max_val() == Interval::s_max && m_dimension.get_min_val() == 0)
         return Dimension::dynamic();
 
-    else if (is_static() && m_dimension.get_max_val() % divisor)
-        OPENVINO_UNREACHABLE("Dimension value: ",
+    if (m_dimension.get_max_val() / divisor == m_dimension.get_min_val() / divisor &&
+        m_dimension.get_min_val() > (m_dimension.get_min_val() / divisor * divisor))
+        OPENVINO_UNREACHABLE("Dimension value: [ ",
+                            m_dimension.get_min_val(),
+                            ", ",
                              m_dimension.get_max_val(),
+                             "]",
                              " must be a multiple of divisor: ",
                              divisor);
     return Dimension(m_dimension.get_min_val() / divisor, m_dimension.get_max_val() / divisor);

@@ -26,6 +26,7 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
     const auto& block_shape = input_shapes[1];
     const auto& crops_begin_shape = input_shapes[2];
     const auto& crops_end_shape = input_shapes[3];
+    bool got_const_data = false;
 
     auto inputs_same_ps = crops_begin_shape;
     NODE_VALIDATION_CHECK(op,
@@ -66,6 +67,7 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
         if (get_data_as_int64<T>(1, op, block_val, constant_data) &&
             get_data_as_int64<T>(2, op, crops_begin_val, constant_data) &&
             get_data_as_int64<T>(3, op, crops_end_val, constant_data)) {
+            got_const_data = true;
             bool block_vals_valid = std::all_of(begin(block_val), end(block_val), [](int64_t elem) {
                 return elem >= 1;
             });
@@ -101,11 +103,11 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
                                     static_cast<ValType>(crops_end_val[idx]);
             }
         }
-    } else {
+    }
+    if (!got_const_data)
         // For PartialShape, Set the output to be dynamic;
         // For StaticShape, throw error caused by implicitly constructing StaticShape with PartialShape argument;
         output_shapes[0] = ov::PartialShape::dynamic(data_rank);
-    }
 }
 
 }  // namespace v1
