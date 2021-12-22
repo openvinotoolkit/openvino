@@ -38,8 +38,6 @@ def _get_file_line(text):
     """Extracts file and line from Doxygen warning line
     """
     if text:
-        if text.count(':') == 1:
-            return text, ''
         location = text.split()[-1]
         file_line = location.rsplit(':', 1)
         if len(file_line) == 2:
@@ -76,8 +74,8 @@ def parse(log, strip, suppress_warnings=list()):
                     file = warning[0]
                     error = warning[1]
                 error = error.replace('[39;49;00m', '')
-                file, line = _get_file_line(file)
                 file = strip_path(file, strip)
+                file, line = _get_file_line(file)
                 errors.append(error)
                 if error.endswith(':'):
                     while idx + 1 < len(log):
