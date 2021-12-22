@@ -229,6 +229,9 @@ DEFINE_bool(h, false, help_message);
 /// @brief Declare flag for showing help message <br>
 DECLARE_bool(help);
 
+DEFINE_bool(dynamic, false, "");
+DEFINE_bool(load_network_only, false, "");
+
 /// @brief Define parameter for set image file <br>
 /// i or mif is a required parameter
 DEFINE_string(i, "", input_message);

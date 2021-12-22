@@ -21,6 +21,7 @@
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/util/env_util.hpp"
+#include "shared_node_info.hpp"
 #include "perf_counters.hpp"
 
 using namespace std;
@@ -97,9 +98,14 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                     function_changed = false;
                 }
             } else {
+                func->m_shared_rt_info->set_function_has_changed(false);
                 function_changed = function_pass->run_on_model(func);
+                if (func->m_shared_rt_info->get_function_has_changed()) {
+                    std::cout << "ModelPass: " << pass->get_name() << " has changed the function\n";
+                }
             }
         } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
+            std::cout << "NodePass has been used! Criminal!\n";
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
                 NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
                              << "model is dynamic. Skipping this transformation";

@@ -17,6 +17,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "perf_counters.hpp"
+#include "shared_node_info.hpp"
 
 /* GraphRewrite algorithm:
  * GraphRewrite processes an input graph in an topological order(i.e. args before users)
@@ -142,9 +143,19 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             return false;
         }
 
+        f->m_shared_rt_info->set_function_has_changed(false);
+
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node
         bool status = m_pass->apply(node);
+
+        if (f->m_shared_rt_info->get_function_has_changed()) {
+            std::string pass_name = m_pass->get_name();
+            if (pass_name.find("unnamed") != pass_name.npos) {
+                pass_name = typeid(*m_pass).name();
+            }
+            std::cout << "MatcherPass: " << pass_name << " has changed the function\n";
+        }
 
         // In case if MatcherPass registered nodes they will be added to the beginning of execution
         // queue
@@ -313,6 +324,7 @@ void ov::pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern:
 }
 
 bool ov::pass::RecurrentGraphRewrite::run_on_model(const std::shared_ptr<Model>& f) {
+    std::cout << "RecurentGraphRewrite has been used! Criminal!\n";
     bool changed = false;
     size_t i = 0;
 

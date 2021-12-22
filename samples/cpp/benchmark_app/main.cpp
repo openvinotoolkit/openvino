@@ -442,6 +442,13 @@ int main(int argc, char* argv[]) {
 
             auto startTime = Time::now();
             auto model = core.read_model(FLAGS_m);
+            if (FLAGS_dynamic) {
+                slog::info << "Dynamize Model" << slog::endl;
+                for (auto &&param: model->get_parameters()) {
+                    param->set_partial_shape(ngraph::PartialShape::dynamic(param->get_partial_shape().rank()));
+                }
+                model->validate_nodes_and_infer_types();
+            }
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
@@ -456,127 +463,127 @@ int main(int argc, char* argv[]) {
 
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
-            next_step();
-            convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
-            // Parse input shapes if specified
-            bool reshape = false;
-            app_inputs_info = get_inputs_info(FLAGS_shape,
-                                              FLAGS_layout,
-                                              FLAGS_b,
-                                              FLAGS_data_shape,
-                                              inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
-                                              inputInfo,
-                                              reshape);
-            if (reshape) {
-                benchmark_app::PartialShapes shapes = {};
-                for (auto& item : app_inputs_info[0])
-                    shapes[item.first] = item.second.partialShape;
-                slog::info << "Reshaping network: " << get_shapes_string(shapes) << slog::endl;
-                startTime = Time::now();
-                model->reshape(shapes);
-                duration_ms = get_duration_ms_till_now(startTime);
-                slog::info << "Reshape network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-                if (statistics)
-                    statistics->add_parameters(
-                        StatisticsReport::Category::EXECUTION_RESULTS,
-                        {StatisticsVariant("reshape network time (ms)", "reshape_network_time", duration_ms)});
-            }
-
-            // ----------------- 6. Configuring inputs and outputs
-            // ----------------------------------------------------------------------
-            next_step();
-            auto preproc = ov::preprocess::PrePostProcessor(model);
-
-            std::map<std::string, std::string> user_precisions_map;
-            if (!FLAGS_iop.empty()) {
-                user_precisions_map = parseArgMap(FLAGS_iop);
-                convert_io_names_in_map(user_precisions_map,
-                                        std::const_pointer_cast<const ov::Model>(model)->inputs(),
-                                        std::const_pointer_cast<const ov::Model>(model)->outputs());
-            }
-
-            const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
-            const auto output_precision = FLAGS_op.empty() ? ov::element::undefined : getPrecision2(FLAGS_op);
-
-            const auto& inputs = model->inputs();
-            for (int i = 0; i < inputs.size(); i++) {
-                const auto& item = inputs[i];
-                auto iop_precision = ov::element::undefined;
-                auto type_to_set = ov::element::undefined;
-                std::string name;
-                try {
-                    // Some tensors might have no names, get_any_name will throw exception in that case.
-                    // -iop option will not work for those tensors.
-                    name = item.get_any_name();
-                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
-                } catch (...) {
-                }
-
-                if (iop_precision != ov::element::undefined) {
-                    type_to_set = iop_precision;
-                } else if (input_precision != ov::element::undefined) {
-                    type_to_set = input_precision;
-                } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
-                    // image input, set U8
-                    type_to_set = ov::element::u8;
-                }
-
-                auto& in = preproc.input(item.get_any_name());
-                if (type_to_set != ov::element::undefined) {
-                    in.tensor().set_element_type(type_to_set);
-
-                    if (!name.empty()) {
-                        for (auto& info : app_inputs_info) {
-                            info.at(name).type = type_to_set;
-                        }
-                    }
-                    // Explicitly set inputs layout.
-                    in.model().set_layout(app_inputs_info[0].at(name).layout);
-                }
-            }
-
-            const auto& outs = model->outputs();
-            for (int i = 0; i < outs.size(); i++) {
-                const auto& item = outs[i];
-                auto iop_precision = ov::element::undefined;
-                try {
-                    // Some tensors might have no names, get_any_name will throw exception in that case.
-                    // -iop option will not work for those tensors.
-                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
-                } catch (...) {
-                }
-
-                if (iop_precision != ov::element::undefined) {
-                    preproc.output(i).tensor().set_element_type(iop_precision);
-                } else if (output_precision != ov::element::undefined) {
-                    preproc.output(i).tensor().set_element_type(output_precision);
-                }
-            }
-
-            model = preproc.build();
-
-            // Check if network has dynamic shapes
-            auto input_info = app_inputs_info[0];
-            isDynamicNetwork = std::any_of(input_info.begin(),
-                                           input_info.end(),
-                                           [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
-                                               return i.second.partialShape.is_dynamic();
-                                           });
-
-            topology_name = model->get_friendly_name();
-
-            // Calculate batch size according to provided layout and shapes (static case)
-            if (!isDynamicNetwork && app_inputs_info.size()) {
-                batchSize = get_batch_size(app_inputs_info.front());
-
-                slog::info << "Network batch size: " << batchSize << slog::endl;
-            } else if (batchSize == 0) {
-                batchSize = 1;
-            }
-
-            printInputAndOutputsInfoShort(*model);
+//            next_step();
+//            convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
+//            // Parse input shapes if specified
+//            bool reshape = false;
+//            app_inputs_info = get_inputs_info(FLAGS_shape,
+//                                              FLAGS_layout,
+//                                              FLAGS_b,
+//                                              FLAGS_data_shape,
+//                                              inputFiles,
+//                                              FLAGS_iscale,
+//                                              FLAGS_imean,
+//                                              inputInfo,
+//                                              reshape);
+//            if (reshape) {
+//                benchmark_app::PartialShapes shapes = {};
+//                for (auto& item : app_inputs_info[0])
+//                    shapes[item.first] = item.second.partialShape;
+//                slog::info << "Reshaping network: " << get_shapes_string(shapes) << slog::endl;
+//                startTime = Time::now();
+//                model->reshape(shapes);
+//                duration_ms = get_duration_ms_till_now(startTime);
+//                slog::info << "Reshape network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+//                if (statistics)
+//                    statistics->add_parameters(
+//                        StatisticsReport::Category::EXECUTION_RESULTS,
+//                        {StatisticsVariant("reshape network time (ms)", "reshape_network_time", duration_ms)});
+//            }
+//
+//            // ----------------- 6. Configuring inputs and outputs
+//            // ----------------------------------------------------------------------
+//            next_step();
+//            auto preproc = ov::preprocess::PrePostProcessor(model);
+//
+//            std::map<std::string, std::string> user_precisions_map;
+//            if (!FLAGS_iop.empty()) {
+//                user_precisions_map = parseArgMap(FLAGS_iop);
+//                convert_io_names_in_map(user_precisions_map,
+//                                        std::const_pointer_cast<const ov::Model>(model)->inputs(),
+//                                        std::const_pointer_cast<const ov::Model>(model)->outputs());
+//            }
+//
+//            const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
+//            const auto output_precision = FLAGS_op.empty() ? ov::element::undefined : getPrecision2(FLAGS_op);
+//
+//            const auto& inputs = model->inputs();
+//            for (int i = 0; i < inputs.size(); i++) {
+//                const auto& item = inputs[i];
+//                auto iop_precision = ov::element::undefined;
+//                auto type_to_set = ov::element::undefined;
+//                std::string name;
+//                try {
+//                    // Some tensors might have no names, get_any_name will throw exception in that case.
+//                    // -iop option will not work for those tensors.
+//                    name = item.get_any_name();
+//                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
+//                } catch (...) {
+//                }
+//
+//                if (iop_precision != ov::element::undefined) {
+//                    type_to_set = iop_precision;
+//                } else if (input_precision != ov::element::undefined) {
+//                    type_to_set = input_precision;
+//                } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
+//                    // image input, set U8
+//                    type_to_set = ov::element::u8;
+//                }
+//
+//                auto& in = preproc.input(item.get_any_name());
+//                if (type_to_set != ov::element::undefined) {
+//                    in.tensor().set_element_type(type_to_set);
+//
+//                    if (!name.empty()) {
+//                        for (auto& info : app_inputs_info) {
+//                            info.at(name).type = type_to_set;
+//                        }
+//                    }
+//                    // Explicitly set inputs layout.
+//                    in.model().set_layout(app_inputs_info[0].at(name).layout);
+//                }
+//            }
+//
+//            const auto& outs = model->outputs();
+//            for (int i = 0; i < outs.size(); i++) {
+//                const auto& item = outs[i];
+//                auto iop_precision = ov::element::undefined;
+//                try {
+//                    // Some tensors might have no names, get_any_name will throw exception in that case.
+//                    // -iop option will not work for those tensors.
+//                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
+//                } catch (...) {
+//                }
+//
+//                if (iop_precision != ov::element::undefined) {
+//                    preproc.output(i).tensor().set_element_type(iop_precision);
+//                } else if (output_precision != ov::element::undefined) {
+//                    preproc.output(i).tensor().set_element_type(output_precision);
+//                }
+//            }
+//
+//            model = preproc.build();
+//
+//            // Check if network has dynamic shapes
+//            auto input_info = app_inputs_info[0];
+//            isDynamicNetwork = std::any_of(input_info.begin(),
+//                                           input_info.end(),
+//                                           [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
+//                                               return i.second.partialShape.is_dynamic();
+//                                           });
+//
+//            topology_name = model->get_friendly_name();
+//
+//            // Calculate batch size according to provided layout and shapes (static case)
+//            if (!isDynamicNetwork && app_inputs_info.size()) {
+//                batchSize = get_batch_size(app_inputs_info.front());
+//
+//                slog::info << "Network batch size: " << batchSize << slog::endl;
+//            } else if (batchSize == 0) {
+//                batchSize = 1;
+//            }
+//
+//            printInputAndOutputsInfoShort(*model);
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
@@ -588,6 +595,10 @@ int main(int argc, char* argv[]) {
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
                     {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
+
+            if (FLAGS_load_network_only) {
+                return 0;
+            }
         } else {
             next_step();
             slog::info << "Skipping the step for compiled network" << slog::endl;

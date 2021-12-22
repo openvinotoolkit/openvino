@@ -346,6 +346,7 @@ private:
     // node has no consumers but still exists in a graph.
     mutable std::vector<std::weak_ptr<Node>> m_cached_ordered_ops;
 
+public:
     // Private runtime info which is shared across nodes and used only
     // for internal purposes.
     std::shared_ptr<SharedRTInfo> m_shared_rt_info;
