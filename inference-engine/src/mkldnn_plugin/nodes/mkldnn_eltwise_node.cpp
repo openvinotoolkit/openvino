@@ -1525,14 +1525,6 @@ void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
 }
 
-void MKLDNNEltwiseNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
@@ -1683,6 +1675,10 @@ void MKLDNNEltwiseNode::executeReference(const jit_eltwise_params &jep, const ji
     });
 }
 
+void MKLDNNEltwiseNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
@@ -1748,7 +1744,7 @@ void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     MKLDNNNode::fuseInto(parentNode);
 }
 
-void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align) {
+void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
     if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
@@ -1779,11 +1775,11 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &p
         }
     } else {
         const size_t chIdx = postOpDims.size() > 1 ? getFusingAxis() : 0;
+        constexpr int align = 16; // always align for legacy scale/shift post ops
         scalesBuffer = makeAlignedBuffer(postOpDims[chIdx], scales, align);
         if (getAlgorithm() != EltwisePrelu) {
             shiftsBuffer = makeAlignedBuffer(postOpDims[chIdx], shifts, align);
         }
-
         /* @todo legacy depthwise post ops are kept for now
          * for performance reasons
          */
