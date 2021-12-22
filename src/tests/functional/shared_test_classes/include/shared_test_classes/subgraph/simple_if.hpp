@@ -29,7 +29,6 @@ protected:
     void SetUp() override;
     void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
 
-private:
     size_t inferNum = 0;
 };
 
@@ -51,6 +50,12 @@ protected:
 class SimpleIfNotConstConditionAndInternalDynamismTest : public SimpleIfNotConstConditionTest {
 protected:
     void SetUp() override;
+};
+
+class SimpleIfNotConstConditionAndDimsIncreaseTest : public SimpleIfNotConstConditionTest {
+protected:
+    void SetUp() override;
+    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
 };
 
 }  // namespace SubgraphTestsDefinitions

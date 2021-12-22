@@ -125,4 +125,31 @@ TEST_P(SimpleIfNotConstConditionAndInternalDynamismTest, CompareWithRefs) {
     run();
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_3 = {
+        {
+            {
+                {-1, 2, -1},
+                {{1, 2, 0}, {2, 2, 5}}
+            },
+        },
+        {
+             {
+                {{0, 10}, {0, 10}, {0, 10}},
+                {{2, 5, 10}, {2, 0, 0}}
+             },
+        },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfNotConstConditionAndDimsIncreaseTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapes_3),
+                                 ::testing::ValuesIn(inTypes),
+                                 ::testing::ValuesIn(conditions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         SimpleIfNotConstConditionTest::getTestCaseName);
+
+TEST_P(SimpleIfNotConstConditionAndDimsIncreaseTest, CompareWithRefs) {
+    run();
+};
+
 }  // namespace

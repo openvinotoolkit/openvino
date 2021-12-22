@@ -204,4 +204,47 @@ void SimpleIfNotConstConditionAndInternalDynamismTest::SetUp() {
                                            params, "SimpleIfNotConstConditionAndInternalDynamismTest");
 }
 
+void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
+    std::vector<ov::test::InputShape> shapes;
+    ov::test::ElementType inType;
+    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+
+    init_input_shapes(shapes);
+    for (auto &target : targetStaticShapes)
+        target.emplace_back(ov::Shape{});
+    auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+    params.emplace_back(std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
+
+    auto p1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+    auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+
+    // then body
+    const std::vector<int64_t> pads(p1->get_partial_shape().rank().get_length(), 2);
+    auto thenOp = ngraph::builder::makePad(p1, pads, pads, 0, ngraph::helpers::PadMode::CONSTANT);
+    auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp);
+    auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
+
+    // else body
+    auto elseRes = std::make_shared<ov::op::v0::Result>(p2);
+    auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{elseRes}, ov::ParameterVector{p2});
+
+    auto ifOp = std::make_shared<ov::op::v8::If>(params[1]);
+    ifOp->set_then_body(thenBody);
+    ifOp->set_else_body(elseBody);
+    ifOp->set_input(params[0], p1, p2);
+    auto ifRes = ifOp->set_output(thenRes, elseRes);
+
+    function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(ifOp)},
+                                           params, "SimpleIfNotConstConditionAndDimsIncreaseTest");
+}
+
+void SimpleIfNotConstConditionAndDimsIncreaseTest::compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) {
+    const auto shape = targetStaticShapes[inferNum++].front();
+    if (!condition && std::any_of(shape.begin(), shape.end(), [](size_t dim) { return dim == 0; })) {
+        return;
+    }
+
+    SubgraphBaseTest::compare(expected, actual);
+}
+
 } // namespace SubgraphTestsDefinitions
