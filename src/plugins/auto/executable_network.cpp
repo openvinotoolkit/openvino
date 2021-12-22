@@ -130,7 +130,6 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                     auto capturedTask = std::move(workerRequestPtr->_task);
                     capturedTask();
                 }
-
                 // try to return the request to the idle list (fails if the overall object destruction has began)
                 if (idleGuard.Release()->try_push(workerRequestPtr)) {
                     // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded

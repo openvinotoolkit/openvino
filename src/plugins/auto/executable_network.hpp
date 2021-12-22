@@ -18,6 +18,7 @@
 #include <threading/ie_itask_executor.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "ie_icore.hpp"
+
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 # include <tbb/concurrent_queue.h>
 #endif
@@ -28,6 +29,7 @@
 #else
 #define MOCKTESTMACRO
 #endif
+
 namespace MultiDevicePlugin {
 
 class MultiDeviceInferencePlugin;
@@ -220,4 +222,5 @@ private:
     std::condition_variable                                             _recycleCond;
     bool                                                                _switchReady = {false};
 };
+
 }  // namespace MultiDevicePlugin
