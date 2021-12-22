@@ -12,6 +12,7 @@
 #include <openvino/frontend/onnx/visibility.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>
+#include <onnx_import/onnx_utils.hpp>
 
 #include "onnx_common/onnx_model_validator.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
@@ -66,6 +67,19 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
+
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode(model);
+
+        ov::pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
     return model_onnx->convert();
 }
 
@@ -138,5 +152,18 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
+        m_transformation_extensions.push_back(transformation);
+    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension<OutputVector>>(extension)) {
+        m_conversion_extensions.push_back(common_conv_ext);
+        for (int i = 1; i < 13; ++i)
+            ngraph::onnx_import::register_operator(common_conv_ext->get_op_type(), i, "",
+                                                   [=](const ngraph::onnx_import::Node &context) {
+                return common_conv_ext->get_converter()(NodeContext(context));
+            });
+    } else if (const auto onnx_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+        m_conversion_extensions.push_back(onnx_conv_ext);
+        for (int i = 1; i < 13; ++i)
+        ngraph::onnx_import::register_operator(common_conv_ext->get_op_type(), i, "", onnx_conv_ext->get_converter());
     }
 }

@@ -22,15 +22,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class NodeContext;
-
 class TENSORFLOW_API FrontEnd : public ov::frontend::FrontEnd {
-public:
-    using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
-
-private:
-    TranslatorDictionaryType m_op_translators;
-
 public:
     FrontEnd();
 
@@ -81,8 +73,12 @@ private:
                          bool no_conversion,
                          std::shared_ptr<ov::Model>& ng_function) const;
 
-    std::shared_ptr<TelemetryExtension> m_telemetry;
-    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
+    TelemetryExtension::Ptr m_telemetry;
+    std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
+    std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
+    std::vector<Extension::Ptr> m_extensions;
+
+    TranslatorDictionaryType m_op_translators;
 };
 
 }  // namespace tensorflow

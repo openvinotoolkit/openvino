@@ -22,7 +22,7 @@ public:
 protected:
     const ngraph::onnx_import::Node& context;
 };
-using CreatorFunction = std::function<OutputVector(const ov::frontend::onnx::NodeContext&)>;
+using CreatorFunction = std::function<OutputVector(const ngraph::onnx_import::Node&)>;
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

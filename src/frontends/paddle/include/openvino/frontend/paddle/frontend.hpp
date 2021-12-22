@@ -8,9 +8,11 @@
 #include <openvino/frontend/extension/telemetry.hpp>
 #include <openvino/frontend/frontend.hpp>
 #include <openvino/frontend/input_model.hpp>
+#include <openvino/core/extension.hpp>
 
 #include "exceptions.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
+#include "openvino/frontend/paddle/extension/conversion.hpp"
 
 namespace ov {
 namespace frontend {
@@ -73,8 +75,13 @@ private:
         const std::shared_ptr<InputModel>& frontend_model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlace>&)> func);
-    std::shared_ptr<TelemetryExtension> m_telemetry;
-    std::vector<std::shared_ptr<DecoderTransformationExtension>> m_transformation_extensions;
+
+    TelemetryExtension::Ptr m_telemetry;
+    std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
+    std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
+    std::vector<Extension::Ptr> m_extensions;
+
+    TranslatorDictionaryType m_op_translators;
 };
 
 }  // namespace paddle

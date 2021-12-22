@@ -20,12 +20,15 @@ using NamedInputs = std::map<InPortName, OutputVector>;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class NodeContext {
+class NodeContext : public ov::frontend::NodeContext<NamedOutputs> {
     const DecoderBase& decoder;
     const NamedInputs& name_map;
 
 public:
-    NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map) : decoder(_decoder), name_map(_name_map) {}
+    NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map) :
+        ov::frontend::NodeContext<NamedOutputs>(_decoder.get_op_type(), _name_map),
+        decoder(_decoder),
+        name_map(_name_map) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <class T>
@@ -112,6 +115,7 @@ inline NamedOutputs NodeContext::default_single_output_mapping(
 }
 
 using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
+using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov

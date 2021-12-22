@@ -100,6 +100,7 @@ public:
 };
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
+using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
 
 }  // namespace tensorflow
 }  // namespace frontend

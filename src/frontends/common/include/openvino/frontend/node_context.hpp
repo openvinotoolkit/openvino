@@ -38,7 +38,7 @@ private:
 };
 
 template <class T>
-using CreatorFunction = std::function<OutputVector(const NodeContext<T>&)>;
+using CreatorFunction = std::function<T(const NodeContext<T>&)>;
 
 }  // namespace frontend
 }  // namespace ov

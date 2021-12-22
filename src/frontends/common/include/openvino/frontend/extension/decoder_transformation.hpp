@@ -24,6 +24,7 @@ namespace frontend {
 /// calling corresponding ctor.
 class FRONTEND_API DecoderTransformationExtension : public ov::Extension {
 public:
+    using Ptr = std::shared_ptr<DecoderTransformationExtension>;
     DecoderTransformationExtension() = default;
 
     /// \brief Create a custom functional pass where code of the pass is implemented as a function.

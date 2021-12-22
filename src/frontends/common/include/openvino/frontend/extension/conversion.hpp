@@ -32,7 +32,8 @@ template <class T>
 class FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     ConversionExtension(const std::string& op_type, const CreatorFunction<T>& converter)
-        : ConversionExtensionBase(op_type) {}
+        : ConversionExtensionBase(op_type),
+          m_converter(converter) {}
 
     const CreatorFunction<T>& get_converter() {
         return m_converter;
