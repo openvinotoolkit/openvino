@@ -10,7 +10,8 @@ from openvino.tools.mo.ops.scatternd import ScatterNDUpdate
 
 class TFScatterNDDecomposition(FrontReplacementSubgraph):
     """
-    Description
+    Replaces TfScatterND to ScatterNd. TFScatterND has not input_data, so instead of  this arg is
+    inserted tensor with shape(TFScatterND zero input) and zero value.
     """
     enabled = True
 
