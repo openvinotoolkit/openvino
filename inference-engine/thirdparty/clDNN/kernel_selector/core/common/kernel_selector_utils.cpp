@@ -425,7 +425,9 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         {DataLayout::bs_f_bsv16__af8,        {16, 8}},
         {DataLayout::b_fs_yx_fsv4,           {1, 4}},
         {DataLayout::fs_b_yx_fsv32,          {1, 32}},
-        {DataLayout::b_fs_yx_32fp,           {1, 32}}
+        {DataLayout::b_fs_yx_32fp,           {1, 32}},
+        {DataLayout::bs_fs_yx_bsv32_fsv16,   {32, 16}},
+        {DataLayout::bs_fs_yx_bsv32_fsv32,   {32, 32}}
     };
 
     if (params.inputs.size()) {
