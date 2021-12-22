@@ -4,12 +4,11 @@
 
 #include <vector>
 
-#include "behavior/ov_infer_request/batched_tensors.hpp"
+#include "behavior/ov_infer_request/set_tensors.hpp"
 
-using namespace ov::test::behavior;
-using namespace ov;
-
-namespace {
+namespace ov {
+namespace test {
+namespace behavior {
 
 // Default implementation - exception is thrown when N is not first in layout
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Batch_Non_0) {
@@ -56,8 +55,8 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Strides) {
     req = execNet.create_infer_request();
     auto tensor1 = runtime::Tensor(element::f32, one_shape_stride, &buffer1[0]);
     auto tensor2 = runtime::Tensor(element::f32, one_shape_stride, &buffer2[0]);
-    auto tensor1_cut =  runtime::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
-    auto tensor2_cut =  runtime::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
+    auto tensor1_cut = runtime::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
+    auto tensor2_cut = runtime::Tensor(tensor1, {0, 1, 1, 1}, {1, 3, 3, 3});
     std::vector<ov::runtime::Tensor> tensors;
     tensors.push_back(tensor1_cut);
     tensors.push_back(tensor2_cut);
@@ -68,7 +67,16 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Strides) {
                  }, ov::Exception);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_TEMPLATE, OVInferRequestBatchedTests,
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov
+
+namespace {
+
+using namespace ov::test::behavior;
+using namespace ov;
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestBatchedTests,
                          ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                          OVInferRequestBatchedTests::getTestCaseName);
 

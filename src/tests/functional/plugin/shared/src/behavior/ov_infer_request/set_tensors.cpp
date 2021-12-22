@@ -5,12 +5,10 @@
 #include <gtest/gtest.h>
 #include "openvino/opsets/opset8.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "behavior/ov_infer_request/batched_tensors.hpp"
+#include "behavior/ov_infer_request/set_tensors.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include <thread>
 #include <chrono>
-
-using namespace std::chrono;
 
 namespace ov {
 namespace test {
@@ -21,6 +19,7 @@ std::string OVInferRequestBatchedTests::getTestCaseName(const testing::TestParam
 }
 
 std::string OVInferRequestBatchedTests::generateCacheDirName(const std::string& test_name) {
+    using namespace std::chrono;
     // Generate unique file names based on test name, thread id and timestamp
     // This allows execution of tests in parallel (stress mode)
     auto hash = std::to_string(std::hash<std::string>()(test_name));
@@ -289,7 +288,6 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Can_Infer_Dynamic) {
         }
     }
 }
-
 
 TEST_P(OVInferRequestBatchedTests, SetTensors_Batch1) {
     auto one_shape = Shape{1, 3, 10, 10};
