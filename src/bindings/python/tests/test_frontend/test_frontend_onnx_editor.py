@@ -5,6 +5,7 @@ import os
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
+import numpy as np
 from openvino.runtime import Dimension, PartialShape
 from openvino.frontend import FrontEndManager
 
