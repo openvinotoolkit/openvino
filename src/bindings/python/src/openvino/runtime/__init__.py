@@ -60,6 +60,7 @@ from openvino.pyopenvino import Layout
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import util
 from openvino.pyopenvino import layout_helpers
+from openvino.pyopenvino import RTMap
 
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import CompiledModel
