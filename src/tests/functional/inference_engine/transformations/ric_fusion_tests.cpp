@@ -124,7 +124,7 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
 
 TEST_F(TransformationTestsF, RICFusionHard) {
     {
-        auto input = create_param({ -1, 3, -1, -1 });
+        auto input = create_param({ -1, -1, -1, -1 });
         auto relu = std::make_shared<Relu>(input);
 
         auto input2 = create_param({ -1, 3, -1, -1 });
@@ -148,11 +148,10 @@ TEST_F(TransformationTestsF, RICFusionHard) {
 
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ConstantFolding>();
         manager.register_pass<pass::ReverseInputChannelsFusion>();
     }
     {
-        auto input = create_param({ -1, 3, -1, -1 });
+        auto input = create_param({ -1, -1, -1, -1 });
         auto relu = std::make_shared<Relu>(input);
 
         auto input2 = create_param({ -1, 3, -1, -1 });
@@ -178,6 +177,30 @@ TEST_F(TransformationTestsF, RICFusionHard) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     enable_accuracy_check();
+}
+
+TEST_F(TransformationTestsF, RICFusionDynamic) {
+    {
+        auto input = create_param({ -1, -1, -1, -1 });
+        auto relu = std::make_shared<Relu>(input);
+        auto conv = create_conv(relu, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+
+    {
+        auto input = create_param({ -1, -1, -1, -1 });
+        auto relu = std::make_shared<Relu>(input);
+        auto conv = create_conv_with_gather(relu, {6, 3, 3, 3}, {2, 1, 0});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    disable_rt_info_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise1) {
@@ -322,7 +345,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative) {
     }
 }
 
-TEST_F(TransformationTestsF, RICFusionEltwiseNegative2) {
+TEST_F(TransformationTestsF, RICFusionEltwiseTwoRIC) {
     {
         auto input = create_param({ 1, 3, 64, 64 });
         auto input2 = create_param({ 1, 1, 64, 64 });
@@ -334,6 +357,18 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative2) {
 
         manager.register_pass<pass::ReverseInputChannelsFusion>();
     }
+    {
+        auto input = create_param({ 1, 3, 64, 64 });
+        auto input2 = create_param({ 1, 1, 64, 64 });
+        auto add = std::make_shared<Add>(input, input2);
+        auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
+
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input, input2 });
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    disable_rt_info_check();
+    enable_accuracy_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwiseNegative3) {
