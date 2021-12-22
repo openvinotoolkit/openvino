@@ -23,17 +23,18 @@ void shape_infer(const StridedSlice* op,
 
     const auto& input_shape = input_shapes[0];
     const auto& begin_shape = input_shapes[1];
-    if (begin_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              begin_shape.size() == 1,
-                              "Begin input must be 1D (begin rank: ",
-                              begin_shape.size(),
-                              ").");
-    }
+    NODE_VALIDATION_CHECK(op,
+                          begin_shape.rank().compatible(1),
+                          "Begin input must be 1D (begin rank: ",
+                          begin_shape.rank(),
+                          ").");
+
     const auto& end_shape = input_shapes[2];
-    if (end_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op, end_shape.size() == 1, "End input must be 1D (end rank: ", end_shape.size(), ").");
-    }
+    NODE_VALIDATION_CHECK(op,
+                          end_shape.rank().compatible(1),
+                          "End input must be 1D (end rank: ",
+                          end_shape.rank(),
+                          ").");
 
     std::vector<int64_t> begin;
     std::vector<int64_t> end;
