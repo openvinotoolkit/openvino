@@ -6,6 +6,8 @@
 
 #include "behavior/ov_infer_request/set_tensors.hpp"
 
+/* TODO: temporary disabled
+
 namespace ov {
 namespace test {
 namespace behavior {
@@ -71,6 +73,7 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Strides) {
 }  // namespace test
 }  // namespace ov
 
+ */
 namespace {
 
 using namespace ov::test::behavior;
