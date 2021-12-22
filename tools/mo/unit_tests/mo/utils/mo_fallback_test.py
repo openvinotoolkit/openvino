@@ -177,3 +177,6 @@ class TestMoFallback(unittest.TestCase):
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+
+    def test_fallback_assert():
+        assert False
