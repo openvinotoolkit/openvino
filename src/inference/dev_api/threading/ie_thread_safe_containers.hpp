@@ -9,7 +9,11 @@
 #include <mutex>
 #include <queue>
 #include <type_traits>
+
 #include "ie_parallel.hpp"
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#    include <tbb/concurrent_queue.h>
+#endif
 
 namespace InferenceEngine {
 
@@ -40,12 +44,12 @@ protected:
     std::mutex _mutex;
 };
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-    template<typename T>
-    using ThreadSafeQueue = tbb::concurrent_queue<T>;
-    template<typename T>
-    using ThreadSafeBoundedQueue = tbb::concurrent_bounded_queue<T>;
+template <typename T>
+using ThreadSafeQueue = tbb::concurrent_queue<T>;
+template <typename T>
+using ThreadSafeBoundedQueue = tbb::concurrent_bounded_queue<T>;
 #else
-template<typename T>
+template <typename T>
 using ThreadSafeQueue = ThreadSafeQueueWithSize<T>;
 template <typename T>
 class ThreadSafeBoundedQueue {
@@ -79,4 +83,4 @@ protected:
     bool _capacity = false;
 };
 #endif
-}
+}  // namespace InferenceEngine

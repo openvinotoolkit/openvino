@@ -36,8 +36,6 @@
 #        define TBB_PREVIEW_TASK_ARENA_CONSTRAINTS_EXTENSION 1
 #    endif
 
-#    include <tbb/concurrent_queue.h>
-
 #    include "tbb/blocked_range.h"
 #    include "tbb/blocked_range2d.h"
 #    include "tbb/blocked_range3d.h"
@@ -131,6 +129,7 @@ inline void parallel_set_num_threads(int) {
 #endif
 
 namespace InferenceEngine {
+
 template <typename F>
 void parallel_nt(int nthr, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
