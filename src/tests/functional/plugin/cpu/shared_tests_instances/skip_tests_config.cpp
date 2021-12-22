@@ -104,27 +104,18 @@ std::vector<std::string> disabledTestPatterns() {
 
         // CPU plugin does not support some precisions
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
-        // CPU plugin does not support some precisions
-        R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(i8|u32).*)",
-        R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(f16).*)",
-        R"(.*EltwiseLayerTest.*NetType=f16.*)",
-
-        // TODO: CVS-66526 overrides i/o precisions in execution graph
-        // as WA we used GetInputsInfo() precisions instead of ngraph ones
-        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedFunction.*type=(i16|u16).*)",
-        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedFunction.*type=(i64|u64).*)",
-        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedIENetwork.*type=(i16|u16).*)",
-        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedIENetwork.*type=(i64|u64).*)",
 
         // CPU does not support dynamic rank
         // Issue: CVS-66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_Hetero_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+        R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-
+        R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+        R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
         // Issue: CVS-66780
         R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
@@ -138,11 +129,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_PrePostProcess.*two_inputs_trivial.*)",
         // TODO: CVS-67255
         R"(smoke_If.*SimpleIf2OutTest.*)",
-        // TODO: CVS-68525
-        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
-        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
 
         // Issue: 69086
         // need to add support convert BIN -> FP32
@@ -152,6 +138,7 @@ std::vector<std::string> disabledTestPatterns() {
         // bad accuracy
         R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
+
         // Issue: 71121
         R"(.*smoke_Proposal*.*TS=\(2.*)",
         // TODO : CVS-69533
@@ -165,6 +152,22 @@ std::vector<std::string> disabledTestPatterns() {
         // Failure happened on win and macos for current seeds.
         R"(.*CTCLossLayerTest.*CMR=1.*)",
         R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
+        // Issue: 71756
+        R"(.*Deconv_.*D_(Blocked|DW|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw16c|nCdhw16c)_outFmts=(nChw16c|nCdhw16c)_primitive=jit_avx512_.*Fused=Multiply\(PerChannel\)\.Add\(PerChannel\).*)",
+        R"(.*smoke_GroupDeconv_(2|3)D_Blocked_BF16.*S=(\(2\.2\)|\(2\.2\.2\))_PB=(\(0\.0\)|\(0\.0\.0\))_PE=(\(0\.0\)|\(0\.0\.0\))_D=(\(1\.1\)|\(1\.1\.1\))_.*_O=64_G=4.*)",
+        // Issue: 72150
+        R"(.*smoke_SetBlobCPU/SetBlobTest.CompareWithRefs/Type=.*_Device=CPU_PrecisionInNet=BOOL.*)",
+        // Issue: 59594
+        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*BOOL.*)",
+        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*MIXED.*)",
+        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*Q78.*)",
+        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*U4.*)",
+        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*I4.*)",
+        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*BIN.*)",
+        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*CUSTOM.*)",
+        R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
+        // Issue:
+        R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
     };
 
 #define FIX_62820 0

@@ -211,11 +211,15 @@ REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
 REGISTER_FACTORY(v7, Gather);
 
 // ------------------------------ Supported v8 ops ------------------------------ //
+REGISTER_FACTORY(v8, Slice);
 REGISTER_FACTORY(v8, Gather);
 REGISTER_FACTORY(v8, GatherND);
 REGISTER_FACTORY(v8, DeformableConvolution);
 REGISTER_FACTORY(v8, NV12toRGB);
 REGISTER_FACTORY(v8, NV12toBGR);
+REGISTER_FACTORY(v8, I420toRGB);
+REGISTER_FACTORY(v8, I420toBGR);
+REGISTER_FACTORY(v8, RandomUniform)
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
