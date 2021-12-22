@@ -18,7 +18,6 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
-    void createPrimitive() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     bool created() const override;
@@ -102,6 +101,8 @@ private:
 
     static constexpr size_t optimalBatchSize = 16lu;
     static constexpr size_t batchDimDummyValue = 64lu;
+
+    bool wasMemoryPrepared = false;
 };
 
 }  // namespace MKLDNNPlugin

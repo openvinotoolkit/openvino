@@ -77,8 +77,8 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        size_t hiddenSize = inputDynamicShapes[1][1].get_length();
-        size_t inputSize = inputDynamicShapes.front()[1].get_length();
+        const size_t hiddenSize = targetStaticShapes.front()[1][1];
+        const size_t inputSize = targetStaticShapes.front()[0][1];
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -87,6 +87,8 @@ protected:
         } else {
             inType = outType = netPrecision;
         }
+        // TODO: does not work properly with new tests API
+//        selectedType = makeSelectedTypeStr(selectedType, outType);
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
@@ -146,6 +148,10 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
     { { { {1, 10}, 30 },                  // Dynamic shape 0
         { {2, 30}, {5, 30}, {8, 30} } },  // Target shapes
       { { {1, 10}, 10 },                  // Dynamic shape 1
+        { {2, 10}, {5, 10}, {8, 10} } } }, // Target shapes
+    { { { {1, 10}, -1 },                  // Dynamic shape 0
+        { {2, 30}, {5, 30}, {8, 30} } },  // Target shapes
+      { { {1, 10}, {1, 11} },             // Dynamic shape 1
         { {2, 10}, {5, 10}, {8, 10} } } } // Target shapes
 };
 

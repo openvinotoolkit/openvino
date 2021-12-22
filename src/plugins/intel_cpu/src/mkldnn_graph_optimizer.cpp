@@ -2022,10 +2022,8 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         }
 
         auto childrenEdges = parentNode->getChildEdgesAtPort(0);
-        std::vector<ov::Dimension> origShape = static_cast<std::vector<ov::Dimension>>(parentNode->getOutputShapeAtPort(0).toPartialShape());
-        origShape.erase(origShape.begin() + 1);
-        const auto newShape = Shape(origShape);
-        parentNode->outputShapes[0] = newShape;
+        auto& origShape = parentNode->getOutputShapeAtPort(0);
+        parentNode->outputShapes[0] = Shape{origShape.getInterval(0), origShape.getInterval(2), origShape.getInterval(3)};
 
         for (size_t j = 0; j < childrenEdges.size(); j++) {
             auto edge = childrenEdges[j];

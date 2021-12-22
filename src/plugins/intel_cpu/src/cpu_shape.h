@@ -21,6 +21,8 @@ public:
     }
 
     Interval(Dim minVal, Dim maxVal) {
+        if (minVal > maxVal)
+            IE_THROW() << "Invalid interval initialization. Min value is greater than Max value.";
         minValue = minVal;
         maxValue = maxVal;
     }
@@ -35,6 +37,10 @@ public:
 
     Dim getMaxValue() const {
         return maxValue;
+    }
+
+    Dim getDummyValue(Dim dummyVal) const {
+        return isStatic() ? maxValue : std::min(maxValue, std::max(minValue, dummyVal));
     }
 
 private:

@@ -73,12 +73,12 @@ static mkldnn::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
     }
 }
 
-inline size_t gatesCount(const mkldnn::algorithm& alg) {
+inline size_t gatesCount(const algorithm& alg) {
     switch (alg) {
-        case mkldnn::algorithm::vanilla_rnn:     return 1;
-        case mkldnn::algorithm::vanilla_gru:
-        case mkldnn::algorithm::lbr_gru:         return 3;
-        case mkldnn::algorithm::vanilla_lstm:    return 4;
+        case algorithm::vanilla_rnn:     return 1;
+        case algorithm::vanilla_gru:
+        case algorithm::lbr_gru:         return 3;
+        case algorithm::vanilla_lstm:    return 4;
         default:
             IE_THROW() << "Unsupported cell type";
             return 0;
@@ -275,16 +275,22 @@ void MKLDNNRNN::initCell() {
                 "; Hidden state rank: " << getInputShapeAtPort(1).getRank();
 
     T = 1;
-    DC = getInputShapeAtPort(0).getDims()[1];
+    if (cell_type == algorithm::vanilla_lstm)
+        DC = getInputShapeAtPort(3).getDims()[1];
+    else
+        DC = getInputShapeAtPort(2).getDims()[1];
+
     // Expected shapes.
     const Shape shapeD{N, DC}, shapeS{N, SC};
 
-    if (getInputShapeAtPort(0) != shapeD || getInputShapeAtPort(1) != shapeS || getOutputShapeAtPort(0) != shapeS)
+    if (getInputShapeAtPort(0).getInterval(1).isStatic() && getInputShapeAtPort(0) != shapeD ||
+            getInputShapeAtPort(1).getInterval(1).isStatic() && getInputShapeAtPort(1) != shapeS || getOutputShapeAtPort(0) != shapeS) {
         THROW_ERROR << "has incorrect input/output shapes. Data shape: " << getInputShapeAtPort(0).toString() <<
                 "; Hidden state input: " << getInputShapeAtPort(1).toString() << "; Hidden state output: " << getOutputShapeAtPort(0).toString();
+    }
 
     if (S == 2) {
-        if (getInputShapeAtPort(2) != shapeS || getOutputShapeAtPort(1) != shapeS)
+        if (getInputShapeAtPort(2).getInterval(1).isStatic() && getInputShapeAtPort(2) != shapeS || getOutputShapeAtPort(1) != shapeS)
             THROW_ERROR << "has incorrect input/output shapes. Cell state input: " << getInputShapeAtPort(2).toString() <<
                     "; Cell state output: " << getOutputShapeAtPort(1).toString();
     }
@@ -292,7 +298,7 @@ void MKLDNNRNN::initCell() {
 
 void MKLDNNRNN::fillCellDesc() {
     const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
-    const size_t B = N.isStatic() ? N.getMaxValue() : batchDimDummyValue;
+    const size_t B = N.getDummyValue(batchDimDummyValue);
     const Shape shapeS_4D {L, D, B, SC};
 
     // layer input plus states
@@ -348,7 +354,10 @@ void MKLDNNRNN::initSequence() {
         THROW_ERROR << "has incorrect number of output ports: " << getOriginalOutputsNumber();
 
     T = inDataShape.getInterval(1);
-    DC = inDataShape.getDims()[2];
+    if (cell_type == algorithm::vanilla_lstm)
+        DC = getInputShapeAtPort(4).getDims()[2];
+    else
+        DC = getInputShapeAtPort(3).getDims()[2];
 
     // layer input plus states
     inDataDescs.reserve(S + 1);
@@ -357,8 +366,8 @@ void MKLDNNRNN::initSequence() {
 
 void MKLDNNRNN::fillSequenceDesc() {
     const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
-    const size_t B = N.isStatic() ? N.getMaxValue() : batchDimDummyValue;
-    const size_t SL = T.isStatic() ? T.getMaxValue() : 1lu; // Dummy value
+    const size_t B = N.getDummyValue(batchDimDummyValue);
+    const size_t SL = T.getDummyValue(1lu);
     const Shape shapeS_4D {L, D, B, SC};
 
     // Try to create descriptor and corresponding configuration
@@ -708,30 +717,16 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     supportedPrimitiveDescriptors.emplace_back(config, ref_any);
 }
 
-void MKLDNNRNN::createPrimitive() {
-    if (cell_type == mkldnn::algorithm::vanilla_rnn) {
-        auto prim_desc = createPrimitiveDescriptor<vanilla_rnn_forward::primitive_desc, vanilla_rnn_forward::desc>();
-        prim.reset(new vanilla_rnn_forward(prim_desc));
-    } else if (cell_type == mkldnn::algorithm::vanilla_gru) {
-        auto prim_desc = createPrimitiveDescriptor<gru_forward::primitive_desc, gru_forward::desc>();
-        prim.reset(new gru_forward(prim_desc));
-    } else if (cell_type == mkldnn::algorithm::lbr_gru) {
-        auto prim_desc = createPrimitiveDescriptor<lbr_gru_forward::primitive_desc, lbr_gru_forward::desc>();
-        prim.reset(new lbr_gru_forward(prim_desc));
-    } else if (cell_type == mkldnn::algorithm::vanilla_lstm) {
-        auto prim_desc = createPrimitiveDescriptor<lstm_forward::primitive_desc, lstm_forward::desc>();
-        prim.reset(new lstm_forward(prim_desc));
-    } else {
-        THROW_ERROR << "has unknown cell type.";
-    }
-}
-
 void MKLDNNRNN::prepareParams() {
+    auto dataMemPtr = getParentEdgesAtPort(0).front()->getMemoryPtr();
+    if (!dataMemPtr)
+        THROW_ERROR << "has uninitialized memory at port 0.";
+
     const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
-    const size_t B = getParentEdgesAtPort(0).front()->getMemory().GetShape().getStaticDims()[0];
-    const size_t SL = is_cell ? 1lu : getParentEdgesAtPort(0).front()->getMemory().GetShape().getStaticDims()[1];
-    Shape shapeS_4D{L, D, B, SC};
+    const size_t B = dataMemPtr->GetShape().getStaticDims()[0];
+    const size_t SL = is_cell ? 1lu : dataMemPtr->GetShape().getStaticDims()[1];
+    const Shape shapeS_4D{L, D, B, SC};
 
     inDataDescs[0] = DnnlBlockedMemoryDesc(Shape{SL, B, DC}, dataType, memory::format_tag::tnc);
     outDataDescs[0] = DnnlBlockedMemoryDesc(Shape{SL, B, SC}, dataType, memory::format_tag::tnc);
@@ -779,9 +774,10 @@ void MKLDNNRNN::prepareParams() {
         prim.reset(new lstm_forward(lstm_forward::primitive_desc(*desc, getEngine())));
     }
 
-    if (wFormatWasChanged) {
+    if (!wasMemoryPrepared || wFormatWasChanged) {
         auto itpd = descs[0].createPrimitiveDescriptorIterator(getEngine(), mkldnn::primitive_attr());
         prepareMemory(itpd);
+        wasMemoryPrepared = true;
     }
 }
 
@@ -841,8 +837,13 @@ void MKLDNNRNN::executeDynamicImpl(mkldnn::stream strm) {
 }
 
 std::vector<VectorDims> MKLDNNRNN::shapeInfer() const {
+    if (is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[1] ||
+            !is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[2])
+        THROW_ERROR << "has incorrect input size value in the first input.";
+
     auto originOutputShapes = MKLDNNNode::shapeInfer();
 
+    // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
     if (!hasNativeOrder() && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
         originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
     }

@@ -83,14 +83,16 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        size_t hiddenSize = inputDynamicShapes[1][1].get_length();
-        size_t inputSize = inputDynamicShapes.front()[1].get_length();
+        const size_t hiddenSize = targetStaticShapes.front()[1][1];
+        const size_t inputSize = targetStaticShapes.front()[0][1];
 
+        // TODO: does not work properly with new tests API
 //        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
 //            inType = outType = ElementType::bf16;
 //        } else {
 //            inType = outType = netPrecision;
 //        }
+//        selectedType = makeSelectedTypeStr(selectedType, outType);
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
@@ -106,7 +108,7 @@ TEST_P(LSTMCellLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    CheckPluginRelatedResults(executableNetwork, "LSTMCell");
+    CheckPluginRelatedResults(executableNetwork, "RNNCell");
 }
 
 namespace {
@@ -122,7 +124,7 @@ std::vector<bool> should_decompose{false};
 std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh", "tanh"}};
 // oneDNN supports only zero clip
 std::vector<float> clip{0.f};
-std::vector<ElementType> netPrecisions = { ElementType::f32, ElementType::bf16 };
+std::vector<ElementType> netPrecisions = { ElementType::f32 };
 
 const std::vector<std::vector<ov::test::InputShape>> staticShapes = {
     { { {}, { {1, 1} } }, // Static shapes
@@ -150,18 +152,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, LSTMCellLayerCPUTest,
                 LSTMCellLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
-    { { { -1, 1 },                                  // Dynamic shape 0
-        { {1, 1}, {3, 1}, {5, 1} } },               // Target shapes
-      { { -1, 1 },                                  // Dynamic shape 1
-        { {1, 1}, {3, 1}, {5, 1} } },               // Target shapes
-      { { -1, 1 },                                  // Dynamic shape 2
-        { {1, 1}, {3, 1}, {5, 1} } } },             // Target shapes
-    { { { {1, 20}, 30 },                            // Dynamic shape 0
-        { {2, 30}, {5, 30}, {8, 30} } },  // Target shapes
-      { { {1, 20}, 10 },                            // Dynamic shape 1
-        { {2, 10}, {5, 10}, {8, 10} } },  // Target shapes
-      { { {1, 20}, 10 },                            // Dynamic shape 2
-        { {2, 10}, {5, 10}, {8, 10} } } } // Target shapes
+    { { { -1, 1 },                         // Dynamic shape 0
+        { {1, 1}, {3, 1}, {5, 1} } },      // Target shapes
+      { { -1, 1 },                         // Dynamic shape 1
+        { {1, 1}, {3, 1}, {5, 1} } },      // Target shapes
+      { { -1, 1 },                         // Dynamic shape 2
+        { {1, 1}, {3, 1}, {5, 1} } } },    // Target shapes
+    { { { {1, 20}, 30 },                   // Dynamic shape 0
+        { {2, 30}, {5, 30}, {8, 30} } },   // Target shapes
+      { { {1, 20}, 10 },                   // Dynamic shape 1
+        { {2, 10}, {5, 10}, {8, 10} } },   // Target shapes
+      { { {1, 20}, 10 },                   // Dynamic shape 2
+        { {2, 10}, {5, 10}, {8, 10} } } }, // Target shapes
+    { { { {1, 20}, {28, 32} },             // Dynamic shape 0
+        { {2, 30}, {5, 30}, {8, 30} } },   // Target shapes
+      { { {1, 20}, {8, 12} },              // Dynamic shape 1
+        { {2, 10}, {5, 10}, {8, 10} } },   // Target shapes
+      { { {1, 20}, -1 },                   // Dynamic shape 2
+        { {2, 10}, {5, 10}, {8, 10} } } }  // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMCellLayerCPUTest,

@@ -89,36 +89,47 @@ protected:
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         init_input_shapes(inputShapes);
+        if (inputDynamicShapes.size() == 2 && inputDynamicShapes[0][0].is_dynamic() && inputDynamicShapes[1][0].is_dynamic())
+            throw std::runtime_error("Invalid test case. If 3rd input is constant, batch dimension must be static.");
 
-        // method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
+        // Method MKLDNNMemoryDesc::isSame can't correct compute layout for tensor with strides = 1
         // returned output format always tnc
-        if (inFmts.size() == 2 && inputDynamicShapes[1].is_static() && ov::shape_size(inputDynamicShapes[1].to_shape()) == 1) {
+        if (inFmts.size() == 2 && (inputDynamicShapes[0][0].is_static() && inputDynamicShapes[0][0].get_length() == 1 ||
+                inputDynamicShapes[1].is_static() && ov::shape_size(inputDynamicShapes[1].to_shape()) == 1)) {
             inFmts[1] = tnc;
         }
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        const size_t hiddenSize = inputDynamicShapes[1][2].get_length();
-        const size_t inputSize = inputDynamicShapes.front()[2].get_length();
+        const size_t hiddenSize = targetStaticShapes.front()[1][2];
+        const size_t inputSize = targetStaticShapes.front()[0][2];
         const size_t numDirections = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
 
-//        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-//            inType = outType = ElementType::bf16;
-//        } else {
-//            inType = outType = netPrecision;
-//        }
-        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+        // 3rd input type must be an integer, thus it cannot be forced to BF16.
+        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+            if (inputDynamicShapes.size() > 2)
+                throw std::runtime_error("Invalid test case. Cannot enforce integer input to BF16.");
+            inType = outType = ElementType::bf16;
+        } else {
+            outType = netPrecision;
+        }
+        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
-        size_t batchSize = 1lu;
-        if (inputDynamicShapes[2].is_dynamic() || seqMode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM
-                || seqMode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
-            params[2]->set_friendly_name("seqLengths");
-            params[2]->set_element_type(ElementType::i64);
-        } else {
-            batchSize = inputDynamicShapes[2][0].get_length();
-            params.pop_back();
+        const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
+            inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
+            inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static() ? inputDynamicShapes[2][0].get_length() :
+            1lu;
+        if (inputDynamicShapes.size() > 2) {
+            if (!inputDynamicShapes[2].is_dynamic() &&
+                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM &&
+                    seqMode != ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) {
+                params.pop_back();
+            } else {
+                params[2]->set_element_type(ElementType::i64);
+            }
         }
+
         std::vector<ov::Shape> WRB = {{numDirections, 3 * hiddenSize, inputSize}, {numDirections, 3 * hiddenSize, hiddenSize},
                 {numDirections, (linearBeforeReset ? 4 : 3) * hiddenSize}, {batchSize}};
         auto gruSequenceOp = ngraph::builder::makeGRU(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
@@ -138,7 +149,7 @@ protected:
         if (gruSequenceOp->get_output_partial_shape(0).is_static() && ov::shape_size(gruSequenceOp->get_output_shape(0)) == 1) {
             outFmts[0] = tnc;
         } else if (gruSequenceOp->get_output_partial_shape(1).is_static() && ov::shape_size(gruSequenceOp->get_output_shape(1)) == 1 ||
-                gruSequenceOp->get_output_partial_shape(0).is_static() && gruSequenceOp->get_output_shape(0)[0] == 1) {
+                gruSequenceOp->get_output_partial_shape(0)[0].is_static() && gruSequenceOp->get_output_partial_shape(0)[0].get_length() == 1) {
             outFmts[1] = tnc;
         }
 
@@ -200,23 +211,27 @@ std::vector<ov::op::RecurrentSequenceDirection> direction = {ov::op::RecurrentSe
 
 std::vector<ElementType> netPrecisions = { ElementType::f32 };
 
-const std::vector<std::vector<ov::test::InputShape>> staticShapes = {
-    { { {}, { {10, 2, 10} } }, // Static shapes
+const std::vector<std::vector<InputShape>> staticShapes = {
+    { { {}, { {10, 2, 10} } }, // #0. Static shapes
       { {}, { {10, 1, 1} } },
       { {}, { {10} } } },
-    { { {}, { {10, 2, 10} } }, // Static shapes
+    { { {}, { {10, 2, 10} } }, // #1. Static shapes
       { {}, { {10, 1, 10} } },
       { {}, { {10} } } },
-    { { {}, { {1, 2, 10} } }, // Static shapes
+    { { {}, { {1, 2, 10} } },  // #2. Static shapes
       { {}, { {1, 1, 1} } },
       { {}, { {1} } } },
-    { { {}, { {1, 2, 10} } }, // Static shapes
+    { { {}, { {1, 2, 10} } },  // #3. Static shapes
       { {}, { {1, 1, 10} } },
-      { {}, { {1} } } }
+      { {}, { {1} } } },
+    { { {}, { {10, 2, 10} } }, // #4. Static shapes
+      { {}, { {10, 1, 1} } } },
+    { { {}, { {10, 2, 10} } }, // #5. Static shapes
+      { {}, { {10, 1, 10} } } }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_static, GRUSequenceCPUTest,
-                ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<ov::test::InputShape>>{staticShapes[0], staticShapes[1]}),
+                ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{staticShapes[0], staticShapes[1]}),
                                    ::testing::ValuesIn(mode),
                                    ::testing::ValuesIn(activations),
                                    ::testing::ValuesIn(clip),
@@ -224,11 +239,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, GRUSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::Values(std::map<std::string, std::string>{})),
                 GRUSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, GRUSequenceCPUTest,
-                ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<ov::test::InputShape>>{staticShapes[3]}),
+                ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{staticShapes[3]}),
                                    ::testing::ValuesIn(mode),
                                    ::testing::ValuesIn(activations),
                                    ::testing::ValuesIn(clip),
@@ -236,58 +251,114 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, GRUSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParamsBatchSizeOne),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::Values(std::map<std::string, std::string>{})),
                 GRUSequenceCPUTest::getTestCaseName);
 
-const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
-    { { {-1, {1, 5}, 10}, // Dynamic shape 0
-        { {10, 2, 10}, {8, 3, 10}, {5, 4, 10} } }, // Target shapes
-      { {{0, 15}, 1, 1}, // Dynamic shape 1
-        { {10, 1, 1}, {8, 1, 1}, {5, 1, 1} } }, // Target shapes
-      { {{0, 12}}, // Dynamic shape 2
-        { {10}, {8}, {5} } } }, // Target shapes
-    { { {{0, 11}, -1, 10}, // Dynamic shape 0
-        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10} } }, // Target shapes
-      { {-1, 1, 10}, // Dynamic shape 1
-        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } }, // Target shapes
-      { {-1}, // Dynamic shape 2
-        { {10}, {3}, {5} } } }, // Target shapes
-    { { {-1, {0, 7}, 10}, // Dynamic shape 0
-        { {1, 2, 10}, {1, 3, 10}, {1, 6, 10} } }, // Target shapes
-      { {-1, 1, 1}, // Dynamic shape 1
-        { {1, 1, 1}, {1, 1, 1}, {1, 1, 1} } }, // Target shapes
-      { {-1}, // Dynamic shape 2
-        { {1}, {1}, {1} } } }, // Target shapes
-    { { {1, -1, 10}, // Dynamic shape 0
-        { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } }, // Target shapes
-      { {1, 1, 10}, // Dynamic shape 1
-        { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } }, // Target shapes
-      { {1}, // Dynamic shape 2
-        { {1}, {1}, {1} } } } // Target shapes
+INSTANTIATE_TEST_SUITE_P(nightly_static_bf16, GRUSequenceCPUTest,
+            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{staticShapes[4], staticShapes[5]}),
+                               ::testing::ValuesIn(mode),
+                               ::testing::ValuesIn(activations),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(cpuParams),
+                               ::testing::Values(additionalConfig[1])),
+            GRUSequenceCPUTest::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> dynamicShapes = {
+    { { {-1, {1, 5}, 10},                           // #0. Dynamic shape 0
+        { {10, 2, 10}, {8, 3, 10}, {5, 4, 10} } },  // Target shapes
+      { {{0, 15}, 1, 1},                            // Dynamic shape 1
+        { {10, 1, 1}, {8, 1, 1}, {5, 1, 1} } },     // Target shapes
+      { {{0, 12}},                                  // Dynamic shape 2
+        { {10}, {8}, {5} } } },                     // Target shapes
+    { { {{0, 11}, -1, 10},                          // #1. Dynamic shape 0
+        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10} } },  // Target shapes
+      { {-1, 1, 10},                                // Dynamic shape 1
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } },  // Target shapes
+      { {-1},                                       // Dynamic shape 2
+        { {10}, {3}, {5} } } },                     // Target shapes
+    { { {{0, 11}, -1, {7, 11}},                     // #2. Dynamic shape 0
+        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10} } },  // Target shapes
+      { {-1, 1, {8, 12}},                           // Dynamic shape 1
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10} } },  // Target shapes
+      { {-1},                                       // Dynamic shape 2
+        { {10}, {3}, {5} } } },                     // Target shapes
+    { { {-1, {0, 7}, 10},                           // #3. Dynamic shape 0
+        { {1, 2, 10}, {1, 3, 10}, {1, 6, 10} } },   // Target shapes
+      { {-1, 1, 1},                                 // Dynamic shape 1
+        { {1, 1, 1}, {1, 1, 1}, {1, 1, 1} } },      // Target shapes
+      { {-1},                                       // Dynamic shape 2
+        { {1}, {1}, {1} } } },                      // Target shapes
+    { { {1, -1, 10},                                // #4. Dynamic shape 0
+        { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes
+      { {1, 1, 10},                                 // Dynamic shape 1
+        { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
+      { {1},                                        // Dynamic shape 2
+        { {1}, {1}, {1} } } },                      // Target shapes
+    { { {-1, -1, -1},                               // #5. Dynamic shape 0
+        { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },   // Target shapes
+      { {-1, -1, -1},                               // Dynamic shape 1
+        { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },   // Target shapes
+      { {-1},                                       // Dynamic shape 2
+        { {1}, {1}, {1} } } },                      // Target shapes
+    { { {2, {1, 5}, 10},                            // #6. Dynamic shape 0
+        { {10, 2, 10}, {2, 3, 10}, {2, 4, 10} } },  // Target shapes
+      { {2, 1, 1},                                  // Dynamic shape 1
+        { {2, 1, 1}, {2, 1, 1}, {2, 1, 1} } } },    // Target shapes
+    { { {5, -1, 10},                                // #7. Dynamic shape 0
+        { {5, 2, 10}, {5, 4, 10}, {5, 5, 10} } },   // Target shapes
+      { {5, 1, 10},                                 // Dynamic shape 1
+        { {5, 1, 10}, {5, 1, 10}, {5, 1, 10} } } }  // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, GRUSequenceCPUTest,
-                ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<ov::test::InputShape>>{dynamicShapes[0], dynamicShapes[1]}),
-                                   ::testing::ValuesIn(mode),
-                                   ::testing::ValuesIn(activations),
-                                   ::testing::ValuesIn(clip),
-                                   ::testing::ValuesIn(linearBeforeReset),
-                                   ::testing::ValuesIn(direction),
-                                   ::testing::ValuesIn(netPrecisions),
-                                   ::testing::Values(cpuParams),
-                                   ::testing::ValuesIn(additionalConfig)),
-                GRUSequenceCPUTest::getTestCaseName);
+            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
+                               ::testing::ValuesIn(mode),
+                               ::testing::ValuesIn(activations),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(cpuParams),
+                               ::testing::Values(std::map<std::string, std::string>{})),
+            GRUSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, GRUSequenceCPUTest,
-                ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<ov::test::InputShape>>{dynamicShapes[3]}),
-                                   ::testing::ValuesIn(mode),
-                                   ::testing::ValuesIn(activations),
-                                   ::testing::ValuesIn(clip),
-                                   ::testing::ValuesIn(linearBeforeReset),
-                                   ::testing::ValuesIn(direction),
-                                   ::testing::ValuesIn(netPrecisions),
-                                   ::testing::Values(cpuParamsBatchSizeOne),
-                                   ::testing::ValuesIn(additionalConfig)),
-                GRUSequenceCPUTest::getTestCaseName);
+            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[4]}),
+                               ::testing::ValuesIn(mode),
+                               ::testing::ValuesIn(activations),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(cpuParamsBatchSizeOne),
+                               ::testing::Values(std::map<std::string, std::string>{})),
+            GRUSequenceCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_dynamic, GRUSequenceCPUTest,
+            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[5]}),
+                               ::testing::ValuesIn(mode),
+                               ::testing::ValuesIn(activations),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(cpuParams),
+                               ::testing::Values(std::map<std::string, std::string>{})),
+            GRUSequenceCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, GRUSequenceCPUTest,
+            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[6], dynamicShapes[7]}),
+                               ::testing::ValuesIn(mode),
+                               ::testing::ValuesIn(activations),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(cpuParams),
+                               ::testing::Values(additionalConfig[1])),
+            GRUSequenceCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
