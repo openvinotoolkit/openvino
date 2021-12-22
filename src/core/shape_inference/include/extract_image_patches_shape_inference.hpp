@@ -7,6 +7,20 @@
 namespace ov {
 namespace op {
 namespace v3 {
+int32_t inline calc_shape_padding(const int32_t input,
+                                  const int32_t rate,
+                                  const int32_t stride,
+                                  const int32_t patch_size,
+                                  const PadType type) {
+    int32_t out = 0;
+    if (type == PadType::VALID) {
+        out = (input - rate * (patch_size - 1) - 1) / stride + 1;
+    } else {
+        out = 1 + (input - 1) / stride;
+    }
+    return out < 0 ? 0 : out;
+}
+
 template <class T>
 void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
@@ -54,28 +68,18 @@ void shape_infer(const ExtractImagePatches* op, const std::vector<T>& input_shap
             if (input_rows == 0 || input_cols == 0) {
                 output_shape = input_shape;
                 return;
-            } else if (op->m_padding == PadType::VALID) {
-                out_rows = (((input_rows) -
-                             static_cast<int32_t>(op->m_patch_selection_rates[0]) *
-                                 (static_cast<int32_t>(op->m_patch_sizes[0]) - 1) -
-                             1) /
-                            op->m_patch_movement_strides[0]) +
-                           1;
-                out_cols = (((input_cols) -
-                             static_cast<int32_t>(op->m_patch_selection_rates[1]) *
-                                 (static_cast<int32_t>(op->m_patch_sizes[1]) - 1) -
-                             1) /
-                            op->m_patch_movement_strides[1]) +
-                           1;
-            } else {
-                out_rows = 1 + (((input_rows)-1) / op->m_patch_movement_strides[0]);
-                out_cols = 1 + (((input_cols)-1) / op->m_patch_movement_strides[1]);
             }
 
-            if (out_rows < 0)
-                out_rows = 0;
-            if (out_cols < 0)
-                out_cols = 0;
+            out_rows = calc_shape_padding(input_rows,
+                                          op->m_patch_selection_rates[0],
+                                          op->m_patch_movement_strides[0],
+                                          op->m_patch_sizes[0],
+                                          op->m_padding);
+            out_cols = calc_shape_padding(input_cols,
+                                          op->m_patch_selection_rates[1],
+                                          op->m_patch_movement_strides[1],
+                                          op->m_patch_sizes[1],
+                                          op->m_padding);
 
             auto out_rows_cast = static_cast<typename DimType::value_type>(out_rows);
             auto out_cols_cast = static_cast<typename DimType::value_type>(out_cols);
