@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/model.hpp"
+
 #include <gtest/gtest.h>
 
 #include <shared_node_info.hpp>
 #include <test_common.hpp>
 
-#include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/opsets/opset8.hpp"
 
@@ -779,6 +780,37 @@ TEST(function_reshape, TestReshapeWithInvalidShapesForTheSameTensor) {
 
     // both tensor names are specified, but have different shapes
     EXPECT_ANY_THROW(f->reshape({{"tensor1", ov::Shape({2, 500, 4})}, {"tensor2", ov::Shape({4, 250, 4})}}));
+}
+
+TEST(function_reshape, ReshapeBatchReLUByIndex) {
+    std::shared_ptr<ov::Model> ngraph;
+    ov::Output<ov::Node> port;
+    {
+        ov::PartialShape shape({1, 3, 22, 22});
+        ov::element::Type type(ov::element::Type_t::f32);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        param->get_output_tensor(0).set_names({"tensor", "tensor2"});
+        port = param->output(0);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
+
+        ov::ParameterVector params = {param};
+        ov::ResultVector results = {result};
+
+        ngraph = std::make_shared<ov::Model>(results, params);
+    }
+
+    EXPECT_EQ(ngraph->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+
+    {
+        std::map<size_t, ov::PartialShape> new_shape;
+        new_shape[0] = ov::PartialShape{2, 3, 22, 22};
+        EXPECT_NO_THROW(ngraph->reshape(new_shape));
+    }
+
+    EXPECT_EQ(ngraph->get_parameters()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
 TEST(function_reshape, ReshapeBatchReLUByPort) {
