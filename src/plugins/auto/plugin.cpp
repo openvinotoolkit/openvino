@@ -269,8 +269,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
-        auto supportDevices = FilterDevice(metaDevices, filterConfig);
-        if (supportDevices.size() == 0) {
+        auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
+        if (supportDevicesByConfig.size() == 0) {
              IE_THROW() << "There is no device support the configure";
         }
         auto supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);

@@ -655,7 +655,6 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
             }
         }
         IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
-
     }
     IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
 }
