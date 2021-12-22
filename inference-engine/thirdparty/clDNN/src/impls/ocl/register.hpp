@@ -39,6 +39,7 @@
 #include "intel_gpu/primitives/pooling.hpp"
 #include "intel_gpu/primitives/pyramid_roi_align.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/random_uniform.hpp"
 #include "intel_gpu/primitives/reduce.hpp"
 #include "intel_gpu/primitives/region_yolo.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -117,6 +118,7 @@ REGISTER_OCL(permute);
 REGISTER_OCL(pooling);
 REGISTER_OCL(pyramid_roi_align);
 REGISTER_OCL(quantize);
+REGISTER_OCL(random_uniform);
 REGISTER_OCL(reduce);
 REGISTER_OCL(region_yolo);
 REGISTER_OCL(reorder);

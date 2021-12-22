@@ -93,5 +93,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_PrePostProcess.*resize_dynamic.*)",
             // TODO: Issue 74362
             R"(.*ReduceEltwiseTest.*CompareWithRefs.opType=VECTOR.*)",
+
+            R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+            R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
+            R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
     };
 }
