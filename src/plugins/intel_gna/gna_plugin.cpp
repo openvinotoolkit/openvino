@@ -85,10 +85,15 @@
 #include "transformations/transpose_nchw.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
+#include "transformations/pass_debug.hpp"
 #include <ngraph/opsets/opset7.hpp>
+#include <ops/gna_convolution.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+
+//#undef DEBUG_USE_NEW_PASS
+#define DEBUG_USE_NEW_PASS 1
 
 inline uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -783,10 +788,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     if (fake_quantized) {
         UpdateInputScaleFromNetwork(network);
     }
-
+    
+#ifndef DEBUG_USE_NEW_PASS
     if (MustBeConvertedFromNCHWToNHWC(CNNNetSortTopologically(network))) {
         FillInputsAndOutputsTranspositionInfo(network);
     }
+#endif
 
     // network optimisation phases
     int passIdx = 0;

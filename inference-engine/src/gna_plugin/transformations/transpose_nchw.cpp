@@ -87,12 +87,14 @@ bool DoTransformation(Node convolution)
                                                             ngraph::Shape{transpose_before_order.size()},
                                                             transpose_before_order);
 
+    EMUTEX_DEBUG_VAL(transpose_before_order);
+
     auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(convolution_input_data_node,
                                                                         transpose_const);
 
     auto transpose_conv_constant = std::make_shared<ngraph::opset8::Transpose>(convolution_input_const_node,
                                                                                transpose_const);
-    auto conv_new = std::make_shared<GNAPluginNS::GNAConvolution>(transpose_before,
+    auto conv_new = std::make_shared<GNAPluginNS::Op::GNAConvolution>(transpose_before,
                                                                    transpose_conv_constant,
                                                                    convolution_node->get_strides(),
                                                                    convolution_node->get_pads_begin(),

@@ -1513,10 +1513,11 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
         const auto weightsNode = node->input_value(1).get_node_shared_ptr();
         if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
             if (node->inputs().size() == 3) {
-                const auto biasNode = node->input_value(2).get_node_shared_ptr();
+                const auto biasNode = node->input_value(2).get_node_shared_ptr(); // FIXME: input_value(?)
                 InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
             }
         }
+
         return res;
     });
 

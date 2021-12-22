@@ -479,6 +479,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         });
     }
 
+#ifndef DEBUG_USE_NEW_PASS
     // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know how kaldi will handle that
     if (!dnn->do_rotate_input) {
          if ((inputs->getLayout() != Layout::NHWC || transpose_h_w) && LayerInfo(connectedInputLayer).isInput()) {
@@ -490,6 +491,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
             dnn->do_rotate_input = false;
         }
     }
+#endif
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
