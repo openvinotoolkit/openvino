@@ -5,7 +5,7 @@ import os
 import struct
 import numpy as np
 
-from openvino.tools.pot.api.data_loader import DataLoader
+from openvino.tools.pot import DataLoader
 
 
 class ArkDataLoader(DataLoader):
