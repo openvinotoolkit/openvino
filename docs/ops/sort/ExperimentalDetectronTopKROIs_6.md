@@ -1,4 +1,4 @@
-## ExperimentalDetectronTopKROIs <a name="ExperimentalDetectronTopKROIs"></a> {#openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6}
+# ExperimentalDetectronTopKROIs  {#openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6}
 
 **Versioned name**: *ExperimentalDetectronTopKROIs-6*
 

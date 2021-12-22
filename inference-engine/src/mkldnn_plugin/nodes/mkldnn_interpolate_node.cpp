@@ -2075,7 +2075,7 @@ void MKLDNNInterpolateNode::createPrimitive() {
     interpAttrs.inPrc = srcMemPtr->getDesc().getPrecision();
     interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
 
-    if (shapesDefined()) {
+    if (shapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();
@@ -2102,8 +2102,7 @@ void MKLDNNInterpolateNode::setPostOps(mkldnn::primitive_attr &attr, const Vecto
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            constexpr int align = 16;
-            eltwiseNode->appendPostOps(ops, dims, align);
+            eltwiseNode->appendPostOps(ops, dims);
             continue;
         }
 
