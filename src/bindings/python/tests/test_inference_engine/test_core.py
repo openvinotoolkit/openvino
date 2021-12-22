@@ -305,7 +305,7 @@ def test_add_extension_as_path(device):
 
     before_reshape = PartialShape([1, 3, 22, 22])
     after_reshape = PartialShape([8, 9, 33, 66])
-    new_shapes = {'in_data': after_reshape}
+    new_shapes = {"in_data": after_reshape}
     assert model.input().partial_shape == before_reshape
     model.reshape(new_shapes)
     assert model.input().partial_shape == after_reshape
