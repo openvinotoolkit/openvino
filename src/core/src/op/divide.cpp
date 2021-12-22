@@ -66,6 +66,11 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
     const auto& input1 = node->input_value(0);
     const auto& input2 = node->input_value(1);
 
+    // broadcast shapes to allocate tensors of correct size for operations with both inputs
+    PartialShape input_shape = input1.get_partial_shape();
+    NGRAPH_CHECK(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
+                 "Argument shapes in divide operation are inconsistent.");
+
     const auto& input2_low = input2.get_tensor().get_lower_value();
     if (input2_low == nullptr)
         return false;
@@ -103,7 +108,7 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
         return status;
 
     if (!is_upper) {
-        auto value1 = std::make_shared<HostTensor>(input1.get_element_type(), input1.get_shape());
+        auto value1 = std::make_shared<HostTensor>(input1.get_element_type(), input_shape);
         status = op::v1::Select().evaluate({value1}, {input2_positive_up_mask, input1_low, input1_up});
         if (!status)
             return status;
@@ -130,7 +135,7 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
         if (!status)
             return status;
     } else {
-        auto value1 = std::make_shared<HostTensor>(input1.get_element_type(), input1.get_shape());
+        auto value1 = std::make_shared<HostTensor>(input1.get_element_type(), input_shape);
         status = op::v1::Select().evaluate({value1}, {input2_positive_up_mask, input1_up, input1_low});
         if (!status)
             return status;
