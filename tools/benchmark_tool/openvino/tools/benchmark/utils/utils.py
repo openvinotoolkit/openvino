@@ -108,8 +108,6 @@ def pre_post_processing(function: Model, app_inputs_info, input_precision: str, 
             elif app_inputs_info[i].is_image:
                 app_inputs_info[i].element_type = Type.u8
                 pre_post_processor.input(i).tensor().set_element_type(Type.u8)
-            else:
-                app_inputs_info[i].element_type = inputs[i].get_element_type()
 
     # set layout for model input
     for info in app_inputs_info:
@@ -554,6 +552,8 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         info = AppInputInfo()
         # Input name
         info.name = input_names[i]
+        # Input precision
+        info.element_type = inputs[i].element_type
         # Shape
         info.original_shape = inputs[i].partial_shape
         if info.name in shape_map.keys():
