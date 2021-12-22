@@ -340,11 +340,11 @@ void TemplateInferRequest::inferPostprocess() {
             networkOutput->getTensorDesc().getPrecision() == Precision::I64 &&
             outputBlob->getTensorDesc().getPrecision() == Precision::I32) {
             auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
-            auto* data = new std::int64_t[tensor->get_size_in_bytes() / 8];
-            tensor->read(data, tensor->get_size_in_bytes());
+            std::vector <std::int64_t> tensor_data(tensor->get_size_in_bytes() / 8);
+            tensor->read(tensor_data.data(), tensor->get_size_in_bytes());
             auto* write_data = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<std::int32_t*>();
             for (size_t j = 0; j < tensor->get_size_in_bytes() / 8; ++j) {
-                write_data[j] = data[j];
+                write_data[j] = tensor_data[j];
             }
         } else if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
             blobCopy(networkOutput, outputBlob);
