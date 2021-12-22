@@ -517,15 +517,16 @@ public:
     void ApplyAutoBatching(const ie::CNNNetwork& network,
                            std::string& deviceName,
                            std::map<std::string, std::string>& config_with_batch) {
-        std::string deviceNameWithBatchSize;
+        std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
         if (deviceName.find("BATCH") != std::string::npos) {
             // explicitly enabled Auto-Batching
             auto pos = deviceName.find_first_of(":");
             if (pos != std::string::npos) {
                 deviceNameWithBatchSize = deviceName.substr(pos + 1);
+                deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
             }
         } else {
-            // if the Auto-Batching is disabled explicitly
+            // check whether  the Auto-Batching is disabled explicitly
             const auto& batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
             if (batch_mode != config_with_batch.end()) {
                 const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
@@ -534,18 +535,22 @@ public:
                 if (disabled)
                     return;
             }
-            auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
-            if (device._deviceName.find("GPU") != std::string::npos) {
-                bool bThroughputEnabledInPlugin =
-                    GetConfig(device._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() ==
-                    CONFIG_VALUE(THROUGHPUT);
-                const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
-                if ((!bThroughputEnabledInPlugin &&
-                     (mode == config_with_batch.end() || mode->second != CONFIG_VALUE(THROUGHPUT))))
-                    return;
-            } else {
+            // check whether if the Auto-Batching is applicable to the device
+            deviceNameWithoutBatch = deviceName;
+            auto pluginName = DeviceIDParser(deviceNameWithoutBatch).getDeviceName();
+            std::vector<std::string> metrics =
+                GetCPPPluginByName(pluginName).get_metric(METRIC_KEY(SUPPORTED_METRICS), {});
+            auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
+            if (metrics.end() == it)
                 return;
-            }
+            // if applicable, the  Auto-Batching is implicitly enabled via the performance hints
+            bool bThroughputEnabledInPlugin =
+                GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() ==
+                CONFIG_VALUE(THROUGHPUT);
+            const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
+            if ((!bThroughputEnabledInPlugin &&
+                 (mode == config_with_batch.end() || mode->second != CONFIG_VALUE(THROUGHPUT))))
+                return;
         }
 
         try {
@@ -586,8 +591,6 @@ public:
                 IE_THROW(NotImplemented)
                     << "Auto-batching supports only networks featuring inputs/outputs with the batched layouts !";
 
-            auto deviceNameWithoutBatch =
-                !deviceNameWithBatchSize.empty() ? DeviceIDParser::getBatchDevice(deviceNameWithBatchSize) : deviceName;
             unsigned int requests = 0;
             unsigned int optimalBatchSize = 0;
             if (deviceNameWithBatchSize.empty()) {
@@ -595,7 +598,8 @@ public:
                 // let's query the optimal batch size
                 std::map<std::string, ie::Parameter> options;
                 options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network.getFunction());
-                optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameWithoutBatch).getDeviceName())
+                auto pluginName = DeviceIDParser(deviceNameWithoutBatch).getDeviceName();
+                optimalBatchSize = GetCPPPluginByName(pluginName)
                                        .get_metric(METRIC_KEY(OPTIMAL_BATCH_SIZE), options)
                                        .as<unsigned int>();
                 auto res =
@@ -603,17 +607,23 @@ public:
                 requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
                 const auto& reqs = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
                 if (reqs != config_with_batch.end())
-                    requests = (unsigned int)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
+                    requests =
+                        static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
                 if (requests) {
                     optimalBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
                 }
             }
             if (optimalBatchSize > 1 || !deviceNameWithBatchSize.empty()) {
                 auto function = network.getFunction();
+                // have to execute the DetectionOutput separately (without batching)
+                // as this layer mix-in the values from the different inputs (batch id)
                 bool bDetectionOutput = false;
                 for (auto&& node : function->get_ops()) {
                     auto isDetectionOutputParent = [](decltype(node)& nd) {
                         for (size_t n = 0; n < nd->get_input_size(); n++) {
+                            // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
+                            // so type_info name check is enough
+                            // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
                             if (!std::strcmp("DetectionOutput", nd->get_input_node_ptr(n)->get_type_info().name))
                                 return true;
                         }
@@ -1272,7 +1282,7 @@ std::vector<std::string> DeviceIDParser::getHeteroDevices(std::string fallbackDe
 
 std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList) {
     std::set<std::string> deviceNames;
-    auto trim_request_info = [](std::string device_with_requests) {
+    auto trim_request_info = [](const std::string& device_with_requests) {
         auto opening_bracket = device_with_requests.find_first_of('(');
         return device_with_requests.substr(0, opening_bracket);
     };
@@ -1308,7 +1318,7 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
 }
 
 std::string DeviceIDParser::getBatchDevice(std::string device) {
-    auto trim_request_info = [](std::string device_with_requests) {
+    auto trim_request_info = [](const std::string& device_with_requests) {
         auto opening_bracket = device_with_requests.find_first_of('(');
         return device_with_requests.substr(0, opening_bracket);
     };
