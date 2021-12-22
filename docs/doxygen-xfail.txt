@@ -156,3 +156,9 @@ workbench/docs/Workbench_DG/Visualize_Accuracy.md
 ngraph/core/include/ngraph/type.hpp
 openvino/docs/IE_DG/network_state_intro.md
 workbench/docs/Workbench_DG/Compare_Performance_between_Two_Versions_of_Models.md
+openvino/docs/benchmarks/performance_benchmarks_faq.md
+openvino/docs/IE_DG/Bfloat16Inference.md
+openvino/docs/IE_DG/InferenceEngine_QueryAPI.md
+openvino/docs/IE_DG/Integrate_with_customer_application_new_API.md
+openvino/docs/IE_DG/Model_caching_overview.md
+openvino/docs/IE_DG/PythonPackage_Overview.md
