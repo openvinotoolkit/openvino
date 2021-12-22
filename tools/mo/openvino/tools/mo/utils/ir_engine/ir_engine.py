@@ -242,6 +242,7 @@ class IREngine(object):
                     if 'names' in port.attrib:
                         in_tensor_names = port.attrib['names']
 
+                    # special attribute to pass information about operation input ports
                     layer_attrs['restored_input_ports'].update({port_id: (input_shape, in_tensor_names, port_rt_info)})
             elif attr.tag == 'output':
                 output = attr
@@ -261,7 +262,8 @@ class IREngine(object):
                     out_tensor_names = None
                     if 'names' in port.attrib:
                         out_tensor_names = port.attrib['names']
-
+                    # special attribute to pass information about operation input ports
+                    # NOTE: renaming of structure changing of this attribute may have big impact on tests
                     layer_attrs['ports'].update({port_id: (output_shape, out_tensor_names, port_rt_info)})
             elif attr.tag == 'blobs':
                 in_port = inputs_counter

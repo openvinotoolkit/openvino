@@ -141,6 +141,7 @@ def xml_ports(node: Node, element: Element, edges: Element):
                 node.id)
             xml_shape(node.graph.node[u]['shape'], port)
 
+            # support saving rt_info passed from IR Reader
             port_id = d['in']
             if node.has('restored_input_ports') and port_id in node.restored_input_ports:
                 port_rt_info_value = node.restored_input_ports[port_id][2]
@@ -153,6 +154,7 @@ def xml_ports(node: Node, element: Element, edges: Element):
                         params = info_elem.serialize(node) if not isinstance(info_elem, dict) else info_elem
                         for key, value in params.items():
                             attribute.set(key, value)
+
             # u is a data node that has a single producer, let's find it
             assert (node.graph.node[u]['kind'] == 'data')
             in_nodes = list(node.graph.in_edges(u, data=True))
@@ -188,6 +190,8 @@ def xml_ports(node: Node, element: Element, edges: Element):
             if tensor_names:
                 port.set('names', ','.join(tensor_names))
             xml_shape(node.graph.node[v]['shape'], port)
+
+            # support saving rt_info passed from IR Reader
             if node.has('ports') and port_id in node.ports:
                 port_rt_info_value = node.ports[port_id][2]
                 if port_rt_info_value != []:
