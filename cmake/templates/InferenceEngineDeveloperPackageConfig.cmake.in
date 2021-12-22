@@ -49,13 +49,6 @@ find_dependency(ngraph
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
-# create targets with old names for compatibility
-if(TARGET openvino::runtime AND NOT TARGET IE::core)
-    add_library(IE::core INTERFACE IMPORTED)
-    set_target_properties(IE::core PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::runtime)
-endif()
-
 if(TARGET openvino::runtime AND NOT TARGET IE::runtime)
     add_library(IE::runtime INTERFACE IMPORTED)
     set_target_properties(IE::runtime PROPERTIES
