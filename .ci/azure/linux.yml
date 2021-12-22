@@ -203,6 +203,9 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
+  - script: python3 -m pip install $(INSTALL_DIR)/tools/*.whl --find-links=$(INSTALL_DIR)/tools
+    displayName: 'Install wheels'
+
   - script: |
       set -e
       mkdir $(INSTALL_DIR)/opencv/
@@ -321,12 +324,6 @@ jobs:
       python3 -m pip install -r $(INSTALL_DIR)/tests/smoke_tests/requirements.txt
     workingDirectory: $(INSTALL_DIR)
     displayName: 'Install dependencies for samples smoke tests'
-    continueOnError: false
-
-  - script: |
-      python3 -m pip install $(INSTALL_DIR)/tools/*.whl --find-links=$(INSTALL_DIR)/tools
-    workingDirectory: $(INSTALL_DIR)
-    displayName: 'Install wheels'
     continueOnError: false
 
   - script: |

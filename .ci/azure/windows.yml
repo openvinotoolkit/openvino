@@ -149,8 +149,7 @@ jobs:
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
 
-  - script: |
-      $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
