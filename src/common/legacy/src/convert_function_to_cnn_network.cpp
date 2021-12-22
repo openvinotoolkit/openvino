@@ -2079,7 +2079,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     for ( const auto &param : params ) {
         const std::string input_name = param->get_friendly_name();
         auto &thisInputData = *thisInputDataMap[input_name];
-        resultInputDataMap[input_name]->setPrecision(details::convertPrecision(param->get_output_element_type(0)));
+        resultInputDataMap[input_name]->setPrecision(thisInputData.getPrecision());
         resultInputDataMap[input_name]->setLayout(thisInputData.getLayout());
         resultInputDataMap[input_name]->getPreProcess() = thisInputData.getPreProcess();
     }
