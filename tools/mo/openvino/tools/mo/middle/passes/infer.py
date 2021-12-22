@@ -220,10 +220,33 @@ def override_batch(graph: Graph, batch: int):
     batch: user defined integer value to override batch
     """
     if batch is not None:
-        for node_id, data in graph.nodes(data=True):
-            if 'op' in data and data['op'] == 'Parameter' and not data.get('fixed_batch', False):
-                validate_batch_in_shape(data['shape'], data['name'])
-                data['shape'][0] = batch
+        in_nodes = graph.get_op_nodes(op='Parameter')
+        layout_values = None
+        if 'layout_values' in graph.graph['cmd_params']:
+            layout_values = graph.graph['cmd_params'].layout_values.copy()
+            if '' in layout_values:
+                if len(in_nodes) == 1:
+                    in_node = in_nodes[0]
+                    layout_values[in_node.soft_get('name', in_node.id)] = layout_values['']
+                    del layout_values['']
+        for node in in_nodes:
+            if not node.soft_get('fixed_batch', False):
+                name = node.soft_get('name', node.id)
+                if layout_values and name in layout_values and layout_values[name]['source_layout']:
+                    from openvino.runtime import Layout  # pylint: disable=no-name-in-module,import-error
+
+                    layout = layout_values[name]['source_layout']
+                    layout_parsed = Layout(layout)
+                    if layout_parsed.has_name('N'):
+                        idx = layout_parsed.get_index_by_name('N')
+                        node['shape'][idx] = batch
+                    else:
+                        log.warning(
+                            'Layout {} for input {} doesn\'t have batch dimension. Skipping this input.'.format(layout,
+                                                                                                                name))
+                else:
+                    validate_batch_in_shape(node['shape'], name)
+                    node['shape'][0] = batch
 
 
 def validate_batch_in_shape(shape, layer_name: str):
@@ -242,6 +265,7 @@ def validate_batch_in_shape(shape, layer_name: str):
                      'dimension or not.\n\n For example, you want to set batch dimension equals 100 ' +
                      'for the input layer "data" with shape (10,34). Although you can not use --batch, ' +
                      'you should pass --input_shape (100,34) instead of --batch 100. \n\n' +
+                     'You can also tell Model Optimizer where batch dimension is located by specifying --layout. \n\n' +
                      refer_to_faq_msg(39))
                     .format(layer_name, shape))
 
@@ -328,4 +352,3 @@ def reverse_infer(graph: Graph, nodes: list):
         if node.has_valid('reverse_infer'):
             log.debug("Executed reverse infer for node '{}'".format(node.soft_get('name', node.id)))
             node.reverse_infer(node)
-

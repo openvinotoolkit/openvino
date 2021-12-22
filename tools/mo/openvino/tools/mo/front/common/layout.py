@@ -118,7 +118,7 @@ def get_channel_dim_from_layout(node: Node, guessed_layout=None):
     layout = None
     graph = node.graph
     if 'layout_values' in graph.graph['cmd_params'] and graph.graph['cmd_params'].layout_values:
-        layout_values = graph.graph['cmd_params'].layout_values
+        layout_values = graph.graph['cmd_params'].layout_values.copy()
         if '' in layout_values:
             in_nodes = graph.get_op_nodes(op='Parameter')
             if len(in_nodes) == 1:
