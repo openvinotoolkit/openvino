@@ -29,6 +29,8 @@
 #include "reduce_shape_inference.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
+#include "ctc_loss_shape_inference.hpp"
+#include "fft_base_shape_inference.hpp"
 #include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "fake_quantize.hpp"
@@ -183,6 +185,12 @@ void shape_inference(ov::Node* op,
     } else if (auto node = ov::as_type<ov::opset1::GatherTree>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::OneHot>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset4::CTCLoss>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset7::DFT>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset7::IDFT>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else {
         ngraph::OutputVector new_inputs;
