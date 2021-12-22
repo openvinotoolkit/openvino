@@ -237,9 +237,8 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
             t.first = _this;
             t.second = std::move(task);
             workerInferRequest._tasks.push(t);
-            // it is ok to call unsafe_size() here as the queue only grows (and the bulk removal happens under the
-            // mutex)
-            const int sz = workerInferRequest._tasks.unsafe_size();
+            // it is ok to call size() here as the queue only grows (and the bulk removal happens under the mutex)
+            const int sz = workerInferRequest._tasks.size();
             if (sz == workerInferRequest._batchSize) {
                 workerInferRequest._cond.notify_one();
             }
@@ -330,14 +329,17 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
 
         workerRequestPtr->_thread = std::thread([workerRequestPtr, this] {
             while (1) {
-                std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(_timeOut));
-                // as we pop the tasks from the queue only here
-                // it is ok to call unsafe_size (as the _tasks can only grow in parallel)
-                const int sz = workerRequestPtr->_tasks.unsafe_size();
+                std::cv_status status;
+                {
+                    std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
+                    status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(_timeOut));
+                }
                 if (_terminate) {
                     break;
                 } else {
+                    // as we pop the tasks from the queue only here
+                    // it is ok to call size() (as the _tasks can only grow in parallel)
+                    const int sz = workerRequestPtr->_tasks.size();
                     if (sz == workerRequestPtr->_batchSize) {
                         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {

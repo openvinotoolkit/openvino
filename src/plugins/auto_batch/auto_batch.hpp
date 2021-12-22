@@ -37,14 +37,13 @@ public:
         using Ptr = std::shared_ptr<WorkerInferRequest>;
         InferenceEngine::SoIInferRequestInternal _inferRequestBatched;
         int _batchSize;
-        InferenceEngine::ThreadSafeQueue<std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task>> _tasks;
+        InferenceEngine::ThreadSafeQueueWithSize<std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task>> _tasks;
         std::vector<InferenceEngine::Task> _completionTasks;
         std::thread _thread;
         std::condition_variable _cond;
         std::mutex _mutex;
         std::exception_ptr _exceptionPtr;
     };
-    using NotBusyWorkerRequests = InferenceEngine::ThreadSafeQueue<WorkerInferRequest*>;
 
     explicit AutoBatchExecutableNetwork(
         const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,

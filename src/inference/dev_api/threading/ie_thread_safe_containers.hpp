@@ -12,14 +12,9 @@
 #include "ie_parallel.hpp"
 
 namespace InferenceEngine {
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-    template<typename T>
-    using ThreadSafeQueue = tbb::concurrent_queue<T>;
-    template<typename T>
-    using ThreadSafeBoundedQueue = tbb::concurrent_bounded_queue<T>;
-#else
+
 template <typename T>
-class ThreadSafeQueue {
+class ThreadSafeQueueWithSize {
 public:
     void push(T value) {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -35,7 +30,8 @@ public:
             return false;
         }
     }
-    size_t unsafe_size() {
+    size_t size() {
+        std::lock_guard<std::mutex> lock(_mutex);
         return _queue.size();
     }
 
@@ -43,6 +39,14 @@ protected:
     std::queue<T> _queue;
     std::mutex _mutex;
 };
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+    template<typename T>
+    using ThreadSafeQueue = tbb::concurrent_queue<T>;
+    template<typename T>
+    using ThreadSafeBoundedQueue = tbb::concurrent_bounded_queue<T>;
+#else
+template<typename T>
+using ThreadSafeQueue = ThreadSafeQueueWithSize<T>;
 template <typename T>
 class ThreadSafeBoundedQueue {
 public:
