@@ -446,7 +446,7 @@ class Loop(TensorIterator):
             max_port_id = sorted(loop_node.in_ports().keys())[-1]
             new_port_id = 0
             for port_id in range(max_port_id + 1):
-                if port_id in loop_node.in_ports():
+                if port_id in loop_node.in_ports() and not loop_node.in_port(port_id).disconnected():
                     if port_id != new_port_id:
                         re_number_input_port(loop_node, port_id, new_port_id)
                     new_port_id += 1
@@ -536,6 +536,7 @@ class Loop(TensorIterator):
 
     @staticmethod
     def infer(loop_node: Node):
+        Loop.normalize_input_output_ports(loop_node)
         Loop.updated_body_parameters_shape(loop_node)
         partial_infer(loop_node.body)
         Loop.updated_loop_output_ports_shape_and_value(loop_node)
