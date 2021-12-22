@@ -374,13 +374,13 @@ void regclass_graph_Model(py::module m) {
                  )");
     function.def("get_output_op",
                  &ov::Model::get_output_op,
-                 py::arg("i"),
+                 py::arg("index"),
                  R"(
                     Return the op that generates output i
 
                     Parameters
                     ----------
-                    i : int
+                    index : int
                         output index
 
                     Returns
@@ -390,13 +390,13 @@ void regclass_graph_Model(py::module m) {
                 )");
     function.def("get_output_element_type",
                  &ov::Model::get_output_element_type,
-                 py::arg("i"),
+                 py::arg("index"),
                  R"(
                     Return the element type of output i
 
                     Parameters
                     ----------
-                    i : int
+                    index : int
                         output index
 
                     Returns
@@ -406,13 +406,13 @@ void regclass_graph_Model(py::module m) {
                  )");
     function.def("get_output_shape",
                  &ov::Model::get_output_shape,
-                 py::arg("i"),
+                 py::arg("index"),
                  R"(
                     Return the shape of element i
 
                     Parameters
                     ----------
-                    i : int
+                    index : int
                         element index
 
                     Returns
@@ -422,13 +422,13 @@ void regclass_graph_Model(py::module m) {
                  )");
     function.def("get_output_partial_shape",
                  &ov::Model::get_output_partial_shape,
-                 py::arg("i"),
+                 py::arg("index"),
                  R"(
                     Return the partial shape of element i
 
                     Parameters
                     ----------
-                    i : int
+                    index : int
                         element index
 
                     Returns
@@ -551,7 +551,7 @@ void regclass_graph_Model(py::module m) {
                  )");
     function.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
 
-    function.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("i"));
+    function.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("index"));
 
     function.def("input",
                  (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::input,
@@ -559,7 +559,9 @@ void regclass_graph_Model(py::module m) {
 
     function.def("input", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::input);
 
-    function.def("input", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input, py::arg("i"));
+    function.def("input",
+                 (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::input,
+                 py::arg("index"));
 
     function.def("input",
                  (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::input,
@@ -567,7 +569,7 @@ void regclass_graph_Model(py::module m) {
 
     function.def("output", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::output);
 
-    function.def("output", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::output, py::arg("i"));
+    function.def("output", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::output, py::arg("index"));
 
     function.def("output",
                  (ov::Output<ov::Node>(ov::Model::*)(const std::string&)) & ov::Model::output,
@@ -575,7 +577,9 @@ void regclass_graph_Model(py::module m) {
 
     function.def("output", (ov::Output<const ov::Node>(ov::Model::*)() const) & ov::Model::output);
 
-    function.def("output", (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output, py::arg("i"));
+    function.def("output",
+                 (ov::Output<const ov::Node>(ov::Model::*)(size_t) const) & ov::Model::output,
+                 py::arg("index"));
 
     function.def("output",
                  (ov::Output<const ov::Node>(ov::Model::*)(const std::string&) const) & ov::Model::output,
