@@ -656,6 +656,7 @@ openvino/tools/mo/front/tf/TensorArrayGatherV3.py
 openvino/tools/mo/front/tf/tensorflow_custom_operations_config_update.py
 openvino/tools/mo/front/tf/TFFFTToDFT.py
 openvino/tools/mo/front/tf/TFResizeToInterpolate.py
+openvino/tools/mo/front/tf/TFScatterNDDecomposition.py
 openvino/tools/mo/front/tf/TFSliceToSlice.py
 openvino/tools/mo/front/tf/tile_ext.py
 openvino/tools/mo/front/tf/topk_ext.py
@@ -822,7 +823,6 @@ openvino/tools/mo/middle/TensorIteratorLSTMToLSTMSequence.py
 openvino/tools/mo/middle/TensorIteratorMerge.py
 openvino/tools/mo/middle/TensorIteratorOutput.py
 openvino/tools/mo/middle/TF_lstm_cell_to_generic.py
-openvino/tools/mo/middle/TFScatterNDDecomposition.py
 openvino/tools/mo/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 openvino/tools/mo/middle/UpsampleToResample.py
 openvino/tools/mo/middle/UselessMerge.py
