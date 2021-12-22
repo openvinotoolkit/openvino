@@ -15,8 +15,6 @@
 #pragma once
 
 #include <cstddef>
-#include <mutex>
-#include <queue>
 #include <type_traits>
 
 #define IE_THREAD_TBB      0
@@ -133,70 +131,6 @@ inline void parallel_set_num_threads(int) {
 #endif
 
 namespace InferenceEngine {
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-template <typename T>
-using ThreadSafeQueue = tbb::concurrent_queue<T>;
-template <typename T>
-using ThreadSafeBoundedQueue = tbb::concurrent_bounded_queue<T>;
-#else
-template <typename T>
-class ThreadSafeQueue {
-public:
-    void push(T value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _queue.push(std::move(value));
-    }
-    bool try_pop(T& value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (!_queue.empty()) {
-            value = std::move(_queue.front());
-            _queue.pop();
-            return true;
-        } else {
-            return false;
-        }
-    }
-    size_t unsafe_size() {
-        return _queue.size();
-    }
-
-protected:
-    std::queue<T> _queue;
-    std::mutex _mutex;
-};
-template <typename T>
-class ThreadSafeBoundedQueue {
-public:
-    ThreadSafeBoundedQueue() = default;
-    bool try_push(T value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_capacity) {
-            _queue.push(std::move(value));
-        }
-        return _capacity;
-    }
-    bool try_pop(T& value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_capacity && !_queue.empty()) {
-            value = std::move(_queue.front());
-            _queue.pop();
-            return true;
-        } else {
-            return false;
-        }
-    }
-    void set_capacity(std::size_t newCapacity) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _capacity = newCapacity;
-    }
-
-protected:
-    std::queue<T> _queue;
-    std::mutex _mutex;
-    bool _capacity = false;
-};
-#endif
-
 template <typename F>
 void parallel_nt(int nthr, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)

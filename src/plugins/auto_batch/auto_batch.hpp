@@ -6,20 +6,18 @@
 #pragma once
 
 #include <atomic>
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <ie_parallel.hpp>
 #include <map>
-#include <memory>
 #include <mutex>
-#include <queue>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
+#include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_metric_helpers.hpp"
+#include "threading/ie_thread_safe_containers.hpp"
 
 namespace AutoBatchPlugin {
 

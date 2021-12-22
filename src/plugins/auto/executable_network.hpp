@@ -12,10 +12,10 @@
 #include <vector>
 #include <string>
 
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include <ie_parallel.hpp>
-#include <threading/ie_itask_executor.hpp>
-#include <threading/ie_executor_manager.hpp>
+#include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
+#include "threading/ie_thread_safe_containers.hpp"
+#include "threading/ie_itask_executor.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "ie_icore.hpp"
 
 #ifdef  MULTIUNITTEST
