@@ -92,6 +92,6 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue 72624
             R"(smoke_PrePostProcess.*resize_dynamic.*)",
             // TODO: Issue 74362
-            R"(smoke_ReduceEltwise.*ReduceEltwiseTest.*CompareWithRefs.*opType=VECTOR_net.*)",
+            R"(.*ReduceEltwiseTest.*CompareWithRefs.opType=VECTOR.)",
     };
 }
