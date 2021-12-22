@@ -423,14 +423,25 @@ def serialize_network(graph, net_element, unsupported):
             log.warning("Output node with name {} is not found in graph.".format(output_name))
             continue
         node = node[0]
-        assert len(node.out_nodes()) == 1, "Output node with name {} is not connected with Result.".format(output_name)
+
+        # In this case Result node has the same name as output tensor
+        if node.soft_get('type') == 'Result':
+            ordered_results.append(node.soft_get('name'))
+            continue
+
+        if len(node.out_nodes()) > 1:
+            log.warning("Node that expected to be output with name {} has more than one output.".format(output_name))
+            continue
+
+        assert len(node.out_nodes()) == 1, "Incorrect graph. Non-Result node with name {} " \
+                                           "has no output node.".format(output_name)
 
         # After port renumbering port/connection API is not applicable
         result_node = node.out_node(len(node.in_nodes())).out_node()
 
-        assert result_node.soft_get('type') == 'Result', \
-            "Output node with name {} is not connected with Result.".format(output_name)
-        ordered_results.append(result_node.soft_get('name'))
+        # In this case Result node name has format <output_name>/sink_port_<port_number>
+        if result_node.soft_get('type') == 'Result':
+            ordered_results.append(result_node.soft_get('name'))
 
     for input_name in graph.inputs_order:
         node = graph.get_op_nodes(name=input_name)
