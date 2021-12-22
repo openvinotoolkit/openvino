@@ -24,6 +24,8 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
+class Model;
+void copy_shared_objects(ov::Model& dst, const ov::Model& src);
 namespace frontend {
 class FrontEnd;
 }
@@ -31,6 +33,7 @@ class ModelAccessor;
 /// A user-defined function.
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class ov::frontend::FrontEnd;
+    friend void copy_shared_objects(ov::Model& dst, const ov::Model& src);
     std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
 
 public:

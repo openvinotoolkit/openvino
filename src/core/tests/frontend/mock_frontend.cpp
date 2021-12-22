@@ -30,8 +30,11 @@ public:
     }
 
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
-        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, Shape{1, 2, 3, 4});
-        auto op = std::make_shared<ov::opset8::Relu>(param);
+        auto shape = Shape{1, 2, 300, 300};
+        auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
+        std::vector<float> data(ov::shape_size(shape), 1.f);
+        auto constant = ov::opset8::Constant::create(ov::element::f32, shape, data);
+        auto op = std::make_shared<ov::opset8::Add>(param, constant);
         auto res = std::make_shared<ov::opset8::Result>(op);
         auto ov_model = std::make_shared<ov::Model>(ResultVector({res}), ParameterVector({param}), "mock1_model");
         ov_model->get_rt_info()["mock_test"] = std::string(1024, 't');

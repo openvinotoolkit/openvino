@@ -138,6 +138,22 @@ TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder) {
     ASSERT_EQ(model->get_friendly_name(), "mock1_model");
 }
 
+TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder_Clone) {
+    std::shared_ptr<ov::Model> model_clone;
+    {
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        auto model = fe->convert(input_model);
+        ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+        ASSERT_TRUE(model->get_rt_info().count("mock_test"));
+        ASSERT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+        model_clone = ov::clone_model(*model);
+    }
+    ASSERT_EQ(model_clone->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+    ASSERT_EQ(model_clone->get_friendly_name(), "mock1_model");
+}
+
 TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     FrontEndManager fem;
     FrontEnd::Ptr fe;
