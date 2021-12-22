@@ -141,7 +141,7 @@ void shape_infer_base(const DetectionOutputBase* op,
     dim_t dim_num_images{};
     bool dim_num_images_updated = false;
 
-    if (dynamic_cast<const ov::op::v8::DetectionOutput*>(op)) {
+    if (attribute_num_classes == -1) {
         ov::op::util::compute_num_classes(op, attrs, input_shapes, num_classes, num_prior_boxes);
     } else {
         num_classes = static_cast<val_type>(attribute_num_classes);
@@ -175,7 +175,7 @@ void shape_infer_base(const DetectionOutputBase* op,
                               "Class predictions rank must be 2. Got ",
                               class_preds_pshape.size());
         if ((!dim_num_images_updated || dim_num_images.is_dynamic()) && class_preds_pshape[0].is_static()) {
-            dim_num_images = class_preds_pshape[0].get_length();
+            dim_num_images = class_preds_pshape[0];
             dim_num_images_updated = true;
         } else {
             NODE_VALIDATION_CHECK(
