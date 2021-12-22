@@ -23,7 +23,7 @@
         "runtime/bin/intel64/Release/ov_auto_plugin.dll",
         "runtime/bin/intel64/Release/ov_ir_frontend.dll",
         "runtime/bin/intel64/Release/ov_onnx_frontend.dll",
-        "runtime/bin/intel64/Release/ov_paddlepaddle_frontend.dll",
+        "runtime/bin/intel64/Release/ov_paddle_frontend.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]

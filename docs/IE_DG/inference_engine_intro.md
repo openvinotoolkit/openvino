@@ -46,11 +46,11 @@ This library contains the classes to:
 Starting from 2022.1 release, OpenVINO Runtime introduced a concept of frontend plugins. Such plugins can be automatically dynamically loaded by OpenVINO Runtime dynamically depending on file format:
 * Unix* OS:
     - `libov_ir_frontend.so` to read a network from IR
-    - `libov_paddlepaddle_frontend.so` to read a network from PaddlePaddle model format
+    - `libov_paddle_frontend.so` to read a network from PaddlePaddle model format
     - `libov_onnx_frontend.so` to read a network from ONNX model format
 * Windows* OS:
     - `ov_ir_frontend.dll` to read a network from IR
-    - `ov_paddlepaddle_frontend.dll` to read a network from PaddlePaddle model format
+    - `ov_paddle_frontend.dll` to read a network from PaddlePaddle model format
     - `ov_onnx_frontend.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###

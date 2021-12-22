@@ -29,8 +29,8 @@
 #   ngraph_ov_onnx_frontend_FOUND          - True if the system has ov_onnx_frontend library
 #   ngraph::ov_onnx_frontend               - ONNX FrontEnd target (optional)
 #
-#   ngraph_paddlepaddle_frontend_FOUND     - True if the system has PDPD frontend
-#   ngraph::ov_paddlepaddle_frontend       - nGraph PDPD frontend (optional)
+#   ngraph_paddle_frontend_FOUND     - True if the system has Paddle frontend
+#   ngraph::ov_paddle_frontend       - nGraph Paddle frontend (optional)
 #
 
 @PACKAGE_INIT@
@@ -56,10 +56,10 @@ if(TARGET openvino::frontend::onnx AND NOT TARGET ngraph::ov_onnx_frontend)
         INTERFACE_LINK_LIBRARIES openvino::frontend::onnx)
 endif()
 
-if(TARGET openvino::frontend::paddlepaddle AND NOT TARGET ngraph::ov_paddlepaddle_frontend)
-    add_library(ngraph::ov_paddlepaddle_frontend INTERFACE IMPORTED)
-    set_target_properties(ngraph::ov_paddlepaddle_frontend PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::frontend::paddlepaddle)
+if(TARGET openvino::frontend::paddle AND NOT TARGET ngraph::ov_paddle_frontend)
+    add_library(ngraph::ov_paddle_frontend INTERFACE IMPORTED)
+    set_target_properties(ngraph::ov_paddle_frontend PROPERTIES
+        INTERFACE_LINK_LIBRARIES openvino::frontend::paddle)
 endif()
 
 if(TARGET openvino::frontend::tensorflow AND NOT TARGET ngraph::ov_tensorflow_frontend)
@@ -85,7 +85,7 @@ if(ngraph_onnx_importer_FOUND)
     endif()
 endif()
 
-set(ngraph_paddlepaddle_frontend_FOUND ${OpenVINO_Frontend_PaddlePaddle_FOUND})
+set(ngraph_paddle_frontend_FOUND ${OpenVINO_Frontend_Paddle_FOUND})
 set(ngraph_tensorflow_frontend_FOUND ${OpenVINO_Frontend_TensorFlow_FOUND})
 set(ngraph_ir_frontend_FOUND ${OpenVINO_Frontend_IR_FOUND})
 
