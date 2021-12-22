@@ -11,30 +11,30 @@
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
 
-
 namespace GNAPluginNS {
+namespace Op {
 
 class GNAConvolution;
 
 namespace internal {
 
-int64_t calculate_num_spatial(const GNAConvolution* op,
+int64_t calculate_num_spatial(const GNAPluginNS::Op::GNAConvolution * op,
                                          const ngraph::PartialShape& input_shape,
                                          const ngraph::PartialShape& filters_shape,
                                          const int64_t& num_non_spatial_data_dims,
                                          const int64_t& num_non_spatial_filter_dims);
 
-void update_and_validate_attributes(GNAConvolution* op);
+void update_and_validate_attributes(GNAPluginNS::Op::GNAConvolution* op);
 
 template <class T>
-bool resolve_auto_pad_for_shape(const GNAConvolution* op,
+bool resolve_auto_pad_for_shape(const GNAPluginNS::Op::GNAConvolution* op,
                                            ngraph::CoordinateDiff& pads_begin,
                                            ngraph::CoordinateDiff& pads_end,
                                            const std::vector<T>& input_shapes,
                                            const int64_t& num_non_spatial_data_dims,
                                            const int64_t& num_non_spatial_filter_dims);
 template <class T>
-void shape_infer(const GNAConvolution* op,
+void shape_infer(const GNAPluginNS::Op::GNAConvolution* op,
                             const ngraph::CoordinateDiff& pads_begin,
                             const ngraph::CoordinateDiff& pads_end,
                             const std::vector<T>& input_shapes,
@@ -144,26 +144,27 @@ protected:
     int64_t m_num_spatial = -1;
 
 private:
-    friend int64_t internal::calculate_num_spatial(const GNAConvolution* op,
+    friend int64_t internal::calculate_num_spatial(const GNAPluginNS::Op::GNAConvolution* op,
                                          const ngraph::PartialShape& input_shape,
                                          const ngraph::PartialShape& filters_shape,
                                          const int64_t& num_non_spatial_data_dims,
                                          const int64_t& num_non_spatial_filter_dims);
 
-    friend void internal::update_and_validate_attributes(GNAConvolution* op);
+    friend void internal::update_and_validate_attributes(GNAPluginNS::Op::GNAConvolution* op);
 
     template <class T>
-    friend bool internal::resolve_auto_pad_for_shape(const GNAConvolution* op,
+    friend bool internal::resolve_auto_pad_for_shape(const GNAPluginNS::Op::GNAConvolution* op,
                                            ngraph::CoordinateDiff& pads_begin,
                                            ngraph::CoordinateDiff& pads_end,
                                            const std::vector<T>& input_shapes,
                                            const int64_t& num_non_spatial_data_dims,
                                            const int64_t& num_non_spatial_filter_dims);
     template <class T>
-    friend void internal::shape_infer(const GNAConvolution* op,
+    friend void internal::shape_infer(const GNAPluginNS::Op::GNAConvolution* op,
                             const ngraph::CoordinateDiff& pads_begin,
                             const ngraph::CoordinateDiff& pads_end,
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes);
 };
+} // namespace Op
 }  // namespace GNAPluginNS

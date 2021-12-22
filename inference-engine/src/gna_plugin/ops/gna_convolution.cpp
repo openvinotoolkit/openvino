@@ -12,10 +12,10 @@
 #include <cmath>
 #include <cstddef>
 
-NGRAPH_RTTI_DEFINITION(GNAPluginNS::GNAConvolution, "GNAConvolution", 0);
+NGRAPH_RTTI_DEFINITION(GNAPluginNS::Op::GNAConvolution, "GNAConvolution", 0);
 
 namespace GNAPluginNS {
-
+namespace Op {
 namespace internal {
 
 // code is based on ngraph/core/shape_inference/src/convolution_shape_inference.cpp
@@ -351,5 +351,5 @@ std::shared_ptr<ngraph::Node> GNAConvolution::clone_with_new_inputs(const ngraph
                                             m_dilations,
                                             m_auto_pad);
 }
-
+} // namespace Op
 } // namespace GNAPluginNS
