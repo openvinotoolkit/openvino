@@ -13,6 +13,35 @@
 
 namespace MKLDNNPlugin {
 
+class Interval {
+public:
+    Interval(Dim val) {
+        minValue = val;
+        maxValue = val;
+    }
+
+    Interval(Dim minVal, Dim maxVal) {
+        minValue = minVal;
+        maxValue = maxVal;
+    }
+
+    bool isStatic() const {
+        return minValue == maxValue;
+    }
+
+    Dim getMinValue() const {
+        return minValue;
+    }
+
+    Dim getMaxValue() const {
+        return maxValue;
+    }
+
+private:
+    Dim minValue = 0;
+    Dim maxValue = 0;
+};
+
 class Shape {
 public:
     Shape() = default;
@@ -124,6 +153,21 @@ public:
      */
     const VectorDims& getDims() const {
         return dims;
+    }
+
+    const Interval getInterval(size_t i) const {
+        if (i >= minDims.size()) {
+            IE_THROW() << "Can't get interval. Shape index " << i << " is out of bound " << minDims.size();
+        }
+        return Interval(minDims[i], maxDims[i]);
+    }
+
+    const std::vector<Interval> getInervalDims() const {
+        std::vector<Interval> intervalDims;
+        for (size_t i = 0; i < minDims.size(); i++) {
+            intervalDims.emplace_back(minDims[i], maxDims[i]);
+        }
+        return intervalDims;
     }
 
     bool isStatic() const {
