@@ -624,11 +624,11 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
     } else if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
                 (params.output.Feature().v % 16 != 0 || dispatchData.gws[1] % 16 != 0)) {
-            auto bs_fsv16_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[1], dispatchData.gws[2], dispatchData.gws[0]},
-                                                                        params.engineInfo, {16, 32, params.engineInfo.maxWorkGroupSize});
-            dispatchData.lws[0] = bs_fsv16_local[2];
-            dispatchData.lws[1] = bs_fsv16_local[0];
-            dispatchData.lws[2] = bs_fsv16_local[1];
+            auto bs_fsv16_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[2], dispatchData.gws[0], dispatchData.gws[1]},
+                                                                        params.engineInfo, {32 * 16, 1024, 1024});
+            dispatchData.lws[0] = bs_fsv16_local[1];
+            dispatchData.lws[1] = bs_fsv16_local[2];
+            dispatchData.lws[2] = bs_fsv16_local[0];
     } else {
         dispatchData.lws[0] = local[0];
         dispatchData.lws[1] = local[1];

@@ -27,17 +27,15 @@ from tests import (
     xfail_issue_38735,
     xfail_issue_39658,
     xfail_issue_39662,
-    xfail_issue_44854,
     xfail_issue_44858,
     xfail_issue_44956,
     xfail_issue_44965,
     xfail_issue_44968,
     xfail_issue_45180,
     xfail_issue_47323,
-    xfail_issue_47337,
+    xfail_issue_73538,
     xfail_issue_48052,
     xfail_issue_49207,
-    xfail_issue_49750,
     xfail_issue_52463,
     xfail_issue_58033,
     xfail_issue_63033,
@@ -102,16 +100,9 @@ tests_expected_to_fail = [
     (
         xfail_issue_FLOAT_LIKE,
         "OnnxBackendNodeModelTest.test_cast_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_cast_FLOAT_to_BFLOAT16_cpu",
         "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_max_float16_cpu",
-        "OnnxBackendNodeModelTest.test_min_float16_cpu",
-        "OnnxBackendNodeModelTest.test_mod_mixed_sign_float16_cpu",
     ),
     (
         xfail_issue_49207,
@@ -210,18 +201,11 @@ tests_expected_to_fail = [
     (
         xfail_issue_38706,
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
-        "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (
         xfail_issue_33538,
         "OnnxBackendNodeModelTest.test_scan_sum_cpu",
         "OnnxBackendNodeModelTest.test_scan9_sum_cpu",
-    ),
-    (
-        xfail_issue_49750,
-        "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_A_n0p5_exclude_outside_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_scales_cubic_A_n0p5_exclude_outside_cpu",
     ),
     (
         xfail_issue_33581,
@@ -234,7 +218,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_momentum_multiple_cpu",
     ),
     (
-        xfail_issue_47337,
+        xfail_issue_73538,
         "OnnxBackendNodeModelTest.test_onehot_negative_indices_cpu",
     ),
     (
@@ -278,12 +262,6 @@ tests_expected_to_fail = [
         xfail_issue_45180,
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_random_cpu",
-    ),
-    (
-        xfail_issue_44854,
-        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_cpu",
     ),
     (
         xfail_issue_44858,
@@ -392,7 +370,13 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_shape_start_1_end_negative_1_cpu",
         "OnnxBackendNodeModelTest.test_shape_start_negative_1_cpu",
     ),
-    (xfail_issue_69444, "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_align_corners_cpu"),
+    (
+        xfail_issue_69444,
+        "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_align_corners_cpu",
+        "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_align_corners_cpu",
+        "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_A_n0p5_exclude_outside_cpu",
+        "OnnxBackendNodeModelTest.test_resize_upsample_scales_cubic_A_n0p5_exclude_outside_cpu",
+    ),
 ]
 
 for test_group in tests_expected_to_fail:

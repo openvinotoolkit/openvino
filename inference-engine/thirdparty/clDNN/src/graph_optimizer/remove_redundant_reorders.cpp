@@ -232,6 +232,9 @@ void remove_redundant_reorders::run(program& p) {
         if (!ident.second)
             continue;
 
+        if (r_node.is_output() && i_layout.get_linear_size() != o_layout.get_linear_size())
+            continue;
+
         // mark as optimized
         r_node.can_be_optimized(true);
         r_node.requires_reinterpret(!ident.first);
@@ -541,8 +544,8 @@ void remove_redundant_reorders::run(program& p) {
             n->set_preferred_impl_type(preferred_impl);
         }
 
-        // Validate fused layout when onednn is enable
-        if (n->get_preferred_impl_type() == impl_types::onednn && !lo.are_layouts_suitable_for_onednn(*n)) {
+        // Validate fused layout when onednn is enable in post_optimize_graph
+        if (!enable_reorder_fusing && n->get_preferred_impl_type() == impl_types::onednn && !lo.are_layouts_suitable_for_onednn(*n)) {
             throw std::runtime_error("Onednn doesnot support padded input or output");
         }
     }

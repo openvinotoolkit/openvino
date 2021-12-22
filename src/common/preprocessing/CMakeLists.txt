@@ -142,7 +142,7 @@ if(ENABLE_GAPI_PREPROCESSING)
         target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
     else()
         # for static linkage the dependencies are in opposite order
-        target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+        target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
     endif()
 
     # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
@@ -178,8 +178,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt
-                                       INTERFACE inference_engine_s)
+target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt inference_engine)
 
 target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
 
@@ -197,7 +196,7 @@ endif()
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 # install
 
