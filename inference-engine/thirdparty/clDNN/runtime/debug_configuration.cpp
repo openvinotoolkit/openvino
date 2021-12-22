@@ -123,7 +123,7 @@ static void print_help_messages() {
 
     GPU_DEBUG_COUT << "Supported environment variables for debugging" << std::endl;
     for (auto& p : message_list) {
-        GPU_DEBUG_COUT << " - " << std::left << std::setw(name_width) << p.first + ": " << p.second << std::endl;
+        GPU_DEBUG_COUT << " - " << std::left << std::setw(name_width) << p.first + "  " << p.second << std::endl;
     }
 }
 
