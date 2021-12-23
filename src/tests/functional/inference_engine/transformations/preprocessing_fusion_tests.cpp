@@ -10,6 +10,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
+#include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
@@ -92,6 +94,26 @@ void apply_reverse_input_channels(std::shared_ptr<Function> f, std::vector<std::
     for (auto item : data) {
         p.input(item.first).tensor().set_layout(ov::Layout(item.second));
         p.input(item.first).preprocess().reverse_channels();
+    }
+    p.build();
+}
+
+void apply_mean_value(std::shared_ptr<Function> f, std::vector<std::pair<int64_t, std::string>> data, std::vector<float> values) {
+    using namespace ov::preprocess;
+    PrePostProcessor p(f);
+    for (auto item : data) {
+        p.input(item.first).tensor().set_layout(ov::Layout(item.second));
+        p.input(item.first).preprocess().mean(values);
+    }
+    p.build();
+}
+
+void apply_scale_value(std::shared_ptr<Function> f, std::vector<std::pair<int64_t, std::string>> data, std::vector<float> values) {
+    using namespace ov::preprocess;
+    PrePostProcessor p(f);
+    for (auto item : data) {
+        p.input(item.first).tensor().set_layout(ov::Layout(item.second));
+        p.input(item.first).preprocess().scale(values);
     }
     p.build();
 }
@@ -671,4 +693,91 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative3) {
         function = std::make_shared<Function>(OutputVector{ conv, split->output(0) }, ParameterVector{ input });
         manager.register_pass<pass::ReverseInputChannelsFusion>();
     }
+}
+
+TEST_F(TransformationTestsF, FuseConvertLayout) {
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 64 });
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 1, 2, 0 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto relu = std::make_shared<ngraph::opset6::Relu>(transpose);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ relu }, ngraph::ParameterVector{ input });
+
+        using namespace ov::preprocess;
+        PrePostProcessor p(function);
+        p.input(0).tensor().set_element_type(element::f16);
+        p.input(0).preprocess().convert_layout({2, 0, 1});
+        p.build();
+
+        manager.register_pass<ngraph::pass::TransposeSinking>();
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::Shape{ 3, 64, 1 });
+        auto convert = std::make_shared<ngraph::opset6::Convert>(input, element::f32);
+        auto relu = std::make_shared<ngraph::opset6::Relu>(convert);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ relu }, ngraph::ParameterVector{ input });
+    }
+}
+
+TEST_F(TransformationTestsF, FuseScaleValue) {
+    {
+        auto input = create_param({ 1, 64, 64, 3 });
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto conv = create_conv(transpose, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+
+        using namespace ov::preprocess;
+        PrePostProcessor p(function);
+        p.input(0).tensor().set_layout("NHWC");
+        p.input(0).preprocess().scale(1.3);
+        p.build();
+
+        manager.register_pass<pass::MOCTransformations>(false);
+    }
+
+    {
+        auto input = create_param({ 1, 64, 64, 3 });
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto conv = create_conv(transpose, {6, 3, 3, 3});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    disable_rt_info_check();
+    enable_accuracy_check();
+}
+
+TEST_F(TransformationTestsF, FuseScaleValues) {
+    {
+        auto input = create_param({ 1, 64, 64, 3 });
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto conv = create_conv(transpose, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+
+        using namespace ov::preprocess;
+        PrePostProcessor p(function);
+        p.input(0).tensor().set_layout("NHWC");
+        p.input(0).preprocess().scale({1.3, 0.2, 4.1});
+        p.build();
+
+        manager.register_pass<pass::MOCTransformations>(false);
+    }
+
+    {
+        auto input = create_param({ 1, 64, 64, 3 });
+        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 });
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto conv = create_conv(transpose, {6, 3, 3, 3});
+        function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
+    }
+
+    disable_rt_info_check();
+    enable_accuracy_check();
 }
