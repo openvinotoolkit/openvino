@@ -54,7 +54,7 @@ std::shared_ptr<ov::runtime::Core> PluginCache::core(const std::string &deviceTo
 
     // register template plugin if it is needed
     try {
-        std::string pluginName = "templatePlugin";
+        std::string pluginName = "ov_template_plugin";
         pluginName += IE_BUILD_POSTFIX;
         ov_core->register_plugin(pluginName, "TEMPLATE");
     } catch (...) {
