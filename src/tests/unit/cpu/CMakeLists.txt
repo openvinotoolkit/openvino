@@ -8,11 +8,11 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
-            $<TARGET_PROPERTY:MKLDNNPlugin,SOURCE_DIR>
-            $<TARGET_PROPERTY:MKLDNNPlugin,SOURCE_DIR>/nodes
+            $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src
+            $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src/nodes
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
         OBJECT_FILES
-            $<TARGET_OBJECTS:MKLDNNPlugin_obj>
+            $<TARGET_OBJECTS:ov_intel_cpu_plugin_obj>
         LINK_LIBRARIES
             gtest
             gtest_main
@@ -23,6 +23,8 @@ addIeTargetTest(
             ov_shape_inference
             inference_engine_s
             unitTestUtils
+            inference_engine_snippets
+            ngraphFunctions
         ADD_CPPLINT
         LABELS
             CPU
@@ -31,3 +33,8 @@ addIeTargetTest(
 ie_faster_build(${TARGET_NAME}
     UNITY
 )
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/common
+    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/cpu
+    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/include)
