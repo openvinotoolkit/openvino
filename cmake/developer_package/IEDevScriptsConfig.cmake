@@ -257,6 +257,10 @@ function(ie_mark_target_as_cc TARGET_NAME)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
 endfunction()
 
+function(ov_mark_target_as_cc)
+    ie_mark_target_as_cc(${ARGN})
+endfunction()
+
 # check python package
 
 function(ie_check_pip_package full_name message_type)

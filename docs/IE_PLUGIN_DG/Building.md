@@ -59,13 +59,17 @@ To build a plugin and its tests, run the following CMake scripts:
 - Root `CMakeLists.txt`, which finds the Inference Engine Developer Package using the `find_package` CMake command and adds the `src` and `tests` subdirectories with plugin sources and their tests respectively:
 
 ```cmake
-cmake_minimum_required(VERSION 3.13.3)
+cmake_minimum_required(VERSION 3.13)
 
-project(InferenceEngineTemplatePlugin)
+project(OpenVINOTemplatePlugin)
 
-set(IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR ${InferenceEngineTemplatePlugin_SOURCE_DIR})
+set(TEMPLATE_PLUGIN_SOURCE_DIR ${OpenVINOTemplatePlugin_SOURCE_DIR})
 
-find_package(InferenceEngineDeveloperPackage REQUIRED)
+find_package(OpenVINODeveloperPackage REQUIRED)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ov_add_compiler_flags(-Wall)
+endif()
 
 add_subdirectory(src)
 

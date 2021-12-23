@@ -3,7 +3,7 @@
 #
 
 # [cmake:plugin]
-set(TARGET_NAME "templatePlugin")
+set(TARGET_NAME "ov_template_plugin")
 
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
@@ -17,11 +17,11 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR}/include")
+    "${TEMPLATE_PLUGIN_SOURCE_DIR}/include")
 
 # link common Inference Engine libraries
 target_link_libraries(${TARGET_NAME} PRIVATE

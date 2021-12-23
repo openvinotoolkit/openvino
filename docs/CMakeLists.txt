@@ -23,8 +23,8 @@ if(NOT ENABLE_DOCKER)
     add_subdirectory(template_extension)
 
     set(all_docs_targets
-        ie_docs_snippets templateFuncTests
-        template_extension template_ov_extension templatePlugin)
+        ie_docs_snippets ov_template_func_tests
+        template_extension ov_template_extension ov_template_plugin)
     foreach(target_name IN LISTS all_docs_targets)
         if(TARGET ${target_name})
             set_target_properties(${target_name} PROPERTIES FOLDER docs)
@@ -36,7 +36,7 @@ if(NOT ENABLE_DOCKER)
 
     # install
 
-    foreach(target templatePlugin template_extension template_ov_extension)
+    foreach(target ov_template_plugin template_extension ov_template_extension)
         if(TARGET ${target})
             install(TARGETS ${target}
                     LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}

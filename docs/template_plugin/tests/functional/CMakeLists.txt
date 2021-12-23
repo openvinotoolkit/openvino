@@ -3,17 +3,17 @@
 #
 
 # [cmake:functional_tests]
-set(TARGET_NAME templateFuncTests)
+set(TARGET_NAME ov_template_func_tests)
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            templatePlugin
+            ov_template_plugin
         LINK_LIBRARIES
             openvino::funcSharedTests
         INCLUDES
-            "${IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR}/include"
+            "${TEMPLATE_PLUGIN_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
         ADD_CPPLINT
         LABELS
