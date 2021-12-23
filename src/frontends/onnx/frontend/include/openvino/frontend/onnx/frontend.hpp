@@ -4,10 +4,8 @@
 
 #pragma once
 
+#include <common/extension_holder.hpp>
 #include <openvino/frontend/frontend.hpp>
-
-#include "openvino/frontend/extension/progress_reporter_extension.hpp"
-#include "openvino/frontend/extension/telemetry.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define ONNX_FRONTEND_API
@@ -39,8 +37,7 @@ protected:
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
 private:
-    std::shared_ptr<TelemetryExtension> m_telemetry;
-    std::shared_ptr<ProgressReporterExtension> m_progress_reporter;
+    ExtensionHolder m_extensions;
 };
 
 }  // namespace onnx
