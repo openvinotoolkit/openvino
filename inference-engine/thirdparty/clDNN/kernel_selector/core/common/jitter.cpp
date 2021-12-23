@@ -1848,7 +1848,7 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
             std::string vs = vec_size > 1 ? toCodeString(vec_size)  : "";
             std::string block_read;
 
-            if (input_dt == Datatype::F32) {
+            if (input_dt == Datatype::F32 || input_dt == Datatype::INT32 || input_dt == Datatype::UINT32) {
                 block_read = CastToType(" intel_sub_group_block_read" + vs + "("
                                         + "(const __global uint*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
