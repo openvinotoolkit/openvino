@@ -712,13 +712,10 @@ int MKLDNNTensorIteratorNode::getNumIteration(const std::vector<PortMap>& inputP
     int numIterations = 1;
     bool isDefault = true;
     for (const auto& rule : inputPortMap) {
-        const auto& dims = getParentEdgesAtPort(rule.from)[0]->getMemoryPtr()->GetShape().getDims();
+        const auto& dims = getParentEdgesAtPort(rule.from)[0]->getMemoryPtr()->getStaticDims();
         if (!isIterable(rule)) {
             continue;
         }
-
-        if (dims[rule.axis] == Shape::UNDEFINED_DIM)
-            THROW_ERROR << ": Split by axis of dynamic dim isn't supported";
 
         if (rule.from < 0 || rule.from >= static_cast<int64_t>(inputShapes.size())) {
             THROW_ERROR << ": Invalid \"from\" value: \"from\" = " << rule.from
