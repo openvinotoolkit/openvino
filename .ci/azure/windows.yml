@@ -253,7 +253,7 @@ jobs:
     displayName: 'IE FuncTests'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\templateFuncTests --gtest_output=xml:TEST-templateFuncTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: false
 

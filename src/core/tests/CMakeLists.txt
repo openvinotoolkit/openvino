@@ -53,7 +53,7 @@ set(SRC
     file_util.cpp
     float16.cpp
     framework_node.cpp
-    function.cpp
+    model.cpp
     graph_rewrite.cpp
     input_output_assign.cpp
     int4.cpp
@@ -420,7 +420,7 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
+list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_extension)
 
 if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
@@ -446,7 +446,7 @@ if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
-        list(APPEND UNIT_TESTS_DEPENDENCIES templatePlugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_plugin)
     endif()
 endif()
 

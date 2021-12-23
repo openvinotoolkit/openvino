@@ -386,7 +386,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_MAX_MIN_INT_dynamic_dimensions) {
                                     Dimension(10, 20),
                                     Dimension(30, 40),
                                     Dimension(0, 50),
-                                    Dimension(0, INT32_MAX)};
+                                    Dimension(-1)};
 
     std::vector<int32_t> start_val{2, 2, INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN, 0, 0};
     std::vector<int32_t> stop_val{10, INT32_MAX, 5, 10, 15, 25, INT32_MAX, 50, INT32_MAX};
@@ -536,11 +536,7 @@ TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_step_neg_
 
 TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_step_mix_ind) {
     PartialShape data_shape{Dimension(-1), Dimension(-1), Dimension(-1), Dimension(-1), Dimension(-1)};
-    PartialShape expected_out_shape{Dimension(0, 6),
-                                    Dimension(0, 6),
-                                    Dimension(-1),
-                                    Dimension(0, INT32_MAX - 5),
-                                    Dimension(-1)};
+    PartialShape expected_out_shape{Dimension(0, 6), Dimension(0, 6), Dimension(-1), Dimension(0, -1), Dimension(-1)};
 
     std::vector<int32_t> start_val{5, 5, -10, INT32_MAX, INT32_MAX};
     std::vector<int32_t> stop_val{-10, INT32_MIN, 5, 5, INT32_MIN};
@@ -551,6 +547,80 @@ TEST(type_prop, slice_v8_basic_const_inputs_data_full_dynamic_dims_neg_step_mix_
 
     element::Type_t et = element::i32;
     std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint32) {
+    PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
+    PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
+
+    std::vector<int32_t> start_val{0, 0, 0};
+    std::vector<int32_t> stop_val{INT32_MAX, INT32_MAX, INT32_MAX};
+    std::vector<int32_t> step_val{1, 1, 1};
+
+    std::vector<int32_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint64) {
+    PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
+    PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
+
+    std::vector<int64_t> start_val{0, 0, 0};
+    std::vector<int64_t> stop_val{INT64_MAX, INT64_MAX, INT64_MAX};
+    std::vector<int64_t> step_val{1, 1, 1};
+
+    std::vector<int64_t> axes_val(start_val.size());
+    std::iota(axes_val.begin(), axes_val.end(), 0);
+
+    element::Type_t et = element::i64;
+    std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint32_start1) {
+    PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
+    PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
+
+    std::vector<int32_t> start_val{1};
+    std::vector<int32_t> stop_val{INT32_MAX};
+    std::vector<int32_t> step_val{1};
+
+    std::vector<int32_t> axes_val{1};
+
+    element::Type_t et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_basic_const_inputs_dynamic_dims_maxint64_start1) {
+    PartialShape data_shape{Dimension(0, 2000), Dimension(-1), 4};
+    PartialShape expected_out_shape{Dimension(0, 2000), Dimension(-1), Dimension(4)};
+
+    std::vector<int64_t> start_val{1};
+    std::vector<int64_t> stop_val{INT64_MAX};
+    std::vector<int64_t> step_val{1};
+
+    std::vector<int64_t> axes_val{1};
+
+    element::Type_t et = element::i64;
+    std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
     const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
 
     EXPECT_EQ(op->get_element_type(), et);
