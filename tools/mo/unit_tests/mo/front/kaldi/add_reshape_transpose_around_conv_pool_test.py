@@ -11,7 +11,7 @@ from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, connect_front, const, regular_op, shaped_parameter
 
 
-class ReplaceConvolutionReshapeTests(unittest.TestCase):
+class AddReshapeTransposeAroundConvPoolTests(unittest.TestCase):
     nodes = {
         **shaped_parameter('input', [1, 30]),
         **regular_op('splice', {'op': 'Splice', 'context': [-5, -4, -3, -2, -1 ,0, 1, 2, 3, 4, 5]}),
