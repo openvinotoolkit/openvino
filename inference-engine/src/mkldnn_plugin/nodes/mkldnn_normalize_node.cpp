@@ -813,8 +813,7 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, con
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            constexpr int align = 16;
-            eltwiseNode->appendPostOps(ops, dims, align);
+            eltwiseNode->appendPostOps(ops, dims);
             continue;
         }
 
@@ -854,10 +853,18 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
     }
 }
 
+bool MKLDNNNormalizeL2Node::isExecutable() const {
+    return !isInputTensorAtPortEmpty(0);
+}
+
 void MKLDNNNormalizeL2Node::prepareParams() {
     const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
     setPostOps(kernel_attrs, dims, true);
     execPtr = NormalizeL2Executor::getNormalizeL2Executor(attrs, kernel_attrs, dims);
+}
+
+void MKLDNNNormalizeL2Node::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {

@@ -19,14 +19,18 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations ngraph::reference
-                                            nlohmann_json_schema_validator
-                                     PRIVATE openvino::itt pugixml::static)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev
+                                     PRIVATE openvino::itt pugixml::static openvino::runtime ngraph::reference
+                                             nlohmann_json_schema_validator nlohmann_json)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+# Add include path to so_extension.hpp
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/json_extension/json_config.cpp
+        PROPERTIES INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
 
 # developer package
 

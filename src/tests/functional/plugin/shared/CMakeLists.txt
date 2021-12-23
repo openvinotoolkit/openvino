@@ -18,7 +18,7 @@ endif()
 
 # remove once CVS-69781 is fixed
 if(ENABLE_OV_IR_FRONTEND)
-    list(APPEND DEPENDENCIES ir_ov_frontend)
+    list(APPEND DEPENDENCIES ov_ir_frontend)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
@@ -52,7 +52,7 @@ addIeTarget(
                 sharedTestClasses
             PRIVATE
                 openvino::util
-                inference_engine_transformations
+                openvino::runtime::dev
         DEPENDENCIES
             ${DEPENDENCIES}
 )
