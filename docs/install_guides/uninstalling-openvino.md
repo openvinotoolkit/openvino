@@ -4,35 +4,40 @@
 
 ##There are 2 ways of uninstalling OpenVINO:
 
-### Bootstrapper file
+### 1. Bootstrapper file
 
 @sphinxdirective
 .. tab:: Windows
 
-  Go to the `Downloads` folder and double-click w_openvino_toolkit_p_<version>.exe. Follow the wizard instructions.
+  Go to the :blue:`Downloads` folder and double-click :blue:`w_openvino_toolkit_p_<version>.exe`. Follow the wizard instructions.
 
 .. tab:: Linux
 
   If you want to use graphical user interface (GUI) installation wizard, run the script without any parameters:
-  ```sh
-  ./l_openvino_toolkit_p_<version>.sh
-  ```
+  
+  .. code-block:: sh
+  
+    ./l_openvino_toolkit_p_<version>.sh
+
   Follow the wizard instructions.
 
   Otherwise, you can add parameters `-a` for additional arguments and `--cli` to run installation in command line (CLI):
-  ```sh
-  ./l_openvino_toolkit_p_<version>.sh -a --cli
-  ```
+  
+  .. code-block:: sh
+    
+    ./l_openvino_toolkit_p_<version>.sh -a --cli
+
   Follow the wizard. Select **Remove** option when presented.
 
 .. tab:: macOS
 
-  Go to the `Downloads` folder and double-click m_openvino_toolkit_p_<version>.dmg. Follow the wizard instructions.
+  Go to the :blue:`Downloads` folder and double-click :blue:`m_openvino_toolkit_p_<version>.dmg`. Follow the wizard instructions.
 
 @endsphinxdirective
 
-### System specific
+### 2. System specific
 
+@sphinxdirective
 .. tab:: Windows
 
   1. Choose the **Apps & Features** option from the Windows* Settings app.
@@ -42,12 +47,16 @@
 .. tab:: Linux & macOS
 
   1. Run the installer file from the installation directory:
-   ```sh
-   ./<INSTALL_DIR>/intaller/installer
-   ```
+   
+  .. code-block:: sh
+  
+    ./<INSTALL_DIR>/intaller/installer
+
   2. Follow the uninstallation wizard instructions.
 
-Finally, you need to complete the procedure with clicking on **Modify** and then selecting **Uninstall** option:
+@endsphinxdirective
+
+Finally, complete the procedure with clicking on **Modify** and then selecting **Uninstall** option:
 
    @sphinxdirective
 
