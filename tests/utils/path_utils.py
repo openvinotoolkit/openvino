@@ -36,9 +36,9 @@ def get_lib_path(lib_name):
     """Function for getting absolute path in OpenVINO directory to specific lib"""
     os_name = get_os_name()
     all_libs = {
-        'MKLDNNPlugin': {
-            'Windows': Path('runtime/bin/intel64/Release/MKLDNNPlugin.dll'),
-            'Linux': Path('runtime/lib/intel64/libMKLDNNPlugin.so')},
+        'ov_intel_cpu_plugin': {
+            'Windows': Path('runtime/bin/intel64/Release/ov_intel_cpu_plugin.dll'),
+            'Linux': Path('runtime/lib/intel64/libov_intel_cpu_plugin.so')},
         'ov_runtime': {
             'Windows': Path('runtime/bin/intel64/Release/ov_runtime.dll'),
             'Linux': Path('runtime/lib/intel64/libov_runtime.so')}

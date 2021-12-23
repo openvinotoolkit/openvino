@@ -208,7 +208,7 @@ def test_query_model(device):
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
     ie = Core()
-    ie.register_plugin("MKLDNNPlugin", "BLA")
+    ie.register_plugin("ov_intel_cpu_plugin", "BLA")
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(func, "BLA")
     assert isinstance(exec_net, CompiledModel), \

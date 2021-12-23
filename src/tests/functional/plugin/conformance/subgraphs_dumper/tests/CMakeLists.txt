@@ -10,11 +10,10 @@ addIeTargetTest(
         ADDITIONAL_SOURCE_DIRS ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/src/matchers
         INCLUDES
             ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include
-            $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
         LINK_LIBRARIES
             PRIVATE
                 funcTestUtils
-                ngraph
+                openvino::runtime
                 pugixml::static
         ADD_CPPLINT
 )
