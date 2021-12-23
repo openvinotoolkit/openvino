@@ -50,6 +50,8 @@ class Select(Op):
             output_shape = bi_directional_shape_broadcasting(a_shape, b_shape)
             assert output_shape is not None, msg
 
+            output_is_scalar = len(output_shape) == 0
+
             # if Select was created from TF Where operations then 1D condition must have the same size
             # as 0-index dimension of output_shape. This condition is different from being numpy compatible
             # but by adding ones to the end we can achieve numpy compatibility, as in transformation SelectBroadcast.py
@@ -61,9 +63,10 @@ class Select(Op):
                             node_name, condition_shape, a_shape, b_shape)
 
                 # check equality only if both values non-dynamic
-                if is_fully_defined(condition_shape[0]) and is_fully_defined(output_shape[0]):
+                if is_fully_defined(condition_shape[0]) and not output_is_scalar and is_fully_defined(output_shape[0]):
                     assert condition_shape[0] == output_shape[0], msg_tf
-                condition_shape = np.concatenate((condition_shape, np.ones(len(output_shape) - 1)))
+                ones_shape = len(output_shape) if output_is_scalar else len(output_shape) - 1
+                condition_shape = np.concatenate((condition_shape, np.ones(ones_shape)))
 
             output_shape = bi_directional_shape_broadcasting(output_shape, condition_shape)
             assert output_shape is not None, msg
