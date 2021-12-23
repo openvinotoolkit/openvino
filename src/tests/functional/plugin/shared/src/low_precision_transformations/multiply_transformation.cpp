@@ -27,14 +27,10 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
 
     std::ostringstream result;
     result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) <<
-        (param.broadcast ? "_broadcast" : "");
-    for (const auto& elem : param.precisionOnActivations) {
-        result << "_" << elem << "_";
-    }
-    result << "expected_precisions_";
-    for (const auto& elem : param.expectedPrecisions) {
-        result << "_" << elem << "_";
-    }
+        (param.broadcast1 ? "_broadcast1" : "") <<
+        (param.broadcast2 ? "_broadcast2" : "");
+
+    result << "_" << param.expectedPrecisions << "_";
 
     if (!param.fakeQuantize1.empty()) {
         result << "_on_branch1_" <<
@@ -62,11 +58,40 @@ void MultiplyTransformation::SetUp() {
     function = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
         precision,
         inputShape,
-        param.broadcast,
+        param.broadcast1,
         param.fakeQuantize1,
-        param.fakeQuantize2);
+        param.broadcast2,
+        param.fakeQuantize2,
+        param.fakeQuantizeAfter);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+}
+
+void MultiplyTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<3>(GetParam());
+
+    auto to_string = [](const ngraph::element::Type& precision) -> std::string {
+        switch (precision) {
+            case ngraph::element::f32: {
+                return "FP32";
+            }
+            case ngraph::element::i8: {
+                return "I8";
+            }
+            case ngraph::element::u8: {
+                return "U8";
+            }
+            default: {
+                return "";
+            }
+        }
+    };
+
+    const auto expectedFqPrecision = to_string(params.expectedPrecisions);
+    const auto actualFqPrecision = getRuntimePrecision("multiply");
+    EXPECT_EQ(expectedFqPrecision, actualFqPrecision);
 }
 
 TEST_P(MultiplyTransformation, CompareWithRefImpl) {

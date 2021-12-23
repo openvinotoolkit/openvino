@@ -8,8 +8,7 @@
 
 #include <iostream>
 
-int runPipeline(const std::string &model, const std::string &device, const bool performanceHint,
-                const bool isCacheEnabled, const std::string &vpuCompiler);
+int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled);
 
 /**
  * @brief Parses command line and check required arguments
@@ -41,7 +40,7 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
  */
 int _runPipeline() {
   SCOPED_TIMER(full_run);
-  return runPipeline(FLAGS_m, FLAGS_d, FLAGS_p, FLAGS_c, FLAGS_v);
+  return runPipeline(FLAGS_m, FLAGS_d, FLAGS_c);
 }
 
 /**

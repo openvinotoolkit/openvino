@@ -1387,13 +1387,6 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
     }
 }
 
-void MKLDNNFakeQuantizeNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        prepareParams();
-        updateLastInputDims();
-    }
-}
-
 void MKLDNNFakeQuantizeNode::executeReference() {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
@@ -1652,6 +1645,10 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_q
     }
 }
 
+void MKLDNNFakeQuantizeNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
@@ -1709,8 +1706,13 @@ void MKLDNNFakeQuantizeNode::initializePostOpData(const VectorDims &dims, const 
     isPostOpDataInitialized = true;
 }
 
-void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align) {
-    initializePostOpData(postOpDims, align);
+void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims) {
+    // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
+    // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
+    // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
+    const size_t bufferAlignment = 16;
+
+    initializePostOpData(postOpDims, bufferAlignment);
 
     if (getAlgorithm() == FQBinarization) {
         ops.append_binarization(mkldnn::algorithm::binarization_depthwise, (const float*)&binarizationThresholds[0], (const float*)&binarizationOutputMask[0]);

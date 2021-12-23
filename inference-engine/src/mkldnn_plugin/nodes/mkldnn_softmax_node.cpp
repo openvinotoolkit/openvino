@@ -66,14 +66,6 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNSoftMaxNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
 bool MKLDNNSoftMaxNode::created() const {
     return getType() == Softmax;
 }
@@ -148,8 +140,8 @@ void MKLDNNSoftMaxNode::prepareParams() {
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
-void MKLDNNSoftMaxNode::executeDynamicImpl(dnnl::stream strm) {
-    MKLDNNNode::execute(strm);
+void MKLDNNSoftMaxNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 std::vector<VectorDims> MKLDNNSoftMaxNode::shapeInfer() const {

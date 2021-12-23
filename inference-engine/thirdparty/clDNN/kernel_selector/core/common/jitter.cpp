@@ -334,6 +334,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv8_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv32_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
@@ -346,6 +347,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                     layout == DataLayout::bs_fs_yx_bsv32_fsv32  ||
                     layout == DataLayout::bs_fs_yx_bsv32_fsv16  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv4  ||
+                    layout == DataLayout::bs_fs_yx_bsv8_fsv4  ||
                     layout == DataLayout::bs_fs_yx_bsv4_fsv2  ||
                     layout == DataLayout::bs_fs_yx_bsv16_fsv16)
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
@@ -1866,10 +1868,10 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
                 return block_read;
             } else if (input_tensor.LogicalSize() > 1) {
                 // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
-                return Broadcast(block_read, input_dt, conf.vec_size);
+                return Broadcast(block_read, input_dt, vec_size);
             } else {
                 // Input has only one element, so broadcast it for the whole vector size
-                return Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, conf.vec_size);
+                return Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, vec_size);
             }
         } else {
             if (vec_size > 1) {

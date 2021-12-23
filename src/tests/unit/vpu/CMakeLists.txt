@@ -20,9 +20,8 @@ addIeTargetTest(
         LINK_LIBRARIES
             vpu_graph_transformer_test_static
             mvnc
-            ngraph
-            interpreter_backend
-            inference_engine_lp_transformations # for ngraphFunctions
+            openvino::runtime
+            openvino::runtime::dev
         ADD_CPPLINT
         LABELS
             VPU

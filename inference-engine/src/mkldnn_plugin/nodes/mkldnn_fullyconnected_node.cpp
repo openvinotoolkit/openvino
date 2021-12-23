@@ -147,7 +147,7 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
     else
         primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getParentEdgeAt(WEIGHTS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
 
-    appendPostOpArgs(*attr);
+    appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
@@ -198,9 +198,8 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
 
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             // TODO [DS]: change to shape from memory
-            constexpr int align = -1;
             if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
-                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
             } else {
                 eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
             }

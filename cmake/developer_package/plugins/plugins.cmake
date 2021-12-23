@@ -80,11 +80,7 @@ function(ie_add_plugin)
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
             FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
-        if(TARGET IE::inference_engine_plugin_api)
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine IE::inference_engine_plugin_api)
-        else()
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine inference_engine_plugin_api)
-        endif()
+        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
         if(WIN32)
             set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_PLUGIN_NAME})
@@ -117,20 +113,20 @@ function(ie_add_plugin)
         # fake dependencies to build in the following order:
         # IE -> IE readers -> IE inference plugins -> IE-based apps
         if(BUILD_SHARED_LIBS)
-            if(TARGET ir_ov_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} ir_ov_frontend)
+            if(TARGET ov_ir_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} ov_ir_frontend)
             endif()
             if(TARGET inference_engine_ir_v7_reader)
                 add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
             endif()
-            if(TARGET onnx_ov_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} onnx_ov_frontend)
+            if(TARGET ov_onnx_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} ov_onnx_frontend)
             endif()
-            if(TARGET paddlepaddle_ov_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} paddlepaddle_ov_frontend)
+            if(TARGET ov_paddle_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} ov_paddle_frontend)
             endif()
-            if(TARGET tensorflow_ov_frontend)
-                add_dependencies(${IE_PLUGIN_NAME} tensorflow_ov_frontend)
+            if(TARGET ov_tensorflow_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} ov_tensorflow_frontend)
             endif()
         endif()
 
@@ -168,6 +164,10 @@ function(ie_add_plugin)
     set(${IE_PLUGIN_DEVICE_NAME}_CONFIG "${IE_PLUGIN_DEFAULT_CONFIG}" CACHE INTERNAL "" FORCE)
     set(${IE_PLUGIN_DEVICE_NAME}_PSEUDO_PLUGIN_FOR "${IE_PLUGIN_PSEUDO_PLUGIN_FOR}" CACHE INTERNAL "" FORCE)
     set(${IE_PLUGIN_DEVICE_NAME}_AS_EXTENSION "${IE_PLUGIN_AS_EXTENSION}" CACHE INTERNAL "" FORCE)
+endfunction()
+
+function(ov_add_plugin)
+    ie_add_plugin(${ARGN})
 endfunction()
 
 #
@@ -314,7 +314,7 @@ function(ie_generate_plugins_hpp)
     endforeach()
 
     # add plugins to libraries including ie_plugins.hpp
-    ie_target_link_plugins(inference_engine)
+    ie_target_link_plugins(ov_runtime)
     if(TARGET inference_engine_s)
         ie_target_link_plugins(inference_engine_s)
     endif()
@@ -344,7 +344,7 @@ function(ie_generate_plugins_hpp)
     add_dependencies(inference_engine _ie_plugins_hpp)
 
     # add dependency for object files
-    get_target_property(sources inference_engine SOURCES)
+    get_target_property(sources inference_engine_obj SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library

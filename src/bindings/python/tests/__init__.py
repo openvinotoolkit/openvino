@@ -24,7 +24,6 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
-xfail_issue_FLOAT_LIKE = xfail_test(reason="Use of bfloat16 or float16")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
@@ -51,12 +50,6 @@ xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is no
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
-xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)."
-                                      "is_static() nGraph <value> operation with name: <value> cannot be "
-                                      "converted to <value> layer with name: <value> because output "
-                                      "with index 0 contains dynamic shapes: {<value>}. Try to use "
-                                      "CNNNetwork::reshape() method in order to specialize shapes "
-                                      "before the conversion.")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Gradient")
@@ -83,7 +76,6 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44851 = xfail_test(reason="Expected: Unsupported dynamic op: Broadcast")
-xfail_issue_44854 = xfail_test(reason="Expected: Unsupported dynamic op: VariadicSplit")
 xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsqueeze")
 xfail_issue_44956 = xfail_test(reason="Expected: Unsupported dynamic op: Loop")
 xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero")
