@@ -8,7 +8,8 @@ set -e
 #===================================================================================================
 # Option parsing
 
-all_comp=(dev myriad cl_compiler python)
+dafault_comp=(dev python myriad cl_compiler)
+all_comp=(${dafault_comp[@]} opencv_req opencv_opt)
 os=${os:-auto}
 
 # public options
@@ -29,7 +30,7 @@ while :; do
             echo "  -y          non-interactive run (off)"
             echo "  -n          dry-run, assume no (off)"
             echo "  -c=<name>   install component <name>, can be repeated (${all_comp[*]})"
-            echo "  -e          add extra repositories (CentOS 7) (off)"
+            echo "  -e          add extra repositories (RHEL 8) (off)"
             echo "  -p          print package list and exit (off)"
             exit
             ;;
@@ -45,9 +46,9 @@ while :; do
     shift
 done
 
-# No components selected - install all
+# No components selected - install default
 if [ ${#comp[@]} -eq 0 ]; then
-    comp=(${all_comp[@]})
+    comp=(${dafault_comp[@]})
 fi
 
 #===================================================================================================
@@ -102,7 +103,6 @@ if [ "$os" == "ubuntu18.04" ] ; then
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
     pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
-    pkgs_installer=(cpio)
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
@@ -124,7 +124,6 @@ elif [ "$os" == "ubuntu20.04" ] ; then
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
     pkgs_dev=(cmake g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
-    pkgs_installer=(cpio)
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
@@ -146,7 +145,6 @@ elif [ "$os" == "rhel8" ] ; then
     pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl sudo)
     pkgs_myriad=()
-    pkgs_installer=()
     pkgs_opencv_opt=(
         gstreamer1
         gstreamer1-plugins-bad-free
