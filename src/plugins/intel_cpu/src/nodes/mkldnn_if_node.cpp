@@ -14,8 +14,8 @@
 
 using namespace MKLDNNPlugin;
 
-
-MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) : srcMemPtr(from), dstMemPtr(to) {
+MKLDNNIfNode::PortMapHelper::PortMapHelper(const MKLDNNMemoryPtr &from, const std::deque<MKLDNNMemoryPtr>& to,
+                                           const mkldnn::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
     if (srcMemPtr->getDesc().isDefined())
         size = srcMemPtr->GetSize();
 }
@@ -25,13 +25,33 @@ void MKLDNNIfNode::PortMapHelper::execute(mkldnn::stream& strm) {
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
-    cpu_memcpy(dstMemPtr->GetPtr(), srcMemPtr->GetPtr(), size);
+    cpu_memcpy(dstMemPtrs.front()->GetPtr(), srcMemPtr->GetPtr(), size);
 }
 
 void MKLDNNIfNode::PortMapHelper::redefineTo() {
-    const auto &currDesc = dstMemPtr->getDesc();
+    const auto &currDesc = dstMemPtrs.front()->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
-        dstMemPtr->redefineDesc(srcMemPtr->getDesc());
+        // WA [DS] : need to rewrite it. Copypaste from MKLDNNNode::redefineOutputMemory
+        // this path is necessary if there are several edges per one port
+        // in this case edge memory share same physical memory
+        // so we need to find which edge allocate memory, reallocate memory and share this memory between other edges
+        size_t sharedEdgeNum = 0;
+        for (size_t j = 0; j < dstMemPtrs.size(); j++) {
+            if (!dstMemPtrs[j]->isUsedExternalStorage()) {
+                sharedEdgeNum = j;
+                break;
+            }
+        }
+
+        const auto &memDesc = srcMemPtr->getDesc();
+        dstMemPtrs[sharedEdgeNum]->redefineDesc(memDesc);
+        void *data = dstMemPtrs[sharedEdgeNum]->GetData();
+        for (size_t j = 0; j < dstMemPtrs.size(); j++) {
+            if (j == sharedEdgeNum)
+                continue;
+            dstMemPtrs[j]->redefineDesc(memDesc, data);
+        }
+
         size = srcMemPtr->GetSize();
     }
 }
@@ -69,8 +89,7 @@ void MKLDNNIfNode::getSupportedDescriptors() {
     for (const auto &param : ifOp->get_then_body()->get_parameters()) {
         auto inNode = inMapThen.find(param->get_friendly_name());
         if (inNode != inMapThen.end()) {
-            auto inMem = inNode->second->getChildEdgeAt(0)->getMemoryPtr();
-            inputMemThen.push_back(inMem);
+            inputMemThen.push_back(getToMemories(inNode->second.get(), 0));
         } else {
             IE_THROW() << "Then body of node If with name " << getName() << " does not have input with name: "
                     << param->get_friendly_name();
@@ -81,8 +100,7 @@ void MKLDNNIfNode::getSupportedDescriptors() {
     for (const auto &param : ifOp->get_else_body()->get_parameters()) {
         auto inNode = inMapElse.find(param->get_friendly_name());
         if (inNode != inMapElse.end()) {
-            auto inMem = inNode->second->getChildEdgeAt(0)->getMemoryPtr();
-            inputMemElse.push_back(inMem);
+            inputMemElse.push_back(getToMemories(inNode->second.get(), 0));
         } else {
             IE_THROW() << "Else body of node If with name " << getName() << " does not have input with name: "
                     << param->get_friendly_name();
@@ -186,9 +204,9 @@ void MKLDNNIfNode::prepareBeforeMappers(const bool isThen, const dnnl::engine& e
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
     for (auto& map_rule : inputPortMap) {
         auto &fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &toMem = inputMems[map_rule.to];
+        auto &toMems = inputMems[map_rule.to];
 
-        beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMem, eng));
+        beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
     }
 }
 
@@ -197,11 +215,18 @@ void MKLDNNIfNode::prepareAfterMappers(const bool isThen, const dnnl::engine& en
     auto &outputMems = isThen ? outputMemThen : outputMemElse;
     auto &afterMappers = isThen ? afterThenMappers : afterElseMappers;
     for (auto& map_rule : outputPortMap) {
-        auto &toMem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto toMems = getToMemories(this, map_rule.from);
         auto &fromMem = outputMems[map_rule.to];
 
-        afterMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMem, eng));
+        afterMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
     }
+}
+
+std::deque<MKLDNNMemoryPtr> MKLDNNIfNode::getToMemories(const MKLDNNNode* node, const size_t port) const {
+    std::deque<MKLDNNMemoryPtr> memories;
+    for (auto edge : node->getChildEdgesAtPort(port))
+        memories.push_back(edge->getMemoryPtr());
+    return memories;
 }
 
 void MKLDNNIfNode::execute(mkldnn::stream strm) {

@@ -36,6 +36,8 @@ private:
     void prepareBeforeMappers(const bool isThen, const dnnl::engine& eng);
     void prepareAfterMappers(const bool isThen, const dnnl::engine& eng);
 
+    std::deque<MKLDNNMemoryPtr> getToMemories(const MKLDNNNode* node, const size_t port) const;
+
     struct PortMap {
         int from; /**< Index of external/internal out data */
         int to;   /**< Index of external/internal in data */
@@ -43,7 +45,7 @@ private:
 
     class PortMapHelper {
     public:
-        PortMapHelper(const MKLDNNMemoryPtr& from, const MKLDNNMemoryPtr& to, const mkldnn::engine& eng);
+        PortMapHelper(const MKLDNNMemoryPtr& from, const std::deque<MKLDNNMemoryPtr>& to, const mkldnn::engine& eng);
         ~PortMapHelper() = default;
         void execute(mkldnn::stream& strm);
 
@@ -51,7 +53,7 @@ private:
         void redefineTo();
 
         MKLDNNMemoryPtr srcMemPtr;
-        MKLDNNMemoryPtr dstMemPtr;
+        std::deque<MKLDNNMemoryPtr> dstMemPtrs;
 
         ptrdiff_t size;
     };
@@ -59,7 +61,8 @@ private:
     MKLDNNExtensionManager::Ptr ext_mng;
     MKLDNNGraph subGraphThen;
     MKLDNNGraph subGraphElse;
-    std::deque<MKLDNNMemoryPtr> inputMemThen, inputMemElse, outputMemThen, outputMemElse;
+    std::vector<std::deque<MKLDNNMemoryPtr>> inputMemThen, inputMemElse;
+    std::deque<MKLDNNMemoryPtr> outputMemThen, outputMemElse;
 
     std::vector<std::shared_ptr<PortMapHelper>>
         beforeThenMappers,
