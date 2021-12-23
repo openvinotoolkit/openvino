@@ -14,56 +14,17 @@ import numpy as np
 from openvino.preprocess import PrePostProcessor
 from openvino.runtime import Core, Layout, Type, Model, Shape, PartialShape
 import openvino
+from data import digits
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse and return command line arguments"""
-    parser = argparse.ArgumentParser(add_help=False)
-    args = parser.add_argument_group('Options')
-    # fmt: off
-    args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
-    args.add_argument('-m', '--model', required=True, type=str,
-                      help='Required. Path to a file with network weights.')
-    args.add_argument('-i', '--input', required=True, type=str, nargs='+', help='Required. Path to an image file.')
-    args.add_argument('-d', '--device', default='CPU', type=str,
-                      help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
-                      'is acceptable. The sample will look for a suitable plugin for device specified. '
-                      'Default value is CPU.')
-    args.add_argument('--labels', default=None, type=str, help='Optional. Path to a labels mapping file.')
-    args.add_argument('-nt', '--number_top', default=10, type=int, help='Optional. Number of top results.')
-    # fmt: on
-    return parser.parse_args()
-
-
-def read_image(image_path: str) -> np.ndarray:
-    """Read and return an image as grayscale (one channel)"""
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-
-    # Try to open image as ubyte
-    if image is None:
-        with open(image_path, 'rb') as f:
-            st.unpack('>4B', f.read(4))  # need to skip  4 bytes
-            nimg = st.unpack('>I', f.read(4))[0]  # number of images
-            nrow = st.unpack('>I', f.read(4))[0]  # number of rows
-            ncolumn = st.unpack('>I', f.read(4))[0]  # number of column
-            nbytes = nimg * nrow * ncolumn * 1  # each pixel data is 1 byte
-
-            if nimg != 1:
-                raise Exception('Sample supports ubyte files with 1 image inside')
-
-            image = np.asarray(st.unpack('>' + 'B' * nbytes, f.read(nbytes))).reshape((nrow, ncolumn))
-
-    return image
-
-
-def create_ngraph_function(args: argparse.Namespace) -> Model:
+def create_ngraph_function(model_path: str) -> Model:
     """Create a network on the fly from the source code using ngraph"""
 
     def shape_and_length(shape: list) -> typing.Tuple[list, int]:
         length = reduce(lambda x, y: x * y, shape)
         return shape, length
 
-    weights = np.fromfile(args.model, dtype=np.float32)
+    weights = np.fromfile(model_path, dtype=np.float32)
     weights_offset = 0
     padding_begin = padding_end = [0, 0]
 
@@ -165,15 +126,22 @@ def create_ngraph_function(args: argparse.Namespace) -> Model:
 
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
-    args = parse_args()
+    # Parsing and validation of input arguments
+    if len(sys.argv) != 3:
+        log.info('Usage: <path_to_model> <device_name>')
+        return 1
 
+    model_path = sys.argv[1]
+    device_name = sys.argv[2]
+    labels = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    number_top = 10
     # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
     log.info('Creating OpenVINO Runtime Core')
     core = Core()
 
     # ---------------------------Step 2. Read a model in OpenVINO Intermediate Representation------------------------------
-    log.info(f'Loading the network using ngraph function with weights from {args.model}')
-    model = create_ngraph_function(args)
+    log.info(f'Loading the network using ngraph function with weights from {model_path}')
+    model = create_ngraph_function(model_path)
     # ---------------------------Step 3. Apply preprocessing----------------------------------------------------------
     # Get names of input and output blobs
     ppp = PrePostProcessor(model)
@@ -195,30 +163,18 @@ def main():
     model = ppp.build()
 
     # Set a batch size to a equal number of input images
-    model.reshape({model.input().get_any_name(): PartialShape((len(args.input), model.input().shape[1], model.input().shape[2], model.input().shape[3]))})
+    model.reshape({model.input().get_any_name(): PartialShape((number_top, model.input().shape[1], model.input().shape[2], model.input().shape[3]))})
 
     # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
-    compiled_model = core.compile_model(model, args.device)
+    compiled_model = core.compile_model(model, device_name)
 
     # ---------------------------Step 5. Prepare input---------------------------------------------------------------------
     n, c, h, w = model.input().shape
     input_data = np.ndarray(shape=(n, c, h, w))
     for i in range(n):
-        image = read_image(args.input[i])
-
-        light_pixel_count = np.count_nonzero(image > 127)
-        dark_pixel_count = np.count_nonzero(image < 127)
-        is_light_image = (light_pixel_count - dark_pixel_count) > 0
-
-        if is_light_image:
-            log.warning(f'Image {args.input[i]} is inverted to white over black')
-            image = cv2.bitwise_not(image)
-
-        if image.shape != (h, w):
-            log.warning(f'Image {args.input[i]} is resized from {image.shape} to {(h, w)}')
-            image = cv2.resize(image, (w, h))
-
+        image = digits[i].reshape(28, 28)
+        image = image[:, :, np.newaxis]
         input_data[i] = image
 
     # ---------------------------Step 6. Do inference----------------------------------------------------------------------
@@ -226,30 +182,25 @@ def main():
     results = compiled_model.infer_new_request({0: input_data})
 
     # ---------------------------Step 7. Process output--------------------------------------------------------------------
-    # Generate a label list
-    if args.labels:
-        with open(args.labels, 'r') as f:
-            labels = [line.split(',')[0].strip() for line in f]
-
     predictions = next(iter(results.values()))
 
     for i in range(n):
         probs = predictions[i]
-        # Get an array of args.number_top class IDs in descending order of probability
-        top_n_idexes = np.argsort(probs)[-args.number_top :][::-1]
+        # Get an array of number_top class IDs in descending order of probability
+        top_n_idexes = np.argsort(probs)[-number_top :][::-1]
 
         header = 'classid probability'
-        header = header + ' label' if args.labels else header
+        header = header + ' label' if labels else header
 
-        log.info(f'Image path: {args.input[i]}')
-        log.info(f'Top {args.number_top} results: ')
+        log.info(f'Number of image is: {i}')
+        log.info(f'Top {number_top} results: ')
         log.info(header)
         log.info('-' * len(header))
 
         for class_id in top_n_idexes:
             probability_indent = ' ' * (len('classid') - len(str(class_id)) + 1)
-            label_indent = ' ' * (len('probability') - 8) if args.labels else ''
-            label = labels[class_id] if args.labels else ''
+            label_indent = ' ' * (len('probability') - 8) if labels else ''
+            label = labels[class_id] if labels else ''
             log.info(f'{class_id}{probability_indent}{probs[class_id]:.7f}{label_indent}{label}')
         log.info('')
 
