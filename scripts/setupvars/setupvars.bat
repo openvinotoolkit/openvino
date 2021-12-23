@@ -7,7 +7,6 @@ set ROOT=%~dp0
 set SCRIPT_NAME=%~nx0
 
 set "INTEL_OPENVINO_DIR=%ROOT%"
-set "INTEL_CVSDK_DIR=%INTEL_OPENVINO_DIR%"
 
 set "python_version="
 
@@ -27,17 +26,7 @@ if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
 call "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat"
 goto :opencv_done
 )
-if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
-call "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat"
-goto :opencv_done
-)
 :opencv_done
-
-:: Model Optimizer
-if exist %INTEL_OPENVINO_DIR%\tools\mo (
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\mo;%PYTHONPATH%
-set "PATH=%INTEL_OPENVINO_DIR%\tools\mo;%PATH%"
-)
 
 :: OpenVINO runtime
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
@@ -45,7 +34,6 @@ set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\hddl"
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENVINO_LIB_PATHS%"
-set "OV_FRONTEND_PATH=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OV_FRONTEND_PATH%"
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
@@ -64,7 +52,7 @@ set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 :: Check if Python is installed
 python --version 2>NUL
 if errorlevel 1 (
-   echo Error^: Python is not installed. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
+   echo Error^: Python is not installed. Please install one of Python 3.6 - 3.9 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
@@ -88,7 +76,7 @@ if "%pyversion_major%" geq "3" (
 )
 
 if not "%check_pyversion%"=="okay" (
-   echo Unsupported Python version. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python version. Please install one of Python 3.6 - 3.9 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
@@ -104,15 +92,11 @@ for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(64 if sys.maxsi
 )
 
 if not "%bitness%"=="64" (
-   echo Unsupported Python bitness. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python bitness. Please install one of Python 3.6 - 3.9 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
 set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%pyversion_major%.%pyversion_minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
-
-if exist %INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit (
-    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit;%PYTHONPATH%
-)
 
 echo [setupvars.bat] OpenVINO environment initialized
 
