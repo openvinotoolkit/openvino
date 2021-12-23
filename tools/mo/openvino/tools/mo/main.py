@@ -283,17 +283,22 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
-    if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
-        # If frontend path used clear default value of extensions
-        if moc_front_end and argv.extensions == import_extensions.default_path():
-            argv.extensions = None
-        else:
-            extensions = argv.extensions.split(',')
-    else:
-        extensions = None
-
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
+
+    load_extensions(argv)
+
+    return argv
+
+
+def load_extensions(argv : argparse.Namespace):
+    moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
+
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
+        deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
+    extensions = None
+    if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
+        extensions = argv.extensions.split(',')
     if is_tf:
         from openvino.tools.mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
@@ -314,13 +319,12 @@ def arguments_post_parsing(argv: argparse.Namespace):
         from openvino.tools.mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
-    return argv
-
 
 def check_fallback(argv : argparse.Namespace):
     fallback_reasons = {}
     fallback_reasons['extensions'] = \
-        lambda argv : hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0
+        lambda argv : hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0 \
+            and argv.extensions != import_extensions.default_path() # extensions arg has default value
     fallback_reasons['transformations_config'] = \
         lambda argv: hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config) > 0
 
@@ -344,6 +348,8 @@ def prepare_ir(argv : argparse.Namespace):
         except Exception as e:
             fallback_reasons.append(f"frontend failure with exception: {e}")
     if len(fallback_reasons) > 0:
+        argv.use_legacy_frontend = True
+        load_extensions(argv)
         reasons_message = ", ".join(fallback_reasons)
         log.warning("The IR preparation was executed by the legacy MO path. "
                     "This is a fallback scenario applicable only for some specific cases. "
