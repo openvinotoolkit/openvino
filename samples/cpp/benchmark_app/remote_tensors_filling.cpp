@@ -6,11 +6,10 @@
 
 #include <memory>
 #include <random>
+#include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <samples/slog.hpp>
 
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 #    include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
