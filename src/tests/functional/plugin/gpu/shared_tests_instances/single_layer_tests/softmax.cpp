@@ -21,8 +21,8 @@ const std::vector<ov::Shape> inputShapes2D = {
     {10, 10},
 };
 
-const std::vector<size_t> axis2D = {
-    0, 1
+const std::vector<int64_t> axis2D = {
+    -1, 0, 1
 };
 
 const auto params2D = testing::Combine(
@@ -48,7 +48,7 @@ const std::vector<ov::Shape> inputShapes4D = {
     {2, 3, 4, 5},
 };
 
-const std::vector<size_t> axis4D = {0, 1, 2, 3};
+const std::vector<int64_t> axis4D = {-3, -2, -1, 0, 1, 2, 3};
 
 const auto params4D = testing::Combine(
     testing::ValuesIn(netPrecisions),
