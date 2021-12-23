@@ -123,7 +123,7 @@ static void print_help_messages() {
 
     GPU_DEBUG_COUT << "Supported environment variables for debugging" << std::endl;
     for (auto& p : message_list) {
-        GPU_DEBUG_COUT << " - " << std::left << std::setw(name_width) << p.first + ": " << p.second << std::endl;
+        GPU_DEBUG_COUT << " - " << std::left << std::setw(name_width) << p.first + "  " << p.second << std::endl;
     }
 }
 
@@ -137,7 +137,6 @@ debug_configuration::debug_configuration()
         , dump_graphs(std::string())
         , dump_sources(std::string())
         , dump_layers_path(std::string())
-        , dump_layers(std::string())
         , dump_layers_dst_only(0)
         , dry_run_path(std::string())
         , disable_onednn(0)
@@ -151,20 +150,27 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpGraphs", dump_graphs);
     get_gpu_debug_env_var("DumpSources", dump_sources);
     get_gpu_debug_env_var("DumpLayersPath", dump_layers_path);
-    get_gpu_debug_env_var("DumpLayers", dump_layers);
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
     get_gpu_debug_env_var("DumpLayersLimitBatch", dump_layers_limit_batch);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
+    std::string dump_layers_str;
+    get_gpu_debug_env_var("DumpLayers", dump_layers_str);
 
     if (help > 0) {
         print_help_messages();
         exit(0);
     }
 
-    if (dump_layers.length() > 0)
-        dump_layers = " " + dump_layers + " "; // Insert delimiter for easier parsing when used
+    if (dump_layers_str.length() > 0) {
+        dump_layers_str = " " + dump_layers_str + " "; // Insert delimiter for easier parsing when used
+        std::stringstream ss(dump_layers_str);
+        std::string layer;
+        while (ss >> layer) {
+            dump_layers.push_back(layer);
+        }
+    }
 #endif
 }
 
@@ -178,6 +184,18 @@ const debug_configuration *debug_configuration::get_instance() {
     return instance.get();
 #else
     return nullptr;
+#endif
+}
+
+bool debug_configuration::is_dumped_layer(const std::string& layerName) const {
+#ifdef GPU_DEBUG_CONFIG
+    if (dump_layers.empty()) return true;
+    auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
+        return (layerName.find(dl) != std::string::npos);
+    });
+    return (iter != dump_layers.end());
+#else
+    return false;
 #endif
 }
 } // namespace cldnn

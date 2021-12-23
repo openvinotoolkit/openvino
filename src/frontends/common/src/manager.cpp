@@ -7,8 +7,9 @@
 #include <openvino/util/env_util.hpp>
 #include <openvino/util/file_util.hpp>
 
+#include "ngraph/except.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/place.hpp"
+#include "openvino/util/env_util.hpp"
 #include "plugin_loader.hpp"
 #include "utils.hpp"
 
@@ -32,7 +33,7 @@ public:
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
-            {"paddle", "paddlepaddle"},
+            {"paddle", "paddle"},
         };
         auto it = predefined_frontends.find(framework);
         std::lock_guard<std::mutex> guard(m_loading_mutex);
@@ -128,7 +129,7 @@ private:
             {".xml", {"ir", "ir"}},
             {".onnx", {"onnx", "onnx"}},
             {".pb", {"tf", "tensorflow"}},
-            {".pdmodel", {"paddle", "paddlepaddle"}},
+            {".pdmodel", {"paddle", "paddle"}},
         };
 
         // List of prioritized frontends.
@@ -136,7 +137,7 @@ private:
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
-            {"paddle", "paddlepaddle"},
+            {"paddle", "paddle"},
         };
         if (variants.empty()) {
             return nullptr;

@@ -498,6 +498,9 @@ public:
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, context, loadedFromCache);
             if (!loadedFromCache) {
                 res = compile_model_impl(network, plugin, parsed._config, context, hash);
+            } else {
+                // Temporary workaround until all plugins support caching of original model inputs
+                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction());
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, context, {});
@@ -525,6 +528,9 @@ public:
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
                 res = compile_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
+            } else {
+                // Temporary workaround until all plugins support caching of original model inputs
+                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction());
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);

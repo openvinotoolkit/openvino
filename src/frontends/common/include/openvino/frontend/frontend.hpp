@@ -8,12 +8,12 @@
 #include <string>
 #include <vector>
 
-#include "input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/op_extension.hpp"
-#include "visibility.hpp"
+#include "openvino/frontend/input_model.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
