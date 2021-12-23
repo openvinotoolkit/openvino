@@ -4,7 +4,7 @@
 
 add_subdirectory(shared)
 
-if (ENABLE_MKL_DNN)
+if (ENABLE_INTEL_CPU)
     add_subdirectory(cpu)
 endif()
 

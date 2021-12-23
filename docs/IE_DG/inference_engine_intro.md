@@ -70,7 +70,7 @@ The table below shows the plugin libraries and additional dependencies for Linux
 
 | Plugin | Library name for Linux      | Dependency libraries for Linux                              | Library name for Windows | Dependency libraries for Windows                                                                       | Library name for macOS       | Dependency libraries for macOS              |
 |--------|-----------------------------|-------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|---------------------------------------------|
-| CPU    | `libMKLDNNPlugin.so`        | | `MKLDNNPlugin.dll`       | | `libMKLDNNPlugin.so`      | |
+| CPU    | `libov_intel_cpu_plugin.so`        | | `ov_intel_cpu_plugin.dll`       | | `libov_intel_cpu_plugin.so`      | |
 | GPU    | `libov_intel_gpu_plugin.so`         | `libOpenCL.so` | `ov_intel_gpu_plugin.dll`        | `OpenCL.dll` |  Is not supported            |  -                                          |
 | MYRIAD | `libmyriadPlugin.so`        | `libusb.so`,                                                | `myriadPlugin.dll`       | `usb.dll`                                                                                              | `libmyriadPlugin.so`      | `libusb.dylib`                              |
 | HDDL   | `libHDDLPlugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |

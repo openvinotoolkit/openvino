@@ -19,8 +19,8 @@ if(ENABLE_HETERO)
     list(APPEND DEPENDENCIES ov_hetero_plugin)
 endif()
 
-if(ENABLE_MKL_DNN)
-    list(APPEND DEPENDENCIES MKLDNNPlugin)
+if(ENABLE_INTEL_CPU)
+    list(APPEND DEPENDENCIES ov_intel_cpu_plugin)
 endif()
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
