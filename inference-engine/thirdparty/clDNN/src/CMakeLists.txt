@@ -37,8 +37,8 @@ target_link_libraries(${TARGET_NAME} PUBLIC OpenCL)
 target_link_libraries(${TARGET_NAME} PRIVATE ov_intel_gpu_kernels
                                              ov_intel_gpu_runtime
                                              openvino::itt
-                                             inference_engine_plugin_api
-                                             inference_engine)
+                                             openvino::runtime::dev
+                                             openvino::runtime)
 
 if(ENABLE_ONEDNN_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
