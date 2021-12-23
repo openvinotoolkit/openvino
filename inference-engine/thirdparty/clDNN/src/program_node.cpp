@@ -101,7 +101,6 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("in data flow", bool_to_str(data_flow));
     node_info->add("output", bool_to_str(output));
 
-
     json_composite fused_nodes_info;
     size_t index = 0;
     for (auto& fused_desc : get_fused_primitives()) {
@@ -121,6 +120,22 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
     node_info->add("fused primitives", fused_nodes_info);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto& onednn_post_ops = get_fused_primitives_onednn();
+    if (onednn_post_ops.size()) {
+        size_t post_op_index = 0;
+        json_composite post_ops_info;
+        for (auto& fused_prim_desc : onednn_post_ops) {
+            json_composite post_op_info;
+            post_op_info.add("post op", onednn_post_op_type_to_str(fused_prim_desc.op_type));
+            post_op_info.add("memory dependency", fused_prim_desc.mem_dep);
+            post_op_info.add("memory offset", fused_prim_desc.mem_offset);
+            post_ops_info.add("post ops idx " + std::to_string(post_op_index++), post_op_info);
+        }
+        node_info->add("onednn post ops", post_ops_info);
+    }
+#endif
 
     std::vector<std::string> deps_ptrs;
     {
