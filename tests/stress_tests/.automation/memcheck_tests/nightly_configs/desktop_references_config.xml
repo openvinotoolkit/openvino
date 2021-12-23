@@ -224,18 +224,6 @@
         <model path="public/caffenet/FP32/caffenet.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="2794235" vmpeak="3100619" vmrss="1080539" vmhwm="1441460" />
         <model path="public/caffenet/FP32/caffenet.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="1824440" vmpeak="1825226" vmrss="854365" vmhwm="854365" />
         <model path="public/caffenet/FP32/caffenet.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="3104025" vmpeak="3196616" vmrss="1295985" vmhwm="1441315" />
-        <model path="public/ctdet_coco_dlav0_384/FP16/ctdet_coco_dlav0_384.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1222306" vmpeak="1222306" vmrss="302255" vmhwm="302255" />
-        <model path="public/ctdet_coco_dlav0_384/FP16/ctdet_coco_dlav0_384.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="1982245" vmpeak="1999660" vmrss="625601" vmhwm="1096940" />
-        <model path="public/ctdet_coco_dlav0_384/FP16/ctdet_coco_dlav0_384.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1409361" vmpeak="1494558" vmrss="331500" vmhwm="331500" />
-        <model path="public/ctdet_coco_dlav0_384/FP16/ctdet_coco_dlav0_384.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="2072449" vmpeak="2072449" vmrss="640104" vmhwm="1077991" />
-        <model path="public/ctdet_coco_dlav0_384/FP16/ctdet_coco_dlav0_384.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="1625124" vmpeak="1710061" vmrss="395668" vmhwm="395668" />
-        <model path="public/ctdet_coco_dlav0_384/FP16/ctdet_coco_dlav0_384.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="2232453" vmpeak="2313906" vmrss="710814" vmhwm="1077315" />
-        <model path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml" precision="FP32" test="create_exenetwork" device="CPU" vmsize="1139257" vmpeak="1139257" vmrss="218977" vmhwm="218977" />
-        <model path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml" precision="FP32" test="create_exenetwork" device="GPU" vmsize="2159206" vmpeak="2180484" vmrss="829935" vmhwm="1202359" />
-        <model path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml" precision="FP32" test="infer_request_inference" device="CPU" vmsize="1326312" vmpeak="1411508" vmrss="248024" vmhwm="248024" />
-        <model path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="2245817" vmpeak="2331014" vmrss="825203" vmhwm="1206249" />
-        <model path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="1580420" vmpeak="1665617" vmrss="350963" vmhwm="351119" />
-        <model path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="2471809" vmpeak="2553262" vmrss="957522" vmhwm="1204455" />
         <model path="public/ctdet_coco_dlav0_512/FP16/ctdet_coco_dlav0_512.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1240943" vmpeak="1240943" vmrss="304064" vmhwm="304064" />
         <model path="public/ctdet_coco_dlav0_512/FP16/ctdet_coco_dlav0_512.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="2038566" vmpeak="2087264" vmrss="680274" vmhwm="1115956" />
         <model path="public/ctdet_coco_dlav0_512/FP16/ctdet_coco_dlav0_512.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1432990" vmpeak="1432990" vmrss="355217" vmhwm="355217" />
@@ -272,18 +260,6 @@
         <model path="public/densenet-121/FP32/densenet-121.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="2131896" vmpeak="2217092" vmrss="850460" vmhwm="1368036" />
         <model path="public/densenet-121/FP32/densenet-121.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="1370922" vmpeak="1371692" vmrss="202976" vmhwm="203013" />
         <model path="public/densenet-121/FP32/densenet-121.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="2300828" vmpeak="2386025" vmrss="909090" vmhwm="1382570" />
-        <model path="public/densenet-169/FP16/densenet-169.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1354662" vmpeak="1354662" vmrss="291246" vmhwm="291246" />
-        <model path="public/densenet-169/FP16/densenet-169.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="2062034" vmpeak="2107898" vmrss="924513" vmhwm="1447550" />
-        <model path="public/densenet-169/FP16/densenet-169.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1355411" vmpeak="1355411" vmrss="302666" vmhwm="302666" />
-        <model path="public/densenet-169/FP16/densenet-169.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="2152191" vmpeak="2237388" vmrss="900109" vmhwm="1456780" />
-        <model path="public/densenet-169/FP16/densenet-169.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="1847050" vmpeak="1932247" vmrss="352216" vmhwm="352222" />
-        <model path="public/densenet-169/FP16/densenet-169.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="2283476" vmpeak="2283476" vmrss="945224" vmhwm="1453857" />
-        <model path="public/densenet-169/FP32/densenet-169.xml" precision="FP32" test="create_exenetwork" device="CPU" vmsize="1207840" vmpeak="1207840" vmrss="203257" vmhwm="203257" />
-        <model path="public/densenet-169/FP32/densenet-169.xml" precision="FP32" test="create_exenetwork" device="GPU" vmsize="2155576" vmpeak="2208304" vmrss="1001166" vmhwm="1554956" />
-        <model path="public/densenet-169/FP32/densenet-169.xml" precision="FP32" test="infer_request_inference" device="CPU" vmsize="1208584" vmpeak="1208584" vmrss="214489" vmhwm="214489" />
-        <model path="public/densenet-169/FP32/densenet-169.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="2239140" vmpeak="2239140" vmrss="993444" vmhwm="1555356" />
-        <model path="public/densenet-169/FP32/densenet-169.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="1811570" vmpeak="1896767" vmrss="316607" vmhwm="316607" />
-        <model path="public/densenet-169/FP32/densenet-169.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="2435524" vmpeak="2520720" vmrss="1088292" vmhwm="1564035" />
         <model path="public/efficientnet-b0/FP16/efficientnet-b0.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1019512" vmpeak="1019512" vmrss="108758" vmhwm="108758" />
         <model path="public/efficientnet-b0/FP16/efficientnet-b0.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="1955226" vmpeak="1968257" vmrss="672531" vmhwm="1135612" />
         <model path="public/efficientnet-b0/FP16/efficientnet-b0.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1020682" vmpeak="1020682" vmrss="116802" vmhwm="116802" />
@@ -486,18 +462,6 @@
         <model path="public/se-inception/FP32/se-inception.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="2143580" vmpeak="2228777" vmrss="776235" vmhwm="1301762" />
         <model path="public/se-inception/FP32/se-inception.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="1300665" vmpeak="1301435" vmrss="245502" vmhwm="245580" />
         <model path="public/se-inception/FP32/se-inception.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="2243238" vmpeak="2243238" vmrss="790270" vmhwm="1304394" />
-        <model path="public/se-resnet-152/FP16/se-resnet-152.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="2096530" vmpeak="2096530" vmrss="1029132" vmhwm="1029132" />
-        <model path="public/se-resnet-152/FP16/se-resnet-152.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="2468076" vmpeak="2622978" vmrss="1300416" vmhwm="1992411" />
-        <model path="public/se-resnet-152/FP16/se-resnet-152.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="2459880" vmpeak="2459880" vmrss="1043333" vmhwm="1043333" />
-        <model path="public/se-resnet-152/FP16/se-resnet-152.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="2570256" vmpeak="2655452" vmrss="1296074" vmhwm="1986774" />
-        <model path="public/se-resnet-152/FP16/se-resnet-152.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="2810792" vmpeak="2810792" vmrss="1314050" vmhwm="1314050" />
-        <model path="public/se-resnet-152/FP16/se-resnet-152.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="2664776" vmpeak="2749973" vmrss="1311289" vmhwm="1996285" />
-        <model path="public/se-resnet-152/FP32/se-resnet-152.xml" precision="FP32" test="create_exenetwork" device="CPU" vmsize="1758135" vmpeak="1758135" vmrss="751441" vmhwm="751441" />
-        <model path="public/se-resnet-152/FP32/se-resnet-152.xml" precision="FP32" test="create_exenetwork" device="GPU" vmsize="2957671" vmpeak="3295692" vmrss="1624287" vmhwm="2522130" />
-        <model path="public/se-resnet-152/FP32/se-resnet-152.xml" precision="FP32" test="infer_request_inference" device="CPU" vmsize="1940307" vmpeak="2025103" vmrss="764056" vmhwm="764056" />
-        <model path="public/se-resnet-152/FP32/se-resnet-152.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="3047642" vmpeak="3300466" vmrss="1632966" vmhwm="2531656" />
-        <model path="public/se-resnet-152/FP32/se-resnet-152.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="2641943" vmpeak="2725975" vmrss="1146178" vmhwm="1146178" />
-        <model path="public/se-resnet-152/FP32/se-resnet-152.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="3143878" vmpeak="3567184" vmrss="1643252" vmhwm="2516659" />
         <model path="public/se-resnet-50/FP16/se-resnet-50.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1383584" vmpeak="1383584" vmrss="457600" vmhwm="457600" />
         <model path="public/se-resnet-50/FP16/se-resnet-50.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="2084934" vmpeak="2169668" vmrss="758685" vmhwm="1308013" />
         <model path="public/se-resnet-50/FP16/se-resnet-50.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1384640" vmpeak="1384640" vmrss="470329" vmhwm="470329" />
@@ -558,18 +522,6 @@
         <model path="public/ssd_mobilenet_v1_coco/FP32/ssd_mobilenet_v1_coco.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="2053833" vmpeak="2139030" vmrss="524711" vmhwm="830689" />
         <model path="public/ssd_mobilenet_v1_coco/FP32/ssd_mobilenet_v1_coco.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="1203155" vmpeak="1204528" vmrss="172775" vmhwm="172775" />
         <model path="public/ssd_mobilenet_v1_coco/FP32/ssd_mobilenet_v1_coco.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="2162082" vmpeak="2162082" vmrss="531549" vmhwm="830174" />
-        <model path="public/ssd_mobilenet_v2_coco/FP16/ssd_mobilenet_v2_coco.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1235457" vmpeak="1235457" vmrss="315614" vmhwm="315614" />
-        <model path="public/ssd_mobilenet_v2_coco/FP16/ssd_mobilenet_v2_coco.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="1984278" vmpeak="2039928" vmrss="651861" vmhwm="1126507" />
-        <model path="public/ssd_mobilenet_v2_coco/FP16/ssd_mobilenet_v2_coco.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1236830" vmpeak="1236830" vmrss="330236" vmhwm="330236" />
-        <model path="public/ssd_mobilenet_v2_coco/FP16/ssd_mobilenet_v2_coco.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="2071986" vmpeak="2157183" vmrss="668376" vmhwm="1117922" />
-        <model path="public/ssd_mobilenet_v2_coco/FP16/ssd_mobilenet_v2_coco.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="1434695" vmpeak="1436068" vmrss="377026" vmhwm="377026" />
-        <model path="public/ssd_mobilenet_v2_coco/FP16/ssd_mobilenet_v2_coco.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="2168114" vmpeak="2168114" vmrss="674668" vmhwm="1124229" />
-        <model path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml" precision="FP32" test="create_exenetwork" device="CPU" vmsize="1137463" vmpeak="1137463" vmrss="216476" vmhwm="216476" />
-        <model path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml" precision="FP32" test="create_exenetwork" device="GPU" vmsize="2099006" vmpeak="2179741" vmrss="753771" vmhwm="1237007" />
-        <model path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml" precision="FP32" test="infer_request_inference" device="CPU" vmsize="1138836" vmpeak="1138836" vmrss="231826" vmhwm="231826" />
-        <model path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="2184249" vmpeak="2269446" vmrss="734739" vmhwm="1210882" />
-        <model path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="1393657" vmpeak="1395030" vmrss="336133" vmhwm="336133" />
-        <model path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="2291837" vmpeak="2377034" vmrss="792272" vmhwm="1243455" />
         <model path="public/vgg19/FP16/vgg19.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="3373182" vmpeak="3373182" vmrss="2465569" vmhwm="2465569" />
         <model path="public/vgg19/FP16/vgg19.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="2583620" vmpeak="3276847" vmrss="1036204" vmhwm="1596748" />
         <model path="public/vgg19/FP16/vgg19.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="3736839" vmpeak="3736839" vmrss="2498802" vmhwm="2498802" />
