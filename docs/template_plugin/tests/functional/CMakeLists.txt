@@ -5,13 +5,13 @@
 # [cmake:functional_tests]
 set(TARGET_NAME templateFuncTests)
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             templatePlugin
         LINK_LIBRARIES
-            IE::funcSharedTests
+            openvino::funcSharedTests
         INCLUDES
             "${IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"

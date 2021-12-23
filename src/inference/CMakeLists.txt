@@ -205,26 +205,12 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES
 set_target_properties(${TARGET_NAME}_obj
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# Export for build tree
-
-export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
-
 # Export for developer package
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME}_plugin_api)
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
-
-# set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        INCLUDES DESTINATION runtime/include
-                             # TODO: remove later once samples are updated
-                             runtime/include/ie)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 

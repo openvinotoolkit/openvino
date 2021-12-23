@@ -49,6 +49,11 @@ find_dependency(ngraph
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
+find_dependency(OpenVINODeveloperPackage
+                PATHS "${CMAKE_CURRENT_LIST_DIR}"
+                NO_CMAKE_FIND_ROOT_PATH
+                NO_DEFAULT_PATH)
+
 if(TARGET openvino::runtime AND NOT TARGET IE::runtime)
     add_library(IE::runtime INTERFACE IMPORTED)
     set_target_properties(IE::runtime PROPERTIES

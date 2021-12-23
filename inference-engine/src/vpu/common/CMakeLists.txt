@@ -36,8 +36,8 @@ function(add_common_target TARGET_NAME STATIC_IE)
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
     target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
-            $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
     if(WIN32)
@@ -52,7 +52,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     openvino_developer_export_targets(COMPONENT vpu TARGETS ${TARGET_NAME})
 
-    target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations
+    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime openvino::runtime::dev
                                          PRIVATE openvino::itt)
 
     if(NOT STATIC_IE)

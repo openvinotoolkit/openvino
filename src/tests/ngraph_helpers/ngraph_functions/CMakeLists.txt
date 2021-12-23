@@ -17,7 +17,7 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PUBLIC
-                ngraph
+                openvino::runtime
                 ngraph_reference
                 interpreter_backend
         ADD_CPPLINT

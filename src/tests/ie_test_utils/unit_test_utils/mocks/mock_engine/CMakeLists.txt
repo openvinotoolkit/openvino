@@ -32,7 +32,7 @@ target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 if(TARGET IE::inference_engine_plugin_api)
     target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine_plugin_api)
 else()
-    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
