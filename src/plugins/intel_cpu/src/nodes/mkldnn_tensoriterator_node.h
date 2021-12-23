@@ -62,7 +62,7 @@ protected:
  */
 class DynamicBuffer {
 public:
-    DynamicBuffer(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const PortMap &map_rule);
+    DynamicBuffer(const MKLDNNMemoryPtr &from, const std::vector<MKLDNNMemoryPtr> &to, const PortMap &map_rule);
     ~DynamicBuffer() = default;
 
     void execute(const mkldnn::engine& eng, const int iter);
@@ -79,16 +79,15 @@ private:
     static void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
     static uint8_t* get_ptr(mkldnn::memory& prim);
 
+    size_t len = 1lu;
+    size_t count = 1lu;
     size_t elem_size = 0lu;
     ptrdiff_t chunk_offset_in_byte = 0;
     ptrdiff_t buffer_offset_in_byte = 0;
 
     MKLDNNMemoryPtr from;
-    MKLDNNMemoryPtr to;
+    std::vector<MKLDNNMemoryPtr> to;
     PortMap map_rule;
-
-    size_t len = 1;
-    size_t count = 1;
 
     std::shared_ptr<mkldnn::memory> mem_holder_buffer;
 };
@@ -130,11 +129,14 @@ private:
     /* Dynamic support */
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(mkldnn::stream strm);
-    int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap);
+    int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
+
+    // this method get all memory ptrs of childs of one port to redefine descs for them
+    std::vector<MKLDNNMemoryPtr> getToMemories(const MKLDNNNode* node, const size_t port) const;
 
     MKLDNNExtensionManager::Ptr ext_mng;
     MKLDNNGraph sub_graph;
-    std::vector<std::vector<MKLDNNMemoryPtr>> input_mem;
+    std::vector<std::vector<MKLDNNMemoryPtr>> input_mems;
     std::vector<MKLDNNMemoryPtr> output_mem;
 
     std::vector<std::shared_ptr<PortMapHelper>>
