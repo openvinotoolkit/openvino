@@ -2,14 +2,11 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import argparse
 import logging as log
-import struct as st
 import sys
 import typing
 from functools import reduce
 
-import cv2
 import numpy as np
 from openvino.preprocess import PrePostProcessor
 from openvino.runtime import Core, Layout, Type, Model, Shape, PartialShape
@@ -133,7 +130,7 @@ def main():
 
     model_path = sys.argv[1]
     device_name = sys.argv[2]
-    labels = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    labels = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
     number_top = 10
     # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
     log.info('Creating OpenVINO Runtime Core')
