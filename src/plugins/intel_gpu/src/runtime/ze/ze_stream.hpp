@@ -99,6 +99,7 @@ private:
     ze_event_pool_handle_t _last_barrier_pool;
     ze_event_pool_handle_t _event_pool;
 #endif
+    ze_command_queue_desc_t command_queue_desc = {};
     uint32_t event_idx = 0;
     sync_methods sync_method;
 

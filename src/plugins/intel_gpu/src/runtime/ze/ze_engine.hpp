@@ -32,7 +32,7 @@ public:
 
     void* get_user_context() const override;
 
-    allocation_type get_default_allocation_type() const override { return allocation_type::cl_mem; }
+    allocation_type get_default_allocation_type() const override { return allocation_type::usm_host; }
 
     const ze_context_handle_t get_context() const;
     const ze_driver_handle_t get_driver() const;

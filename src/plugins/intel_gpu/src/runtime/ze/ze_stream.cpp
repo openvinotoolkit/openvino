@@ -113,9 +113,155 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                     status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
                     ZE_CHECK(status);
                 }
+                else {
+                    throw std::runtime_error("WEIGHTS_ZERO_POINTS");
+                }
+                break;
+            case args_t::ACTIVATIONS_ZERO_POINTS:
+                if (data.activations_zero_points) {
+                    if (memory_capabilities::is_usm_type(data.activations_zero_points->get_allocation_type())){
+                        auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.activations_zero_points)->get_buffer().get();
+                        status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    }
+                    else {
+                        throw std::runtime_error("ACTIVATIONS_ZERO_POINTS");
+                    }
+                    ZE_CHECK(status);
+                }
+                break;
+            case args_t::COMPENSATION:
+                if (data.compensation) {
+                    if (memory_capabilities::is_usm_type(data.compensation->get_allocation_type())) {
+                        auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.compensation)->get_buffer().get();
+                        status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    }
+                    else {
+                        throw std::runtime_error("COMPENSATION");
+                    }
+                    ZE_CHECK(status);
+                }
+                break;
+            case args_t::SCALE_TABLE:
+                if (data.scale_table) {
+                    if (memory_capabilities::is_usm_type(data.scale_table->get_allocation_type())) {
+                        auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.scale_table)->get_buffer().get();
+                        status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    }
+                    else {
+                        throw std::runtime_error("SCALE_TABLE");
+                    }
+                    ZE_CHECK(status);
+                }
+                break;
+            case args_t::SLOPE:
+                if (data.slope) {
+                    if (memory_capabilities::is_usm_type(data.slope->get_allocation_type())) {
+                        auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.slope)->get_buffer().get();
+                        status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    }
+                    else {
+                        throw std::runtime_error("SLOPE");
+                    }
+                    ZE_CHECK(status);
+                }
+                break;
+            case args_t::SPLIT:
+                {
+                    status = zeKernelSetArgumentValue(kernel, i, sizeof(data.split), &data.split);
+                    ZE_CHECK(status);
+                }
+                break;
+            case args_t::SCALAR:
+                if (data.scalars && args[i].index < data.scalars->size()) {
+                    const auto& scalar = (*data.scalars)[args[i].index];
+                    switch (scalar.t) {
+                        case scalar_t::UINT8:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.u8), &scalar.v.u8);
+                            break;
+                        case scalar_t::UINT16:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.u16), &scalar.v.u16);
+                            break;
+                        case scalar_t::UINT32:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.u32), &scalar.v.u32);
+                            break;
+                        case scalar_t::UINT64:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.u64), &scalar.v.u64);
+                            break;
+                        case scalar_t::INT8:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.s8), &scalar.v.s8);
+                            break;
+                        case scalar_t::INT16:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.s16), &scalar.v.s16);
+                            break;
+                        case scalar_t::INT32:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.s32), &scalar.v.s32);
+                            break;
+                        case scalar_t::INT64:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.s64), &scalar.v.s64);
+                            break;
+                        case scalar_t::FLOAT32:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.f32), &scalar.v.f32);
+                            break;
+                        case scalar_t::FLOAT64:
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(scalar.v.f64), &scalar.v.f64);
+                            break;
+                        default:
+                            break;
+                    }
+                    ZE_CHECK(status);
+                }
+                break;
+            case args_t::RECURRENT:  // RNN/LSTM/GRU layers
+                if (data.recurrent) {
+                    if (data.recurrent->get_layout().format.is_image_2d()) {
+                        throw std::runtime_error("RECURRENT 1");
+                    }
+                    else if (memory_capabilities::is_usm_type(data.recurrent->get_allocation_type())) {
+                        auto ptr = dynamic_cast<const ze::gpu_usm&>(*data.recurrent).get_buffer().get();
+                        status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    }
+                    else {
+                        throw std::runtime_error("RECURRENT 2");
+                    }
+                    ZE_CHECK(status);
+                }
+                break;
+            case args_t::HIDDEN:  // RNN/LSTM/GRU layers
+                if (data.hidden) {
+                    if (data.hidden->get_layout().format.is_image_2d()) {
+                        throw std::runtime_error("HIDDEN 1");
+                    }
+                    else if (memory_capabilities::is_usm_type(data.hidden->get_allocation_type())) {
+                        auto ptr = dynamic_cast<const ze::gpu_usm&>(*data.hidden).get_buffer().get();
+                        status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    }
+                    else {
+                        throw std::runtime_error("HIDDEN 2");
+                    }
+                    ZE_CHECK(status);
+                }
+                break;
+            case args_t::CELL:  // LSTMlayers
+                if (data.cell) {
+                    if (data.cell->get_layout().format.is_image_2d()) {
+                        throw std::runtime_error("CELL 1");
+                    }
+                    else if (memory_capabilities::is_usm_type(data.cell->get_allocation_type())) {
+                        auto ptr = dynamic_cast<const ze::gpu_usm&>(*data.cell).get_buffer().get();
+                        status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    }
+                    else {
+                        throw std::runtime_error("CELL 2");
+                    }
+                    ZE_CHECK(status);
+                }
                 break;
             default:
                 break;
+        }
+        if (status != ZE_RESULT_SUCCESS) {
+            throw std::runtime_error("Error set arg " + std::to_string(i) + ", error code: " + std::to_string(status) + "\n");
+            //std::cout << "Error set arg " + std::to_string(i)  + " " + std::to_string(int(args[i].t)) + " error code: " + std::to_string(status) + "\n" << std::endl;
         }
     }
 }
@@ -182,26 +328,27 @@ ze_stream::ze_stream(const ze_engine& engine)
         ZE_EVENT_POOL_FLAG_HOST_VISIBLE, // all events in pool are visible to Host
         1 // count
     };
-    ze_event_desc_t eventDesc = {
-        ZE_STRUCTURE_TYPE_EVENT_DESC,
-        nullptr,
-        0,         // index
-        0,                         // no additional memory/cache coherency required on signal
-        ZE_EVENT_SCOPE_FLAG_HOST // ensure memory coherency across device and Host after event completes
-    };
+    // ze_event_desc_t eventDesc = {
+    //     ZE_STRUCTURE_TYPE_EVENT_DESC,
+    //     nullptr,
+    //     0,         // index
+    //     0,                         // no additional memory/cache coherency required on signal
+    //     ZE_EVENT_SCOPE_FLAG_HOST // ensure memory coherency across device and Host after event completes
+    // };
     ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_last_barrier_pool));
-    ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
+    // ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
 #endif
 #ifdef IMMIDIATLY
-    ze_command_queue_desc_t command_queue_desc = {};
     command_queue_desc.flags = 0;
     command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC;
     command_queue_desc.pNext = nullptr;
+    command_queue_desc.index = 0;
+    command_queue_desc.ordinal = 0;
     command_queue_desc.mode = config.queue_type == queue_types::out_of_order ? ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS : ZE_COMMAND_QUEUE_MODE_SYNCHRONOUS;
     command_queue_desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
+    
     ZE_CHECK(zeCommandListCreateImmediate(context, device, &command_queue_desc, &_command_list));
 #else
-
     ze_command_list_desc_t command_list_desc = {};
     command_list_desc.flags = 0;
     command_list_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC;
@@ -294,10 +441,9 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                     //set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
                                     std::dynamic_pointer_cast<ze_base_event>(ev)->get(),
                                     dep_events_ptr == nullptr ? 0 : dep_events_ptr->size(),
-                                    dep_events_ptr == nullptr ? 0 : &dep_events_ptr->at(0)));
+                                    dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
     //std::cout << "-------------------------------------" << std::endl;
-    ZE_CHECK(zeEventHostSynchronize(std::dynamic_pointer_cast<ze_base_event>(ev)->get(), UINT32_MAX));
-    finish();
+    //ZE_CHECK(zeEventHostSynchronize(std::dynamic_pointer_cast<ze_base_event>(ev)->get(), UINT32_MAX));
     // zeEventHostSynchronize(ret_ev2, 0);
     // if (!set_output_event) {
     //     ZE_CHECK(zeEventHostSignal(std::dynamic_pointer_cast<ze_base_event>(ev)->get()));
@@ -368,7 +514,7 @@ ze_event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, 
 #ifndef SINGLE_EVENT_POOL
         //ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_last_barrier_pool));
         //ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
-        //std::cout << "_last_barrier " << _last_barrier_pool << std::endl;
+        //std::cout << "_last_barrier " << _last_barrier << ' ' << _queue_counter << std::endl;
         return std::make_shared<ze_event>(_last_barrier_pool, _last_barrier_ev, _last_barrier);
 #else
         ze_event_desc_t eventDesc = {
@@ -459,21 +605,19 @@ ze_event::ptr ze_stream::create_base_event() {
 
 void ze_stream::flush() const {
     //std::cout << "finish " << std::endl;
+    ZE_CHECK(zeCommandListAppendBarrier(_command_list, nullptr, 0, nullptr));
     ZE_CHECK(zeCommandListClose(_command_list));
-    ze_command_queue_desc_t commandQueueDesc = {
-        ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC ,
-        nullptr,
-        0,
-        0,
-        0,
-        ZE_COMMAND_QUEUE_MODE_DEFAULT ,
-        ZE_COMMAND_QUEUE_PRIORITY_NORMAL
-    };
+    // ze_command_queue_desc_t commandQueueDesc = {
+    //     ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC ,
+    //     nullptr,
+    //     0,
+    //     0,
+    //     0,
+    //     ZE_COMMAND_QUEUE_MODE_DEFAULT ,
+    //     ZE_COMMAND_QUEUE_PRIORITY_NORMAL
+    // };
     ze_command_queue_handle_t hCommandQueue;
-    ZE_CHECK(zeCommandQueueCreate(_engine.get_context(), _engine.get_device(), &commandQueueDesc, &hCommandQueue));
-
-    std::vector<ze_command_list_handle_t> vec_command_list;
-    vec_command_list.push_back(_command_list);
+    ZE_CHECK(zeCommandQueueCreate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &hCommandQueue));
 
     ze_fence_desc_t fenceDesc = {
         ZE_STRUCTURE_TYPE_FENCE_DESC ,
@@ -482,7 +626,7 @@ void ze_stream::flush() const {
     };
     ze_fence_handle_t hFence;
     ZE_CHECK(zeFenceCreate(hCommandQueue, &fenceDesc, &hFence));
-    ZE_CHECK(zeCommandQueueExecuteCommandLists(hCommandQueue, 1, &vec_command_list.back(), hFence));
+    ZE_CHECK(zeCommandQueueExecuteCommandLists(hCommandQueue, 1, &_command_list, hFence));
     ZE_CHECK(zeCommandQueueSynchronize(hCommandQueue, UINT32_MAX));
     ZE_CHECK(zeFenceHostSynchronize(hFence, UINT32_MAX));
     ZE_CHECK(zeFenceReset(hFence));
@@ -529,13 +673,14 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     std::vector<ze_event_handle_t> _ze_events;
     for (auto& ev : events) {
         if (auto ze_base_ev = dynamic_cast<ze_base_event*>(ev.get())) {
-            _ze_events.push_back(ze_base_ev->get());
+            //_ze_events.push_back(ze_base_ev->get());
             //std::cout << "wait_for_events: " << ze_base_ev->get() << std::endl;
             ZE_CHECK(zeEventHostSynchronize(ze_base_ev->get(), UINT32_MAX));
         }
     }
     //auto evs = &_ze_events.at(0);
-    //ZE_CHECK(zeCommandListAppendWaitOnEvents(_command_list, _ze_events.size(), &_ze_events.at(0)));
+    ZE_CHECK(zeCommandListAppendWaitOnEvents(_command_list, _ze_events.size(), &_ze_events.at(0)));
+    finish();
     //ZE_CHECK(zeCommandListAppendBarrier(_command_list, nullptr, _ze_events.size(), &_ze_events.at(0)));
 #ifndef IMMIDIATLY
     //ZE_CHECK(zeCommandListAppendWaitOnEvents(_command_list, _ze_events.size(), &_ze_events.at(0)));
@@ -592,6 +737,14 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
 //                 ZE_CHECK(zeEventCreate(_event_pool, &eventDesc, &_last_barrier_ev));
 // #endif
 //                 std::cout << "_last_barrier_ev " << _last_barrier_ev << std::endl;
+                ze_event_desc_t eventDesc = {
+                    ZE_STRUCTURE_TYPE_EVENT_DESC,
+                    nullptr,
+                    0,         // index
+                    0,                         // no additional memory/cache coherency required on signal
+                    ZE_EVENT_SCOPE_FLAG_HOST // ensure memory coherency across device and Host after event completes
+                };
+                ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
                 ZE_CHECK(zeCommandListAppendBarrier(_command_list, _last_barrier_ev, 0, nullptr));//_last_barrier_ev
             } else {
                 //std::cout << "_last_barrier_ev nullptr" << std::endl;
