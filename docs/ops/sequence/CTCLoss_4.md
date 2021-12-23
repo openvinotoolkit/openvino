@@ -1,4 +1,4 @@
-## CTCLoss <a name="CTCLoss"></a> {#openvino_docs_ops_sequence_CTCLoss_4}
+# CTCLoss  {#openvino_docs_ops_sequence_CTCLoss_4}
 
 **Versioned name**: *CTCLoss-4*
 

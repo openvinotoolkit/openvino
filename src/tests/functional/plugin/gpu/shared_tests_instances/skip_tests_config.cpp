@@ -89,5 +89,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_Behavior/InferRequestSetBlobByType.setInputBlobsByType/BlobType=Batched_Device=GPU_Config=().*)",
             // TODO: Issue 72624
             R"(smoke_PrePostProcess.*resize_dynamic.*)",
+            // Issue: CVS-66778
+            R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+            R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
+            R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
     };
 }

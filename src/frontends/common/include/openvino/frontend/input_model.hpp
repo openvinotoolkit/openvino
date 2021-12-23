@@ -10,8 +10,8 @@
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "place.hpp"
-#include "visibility.hpp"
+#include "openvino/frontend/place.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
