@@ -68,17 +68,16 @@ std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const {
 
 namespace {
 ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
-                                                const ov::PartialShape& arg_shape,
-                                                ov::Shape& target_shape) {
-    if (arg_shape.rank().is_dynamic()) {
+                                                ov::PartialShape arg_shape,
+                                                ov::PartialShape target_shape) {
+    if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic()) {
         return ov::PartialShape::dynamic();
     }
-    auto arg_shape_vec = static_cast<std::vector<Dimension>>(arg_shape);
     ov::PartialShape result_shape;
     // Add left padding to shorter target or argument shape
-    const auto target_padded_rank = std::max(arg_shape_vec.size(), target_shape.size());
-    while (arg_shape_vec.size() < target_padded_rank) {
-        arg_shape_vec.insert(arg_shape_vec.begin(), 1);
+    const auto target_padded_rank = std::max(arg_shape.size(), target_shape.size());
+    while (arg_shape.size() < target_padded_rank) {
+        arg_shape.insert(arg_shape.begin(), 1);
     }
     while (target_shape.size() < target_padded_rank) {
         target_shape.insert(target_shape.begin(), 1);
@@ -86,23 +85,30 @@ ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
 
     result_shape = target_shape;
     for (size_t i = 0; i < target_shape.size(); ++i) {
-        if (arg_shape_vec[i].is_dynamic()) {
-            if (target_shape[i] == 1) {
-                result_shape[i] = Dimension::dynamic();
+        const auto& arg_dim = arg_shape[i];
+        const auto& target_dim = target_shape[i];
+
+        if (arg_dim.is_dynamic() || target_dim.is_dynamic()) {
+            if (target_dim == 1 || (arg_dim.is_static() && arg_dim != 1)) {
+                result_shape[i] = arg_dim;
+            } else if (arg_dim == 1 || (target_dim.is_static() && target_dim != 1)) {
+                result_shape[i] = target_dim;
             } else {
-                result_shape[i] = target_shape[i];
+                result_shape[i] = Dimension(std::min(arg_dim.get_min_length(), target_dim.get_min_length()),
+                                            std::max(arg_dim.get_max_length(), target_dim.get_max_length()));
             }
             continue;
         }
-        const size_t arg_shape_dim = arg_shape_vec[i].get_length();
+
+        const auto& arg_shape_dim = arg_shape[i].get_length();
+        const auto& target_shape_dim = target_shape[i].get_length();
         NODE_VALIDATION_CHECK(this_ptr,
-                              arg_shape_dim == 1 || target_shape[i] == 1 || arg_shape_dim == target_shape[i],
+                              arg_shape_dim == 1 || target_shape[i] == 1 || arg_shape_dim == target_shape_dim,
                               "Broadcast incorrect target shape. Expecting either 1 or ",
                               arg_shape_dim,
                               ". Got ",
                               target_shape[i]);
-
-        result_shape[i] = std::max(arg_shape_dim, target_shape[i]);
+        result_shape[i] = std::max(arg_shape_dim, target_shape_dim);
     }
     return result_shape;
 }
@@ -112,7 +118,8 @@ bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs, cons
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL) {
         auto arg_shape = inputs[0]->get_shape();
         ov::Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
-        ov::PartialShape result_shape = get_result_shape_bidirectional(this, ov::PartialShape{arg_shape}, target_shape);
+        ov::PartialShape result_shape =
+            get_result_shape_bidirectional(this, ov::PartialShape{arg_shape}, ov::PartialShape{target_shape});
         auto pair_broadcast_axes = get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
         return op::util::BroadcastBase::evaluate_broadcast(inputs[0],
                                                            outputs[0],
@@ -141,9 +148,8 @@ void op::v3::Broadcast::validate_and_infer_types() {
         if (get_input_partial_shape(0).rank().is_static() && get_input_partial_shape(1).is_static()) {
             auto arg_shape = get_input_partial_shape(0);
 
-            const auto shape_constant = get_constant_from_source(input_value(1));
-            if (shape_constant) {
-                auto target_shape = shape_constant->get_shape_val();
+            PartialShape target_shape;
+            if (evaluate_as_partial_shape(input_value(1), target_shape)) {
                 result_shape = get_result_shape_bidirectional(this, arg_shape, target_shape);
             }
         }
