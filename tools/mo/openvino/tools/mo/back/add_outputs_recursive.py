@@ -1,5 +1,6 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+from math import ceil
 import numpy as np
 
 from openvino.tools.mo.ops.If import If
@@ -31,18 +32,18 @@ def get_iterations_count_from_output_record(output_rec):
     def check_field(record, field):
         return field in record and record[field] is not None
 
-    iterations_count = 1
     # 1. check if we need to concatenate iteration results for given output
     if not check_field(output_rec, 'axis'):
         # in this case we do not concatenate outputs, so iterations count is not needed really
         return None
 
     # 2. check if given output record contains values for 'end', so iterations count can be calculated from this record
-    if check_field(output_rec, 'end') and output_rec['end'] != -1 and \
-            check_field(output_rec, 'start') and output_rec['start'] != -1:
+    if check_field(output_rec, 'end') and check_field(output_rec, 'start') and \
+            ((output_rec['start'] >= 0 and output_rec['end'] >= 0) or
+             (output_rec['start'] < 0 and output_rec['end'] < 0)):
         stride = output_rec['stride'] if check_field(output_rec, 'stride') else 1
         # get iterations count from output record
-        iterations_count = (output_rec['end'] - output_rec['start']) / stride
+        iterations_count = ceil((output_rec['end'] - output_rec['start']) / stride)
         return iterations_count
 
     return dynamic_dimension_value
@@ -120,7 +121,7 @@ def add_output_in_body(node, port_num, cur_graph, cur_max_layer_id, tracks, trac
     cur_max_layer_id += 1
     tracks.insert(track_index, {'node': res_node, 'graph': cur_graph})
 
-    return res_node
+    return res_node, tracks, cur_max_layer_id
 
 
 class AddOutputRecursive(BackReplacementPattern):
@@ -152,8 +153,9 @@ class AddOutputRecursive(BackReplacementPattern):
             if cur_loop_node.op is not 'If':
                 # add Unsqueeze and Result for TensorIterator and Loop and update output_port_map
                 for p_num in ports_to_add_nodes:
-                    res_node = add_output_in_body(step_node, p_num, cur_graph, cur_max_layer_id,
-                                                  graphs_nodes_path, i)
+                    res_node, graphs_nodes_path, cur_max_layer_id = add_output_in_body(step_node, p_num, cur_graph,
+                                                                                       cur_max_layer_id,
+                                                                                       graphs_nodes_path, i)
 
                     # IR reader fix output port map for Loop, but have not change for TensorIterator
                     new_port_id = len(cur_loop_node.out_ports())
@@ -171,8 +173,10 @@ class AddOutputRecursive(BackReplacementPattern):
             else:
                 # add Result nodes for If and update output_id
                 for p_num in ports_to_add_nodes:
-                    res_node = add_output_in_body(step_node, p_num, cur_graph, cur_max_layer_id, graphs_nodes_path, i,
-                                                  add_unsqueeze=False)
+                    res_node, graphs_nodes_path, cur_max_layer_id = add_output_in_body(step_node, p_num, cur_graph,
+                                                                                       cur_max_layer_id,
+                                                                                       graphs_nodes_path, i,
+                                                                                       add_unsqueeze=False)
 
                     if cur_loop_node.then_graph == cur_graph:
                         new_port_id = len(cur_loop_node.out_ports())
@@ -312,7 +316,9 @@ class AddOutputRecursive(BackReplacementPattern):
         new_nodes = []
         for i in range(len(paths_nodes_graphs)):
             # new Result added to main graph should be on last place
-            if paths_nodes_graphs_old[i][0]['node'] != paths_nodes_graphs[i][0]['node']:
-                new_nodes.append(paths_nodes_graphs[i][0]['node'])
+            k = 0
+            while paths_nodes_graphs_old[i][0]['node'] != paths_nodes_graphs[i][k]['node']:
+                new_nodes.append(paths_nodes_graphs[i][k]['node'])
+                k += 1
 
         return new_nodes

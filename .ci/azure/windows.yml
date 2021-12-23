@@ -83,7 +83,7 @@ jobs:
     displayName: 'Make dir'
 
   - script: |
-      certutil -urlcache -split -f https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
+      curl -O https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat
       call install_ib_console.bat
     workingDirectory: $(WORK_DIR)
     displayName: 'Install IncrediBuild'
@@ -109,17 +109,17 @@ jobs:
       python -m pip install --upgrade pip
       rem For running Python API tests
       python -m pip install -r $(REPO_DIR)\inference-engine\ie_bridges\python\src\requirements-dev.txt
-      rem For running PaddlePaddle frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddlepaddle\requirements_dev.txt
+      rem For running Paddle frontend unit tests
+      python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddle\requirements_dev.txt
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\core\tests\requirements_test_onnx.txt
       rem For MO unit tests
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
       python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
       rem Speed up build
-      certutil -urlcache -split -f https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-windows-x86_64.zip cmake-$(CMAKE_VERSION)-windows-x86_64.zip
+      powershell -command "Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-windows-x86_64.zip -OutFile cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
       powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
-      certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip ninja-win.zip
+      powershell -command "Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip -OutFile ninja-win.zip"
       powershell -command "Expand-Archive -Force ninja-win.zip"
       git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
@@ -136,7 +136,7 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
-  - script: dir $(BUILD_DIR)\temp\ /s
+  - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
 
   - script: |
@@ -163,7 +163,7 @@ jobs:
     workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Install Samples Tests'
 
-  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(BUILD_DIR)\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
+  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(REPO_DIR)\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 
@@ -207,8 +207,8 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddlepaddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-PaddlePaddle.xml
-    displayName: 'PaddlePaddle Frontend UT'
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
+    displayName: 'Paddle Frontend UT'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml

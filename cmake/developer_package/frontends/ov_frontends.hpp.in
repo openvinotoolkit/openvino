@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "common/frontend.hpp"
+#include "openvino/frontend/frontend.hpp"
 
 @OV_FRONTEND_DECLARATIONS@
 

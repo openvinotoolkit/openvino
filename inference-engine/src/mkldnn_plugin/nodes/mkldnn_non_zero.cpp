@@ -85,6 +85,11 @@ struct MKLDNNNonZeroNode::NonZeroExecute {
         ctx.node.executeSpecified<T>();
     }
 };
+
+void MKLDNNNonZeroNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 void MKLDNNNonZeroNode::execute(mkldnn::stream strm) {
     auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this };
@@ -104,6 +109,7 @@ void MKLDNNNonZeroNode::executeSpecified() {
     Shape inShape = getParentEdgeAt(0)->getMemory().GetShape();
     size_t inRank = inShape.getRank();
     size_t nonZeroCount = getNonZeroElementsCount(src, inShape);
+
     if (isDynamicNode()) {
         VectorDims newDims{inRank, nonZeroCount};
         dstMemPtr->redefineDesc(getBaseMemDescAtOutputPort(0)->cloneWithNewDims(newDims));

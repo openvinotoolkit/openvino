@@ -121,12 +121,8 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
         }
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
-            auto prev = op->get_input_node_shared_ptr(0);
-            std::string inputID;
-            inputID = prev->get_friendly_name();
-            if (prev->get_output_size() > 1) {
-                inputID += "." + std::to_string(op->get_input_source_output(0).get_index());
-            }
+            const auto prev = op->input_value(0);
+            const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
 
             outputNodesMap[inputID] = node;
         }
@@ -227,7 +223,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
-            auto name = ngraph::op::util::get_ie_output_name(input);
+            const auto name = ngraph::op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;
@@ -323,7 +319,6 @@ void MKLDNNGraph::InitGraph() {
     SortTopologically();
 
     InitDescriptors();
-    RemoveDroppedEdges();
 
     InitOptimalPrimitiveDescriptors();
 
@@ -389,15 +384,16 @@ void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
 void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantAndExecutableNodes");
     for (const auto& graphNode : graphNodes) {
-        if (graphNode->isConstant())
+        if (graphNode->isConstant()) {
             constantGraphNodes.emplace_back(graphNode);
-        else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable()))
+        } else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) {
             /* @todo
              * Revise implementation.
              * With current way it is possible that with debug_caps enabled
              * we execute a node, which is not ready to be executed
              */
             executableGraphNodes.emplace_back(graphNode);
+        }
     }
 }
 
@@ -797,7 +793,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
 
         // check for empty output blob
         if (std::any_of(outDims.begin(), outDims.end(), [](const Dim dim) {return dim == 0;})) {
-            return;
+            continue;
         }
 
         auto srcPrec = actualDesc.getPrecision();
@@ -840,10 +836,11 @@ inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::st
     DUMP(node, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
 
-    if (node->isDynamicNode())
+    if (node->isDynamicNode()) {
         node->executeDynamic(stream);
-    else
+    } else {
         node->execute(stream);
+    }
 }
 
 void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
@@ -859,7 +856,6 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
         if (request)
             request->ThrowIfCanceled();
-
         ExecuteNode(node, stream);
     }
 
@@ -996,22 +992,6 @@ void MKLDNNGraph::setProperty(const std::map<std::string, std::string>& properti
 
 Config MKLDNNGraph::getProperty() const {
     return config;
-}
-
-Blob::Ptr MKLDNNGraph::getInputBlob(const std::string& name) {
-    auto itr = inputNodesMap.find(name);
-    if (itr != inputNodesMap.end()) {
-        return MemoryDescUtils::interpretAsBlob(itr->second->getChildEdgeAt(0)->getMemory());
-    }
-    return nullptr;
-}
-
-Blob::Ptr MKLDNNGraph::getOutputBlob(const std::string& name) {
-    auto itr = outputNodesMap.find(name);
-    if (itr != outputNodesMap.end()) {
-        return MemoryDescUtils::interpretAsBlob(itr->second->getParentEdgeAt(0)->getMemory());
-    }
-    return nullptr;
 }
 
 void MKLDNNGraph::RemoveEdge(MKLDNNEdgePtr& edge) {

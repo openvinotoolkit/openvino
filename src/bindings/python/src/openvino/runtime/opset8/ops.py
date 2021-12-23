@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.impl import Node
+from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.input_validation import (
@@ -778,3 +778,16 @@ def detection_output(
     inputs = as_nodes(*inputs)
 
     return _get_node_factory_opset8().create("DetectionOutput", inputs, attrs)
+
+
+@nameable_op
+def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
+    """
+    Apply softmax operation on each element of input tensor.
+
+    @param data: The tensor providing input data.
+    @param axis: An axis along which Softmax should be calculated. Can be positive or negative.
+    @param name: Optional name for the node.
+    @return The new node with softmax operation applied on each element.
+    """
+    return _get_node_factory_opset8().create("Softmax", [as_node(data)], {"axis": axis})

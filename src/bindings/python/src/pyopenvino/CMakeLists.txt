@@ -4,7 +4,7 @@
 project (pyopenvino)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
+    find_package(OpenVINODeveloperPackage REQUIRED)
 endif()
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
@@ -44,20 +44,26 @@ if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(-Wno-deprecated-declarations -Wno-undef)
 endif()
 
+if(ENABLE_TESTS)
+    add_subdirectory(test_utils)
+endif()
+
 # create target
 
-file(GLOB_RECURSE SOURCES *.cpp)
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
 if(TARGET offline_transformations)
     set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
-else()
+elseif(TARGET IE::offline_transformations)
     set(OFFLINE_TRANSFORMATIONS_LIB IE::offline_transformations)
+else()
+    set(OFFLINE_TRANSFORMATIONS_LIB openvino::offline_transformations)
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB} openvino::frontend::common)
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)

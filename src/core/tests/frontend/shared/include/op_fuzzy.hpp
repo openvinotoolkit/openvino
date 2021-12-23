@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 
 using FuzzyOpTestParam = std::tuple<std::string,   // FrontEnd name
                                     std::string,   // Base path to models
@@ -30,5 +30,5 @@ protected:
 
     void doLoadFromFile();
 
-    void runConvertedModel(const std::shared_ptr<ov::Function> function, const std::string& model_file);
+    void runConvertedModel(const std::shared_ptr<ov::Model> function, const std::string& model_file);
 };

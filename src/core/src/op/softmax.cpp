@@ -99,3 +99,68 @@ bool op::v1::Softmax::has_evaluate() const {
     }
     return false;
 }
+
+// *** SOFTMAX OP SET V8 ***
+BWDCMP_RTTI_DEFINITION(op::v8::Softmax);
+
+op::v8::Softmax::Softmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
+    constructor_validate_and_infer_types();
+}
+
+bool op::v8::Softmax::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v8_Softmax_visit_attributes);
+    visitor.on_attribute("axis", m_axis);
+    return true;
+}
+
+void op::v8::Softmax::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v8_Softmax_validate_and_infer_types);
+    const auto& input_shape = get_input_partial_shape(0);
+    if (input_shape.rank().is_static()) {
+        auto rank = static_cast<int64_t>(input_shape.size());
+        NODE_VALIDATION_CHECK(this,
+                              -rank <= m_axis && m_axis < rank,
+                              "Reduction axis (",
+                              m_axis,
+                              ") is out of bounds (argument shape: ",
+                              input_shape,
+                              ").");
+    }
+
+    set_output_type(0, get_input_element_type(0), input_shape);
+}
+
+shared_ptr<Node> op::v8::Softmax::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v8_Softmax_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<op::v8::Softmax>(new_args.at(0), m_axis);
+}
+
+bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v8_Softmax_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    outputs[0]->set_unary(inputs[0]);
+    auto rank = static_cast<int64_t>(inputs[0]->get_shape().size());
+    NGRAPH_CHECK(-rank <= m_axis && m_axis < rank,
+                 "Reduction axis (",
+                 m_axis,
+                 ") is out of bounds (argument shape: ",
+                 inputs[0]->get_shape(),
+                 ").");
+    size_t axis = static_cast<size_t>(ov::normalize_axis(this->description(), m_axis, rank));
+    return evaluate_softmax(inputs[0], outputs[0], AxisSet{axis});
+}
+
+bool op::v8::Softmax::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v8_Softmax_has_evaluate);
+    switch (get_input_element_type(0)) {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
