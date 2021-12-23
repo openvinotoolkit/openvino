@@ -5,9 +5,8 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ops
-
-from openvino.runtime import Model, Tensor, set_batch, get_batch, Dimension, Layout
-from openvino.runtime import Type, PartialShape, Shape
+from openvino.runtime import Model, Tensor, Output, Dimension,\
+        Layout, Type, PartialShape, Shape, set_batch, get_batch
 
 
 def create_test_model():
@@ -331,6 +330,7 @@ def test_reshape_with_ports():
     model = create_test_model()
     new_shape = PartialShape([1, 4])
     for input in model.inputs:
+        assert isinstance(input, Output)
         model.reshape({input: new_shape})
         assert input.partial_shape == new_shape
 
