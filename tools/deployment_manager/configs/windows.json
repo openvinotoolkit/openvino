@@ -33,7 +33,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/intel64/Release/MKLDNNPlugin.dll"
+        "runtime/bin/intel64/Release/ov_intel_cpu_plugin.dll"
       ]
     },
     "gpu": {

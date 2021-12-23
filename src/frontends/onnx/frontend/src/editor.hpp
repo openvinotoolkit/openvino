@@ -84,7 +84,12 @@ public:
     ///
     /// \param inputs A collection of input edges which become new inputs to the graph
     /// \param outputs A collection of output edges which become new outputs of the graph
-    void extract_subgraph(const std::vector<InputEdge>& inputs, const std::vector<OutputEdge>& outputs);
+    /// \param merge_inputs Flag indicates whether newly created inputs after cutting shall be independent or merged,
+    ///                     false - each cutted edge will be connected with one new input (default),
+    ///                     true - all input edges will be connected to one new input
+    void extract_subgraph(const std::vector<InputEdge>& inputs,
+                          const std::vector<OutputEdge>& outputs,
+                          const bool merge_inputs = false);
 
     /// \brief Modifies the in-memory representation of the model by setting custom input
     ///        values for inputs specified in the provided map.
@@ -279,6 +284,18 @@ public:
     ///        decoded to framework nodes
     ///
     std::shared_ptr<Model> decode();
+
+    /// \brief     Adds output to provided OutputEdge.
+    ///
+    /// \param output_edge An output_edge type where graph output shall be added.
+    ///
+    void add_output(const OutputEdge& output_edge) const;
+
+    /// \brief     Provides element type for given input tensor name.
+    ///
+    /// \param output_edge Name of tensor for which element type will be returned.
+    ///
+    element::Type_t get_input_type(const std::string& tensor_name) const;
 
 private:
     void update_mapper_if_needed() const;

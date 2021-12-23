@@ -20,7 +20,7 @@ The target is able to take the following command-line arguments:
 * `-h` prints target command-line options with description.
 * `--device` specifies target device.
 * `--input_folders` specifies folders with IRs to run. The separator is `,`.
-* `--plugin_lib_name` is name of plugin library. The example is MKLDNNPlugin. Use only with unregistered in IE Core devices.
+* `--plugin_lib_name` is name of plugin library. The example is ov_intel_cpu_plugin. Use only with unregistered in IE Core devices.
 * `--disable_test_config` allows to ignore all skipped tests with the exception of `DISABLED_` prefix using.
 * `--skip_config_path` allows to specify paths to files contain regular expressions list to skip tests.
 * `--extend_report` allows not to re-write device results to the report (add results of this run to the existing). Mutually exclusive with --report_unique_name.
