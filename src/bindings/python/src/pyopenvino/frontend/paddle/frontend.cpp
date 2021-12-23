@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 using namespace ov::frontend::paddle;
 
-void regclass_onnx_FrontEnd(py::module m) {
+void regclass_frontend_paddle_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::paddle::FrontEnd";
 
@@ -46,9 +46,13 @@ void regclass_onnx_FrontEnd(py::module m) {
     fem.def("decode", &FrontEnd::decode, py::arg("model"));
 }
 
-void regclass_paddle_NodeContext(py::module m) {
+void regclass_frontend_paddle_NodeContext(py::module m) {
     py::class_<ov::frontend::paddle::NodeContext,
                std::shared_ptr<ov::frontend::paddle::NodeContext>,
-               ov::frontend::NodeContext<std::map<std::string, ov::OutputVector>>>
-        ext(m, "NodeContextPaddle", py::dynamic_attr());
+               ov::frontend::NodeContext>
+        ext(m, "NodeContext", py::dynamic_attr());
+}
+
+void regclass_frontend_paddle_ConversionExtension(py::module m) {
+
 }

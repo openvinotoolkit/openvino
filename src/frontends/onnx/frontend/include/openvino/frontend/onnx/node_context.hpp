@@ -12,6 +12,8 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 
+class Node;
+
 class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext {
 public:
     explicit NodeContext(const ov::frontend::onnx::Node& context);

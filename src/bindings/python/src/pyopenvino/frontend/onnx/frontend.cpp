@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 using namespace ov::frontend::onnx;
 
-void regclass_onnx_FrontEnd(py::module m) {
+void regclass_frontend_onnx_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::onnx::FrontEnd";
 
@@ -42,11 +42,11 @@ void regclass_onnx_FrontEnd(py::module m) {
     });
 }
 
-void regclass_onnx_NodeContext(py::module m) {
+void regclass_frontend_onnx_NodeContext(py::module m) {
     py::class_<ov::frontend::onnx::NodeContext,
                std::shared_ptr<ov::frontend::onnx::NodeContext>,
-               ov::frontend::NodeContext<ov::OutputVector>>
-        ext(m, "NodeContextONNX", py::dynamic_attr());
+               ov::frontend::NodeContext>
+        ext(m, "NodeContext", py::dynamic_attr());
 }
 
-void regclass_onnx_ConversionExtension(py::module m) {}
+void regclass_frontend_onnx_ConversionExtension(py::module m) {}

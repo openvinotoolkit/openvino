@@ -8,6 +8,6 @@
 
 namespace py = pybind11;
 
-void regclass_tensorflow_FrontEnd(py::module m);
-void regclass_tensorflow_NodeContext(py::module m);
-void regclass_tensorflow_ConversionExtension(py::module m);
+void regclass_frontend_tensorflow_FrontEnd(py::module m);
+void regclass_frontend_tensorflow_NodeContext(py::module m);
+void regclass_frontend_tensorflow_ConversionExtension(py::module m);

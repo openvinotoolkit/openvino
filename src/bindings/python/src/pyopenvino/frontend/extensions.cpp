@@ -57,28 +57,20 @@ void regclass_frontend_JsonConfigExtension(py::module m) {
 }
 
 void regclass_frontend_ConversionExtension(py::module m) {
-    py::class_<ov::frontend::ConversionExtension<ov::OutputVector>,
-               std::shared_ptr<ov::frontend::ConversionExtension<ov::OutputVector>>,
+    py::class_<ov::frontend::ConversionExtension,
+               std::shared_ptr<ov::frontend::ConversionExtension>,
                ov::Extension>
         ext(m, "ConversionExtension", py::dynamic_attr());
 
     ext.def(py::init(
         [](const std::string& op_type,
-           const std::function<ov::OutputVector(const std::shared_ptr<ov::frontend::NodeContext<ov::OutputVector>>&)>
-               f) {
-            return std::make_shared<ov::frontend::ConversionExtension<ov::OutputVector>>(op_type, f);
+           const ov::frontend::CreatorFunction& f) {
+            return std::make_shared<ov::frontend::ConversionExtension>(op_type, f);
         }));
 
-    py::class_<ov::frontend::ConversionExtension<std::map<std::string, ov::OutputVector>>,
-               std::shared_ptr<ov::frontend::ConversionExtension<std::map<std::string, ov::OutputVector>>>,
-               ov::Extension>
-        ext_2(m, "ConversionExtension", py::dynamic_attr());
-
-    ext_2.def(py::init(
+    ext.def(py::init(
         [](const std::string& op_type,
-           const std::function<std::map<std::string, ov::OutputVector>(
-               const std::shared_ptr<ov::frontend::NodeContext<std::map<std::string, ov::OutputVector>>>&)> f) {
-            return std::make_shared<ov::frontend::ConversionExtension<std::map<std::string, ov::OutputVector>>>(op_type,
-                                                                                                                f);
+           const ov::frontend::CreatorFunctionNamed& f) {
+            return std::make_shared<ov::frontend::ConversionExtension>(op_type,f);
         }));
 }

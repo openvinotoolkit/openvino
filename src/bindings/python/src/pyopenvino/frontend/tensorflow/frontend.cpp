@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 using namespace ov::frontend::tensorflow;
 
-void regclass_onnx_FrontEnd(py::module m) {
+void regclass_frontend_tensorflow_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::tensorflow::FrontEnd";
 
@@ -46,9 +46,13 @@ void regclass_onnx_FrontEnd(py::module m) {
     });
 }
 
-void regclass_tensorflow_NodeContext(py::module m) {
+void regclass_frontend_tensorflow_NodeContext(py::module m) {
     py::class_<ov::frontend::tensorflow::NodeContext,
                std::shared_ptr<ov::frontend::tensorflow::NodeContext>,
-               ov::frontend::NodeContext<ov::OutputVector>>
-        ext(m, "NodeContextTensorflow", py::dynamic_attr());
+               ov::frontend::NodeContext>
+        ext(m, "NodeContext", py::dynamic_attr());
+}
+
+void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
+
 }

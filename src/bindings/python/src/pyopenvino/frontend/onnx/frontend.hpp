@@ -8,6 +8,6 @@
 
 namespace py = pybind11;
 
-void regclass_onnx_FrontEnd(py::module m);
-void regclass_onnx_NodeContext(py::module m);
-void regclass_onnx_ConversionExtension(py::module m);
+void regclass_frontend_onnx_FrontEnd(py::module m);
+void regclass_frontend_onnx_NodeContext(py::module m);
+void regclass_frontend_onnx_ConversionExtension(py::module m);
