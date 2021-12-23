@@ -15,7 +15,7 @@ namespace subgraph {
 std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<SoftMaxTestParams>& obj) {
     ElementType netType, inType, outType;
     InputShape shapes;
-    size_t axis;
+    int64_t axis;
     TargetDevice targetDevice;
     Config config;
     std::tie(netType, inType, outType, shapes, axis, targetDevice, config) = obj.param;
@@ -29,7 +29,7 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<SoftM
     for (const auto& item : shapes.second) {
         result << CommonTestUtils::vec2str(item) << "_";
     }
-    result << "Axis=" << axis << "_";
+    result << "axis=" << axis << "_";
     result << "Device=" << targetDevice;
 
     return result.str();
@@ -38,7 +38,7 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<SoftM
 void SoftMaxLayerTest::SetUp() {
     InputShape shapes;
     ElementType ngPrc;
-    size_t axis;
+    int64_t axis;
 
     std::tie(ngPrc, inType, outType, shapes, axis, targetDevice, configuration) = GetParam();
     init_input_shapes({shapes});
@@ -47,8 +47,8 @@ void SoftMaxLayerTest::SetUp() {
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
-    const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(softMax)};
+    const auto softMax = std::make_shared<ngraph::opset8::Softmax>(paramOuts.at(0), axis);
+    const ngraph::ResultVector results {std::make_shared<ngraph::opset8::Result>(softMax)};
 
     function = std::make_shared<ngraph::Function>(results, params, "softMax");
 }

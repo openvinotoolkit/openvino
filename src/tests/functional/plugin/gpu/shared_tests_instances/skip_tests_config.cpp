@@ -77,8 +77,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*OpType=FloorMod.*NetType=i64.*)",
             // Issue connected with OV2.0
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
-            // TODO: Issue: 67486
-            R"(.*(SoftMaxLayerTest).*)",
             // TODO: Issue: 68712
             R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
             // TODO: Issue 69187
