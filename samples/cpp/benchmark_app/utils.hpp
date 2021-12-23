@@ -219,6 +219,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     }
                     info.dataShape[batch_index] = batch_size;
                     reshape_required = true;
+                } else if (batch_index == std::string::npos) {
+                    throw std::logic_error("Batch dimension is not specified for this model!");
                 }
             }
             info_map[name] = info;
