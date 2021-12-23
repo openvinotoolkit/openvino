@@ -69,6 +69,8 @@ bool is_max_int(element::Type_t ind_type, int64_t value) {
     case element::i64:
         max_type_value = std::numeric_limits<typename element_type_traits<element::i64>::value_type>::max();
         break;
+    default:
+        return false;
     }
     return max_type_value == value;
 }
