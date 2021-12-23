@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyopenvino/graph/function.hpp"
+#include "pyopenvino/graph/model.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -307,6 +307,40 @@ void regclass_graph_Model(py::module m) {
         )");
 
     function.def("validate_nodes_and_infer_types", &ov::Model::validate_nodes_and_infer_types);
+
+    function.def(
+        "reshape",
+        [](ov::Model& self, const ov::PartialShape& partial_shape) {
+            self.reshape(partial_shape);
+        },
+        py::arg("partial_shapes"),
+        R"(
+                Parameters
+                ----------
+                partial_shapes : PartialShape
+                    Index of Output.
+
+                Returns
+                ----------
+                reshape : void
+             )");
+
+    function.def(
+        "reshape",
+        [](ov::Model& self, const std::map<size_t, ov::PartialShape>& partial_shapes) {
+            self.reshape(partial_shapes);
+        },
+        py::arg("partial_shapes"),
+        R"(
+                Parameters
+                ----------
+                partial_shapes : Dict[int, PartialShape]
+                    Index of Output.
+
+                Returns
+                ----------
+                reshape : void
+             )");
 
     function.def(
         "reshape",

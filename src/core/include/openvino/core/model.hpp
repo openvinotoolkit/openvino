@@ -116,6 +116,8 @@ public:
     ov::Output<ov::Node> add_output(const std::string& op_name, size_t output_idx);
     ov::Output<ov::Node> add_output(const ov::Output<ov::Node>& port);
 
+    void reshape(const ov::PartialShape& partial_shape);
+    void reshape(const std::map<size_t, ov::PartialShape>& partial_shapes);
     void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
     void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes);
 

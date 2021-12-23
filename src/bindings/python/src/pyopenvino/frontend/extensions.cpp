@@ -12,7 +12,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "pyopenvino/graph/model.hpp"
 
 namespace py = pybind11;
 

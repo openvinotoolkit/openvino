@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/model.hpp"
+
 #include <gtest/gtest.h>
 
 #include <shared_node_info.hpp>
 #include <test_common.hpp>
 
-#include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-TEST(function, get_input_by_tensor_name) {
+TEST(model, get_input_by_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -28,7 +29,7 @@ TEST(function, get_input_by_tensor_name) {
     EXPECT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_output_by_tensor_name) {
+TEST(model, get_output_by_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -50,7 +51,7 @@ TEST(function, get_output_by_tensor_name) {
     EXPECT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_input_by_tensor_index_without_name) {
+TEST(model, get_input_by_tensor_index_without_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
 
@@ -66,7 +67,7 @@ TEST(function, get_input_by_tensor_index_without_name) {
     EXPECT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_output_by_tensor_index_without_name) {
+TEST(model, get_output_by_tensor_index_without_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
 
@@ -85,7 +86,7 @@ TEST(function, get_output_by_tensor_index_without_name) {
     EXPECT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_incorrect_output_by_tensor_name) {
+TEST(model, get_incorrect_output_by_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -99,7 +100,7 @@ TEST(function, get_incorrect_output_by_tensor_name) {
     EXPECT_THROW(f->output("input"), ov::Exception);
 }
 
-TEST(function, get_incorrect_input_by_tensor_name) {
+TEST(model, get_incorrect_input_by_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -113,7 +114,7 @@ TEST(function, get_incorrect_input_by_tensor_name) {
     EXPECT_THROW(f->input("relu_t"), ov::Exception);
 }
 
-TEST(function, get_input_by_index) {
+TEST(model, get_input_by_index) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -130,7 +131,7 @@ TEST(function, get_input_by_index) {
     EXPECT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_output_by_index) {
+TEST(model, get_output_by_index) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -148,7 +149,7 @@ TEST(function, get_output_by_index) {
     EXPECT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_input_without_index) {
+TEST(model, get_input_without_index) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -165,7 +166,7 @@ TEST(function, get_input_without_index) {
     EXPECT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_output_without_index) {
+TEST(model, get_output_without_index) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -183,7 +184,7 @@ TEST(function, get_output_without_index) {
     EXPECT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_incorrect_output_by_index) {
+TEST(model, get_incorrect_output_by_index) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -197,7 +198,7 @@ TEST(function, get_incorrect_output_by_index) {
     EXPECT_THROW(f->output(2), std::exception);
 }
 
-TEST(function, get_incorrect_input_by_index) {
+TEST(model, get_incorrect_input_by_index) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -211,7 +212,7 @@ TEST(function, get_incorrect_input_by_index) {
     EXPECT_THROW(f->input(2), std::exception);
 }
 
-TEST(function, incorrect_multiple_inputs_outputs_function) {
+TEST(model, incorrect_multiple_inputs_outputs_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
@@ -237,7 +238,7 @@ TEST(function, incorrect_multiple_inputs_outputs_function) {
     EXPECT_THROW(f->output(), ov::Exception);
 }
 
-TEST(function, multiple_inputs_outputs_function) {
+TEST(model, multiple_inputs_outputs_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
@@ -286,7 +287,7 @@ TEST(function, multiple_inputs_outputs_function) {
     EXPECT_EQ(f->outputs().size(), 2);
 }
 
-TEST(function, get_input_by_tensor_name_from_const) {
+TEST(model, get_input_by_tensor_name_from_const) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -303,7 +304,7 @@ TEST(function, get_input_by_tensor_name_from_const) {
     EXPECT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_output_by_tensor_name_from_const_function) {
+TEST(model, get_output_by_tensor_name_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -325,7 +326,7 @@ TEST(function, get_output_by_tensor_name_from_const_function) {
     EXPECT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_incorrect_output_by_tensor_name_from_const_function) {
+TEST(model, get_incorrect_output_by_tensor_name_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -339,7 +340,7 @@ TEST(function, get_incorrect_output_by_tensor_name_from_const_function) {
     EXPECT_THROW(f->output("input"), ov::Exception);
 }
 
-TEST(function, get_incorrect_input_by_tensor_name_from_const_function) {
+TEST(model, get_incorrect_input_by_tensor_name_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -353,7 +354,7 @@ TEST(function, get_incorrect_input_by_tensor_name_from_const_function) {
     EXPECT_THROW(f->input("relu_t"), ov::Exception);
 }
 
-TEST(function, get_input_by_index_from_const_function) {
+TEST(model, get_input_by_index_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -370,7 +371,7 @@ TEST(function, get_input_by_index_from_const_function) {
     EXPECT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_output_by_index_from_const_function) {
+TEST(model, get_output_by_index_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -388,7 +389,7 @@ TEST(function, get_output_by_index_from_const_function) {
     EXPECT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_input_without_index_from_const_function) {
+TEST(model, get_input_without_index_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -405,7 +406,7 @@ TEST(function, get_input_without_index_from_const_function) {
     EXPECT_EQ(input.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_output_without_index_from_const_function) {
+TEST(model, get_output_without_index_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -423,7 +424,7 @@ TEST(function, get_output_without_index_from_const_function) {
     EXPECT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
-TEST(function, get_incorrect_output_by_index_from_const_function) {
+TEST(model, get_incorrect_output_by_index_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -437,7 +438,7 @@ TEST(function, get_incorrect_output_by_index_from_const_function) {
     EXPECT_THROW(f->output(2), std::exception);
 }
 
-TEST(function, get_incorrect_input_by_index_from_const_function) {
+TEST(model, get_incorrect_input_by_index_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -451,7 +452,7 @@ TEST(function, get_incorrect_input_by_index_from_const_function) {
     EXPECT_THROW(f->input(2), std::exception);
 }
 
-TEST(function, incorrect_multiple_inputs_outputs_function_from_const_function) {
+TEST(model, incorrect_multiple_inputs_outputs_model_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
@@ -477,7 +478,7 @@ TEST(function, incorrect_multiple_inputs_outputs_function_from_const_function) {
     EXPECT_THROW(f->output(), ov::Exception);
 }
 
-TEST(function, multiple_inputs_outputs_function_from_const_function) {
+TEST(model, multiple_inputs_outputs_model_from_const_model) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
@@ -526,7 +527,7 @@ TEST(function, multiple_inputs_outputs_function_from_const_function) {
     EXPECT_EQ(f->outputs().size(), 2);
 }
 
-TEST(function_reshape, ReshapedDynamicShapeLayout) {
+TEST(model_reshape, ReshapedDynamicShapeLayout) {
     std::shared_ptr<ov::Model> ngraph;
     {
         ov::PartialShape shape({-1, 3, 22, 22});
@@ -549,7 +550,7 @@ TEST(function_reshape, ReshapedDynamicShapeLayout) {
     EXPECT_FALSE(ngraph->get_parameters().front()->get_partial_shape().is_dynamic());
 }
 
-TEST(function_reshape, ReshapeBatchReLU) {
+TEST(model_reshape, ReshapeBatchReLU) {
     std::shared_ptr<ov::Model> ngraph;
     {
         ov::PartialShape shape({1, 3, 22, 22});
@@ -578,7 +579,7 @@ TEST(function_reshape, ReshapeBatchReLU) {
     EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
-TEST(function_reshape, ReshapeSpatialReLU) {
+TEST(model_reshape, ReshapeSpatialReLU) {
     std::shared_ptr<ov::Model> ngraph;
     {
         ov::PartialShape shape({1, 3, 22, 22});
@@ -607,7 +608,7 @@ TEST(function_reshape, ReshapeSpatialReLU) {
     EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({1, 3, 25, 25}));
 }
 
-TEST(function_reshape, ReshapeSpatialReLUWithoutReplaceParameter) {
+TEST(model_reshape, ReshapeSpatialReLUWithoutReplaceParameter) {
     std::shared_ptr<ov::Model> ngraph;
     {
         ov::PartialShape shape({1, 3, 22, 22});
@@ -634,7 +635,7 @@ TEST(function_reshape, ReshapeSpatialReLUWithoutReplaceParameter) {
     EXPECT_EQ(ngraph->output().get_partial_shape(), ov::Shape({1, 3, 25, 25}));
 }
 
-TEST(function_reshape, ReshapeSpatialReLUStaticToDynamic) {
+TEST(model_reshape, ReshapeSpatialReLUStaticToDynamic) {
     const ov::PartialShape refShape{1, 3, ov::Dimension::dynamic(), 25};
     std::shared_ptr<ov::Model> ngraph;
     {
@@ -666,7 +667,7 @@ TEST(function_reshape, ReshapeSpatialReLUStaticToDynamic) {
     EXPECT_EQ(ngraph->output(0).get_partial_shape(), refShape);
 }
 
-TEST(function_reshape, ReshapeSpatialReLUStaticToFullyDynamic) {
+TEST(model_reshape, ReshapeSpatialReLUStaticToFullyDynamic) {
     const ov::PartialShape refShape = ov::PartialShape::dynamic();
     std::shared_ptr<ov::Model> ngraph;
     {
@@ -698,7 +699,7 @@ TEST(function_reshape, ReshapeSpatialReLUStaticToFullyDynamic) {
     EXPECT_EQ(ngraph->output().get_partial_shape(), refShape);
 }
 
-TEST(function_reshape, ReshapeSpatialReLUDynamicToDynamic) {
+TEST(model_reshape, ReshapeSpatialReLUDynamicToDynamic) {
     const ov::PartialShape refShape{1, 3, ov::Dimension::dynamic(), 25};
     std::shared_ptr<ov::Model> ngraph;
     {
@@ -730,7 +731,7 @@ TEST(function_reshape, ReshapeSpatialReLUDynamicToDynamic) {
     EXPECT_EQ(ngraph->output().get_partial_shape(), refShape);
 }
 
-TEST(function_reshape, TestInvalidReshape) {
+TEST(model_reshape, TestInvalidReshape) {
     std::shared_ptr<ov::Model> f;
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
@@ -748,7 +749,7 @@ TEST(function_reshape, TestInvalidReshape) {
     EXPECT_NO_THROW(f->reshape({{"tensor", ov::Shape({1, 1000, 4})}}));
 }
 
-TEST(function_reshape, TestReshapeWithInvalidTensorName) {
+TEST(model_reshape, TestReshapeWithInvalidTensorName) {
     std::shared_ptr<ov::Model> f;
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
@@ -766,7 +767,7 @@ TEST(function_reshape, TestReshapeWithInvalidTensorName) {
     EXPECT_ANY_THROW(f->reshape({{"param", ov::Shape({4, 4, 4})}}));
 }
 
-TEST(function_reshape, TestReshapeWithInvalidShapesForTheSameTensor) {
+TEST(model_reshape, TestReshapeWithInvalidShapesForTheSameTensor) {
     std::shared_ptr<ov::Model> f;
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
@@ -781,7 +782,38 @@ TEST(function_reshape, TestReshapeWithInvalidShapesForTheSameTensor) {
     EXPECT_ANY_THROW(f->reshape({{"tensor1", ov::Shape({2, 500, 4})}, {"tensor2", ov::Shape({4, 250, 4})}}));
 }
 
-TEST(function_reshape, ReshapeBatchReLUByPort) {
+TEST(model_reshape, ReshapeBatchReLUByIndex) {
+    std::shared_ptr<ov::Model> ngraph;
+    ov::Output<ov::Node> port;
+    {
+        ov::PartialShape shape({1, 3, 22, 22});
+        ov::element::Type type(ov::element::Type_t::f32);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        param->get_output_tensor(0).set_names({"tensor", "tensor2"});
+        port = param->output(0);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
+
+        ov::ParameterVector params = {param};
+        ov::ResultVector results = {result};
+
+        ngraph = std::make_shared<ov::Model>(results, params);
+    }
+
+    EXPECT_EQ(ngraph->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+
+    {
+        std::map<size_t, ov::PartialShape> new_shape;
+        new_shape[0] = ov::PartialShape{2, 3, 22, 22};
+        EXPECT_NO_THROW(ngraph->reshape(new_shape));
+    }
+
+    EXPECT_EQ(ngraph->get_parameters()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+}
+
+TEST(model_reshape, ReshapeBatchReLUByPort) {
     std::shared_ptr<ov::Model> ngraph;
     ov::Output<ov::Node> port;
     {
@@ -812,7 +844,63 @@ TEST(function_reshape, ReshapeBatchReLUByPort) {
     EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
-TEST(function, add_output_tensor_name) {
+TEST(model_reshape, ReshapeBatchReLUWithOneInput) {
+    std::shared_ptr<ov::Model> ngraph;
+    ov::Output<ov::Node> port;
+    {
+        ov::PartialShape shape({1, 3, 22, 22});
+        ov::element::Type type(ov::element::Type_t::f32);
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        param->get_output_tensor(0).set_names({"tensor", "tensor2"});
+        port = param->output(0);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
+
+        ov::ParameterVector params = {param};
+        ov::ResultVector results = {result};
+
+        ngraph = std::make_shared<ov::Model>(results, params);
+    }
+
+    EXPECT_EQ(ngraph->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+    EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
+
+    {
+        ov::PartialShape new_shape;
+        new_shape = ov::PartialShape{2, 3, 22, 22};
+        EXPECT_NO_THROW(ngraph->reshape(new_shape));
+    }
+
+    EXPECT_EQ(ngraph->get_parameters()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+    EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+}
+
+TEST(model_reshape, IncoreectReshapeBatchWithMultipleInputs) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto f = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    f->validate_nodes_and_infer_types();
+    ov::PartialShape shape({1, 3, 22, 22});
+    EXPECT_THROW(f->reshape(shape), ov::Exception);
+}
+
+TEST(model, add_output_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -839,7 +927,7 @@ TEST(function, add_output_tensor_name) {
     EXPECT_EQ(out1.get_node(), f->get_results()[1].get());
 }
 
-TEST(function, add_output_op_name) {
+TEST(model, add_output_op_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -865,7 +953,7 @@ TEST(function, add_output_op_name) {
     EXPECT_EQ(f->get_results()[1]->input_value(0).get_node(), relu1.get());
 }
 
-TEST(function, add_output_port) {
+TEST(model, add_output_port) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -889,7 +977,7 @@ TEST(function, add_output_port) {
     EXPECT_EQ(f->get_results()[1]->input_value(0).get_node(), relu1.get());
 }
 
-TEST(function, add_output_incorrect_tensor_name) {
+TEST(model, add_output_incorrect_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -910,7 +998,7 @@ TEST(function, add_output_incorrect_tensor_name) {
     EXPECT_EQ(f->get_results().size(), 1);
 }
 
-TEST(function, add_output_op_incorrect_name) {
+TEST(model, add_output_op_incorrect_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -931,7 +1019,7 @@ TEST(function, add_output_op_incorrect_name) {
     EXPECT_EQ(f->get_results().size(), 1);
 }
 
-TEST(function, add_output_op_name_incorrect_idx) {
+TEST(model, add_output_op_name_incorrect_idx) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -952,7 +1040,7 @@ TEST(function, add_output_op_name_incorrect_idx) {
     EXPECT_EQ(f->get_results().size(), 1);
 }
 
-TEST(function, add_output_port_to_result) {
+TEST(model, add_output_port_to_result) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
@@ -988,7 +1076,7 @@ bool all_ops_have_same_info(const std::shared_ptr<ov::Model>& f) {
 }
 }  // namespace
 
-TEST(function, topological_sort_caching_basic) {
+TEST(model, topological_sort_caching_basic) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
@@ -996,11 +1084,11 @@ TEST(function, topological_sort_caching_basic) {
     auto f = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::ModelAccessor(f).get_shared_info();
-    // Check that after function creation which call get_ordered_ops
+    // Check that after model creation which call get_ordered_ops
     // cache is set to true value
     ASSERT_TRUE(shared_info->get_use_topological_cache());
 
-    // Check that nodes contains the same shared info after function creation
+    // Check that nodes contains the same shared info after model creation
     ASSERT_EQ(ov::NodeAccessor(arg0).get_shared_info().size(), 1);
     ASSERT_TRUE(ov::NodeAccessor(arg0).get_shared_info().count(shared_info));
 
@@ -1016,7 +1104,7 @@ TEST(function, topological_sort_caching_basic) {
     ASSERT_EQ(f->get_ordered_ops().size(), 4);
 }
 
-TEST(function, topological_sort_caching_replace_node) {
+TEST(model, topological_sort_caching_replace_node) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
@@ -1029,11 +1117,11 @@ TEST(function, topological_sort_caching_replace_node) {
     auto new_relu = std::make_shared<ov::opset8::Relu>(relu1);
     ov::replace_node(relu2, new_relu);
 
-    // Function has changed so cache must be updated
+    // model has changed so cache must be updated
     ASSERT_FALSE(shared_info->get_use_topological_cache());
 
     // Before get_ordered_ops, new_node shouldn't have shared_info, but after
-    // it will be set to the function shared_info and cache will be used.
+    // it will be set to the model shared_info and cache will be used.
     ASSERT_FALSE(ov::NodeAccessor(new_relu).get_shared_info().count(shared_info));
     ASSERT_EQ(f->get_ordered_ops().size(), 4);
     ASSERT_TRUE(ov::NodeAccessor(new_relu).get_shared_info().count(shared_info));
@@ -1041,7 +1129,7 @@ TEST(function, topological_sort_caching_replace_node) {
     ASSERT_TRUE(all_ops_have_same_info(f));
 }
 
-TEST(function, topological_sort_caching_replace_source_output) {
+TEST(model, topological_sort_caching_replace_source_output) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
@@ -1053,7 +1141,7 @@ TEST(function, topological_sort_caching_replace_source_output) {
 
     relu2->input(0).replace_source_output(relu1);
 
-    // Function has changed so cache must be updated
+    // model has changed so cache must be updated
     ASSERT_FALSE(shared_info->get_use_topological_cache());
 
     ASSERT_EQ(f->get_ordered_ops().size(), 4);
@@ -1061,7 +1149,7 @@ TEST(function, topological_sort_caching_replace_source_output) {
     ASSERT_TRUE(all_ops_have_same_info(f));
 }
 
-TEST(function, topological_sort_caching_dangling_node) {
+TEST(model, topological_sort_caching_dangling_node) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
@@ -1073,13 +1161,13 @@ TEST(function, topological_sort_caching_dangling_node) {
 
     auto new_relu = std::make_shared<ov::opset8::Relu>(relu1);
 
-    // Function has not changed so cache mustn't be updated
+    // model has not changed so cache mustn't be updated
     ASSERT_TRUE(shared_info->get_use_topological_cache());
-    // Dangling node is not in Function
+    // Dangling node is not in model
     ASSERT_EQ(f->get_ordered_ops().size(), 4);
 }
 
-TEST(function, topological_sort_caching_replace_output) {
+TEST(model, topological_sort_caching_replace_output) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
@@ -1092,14 +1180,14 @@ TEST(function, topological_sort_caching_replace_output) {
     auto new_relu = std::make_shared<ov::opset8::Relu>(relu1);
     relu2->output(0).replace(new_relu);
 
-    // Function has changed so cache must be updated
+    // model has changed so cache must be updated
     ASSERT_FALSE(shared_info->get_use_topological_cache());
     ASSERT_EQ(f->get_ordered_ops().size(), 4);
     ASSERT_TRUE(shared_info->get_use_topological_cache());
     ASSERT_TRUE(all_ops_have_same_info(f));
 }
 
-TEST(function, topological_sort_caching_set_argument) {
+TEST(model, topological_sort_caching_set_argument) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
@@ -1111,14 +1199,14 @@ TEST(function, topological_sort_caching_set_argument) {
 
     relu2->set_argument(0, arg0);
 
-    // Function has changed so cache must be updated
+    // model has changed so cache must be updated
     ASSERT_FALSE(shared_info->get_use_topological_cache());
     ASSERT_EQ(f->get_ordered_ops().size(), 3);
     ASSERT_TRUE(shared_info->get_use_topological_cache());
     ASSERT_TRUE(all_ops_have_same_info(f));
 }
 
-TEST(function, topological_sort_caching_set_arguments) {
+TEST(model, topological_sort_caching_set_arguments) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
@@ -1130,14 +1218,14 @@ TEST(function, topological_sort_caching_set_arguments) {
 
     relu2->set_arguments({arg0->output(0)});
 
-    // Function has changed so cache must be updated
+    // model has changed so cache must be updated
     ASSERT_FALSE(shared_info->get_use_topological_cache());
     ASSERT_EQ(f->get_ordered_ops().size(), 3);
     ASSERT_TRUE(shared_info->get_use_topological_cache());
     ASSERT_TRUE(all_ops_have_same_info(f));
 }
 
-TEST(function, topological_sort_caching_add_cf) {
+TEST(model, topological_sort_caching_add_cf) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
@@ -1149,14 +1237,14 @@ TEST(function, topological_sort_caching_add_cf) {
 
     relu2->add_control_dependency(arg0);
 
-    // Function has changed so cache must be updated
+    // model has changed so cache must be updated
     ASSERT_FALSE(shared_info->get_use_topological_cache());
     ASSERT_EQ(f->get_ordered_ops().size(), 4);
     ASSERT_TRUE(shared_info->get_use_topological_cache());
     ASSERT_TRUE(all_ops_have_same_info(f));
 }
 
-TEST(function, topological_sort_caching_result_parameter_sink) {
+TEST(model, topological_sort_caching_result_parameter_sink) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
@@ -1195,7 +1283,7 @@ TEST(function, topological_sort_caching_result_parameter_sink) {
     check_caching_status(4);
 }
 
-TEST(function, topological_sort_caching_multiple_components) {
+TEST(model, topological_sort_caching_multiple_components) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu0 = std::make_shared<ov::opset8::Relu>(arg0);
     auto result0 = std::make_shared<ov::opset8::Result>(relu0);
@@ -1211,7 +1299,7 @@ TEST(function, topological_sort_caching_multiple_components) {
     ASSERT_TRUE(all_ops_have_same_info(f));
 }
 
-TEST(function, topological_sort_caching_shared_nodes) {
+TEST(model, topological_sort_caching_shared_nodes) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu0 = std::make_shared<ov::opset8::Relu>(arg0);
     auto result0 = std::make_shared<ov::opset8::Result>(relu0);
@@ -1224,7 +1312,7 @@ TEST(function, topological_sort_caching_shared_nodes) {
 
     for (auto&& node : f1->get_ordered_ops()) {
         auto node_info = ov::NodeAccessor(node).get_shared_info();
-        // As two Functions owns the same node so node will have two shared_info objects
+        // As two models owns the same node so node will have two shared_info objects
         ASSERT_EQ(node_info.size(), 2);
         ASSERT_TRUE(node_info.count(f1_shared_info));
         ASSERT_TRUE(node_info.count(f2_shared_info));
@@ -1286,14 +1374,14 @@ static std::shared_ptr<ov::Model> create_add(ov::element::Type type,
 }
 }  // namespace bs_utils
 
-TEST(function, get_batch_size) {
+TEST(model, get_batch_size) {
     auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 512, 512, 3}, {1, 3, 224, 224}}, {"NHWC", "NCHW"});
 
     EXPECT_NO_THROW(ov::get_batch(f));
     EXPECT_EQ(ov::get_batch(f), 1);
 }
 
-TEST(function, get_batch_size_with_conflict) {
+TEST(model, get_batch_size_with_conflict) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {ov::PartialShape::dynamic(), {5, 6}, {1, 3, 224, 224}, {3, 1}},
                                        {"NCHW", "D...", "NCHW", "N???"});
@@ -1315,7 +1403,7 @@ TEST(function, get_batch_size_with_conflict) {
     }
 }
 
-TEST(function, get_batch_size_without_batches) {
+TEST(model, get_batch_size_without_batches) {
     auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 224, 224}, {1, 3, 224, 224}}, {"?C...", ov::Layout()});
 
     // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
@@ -1331,21 +1419,21 @@ TEST(function, get_batch_size_without_batches) {
     }
 }
 
-TEST(function, get_batch_size_without_one_layout) {
+TEST(model, get_batch_size_without_one_layout) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {{ov::Dimension::dynamic(), 3, 224, 224}, {10, 20}},
                                        {"N...", "HW"});
     EXPECT_EQ(ov::get_batch(f), ov::Dimension::dynamic());
 }
 
-TEST(function, get_batch_size_ranges) {
+TEST(model, get_batch_size_ranges) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {{ov::Dimension(1, 10), 3, 224, 224}, {ov::Dimension(5, 15), 3, 224, 224}},
                                        {"NCHW", "NCHW"});
     EXPECT_EQ(ov::get_batch(f), ov::Dimension(5, 10));
 }
 
-TEST(function, set_batch_size) {
+TEST(model, set_batch_size) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {{1, 512, 512, 3}, {ov::Dimension::dynamic(), 3, 224, 224}, {1, 5}},
                                        {"NHWC", "NCHW", "??"});
@@ -1356,7 +1444,7 @@ TEST(function, set_batch_size) {
     EXPECT_EQ(f->input("tensor_input2").get_partial_shape(), (ov::PartialShape{1, 5}));
 }
 
-TEST(function, set_batch_size_ranges) {
+TEST(model, set_batch_size_ranges) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {{ov::Dimension(1, 10), 3, 224, 224}, {ov::Dimension(5, 15), 3, 224, 224}},
                                        {"NCHW", "NCHW"});
@@ -1365,7 +1453,7 @@ TEST(function, set_batch_size_ranges) {
     EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
 }
 
-TEST(function, set_batch_size_fully_dynamic) {
+TEST(model, set_batch_size_fully_dynamic) {
     auto f =
         bs_utils::create_n_inputs(ov::element::f32, {ov::PartialShape::dynamic(), {1, 3, 224, 224}}, {"NCHW", "NCHW"});
     EXPECT_NO_THROW(ov::set_batch(f, 42));
@@ -1373,14 +1461,14 @@ TEST(function, set_batch_size_fully_dynamic) {
     EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
 }
 
-TEST(function, set_batch_size_dynamic_layout) {
+TEST(model, set_batch_size_dynamic_layout) {
     auto f = bs_utils::create_n_inputs(ov::element::f32, {{3, 224, 224, 1}, {1, 3, 224, 224}}, {"...N", "NCHW"});
     EXPECT_NO_THROW(ov::set_batch(f, 42));
     EXPECT_EQ(f->input("tensor_input0").get_partial_shape(), (ov::PartialShape{3, 224, 224, 42}));
     EXPECT_EQ(f->input("tensor_input1").get_partial_shape(), (ov::PartialShape{42, 3, 224, 224}));
 }
 
-TEST(function, set_batch_size_with_conflict) {
+TEST(model, set_batch_size_with_conflict) {
     auto f = bs_utils::create_n_inputs(ov::element::f32,
                                        {ov::PartialShape::dynamic(), {5, 6}, {1, 3, 224, 224}, {3, 1}},
                                        {"NCHW", "D...", "NCHW", "N???"});
@@ -1402,7 +1490,7 @@ TEST(function, set_batch_size_with_conflict) {
     }
 }
 
-TEST(function, set_batch_size_without_batches) {
+TEST(model, set_batch_size_without_batches) {
     auto f = bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 224, 224}, {1, 3, 224, 224}}, {"?C...", ov::Layout()});
 
     // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
@@ -1418,7 +1506,7 @@ TEST(function, set_batch_size_without_batches) {
     }
 }
 
-TEST(function, set_batch_size_validation_throw) {
+TEST(model, set_batch_size_validation_throw) {
     auto f = bs_utils::create_add(ov::element::f32, {1, 3, 224, 224}, "NCHW", ov::Layout());
 
     // TODO: replace with EXPECT_THAT after upgrade gtest to v1.11
