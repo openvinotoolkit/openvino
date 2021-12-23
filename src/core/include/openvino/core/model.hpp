@@ -25,8 +25,10 @@
 
 namespace ov {
 class Model;
-std::shared_ptr<ov::Model> clone_model(const ov::Model& func,
-                                       std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+
+OPENVINO_API
+std::shared_ptr<Model> clone_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+
 namespace frontend {
 class FrontEnd;
 }
@@ -34,9 +36,9 @@ class FrontEnd;
 class ModelAccessor;
 /// A user-defined function.
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
-    friend class ov::frontend::FrontEnd;
-    friend std::shared_ptr<ov::Model> clone_model(const ov::Model& func,
-                                                  std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+    friend class frontend::FrontEnd;
+    friend std::shared_ptr<Model> clone_model(const Model& func,
+                                              std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
     std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
 
 public:
