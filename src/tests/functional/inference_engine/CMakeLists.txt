@@ -26,7 +26,7 @@ set(LINK_LIBRARIES
 set(DEPENDENCIES
     mock_engine
     template_extension
-    template_ov_extension
+    ov_template_extension
     lptNgraphFunctions
     sharedTestClasses
     test_model_zoo
