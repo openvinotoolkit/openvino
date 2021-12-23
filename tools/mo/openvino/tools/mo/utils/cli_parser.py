@@ -1169,6 +1169,9 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
             if '->' not in inp:
                 continue
             shape = placeholder_shapes[inp.split('->')[0]]
+
+            if shape is None:
+                continue
             for dim in shape:
                 if isinstance(dim, tuple) or dim == -1:
                     raise Error("Cannot freeze input with dynamic shape: {}".format(shape))

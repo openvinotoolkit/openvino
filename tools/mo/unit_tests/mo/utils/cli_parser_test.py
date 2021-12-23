@@ -469,6 +469,22 @@ class TestShapesParsing(unittest.TestCase):
         for i in placeholder_values_ref.keys():
             npt.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
+    def test_get_shapes_and_freezing_with_scalar(self):
+        # shapes and value for freezing specified using --input command line parameter
+        argv_input = "inp1,inp2->157"
+        result_shapes, _ = get_placeholder_shapes(argv_input, None)
+        ref_shapes = {'inp1': np.array([]), 'inp2': np.array([])}
+        self.assertEqual(list(ref_shapes.keys()), list(result_shapes.keys()))
+        for i in ref_shapes.keys():
+            npt.assert_array_equal(result_shapes[i], ref_shapes[i])
+
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp2': 157}
+
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            self.assertEqual(placeholder_values_res[i], placeholder_values_ref[i])
+
     def test_get_shapes_several_inputs_several_shapes3(self):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3[5]->[1.0 1.0 2.0 3.0 5.0]"
