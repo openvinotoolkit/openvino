@@ -21,7 +21,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#define VISUALIZE_TESTS_TREE false
+#define VISUALIZE_TESTS_TREE true
 #define VISUALIZE_TREE_ROOT "/tmp/"
 
 using namespace testing;
@@ -150,16 +150,37 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     auto conv2 = std::make_shared<opset5::Convolution>(mul, weights2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
-    function_ref = ngraph::clone_function(*function);
 
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+
+        auto weights = opset5::Constant::create(element::f32, {weights_shape[0] - 4, weights_shape[1], weights_shape[2] , weights_shape[3]}, {0});
+        auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                          CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        auto relu = std::make_shared<opset5::Relu>(conv);
+
+        auto add_const = opset5::Constant::create(element::f32, Shape{1, 2, 1, 1}, {1});
+        auto add = std::make_shared<opset5::Add>(relu, add_const);
+
+        auto sub_const  = opset5::Constant::create(element::f32, Shape{2, 1, 1}, {1});
+        auto sub = std::make_shared<opset5::Subtract>(add, sub_const);
+
+        auto mul_const = opset5::Constant::create(element::f32, Shape{1, 2, 1, 1}, {1});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(sub, mul_const);
+
+        auto weights2 = opset5::Constant::create(element::f32, {weights_shape2[0], weights_shape2[1] - 4,  weights_shape2[2], weights_shape2[3]}, {1});
+        auto conv2 = std::make_shared<opset5::Convolution>(mul, weights2, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        function_ref = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBasic.svg").run_on_function(function);
-
-    pass::Manager m;
-    m.register_pass<pass::InitMasks>();
-    m.register_pass<pass::PropagateMasks>();
-    m.run_passes(function);
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
     compare_masks(*getMask(weights->output(0)),  Mask({{1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(conv->output(0)),     Mask({{}, {1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(relu->output(0)),     Mask({{}, {1, 2, 3, 4}, {}, {}}));
@@ -171,9 +192,12 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     compare_masks(*getMask(mul->output(0)), Mask({{}, {1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(weights2.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
@@ -198,15 +222,33 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     auto conv2 = std::make_shared<opset5::Convolution>(mul, weights2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
-    function_ref = ngraph::clone_function(*function);
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+        auto weights = opset5::Constant::create(element::f32, {weights_shape[0] - 1, weights_shape[1], weights_shape[2], weights_shape[3]}, {0});
+        auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                          CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        auto relu = std::make_shared<opset5::Relu>(conv);
 
+        auto sub_const = create_constant_with_zeros(Shape{5, 1, 1}, {{}, {}, {}});
+        auto sub = std::make_shared<opset5::Subtract>(relu, sub_const);
+
+        auto mul_const = create_constant_with_zeros(Shape{5, 1, 1}, {{2}, {}, {}});
+        auto mul = std::make_shared<opset5::Subtract>(sub, mul_const);
+
+        auto weights2 = opset5::Constant::create(element::f32, {weights_shape2[0], weights_shape2[1] - 1, weights_shape2[2], weights_shape2[3]}, {0});
+        auto conv2 = std::make_shared<opset5::Convolution>(mul, weights2, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        function_ref = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicConvolution.svg").run_on_function(function);
 
-    pass::Manager m;
-    m.register_pass<pass::InitMasks>();
-    m.register_pass<pass::PropagateMasks>();
-    m.run_passes(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
 
     compare_masks(*getMask(weights->output(0)),  Mask({{2}, {}, {}, {}}));
     compare_masks(*getMask(conv->output(0)),     Mask({{}, {2}, {}, {}}));
@@ -215,9 +257,12 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     compare_masks(*getMask(mul_const), Mask({{2}, {}, {}}));
     compare_masks(*getMask(weights2->output(0)), Mask({{}, {2}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
@@ -323,24 +368,48 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     auto conv2 = std::make_shared<opset5::Convolution>(max_pool, weights2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
-    function_ref = ngraph::clone_function(*function);
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+        auto weights_const_1 = create_constant_with_zeros({weights_shape[0] - 3, weights_shape[1], weights_shape[2], weights_shape[3]}  , {{}, {}, {}, {}});
+        weights_const_1.get_node_shared_ptr()->set_friendly_name("weights_1");
 
+        auto conv_1 = std::make_shared<opset5::Convolution>(input, weights_const_1, Strides(2, 1),
+                                                          CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        // Adding a couple of PassThrough operations
+        auto relu = std::make_shared<opset5::Relu>(conv_1);
+
+        auto clamp = std::make_shared<opset5::Clamp>(relu, 0, 6);
+
+        auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = std::make_shared<opset5::Pad>(clamp, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto max_pool = std::make_shared<opset5::MaxPool>(pad, Strides{1, 1},
+                                                          Shape{0, 0}, Shape{1, 1}, Shape{4, 4});
+
+        auto weights2 = opset5::Constant::create(element::f32, {weight_shape2[0], weight_shape2[1] - 3, weight_shape2[2], weight_shape2[3]}, {0});
+        auto conv2 = std::make_shared<opset5::Convolution>(max_pool, weights2, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        function_ref = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg").run_on_function(function);
-
-    pass::Manager m;
-    m.register_pass<pass::InitMasks>();
-    m.register_pass<pass::PropagateMasks>();
-    m.run_passes(function);
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
     compare_masks(*getMask(weights_const_1.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(relu->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(clamp->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(max_pool->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
@@ -461,33 +530,73 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     auto conv2 = std::make_shared<opset5::Convolution>(add, weights_2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
-    function_ref = ngraph::clone_function(*function);
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
 
+        auto weights1 = create_constant_with_zeros({weights_shape[0] - 4, weights_shape[1], weights_shape[2], weights_shape[3]}, {{}, {}, {}, {}});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights1, Strides(2, 1),
+                                                          CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        auto weights_group = opset5::Constant::create(element::i8,
+                                                      {
+                                                          weights_group_shape[0] - 4,
+                                                          weights_group_shape[1],
+                                                          weights_group_shape[2],
+                                                          weights_group_shape[3]
+                                                      }, {0});
+
+        auto convert = std::make_shared<opset5::Convert>(weights_group, element::f32);
+
+        auto sub_const = create_constant_with_zeros(Shape{4, 1, 1, 1}, {{}, {}, {}, {}});
+
+        auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
+
+        auto mul_const = create_constant_with_zeros(Shape{4, 1, 1, 1}, {{}, {}, {}, {}});
+        auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
+
+        auto reshape = std::make_shared<opset5::Reshape>(mul, opset5::Constant::create(element::i64, Shape{5}, {4, 1, 1, 3, 3}), false);
+
+        auto conv_group = std::make_shared<opset5::GroupConvolution>(conv1, reshape, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        auto add_const = create_constant_with_zeros(Shape{1, 4, 1, 1}, {{}, {}, {}, {}});;
+        auto add = std::make_shared<opset5::Add>(conv_group, add_const);
+
+        auto weights_2 = opset5::Constant::create(element::f32, {weight_shape2[0], weight_shape2[1] - 4, weight_shape2[2], weight_shape2[3]}, {0});
+        auto conv2 = std::make_shared<opset5::Convolution>(add, weights_2, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        function_ref = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksQuantizedGroupConvolution.svg").run_on_function(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
 
-    pass::Manager m;
-    m.register_pass<pass::Pruning>();
-    m.run_passes(function);
-
-    compare_masks(*getMask(weights1.get_node_shared_ptr()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(weights1.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0 , 1, 2, 3}, {}, {}}));
 
-    compare_masks(*getMask(weights_group->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
-    compare_masks(*getMask(sub->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
-    compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
-    compare_masks(*getMask(mul->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
-    compare_masks(*getMask(mul_const.get_node_shared_ptr()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(weights_group->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(sub->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(mul->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(mul_const.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
 
-    compare_masks(*getMask(reshape->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}, {}}));
+    compare_masks(*getMask(reshape->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}, {}}));
 
-    compare_masks(*getMask(conv_group->output(0)),  Mask({{}, {0 , 1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(conv_group->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
 
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
-    compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
 
+    compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
@@ -531,14 +640,58 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     auto conv2 = std::make_shared<opset5::Convolution>(fq, weights_2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
-    function_ref = ngraph::clone_function(*function);
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+        auto weights_1 = opset5::Constant::create(element::i8, {
+                                                                    weights_shape[0] - 5,
+                                                                    weights_shape[1],
+                                                                    weights_shape[2],
+                                                                    weights_shape[3],
+                                                                }, {0});
 
+        auto convert = std::make_shared<opset5::Convert>(weights_1, element::f32);
+
+        auto sub_const = create_constant_with_zeros(Shape{3, 1, 1, 1}, {{}, {}, {}, {}});
+
+        auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
+
+        auto mul_const = create_constant_with_zeros(Shape{3, 1, 1, 1}, {{}, {}, {}, {}});
+        auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
+
+        auto conv1 = std::make_shared<opset5::Convolution>(input, mul, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        auto add_const = create_constant_with_zeros(Shape{1, 3, 1, 1}, {{}, {}, {}, {}});;
+        auto add = std::make_shared<opset5::Add>(conv1, add_const);
+
+        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0});
+        auto input_high = opset5::Constant::create(element::f32, Shape{1, 1, 1, 1}, {20});
+        auto output_low = opset5::Constant::create(element::f32, Shape{}, {1});
+        auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
+        auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 8);
+
+        auto weights_2 = opset5::Constant::create(element::f32, {
+                                                                    weight_shape2[0],
+                                                                    weight_shape2[1] - 5,
+                                                                    weight_shape2[2],
+                                                                    weight_shape2[3],
+                                                                }, {0});
+        auto conv2 = std::make_shared<opset5::Convolution>(fq, weights_2, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        function_ref  = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor.svg").run_on_function(function);
 
-    pass::Manager m;
-    m.register_pass<pass::Pruning>();
-    m.run_passes(function);
+    {
+        pass::Manager m;
+        // Masks for fq input parammeters didn't saved after
+        // ShrinkWeights pass so pruning transformation is splitted
+        // on propagation and shrinking passes
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }    pass::Manager m;
 
     compare_masks(*getMask(weights_1->output(0)), Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
@@ -556,9 +709,12 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
 
     compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
@@ -602,40 +758,84 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     auto conv2 = std::make_shared<opset5::Convolution>(fq, weights_2, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
     function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
-    function_ref = ngraph::clone_function(*function);
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+        auto weights_1 = opset5::Constant::create(element::i8, {
+                                                                  weights_shape[0] - 5,
+                                                                  weights_shape[1],
+                                                                  weights_shape[2],
+                                                                  weights_shape[3]
+                                                                }, {0});
 
+        auto convert = std::make_shared<opset5::Convert>(weights_1, element::f32);
+
+        auto sub_const = create_constant_with_zeros(Shape{3, 1, 1, 1}, {{}, {}, {}, {}});
+
+        auto sub = std::make_shared<opset5::Subtract>(convert, sub_const);
+
+        auto mul_const = create_constant_with_zeros(Shape{3, 1, 1, 1}, {{}, {}, {}, {}});
+        auto mul = std::make_shared<opset5::Multiply>(sub, mul_const);
+
+        auto conv1 = std::make_shared<opset5::Convolution>(input, mul, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        auto add_const = create_constant_with_zeros(Shape{1, 3, 1, 1}, {{}, {}, {}, {}});;
+        auto add = std::make_shared<opset5::Add>(conv1, add_const);
+
+        auto input_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0});
+        auto input_high = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {20});
+        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {1});
+        auto output_high = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {10});
+        auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 8);
+
+        auto weights_2 = opset5::Constant::create(element::f32, {
+                                                                    weight_shape2[0],
+                                                                    weight_shape2[1] - 5,
+                                                                    weight_shape2[2],
+                                                                    weight_shape2[3]
+                                                                } , {0});
+        auto conv2 = std::make_shared<opset5::Convolution>(fq, weights_2, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        function_ref  = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerChannel.svg").run_on_function(function);
-
-    pass::Manager m;
-    m.register_pass<pass::InitMasks>();
-    m.register_pass<pass::PropagateMasks>();
-    m.run_passes(function);
-
-    compare_masks(*getMask(weights_1->output(0)), Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
+    {
+        pass::Manager m;
+        // Masks for fq input parammeters didn't saved after
+        // ShrinkWeights pass so pruning transformation is splitted
+        // on propagation and shrinking passes
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+    compare_masks(*getMask(weights_1->output(0)), Mask({{0, 1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
-    compare_masks(*getMask(sub->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
+    compare_masks(*getMask(sub->output(0)),  Mask({{0, 1, 2, 3, 4}, {}, {}, {}}));
 
     compare_masks(*getMask(mul_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
-    compare_masks(*getMask(mul->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
+    compare_masks(*getMask(mul->output(0)),  Mask({{0, 1, 2, 3, 4}, {}, {}, {}}));
 
-    compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
 
     compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
-    compare_masks(*getMask(add->output(0)),  Mask({{}, {0 , 1, 2, 3, 4},  {}, {}}));
+    compare_masks(*getMask(add->output(0)),  Mask({{}, {0, 1, 2, 3, 4},  {}, {}}));
 
-    compare_masks(*getMask(fq->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(fq->output(0)),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
 
-    compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(weights_2->output(0)),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
 
-    compare_masks(*getMask(fq->input(1).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
-    compare_masks(*getMask(fq->input(2).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
-    compare_masks(*getMask(fq->input(3).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
-    compare_masks(*getMask(fq->input(4).get_source_output()),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
-
+    compare_masks(*getMask(fq->input(1).get_source_output()),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(fq->input(2).get_source_output()),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(fq->input(3).get_source_output()),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(fq->input(4).get_source_output()),  Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
@@ -665,18 +865,57 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
     auto weights_out_conv = create_constant_with_zeros(weight_shape_out_conv, {{}, {}, {}, {}});
     auto conv_out = std::make_shared<opset5::Convolution>(concat, weights_out_conv, Strides(2, 1),
                                                        CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
-
     function = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
-    function_ref = ngraph::clone_function(*function);
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+        auto weights_1 = create_constant_with_zeros({
+                                                        weights_shape1[0] - 4,
+                                                        weights_shape1[1],
+                                                        weights_shape1[2],
+                                                        weights_shape1[3]
+                                                    }, {{}, {}, {}, {}});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights_1, Strides(2, 1),
+                                                          CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        auto weights_2 = create_constant_with_zeros({
+                                                        weights_shape2[0] - 4,
+                                                        weights_shape2[1],
+                                                        weights_shape2[2],
+                                                        weights_shape2[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(input, weights_2, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        auto weights_3 = create_constant_with_zeros({
+                                                        weights_shape3[0] - 4,
+                                                        weights_shape3[1],
+                                                        weights_shape3[2],
+                                                        weights_shape3[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(input, weights_3, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        auto concat = std::make_shared<opset5::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
+
+        auto weights_out_conv = create_constant_with_zeros({
+                                                                weight_shape_out_conv[0],
+                                                                weight_shape_out_conv[1] - 12,
+                                                                weight_shape_out_conv[2],
+                                                                weight_shape_out_conv[3],
+                                                            }, {{}, {}, {}, {}});
+        auto conv_out = std::make_shared<opset5::Convolution>(concat, weights_out_conv, Strides(2, 1),
+                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+        function_ref = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
+    }
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagation.svg").run_on_function(function);
-
-    pass::Manager m;
-    m.register_pass<pass::InitMasks>();
-    m.register_pass<pass::PropagateMasks>();
-    m.run_passes(function);
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
     compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
 
@@ -688,9 +927,12 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
 
     compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
     compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
@@ -723,18 +965,60 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
     auto weights_out_conv = create_constant_with_zeros(weight_shape_out_conv, {{}, {}, {}, {}});
     auto conv_out = std::make_shared<opset5::Convolution>(add, weights_out_conv, Strides(2, 1),
                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
-
     function = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
-    function_ref = ngraph::clone_function(*function);
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
+        auto weights_1 = create_constant_with_zeros({
+                                                        weights_shape1[0] - 4,
+                                                        weights_shape1[1],
+                                                        weights_shape1[2],
+                                                        weights_shape1[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv1 = std::make_shared<opset5::Convolution>(input, weights_1, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
 
+        auto weights_2 = create_constant_with_zeros({
+                                                        weights_shape2[0] - 4,
+                                                        weights_shape2[1],
+                                                        weights_shape2[2],
+                                                        weights_shape2[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv2 = std::make_shared<opset5::Convolution>(input, weights_2, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        auto weights_3 = create_constant_with_zeros({
+                                                        weights_shape3[0] - 4,
+                                                        weights_shape3[1],
+                                                        weights_shape3[2],
+                                                        weights_shape3[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv3 = std::make_shared<opset5::Convolution>(input, weights_3, Strides(2, 1),
+                                                           CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        auto concat = std::make_shared<opset5::Concat>(OutputVector{conv1->output(0), conv2->output(0), conv3->output(0)}, 1);
+
+        auto add_const = create_constant_with_zeros(Shape{1, 20, 1, 1}, {{}, {}, {}, {}});
+        auto add = std::make_shared<opset5::Add>(concat, add_const);
+
+        auto weights_out_conv = create_constant_with_zeros({
+                                                        weight_shape_out_conv[0],
+                                                        weight_shape_out_conv[1] - 12,
+                                                        weight_shape_out_conv[2],
+                                                        weight_shape_out_conv[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv_out = std::make_shared<opset5::Convolution>(add, weights_out_conv, Strides(2, 1),
+                                                              CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
+
+        function_ref = std::make_shared<Function>(NodeVector{conv_out}, ParameterVector{input});
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUp.svg").run_on_function(function);
-
-    pass::Manager m;
-    m.register_pass<pass::InitMasks>();
-    m.register_pass<pass::PropagateMasks>();
-    m.run_passes(function);
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
     compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
 
@@ -750,9 +1034,12 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
 
     compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
     compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
@@ -815,37 +1102,63 @@ TEST_F(TransformationTestsF, PruneConstAddMulwBranchingTest) {
     auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
     auto weights = create_constant_with_zeros(weightsShape, {{1, 2, 3}, {}, {}, {}});
     auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
-                                                                      CoordinateDiff(2, 0),
-                                                                      CoordinateDiff(2, 0),
-                                                                      Strides(2, 1));
+                                                      CoordinateDiff(2, 0),
+                                                      CoordinateDiff(2, 0),
+                                                      Strides(2, 1));
     auto add_const = std::make_shared<opset5::Constant>(element::f32, Shape{1, weightsShape[0], 1, 1}, std::vector<double>({1}));
     auto add = std::make_shared<opset5::Add>(conv, add_const);
     auto shape_1 = Shape{weightsShape[0], weightsShape[0], 1, 1};
     auto weights_1 = create_constant_with_zeros(shape_1, {{1, 2, 3}, {}, {}, {}});
     auto conv_1 = std::make_shared<opset5::Convolution>(add, weights_1, Strides(2, 1),
-                                                                        CoordinateDiff(2, 0),
-                                                                        CoordinateDiff(2, 0),
-                                                                        Strides(2, 1));
+                                                        CoordinateDiff(2, 0),
+                                                        CoordinateDiff(2, 0),
+                                                        Strides(2, 1));
     auto mul = std::make_shared<opset5::Multiply>(conv_1, conv);
     auto end_conv_shape = Shape{weightsShape[1], weightsShape[0], 1, 1};
     auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{1, 2, 3}, {}, {}, {}});
     auto end_conv = std::make_shared<opset5::Convolution>(mul, weights_end_conv, Strides(2, 1),
-                                                                                    CoordinateDiff(2, 0),
-                                                                                    CoordinateDiff(2, 0),
-                                                                                    Strides(2, 1));
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
     // function which is processed by Pruning transformation
     function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "ConstAddMullBranching");
-
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+        auto weights = create_constant_with_zeros({
+                                                        weightsShape[0] - 3,
+                                                        weightsShape[1],
+                                                        weightsShape[2],
+                                                        weightsShape[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                          CoordinateDiff(2, 0),
+                                                          CoordinateDiff(2, 0),
+                                                          Strides(2, 1));
+        auto add_const = std::make_shared<opset5::Constant>(element::f32, Shape{1, weightsShape[0] - 3, 1, 1}, std::vector<double>({1}));
+        auto add = std::make_shared<opset5::Add>(conv, add_const);
+        auto shape_1 = Shape{weightsShape[0] - 3, weightsShape[0] - 3, 1, 1};
+        auto weights_1 = create_constant_with_zeros(shape_1, {{}, {}, {}, {}});
+        auto conv_1 = std::make_shared<opset5::Convolution>(add, weights_1, Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
+        auto mul = std::make_shared<opset5::Multiply>(conv_1, conv);
+        auto end_conv_shape = Shape{weightsShape[1], weightsShape[0] - 3, 1, 1};
+        auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{1, 2, 3}, {}, {}, {}});
+        auto end_conv = std::make_shared<opset5::Convolution>(mul, weights_end_conv, Strides(2, 1),
+                                                              CoordinateDiff(2, 0),
+                                                              CoordinateDiff(2, 0),
+                                                              Strides(2, 1));
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "ConstAddMullBranching");
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConstAddMulwBranchingTest.svg").run_on_function(function);
-
-    // reference function to get reference accuracy results
-    function_ref = ngraph::clone_function(*function);
-
-    pass::Manager m;
-    m.register_pass<pass::Pruning>();
-    m.run_passes(function);
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
 
@@ -854,9 +1167,12 @@ TEST_F(TransformationTestsF, PruneConstAddMulwBranchingTest) {
 
     compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(end_conv->output(0)),  Mask({{}, {}, {}, {}}));
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
@@ -951,17 +1267,46 @@ TEST_F(TransformationTestsF, PruneAvgPoolReducelayerTest) {
 
     // function which is processed by Pruning transformation
     function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "ReduceMeanBranching");
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+        auto weights = create_constant_with_zeros({
+                                                        weightsShape[0] - 3,
+                                                        weightsShape[1],
+                                                        weightsShape[2],
+                                                        weightsShape[3],
+                                                    }, {{}, {}, {}, {}});
+        auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
+                                                                          CoordinateDiff(2, 0),
+                                                                          CoordinateDiff(2, 0),
+                                                                          Strides(2, 1));
+        auto reduce_const = opset5::Constant::create(element::i64, Shape{2}, {2, 3});
+        auto reduce_mean = std::make_shared<opset5::ReduceMean>(conv, reduce_const, true);
 
+        auto conv_1_shape = Shape{weightsShape[0] - 3, weightsShape[0] - 3, 1, 1};
+        auto conv_1_weights = create_constant_with_zeros(conv_1_shape, {{}, {}, {}, {}});
+        auto conv_1 = std::make_shared<opset5::Convolution>(reduce_mean, conv_1_weights, Strides(2, 1),
+                                                            CoordinateDiff(2, 0),
+                                                            CoordinateDiff(2, 0),
+                                                            Strides(2, 1));
+
+        auto add = std::make_shared<opset5::Add>(conv_1, conv);
+
+        auto end_conv_shape = Shape{weightsShape[1], weightsShape[0] - 3, 1, 1};
+        auto weights_end_conv = create_constant_with_zeros(end_conv_shape, {{}, {}, {}, {}});
+        auto end_conv = std::make_shared<opset5::Convolution>(add, weights_end_conv, Strides(2, 1),
+                                                                                     CoordinateDiff(2, 0),
+                                                                                     CoordinateDiff(2, 0),
+                                                                                     Strides(2, 1));
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "ReduceMeanBranching");
+    }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneAvgPoolReducelayerTest.svg").run_on_function(function);
-
-    // reference function to get reference accuracy results
-    function_ref = ngraph::clone_function(*function);
-
-    pass::Manager m;
-    m.register_pass<pass::Pruning>();
-    m.run_passes(function);
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
 
@@ -970,9 +1315,12 @@ TEST_F(TransformationTestsF, PruneAvgPoolReducelayerTest) {
 
     compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(end_conv->output(0)),  Mask({{}, {}, {}, {}}));
-
+    {
+        pass::Manager m;
+        m.register_pass<pass::ShrinkWeights>();
+        m.run_passes(function);
+    }
     disable_rt_info_check();
-    disable_function_comparison();
     enable_accuracy_check();
 }
 
