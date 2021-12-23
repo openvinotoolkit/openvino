@@ -1,6 +1,4 @@
 # OpenVINO™ Family {#openvino_docs_resources_openvino_family}
-==================
-   
    
 @sphinxdirective
 .. raw:: html
