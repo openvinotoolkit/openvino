@@ -4,7 +4,10 @@
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from onnx import helper  # pylint: disable=import-error
+from onnx import TensorProto  # pylint: disable=import-error
+
+from common.onnx_layer_test_class import Caffe2OnnxLayerTest  # pylint: disable=import-error
 
 
 class TestBatchNormalization(Caffe2OnnxLayerTest):
@@ -18,9 +21,6 @@ class TestBatchNormalization(Caffe2OnnxLayerTest):
         #
         #   Create ONNX model
         #
-
-        from onnx import helper
-        from onnx import TensorProto
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, shape)
@@ -116,18 +116,21 @@ class TestBatchNormalization(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_bn(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_bn(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_bn_opset6(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_bn_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_bn_opset7(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_bn_opset7(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, opset=7, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)

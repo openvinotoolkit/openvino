@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
-from unit_tests.utils.graph import build_graph
+
+from unit_tests.utils.graph import build_graph  # pylint: disable=import-error
+from common.layer_test_class import check_ir_version  # pylint: disable=import-error
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest  # pylint: disable=import-error
 
 
 class TestClip(OnnxRuntimeLayerTest):
@@ -29,7 +30,7 @@ class TestClip(OnnxRuntimeLayerTest):
 
         nodes = []
         if opset < 11:
-            args = dict()
+            args = {}
             if min is not None:
                 args['min'] = min
             if max is not None:
@@ -121,7 +122,8 @@ class TestClip(OnnxRuntimeLayerTest):
                 nodes_attributes = {
                     'input': {'kind': 'op', 'type': 'Parameter'},
                     'input_data': {'shape': shape, 'kind': 'data'},
-                    'input_const_data': {'kind': 'data', 'value': [min] if min is not None else [max]},
+                    'input_const_data': {'kind': 'data',
+                                         'value': [min] if min is not None else [max]},
                     'const': {'kind': 'op', 'type': 'Const'},
                     'const_data': {'shape': [], 'kind': 'data'},
                     'node': {'kind': 'op', 'type': 'Minimum' if max is not None else 'Maximum'},
@@ -158,12 +160,16 @@ class TestClip(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_clip_opset6(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, opset=6), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_clip_opset6(self, params, ie_device, precision, ir_version, temp_dir,
+                         use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version, opset=6), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_clip_opset11(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version, opset=11), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_clip_opset11(self, params, ie_device, precision, ir_version, temp_dir,
+                          use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version, opset=11), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)

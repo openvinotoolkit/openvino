@@ -175,36 +175,45 @@ class TestSqueeze(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_squeeze_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_squeeze_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_squeeze_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_squeeze_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_squeeze_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_squeeze_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_squeeze_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_squeeze_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_squeeze_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_squeeze_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_squeeze_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_squeeze_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_squeeze_const_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_squeeze_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_squeeze_const_5D(self, params, ie_device, precision, ir_version, temp_dir,
+                              use_new_frontend):
+        self._test(*self.create_squeeze_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_squeeze_const_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_squeeze_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_squeeze_const_4D(self, params, ie_device, precision, ir_version, temp_dir,
+                              use_new_frontend):
+        self._test(*self.create_squeeze_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_squeeze_const_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_squeeze_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_squeeze_const_3D(self, params, ie_device, precision, ir_version, temp_dir,
+                              use_new_frontend):
+        self._test(*self.create_squeeze_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)

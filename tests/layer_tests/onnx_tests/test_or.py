@@ -254,24 +254,30 @@ class TestOr(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_or_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_or_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                          use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_or(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_or(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_or_one_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_one_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_or_one_const(self, params, ie_device, precision, ir_version, temp_dir,
+                          use_new_frontend):
+        self._test(*self.create_net_one_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_or_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_or_const(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)

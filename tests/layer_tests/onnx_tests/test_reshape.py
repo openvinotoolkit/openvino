@@ -69,9 +69,11 @@ class TestReshape(Caffe2OnnxLayerTest):
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': input_shape, 'kind': 'data'},
-                'input_data_1': {'shape': [len(output_shape)], 'value': output_shape, 'kind': 'data'},
+                'input_data_1': {'shape': [len(output_shape)], 'value': output_shape,
+                                 'kind': 'data'},
                 'const_1': {'kind': 'op', 'type': 'Const'},
-                'const_data_1': {'shape': [len(output_shape)], 'value': None, 'kind': 'data'},  # 'value': output_shape,
+                'const_data_1': {'shape': [len(output_shape)], 'value': None, 'kind': 'data'},
+                # 'value': output_shape,
                 'reshape': {'kind': 'op', 'type': 'Reshape'},
                 'reshape_data': {'shape': output_shape, 'kind': 'data'},
                 'result': {'kind': 'op', 'type': 'Result'}
@@ -229,55 +231,70 @@ class TestReshape(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.precommit
-    def test_reshape_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_reshape_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                  use_new_frontend):
+        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.precommit
-    def test_reshape_4D_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_reshape_4D_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                  use_new_frontend):
+        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_3D_precommit)
     @pytest.mark.precommit
-    def test_reshape_3D_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_reshape_3D_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                  use_new_frontend):
+        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_reshape_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_reshape_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_reshape_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_reshape_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_reshape_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_reshape_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_reshape_const_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reshape_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_reshape_const_5D(self, params, ie_device, precision, ir_version, temp_dir,
+                              use_new_frontend):
+        self._test(*self.create_reshape_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_reshape_const_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reshape_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_reshape_const_4D(self, params, ie_device, precision, ir_version, temp_dir,
+                              use_new_frontend):
+        self._test(*self.create_reshape_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_reshape_const_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reshape_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_reshape_const_3D(self, params, ie_device, precision, ir_version, temp_dir,
+                              use_new_frontend):
+        self._test(*self.create_reshape_net_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)

@@ -141,7 +141,6 @@ class TestIdentity(Caffe2OnnxLayerTest):
         ref_net = None
 
         if check_ir_version(10, None, ir_version):
-
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': shape, 'kind': 'data'},
@@ -172,12 +171,15 @@ class TestIdentity(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_identity(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_identity(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_identity_const(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_identity_const(self, params, ie_device, precision, ir_version, temp_dir,
+                            use_new_frontend):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)

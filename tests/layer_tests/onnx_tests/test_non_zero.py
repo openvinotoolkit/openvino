@@ -55,7 +55,8 @@ class TestNonZero(Caffe2OnnxLayerTest):
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': shape, 'kind': 'data'},
-                'node': {'kind': 'op', 'type': 'NonZero', 'version': 'opset3', 'output_type': 'i64'},
+                'node': {'kind': 'op', 'type': 'NonZero', 'version': 'opset3',
+                         'output_type': 'i64'},
                 'node_data': {'shape': [len(shape), np.prod(shape)], 'kind': 'data'},
                 'result': {'kind': 'op', 'type': 'Result'}
             }
@@ -175,20 +176,25 @@ class TestNonZero(Caffe2OnnxLayerTest):
             output_value=np.array([0, 0, 1, 1, 1, 3, 0, 2]).reshape((2, 4)),
         ),
         dict(
-            input_value=np.array([1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0]).reshape((2, 3, 3)),
+            input_value=np.array([1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0]).reshape(
+                (2, 3, 3)),
             output_value=np.array([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 2, 2, 2,
-                                   0, 0, 0, 1, 1, 2, 0, 2, 1, 0, 1, 2, 0, 1, 2, 0, 2, 1]).reshape((3, 12)),
+                                   0, 0, 0, 1, 1, 2, 0, 2, 1, 0, 1, 2, 0, 1, 2, 0, 2, 1]).reshape(
+                (3, 12)),
         ),
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_non_zero(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_non_zero(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_const_data)
     @pytest.mark.nightly
-    def test_non_zero_const(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_non_zero_const(self, params, ie_device, precision, ir_version, temp_dir,
+                            use_new_frontend):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)

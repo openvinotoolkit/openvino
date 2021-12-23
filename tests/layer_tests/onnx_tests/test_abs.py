@@ -3,9 +3,14 @@
 
 import pytest
 
-from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+import onnx  # pylint: disable=import-error
+from onnx import helper  # pylint: disable=import-error
+from onnx import TensorProto  # pylint: disable=import-error
+import numpy as np
+
 from unit_tests.utils.graph import build_graph
+from common.layer_test_class import check_ir_version  # pylint: disable=import-error
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest  # pylint: disable=import-error
 
 
 class TestAbs(OnnxRuntimeLayerTest):
@@ -20,10 +25,6 @@ class TestAbs(OnnxRuntimeLayerTest):
         #
         #   Create ONNX model
         #
-
-        import onnx
-        from onnx import helper
-        from onnx import TensorProto
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, shape)
@@ -77,11 +78,6 @@ class TestAbs(OnnxRuntimeLayerTest):
         #
         #   Create ONNX model
         #
-
-        import onnx
-        from onnx import helper
-        from onnx import TensorProto
-        import numpy as np
 
         concat_axis = 0
         output_shape = shape.copy()
@@ -167,12 +163,13 @@ class TestAbs(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_abs(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_abs(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_abs_const(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_abs_const(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)

@@ -86,12 +86,15 @@ class TestWhere(OnnxRuntimeLayerTest):
                  dict(condition_shape=[15, 3, 5], shape_than=[15, 1, 5], else_shape=[15, 3, 5]),
                  dict(condition_shape=[2, 3, 4, 5], shape_than=[], else_shape=[2, 3, 4, 5]),
                  dict(condition_shape=[2, 3, 4, 5], shape_than=[5], else_shape=[2, 3, 4, 5]),
-                 dict(condition_shape=[2, 3, 4, 5], shape_than=[2, 1, 1, 5], else_shape=[2, 3, 4, 5]),
-                 dict(condition_shape=[2, 3, 4, 5], shape_than=[2, 3, 4, 5], else_shape=[1, 3, 1, 5]),
-                ]
+                 dict(condition_shape=[2, 3, 4, 5], shape_than=[2, 1, 1, 5],
+                      else_shape=[2, 3, 4, 5]),
+                 dict(condition_shape=[2, 3, 4, 5], shape_than=[2, 3, 4, 5],
+                      else_shape=[1, 3, 1, 5]),
+                 ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_where(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_where(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)

@@ -68,7 +68,6 @@ class TestPRelu(Caffe2OnnxLayerTest):
         #
         ref_net = None
         if check_ir_version(10, None, ir_version):
-
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': shape, 'kind': 'data'},
@@ -114,48 +113,64 @@ class TestPRelu(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_scalar)
     @pytest.mark.nightly
-    def test_prelu_opset6_scalar(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_prelu_opset6_scalar(self, params, ie_device, precision, ir_version, temp_dir,
+                                 use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_shared_channels)
     @pytest.mark.nightly
-    def test_prelu_opset6_shared_channels(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_prelu_opset6_shared_channels(self, params, ie_device, precision, ir_version, temp_dir,
+                                          use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_scalar)
     @pytest.mark.nightly
-    def test_prelu_opset7_scalar(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_prelu_opset7_scalar(self, params, ie_device, precision, ir_version, temp_dir,
+                                 use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, opset=7, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_shared_channels)
     @pytest.mark.nightly
-    def test_prelu_opset7_shared_channels(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_prelu_opset7_shared_channels(self, params, ie_device, precision, ir_version, temp_dir,
+                                          use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, opset=7, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_prelu_shared_channels_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_prelu_shared_channels_precommit(self, params, ie_device, precision, ir_version,
+                                             temp_dir, use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_scalar_precommit)
     @pytest.mark.precommit
-    def test_prelu_scalar_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_prelu_scalar_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                    use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_scalar)
     @pytest.mark.nightly
-    def test_prelu_scalar(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_prelu_scalar(self, params, ie_device, precision, ir_version, temp_dir,
+                          use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_shared_channels)
     @pytest.mark.nightly
-    def test_prelu_shared_channels(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_prelu_shared_channels(self, params, ie_device, precision, ir_version, temp_dir,
+                                   use_new_frontend):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)

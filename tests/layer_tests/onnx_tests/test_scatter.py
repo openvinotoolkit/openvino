@@ -70,7 +70,8 @@ class TestScatters(Caffe2OnnxLayerTest):
                 '3_updates': {'kind': 'op', 'type': 'Parameter'},
                 'updates_data': {'shape': updates_shape, 'kind': 'data'},
 
-                'const_indata': {'kind': 'data', 'value': np.int64(axis) if axis is not None else np.int64(0)},
+                'const_indata': {'kind': 'data',
+                                 'value': np.int64(axis) if axis is not None else np.int64(0)},
                 'const': {'kind': 'op', 'type': 'Const'},
                 'const_data': {'kind': 'data'},
 
@@ -101,7 +102,8 @@ class TestScatters(Caffe2OnnxLayerTest):
 test_data = [
     dict(input_shape=[1, 5], indices_shape=[1, 2], updates_shape=[1, 2],
          axis=1, output_shape=[1, 5]),
-    dict(input_shape=[1, 256, 200, 272], indices_shape=[1, 256, 200, 272], updates_shape=[1, 256, 200, 272],
+    dict(input_shape=[1, 256, 200, 272], indices_shape=[1, 256, 200, 272],
+         updates_shape=[1, 256, 200, 272],
          axis=None, output_shape=[1, 256, 200, 272])]
 
 
@@ -110,9 +112,10 @@ class TestScatter(TestScatters):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_scatter(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_scatter(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
 
 class TestScatterElements(TestScatters):
@@ -120,6 +123,8 @@ class TestScatterElements(TestScatters):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_scatter_elements(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_scatter_elements(self, params, ie_device, precision, ir_version, temp_dir,
+                              use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)

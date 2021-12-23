@@ -17,7 +17,8 @@ class TestDequantizeLinear(OnnxRuntimeLayerTest):
                                                    dtype=self.inp_type)
         return inputs_dict
 
-    def create_dequanize_linear(self, shape, y_scale: np.array, y_zero_point=None, axis=None, opset=10, ir_version='10'):
+    def create_dequanize_linear(self, shape, y_scale: np.array, y_zero_point=None, axis=None,
+                                opset=10, ir_version='10'):
         """
             ONNX net                              IR net
 
@@ -137,16 +138,26 @@ class TestDequantizeLinear(OnnxRuntimeLayerTest):
         return onnx_net, ref_net
 
     test_data = [
-        dict(shape=[8], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[8], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
-        dict(shape=[2, 4], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[2, 4], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
-        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
-        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
-        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(128, dtype=np.uint8)),
-        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=np.float), y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[8], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[8], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[2, 4], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[2, 4], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[2, 4, 6], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[2, 4, 6, 8], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(1, dtype=np.int8)),
+        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(128, dtype=np.uint8)),
+        dict(shape=[2, 4, 6, 8, 10], y_scale=np.array(2, dtype=np.float),
+             y_zero_point=np.array(1, dtype=np.int8)),
     ]
     test_data_def_zerop = [
         dict(shape=[8], y_scale=np.array(2, dtype=np.float)),
@@ -182,24 +193,32 @@ class TestDequantizeLinear(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_def_zerop)
     @pytest.mark.nightly
     @pytest.mark.xfail(reason='Defualt zero_point fails on onnxruntime')
-    def test_quantize_linear_def_zerop_opset10(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_dequanize_linear(**params, ir_version=ir_version), ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_quantize_linear_def_zerop_opset10(self, params, ie_device, precision, ir_version,
+                                               temp_dir, use_new_frontend):
+        self._test(*self.create_dequanize_linear(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_quantize_linear_opset10(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_dequanize_linear(**params, ir_version=ir_version), ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_quantize_linear_opset10(self, params, ie_device, precision, ir_version, temp_dir,
+                                     use_new_frontend):
+        self._test(*self.create_dequanize_linear(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data + test_data_def_zerop)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='DequantizeLinear-13 is unsupported in MO')
-    def test_quantize_linear_opset13(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_dequanize_linear(**params, opset=13, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir)
+    def test_quantize_linear_opset13(self, params, ie_device, precision, ir_version, temp_dir,
+                                     use_new_frontend):
+        self._test(*self.create_dequanize_linear(**params, opset=13, ir_version=ir_version),
+                   ie_device, precision,
+                   ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_axis)
     @pytest.mark.nightly
     @pytest.mark.skip(reason='DequantizeLinear-13 is unsupported in MO')
-    def test_quantize_linear_axis_opset13(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_dequanize_linear(**params, opset=13, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir)
+    def test_quantize_linear_axis_opset13(self, params, ie_device, precision, ir_version, temp_dir,
+                                          use_new_frontend):
+        self._test(*self.create_dequanize_linear(**params, opset=13, ir_version=ir_version),
+                   ie_device, precision,
+                   ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

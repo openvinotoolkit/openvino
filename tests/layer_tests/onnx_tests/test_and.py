@@ -4,9 +4,12 @@
 import numpy as np
 import pytest
 
-from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
-from unit_tests.utils.graph import build_graph
+from onnx import helper  # pylint: disable=import-error
+from onnx import TensorProto  # pylint: disable=import-error
+
+from unit_tests.utils.graph import build_graph  # pylint: disable=import-error
+from common.layer_test_class import check_ir_version  # pylint: disable=import-error
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest  # pylint: disable=import-error
 
 
 class TestAnd(OnnxRuntimeLayerTest):
@@ -25,9 +28,6 @@ class TestAnd(OnnxRuntimeLayerTest):
         #
         #   Create ONNX model
         #
-
-        from onnx import helper
-        from onnx import TensorProto
 
         input1 = helper.make_tensor_value_info('input1', TensorProto.BOOL, shape1)
         input2 = helper.make_tensor_value_info('input2', TensorProto.BOOL, shape2)
@@ -83,9 +83,6 @@ class TestAnd(OnnxRuntimeLayerTest):
         #
         #   Create ONNX model
         #
-
-        from onnx import helper
-        from onnx import TensorProto
 
         input = helper.make_tensor_value_info('input', TensorProto.BOOL, shape1)
         output = helper.make_tensor_value_info('output', TensorProto.BOOL, shape1)
@@ -156,9 +153,6 @@ class TestAnd(OnnxRuntimeLayerTest):
         #
         #   Create ONNX model
         #
-
-        from onnx import helper
-        from onnx import TensorProto
 
         concat_axis = 0
         output_shape = list(shape1)
@@ -251,18 +245,22 @@ class TestAnd(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_and(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_and(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_and_one_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_one_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_and_one_const(self, params, ie_device, precision, ir_version, temp_dir,
+                           use_new_frontend):
+        self._test(*self.create_net_one_const(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_and_const(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_and_const(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)

@@ -168,7 +168,9 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
         #   Please, specify 'type': 'Input' for input node
         #   Moreover, do not forget to validate ALL layer attributes!!!
         #
-        constant = np.power(np.sum(a=np.abs(np.power(constant, reduce_p)), axis=tuple(_axes), keepdims=keep_dims), 1 / reduce_p)
+        constant = np.power(
+            np.sum(a=np.abs(np.power(constant, reduce_p)), axis=tuple(_axes), keepdims=keep_dims),
+            1 / reduce_p)
         ref_net = None
         if check_ir_version(10, None, ir_version):
             nodes_attributes = {
@@ -217,31 +219,42 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.precommit
-    def test_reduce_lp_precommit(self, params, keep_dims, reduce_p, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_reduce_lp_precommit(self, params, keep_dims, reduce_p, ie_device, precision,
+                                 ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p,
+                                          ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.nightly
-    def test_reduce_lp(self, params, keep_dims, reduce_p, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_reduce_lp(self, params, keep_dims, reduce_p, ie_device, precision, ir_version,
+                       temp_dir, use_new_frontend):
+        self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p,
+                                          ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.precommit
-    def test_reduce_lp_const_precommit(self, params, keep_dims, reduce_p, ie_device, precision, ir_version, temp_dir):
+    def test_reduce_lp_const_precommit(self, params, keep_dims, reduce_p, ie_device, precision,
+                                       ir_version, temp_dir, use_new_frontend):
         self._test(
-            *self.create_reduce_lp_const(**params, keep_dims=keep_dims, reduce_p=reduce_p, ir_version=ir_version),
-            ie_device, precision, ir_version, temp_dir=temp_dir)
+            *self.create_reduce_lp_const(**params, keep_dims=keep_dims, reduce_p=reduce_p,
+                                         ir_version=ir_version),
+            ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.nightly
-    def test_reduce_lp_const(self, params, keep_dims, reduce_p, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_reduce_lp_const(**params, keep_dims=keep_dims, reduce_p=reduce_p,ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_reduce_lp_const(self, params, keep_dims, reduce_p, ie_device, precision, ir_version,
+                             temp_dir, use_new_frontend):
+        self._test(*self.create_reduce_lp_const(**params, keep_dims=keep_dims, reduce_p=reduce_p,
+                                                ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)

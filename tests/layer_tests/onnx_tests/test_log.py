@@ -12,7 +12,8 @@ from unit_tests.utils.graph import build_graph
 class TestLog(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.rand(*(inputs_dict[input])).astype(np.float32) * 255 + 0.5
+            inputs_dict[input] = np.random.rand(*(inputs_dict[input])).astype(
+                np.float32) * 255 + 0.5
         return inputs_dict
 
     def create_net(self, shape, ir_version):
@@ -170,24 +171,30 @@ class TestLog(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_log_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_log_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                           use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_log(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_log(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.nightly
-    def test_log_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_log_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                 use_new_frontend):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_log_const(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_log_const(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)

@@ -139,23 +139,31 @@ class TestImageScaler(Caffe2OnnxLayerTest):
                  dict(shape=[6, 8, 10, 12], scale=4.5)]
 
     @pytest.mark.parametrize("params", test_data_precommit)
-    def test_image_scaler_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_image_scaler_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                    use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_image_scaler(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+    def test_image_scaler(self, params, ie_device, precision, ir_version, temp_dir,
+                          use_new_frontend):
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version,
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data_precommit)
-    def test_image_scaler_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_image_scaler_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
+                                          use_new_frontend):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_image_scaler_const(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_image_scaler_const(self, params, ie_device, precision, ir_version, temp_dir,
+                                use_new_frontend):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_new_frontend=use_new_frontend)
