@@ -15,7 +15,7 @@ using SoftMaxTestParams = std::tuple<
         ElementType,                                    // inPrecision
         ElementType,                                    // outPrecision
         InputShape,                                     // Dynamic shape + Target static shapes
-        size_t,                                         // axis
+        int64_t,                                        // axis
         TargetDevice,                                   // targetDevice
         Config                                          // config
 >;
