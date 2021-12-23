@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
+from openvino.tools.mo.front.kaldi.add_reshape_transpose_around_conv_pool import AddReshapeTransposeAroundConvPool
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, connect_front, const, regular_op, shaped_parameter
 
@@ -56,7 +56,7 @@ class ReplaceConvolutionReshapeTests(unittest.TestCase):
             *connect_front('conv', 'out_op')
         ], nodes_with_edges_only=True)
         graph.stage = 'front'
-        ReplaceConvolutionReshape.find_and_replace_pattern(graph)
+        AddReshapeTransposeAroundConvPool.find_and_replace_pattern(graph)
 
         ref_graph = build_graph(self.ref_nodes,
                                 [
@@ -98,7 +98,7 @@ class ReplaceConvolutionReshapeTests(unittest.TestCase):
             *connect_front('pool', 'out_op')
         ], nodes_with_edges_only=True)
         graph.stage = 'front'
-        ReplaceConvolutionReshape.find_and_replace_pattern(graph)
+        AddReshapeTransposeAroundConvPool.find_and_replace_pattern(graph)
 
         ref_graph = build_graph(self.ref_nodes,
                                 [

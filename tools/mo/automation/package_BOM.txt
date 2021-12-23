@@ -201,7 +201,7 @@ openvino/tools/mo/front/interpolate_reshape.py
 openvino/tools/mo/front/InterpolateNormalizer.py
 openvino/tools/mo/front/InterpolateV1ToInterpolate.py
 openvino/tools/mo/front/kaldi/__init__.py
-openvino/tools/mo/front/kaldi/add_reshape_around_convolution.py
+openvino/tools/mo/front/kaldi/add_reshape_transpose_around_conv_pool.py
 openvino/tools/mo/front/kaldi/apply_counts.py
 openvino/tools/mo/front/kaldi/extractor.py
 openvino/tools/mo/front/kaldi/extractors/__init__.py

@@ -101,7 +101,7 @@ def update_time_dim_for_start_convolution(graph):
             param_node.time_dim = conv_node.soft_get('kernel')[1] - 1
 
 
-class ReplaceConvolutionReshape(FrontReplacementPattern):
+class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
     """
        This pass adds Reshapes and Transposes around a Convolution/Pooling layer for reshaping from NH to NCHW
        For example:
@@ -143,7 +143,7 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
             node_name = node.soft_get('name', node.id)
 
             # create Reshape before convolution
-            # shape = [in_shape[0], t, patch_stride, C= in_shape[1]/(patch_stride*t)]
+            # shape = [in_shape[0], t, patch_stride, C = in_shape[1]/(patch_stride*t)]
             # or before pooling
             # shape = [in_shape[0], t, in_shape[1]/(pool_stride*t), pool_stride]
             time_dim = node.in_port(0).get_source().node.time_dim + 1

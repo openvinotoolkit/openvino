@@ -18,10 +18,10 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
         return [MoveEmbeddedInputsToInputs]
 
     def run_before(self):
-        from openvino.tools.mo.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
+        from openvino.tools.mo.front.kaldi.add_reshape_transpose_around_conv_pool import AddReshapeTransposeAroundConvPool
         from openvino.tools.mo.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
         from openvino.tools.mo.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
-        return [MemoryOffsetAdjustment, ReplaceConvolutionReshape, SplitRecurrentMemoryOffset]
+        return [MemoryOffsetAdjustment, AddReshapeTransposeAroundConvPool, SplitRecurrentMemoryOffset]
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(op='timeheightconvolutioncomponent'):
