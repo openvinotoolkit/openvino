@@ -1,3 +1,4 @@
+DO NOT MERGE - 4 REFERENCE ONLY
 # OpenVINO™ Toolkit
 [![Stable release](https://img.shields.io/badge/version-2021.4.2-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2021.4.2)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
