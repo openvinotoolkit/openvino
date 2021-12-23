@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "MKLDNNPlugin")
+set(TARGET_NAME "ov_intel_cpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
@@ -16,11 +16,13 @@ if (ENABLE_CPU_DEBUG_CAPS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_DEBUG_CAPS")
 endif()
 
-file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-                          ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+                          ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER)
+addVersionDefines(${CMAKE_CURRENT_SOURCE_DIR}/src/mkldnn_plugin.cpp CI_BUILD_NUMBER)
+
+add_subdirectory(thirdparty)
 
 # create plugin
 
@@ -41,14 +43,11 @@ if(SELECTIVE_BUILD STREQUAL "ON")
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
-                                             inference_engine
-                                             inference_engine_transformations
-                                             inference_engine_lp_transformations
                                              ov_shape_inference
                                              inference_engine_snippets)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
-target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
@@ -57,8 +56,8 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX2 ANY
-                    nodes/proposal_imp.cpp
-        API         nodes/proposal_imp.hpp
+                    src/nodes/proposal_imp.cpp
+        API         src/nodes/proposal_imp.hpp
         NAME        proposal_exec
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
@@ -71,13 +70,11 @@ add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 link_system_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_snippets,INTERFACE_INCLUDE_DIRECTORIES>
-                                              PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
+                                              PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/src
                                                       $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)

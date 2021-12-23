@@ -39,7 +39,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libMKLDNNPlugin.so"
+        "runtime/lib/intel64/libov_intel_cpu_plugin.so"
       ]
     },
     "gpu": {
