@@ -40,33 +40,33 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     switch (attrs[0].type()) {
-        case proto::AttrType::INT:
-            return attrs[0].i();
-        case proto::AttrType::INTS:
-            return std::vector<int32_t>(attrs[0].ints().begin(), attrs[0].ints().end());
-        case proto::AttrType::FLOAT:
-            return attrs[0].f();
-        case proto::AttrType::FLOATS:
-            return std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
-        case proto::AttrType::STRING:
-            return attrs[0].s();
-        case proto::AttrType::STRINGS:
-            return std::vector<std::string>(attrs[0].strings().begin(), attrs[0].strings().end());
-        case proto::AttrType::LONG:
-            return attrs[0].l();
-        case proto::AttrType::LONGS:
-            return std::vector<int64_t>(attrs[0].longs().begin(), attrs[0].longs().end());
-        case proto::AttrType::BOOLEAN:
-            return attrs[0].b();
-        case proto::AttrType::BOOLEANS:
-            return std::vector<bool>(attrs[0].bools().begin(), attrs[0].bools().end());
-        case proto::AttrType::BLOCK:
-            return attrs[0].block_idx();
-        case proto::AttrType::BLOCKS:
-            return std::vector<std::int32_t>(attrs[0].blocks_idx().begin(), attrs[0].blocks_idx().end());
-        default:
-            // Type is not supported by decoder
-            return {};
+    case proto::AttrType::INT:
+        return attrs[0].i();
+    case proto::AttrType::INTS:
+        return std::vector<int32_t>(attrs[0].ints().begin(), attrs[0].ints().end());
+    case proto::AttrType::FLOAT:
+        return attrs[0].f();
+    case proto::AttrType::FLOATS:
+        return std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
+    case proto::AttrType::STRING:
+        return attrs[0].s();
+    case proto::AttrType::STRINGS:
+        return std::vector<std::string>(attrs[0].strings().begin(), attrs[0].strings().end());
+    case proto::AttrType::LONG:
+        return attrs[0].l();
+    case proto::AttrType::LONGS:
+        return std::vector<int64_t>(attrs[0].longs().begin(), attrs[0].longs().end());
+    case proto::AttrType::BOOLEAN:
+        return attrs[0].b();
+    case proto::AttrType::BOOLEANS:
+        return std::vector<bool>(attrs[0].bools().begin(), attrs[0].bools().end());
+    case proto::AttrType::BLOCK:
+        return attrs[0].block_idx();
+    case proto::AttrType::BLOCKS:
+        return std::vector<std::int32_t>(attrs[0].blocks_idx().begin(), attrs[0].blocks_idx().end());
+    default:
+        // Type is not supported by decoder
+        return {};
     }
 }
 

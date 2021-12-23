@@ -22,7 +22,8 @@ public:
     Output<ov::Node> get_input(const std::string& port_name) const override;
     Output<ov::Node> get_input(const std::string& port_name, int port_idx) const override;
 
-    ov::Any get_attribute_as_any (const std::string& name) const override;
+    ov::Any get_attribute_as_any(const std::string& name) const override;
+
 protected:
     const ov::frontend::onnx::Node& m_context;
     OutputVector m_inputs;

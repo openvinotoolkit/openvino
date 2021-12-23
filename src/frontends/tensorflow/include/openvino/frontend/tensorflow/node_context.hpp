@@ -69,7 +69,7 @@ public:
     }
 
 protected:
-    ov::Any get_attribute_as_any (const std::string& name) const override {
+    ov::Any get_attribute_as_any(const std::string& name) const override {
         auto res = m_decoder.get_attribute(name);
         FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
         return res;

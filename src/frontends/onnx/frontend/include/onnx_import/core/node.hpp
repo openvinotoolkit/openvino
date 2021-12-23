@@ -198,5 +198,5 @@ namespace frontend {
 namespace onnx {
 using ngraph::onnx_import::Node;
 }
-}
-}
+}  // namespace frontend
+}  // namespace ov

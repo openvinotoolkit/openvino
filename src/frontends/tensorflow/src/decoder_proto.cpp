@@ -34,75 +34,74 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     switch (attrs[0].value_case()) {
-        case ::tensorflow::AttrValue::ValueCase::kB:
-            return attrs[0].b();
-        case ::tensorflow::AttrValue::ValueCase::kF:
-            return attrs[0].f();
-        case ::tensorflow::AttrValue::ValueCase::kS:
-            return attrs[0].s();
-        case ::tensorflow::AttrValue::ValueCase::kI:
-            return attrs[0].i();
-        case ::tensorflow::AttrValue::ValueCase::kShape: {
-            std::vector<ov::Dimension> dims;
-            const auto& tf_shape = attrs[0].shape();
-            for (int i = 0; i < tf_shape.dim_size(); i++) {
-                dims.emplace_back(tf_shape.dim(i).size());
-            }
-            return ov::PartialShape(dims);
+    case ::tensorflow::AttrValue::ValueCase::kB:
+        return attrs[0].b();
+    case ::tensorflow::AttrValue::ValueCase::kF:
+        return attrs[0].f();
+    case ::tensorflow::AttrValue::ValueCase::kS:
+        return attrs[0].s();
+    case ::tensorflow::AttrValue::ValueCase::kI:
+        return attrs[0].i();
+    case ::tensorflow::AttrValue::ValueCase::kShape: {
+        std::vector<ov::Dimension> dims;
+        const auto& tf_shape = attrs[0].shape();
+        for (int i = 0; i < tf_shape.dim_size(); i++) {
+            dims.emplace_back(tf_shape.dim(i).size());
         }
-        case ::tensorflow::AttrValue::ValueCase::kTensor:
-            return attrs[0].tensor();
+        return ov::PartialShape(dims);
+    }
+    case ::tensorflow::AttrValue::ValueCase::kTensor:
+        return attrs[0].tensor();
 
-        case ::tensorflow::AttrValue::ValueCase::kType:
-            return attrs[0].type();
+    case ::tensorflow::AttrValue::ValueCase::kType:
+        return attrs[0].type();
 
-        case ::tensorflow::AttrValue::ValueCase::kList:
-        {
-            const auto& list = attrs[0].list();
-            if (list.i_size())
-                return std::vector<int64_t>(list.i().begin(), list.i().end());
+    case ::tensorflow::AttrValue::ValueCase::kList: {
+        const auto& list = attrs[0].list();
+        if (list.i_size())
+            return std::vector<int64_t>(list.i().begin(), list.i().end());
 
-            if (list.f_size())
-                return std::vector<float>(list.f().begin(), list.f().end());
+        if (list.f_size())
+            return std::vector<float>(list.f().begin(), list.f().end());
 
-            if (list.s_size())
-                return std::vector<std::string>(list.s().begin(), list.s().end());
+        if (list.s_size())
+            return std::vector<std::string>(list.s().begin(), list.s().end());
 
-            if (list.b_size())
-                return std::vector<bool>(list.b().begin(), list.b().end());
+        if (list.b_size())
+            return std::vector<bool>(list.b().begin(), list.b().end());
 
-            if (list.shape_size()) {
-                std::vector<ov::PartialShape> res;
-                for (const auto& it : list.shape()) {
-                    std::vector<ov::Dimension> dims;
-                    for (int i = 0; i < it.dim_size(); i++) {
-                        dims.emplace_back(it.dim(i).size());
-                    }
-                    res.emplace_back(dims);
+        if (list.shape_size()) {
+            std::vector<ov::PartialShape> res;
+            for (const auto& it : list.shape()) {
+                std::vector<ov::Dimension> dims;
+                for (int i = 0; i < it.dim_size(); i++) {
+                    dims.emplace_back(it.dim(i).size());
                 }
+                res.emplace_back(dims);
             }
-
-            if (list.type_size()) {
-                std::vector<::tensorflow::DataType> res;
-                for (int idx = 0; idx < list.type_size(); ++idx) {
-                    res.emplace_back(list.type(idx));
-                }
-                return res;
-            }
-
-            if (list.tensor_size())
-                return std::vector<::tensorflow::TensorProto>(list.tensor().begin(), list.tensor().end());
-
-            if (list.func_size())
-                return std::vector<::tensorflow::NameAttrList>(list.func().begin(), list.func().end());
         }
-        case ::tensorflow::AttrValue::ValueCase::kPlaceholder:
-            return attrs[0].placeholder();
-        case ::tensorflow::AttrValue::ValueCase::kFunc:
-            return attrs[0].func();
-        default:
-            // type is not supported by decoder
-            return {};
+
+        if (list.type_size()) {
+            std::vector<::tensorflow::DataType> res;
+            for (int idx = 0; idx < list.type_size(); ++idx) {
+                res.emplace_back(list.type(idx));
+            }
+            return res;
+        }
+
+        if (list.tensor_size())
+            return std::vector<::tensorflow::TensorProto>(list.tensor().begin(), list.tensor().end());
+
+        if (list.func_size())
+            return std::vector<::tensorflow::NameAttrList>(list.func().begin(), list.func().end());
+    }
+    case ::tensorflow::AttrValue::ValueCase::kPlaceholder:
+        return attrs[0].placeholder();
+    case ::tensorflow::AttrValue::ValueCase::kFunc:
+        return attrs[0].func();
+    default:
+        // type is not supported by decoder
+        return {};
     }
 }
 

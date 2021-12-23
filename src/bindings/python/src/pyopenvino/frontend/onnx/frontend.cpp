@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "frontend.hpp"
+
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "frontend.hpp"
+#include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
-#include "openvino/frontend/onnx/extension/conversion.hpp"
 
 namespace py = pybind11;
 
@@ -21,19 +22,17 @@ void regclass_onnx_FrontEnd(py::module m) {
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::onnx::FrontEnd";
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const ov::frontend::InputModel::Ptr&) const>(&FrontEnd::convert),
+            static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const ov::frontend::InputModel::Ptr&) const>(
+                &FrontEnd::convert),
             py::arg("model"));
 
     fem.def("convert",
             static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Model>&) const>(&FrontEnd::convert),
             py::arg("function"));
 
-    fem.def("decode",
-            &FrontEnd::decode,
-            py::arg("model"));
+    fem.def("decode", &FrontEnd::decode, py::arg("model"));
 
-    fem.def("get_name",
-            &FrontEnd::get_name);
+    fem.def("get_name", &FrontEnd::get_name);
 
     fem.def("add_extension",
             static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(&FrontEnd::add_extension));
@@ -45,11 +44,9 @@ void regclass_onnx_FrontEnd(py::module m) {
 
 void regclass_onnx_NodeContext(py::module m) {
     py::class_<ov::frontend::onnx::NodeContext,
-            std::shared_ptr<ov::frontend::onnx::NodeContext>,
-            ov::frontend::NodeContext<ov::OutputVector>>
-            ext(m, "NodeContextONNX", py::dynamic_attr());
+               std::shared_ptr<ov::frontend::onnx::NodeContext>,
+               ov::frontend::NodeContext<ov::OutputVector>>
+        ext(m, "NodeContextONNX", py::dynamic_attr());
 }
 
-void regclass_onnx_ConversionExtension(py::module m) {
-
-}
+void regclass_onnx_ConversionExtension(py::module m) {}

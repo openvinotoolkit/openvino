@@ -8,8 +8,8 @@
 #include <iostream>
 #include <type_traits>
 
-#include "openvino/frontend/exception.hpp"
 #include "openvino/core/extension.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -29,11 +29,13 @@ public:
     virtual Output<Node> get_input(const std::string& name, int idx) const = 0;
     virtual Output<Node> get_input(const std::string& name) const = 0;
 
-    virtual const std::string& get_op_type() const { return m_op_type; }
+    virtual const std::string& get_op_type() const {
+        return m_op_type;
+    }
 
     /// Returns node attribute by name
     template <class T>
-    T get_attribute (const std::string& name) const {
+    T get_attribute(const std::string& name) const {
         auto res = get_attribute_as_any(name);
         FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
         return res.as<T>();
@@ -41,7 +43,7 @@ public:
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <class T>
-    T get_attribute (const std::string& name, const T& def) const {
+    T get_attribute(const std::string& name, const T& def) const {
         auto res = get_attribute_as_any(name);
         if (!res.empty()) {
             return res.as<T>();
@@ -55,7 +57,8 @@ public:
         return get_attribute_as_any(name).empty();
     }
 
-    virtual ov::Any get_attribute_as_any (const std::string& name) const = 0;
+    virtual ov::Any get_attribute_as_any(const std::string& name) const = 0;
+
 private:
     std::string m_op_type;
 };

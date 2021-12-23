@@ -154,8 +154,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_telemetry = telemetry;
     } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_transformation_extensions.push_back(transformation);
-    } else if (auto common_conv_ext =
-                   std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         for (int i = 1; i < 13; ++i)
             ngraph::onnx_import::register_operator(common_conv_ext->get_op_type(),

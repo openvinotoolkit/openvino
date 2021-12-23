@@ -81,7 +81,7 @@ public:
                                                const std::vector<OutPortName>& required_pdpd_out_names) const;
 
 protected:
-    ov::Any get_attribute_as_any (const std::string& name) const override {
+    ov::Any get_attribute_as_any(const std::string& name) const override {
         auto res = decoder.get_attribute(name);
         FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
         return res;

@@ -327,6 +327,8 @@ public:
         return detail::attribute::get_value<T>(*m_attribute_proto);
     }
 
+    ov::Any get_any() const;
+
 private:
     const ONNX_NAMESPACE::AttributeProto* m_attribute_proto;
 };
