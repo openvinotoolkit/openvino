@@ -81,7 +81,7 @@ html_theme_options = {
 }
 
 html_context = {
-    'current_version': '2021.4',
+    'current_version': 'master',
     'current_language': 'English',
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
     'versions': (('Latest', '/latest'), ('master', '/master'), ('2021.4', '/2021.4'),
