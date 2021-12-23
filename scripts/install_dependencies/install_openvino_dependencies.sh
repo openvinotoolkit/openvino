@@ -8,7 +8,7 @@ set -e
 #===================================================================================================
 # Option parsing
 
-all_comp=(opencv_req opencv_opt python dev myriad installer cl_compiler)
+all_comp=(dev myriad cl_compiler python)
 os=${os:-auto}
 
 # public options
@@ -54,7 +54,7 @@ fi
 #  Selftest
 
 if [ -n "$selftest" ] ; then
-    for image in centos:7 ubuntu:18.04 ubuntu:20.04 ; do
+    for image in ubuntu:18.04 ubuntu:20.04 redhat/ubi8 ; do
         for opt in  "-h" "-p" "-e -p" "-n" "-n -e" "-y" "-y -e" ; do
             echo "||"
             echo "|| Test $image / '$opt'"
@@ -86,7 +86,7 @@ if [ "$os" == "auto" ] ; then
       os="rhel8"
     fi
     case $os in
-        centos7|rhel8|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        rhel8|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -155,29 +155,6 @@ elif [ "$os" == "rhel8" ] ; then
     )
     extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
-elif [ "$os" == "centos7" ] ; then
-
-    # find -name *.so -exec objdump -p {} \; | grep NEEDED | sort -u | cut -c 23- | xargs -t -n1 yum -q whatprovides
-
-    pkgs_opencv_req=(gtk2)
-    pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl sudo)
-    pkgs_myriad=(libusbx)
-    pkgs_installer=()
-    pkgs_cl_compiler=()
-    pkgs_opencv_opt=(
-        gstreamer1
-        gstreamer1-plugins-bad-free
-        gstreamer1-plugins-good
-        gstreamer1-plugins-ugly-free
-    )
-
-    if [ -n "$extra" ] ; then
-        # 1 RPMFusion
-        extra_repos+=(https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm)
-        pkgs_opencv_opt+=(ffmpeg-libs)
-    fi
-
 else
     echo "Internal script error: invalid OS after check (package selection)" >&2
     exit 3
@@ -226,7 +203,7 @@ if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] ; then
 
     apt-get update && apt-get install --no-install-recommends $iopt ${pkgs[@]}
 
-elif [ "$os" == "centos7" ] || [ "$os" == "rhel8" ] ; then
+elif [ "$os" == "rhel8" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"
