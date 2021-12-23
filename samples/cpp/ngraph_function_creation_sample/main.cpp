@@ -12,6 +12,7 @@
 
 // clang-format off
 #include "openvino/openvino.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "ngraph/util.hpp"
 
@@ -108,7 +109,7 @@ std::shared_ptr<ov::Model> createNgraphFunction(const std::string& path_to_weigh
     Shape padBeginShape{0, 0};
     Shape padEndShape{0, 0};
 
-    auto maxPoolingNodeFirst = std::make_shared<op::v1::MaxPool>(addNodeFirst->output(0),
+    auto maxPoolingNodeFirst = std::make_shared<opset1::MaxPool>(addNodeFirst->output(0),
                                                                  Strides{2, 2},
                                                                  padBeginShape,
                                                                  padEndShape,
@@ -138,7 +139,7 @@ std::shared_ptr<ov::Model> createNgraphFunction(const std::string& path_to_weigh
         std::make_shared<opset8::Add>(convolutionNodeSecond->output(0), addSecondConstantNode->output(0));
 
     // -------MAXPOOL 2--------
-    auto maxPoolingNodeSecond = std::make_shared<op::v1::MaxPool>(addNodeSecond->output(0),
+    auto maxPoolingNodeSecond = std::make_shared<opset1::MaxPool>(addNodeSecond->output(0),
                                                                   Strides{2, 2},
                                                                   padBeginShape,
                                                                   padEndShape,
@@ -152,7 +153,7 @@ std::shared_ptr<ov::Model> createNgraphFunction(const std::string& path_to_weigh
         std::make_shared<opset8::Constant>(element::Type_t::i64, reshapeFirstShape, data + reshapeOffset);
 
     auto reshapeFirstNode =
-        std::make_shared<op::v1::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
+        std::make_shared<opset8::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
 
     // -------MatMul 1---------
     auto matMulFirstShape = Shape{500, 800};
@@ -179,7 +180,7 @@ std::shared_ptr<ov::Model> createNgraphFunction(const std::string& path_to_weigh
         std::make_shared<opset8::Constant>(element::Type_t::i64, reshapeSecondShape, data + reshapeOffset);
 
     auto reshapeSecondNode =
-        std::make_shared<op::v1::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
+        std::make_shared<opset8::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
 
     // -------MatMul 2---------
     auto matMulSecondShape = Shape{10, 500};

@@ -1,5 +1,12 @@
-Inference Engine Memory primitives {#openvino_docs_IE_DG_Memory_primitives}
-=====================================================================
+# Inference Engine Memory Primitives {#openvino_docs_IE_DG_Memory_primitives}
+
+## Inference Memory Primitives (C++)
+
+@sphinxdirective
+.. raw:: html
+
+    <div id="switcher-cpp" class="switcher-anchor">C++</div>
+@endsphinxdirective
 
 ## Blobs
 
@@ -18,7 +25,7 @@ InferenceEngine::Blob::Ptr blob = InferenceEngine::make_shared_blob<float>(tdesc
 
 This class allows to create planar layouts using the standard formats (like <code>InferenceEngine::Layout::NCDHW</code>, <code>InferenceEngine::Layout::NCHW</code>, <code>InferenceEngine::Layout::NC</code>, <code>InferenceEngine::Layout::C</code> and etc) and also non-planar layouts using <code>InferenceEngine::BlockingDesc</code>.
 
-In order to create a complex layout you should use <code>InferenceEngine::BlockingDesc</code> which allows to define the blocked memory with offsets and strides.
+In order to create a complex layout you should use <code>InferenceEngine::BlockingDesc</code>, which allows you to define the blocked memory with offsets and strides.
 
 ## Examples
 
@@ -27,13 +34,12 @@ In order to create a complex layout you should use <code>InferenceEngine::Blocki
 InferenceEngine::BlockingDesc({1, 20, 20, 25}, {0, 2, 3, 1}); // or
 InferenceEngine::BlockingDesc({1, 20, 20, 25}, InferenceEngine::Layout::NHWC);
 </pre>
-2. If you have a memory with real dimensions {N: 1, C: 25, H: 20, W: 20} but with channels which are blocked by 8, you can define it using next parameters:<br/>
+2. If you have a memory with real dimensions {N: 1, C: 25, H: 20, W: 20} but with channels that are blocked by 8, you can define it using next parameters:<br/>
 <pre class="brush:cpp">
 InferenceEngine::BlockingDesc({1, 4, 20, 20, 8}, {0, 1, 2, 3, 1})
 </pre>
 3. Also you can set strides and offsets if layout contains it.
-4. If you have a complex blob layout and you don't want to calculate the real offset to data you can use methods
-<code>InferenceEngine::TensorDesc::offset(size_t l)</code> or <code>InferenceEngine::TensorDesc::offset(SizeVector v)</code>.<br/>
+4. If you have a complex blob layout and you don't want to calculate the real offset to data you can use the <code>InferenceEngine::TensorDesc::offset(size_t l)</code> or <code>InferenceEngine::TensorDesc::offset(SizeVector v)</code> methods.<br/>
 For example:
 <pre class="brush:cpp">
 InferenceEngine::BlockingDesc blk({1, 4, 20, 20, 8}, {0, 1, 2, 3, 1});
@@ -43,8 +49,7 @@ tdesc.offset(1); // = 8
 tdesc.offset({0, 0, 0, 2}); // = 16
 tdesc.offset({0, 1, 0, 2}); // = 17
 </pre>
-5. If you would like to create a TensorDesc with a planar format and for N dimensions (N can be different 1, 2, 4 and etc), you can use the method
-<code>InferenceEngine::TensorDesc::getLayoutByDims</code>.
+5. If you would like to create a TensorDesc with a planar format and for N dimensions (N can be different 1, 2, 4 and etc), you can use the <code>InferenceEngine::TensorDesc::getLayoutByDims</code> method.
 <pre class="brush:cpp">
 InferenceEngine::TensorDesc::getLayoutByDims({1}); // InferenceEngine::Layout::C
 InferenceEngine::TensorDesc::getLayoutByDims({1, 2}); // InferenceEngine::Layout::NC
