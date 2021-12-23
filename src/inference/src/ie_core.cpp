@@ -98,7 +98,7 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         }
     } else if (deviceName_.find("BATCH:") == 0) {
         deviceName_ = "BATCH";
-        config_[CONFIG_KEY(AUTO_BATCH)] = deviceName.substr(6);
+        config_[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = deviceName.substr(6);
     } else {
         ie::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
@@ -648,7 +648,7 @@ public:
                                        : deviceNameWithBatchSize;
                 if (bDetectionOutput) {
                     deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-                    config_with_batch[CONFIG_KEY(AUTO_BATCH)] = batchConfig;
+                    config_with_batch[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
                 } else {
                     deviceName = "BATCH:" + batchConfig;
                 }

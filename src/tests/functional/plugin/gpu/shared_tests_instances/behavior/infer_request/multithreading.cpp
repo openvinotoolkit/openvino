@@ -19,7 +19,7 @@ const std::vector<std::map<std::string, std::string>> autoconfigs = {
 };
 
 const std::vector<std::map<std::string, std::string>> auto_batch_configs = {
-        {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU}},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,

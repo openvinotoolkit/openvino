@@ -21,7 +21,7 @@
 namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
-std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH), CONFIG_KEY(AUTO_BATCH_TIMEOUT)};
+std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CONFIG_KEY(AUTO_BATCH_TIMEOUT)};
 
 template <Precision::ePrecision precision>
 Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob, size_t batch_id, size_t batch_num) {
@@ -520,7 +520,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
 
 RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine::ParamMap& config) {
     auto cfg = config;
-    auto it = cfg.find(CONFIG_KEY(AUTO_BATCH));
+    auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     if (it == cfg.end())
         IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
 
@@ -550,7 +550,7 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
         const auto val = kvp.second;
         if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
             IE_THROW() << "Unsupported config key: " << name;
-        if (name == CONFIG_KEY(AUTO_BATCH)) {
+        if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
             ParseBatchDevice(val);
         } else if (name == CONFIG_KEY(AUTO_BATCH_TIMEOUT)) {
             try {
@@ -612,7 +612,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     }
 
     auto fullConfig = mergeConfigs(_config, config);
-    auto device_batch = fullConfig.find(CONFIG_KEY(AUTO_BATCH));
+    auto device_batch = fullConfig.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     if (device_batch == fullConfig.end()) {
         IE_THROW() << "KEY_AUTO_BATCH key is not set for BATCH device";
     }
@@ -708,7 +708,7 @@ InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(
     const std::map<std::string, std::string>& config) const {
     auto cfg = config;
     for (auto c : cfg) {
-        if (c.first == CONFIG_KEY(AUTO_BATCH)) {
+        if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
             auto val = c.second;
             cfg.erase(c.first);
             auto metaDevice = ParseMetaDevice(val, cfg);

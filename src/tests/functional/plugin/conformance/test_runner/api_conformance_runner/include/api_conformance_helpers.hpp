@@ -45,7 +45,7 @@ inline const std::pair<std::string, std::string> generateDefaultHeteroConfig() {
 
 inline const std::pair<std::string, std::string> generateDefaultBatchConfig() {
     // auto-batching with batch 1 (no real batching in fact, but full machinery is in action)
-    return { CONFIG_KEY(AUTO_BATCH) , std::string(ConformanceTests::targetDevice)};
+    return { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ConformanceTests::targetDevice)};
 }
 
 inline const std::vector<std::map<std::string, std::string>> generateConfigs(const std::string& targetDevice,

@@ -21,7 +21,7 @@ namespace {
 
 
     const std::vector<std::map<std::string, std::string>> autoBatchConfigs = {
-            {{CONFIG_KEY(AUTO_BATCH) , CommonTestUtils::DEVICE_GPU}},
+            {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU}},
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,

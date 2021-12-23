@@ -118,6 +118,17 @@ DECLARE_METRIC_VALUE(BATCHED_BLOB);
  * String value for metric name is "RANGE_FOR_STREAMS".
  */
 DECLARE_METRIC_KEY(RANGE_FOR_STREAMS, std::tuple<unsigned int, unsigned int>);
+/**
+ * @brief Metric to query information optimal batch size for the given device and the network
+ *
+ * Metric returns a value of unsigned int type,
+ * Returns optimal batch size for a given network on the given device. The returned value is aligned to power of 2.
+ * Also, MODEL_PTR is the required option for this metric since the optimal batch size depends on the model,
+ * so if the MODEL_PTR is not given, the result of the metric is always 1.
+ * For the GPU the metric is queried automatically whenever the OpenVINO performance hint for the throughput is used,
+ * so that the result (>1) governs the automatic batching (transparently to the application).
+ * The automatic batching can be disabled with ALLOW_AUTO_BATCHING set to NO
+ */
 DECLARE_METRIC_KEY(OPTIMAL_BATCH_SIZE, unsigned int);
 
 /**
@@ -245,7 +256,7 @@ DECLARE_CONFIG_VALUE(THROUGHPUT);
  */
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS);
 /**
- * @brief (Optional) config key that governs Auto-Batching
+ * @brief (Optional) config key that governs Auto-Batching (with YES/NO values, below)
  */
 DECLARE_CONFIG_KEY(ALLOW_AUTO_BATCHING);
 
@@ -258,7 +269,7 @@ DECLARE_CONFIG_VALUE(NO);
 /**
  * @brief Auto-batching configuration, string for the device + batch size, e.g. "GPU(4)"
  */
-DECLARE_CONFIG_KEY(AUTO_BATCH);
+DECLARE_CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG);
 /**
  * @brief Auto-batching configuration: string with timeout (in ms), e.g. "100"
  */
