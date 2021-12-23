@@ -60,6 +60,7 @@ public:
         InferenceEngine::InputsDataMap networkInputs,
         InferenceEngine::OutputsDataMap networkOutputs) override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     virtual ~AutoBatchExecutableNetwork();
 
 protected:
@@ -120,7 +121,6 @@ class AutoBatchInferencePlugin : public InferenceEngine::IInferencePlugin {
 public:
     AutoBatchInferencePlugin();
     virtual ~AutoBatchInferencePlugin() = default;
-
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
         const InferenceEngine::CNNNetwork& network,
         const std::map<std::string, std::string>& config) override;

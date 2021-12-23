@@ -395,6 +395,10 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
         _callbackExecutor);
 }
 
+std::shared_ptr<ngraph::Function> AutoBatchExecutableNetwork::GetExecGraphInfo() {
+    return _network->GetExecGraphInfo() ? _network->GetExecGraphInfo() : _networkWithoutBatch->GetExecGraphInfo();
+}
+
 void AutoBatchExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) {
     auto timeout = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
     if (timeout == config.end() || config.size() > 1) {
@@ -515,6 +519,16 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
     metaDevice.config = getDeviceConfig(metaDevice.deviceName);
 
+    auto cfg = config;
+    // check that no irrelevant config-keys left
+    for (auto k : config) {
+        const auto& name = k.first;
+        auto found_in_supported_cfg = std::find(supported_configKeys.begin(), supported_configKeys.end(), k.first);
+        auto found_in_device_cfg = metaDevice.config.find(k.first);
+        if (found_in_device_cfg == metaDevice.config.end() && found_in_supported_cfg == supported_configKeys.end()) {
+            IE_THROW() << "Unsupported config key: " << name;
+        }
+    }
     return metaDevice;
 }
 
