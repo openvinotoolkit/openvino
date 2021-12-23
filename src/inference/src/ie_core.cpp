@@ -6,7 +6,6 @@
 
 #include <sys/stat.h>
 
-#include <ie_performance_hints.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -524,102 +523,12 @@ public:
     void ApplyAutoBatching(const ie::CNNNetwork& network,
                            std::string& deviceName,
                            std::map<std::string, std::string>& config_with_batch) {
-        std::string deviceNameWithBatchSize, deviceNameWithoutBatch, pluginName;
         if (deviceName.find("BATCH") != std::string::npos) {
-            // explicitly enabled Auto-Batching
+            // explicitly enabled Auto-Batching e.g. in the tests
             auto pos = deviceName.find_first_of(":");
             if (pos != std::string::npos) {
-                deviceNameWithBatchSize = deviceName.substr(pos + 1);
-                deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
-            }
-        } else {
-            // check whether  the Auto-Batching is disabled explicitly
-            const auto& batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-            if (batch_mode != config_with_batch.end()) {
-                const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
-                // no need for this config key in the rest of loading
-                config_with_batch.erase(batch_mode);
-                if (disabled)
-                    return;
-            }
-            // check whether if the Auto-Batching is applicable to the device
-            deviceNameWithoutBatch = deviceName;
-            auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
-            pluginName = device._deviceName;
-            std::vector<std::string> metrics =
-                GetCPPPluginByName(pluginName).get_metric(METRIC_KEY(SUPPORTED_METRICS), {});
-            auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
-            if (metrics.end() == it)
-                return;
-            // if applicable, the  Auto-Batching is implicitly enabled via the performance hints
-            bool bThroughputEnabledInPlugin =
-                GetConfig(pluginName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
-            const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
-            if ((!bThroughputEnabledInPlugin &&
-                 (mode == config_with_batch.end() || mode->second != CONFIG_VALUE(THROUGHPUT))))
-                return;
-        }
-
-        try {
-            // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
-            // the below code is a placeholder for the WIP (22.1) functionality
-            // that will check the reshaping by the batch is robust (CVS-51744)
-            const InputsDataMap inputInfo = network.getInputsInfo();
-            bool atLeastOneInputIsBatched = false;
-            for (const InputsDataMap::value_type& item : inputInfo) {
-                auto layout = item.second->getTensorDesc().getLayout();
-                if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
-                    layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-                    layout == InferenceEngine::Layout::NDHWC) {
-                    if (item.first == "im_info"  // WA for faster-rcnn* and alikes (CVS-74085)
-                        || 1 != item.second->getTensorDesc().getDims()[0])  // do not reshape/re-batch  batched networks
-                        IE_THROW(NotImplemented)
-                            << "Auto-batching does not reshape/re-batch originally batched networks!";
-                    else
-                        atLeastOneInputIsBatched = true;
-                }
-            }
-            bool atLeastOneOutputIsBatched = false;
-            const OutputsDataMap outputInfo = network.getOutputsInfo();
-            for (const OutputsDataMap::value_type& item : outputInfo) {
-                auto layout = item.second->getTensorDesc().getLayout();
-                if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
-                    layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-                    layout == InferenceEngine::Layout::NDHWC) {
-                    if (1 != item.second->getTensorDesc()
-                                 .getDims()[0])  // do not reshape/re-batch originally batched networks
-                        IE_THROW(NotImplemented)
-                            << "Auto-batching does not reshape/re-batch originally batched networks!";
-                    else
-                        atLeastOneOutputIsBatched = true;
-                }
-            }
-            if (!atLeastOneInputIsBatched || !atLeastOneOutputIsBatched)
-                IE_THROW(NotImplemented)
-                    << "Auto-batching supports only networks featuring inputs/outputs with the batched layouts !";
-
-            unsigned int requests = 0;
-            unsigned int optimalBatchSize = 0;
-            if (deviceNameWithBatchSize.empty()) {
-                // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
-                // let's query the optimal batch size
-                std::map<std::string, ie::Parameter> options;
-                options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network.getFunction());
-                optimalBatchSize = GetCPPPluginByName(pluginName)
-                                       .get_metric(METRIC_KEY(OPTIMAL_BATCH_SIZE), options)
-                                       .as<unsigned int>();
-                auto res =
-                    GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
-                requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
-                const auto& reqs = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-                if (reqs != config_with_batch.end())
-                    requests =
-                        static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
-                if (requests) {
-                    optimalBatchSize = std::max(1u, std::min(requests, optimalBatchSize));
-                }
-            }
-            if (optimalBatchSize > 1 || !deviceNameWithBatchSize.empty()) {
+                auto deviceNameWithBatchSize = deviceName.substr(pos + 1);
+                auto deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
                 auto function = network.getFunction();
                 // have to execute the DetectionOutput separately (without batching)
                 // as this layer mix-in the values from the different inputs (batch id)
@@ -629,9 +538,6 @@ public:
                 for (auto&& node : function->get_ops()) {
                     auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
                         for (size_t n = 0; n < nd->get_input_size(); n++) {
-                            // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
-                            // so type_info name check is enough
-                            // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
                             if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
                                 return true;
                         }
@@ -646,18 +552,13 @@ public:
                         node->get_rt_info()["affinity"] = "BATCH";
                     }
                 }
-                auto batchConfig = deviceNameWithBatchSize.empty()
-                                       ? deviceNameWithoutBatch + "(" + std::to_string(optimalBatchSize) + ")"
-                                       : deviceNameWithBatchSize;
                 if (bDetectionOutput) {
                     deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-                    config_with_batch[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
+                    config_with_batch[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = deviceNameWithBatchSize;
                 } else {
-                    deviceName = "BATCH:" + batchConfig;
+                    deviceName = "BATCH:" + deviceNameWithBatchSize;
                 }
             }
-        } catch (std::exception& e) {
-            // No Auto-Batching enabled
         }
     }
 

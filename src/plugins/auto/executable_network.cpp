@@ -281,11 +281,6 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
     auto& deviceList = context.metaDevices;
     bool curDevIsCPU = (device.find("CPU") != std::string::npos);
     try {
-        const auto& mode = deviceConfig.find(CONFIG_KEY(PERFORMANCE_HINT));
-        if (mode !=  deviceConfig.end() && mode->second == CONFIG_VALUE(THROUGHPUT)
-                && device.find("GPU") != std::string::npos)
-            deviceConfig[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(YES);
-
         if (!modelPath.empty()) {
             context.executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
         } else {

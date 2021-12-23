@@ -255,10 +255,6 @@ DECLARE_CONFIG_VALUE(THROUGHPUT);
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
  */
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS);
-/**
- * @brief (Optional) config key that governs Auto-Batching (with YES/NO values, below)
- */
-DECLARE_CONFIG_KEY(ALLOW_AUTO_BATCHING);
 
 /**
  * @brief generic boolean values

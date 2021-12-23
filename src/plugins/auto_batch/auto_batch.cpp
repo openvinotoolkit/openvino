@@ -539,7 +539,7 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
         IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
 
     auto val = it->second;
-    auto metaDevice = ParseMetaDevice(val, {{}});
+    auto metaDevice = ParseMetaDevice(val, std::map<std::string, std::string>());
     cfg.erase(it);
     return GetCore()->CreateContext(metaDevice.deviceName, cfg);
 }
@@ -646,15 +646,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                 footprint += s.second;
         return footprint;
     };
-    auto deviceConfigNoAutoBatch = deviceConfig;
-    // avoid recursive auto-batching
-    deviceConfigNoAutoBatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
 
     size_t batch1_footprint = 0;
     if (deviceName.find("GPU") != std::string::npos)
         batch1_footprint = report_footprint(GetCore(), deviceName);
-    auto executableNetworkWithoutBatch = ctx ? GetCore()->LoadNetwork(network, ctx, deviceConfigNoAutoBatch)
-                                             : GetCore()->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
+    auto executableNetworkWithoutBatch = ctx ? GetCore()->LoadNetwork(network, ctx, deviceConfig)
+                                             : GetCore()->LoadNetwork(network, deviceName, deviceConfig);
     if (deviceName.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(GetCore(), deviceName) - batch1_footprint;
         if (batch1_footprint) {
@@ -691,8 +688,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             }
             clonedNetwork.reshape(shapes);
             executableNetworkWithBatch =
-                ctx ? GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, ctx, deviceConfigNoAutoBatch)
-                    : GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfigNoAutoBatch);
+                ctx ? GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, ctx, deviceConfig)
+                    : GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig);
         } catch (...) {
             executableNetworkWithBatch = {nullptr, nullptr};
         }
