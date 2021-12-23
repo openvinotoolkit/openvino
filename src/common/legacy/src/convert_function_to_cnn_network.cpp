@@ -10,8 +10,8 @@
 #include <sstream>
 
 #include <cnn_network_ngraph_impl.hpp>
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/deconvolution_ie.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "legacy/ngraph_ops/gather_ie.hpp"
@@ -2075,11 +2075,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     InputsDataMap resultInputDataMap;
     cnnNetworkImpl->getInputsInfo(resultInputDataMap);
     IE_ASSERT(resultInputDataMap.size() == thisInputDataMap.size());
-    for (auto i : resultInputDataMap) {
-        auto &thisInputData = *thisInputDataMap[i.first];
-        i.second->setPrecision(thisInputData.getPrecision());
-        i.second->setLayout(thisInputData.getLayout());
-        i.second->getPreProcess() = thisInputData.getPreProcess();
+    auto params = graph->get_parameters();
+    for ( const auto &param : params ) {
+        const std::string input_name = param->get_friendly_name();
+        auto &thisInputData = *thisInputDataMap[input_name];
+        resultInputDataMap[input_name]->setPrecision(thisInputData.getPrecision());
+        resultInputDataMap[input_name]->setLayout(thisInputData.getLayout());
+        resultInputDataMap[input_name]->getPreProcess() = thisInputData.getPreProcess();
     }
 }
 

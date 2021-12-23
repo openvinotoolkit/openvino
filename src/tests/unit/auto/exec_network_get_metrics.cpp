@@ -117,7 +117,7 @@ public:
        cpuMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
        auto cpuMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
        ON_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(cpuMockIExeNet));
-       cpuMockPlugin = InferenceEngine::InferencePlugin{{}, cpuMockIPluginPtr};
+       cpuMockPlugin = InferenceEngine::InferencePlugin{cpuMockIPluginPtr, {}};
        // remove annoying ON CALL message
        EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
        cpuMockExeNetwork = cpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
@@ -126,7 +126,7 @@ public:
        gpuMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
        auto gpuMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
        ON_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(gpuMockIExeNet));
-       gpuMockPlugin = InferenceEngine::InferencePlugin{{}, gpuMockIPluginPtr};
+       gpuMockPlugin = InferenceEngine::InferencePlugin{gpuMockIPluginPtr, {}};
        // remove annoying ON CALL message
        EXPECT_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
        gpuMockExeNetwork = gpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
@@ -173,10 +173,10 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
 
     metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
     metaDevices.push_back({CommonTestUtils::DEVICE_GPU, {}, gpuCustomerNum, ""});
-    ON_CALL(*plugin, SelectDevice(_, _)).WillByDefault(Return(metaDevices[1]));
+    ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(1);
+    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
 
     if (cpuSleep) {
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),

@@ -39,6 +39,7 @@
 #include "intel_gpu/primitives/pooling.hpp"
 #include "intel_gpu/primitives/pyramid_roi_align.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/random_uniform.hpp"
 #include "intel_gpu/primitives/reduce.hpp"
 #include "intel_gpu/primitives/region_yolo.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -53,6 +54,7 @@
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/shuffle_channels.hpp"
+#include "intel_gpu/primitives/slice.hpp"
 #include "intel_gpu/primitives/softmax.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
@@ -73,7 +75,7 @@ void register_implementations();
 
 namespace detail {
 
-#define REGISTER_OCL(prim)              \
+#define REGISTER_OCL(prim)               \
     struct attach_##prim##_impl {        \
         attach_##prim##_impl();          \
     }
@@ -116,6 +118,7 @@ REGISTER_OCL(permute);
 REGISTER_OCL(pooling);
 REGISTER_OCL(pyramid_roi_align);
 REGISTER_OCL(quantize);
+REGISTER_OCL(random_uniform);
 REGISTER_OCL(reduce);
 REGISTER_OCL(region_yolo);
 REGISTER_OCL(reorder);
@@ -130,6 +133,7 @@ REGISTER_OCL(scatter_elements_update);
 REGISTER_OCL(scatter_nd_update);
 REGISTER_OCL(select);
 REGISTER_OCL(shuffle_channels);
+REGISTER_OCL(slice);
 REGISTER_OCL(softmax);
 REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);
