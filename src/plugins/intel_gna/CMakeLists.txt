@@ -38,7 +38,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy inference_engine_transformations
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_legacy
         Threads::Threads libGNA)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
