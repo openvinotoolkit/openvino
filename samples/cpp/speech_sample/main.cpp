@@ -89,6 +89,8 @@ int main(int argc, char* argv[]) {
         ov::preprocess::PrePostProcessor proc(model);
         for (int i = 0; i < model->inputs().size(); i++) {
             proc.input(i).tensor().set_element_type(ov::element::f32).set_layout(tensor_layout);
+        }
+        for (int i = 0; i < model->outputs().size(); i++) {
             proc.output(i).tensor().set_element_type(ov::element::f32);
         }
         model = proc.build();
