@@ -231,7 +231,7 @@ public:
     static void init_primitives();
     void compile();
     void init_kernels();
-    kernel_id add_kernel(const std::shared_ptr<kernel_string> kernel_sring);
+    kernel_id add_kernel(const std::shared_ptr<kernel_string>& kernel_sring);
     kernel::ptr get_kernel(kernel_id id);
 
     void load_tuning_cache();

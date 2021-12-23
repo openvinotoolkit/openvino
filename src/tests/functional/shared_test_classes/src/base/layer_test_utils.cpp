@@ -407,7 +407,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     auto refInputsTypes = std::vector<ngraph::element::Type>(inputs.size());
     for (std::size_t i = 0; i < inputs.size(); ++i) {
         const auto &input = inputs[i];
-        const auto &inputSize = input->byteSize();
+        const auto inputSize = input->byteSize();
 
         auto &referenceInput = referenceInputs[i];
         referenceInput.resize(inputSize);

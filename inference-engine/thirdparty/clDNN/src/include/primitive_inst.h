@@ -33,15 +33,7 @@ class typed_primitive_inst;
     Base class for all implementations.
 */
 struct primitive_impl {
-    // NOTE: This constuctor in necessary since the spec says:
-    //   A defaulted default constructor for class X is defined as deleted if: [...] any non-variant non-static data
-    //   member of const-qualified type (or array thereof) with no brace-orequal-initializer does not have a
-    //   user-provided default constructor.
-    // and the classes with only declared brace-orequal-initializer on members are not considered to have user-provided
-    // default constructor:
-    //   A special member function is user-provided if it is user-declared and not explicitly defaulted or deleted
-    //   on its first declaration.
-    primitive_impl() : _weights_reorder_params() {}
+    primitive_impl() = default;
     explicit primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "")
         : _weights_reorder_params(params), _kernel_name(kernel_name) {}
     virtual ~primitive_impl() = default;

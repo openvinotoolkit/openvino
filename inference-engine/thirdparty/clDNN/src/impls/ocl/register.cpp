@@ -49,6 +49,7 @@ void register_implementations() {
     REGISTER_OCL(pyramid_roi_align);
     REGISTER_OCL(quantize);
     REGISTER_OCL(random_uniform);
+    REGISTER_OCL(range);
     REGISTER_OCL(reduce);
     REGISTER_OCL(region_yolo);
     REGISTER_OCL(reorder);

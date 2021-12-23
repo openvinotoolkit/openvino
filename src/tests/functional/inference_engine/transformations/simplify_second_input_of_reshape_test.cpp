@@ -18,12 +18,13 @@
 using namespace testing;
 using namespace ngraph;
 
+namespace {
 auto gather = [](const std::shared_ptr<Node> input, std::vector<int64_t> indices) -> Output<Node> {
     std::shared_ptr<Node> indices_node = opset7::Constant::create(element::i64, {indices.size()}, indices);
     std::shared_ptr<Node> axis_node = opset7::Constant::create(element::i64, {}, { 0 });
     return std::make_shared<opset7::Gather>(input, indices_node, axis_node);
 };
-
+}
 auto fake_quantize = [](const std::shared_ptr<Node> input) -> Output<Node> {
     auto il = opset7::Constant::create(element::f32, Shape{}, { 0.f });
     auto ih = opset7::Constant::create(element::f32, Shape{}, { 25.5f });

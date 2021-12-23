@@ -20,7 +20,7 @@ using json_map = std::unordered_map<json_key, json_base_ptr>;
 
 class json_base {
 public:
-    virtual void dump(std::ostream& out, int offset) = 0;
+    virtual void dump(std::ostream& out, int offset) const = 0;
     virtual ~json_base() = default;
 };
 
@@ -32,7 +32,7 @@ private:
 public:
     explicit json_leaf(const Type& val) : value(val) {}
     explicit json_leaf(Type&& val) : value(std::move(val)) {}
-    void dump(std::ostream& out, int) override { out << value << ",\n"; }
+    void dump(std::ostream& out, int) const override { out << value << ",\n"; }
 };
 
 template <class Type>
@@ -43,7 +43,7 @@ private:
 public:
     explicit json_basic_array(const std::vector<Type>& arr) : values(arr) {}
     explicit json_basic_array(std::vector<Type>&& arr) : values(std::move(arr)) {}
-    void dump(std::ostream& out, int) override {
+    void dump(std::ostream& out, int) const override {
         const char* delim = "";
         for (size_t i = 0; i < values.size(); i++) {
             out << delim << values[i];
@@ -58,7 +58,7 @@ private:
     json_map children;
 
 public:
-    void dump(std::ostream& out, int offset = 1) override {
+    void dump(std::ostream& out, int offset = 1) const override {
         std::string spaces_brackets(std::max(offset - 1, 0) * 4, ' ');
         std::string spaces_content(offset * 4, ' ');
         out << "\n" << spaces_brackets << "{\n";

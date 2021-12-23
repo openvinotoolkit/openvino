@@ -20,6 +20,7 @@ enum class KernelType {
     LRN,
     NORMALIZE,
     POOLING,
+    RANGE,
     ROI_POOLING,
     ROI_ALIGN,
     FULLY_CONNECTED,
