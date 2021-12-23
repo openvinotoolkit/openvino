@@ -117,11 +117,7 @@ void FP::ApplyConvolutional1DTransform(intel_dnn_component_t *component) {
 }
 
 void FP::ApplyConvolutional2DTransform(intel_dnn_component_t* component) {
-#if GNA_LIB_VER == 2
     CNN2DFilter32(component);
-#else
-    THROW_GNA_EXCEPTION << "Wrong GNA Library: GNA_LIB_VER != 2";
-#endif
 }
 
 void FP::ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,

@@ -32,11 +32,7 @@ static inline bool FoundPartToTranspose(const std::vector<TranspositionInfo> &tr
 }
 
 namespace GNAPluginNS {
-#if  GNA_LIB_VER == 2
     using dnn_ptr = std::shared_ptr<CPPWrapper<Gna2Model>>;
-#else
-    using dnn_ptr = std::shared_ptr<CPPWrapper<intel_nnet_type_t>>;
-#endif
     using allocator_type = GNAPluginNS::memory::PolymorphAllocator<uint8_t>;
     using gna_memory_type = GNAPluginNS::memory::GNAMemory<allocator_type>;
     using DnnComponentsForLayer = std::list<std::pair<std::string, intel_dnn_component_t>>;

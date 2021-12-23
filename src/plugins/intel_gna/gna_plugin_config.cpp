@@ -15,17 +15,6 @@ using namespace InferenceEngine::details;
 
 namespace GNAPluginNS {
 
-#if GNA_LIB_VER == 1
-static const caseless_unordered_map<std::string, uint32_t> supported_values = {
-        {GNAConfigParams::GNA_AUTO,     GNA_AUTO},
-        {GNAConfigParams::GNA_HW,       GNA_HARDWARE},
-        {GNAConfigParams::GNA_SW,       GNA_SOFTWARE},
-        {GNAConfigParams::GNA_SW_EXACT, GNA_SOFTWARE & GNA_HARDWARE}
-};
-static const  std::vector<std::string> supported_values_on_gna2 = {
-        GNAConfigParams::GNA_HW_WITH_SW_FBACK,
-};
-#else
 static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
                 {GNAConfigParams::GNA_AUTO,             {Gna2AccelerationModeAuto,                         false}},
                 {GNAConfigParams::GNA_HW,               {Gna2AccelerationModeHardware,                     false}},
@@ -33,7 +22,6 @@ static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode
                 {GNAConfigParams::GNA_SW,               {Gna2AccelerationModeSoftware,                     false}},
                 {GNAConfigParams::GNA_SW_EXACT,         {Gna2AccelerationModeSoftware,                     true}},
         };
-#endif
 
 static const std::set<std::string> supportedTargets = {
     GNAConfigParams::GNA_TARGET_2_0,
@@ -90,24 +78,11 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 if (value == GNA_CONFIG_VALUE(SW_FP32)) {
                     gnaFlags.sw_fp32 = true;
                 } else {
-#if GNA_LIB_VER == 1
-                    auto is_gna2_mode = std::find(
-                            supported_values_on_gna2.begin(),
-                            supported_values_on_gna2.end(),
-                            value);
-                    if (is_gna2_mode != supported_values_on_gna2.end()) {
-                        THROW_GNA_EXCEPTION << "This GNA device mode requires GNA2 library: " << value;
-                    }
-#endif
                     THROW_GNA_EXCEPTION << "GNA device mode unsupported: " << value;
                 }
             } else {
-#if GNA_LIB_VER == 1
-                gna_proc_type = static_cast<intel_gna_proc_t>(procType->second);
-#else
                 pluginGna2AccMode = procType->second.first;
                 swExactMode = procType->second.second;
-#endif
             }
         } else if (key == GNA_CONFIG_KEY(EXEC_TARGET) || key == GNA_CONFIG_KEY(COMPILE_TARGET)) {
             if (supportedTargets.count(value) == 0) {
@@ -255,18 +230,11 @@ void Config::AdjustKeyMapValues() {
         device_mode = GNA_CONFIG_VALUE(SW_FP32);
     } else {
         for (auto&& value : supported_values) {
-#if GNA_LIB_VER == 1
-            if (value.second == gna_proc_type) {
-                device_mode = value.first;
-                break;
-            }
-#else
             if (value.second.first == pluginGna2AccMode &&
                 value.second.second == swExactMode) {
                 device_mode = value.first;
                 break;
             }
-#endif
         }
     }
     IE_ASSERT(!device_mode.empty());

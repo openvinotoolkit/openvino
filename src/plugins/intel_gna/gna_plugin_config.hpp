@@ -4,12 +4,8 @@
 
 #pragma once
 
-#if GNA_LIB_VER == 1
-#include <gna-api.h>
-#else
 #include <gna2-inference-api.h>
 #include <gna2-common-api.h>
-#endif
 #include "ie_precision.hpp"
 #include "descriptions/gna_flags.hpp"
 #include <vector>
@@ -35,12 +31,8 @@ struct Config {
         gnaPrecision = r.gnaPrecision;
         dumpXNNPath = r.dumpXNNPath;
         dumpXNNGeneration = r.dumpXNNGeneration;
-#if GNA_LIB_VER == 1
-        gna_proc_type = r.gna_proc_type;
-#else
         pluginGna2AccMode = r.pluginGna2AccMode;
         swExactMode = r.swExactMode;
-#endif
         inputScaleFactors = r.inputScaleFactors;
         gnaFlags = r.gnaFlags;
         std::lock_guard<std::mutex> lock(r.mtx4keyConfigMap);
@@ -60,12 +52,8 @@ struct Config {
     std::string gnaExecTarget;
     std::string gnaCompileTarget;
 
-#if GNA_LIB_VER == 1
-    intel_gna_proc_t gna_proc_type = static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE);
-#else
     Gna2AccelerationMode pluginGna2AccMode = Gna2AccelerationModeSoftware;
     bool swExactMode = true;
-#endif
 
     std::vector<float> inputScaleFactors;
     GNAFlags gnaFlags;

@@ -75,20 +75,9 @@ Parameter GNAPlugin::GetAvailableDevices() const {
 
     try {
         GNADeviceHelper hwHelper;
-#if GNA_LIB_VER == 1
-        try {
-            intel_nnet_type_t neuralNetwork = { 0 };
-            hwHelper.propagate(&neuralNetwork, nullptr, 0, GNA_HARDWARE);
-        }catch (...) {
-            if (hwHelper.getGNAStatus() != GNA_DEVNOTFOUND) {
-                devices.push_back("GNA_HW");
-            }
-        }
-#else
         if (hwHelper.hasGnaHw()) {
             devices.push_back("GNA_HW");
         }
-#endif
     }catch(...) {}
 
     return devices;
