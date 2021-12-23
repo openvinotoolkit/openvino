@@ -36,7 +36,7 @@ The table below lists the supported operating systems and Python* versions requi
 
 | Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
 | :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8,                                      |
+|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
 |   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.8                                            |
 |   macOS* 10.15.x                                             | 3.6, 3.7, 3.8, 3.9                                  |
