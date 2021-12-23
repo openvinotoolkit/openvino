@@ -235,7 +235,10 @@ def main():
     input_names = [_input.any_name for _input in compiled_model.inputs]
 
     if args.output_layers:
-        output_names, _ = parse_outputs_from_args(args)
+        output_names, output_ports = parse_outputs_from_args(args)
+        # If a name of output layer contains a port number then concatenate output_names and output_ports
+        if ':' in compiled_model.outputs[0].any_name:
+            output_names = [f'{output_names[i]}:{output_ports[i]}' for i in range(len(output_names))]
     else:
         output_names = [compiled_model.outputs[0].any_name]
 
