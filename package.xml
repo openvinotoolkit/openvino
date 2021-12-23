@@ -76,6 +76,7 @@
   <depend>gstreamer1.0-plugins-base</depend>
   <depend>ca-certificates</depend>
   <depend>curl</depend>
+  <depend>protobuf</depend>
 
   <export>
     <build_type>cmake</build_type>
