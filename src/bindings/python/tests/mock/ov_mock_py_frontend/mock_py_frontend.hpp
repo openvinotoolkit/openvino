@@ -96,7 +96,7 @@ struct MOCK_API PlaceStat {
 };
 
 class MOCK_API PlaceMockPy : public Place {
-    mutable PlaceStat m_stat;
+    static PlaceStat m_stat;
 
 public:
     std::vector<std::string> get_names() const override {
@@ -296,8 +296,12 @@ public:
     }
 
     //---------------Stat--------------------
-    PlaceStat get_stat() const {
+    static PlaceStat get_stat() {
         return m_stat;
+    }
+
+    static void clear_stat() {
+        m_stat = {};
     }
 };
 
@@ -330,7 +334,7 @@ struct MOCK_API ModelStat {
 
     // Arguments tracking
     std::string m_lastArgString;
-    int m_lastArgInt;
+    int m_lastArgInt = -1;
     Place::Ptr m_lastArgPlace = nullptr;
     std::vector<Place::Ptr> m_lastArgInputPlaces;
     std::vector<Place::Ptr> m_lastArgOutputPlaces;
@@ -430,7 +434,7 @@ struct MOCK_API ModelStat {
 };
 
 class MOCK_API InputModelMockPy : public InputModel {
-    mutable ModelStat m_stat;
+    static ModelStat m_stat;
 
 public:
     std::vector<Place::Ptr> get_inputs() const override {
@@ -565,8 +569,12 @@ public:
     }
 
     //---------------Stat--------------------
-    ModelStat get_stat() const {
+    static ModelStat get_stat() {
         return m_stat;
+    }
+
+    static void clear_stat() {
+        m_stat = {};
     }
 };
 
@@ -603,26 +611,27 @@ struct MOCK_API FeStat {
     int get_name() const {
         return m_get_name;
     }
+
     int supported() const {
         return m_supported;
     }
 };
 
 class MOCK_API FrontEndMockPy : public FrontEnd {
-    mutable FeStat m_stat;
+    static FeStat m_stat;
 
 public:
-    FrontEndMockPy() {}
+    FrontEndMockPy() = default;
 
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override {
-        if (params.size() > 0 && params[0].is<std::string>())
+        if (!params.empty() && params[0].is<std::string>())
             m_stat.m_load_paths.push_back(params[0].as<std::string>());
         return std::make_shared<InputModelMockPy>();
     }
 
     bool supported_impl(const std::vector<ov::Any>& params) const override {
         m_stat.m_supported++;
-        if (params.size() > 0 && params[0].is<std::string>()) {
+        if (!params.empty() && params[0].is<std::string>()) {
             auto path = params[0].as<std::string>();
             if (path.find(".test_mock_py_mdl") != std::string::npos) {
                 return true;
@@ -659,7 +668,11 @@ public:
         return "mock_py";
     }
 
-    FeStat get_stat() const {
+    static FeStat get_stat() {
         return m_stat;
+    }
+
+    static void clear_stat() {
+        m_stat = {};
     }
 };
