@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {

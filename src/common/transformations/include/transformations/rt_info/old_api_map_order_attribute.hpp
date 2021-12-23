@@ -19,7 +19,7 @@
 #include <openvino/core/rtti.hpp>
 #include <set>
 #include <string>
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <utility>
 
 namespace ov {

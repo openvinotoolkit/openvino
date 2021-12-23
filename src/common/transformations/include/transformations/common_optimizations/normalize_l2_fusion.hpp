@@ -7,7 +7,7 @@
 #include <utility>
 #include <memory>
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 

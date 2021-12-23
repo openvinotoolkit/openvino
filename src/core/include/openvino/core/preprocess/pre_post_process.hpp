@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/preprocess/input_info.hpp"
 #include "openvino/core/preprocess/output_info.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 

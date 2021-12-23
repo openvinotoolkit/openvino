@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/preprocess/resize_algorithm.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 

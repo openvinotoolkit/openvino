@@ -10,9 +10,9 @@
 #include <vector>
 
 #include "openvino/core/enum_names.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/visibility.hpp"
 
 ///
 namespace ov {

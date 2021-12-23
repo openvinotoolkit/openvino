@@ -7,7 +7,7 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 #include "low_precision/layer_transformation.hpp"

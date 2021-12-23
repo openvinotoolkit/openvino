@@ -12,7 +12,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {

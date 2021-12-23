@@ -12,7 +12,7 @@
 
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ngraph {
 class OPENVINO_API IntervalsAlignmentSharedValue {

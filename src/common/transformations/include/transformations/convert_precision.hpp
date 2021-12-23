@@ -11,7 +11,7 @@
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <unordered_map>
 #include <vector>
 

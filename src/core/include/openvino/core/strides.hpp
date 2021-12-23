@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 /// \brief Strides for a tensor.

@@ -8,8 +8,8 @@
 #include <type_traits>
 #include <vector>
 
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/visibility.hpp"
 
 // Use extern "C" in order to avoid issues with mangling
 #if defined(_WIN32) && defined(IMPLEMENT_OPENVINO_EXTENSION_API)

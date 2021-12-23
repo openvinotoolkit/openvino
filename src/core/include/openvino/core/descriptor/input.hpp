@@ -8,8 +8,8 @@
 #include <memory>
 
 #include "openvino/core/descriptor/tensor.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 class Node;

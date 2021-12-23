@@ -19,7 +19,7 @@
 #include <low_precision/align_quantization_intervals.hpp>
 
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
 #include "low_precision/layer_transformation.hpp"

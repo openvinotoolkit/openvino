@@ -8,9 +8,9 @@
 #include <string>
 
 #include "openvino/core/node_vector.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 class Node;

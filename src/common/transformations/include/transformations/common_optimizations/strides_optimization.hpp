@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <ngraph/util.hpp>
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>

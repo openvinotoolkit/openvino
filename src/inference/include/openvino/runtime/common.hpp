@@ -13,7 +13,7 @@
 #include <map>
 #include <string>
 
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 /**
  * @def OPENVINO_PLUGIN_API

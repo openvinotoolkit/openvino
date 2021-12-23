@@ -10,7 +10,7 @@
 #include <limits>
 #include <stdexcept>
 
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 /// \brief Interval arithmetic

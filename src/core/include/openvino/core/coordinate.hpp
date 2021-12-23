@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <vector>
 
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 /// \brief Coordinates for a tensor element

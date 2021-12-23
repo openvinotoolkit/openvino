@@ -7,7 +7,7 @@
 #include <exception>
 #include <string>
 #include <ngraph/node.hpp>
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 
 /**
 * @def THROW_TRANSFORMATION_EXCEPTION_LPT

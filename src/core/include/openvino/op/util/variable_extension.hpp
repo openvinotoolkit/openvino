@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/op/util/variable.hpp"
 
 namespace ov {

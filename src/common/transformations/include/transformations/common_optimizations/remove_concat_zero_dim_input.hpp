@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 
 namespace ov {

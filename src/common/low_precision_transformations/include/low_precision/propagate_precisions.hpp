@@ -10,7 +10,7 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 
 namespace ngraph {
 namespace pass {

@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 #define ROUND_MODE_TO_NEAREST_EVEN
 

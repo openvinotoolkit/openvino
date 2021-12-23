@@ -13,8 +13,8 @@
 #include <vector>
 
 #include "openvino/core/node.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"

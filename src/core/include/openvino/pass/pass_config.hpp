@@ -12,7 +12,7 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace pass {

@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/pass.hpp>

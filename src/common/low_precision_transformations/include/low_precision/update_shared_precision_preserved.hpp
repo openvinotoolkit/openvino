@@ -12,7 +12,7 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/lpt_itt.hpp"
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ngraph {
 namespace pass {

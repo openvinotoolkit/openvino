@@ -9,7 +9,7 @@
 #include <vector>
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
 namespace ngraph {

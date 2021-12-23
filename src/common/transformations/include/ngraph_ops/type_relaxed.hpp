@@ -8,7 +8,7 @@
 #include <memory>
 #include <mutex>
 #include <ngraph/op/convert.hpp>
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <string>
 #include <vector>
 

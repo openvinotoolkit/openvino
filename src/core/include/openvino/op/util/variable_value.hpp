@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "ngraph/runtime/host_tensor.hpp"
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace op {

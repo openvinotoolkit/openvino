@@ -11,7 +11,7 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "low_precision/network_helper.hpp"
 #include "lpt_itt.hpp"

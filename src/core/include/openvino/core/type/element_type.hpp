@@ -17,10 +17,10 @@
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace element {

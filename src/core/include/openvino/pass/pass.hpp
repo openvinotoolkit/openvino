@@ -12,7 +12,7 @@
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/pass/pass_config.hpp"
 
 namespace ov {

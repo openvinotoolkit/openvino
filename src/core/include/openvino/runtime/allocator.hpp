@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <memory>
 
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace runtime {

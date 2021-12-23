@@ -10,8 +10,8 @@
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/axis_set.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/strides.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 /// \brief Shape for a tensor.

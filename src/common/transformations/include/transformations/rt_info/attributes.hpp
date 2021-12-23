@@ -22,7 +22,7 @@
 #include <transformations/rt_info/strides_property.hpp>
 #include <transformations/rt_info/reverse_input_channels.hpp>
 #include <transformations/rt_info/decompression.hpp>
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <utility>
 
 namespace ov {

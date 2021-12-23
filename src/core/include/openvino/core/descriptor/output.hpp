@@ -13,8 +13,8 @@
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node_output.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 // The forward declaration of Node is needed here because Node has a deque of

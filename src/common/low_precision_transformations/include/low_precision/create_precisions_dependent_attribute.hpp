@@ -11,7 +11,7 @@
 #include <ngraph/variant.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include "rt_info/precision_preserved_attribute.hpp"

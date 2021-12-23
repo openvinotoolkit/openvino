@@ -10,7 +10,7 @@
 
 #include <ngraph/pass/pass.hpp>
 #include "common/operation_per_tensor_quantization_restriction.hpp"
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ngraph {
 namespace pass {

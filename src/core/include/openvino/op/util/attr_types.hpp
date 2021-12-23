@@ -8,9 +8,9 @@
 #include <ostream>
 
 #include "openvino/core/attribute_adapter.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace op {

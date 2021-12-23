@@ -10,7 +10,7 @@
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/interval.hpp"
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 /// \brief Class representing a dimension, which may be dynamic (undetermined until runtime),

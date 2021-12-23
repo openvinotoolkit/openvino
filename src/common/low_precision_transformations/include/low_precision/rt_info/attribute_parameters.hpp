@@ -5,7 +5,7 @@
 #pragma once
 
 #include <ngraph/type/element_type.hpp>
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 class OPENVINO_API AttributeParameters {
 public:

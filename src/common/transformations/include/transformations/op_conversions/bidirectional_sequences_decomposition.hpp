@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 

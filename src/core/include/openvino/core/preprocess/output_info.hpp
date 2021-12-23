@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/preprocess/output_model_info.hpp"
 #include "openvino/core/preprocess/output_tensor_info.hpp"
 #include "openvino/core/preprocess/postprocess_steps.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace preprocess {

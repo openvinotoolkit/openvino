@@ -9,7 +9,7 @@
 #include <vector>
 
 #include <ngraph/pass/pass.hpp>
-#include "openvino/core/ov_visibility.hpp"
+#include "openvino/core/visibility.hpp"
 #include "low_precision/common/operation_precision_restriction.hpp"
 
 namespace ngraph {

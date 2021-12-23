@@ -5,8 +5,8 @@
 #pragma once
 
 #include "openvino/core/layout.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 

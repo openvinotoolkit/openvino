@@ -9,11 +9,11 @@
 #include <unordered_set>
 
 #include "openvino/core/descriptor/tensor.hpp"
-#include "openvino/core/ov_visibility.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 class Node;

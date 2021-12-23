@@ -10,7 +10,7 @@
 #include <vector>
 #include <limits>
 
-#include <openvino/core/ov_visibility.hpp>
+#include <openvino/core/visibility.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset3.hpp>
