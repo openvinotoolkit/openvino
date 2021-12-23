@@ -1342,8 +1342,9 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
         auto defaultPrecisions = LayerTransformation::getDefaultPrecisions();
         auto el_type = convert->input(0).get_element_type();
         auto foundIt = std::find(defaultPrecisions.begin(), defaultPrecisions.end(), el_type);
-        if (foundIt == defaultPrecisions.end() && el_type != element::f32 &&
-           el_type != element::i4 && el_type != element::u4) {
+        if (foundIt == defaultPrecisions.end() &&
+            el_type != element::i4  && el_type != element::u4 &&
+            el_type != element::f32 && el_type != element::f16) {
             return FakeQuantizeDequantization(dataNode, nullptr, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
         }
         dataNode = convert->get_input_source_output(0);

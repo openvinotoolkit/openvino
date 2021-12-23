@@ -15,6 +15,7 @@
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/assign_and_read_value_function.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 
 namespace {
@@ -59,7 +60,11 @@ public:
         const element::Type precisionBeforeDequantization = std::get<2>(GetParam());
         const size_t opsetVersion = std::get<3>(GetParam());
         const AssignTransformationTestValues testValues = std::get<4>(GetParam());
-
+        low_precision::LayerTransformation::setDefaultPrecisions({
+             ngraph::element::u8,  ngraph::element::i8,
+             ngraph::element::u16, ngraph::element::i16,
+             ngraph::element::u32, ngraph::element::i32
+        });
         actualFunction = ngraph::builder::subgraph::AssignAndReadValueFunction::getOriginal(
             inputShape,
             precision,
@@ -143,7 +148,7 @@ const std::vector<AssignTransformationTestValues> testValues = {
         {
             {0},
             {{}, {}, {}},
-            {{}, {}, {3.f}}
+            {{ngraph::element::f32}, {}, {3.f}}
         },
         true
     },

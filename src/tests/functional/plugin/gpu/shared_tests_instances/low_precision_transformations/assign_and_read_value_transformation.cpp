@@ -19,7 +19,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 
 const std::vector<size_t> opsetVersions = {
     // 3, // no evaluate for opset 3 in ngraph
-    6
+    // 6  // not supported on GPU
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {

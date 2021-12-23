@@ -139,15 +139,23 @@ std::shared_ptr<ngraph::Function> AssignAndReadValueFunction::getReference(
         throw std::runtime_error("Unknown opset version");
     }
     std::shared_ptr<Node> lastNode = readValue;
+
+    auto deqStructureAfter = dequantizationAfter;
+    if (FQAfterReadValue) {
+        DequantizationOperations tempDequantization;
+        tempDequantization.convert = dequantizationAfter.convert;
+        tempDequantization.subtract = dequantizationAfter.subtract;
+        lastNode = makeDequantization(lastNode, tempDequantization);
+    } else {
+        deqStructureAfter.multiply.outPrecision = inputPrecision;
+        lastNode = makeDequantization(lastNode, deqStructureAfter);
+    }
+
     if (FQAfterReadValue) {
         lastNode = builder::subgraph::makeFakeQuantizeTypeRelaxed(
                 lastNode,
                 element::f32,
                 FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f / dequantizationAfter.multiply.values[0]}, {0}, {2.55f}, inputPrecision});
-    } else {
-        auto deqStructureAfter = dequantizationAfter;
-        deqStructureAfter.multiply.outPrecision = inputPrecision;
-        lastNode = makeDequantization(lastNode, deqStructureAfter);
     }
     const auto add = std::make_shared<opset1::Add>(lastNode, input);
     const auto FQAfterAdd = builder::subgraph::makeFakeQuantizeTypeRelaxed(
