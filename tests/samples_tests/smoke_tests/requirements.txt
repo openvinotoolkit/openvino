@@ -1,3 +1,4 @@
+requests
 pyyaml
 wheel
 test-generator
