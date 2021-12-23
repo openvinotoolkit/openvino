@@ -6,7 +6,7 @@ import pytest
 
 import openvino.runtime.opset8 as ops
 from openvino.runtime import Model, Tensor, Output, Dimension,\
-        Layout, Type, PartialShape, Shape, set_batch, get_batch
+    Layout, Type, PartialShape, Shape, set_batch, get_batch
 
 
 def create_test_model():
