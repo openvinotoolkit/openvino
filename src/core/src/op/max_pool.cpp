@@ -16,6 +16,7 @@ using namespace std;
 using namespace ngraph;
 
 BWDCMP_RTTI_DEFINITION(op::v1::MaxPool);
+BWDCMP_RTTI_DEFINITION(op::v8::MaxPool);
 
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
