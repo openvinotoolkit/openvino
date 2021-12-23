@@ -26,7 +26,7 @@ static const char save_report_timeout_message[] = "Optional. Allow to try to sav
                                                   "Default value is 60 seconds";
 static const char skip_config_path_message[] = "Optional. Allows to specify paths to files contain regular expressions list to skip tests. "
                                                "Delimiter is `,` symbol. Default value is empty string.";
-static const char config_path_message[] = "Optional. Allows to specify path to files contain plugin config. "
+static const char config_path_message[] = "Optional. Allows to specify path to file contains plugin config. "
                                           "Default value is empty string.";
 
 
