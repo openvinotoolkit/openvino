@@ -44,6 +44,8 @@ public:
     bool canBeExecutedInInt8() const;
     size_t getGroupNum() const { return groupNum; }
 
+    std::vector<VectorDims> shapeInfer() const override;
+
     std::vector<uint8_t> inputZeroPoints;
     std::vector<float> weightsZeroPoints;
     std::vector<int32_t> outputCompensation;
@@ -63,6 +65,7 @@ public:
 
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
+    std::vector<VectorDims> shapeInferInternal(const std::vector<Shape>& shapes);
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -103,7 +106,6 @@ private:
                              const mkldnn::memory::desc& biasDesc,
                              const mkldnn::memory::desc& outputDesc,
                              mkldnn::algorithm alg);
-    void updatePadding();
 
     bool withBiases;
     bool withSum;

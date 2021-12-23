@@ -197,6 +197,11 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     }
 }
 
+std::vector<VectorDims> MKLDNNPoolingNode::shapeInfer() const {
+    // TODO: rewrite after shape_inference API can provide padding result
+    return shapeInferWithSubgraph({});
+}
+
 std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> MKLDNNPoolingNode::getPaddingFromNode(std::shared_ptr<ov::Node> node) const {
     const auto convertPadding = [](const VectorDims &newPads) {
         std::vector<ptrdiff_t> pads(newPads.size());
@@ -351,7 +356,7 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &input
 
     auto outDesc = outputDesc[0];
     if (!outDesc->isDefined()) {
-        auto outDims = shapeInferGeneric({Shape(inDesc->getShape().getStaticDims())});
+        auto outDims = shapeInferWithSubgraph({Shape(inDesc->getShape().getStaticDims())});
         outDesc = outDesc->cloneWithNewDims(outDims[0]);
         if (auto_pad) {
             std::tie(data_pad_begin, data_pad_end) = getPaddingFromNode(opToShapeInfer);

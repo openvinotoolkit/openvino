@@ -31,9 +31,11 @@ public:
     void executeDynamicImpl(mkldnn::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    std::vector<VectorDims> shapeInfer() const override;
 
 protected:
     AttrPtr initPrimitiveAttr() override;
+    std::vector<VectorDims> shapeInferInternal(const std::vector<Shape>& shapes);
 
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const;

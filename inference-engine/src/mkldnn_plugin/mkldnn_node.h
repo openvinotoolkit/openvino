@@ -742,6 +742,7 @@ protected:
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims = {}, uint32_t value_port_mask = 0) const;
+    std::vector<VectorDims> shapeInferWithSubgraph(const std::vector<Shape>& shapes_in) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(mkldnn::stream strm) {

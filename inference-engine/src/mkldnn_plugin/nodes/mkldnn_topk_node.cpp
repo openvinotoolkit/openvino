@@ -167,27 +167,7 @@ bool MKLDNNTopKNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNTopKNode::shapeInfer() const {
-    if (dynamic_cast<ngraph::opset1::Constant*>(opToShapeInfer->get_input_node_ptr(1))) {
-        return MKLDNNNode::shapeInfer();
-    }
-
-    opToShapeInfer->get_input_tensor(0).set_partial_shape(getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().toPartialShape());
-
-    const auto& kMemory = getParentEdgesAtPort(1)[0]->getMemory();
-    const auto ngPrecision = InferenceEngine::details::convertPrecision(kMemory.getDesc().getPrecision());
-    const auto kConst = ngraph::opset1::Constant::create(ngPrecision, VectorDims{}, kMemory.GetPtr());
-
-    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs({ opToShapeInfer->input_value(0), kConst });
-    localShapeInferOp->validate_and_infer_types();
-
-    std::vector<VectorDims> newOutputShapes(outputShapes.size());
-    for (size_t i = 0; i < newOutputShapes.size(); ++i) {
-        const auto& pShape = localShapeInferOp->get_output_partial_shape(i);
-        if (pShape.is_dynamic())
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
-        newOutputShapes[i] = pShape.get_shape();
-    }
-    return newOutputShapes;
+    return MKLDNNNode::shapeInferGeneric({}, 1 << 1);
 }
 
 template <class Compare1, template <typename> class Compare2>

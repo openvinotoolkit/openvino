@@ -1425,9 +1425,7 @@ std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
     return shapeInferGeneric({}, 0xFFFFFFFF);
 }
 
-#if 0
-std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes_in,
-                                                      uint32_t input_value_port_mask) const {
+std::vector<VectorDims> MKLDNNNode::shapeInferWithSubgraph(const std::vector<Shape>& shapes_in) const {
     std::vector<Shape> shapes;
 
     if (shapes_in.empty()) {
@@ -1439,7 +1437,6 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     }
 
     if (shapes.size() < opToShapeInfer->get_input_size()) {
-        std::cout << __LINE__ << " ????????????\n";
         IE_THROW(Unexpected) << "MKLDNNNode::shapeInferGeneric input shapes vector size is " << shapes.size()
                              << ", but " << opToShapeInfer->get_input_size()
                              << " required for node with name: " << getName();
@@ -1464,23 +1461,9 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
         newOutputShapes[i] = partShape.get_shape();
     }
 
-    std::cerr << "==============2 " << opToShapeInfer->get_friendly_name() << ","
-              << "\n";
-    for (auto s : shapes) {
-        std::cerr << "in: (";
-        for (auto d : s.getStaticDims())
-            std::cerr << d << ",";
-        std::cerr << ")\n";
-    }
-    for (auto s : newOutputShapes) {
-        std::cerr << "out: (";
-        for (auto d : s)
-            std::cerr << d << ",";
-        std::cerr << ")\n";
-    }
     return newOutputShapes;
 }
-#else
+
 std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes,
                                                       uint32_t input_value_port_mask) const {
     // collect input shapes
@@ -1526,7 +1509,9 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
 
     std::vector<ov::StaticShape> output_shapes(opToShapeInfer->get_output_size());
 
-    // call shape inference API opToShapeInfer() may be changed
+    // call shape inference API
+    //   unlike validate_and_infer_types(), opToShapeInfer is guaranteed to be un-changed in state/attributes
+    //   to retrieve other by-product information like padding, you have to override shapeInfer()
     shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
 
     std::vector<VectorDims> result(output_shapes.size());
@@ -1534,22 +1519,8 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
         return s.to_shape();
     });
 
-    std::cout << "=============== " << opToShapeInfer->get_friendly_name() << "," << input_value_port_mask << "\n";
-    for (auto s : input_shapes) {
-        std::cout << "in: (";
-        for (auto d : s)
-            std::cout << d << ",";
-        std::cout << ")\n";
-    }
-    for (auto s : result) {
-        std::cout << "out: (";
-        for (auto d : s)
-            std::cout << d << ",";
-        std::cout << ")\n";
-    }
     return result;
 }
-#endif
 
 void MKLDNNNode::updateLastInputDims() {
     if (lastInputDims.size() != getParentEdges().size()) {
