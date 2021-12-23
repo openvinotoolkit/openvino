@@ -162,9 +162,9 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
     return batch_size;
 }
 
-size_t getFunctionInputBatchSize(const ov::Model& function) {
+size_t getModelInputBatchSize(const ov::Model& model) {
     try {
-        auto& param = function.get_parameters()[0];
+        auto& param = model.get_parameters()[0];
         auto layout = param->get_layout();
         return param->get_shape().at(ov::layout::batch_idx(layout));
     } catch (...) {
@@ -174,13 +174,7 @@ size_t getFunctionInputBatchSize(const ov::Model& function) {
 
 std::string getShapeString(const ov::Shape& shape) {
     std::stringstream ss;
-    ss << "[";
-    for (size_t i = 0; i < shape.size(); ++i) {
-        if (i > 0)
-            ss << ", ";
-        ss << shape.at(i);
-    }
-    ss << "]";
+    ss << shape;
     return ss.str();
 }
 
@@ -457,7 +451,6 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             auto name = item.get_any_name();
 
             // Layout
-            // info.originalLayout = item.get_layout();
             if (layout_map.count(name)) {
                 if (layout_map.at(name).size() > 1) {
                     throw std::logic_error(

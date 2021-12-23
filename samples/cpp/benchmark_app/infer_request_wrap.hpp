@@ -71,7 +71,7 @@ public:
         _request.get_tensor(name).set_shape(dims);
     }
 
-    ov::runtime::Tensor get_tensor(const std::string& name) {
+    ov::runtime::Tensor getTensor(const std::string& name) {
         return _request.get_tensor(name);
     }
 

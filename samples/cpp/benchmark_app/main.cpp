@@ -373,7 +373,6 @@ int main(int argc, char* argv[]) {
         }
 
         bool isDynamicNetwork = false;
-        std::shared_ptr<const ov::Model> runtimeModel;
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             next_step();
@@ -389,7 +388,6 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
-            runtimeModel = compiledModel.get_runtime_model();
             app_inputs_info = getInputsInfo(FLAGS_shape,
                                             FLAGS_layout,
                                             batchSize,
@@ -489,7 +487,7 @@ int main(int argc, char* argv[]) {
             topology_name = model->get_friendly_name();
             // use batch size according to provided layout and shapes (static case)
             if (batchSize == 0 || !isDynamicNetwork) {
-                batchSize = getFunctionInputBatchSize(*model);
+                batchSize = getModelInputBatchSize(*model);
             }
 
             slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
@@ -506,7 +504,6 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
-            runtimeModel = std::const_pointer_cast<const ov::Model>(model);
         } else {
             next_step();
             slog::info << "Skipping the step for compiled network" << slog::endl;
@@ -525,7 +522,6 @@ int main(int argc, char* argv[]) {
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"import network time (ms)", duration_ms}});
 
-            runtimeModel = compiledModel.get_runtime_model();
             app_inputs_info = getInputsInfo(FLAGS_shape,
                                             FLAGS_layout,
                                             FLAGS_b,
@@ -533,7 +529,7 @@ int main(int argc, char* argv[]) {
                                             inputFiles,
                                             FLAGS_iscale,
                                             FLAGS_imean,
-                                            runtimeModel->inputs());
+                                            compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -759,7 +755,7 @@ int main(int argc, char* argv[]) {
                     if (useGpuMem) {
                         inferRequest->setTensor(inputName, inputTensor);
                     } else {
-                        auto requestTensor = inferRequest->get_tensor(inputName);
+                        auto requestTensor = inferRequest->getTensor(inputName);
                         if (isDynamicNetwork) {
                             requestTensor.set_shape(inputTensor.get_shape());
                         }
@@ -993,7 +989,7 @@ int main(int argc, char* argv[]) {
             try {
                 std::string fileName = fileNameNoExt(FLAGS_exec_graph_path);
                 ov::pass::Serialize serializer(fileName + ".xml", fileName + ".bin");
-                serializer.run_on_function(std::const_pointer_cast<ov::Model>(runtimeModel));
+                serializer.run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
                 slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;

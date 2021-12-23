@@ -39,7 +39,6 @@ struct InputInfo {
     ov::PartialShape partialShape;
     ov::Shape dataShape;
     ov::Layout layout;
-    // ov::Layout originalLayout;
     std::vector<float> scale;
     std::vector<float> mean;
     bool isImage() const;
@@ -59,7 +58,7 @@ std::vector<std::string> parseDevices(const std::string& device_string);
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
 std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
                                                                const std::string& values_string);
-size_t getFunctionInputBatchSize(const ov::Model& function);
+size_t getModelInputBatchSize(const ov::Model& model);
 std::string getShapeString(const ov::Shape& shape);
 std::string getShapesString(const benchmark_app::PartialShapes& shapes);
 size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info);
