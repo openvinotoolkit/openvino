@@ -40,6 +40,7 @@
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
+#include "pyopenvino/graph/discrete_type_info.hpp"
 #include "pyopenvino/graph/layout.hpp"
 #include "pyopenvino/graph/layout_helpers.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
@@ -94,6 +95,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_AxisVector(m);
     regclass_graph_Coordinate(m);
     regclass_graph_descriptor_Tensor(m);
+    regclass_pyngraph_DiscreteTypeInfo(m);
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);

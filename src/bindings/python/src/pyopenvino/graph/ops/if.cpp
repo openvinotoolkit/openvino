@@ -4,6 +4,7 @@
 
 #include "openvino/op/if.hpp"
 
+#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
@@ -12,8 +13,8 @@
 
 #include "ngraph/log.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
@@ -27,7 +28,6 @@ PYBIND11_MAKE_OPAQUE(MultiSubgraphInputDescriptionVector);
 PYBIND11_MAKE_OPAQUE(std::vector<ov::op::util::MultiSubGraphOp::OutputDescription::Ptr>);
 PYBIND11_MAKE_OPAQUE(std::vector<int>);
 
-
 MultiSubgraphInputDescriptionVector list_to_input_descriptor(const py::list& inputs) {
     std::vector<ov::op::util::MultiSubGraphOp::InputDescription::Ptr> result;
 
@@ -36,7 +36,7 @@ MultiSubgraphInputDescriptionVector list_to_input_descriptor(const py::list& inp
             auto casted = in_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::SliceInputDescription>>();
             result.emplace_back(casted);
         } else if (py::isinstance<ov::op::util::MultiSubGraphOp::MergedInputDescription>(in_desc)) {
-            auto casted = in_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>>(); 
+            auto casted = in_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>>();
             result.emplace_back(casted);
         } else if (py::isinstance<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(in_desc)) {
             auto casted = in_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::InvariantInputDescription>>();
@@ -45,8 +45,6 @@ MultiSubgraphInputDescriptionVector list_to_input_descriptor(const py::list& inp
             throw py::type_error("Incompatible InputDescription type, following are supported: SliceInputDescription, "
                                  "MergedInputDescription and InvariantInputDescription.");
         }
-
-
     }
 
     std::cout << "incoming inputs size: " << result.size() << std::endl;
@@ -65,7 +63,6 @@ const py::list input_descriptor_to_list(MultiSubgraphInputDescriptionVector& inp
     return result;
 }
 
-
 MultiSubgraphOutputDescriptionVector list_to_output_descriptor(py::list& outputs) {
     std::vector<ov::op::util::MultiSubGraphOp::OutputDescription::Ptr> result(py::len(outputs));
     result.clear();
@@ -74,19 +71,17 @@ MultiSubgraphOutputDescriptionVector list_to_output_descriptor(py::list& outputs
         if (py::isinstance<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(out_desc)) {
             auto casted = out_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>>();
             result.emplace_back(casted);
-        }
-        else if (py::isinstance<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(out_desc)) {
+        } else if (py::isinstance<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(out_desc)) {
             auto casted = out_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>>();
             result.emplace_back(casted);
-        }
-        else {
-            throw py::type_error("Incompatible OutputDescription type, following are supported: ConcatOutputDescription and BodyOutputDescription.");
+        } else {
+            throw py::type_error("Incompatible OutputDescription type, following are supported: "
+                                 "ConcatOutputDescription and BodyOutputDescription.");
         }
     }
 
     return result;
 }
-
 
 void regclass_MultiSubgraphInputDescriptionVector(py::module m) {
     py::bind_vector<MultiSubgraphInputDescriptionVector>(m, "MultiSubgraphInputDescriptionVector");
@@ -97,14 +92,15 @@ void regclass_graph_op_If(py::module m) {
     cls.doc() = "openvino.impl.op.If wraps ov::op::v0::If";
     cls.def(py::init<>());
     cls.def(py::init<const ov::Output<ov::Node>&>(), py::arg("execution_condition"));
-
     cls.def("get_else_body", &ov::op::v8::If::get_else_body);
     cls.def("set_then_body", &ov::op::v8::If::set_then_body, py::arg("body"));
     cls.def("set_else_body", &ov::op::v8::If::set_else_body, py::arg("body"));
-    cls.def("set_input", &ov::op::v8::If::set_input, py::arg("value"), py::arg("then_parameter"),
-    py::arg("else_parameter"));
-    cls.def("set_output", &ov::op::v8::If::set_output, py::arg("then_result"),
-    py::arg("else_result"));
+    cls.def("set_input",
+            &ov::op::v8::If::set_input,
+            py::arg("value"),
+            py::arg("then_parameter"),
+            py::arg("else_parameter"));
+    cls.def("set_output", &ov::op::v8::If::set_output, py::arg("then_result"), py::arg("else_result"));
     cls.def("get_function", &ov::op::util::MultiSubGraphOp::get_function, py::arg("index"));
     cls.def("set_function", &ov::op::util::MultiSubGraphOp::set_function, py::arg("index"), py::arg("func"));
 
@@ -115,7 +111,7 @@ void regclass_graph_op_If(py::module m) {
         },
         py::arg("index"),
         py::arg("inputs"));
-    
+
     cls.def(
         "set_output_descriptions",
         [](ov::op::v8::If& self, int& index, py::list outputs) {
