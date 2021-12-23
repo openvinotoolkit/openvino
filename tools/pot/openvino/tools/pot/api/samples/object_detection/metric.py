@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.pot.api import Metric
+from openvino.tools.pot import Metric
 
 
 class MAP(Metric):
