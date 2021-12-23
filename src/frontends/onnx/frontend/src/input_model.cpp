@@ -232,6 +232,102 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
 
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                   const std::vector<ov::frontend::Place::Ptr>& outputs) {
+    std::vector<onnx_editor::InputEdge> onnx_inputs = convert_place_to_input_edge(inputs);
+    std::vector<onnx_editor::OutputEdge> onnx_outputs = convert_place_to_output_edge(outputs);
+
+    m_editor->extract_subgraph(onnx_inputs, onnx_outputs);
+}
+
+ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& place) {
+    std::string name = place->get_names().at(0);
+
+    const auto& outputs = m_editor->model_outputs();
+    const auto& inputs = m_editor->model_inputs();
+
+    auto find_output = std::find(std::begin(outputs), std::end(outputs), name);
+    auto find_input = std::find(std::begin(inputs), std::end(inputs), name);
+
+    if (find_input != inputs.end()) {
+        return nullptr;
+    }
+
+    const auto output_port = place->get_producing_port();
+
+    if (find_output != outputs.end()) {
+        return place;
+    } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(place)) {
+        auto tensor_name = tensor->get_names()[0];
+        auto output_edge = m_editor->find_output_edge(tensor_name);
+        m_editor->add_output(output_edge);
+    } else if (const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(output_port)) {
+        NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
+        m_editor->add_output(onnx_output_edge->get_output_edge());
+    } else {
+        return nullptr;
+    }
+
+    return std::make_shared<PlaceTensor>(name, m_editor);
+}
+
+void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
+    std::string name = place->get_names().at(0);
+    std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
+    const auto& output_names = m_editor->model_outputs();
+
+    auto find_output = std::find(output_names.begin(), output_names.end(), name);
+
+    if (find_output != output_names.end()) {
+        outputs.erase(std::remove_if(outputs.begin(),
+                                     outputs.end(),
+                                     [&place](ov::frontend::Place::Ptr const& output) {
+                                         return output->is_equal(place);
+                                     }),
+                      outputs.end());
+
+        extract_subgraph({}, {outputs});
+    }
+}
+
+void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr& place, const std::string& new_name_optional) {
+    std::vector<ov::frontend::Place::Ptr> inputs = get_inputs();
+    std::vector<ov::frontend::Place::Ptr> outputs = get_outputs();
+
+    if (place->is_input())
+        return;
+
+    const auto edge_place = convert_place_to_input_edge({place});
+    const auto edge_outputs = convert_place_to_output_edge(outputs);
+
+    if (!edge_place.empty() && !edge_outputs.empty()) {
+        m_editor->extract_subgraph(edge_place, edge_outputs, true);
+
+        // change name for newly created input, it is the last entry in get_inputs()
+        if (!new_name_optional.empty()) {
+            auto new_inputs = get_inputs();
+            m_editor->set_tensor_name(new_inputs.back()->get_names().at(0), new_name_optional);
+        }
+    }
+}
+
+void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
+    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> map;
+
+    if (const auto var_place = std::dynamic_pointer_cast<PlaceTensor>(place)) {
+        auto name = place->get_names().at(0);
+        auto p_shape = m_editor->get_tensor_shape(name);
+        auto el_type = m_editor->get_input_type(name);
+
+        std::shared_ptr<ngraph::op::Constant> constant =
+            ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
+
+        constant->set_friendly_name(name);
+        map.emplace(name, constant);
+        m_editor->set_input_values(map);
+    }
+}
+
+std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
+    const std::vector<ov::frontend::Place::Ptr>& inputs) {
     std::vector<onnx_editor::InputEdge> onnx_inputs;
     onnx_inputs.reserve(inputs.size());
     for (const auto& input : inputs) {
@@ -260,6 +356,11 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
         }
     }
 
+    return onnx_inputs;
+}
+
+std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
+    const std::vector<ov::frontend::Place::Ptr>& outputs) {
     std::vector<onnx_editor::OutputEdge> onnx_outputs;
     onnx_outputs.reserve(outputs.size());
     for (const auto& output : outputs) {
@@ -283,7 +384,8 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
                            });
         }
     }
-    m_editor->extract_subgraph(onnx_inputs, onnx_outputs);
+
+    return onnx_outputs;
 }
 
 void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {

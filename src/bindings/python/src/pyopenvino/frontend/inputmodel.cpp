@@ -8,6 +8,7 @@
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -361,4 +362,25 @@ void regclass_frontend_InputModel(py::module m) {
                 type : ngraph.Type
                     New element type.
             )");
+
+    im.def(
+        "set_tensor_value",
+        [](ov::frontend::InputModel& self, const ov::frontend::Place::Ptr& place, py::array& value) {
+            // Convert to contiguous array if not already C-style.
+            auto tensor = Common::tensor_from_numpy(value, false);
+            self.set_tensor_value(place, (const void*)tensor.data());
+        },
+        py::arg("place"),
+        py::arg("value"),
+        R"(
+            Sets new element type for a place.
+
+            Parameters
+            ----------
+            place : Place
+                Model place.
+
+            value : ndarray
+                New value to assign.
+        )");
 }
