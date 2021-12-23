@@ -335,16 +335,6 @@ bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, element::T
     return false;
 }
 
-bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
-    if (auto random_uniform = ov::as_type_ptr<opset8::RandomUniform>(node)) {
-        if (to.is_integral_number() || to.is_real()) {
-            random_uniform->set_out_type(to);
-            return true;
-        }
-    }
-    return false;
-}
-
 bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
     if (auto param = ov::as_type_ptr<opset4::Parameter>(node)) {
         param->set_element_type(to);
