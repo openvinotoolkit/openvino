@@ -1225,8 +1225,13 @@ program::primitives_info program::get_current_stage_info() const {
 
 void program::save_pass_info(std::string pass_name) {
     // TODO: Directory path here can be probably changed to some bool flag
-    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty())
+    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty()) {
+        for (auto& node : this->get_processing_order()) {
+            if (!node->is_type<data>())
+                node->get_output_layout();
+        }
         optimizer_passes_info.emplace_back(pass_name, get_current_stage_info());
+    }
 }
 
 void program::add_optimized_primitive_info(primitive_id optimized_primitive_id,
@@ -1454,6 +1459,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>())) {
             const_sum += out_size;
         } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
+            continue;
+        } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
             allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), pool, *node, false));

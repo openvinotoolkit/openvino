@@ -41,6 +41,8 @@ bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node>
                                              ngraph::element::Type to,
                                              size_t idx);
 
+bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx);
+
 bool extend_select_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 
 template <typename T>
@@ -327,6 +329,16 @@ bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, element::T
     if (auto range = ov::as_type_ptr<opset4::Range>(node)) {
         if (to.is_integral_number() || to.is_real()) {
             range->set_output_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
+    if (auto random_uniform = ov::as_type_ptr<opset8::RandomUniform>(node)) {
+        if (to.is_integral_number() || to.is_real()) {
+            random_uniform->set_out_type(to);
             return true;
         }
     }

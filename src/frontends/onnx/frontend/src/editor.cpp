@@ -15,6 +15,7 @@
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
+#include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
 
 using namespace ov;
@@ -279,6 +280,25 @@ void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, e
     }
 }
 
+element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& tensor_name) const {
+    auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    auto* onnx_input = find_graph_input(*onnx_graph, tensor_name);
+
+    if (onnx_input != nullptr) {
+        const auto& type_proto = onnx_input->type();
+        if (!type_proto.has_tensor_type()) {
+            throw ov::Exception("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+                                "change the data type. Input name: " +
+                                onnx_input->name());
+        }
+        auto& tensor_type = type_proto.tensor_type();
+        auto type = tensor_type.elem_type();
+        return ngraph::onnx_import::common::get_ngraph_element_type(type);
+    } else {
+        throw ov::Exception("The tensor: " + tensor_name + " was not found in the input graph.");
+    }
+}
+
 void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes) {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
@@ -336,8 +356,9 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     }
 }
 
-void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
-                                                      const std::vector<OutputEdge>& outputs) {
+void onnx_editor::ONNXModelEditor::extract_subgraph(const std::vector<InputEdge>& inputs,
+                                                    const std::vector<OutputEdge>& outputs,
+                                                    const bool merge_inputs) {
     if (inputs.empty() && outputs.empty()) {
         return;
     }
@@ -346,7 +367,7 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
     onnx_shapes.infer_shapes();
 
     SubgraphExtractor editor{*(m_pimpl->m_model_proto->mutable_graph())};
-    editor.add_new_inputs(inputs);
+    editor.add_new_inputs(inputs, merge_inputs);
     editor.add_new_outputs(outputs);
     editor.extract_subgraph(outputs);
 
@@ -494,6 +515,16 @@ void onnx_editor::ONNXModelEditor::set_node_name(const EditorNode& node, const s
     *graph->mutable_node(node_idx)->mutable_name() = new_name;
 }
 
+std::string onnx_editor::ONNXModelEditor::get_node_name(const EditorNode& node) const {
+    if (node.m_node_index >= 0) {
+        OPENVINO_ASSERT(node.m_node_index < m_pimpl->m_model_proto->graph().node().size(), "XXX");
+        const auto& n = m_pimpl->m_model_proto->graph().node(node.m_node_index);
+        return n.has_name() ? n.name() : "";
+    } else {
+        return node.m_node_name;
+    }
+}
+
 void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {
     const auto graph = m_pimpl->m_model_proto->mutable_graph();
 
@@ -595,4 +626,12 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const Ed
 
 std::shared_ptr<Model> onnx_editor::ONNXModelEditor::decode() {
     return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path, m_telemetry);
+}
+
+void onnx_editor::ONNXModelEditor::add_output(const OutputEdge& output_edge) const {
+    auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    std::vector<onnx_editor::OutputEdge> onnx_output;
+    onnx_output.push_back(output_edge);
+    SubgraphExtractor editor{*onnx_graph};
+    editor.add_new_outputs(onnx_output);
 }
