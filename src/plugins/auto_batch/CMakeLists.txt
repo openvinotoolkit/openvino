@@ -13,7 +13,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR auto_batch.cpp ADD_CLANG_FORMAT)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph inference_engine_transformations Threads::Threads)
+target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
