@@ -195,6 +195,8 @@ std::shared_ptr<Function> Graph::convert() {
 }
 
 void Graph::decode_to_framework_nodes() {
+    const float total = static_cast<float>(m_model->get_graph().node().size());
+    unsigned int completed = 0u;
     // Process ONNX graph nodes, convert to nGraph nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         const Node node{node_proto, *this};
@@ -227,6 +229,7 @@ void Graph::decode_to_framework_nodes() {
         for (std::size_t i{0}; i < node.get_outputs_size(); ++i) {
             m_cache->emplace_node(node.output(i), std::move(ng_nodes.at(i)));
         }
+        m_extensions.progress_reporter->report_progress(++completed / total, total, completed);
     }
 }
 
