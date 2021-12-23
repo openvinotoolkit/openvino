@@ -562,8 +562,9 @@ private:
 
                 eltwise_post_op_idx++;
             } else if (ops_list_[i] == FakeQuantize) {
-                bool do_dequantization = eltwise_data_[i].algo == FQCommon;
-                bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != eltwise_data_.size() - 1;
+                auto& p = post_ops_.get()->entry_[quantization_post_op_idx];
+                bool do_dequantization = p.quantization.alg == dnnl::impl::alg_kind::quantization_quantize_dequantize;
+                bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != ops_list_.size() - 1;
                 int s_idx = vmm_dst.getIdx();
 
                 size_t ptrs_table_off = quantization_post_op_idx * quantization_injectors[quantization_post_op_idx]->memoryStep();
