@@ -21,7 +21,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#define VISUALIZE_TESTS_TREE true
+#define VISUALIZE_TESTS_TREE false
 #define VISUALIZE_TREE_ROOT "/tmp/"
 
 using namespace testing;
