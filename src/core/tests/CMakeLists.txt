@@ -53,7 +53,7 @@ set(SRC
     file_util.cpp
     float16.cpp
     framework_node.cpp
-    function.cpp
+    model.cpp
     graph_rewrite.cpp
     input_output_assign.cpp
     int4.cpp
