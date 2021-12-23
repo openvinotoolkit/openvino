@@ -629,7 +629,7 @@ def test_get_and_set_layout():
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
 
-    model = parameter_a + parameter_b
+    model = Model(parameter_a + parameter_b, [parameter_a , parameter_b])
 
     assert layout_helpers.get_layout(model.input(0)) == ov.Layout()
     assert layout_helpers.get_layout(model.input(1)) == ov.Layout()
