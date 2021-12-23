@@ -390,37 +390,41 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     std::vector<std::shared_ptr<ngraph::Node>> nextLayerDependent;
 
     auto layerIsSupported = [&](std::shared_ptr<ngraph::Node> node) {
+        if (node->is_dynamic()) {
+            return false;
+        }
         if (ngraph::is_type<const ngraph::op::v0::DetectionOutput>(node) ||
             ngraph::is_type<const ngraph::op::v0::PriorBox>(node) ||
             ngraph::is_type<const ngraph::op::v0::PriorBoxClustered>(node) ||
             ngraph::is_type<const ngraph::op::v0::Proposal>(node)) {
             return false;
-        } else if (ngraph::is_type<const ngraph::op::v1::Split>(node)) {
+        }
+        if (ngraph::is_type<const ngraph::op::v1::Split>(node)) {
             splitNames.emplace(node->get_friendly_name());
             splits.push_back(node);
             return false;
-        } else if (ngraph::is_type<const ngraph::op::v0::Concat>(node)) {
+        }
+        if (ngraph::is_type<const ngraph::op::v0::Concat>(node)) {
             concatNames.emplace(node->get_friendly_name());
             concats.push_back(node);
             return false;
-        } else if (ngraph::is_type<const ngraph::op::v1::Reshape>(node) ||
+        }
+        if (ngraph::is_type<const ngraph::op::v1::Reshape>(node) ||
                    ngraph::is_type<const ngraph::op::v0::Squeeze>(node) ||
                    ngraph::is_type<const ngraph::op::v0::Unsqueeze>(node) ||
                    ngraph::is_type<const ngraph::op::v1::Transpose>(node)) {
             depLayerNames.emplace(node->get_friendly_name());
             nextLayerDependent.push_back(node);
             return false;
-        } else if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
+        }
+        if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
             constantsNames.emplace(node->get_friendly_name());
             constants.push_back(node);
             return false;
-        } else if (prog.IsOpSupported(network, node) &&
-                   !ngraph::op::is_parameter(node) &&
-                   !ngraph::op::is_output(node)) {
-            return true;
-        } else {
-            return false;
         }
+        return prog.IsOpSupported(network, node) &&
+               !ngraph::op::is_parameter(node) &&
+               !ngraph::op::is_output(node);
     };
 
     // Get ops after transformations and check if it's supported
