@@ -176,6 +176,9 @@ set_source_files_properties(${legacy_src} PROPERTIES
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
             ${legacy_src}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>
+            $<TARGET_OBJECTS:ngraph_obj>
+            $<TARGET_OBJECTS:frontend_common_obj>
+            $<TARGET_OBJECTS:${TARGET_NAME}_transformations_obj>
             ${IE_STATIC_DEPENDENT_FILES})
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
@@ -192,8 +195,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_common::static inference_engine_preproc_s inference_engine_transformations pugixml::static)
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} inference_engine_preproc_s pugixml::static)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
