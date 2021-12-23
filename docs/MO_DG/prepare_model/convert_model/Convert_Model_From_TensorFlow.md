@@ -5,7 +5,9 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-
+   
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_RetinaNet_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_AttentionOCR_From_Tensorflow
    openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow
    openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow
    openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow
@@ -432,7 +434,7 @@ The Model Optimizer provides explanatory messages if it is unable to run to comp
 
 .. raw:: html
 
-    <iframe width="560" height="315"
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315"
     src="https://www.youtube.com/embed/QW6532LtiTc">
     </iframe>
 

@@ -148,7 +148,7 @@ Follow the next steps to use the pre-trained face detection model using Inferenc
 3. Download the pre-trained Face Detection model with the Model Downloader or copy it from the host machine:
    ```sh
    git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
-   cd open_model_zoo/tools/downloader
+   cd open_model_zoo/tools/model_tools
    python3 -m pip install -r requirements.in
    python3 downloader.py --name face-detection-adas-0001 
    ```

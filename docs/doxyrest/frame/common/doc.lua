@@ -210,7 +210,7 @@ end
 function formatDocBlock_heading(block, context)
 	local text = getDocBlockText(block, context)
 
-	if HEADING_TO_RUBRIC then
+	if HEADING_TO_RUBRIC or not text or text == "" then
 		return "\n\n.. rubric:: " .. text .. "\n\n"
 	else
 		return "\n\n" .. getTitle(text, block.level + 1) .. "\n\n"
