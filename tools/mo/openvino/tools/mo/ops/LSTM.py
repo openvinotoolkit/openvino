@@ -84,12 +84,13 @@ class LSTM(Op):
 
         size = hidden_size * direction * multiplier
         other_layer_params_size = (hidden_size * direction + hidden_size + 2) * size
-
         first_layer_params_size = W_size - (num_layers - 1) * other_layer_params_size
-        # first_layer_params_size = (input_size + rnn_layer.hidden_size + 2) * size
 
         batch_size = 1
         seq_len = 1
+        # input_size can be determined from the first_layer_params_size (e.g. MXNetSplitMultiLayers.py:79)
+        # if first_layer_params_size = (input_size + hidden_size + 2) * size
+        # then input_size = first_layer_params_size / size - 2 - hidden_size
         input_size = first_layer_params_size / size - 2 - hidden_size
         if node.is_in_port_connected(3):
             initial_cell_state_size = node.in_port(3).data.get_shape()
