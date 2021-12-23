@@ -447,28 +447,6 @@ std::int64_t width_idx(const Layout& layout) {
     return layout.get_index_by_name(WIDTH);
 }
 
-}  // namespace layout
-
-const std::string& AttributeAdapter<ov::Layout>::get() {
-    m_dump = m_ref.to_string();
-    return m_dump;
-}
-
-void AttributeAdapter<ov::Layout>::set(const std::string& value) {
-    m_ref = Layout(value);
-}
-
-bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
-    std::string layout_str = value.to_string();
-    visitor.on_attribute("layout", layout_str);
-    value = Layout(layout_str);
-    return true;
-}
-
-std::string LayoutAttribute::to_string() const {
-    return value.to_string();
-}
-
 ov::Layout get_layout(const ov::Output<const ov::Node>& output) {
     auto it = output.get_rt_info().find(ov::LayoutAttribute::get_type_info_static());
     if (it == output.get_rt_info().end()) {
@@ -490,6 +468,28 @@ void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout) {
     } else {
         output.get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = ov::LayoutAttribute(layout);
     }
+}
+
+}  // namespace layout
+
+const std::string& AttributeAdapter<ov::Layout>::get() {
+    m_dump = m_ref.to_string();
+    return m_dump;
+}
+
+void AttributeAdapter<ov::Layout>::set(const std::string& value) {
+    m_ref = Layout(value);
+}
+
+bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
+    std::string layout_str = value.to_string();
+    visitor.on_attribute("layout", layout_str);
+    value = Layout(layout_str);
+    return true;
+}
+
+std::string LayoutAttribute::to_string() const {
+    return value.to_string();
 }
 
 }  // namespace ov
