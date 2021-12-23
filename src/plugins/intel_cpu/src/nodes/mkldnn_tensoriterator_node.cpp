@@ -217,9 +217,18 @@ void DynamicBuffer::init(const mkldnn::engine& eng) {
     chunk_offset_in_byte = 0;
     buffer_offset_in_byte = 0;
 
+    const auto axis = map_rule.axis;
+    const auto stride = map_rule.stride;
+    const auto abs_stride = std::abs(stride);
+
     auto src_mem = from->GetPrimitive();
     auto src_desc = src_mem.get_desc();
     auto dims = src_desc.dims();
+
+    if (dims[axis] != abs_stride)
+        IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
+                   " is expected, but actual: " << dims[axis];
+
     count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, 1, std::multiplies<size_t>());
     len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
     mem_holder_buffer.reset(new memory(src_desc, eng));
@@ -329,8 +338,11 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
     for (const auto &param : tiOp->get_function()->get_parameters()) {
         auto inNode = inMap.find(param->get_friendly_name());
         if (inNode != inMap.end()) {
-            auto inMem = inNode->second->getChildEdgeAt(0)->getMemoryPtr();
-            input_mem.push_back(inMem);
+            std::vector<MKLDNNMemoryPtr> mems;
+            for (auto edge : inNode->second->getChildEdgesAtPort(0)) {
+                mems.push_back(edge->getMemoryPtr());
+            }
+            input_mem.push_back(mems);
         }
     }
 
@@ -535,12 +547,15 @@ void MKLDNNTensorIteratorNode::prepareInputPorts() {
     const auto &eng = getEngine();
     for (auto map_rule : inputPortMap) {
         auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &to_mem = input_mem[map_rule.to];
+        auto &to_mems = input_mem[map_rule.to];
 
-        if (map_rule.axis == -1)
-            first_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
-        else
-            before_mappers.emplace_back(std::make_shared<PortIteratorHelper>(from_mem, to_mem, true, map_rule, eng));
+        for (auto& to_mem : to_mems) {
+            if (map_rule.axis == -1)
+                first_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+            else
+                before_mappers.emplace_back(
+                        std::make_shared<PortIteratorHelper>(from_mem, to_mem, true, map_rule, eng));
+        }
     }
 }
 
@@ -561,9 +576,10 @@ void MKLDNNTensorIteratorNode::prepareBackEdges() {
     const auto &eng = getEngine();
     for (auto map_rule : backEdges) {
         auto from_mem = output_mem[map_rule.from];
-        auto to_mem = input_mem[map_rule.to];
+        auto to_mems = input_mem[map_rule.to];
 
-        before_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+        for (auto& to_mem : to_mems)
+            before_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
     }
 }
 
@@ -572,16 +588,18 @@ void MKLDNNTensorIteratorNode::prepareDynamicBackEdges() {
     back_mappers.clear();
     for (auto map_rule : backEdges) {
         auto from_mem = output_mem[map_rule.from];
-        auto to_mem = input_mem[map_rule.to];
+        auto to_mems = input_mem[map_rule.to];
 
-        // need to reshape body inputs by output if body has internal dynamism
-        const auto &currDesc = to_mem->getDesc();
-        if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != from_mem->getStaticDims()) {
-            const auto& memDesc = from_mem->getDesc();
-            to_mem->redefineDesc(memDesc);
+        for (auto& to_mem : to_mems) {
+            // need to reshape body inputs by output if body has internal dynamism
+            const auto &currDesc = to_mem->getDesc();
+            if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != from_mem->getStaticDims()) {
+                const auto &memDesc = from_mem->getDesc();
+                to_mem->redefineDesc(memDesc);
+            }
+
+            back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
         }
-
-        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
     }
 }
 
@@ -598,7 +616,7 @@ void MKLDNNTensorIteratorNode::prepareDynamicBuffers() {
 void MKLDNNTensorIteratorNode::prepareLoopBodyCurrentIteration() {
     const auto &eng = getEngine();
     for (auto idx : loopBodyCurrentIterationIdx) {
-        auto to_mem = input_mem[idx];
+        auto to_mem = input_mem[idx].front();
         before_mappers.emplace_back(std::make_shared<IterCountPortHelper>(to_mem, eng));
     }
 }
@@ -633,18 +651,20 @@ void MKLDNNTensorIteratorNode::prepareTripCount() {
 void MKLDNNTensorIteratorNode::reshapeSubgraphInput() {
     for (auto map_rule : inputPortMap) {
         auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &to_mem = input_mem[map_rule.to];
+        auto &to_mems = input_mem[map_rule.to];
 
-        auto new_dims = from_mem->getStaticDims();
-        if (map_rule.axis != -1)
-            new_dims[map_rule.axis] = abs(map_rule.stride);
+        for (auto& to_mem : to_mems) {
+            auto new_dims = from_mem->getStaticDims();
+            if (map_rule.axis != -1)
+                new_dims[map_rule.axis] = abs(map_rule.stride);
 
-        const auto &currDesc = to_mem->getDesc();
-        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == new_dims)
-            continue;
+            const auto &currDesc = to_mem->getDesc();
+            if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == new_dims)
+                continue;
 
-        const auto memDesc = std::make_shared<CpuBlockedMemoryDesc>(currDesc.getPrecision(), Shape(new_dims));
-        to_mem->redefineDesc(*memDesc);
+            const auto memDesc = std::make_shared<CpuBlockedMemoryDesc>(currDesc.getPrecision(), Shape(new_dims));
+            to_mem->redefineDesc(*memDesc);
+        }
     }
 }
 

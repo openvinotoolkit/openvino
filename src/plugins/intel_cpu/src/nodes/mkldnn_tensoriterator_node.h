@@ -134,7 +134,8 @@ private:
 
     MKLDNNExtensionManager::Ptr ext_mng;
     MKLDNNGraph sub_graph;
-    std::vector<MKLDNNMemoryPtr> input_mem, output_mem;
+    std::vector<std::vector<MKLDNNMemoryPtr>> input_mem;
+    std::vector<MKLDNNMemoryPtr> output_mem;
 
     std::vector<std::shared_ptr<PortMapHelper>>
         first_mappers,   /// < Applied once before loop
