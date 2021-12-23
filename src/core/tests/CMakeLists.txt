@@ -53,7 +53,7 @@ set(SRC
     file_util.cpp
     float16.cpp
     framework_node.cpp
-    function.cpp
+    model.cpp
     graph_rewrite.cpp
     input_output_assign.cpp
     int4.cpp
@@ -409,7 +409,7 @@ set(SRC
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Add include path to so_extension.hpp
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
@@ -422,13 +422,13 @@ endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
-if (ENABLE_MKL_DNN AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_cpu_plugin)
     endif()
 endif()
 
@@ -517,7 +517,8 @@ if (ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
+file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
+                             ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)
@@ -558,7 +559,7 @@ add_dependencies(ov_core_unit_tests template_extension)
 target_include_directories(ov_core_unit_tests PRIVATE ".")
 target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
-get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
+get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
 target_include_directories(ov_core_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
 
 target_compile_definitions(ov_core_unit_tests
@@ -602,9 +603,9 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
-    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ov_frontend SOURCE_DIR)
+    get_target_property(ONNX_FRONTEND_SRC_DIR ov_onnx_frontend SOURCE_DIR)
     target_include_directories(ov_core_unit_tests PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(ov_core_unit_tests PRIVATE onnx_ov_frontend onnx_test_util)
+    target_link_libraries(ov_core_unit_tests PRIVATE ov_onnx_frontend onnx_test_util)
     if (LINUX)
         target_link_options(ov_core_unit_tests PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
@@ -613,7 +614,7 @@ if (ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 if(ENABLE_OV_IR_FRONTEND)
-    add_dependencies(ov_core_unit_tests ir_ov_frontend)
+    add_dependencies(ov_core_unit_tests ov_ir_frontend)
 endif()
 
 install(TARGETS ov_core_unit_tests

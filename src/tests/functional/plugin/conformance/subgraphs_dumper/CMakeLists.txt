@@ -18,8 +18,8 @@ addIeTargetTest(
         ADD_CPPLINT
 )
 
-if(TARGET ir_ov_frontend)
-    add_dependencies(${TARGET_NAME} ir_ov_frontend)
+if(TARGET ov_ir_frontend)
+    add_dependencies(${TARGET_NAME} ov_ir_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME} UNITY)

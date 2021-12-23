@@ -6,7 +6,7 @@
 # Common cmake options
 #
 
-ie_dependent_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON "X86_64" OFF)
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for inference engine" ON "X86_64" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
@@ -163,11 +163,11 @@ else()
 endif()
 
 ie_dependent_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ON "protoc_available" OFF)
-ie_dependent_option(ENABLE_OV_PDPD_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
+ie_dependent_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_dependent_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
-    "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
+    "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
 ie_dependent_option(ENABLE_OV_CORE_BACKEND_UNIT_TESTS "Control the building of unit tests using backends" ON
     "ENABLE_OV_CORE_UNIT_TESTS" OFF)
@@ -207,8 +207,8 @@ if (ENABLE_INTEL_GPU)
     add_definitions(-DENABLE_INTEL_GPU=1)
 endif()
 
-if (ENABLE_MKL_DNN)
-    add_definitions(-DENABLE_MKL_DNN=1)
+if (ENABLE_INTEL_CPU)
+    add_definitions(-DENABLE_INTEL_CPU=1)
 endif()
 
 if (ENABLE_INTEL_GNA)

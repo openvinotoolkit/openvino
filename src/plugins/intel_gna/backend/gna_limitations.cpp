@@ -344,6 +344,7 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
 }
 
 bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning) {
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
     InferenceEngine::CNNLayerPtr startLayer;

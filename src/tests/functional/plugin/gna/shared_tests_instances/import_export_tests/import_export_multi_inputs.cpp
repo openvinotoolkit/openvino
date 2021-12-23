@@ -17,11 +17,12 @@ namespace LayerTestsDefinitions {
 class ImportMultiInput : public FuncTestUtils::ImportNetworkTestBase {
 protected:
     void SetUp() override {
+        std::vector<size_t> inputShape;
         InferenceEngine::Precision netPrecision;
-        std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) = this->GetParam();
+        std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) = this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {{1, 10}, {1, 10}});
+        auto input = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
         auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
         auto result = std::make_shared<ngraph::opset7::Result>(mul1);
 
@@ -38,6 +39,10 @@ TEST_P(ImportMultiInputUnchanged, CompareWithRefImpl) {
 
 TEST_P(ImportMultiInputChanged, CompareWithRefImpl) {
     TestRun(true);
+};
+
+const std::vector<std::vector<size_t>> inputShape = {
+    {1, 10}
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -98,6 +103,7 @@ const std::vector<std::map<std::string, std::string>> importConfigsUnchanged = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA, ImportMultiInputUnchanged,
                         ::testing::Combine(
+                            ::testing::ValuesIn(inputShape),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),
@@ -107,6 +113,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA, ImportMultiInputUnchanged,
 
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA, ImportMultiInputChanged,
                         ::testing::Combine(
+                            ::testing::ValuesIn(inputShape),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),

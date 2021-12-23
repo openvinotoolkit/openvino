@@ -72,7 +72,7 @@ InferenceEngine:
 
   API version ............ 1.0
   Build .................. lnx_20180510
-  Description ....... MKLDNNPlugin
+  Description ....... ov_intel_cpu_plugin
 
   API version ............ 0.1
   Build .................. ci-main-03659
@@ -135,7 +135,7 @@ InferenceEngine:
 
   API version ............ 1.0
   Build .................. ###
-  Description ....... MKLDNNPlugin
+  Description ....... ov_intel_cpu_plugin
 
 [ INFO ] Inputs detected: <list_of_input_layers>
 [ INFO ] Statistics will be dumped for 1 layers: <output_layer_name(s)>
