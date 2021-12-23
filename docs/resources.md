@@ -27,6 +27,14 @@
 
 .. toctree::
    :maxdepth: 1
+   :caption: Ecosystem
+   :hidden:
+    
+   openvino_docs_resources_openvino_family
+
+
+.. toctree::
+   :maxdepth: 1
    :hidden:
    :caption: Case Studies
 
