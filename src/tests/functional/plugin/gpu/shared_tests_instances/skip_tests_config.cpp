@@ -69,8 +69,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
-            // TODO: Issue: 67486
-            R"(.*(SoftMaxLayerTest).*)",
             // TODO: Issue: 68712
             R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
             // TODO: Issue 69187
