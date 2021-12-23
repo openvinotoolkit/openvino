@@ -1,7 +1,7 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime import Core  # pylint: disable=E0611,E0401
+from openvino.runtime import Core, PartialShape  # pylint: disable=E0611,E0401
 
 from ..utils.utils import create_tmp_dir
 from ..graph.model_utils import save_model
@@ -43,7 +43,10 @@ class IELauncher:
             ir_model.add_outputs(output_names)
 
         if md_shapes is not None:
-            ir_model.reshape(md_shapes)
+            ng_shapes = {}
+            for key, shape in md_shapes.items():
+                ng_shapes[key] = PartialShape(shape)
+            ir_model.reshape(ng_shapes)
 
         self.model = self._ie.compile_model(model=ir_model, device_name=self.device)
 
