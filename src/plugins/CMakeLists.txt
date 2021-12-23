@@ -6,6 +6,10 @@ if(ENABLE_HETERO)
     add_subdirectory(hetero)
 endif()
 
+if(ENABLE_INTEL_CPU)
+    add_subdirectory(intel_cpu)
+endif()
+
 if(ENABLE_INTEL_GPU)
     add_subdirectory(intel_gpu)
 endif()

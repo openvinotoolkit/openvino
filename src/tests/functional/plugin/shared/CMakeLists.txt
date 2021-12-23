@@ -57,7 +57,7 @@ addIeTarget(
                 sharedTestClasses
             PRIVATE
                 openvino::util
-                inference_engine_transformations
+                openvino::runtime::dev
         DEPENDENCIES
             ${DEPENDENCIES}
 )

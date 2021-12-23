@@ -159,11 +159,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _workModeIsAUTO(true)
                                                            , _network(network) {
     if (_multiPlugin->GetCore() == nullptr) {
-        IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
+        IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
 
     if (modelPath.empty() && network.getFunction() == nullptr) {
-        IE_THROW() << "MULTI device supports just ngraph network representation";
+        IE_THROW() << "MULTI " << _multiPlugin->GetName() << " device supports just ngraph network representation";
     }
 
     _core = _multiPlugin->GetCore(); // shared_ptr that holds the Core
@@ -419,7 +419,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             WaitActualNetworkReady();
             // the preferred_device should be the selected device in AUTO work mode
             if (preferred_device != _loadContext[ACTUALDEVICE].deviceInfo.deviceName) {
-                IE_THROW(NotFound) << "The preferred_device should be the selected device";
+                IE_THROW(NotFound) << "The preferred device should be the selected device";
             }
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         } else {
@@ -521,7 +521,7 @@ std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::Ge
             return n->GetContext();
         } catch (const NotImplemented&) {}
     }
-    IE_THROW(NotImplemented) << "None of the devices in the MULTI has an associated remote context."
+    IE_THROW(NotImplemented) << "None of the devices in the MULTI device has an associated remote context."
                              << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
@@ -660,6 +660,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
                 return execNetwork->GetConfig(configKey);
             }
         }
+        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
     IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
 }
@@ -734,7 +735,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         std::vector<std::string> configKeys = { MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else {
-        IE_THROW() << "Unsupported Network metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
     }
 }
 }  // namespace MultiDevicePlugin

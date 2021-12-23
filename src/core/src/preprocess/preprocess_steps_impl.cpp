@@ -11,6 +11,7 @@
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "transformations/rt_info/reverse_input_channels.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -362,7 +363,11 @@ void PreStepsList::add_reverse_channels() {
     m_actions.emplace_back([](const std::vector<Output<Node>>& nodes,
                               const std::shared_ptr<Model>& function,
                               PreprocessingContext& context) {
-        return reverse_channels(nodes, function, context);
+        auto resp = reverse_channels(nodes, function, context);
+        auto outputs = std::get<0>(resp);
+        OPENVINO_ASSERT(outputs.size() == 1, "Internal error: reverse_channels returned unexpected number of outputs");
+        set_is_reverse_input_channels(outputs.at(0).get_node_shared_ptr());
+        return resp;
     });
 }
 
@@ -413,8 +418,8 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
 
     // Gather slices in reverse order (indexes are specified by 'range' operation)
     auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
-    auto convert = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
-    return std::make_tuple(std::vector<Output<Node>>{convert}, false);
+    auto gather = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
+    return std::make_tuple(std::vector<Output<Node>>{gather}, false);
 }
 
 std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const std::vector<Output<Node>>& nodes,

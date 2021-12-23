@@ -23,7 +23,7 @@
         "runtime/bin/intel64/Release/ov_auto_plugin.dll",
         "runtime/bin/intel64/Release/ov_ir_frontend.dll",
         "runtime/bin/intel64/Release/ov_onnx_frontend.dll",
-        "runtime/bin/intel64/Release/ov_paddlepaddle_frontend.dll",
+        "runtime/bin/intel64/Release/ov_paddle_frontend.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -33,7 +33,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/intel64/Release/MKLDNNPlugin.dll"
+        "runtime/bin/intel64/Release/ov_intel_cpu_plugin.dll"
       ]
     },
     "gpu": {
