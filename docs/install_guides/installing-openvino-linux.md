@@ -157,6 +157,8 @@ Among the developer tools you can find e.g. Model Optimizer which imports, conve
 
 For details, visit [pypi.org](https://pypi.org/project/openvino-dev/) site.
 
+<placeholder for link to separate page Install OpenVINO Developers Tools` (mo , pot, etc)>
+
 ## <a name="optional-steps"></a>Step 5 (Optional): Configure Inference on non-CPU Devices
 
 @sphinxdirective
@@ -166,7 +168,7 @@ For details, visit [pypi.org](https://pypi.org/project/openvino-dev/) site.
 
 .. tab:: NCS 2
 
-   Only if you want to perform inference on Intel® Movidius™ NCS powered by the Intel® Movidius™ Myriad™ 2 VPU or Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
+   Only if you want to perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
    For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`_.
 
 .. tab:: VPU

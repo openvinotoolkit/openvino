@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The [OpenVINO™ Toolkit](https://docs.openvinotoolkit.org/latest/index.html) installation on this page installs the following components:
+The [OpenVINO™ Toolkit](https://docs.openvinotoolkit.org/latest/index.html) provides following components for installation:
 
 * [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) - This is the engine that runs the deep learning model. It includes a set of libraries for easy inference integration into your applications.
 * [Inference Engine Code Samples](../IE_DG/Samples_Overview.md) - A set of simple command-line applications demonstrating how to utilize OpenVINO capabilities.
@@ -40,7 +40,7 @@ The [OpenVINO™ Toolkit](https://docs.openvinotoolkit.org/latest/index.html) in
 
   * `Microsoft Visual Studio 2019 with MSBuild <http://visualstudio.microsoft.com/downloads/>`_
   * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_
-  * `Python 3.6 - 3.8, 64-bit <https://www.python.org/downloads/windows/>`_
+  * `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
   
   .. note::
     You can choose to download Community version. Use `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_ to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
@@ -68,7 +68,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Windows*](https://software.intel.com/en-us/openvino-toolkit/choose-download).
    Select the Intel® Distribution of OpenVINO™ toolkit for Windows* package from the dropdown menu.
    
-2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. A window opens to let you choose your installation directory and components. The directory will be referred to as <INSTALL_DIR> elsewhere in the documentation. Once the files extracted, you should see the following dialog box open up:
+2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. In the opened window, you can select the folder where installer files will be placed. The directory will be referred to as <INSTALL_DIR> elsewhere in the documentation. Once the files extracted, you should see the following dialog box open up:
 
    @sphinxdirective
    
@@ -91,7 +91,7 @@ The core components are now installed. Continue to the next section to install a
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the `setupvars.bat` batch file to temporarily set your environment variables:
 
 ```sh
-"<INSTALL DIR>\openvino_2022\bin\setupvars.bat"
+"<INSTALL_DIR>\openvino_2022\setupvars.bat"
 ```
 
 > **IMPORTANT**: Windows PowerShell* is not recommended to run the configuration commands. Please use the command prompt (cmd) instead.
@@ -109,6 +109,8 @@ The environment variables are set. Next, you can download some additional tools.
 Among the developer tools you can find e.g. Model Optimizer which imports, converts, and optimizes models, and Model Downloader which gives you access to the collection of pre-trained deep learning public and intel-trained models.  
 
 For details, visit [pypi.org](https://pypi.org/project/openvino-dev/) site.
+
+<placeholder for link to separate page Install OpenVINO Developers Tools` (mo , pot, etc)>
 
 ## <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
 
@@ -137,42 +139,6 @@ Developing in C++:
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
-
-## <a name="Update-Path"></a>(Optional) Update Your Windows Environment Variables
-@sphinxdirective
-.. raw:: html
-
-   <div class="collapsible-section">
-
-@endsphinxdirective
-> **NOTE**: These steps are only required under special circumstances, such as if you forgot to check the box during the CMake\* or Python\* installation to add the application to your Windows `PATH` environment variable.
-
-Use these steps to update your Windows `PATH` if a command you execute returns an error message stating that an application cannot be found.
-
-1. In your **Search Windows** box, type **Edit the system environment variables** and press **Enter**. A window like the following appears:
-   ![](../img/System_Properties.PNG)
-
-2. At the bottom of the screen, click **Environment Variables**.
-
-3. Under **System variables**, click **Path** and then **Edit**:
-   ![](../img/Environment_Variables-select_Path.PNG)
-
-4. In the opened window, click **Browse**. A browse window opens:
-   ![](../img/Add_Environment_Variable.PNG)
-
-5. If you need to add CMake to the `PATH`, browse to the directory in which you installed CMake. The default directory is `C:\Program Files\CMake`.
-
-6. If you need to add Python to the `PATH`, browse to the directory in which you installed Python. The default directory is `C:\Users\<USER_ID>\AppData\Local\Programs\Python\Python36\Python`. Note that the `AppData` folder is hidden by default. To view hidden files and folders, see these [Windows 10 instructions](https://support.microsoft.com/en-us/windows/view-hidden-files-and-folders-in-windows-10-97fbc472-c603-9d90-91d0-1166d1d9f4b5). 
-
-7. Click **OK** repeatedly to close each screen.
-
-Your `PATH` environment variable is updated. If the changes don't take effect immediately, you may need to reboot.
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
 
 ## Additional Resources
 @sphinxdirective
