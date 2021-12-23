@@ -40,5 +40,7 @@ class Sub(FrontReplacementPattern):
         add.in_port(1).get_connection().insert_node(negate)
 
     def find_and_replace_pattern(self, graph: Graph):
-        for sub in graph.get_op_nodes(op='Sub', can_be_fused=True):
+        for sub in graph.get_op_nodes(op='Sub'):
+            if sub.has('dont_replace') and sub['dont_replace']:
+                continue
             self.sub_to_add_replacement(sub)

@@ -41,7 +41,9 @@ class DequantizeLinearResolver(MiddleReplacementPattern):
 
             is_second_port_connected = dequantize_node.is_in_port_connected(2)
             if is_second_port_connected:
-                sub = Sub(graph, {'name': node_name + '/Sub', 'can_be_fused': False}).create_node()
+                # its is necessary not to replace subrtract for pattern in offline transformations
+                # See ConvertQuantizeDequantize transformation in ngraph
+                sub = Sub(graph, {'name': node_name + '/Sub', 'dont_replace': True}).create_node()
                 cast.out_port(0).connect(sub.in_port(0))
                 dequantize_node.in_port(2).get_connection().set_destination(sub.in_port(1))
                 sub.out_port(0).connect(mul.in_port(0))
