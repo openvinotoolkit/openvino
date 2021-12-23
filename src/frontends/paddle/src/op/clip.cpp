@@ -10,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs clip(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto min = node.get_attribute<float>("min");
     auto max = node.get_attribute<float>("max");
     PADDLE_OP_CHECK(node, max >= min, "clip: max value must greater than min value!");

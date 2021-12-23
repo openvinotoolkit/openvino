@@ -93,8 +93,8 @@ struct LSTMNgInputMap {
         auto batch_size_node =
             std::make_shared<opset6::Gather>(shape_of_x, opset6::Constant::create(element::i64, Shape{1}, {0}), axes);
 
-        if (node.has_ng_input("SequenceLength")) {
-            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = node.get_ng_input("SequenceLength");
+        if (node.has_input("SequenceLength")) {
+            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = node.get_input("SequenceLength");
         } else {
             auto seq_length_node =
                 std::make_shared<opset6::Gather>(shape_of_x,

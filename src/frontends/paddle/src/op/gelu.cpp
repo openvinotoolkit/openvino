@@ -10,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs gelu(const NodeContext& node) {
-    const auto data = node.get_ng_input("X");
+    const auto data = node.get_input("X");
     const auto approximate = node.get_attribute<bool>("approximate", false);
     const auto mode = approximate ? ov::op::GeluApproximationMode::TANH : ov::op::GeluApproximationMode::ERF;
 

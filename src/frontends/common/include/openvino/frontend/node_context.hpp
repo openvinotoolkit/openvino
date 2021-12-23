@@ -8,6 +8,7 @@
 #include <iostream>
 #include <type_traits>
 
+#include "openvino/frontend/exception.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -17,35 +18,50 @@
 namespace ov {
 namespace frontend {
 
-template <class T>
 class FRONTEND_API NodeContext {
 public:
-    NodeContext(const std::string& _op_type, const T& inputs) : m_op_type(_op_type), m_inputs(inputs) {}
+    explicit NodeContext(const std::string& op_type) : m_op_type(op_type) {}
 
-    virtual T get_inputs() const {
-        return m_inputs;
+    virtual size_t get_input_size() const = 0;
+    virtual size_t get_input_size(const std::string& port_name) const = 0;
+
+    virtual Output<Node> get_input(int idx) const = 0;
+    virtual Output<Node> get_input(const std::string& name, int idx) const = 0;
+    virtual Output<Node> get_input(const std::string& name) const = 0;
+
+    virtual const std::string& get_op_type() const { return m_op_type; }
+
+    /// Returns node attribute by name
+    template <class T>
+    T get_attribute (const std::string& name) const {
+        auto res = get_attribute_as_any(name);
+        FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
+        return res.as<T>();
     }
 
-    /// Get operation type
-    virtual const std::string& get_op_type() const {
-        return m_op_type;
+    /// Returns node attribute by name. Returns 'def' value if attribute does not exist
+    template <class T>
+    T get_attribute (const std::string& name, const T& def) const {
+        auto res = get_attribute_as_any(name);
+        if (!res.empty()) {
+            return res.as<T>();
+        }
+        return def;
     }
 
-    template <class D>
-    D get_attribute (const std::string& name) {
-        return get_attribute_as_any(name, typeid(T)).template as<D>();
+    /// Check if an attribute of a given name exists
+    template <typename T>
+    bool has_attribute(const std::string& name) const {
+        return get_attribute_as_any(name).empty();
     }
 
-protected:
-
-    virtual ov::Any get_attribute_as_any (const std::string& name, const std::type_info& type_info) const = 0;
+    virtual ov::Any get_attribute_as_any (const std::string& name) const = 0;
 private:
     std::string m_op_type;
-    T m_inputs;
 };
 
-template <class T>
-using CreatorFunction = std::function<T(const NodeContext<T>&)>;
+using CreatorFunction = std::function<OutputVector(const NodeContext&)>;
+using CreatorFunctionNamed = std::function<std::map<std::string, OutputVector>(const NodeContext&)>;
 
 }  // namespace frontend
 }  // namespace ov

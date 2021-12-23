@@ -10,9 +10,9 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs deformable_conv(const NodeContext& node) {
-    auto input = node.get_ng_input("Input");
-    auto filter = node.get_ng_input("Filter");
-    auto offset = node.get_ng_input("Offset");
+    auto input = node.get_input("Input");
+    auto filter = node.get_input("Filter");
+    auto offset = node.get_input("Offset");
 
     auto strides = node.get_attribute<std::vector<int>>("strides");
     auto dilations = node.get_attribute<std::vector<int>>("dilations");
@@ -27,8 +27,8 @@ NamedOutputs deformable_conv(const NodeContext& node) {
     const ov::op::PadType auto_pad{ov::op::PadType::EXPLICIT};
 
     std::shared_ptr<Node> output_node;
-    if (node.has_ng_input("Mask")) {
-        auto mask = node.get_ng_input("Mask");
+    if (node.has_input("Mask")) {
+        auto mask = node.get_input("Mask");
         output_node =
             std::make_shared<ov::opset8::DeformableConvolution>(input,
                                                                 offset,

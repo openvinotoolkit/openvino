@@ -10,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs tanh(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
+    const auto x = node.get_input("X");
 
     return node.default_single_output_mapping({std::make_shared<default_opset::Tanh>(x)}, {"Out"});
 }

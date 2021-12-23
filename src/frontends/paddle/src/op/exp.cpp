@@ -10,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs exp(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     return node.default_single_output_mapping({std::make_shared<default_opset::Exp>(data)}, {"Out"});
 }
 }  // namespace op

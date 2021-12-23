@@ -11,7 +11,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs hard_sigmoid(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto dtype = data.get_element_type();
     float slope = node.get_attribute<float>("slope", 0.2f);
     float offset = node.get_attribute<float>("offset", 0.5f);

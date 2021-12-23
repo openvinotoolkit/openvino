@@ -20,7 +20,7 @@ class DecoderProto : public ov::frontend::tensorflow::DecoderBase {
 public:
     explicit DecoderProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
 
-    ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const override;
+    ov::Any get_attribute(const std::string& name) const override;
 
     size_t get_input_size() const override;
 

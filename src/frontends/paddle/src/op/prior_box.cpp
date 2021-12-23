@@ -25,8 +25,8 @@ std::shared_ptr<StridedSlice> make_slice(const std::shared_ptr<ov::Node>& node, 
 }  // namespace
 }  // namespace detail
 NamedOutputs prior_box(const NodeContext& node) {
-    auto input = node.get_ng_input("Input");
-    auto Image = node.get_ng_input("Image");
+    auto input = node.get_input("Input");
+    auto Image = node.get_input("Image");
     const auto input_shape = std::make_shared<ShapeOf>(input);
     const auto Image_shape = std::make_shared<ShapeOf>(Image);
     const auto output_shape_slice = detail::make_slice(input_shape, 2, 4);

@@ -10,11 +10,11 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs unsqueeze(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     Output<Node> axesNode;
-    if (node.has_ng_input("AxesTensor")) {
-        axesNode = node.get_ng_input("AxesTensor");
-    } else if (node.has_ng_input("AxesTensorList")) {
+    if (node.has_input("AxesTensor")) {
+        axesNode = node.get_input("AxesTensor");
+    } else if (node.has_input("AxesTensorList")) {
         auto inputs = node.get_ng_inputs("AxesTensorList");
         axesNode = std::make_shared<ov::opset6::Concat>(inputs, 0);
     } else {

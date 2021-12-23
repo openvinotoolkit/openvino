@@ -29,21 +29,29 @@ private:
     std::string m_op_type;
 };
 
-template <class T>
 class FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
-    ConversionExtension(const std::string& op_type, const CreatorFunction<T>& converter)
+    ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
 
-    const CreatorFunction<T>& get_converter() {
+      ConversionExtension(const std::string& op_type, const CreatorFunctionNamed& converter)
+        : ConversionExtensionBase(op_type),
+          m_converter_named(converter) {}
+
+    const CreatorFunction& get_converter() {
         return m_converter;
+    };
+
+    const CreatorFunctionNamed& get_converter_named() {
+        return m_converter_named;
     };
 
     ~ConversionExtension() override = default;
 
 private:
-    CreatorFunction<T> m_converter;
+    CreatorFunction m_converter;
+    CreatorFunctionNamed m_converter_named;
 };
 
 }  // namespace frontend

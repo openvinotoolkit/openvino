@@ -11,15 +11,15 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs reshape2(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
-    if (!node.has_ng_input("Shape") && !node.has_ng_input("ShapeTensor")) {
+    auto data = node.get_input("X");
+    if (!node.has_input("Shape") && !node.has_input("ShapeTensor")) {
         auto shape_attr = node.get_attribute<std::vector<int32_t>>("shape");
         auto shape_node = ov::opset6::Constant::create(ov::element::i32, {shape_attr.size()}, shape_attr);
         return node.default_single_output_mapping({std::make_shared<ov::opset6::Reshape>(data, shape_node, true)},
                                                   {"Out"});
     } else {
         std::string name = "Shape";
-        if (node.has_ng_input("ShapeTensor")) {
+        if (node.has_input("ShapeTensor")) {
             name = "ShapeTensor";
         }
 

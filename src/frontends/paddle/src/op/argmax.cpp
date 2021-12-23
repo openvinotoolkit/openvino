@@ -10,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs argmax(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     bool flatten = node.get_attribute<bool>("flatten");
     const element::Type& index_element_type = element::i64;
     const Output<ov::Node> k = ov::opset6::Constant::create(ov::element::i64, {}, {1});

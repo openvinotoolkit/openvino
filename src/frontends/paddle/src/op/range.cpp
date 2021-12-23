@@ -10,9 +10,9 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs range(const NodeContext& node) {
-    auto start = node.get_ng_input("Start");
-    auto stop = node.get_ng_input("End");
-    auto step = node.get_ng_input("Step");
+    auto start = node.get_input("Start");
+    auto stop = node.get_input("End");
+    auto step = node.get_input("Step");
     auto type = node.get_out_port_type("Out");
 
     const auto axis = ov::opset6::Constant::create(element::i64, Shape{}, {0});

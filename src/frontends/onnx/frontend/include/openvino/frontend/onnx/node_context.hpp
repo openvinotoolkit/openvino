@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <onnx_import/core/node.hpp>
-
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
@@ -13,16 +11,23 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext<OutputVector> {
-public:
-    explicit NodeContext(const ngraph::onnx_import::Node& _context)
-        : ov::frontend::NodeContext<OutputVector>(_context.op_type(), _context.get_ng_inputs()),
-          context(_context) {}
 
+class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext {
+public:
+    explicit NodeContext(const ov::frontend::onnx::Node& context);
+    size_t get_input_size() const override;
+    size_t get_input_size(const std::string& name) const override;
+
+    Output<ov::Node> get_input(int port_idx) const override;
+    Output<ov::Node> get_input(const std::string& port_name) const override;
+    Output<ov::Node> get_input(const std::string& port_name, int port_idx) const override;
+
+    ov::Any get_attribute_as_any (const std::string& name) const override;
 protected:
-    const ngraph::onnx_import::Node& context;
+    const ov::frontend::onnx::Node& m_context;
+    OutputVector m_inputs;
 };
-using CreatorFunction = std::function<OutputVector(const ngraph::onnx_import::Node&)>;
+using CreatorFunction = std::function<OutputVector(const Node&)>;
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

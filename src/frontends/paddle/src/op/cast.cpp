@@ -10,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs cast(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto out_dtype = node.get_attribute<ov::element::Type>("out_dtype");
 
     return node.default_single_output_mapping({std::make_shared<ov::opset6::Convert>(data, out_dtype)}, {"Out"});

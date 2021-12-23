@@ -13,8 +13,8 @@ NamedOutputs matrix_nms(const NodeContext& node) {
     using namespace opset8;
     using namespace element;
 
-    auto bboxes = node.get_ng_input("BBoxes");
-    auto scores = node.get_ng_input("Scores");
+    auto bboxes = node.get_input("BBoxes");
+    auto scores = node.get_input("Scores");
 
     auto score_threshold = node.get_attribute<float>("score_threshold");
     auto post_threshold = node.get_attribute<float>("post_threshold");

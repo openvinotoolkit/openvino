@@ -11,7 +11,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs log(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
+    auto x = node.get_input("X");
     return node.default_single_output_mapping({std::make_shared<ov::opset6::Log>(x)}, {"Out"});
 }
 }  // namespace op

@@ -11,7 +11,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs hard_swish(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     if (node.has_attribute<float>("threshold")) {
         auto threshold = node.get_attribute<float>("threshold");
         PADDLE_OP_CHECK(node,

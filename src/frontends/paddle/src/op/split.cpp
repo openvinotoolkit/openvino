@@ -12,10 +12,10 @@ namespace paddle {
 namespace op {
 NamedOutputs split(const NodeContext& node) {
     using namespace opset7;
-    const auto& data = node.get_ng_input("X");
+    const auto& data = node.get_input("X");
     Output<Node> axis;
-    if (node.has_ng_input("AxisTensor")) {
-        auto input = node.get_ng_input("AxisTensor");
+    if (node.has_input("AxisTensor")) {
+        auto input = node.get_input("AxisTensor");
         auto zero_node = Constant::create(element::i32, {1}, {0});
         axis = std::make_shared<ReduceMin>(input, zero_node, false);
     } else {
@@ -30,7 +30,7 @@ NamedOutputs split(const NodeContext& node) {
     std::vector<Output<Node>> split_outputs;
     if (num_or_sections == 0) {
         Output<Node> sections_node;
-        if (node.has_ng_input("SectionsTensorList")) {
+        if (node.has_input("SectionsTensorList")) {
             auto inputs = node.get_ng_inputs("SectionsTensorList");
             sections_node = std::make_shared<ov::opset7::Concat>(inputs, 0);
         } else {

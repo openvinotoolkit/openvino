@@ -33,34 +33,41 @@ std::map<::paddle::framework::proto::VarType_Type, ov::element::Type> TYPE_MAP{
     {proto::VarType_Type::VarType_Type_INT8, ov::element::i8},
     {proto::VarType_Type::VarType_Type_BF16, ov::element::bf16}};
 
-ov::Any DecoderProto::get_attribute(const std::string& name, const std::type_info& type_info) const {
+ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
     if (attrs.empty()) {
         return {};
     }
 
-    if (type_info == typeid(std::string)) {
-        return attrs[0].s();
-    } else if (type_info == typeid(int64_t)) {
-        return attrs[0].l();
-    } else if (type_info == typeid(std::vector<int64_t>)) {
-        return std::vector<int64_t>(attrs[0].longs().begin(), attrs[0].longs().end());
-    } else if (type_info == typeid(int32_t)) {
-        return attrs[0].i();
-    } else if (type_info == typeid(std::vector<int32_t>)) {
-        return std::vector<int32_t>(attrs[0].ints().begin(), attrs[0].ints().end());
-    } else if (type_info == typeid(float)) {
-        return attrs[0].f();
-    } else if (type_info == typeid(std::vector<float>)) {
-        return std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
-    } else if (type_info == typeid(ov::element::Type)) {
-        return TYPE_MAP[static_cast<::paddle::framework::proto::VarType_Type>(attrs[0].i())];
-    } else if (type_info == typeid(bool)) {
-        return attrs[0].b();
+    switch (attrs[0].type()) {
+        case proto::AttrType::INT:
+            return attrs[0].i();
+        case proto::AttrType::INTS:
+            return std::vector<int32_t>(attrs[0].ints().begin(), attrs[0].ints().end());
+        case proto::AttrType::FLOAT:
+            return attrs[0].f();
+        case proto::AttrType::FLOATS:
+            return std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
+        case proto::AttrType::STRING:
+            return attrs[0].s();
+        case proto::AttrType::STRINGS:
+            return std::vector<std::string>(attrs[0].strings().begin(), attrs[0].strings().end());
+        case proto::AttrType::LONG:
+            return attrs[0].l();
+        case proto::AttrType::LONGS:
+            return std::vector<int64_t>(attrs[0].longs().begin(), attrs[0].longs().end());
+        case proto::AttrType::BOOLEAN:
+            return attrs[0].b();
+        case proto::AttrType::BOOLEANS:
+            return std::vector<bool>(attrs[0].bools().begin(), attrs[0].bools().end());
+        case proto::AttrType::BLOCK:
+            return attrs[0].block_idx();
+        case proto::AttrType::BLOCKS:
+            return std::vector<std::int32_t>(attrs[0].blocks_idx().begin(), attrs[0].blocks_idx().end());
+        default:
+            // Type is not supported by decoder
+            return {};
     }
-
-    // Type is not supported by decoder
-    return {};
 }
 
 std::vector<paddle::OutPortName> DecoderProto::get_output_names() const {
@@ -94,7 +101,7 @@ ov::element::Type DecoderProto::get_out_port_type(const std::string& port_name) 
     for (const auto& out_port : op_place->get_output_ports().at(port_name)) {
         output_types.push_back(out_port->get_target_tensor_paddle()->get_element_type());
     }
-    FRONT_END_GENERAL_CHECK(output_types.size() > 0, "Port has no tensors connected.");
+    FRONT_END_GENERAL_CHECK(!output_types.empty(), "Port has no tensors connected.");
     FRONT_END_GENERAL_CHECK(std::equal(output_types.begin() + 1, output_types.end(), output_types.begin()),
                             "Port has tensors with different types connected.");
     return output_types[0];

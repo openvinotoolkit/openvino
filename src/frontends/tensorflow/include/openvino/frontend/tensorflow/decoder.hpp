@@ -18,7 +18,7 @@ public:
     /// \param name Attribute name
     /// \param type_info Attribute type information
     /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
-    virtual ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const = 0;
+    virtual ov::Any get_attribute(const std::string& name) const = 0;
 
     /// \brief Get a number of inputs
     virtual size_t get_input_size() const = 0;

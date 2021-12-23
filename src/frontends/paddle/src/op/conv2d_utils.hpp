@@ -16,8 +16,8 @@ std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, int32_t g
 
 template <typename T1, typename T2>
 NamedOutputs conv2d_base(const NodeContext& node) {
-    auto data = node.get_ng_input("Input");
-    auto filters = node.get_ng_input("Filter");
+    auto data = node.get_input("Input");
+    auto filters = node.get_input("Filter");
 
     const auto strides = node.get_attribute<std::vector<int32_t>>("strides");
     const auto dilations = node.get_attribute<std::vector<int32_t>>("dilations");

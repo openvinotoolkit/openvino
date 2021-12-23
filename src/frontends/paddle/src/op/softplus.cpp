@@ -9,7 +9,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs softplus(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto beta = node.get_attribute<float>("beta");
     auto threshold = node.get_attribute<float>("threshold");
     float supported_beta = 1.0;

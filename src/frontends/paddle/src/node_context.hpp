@@ -77,7 +77,7 @@ public:
     }
 
     /// Detects if there is at least one input attached with a given name
-    bool has_ng_input(const std::string& name) const {
+    bool has_input(const std::string& name) const {
         auto found = name_map.find(name);
         if (found != name_map.end())
             return !found->second.empty();
@@ -86,7 +86,7 @@ public:
 
     /// Returns exactly one input with a given name; throws if there is no inputs or
     /// there are more than one input
-    Output<Node> get_ng_input(const std::string& name) const {
+    Output<Node> get_input(const std::string& name) const {
         FRONT_END_GENERAL_CHECK(name_map.at(name).size() == 1);
         return name_map.at(name).at(0);
     }

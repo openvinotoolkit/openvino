@@ -58,7 +58,7 @@ static void get_paddings(const NodeContext& node, ov::Shape& pad_begin, ov::Shap
 }
 
 NamedOutputs pool2d(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
 
     auto pooling_type = node.get_attribute<std::string>("pooling_type", {});
     auto global_pooling = node.get_attribute<bool>("global_pooling");

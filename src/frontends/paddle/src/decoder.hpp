@@ -28,7 +28,7 @@ class DecoderProto : public paddle::DecoderBase {
 public:
     explicit DecoderProto(const std::shared_ptr<OpPlace>& op) : op_place(op) {}
 
-    ov::Any get_attribute(const std::string& name, const std::type_info& type_info) const override;
+    ov::Any get_attribute(const std::string& name) const override;
 
     std::vector<paddle::OutPortName> get_output_names() const override;
 

@@ -8,6 +8,7 @@
 
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
 namespace ov {

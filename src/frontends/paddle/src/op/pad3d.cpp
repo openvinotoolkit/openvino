@@ -10,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs pad3d(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto mode = node.get_attribute<std::string>("mode");
     auto value = node.get_attribute<float>("value", 0.0);
     auto data_format = node.get_attribute<std::string>("data_format");

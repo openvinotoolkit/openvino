@@ -13,8 +13,8 @@ namespace paddle {
 namespace op {
 template <typename T>
 NamedOutputs elementwise_ops(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
-    auto y = node.get_ng_input("Y");
+    auto x = node.get_input("X");
+    auto y = node.get_input("Y");
 
     auto axis = node.get_attribute<int>("axis");
 

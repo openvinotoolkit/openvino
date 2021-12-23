@@ -10,7 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs shape(const NodeContext& node) {
-    auto data = node.get_ng_input("Input");
+    auto data = node.get_input("Input");
     auto shape_node = std::make_shared<ov::opset6::ShapeOf>(data, element::i32);
     return node.default_single_output_mapping({shape_node}, {"Out"});
 }

@@ -10,14 +10,14 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs scale(const NodeContext& node) {
-    auto data = node.get_ng_input("X");
+    auto data = node.get_input("X");
     auto dtype = data.get_element_type();
     // Note: paddle Scale output data_type is the same with input
     Output<Node> scale;
     Output<Node> bias;
 
-    if (node.has_ng_input("ScaleTensor")) {
-        auto scale_tensor_node = node.get_ng_input("ScaleTensor");
+    if (node.has_input("ScaleTensor")) {
+        auto scale_tensor_node = node.get_input("ScaleTensor");
         if (scale_tensor_node.get_element_type() == dtype)
             scale = scale_tensor_node;
         else

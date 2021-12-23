@@ -11,11 +11,11 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs expand_v2(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
+    auto x = node.get_input("X");
     Output<Node> shape_expected_node;
-    if (node.has_ng_input("Shape")) {
-        shape_expected_node = node.get_ng_input("Shape");
-    } else if (node.has_ng_input("expand_shapes_tensor")) {
+    if (node.has_input("Shape")) {
+        shape_expected_node = node.get_input("Shape");
+    } else if (node.has_input("expand_shapes_tensor")) {
         auto inputs = node.get_ng_inputs("expand_shapes_tensor");
         ov::NodeVector node_vec;
         for (auto& input : inputs) {

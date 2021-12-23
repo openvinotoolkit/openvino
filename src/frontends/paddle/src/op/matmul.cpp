@@ -9,8 +9,8 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs matmul(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
-    auto y = node.get_ng_input("Y");
+    auto x = node.get_input("X");
+    auto y = node.get_input("Y");
     auto alpha = node.get_attribute<float>("alpha", 1);
     auto transpose_a = node.get_attribute<bool>("transpose_X", false);
     auto transpose_b = node.get_attribute<bool>("transpose_Y", false);

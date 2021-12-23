@@ -10,11 +10,11 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs pow(const NodeContext& node) {
-    auto x = node.get_ng_input("X");
+    auto x = node.get_input("X");
     auto dtype = x.get_element_type();
     Output<Node> factor_node;
-    if (node.has_ng_input("FactorTensor")) {
-        factor_node = node.get_ng_input("FactorTensor");
+    if (node.has_input("FactorTensor")) {
+        factor_node = node.get_input("FactorTensor");
         if (factor_node.get_element_type() != dtype)
             factor_node = std::make_shared<ov::opset6::Convert>(factor_node, dtype);
     } else {

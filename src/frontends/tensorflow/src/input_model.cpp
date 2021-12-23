@@ -116,8 +116,8 @@ void InputModel::InputModelTFImpl::loadPlaces() {
         m_op_places.push_back(op_place);
         m_op_places_map[op_name] = op_place;
         if (op_type == "Placeholder") {
-            auto pshape = node_decoder->get_attribute("shape", typeid(ov::PartialShape)).as<ov::PartialShape>();
-            auto type = node_decoder->get_attribute("dtype", typeid(ov::element::Type)).as<ov::element::Type>();
+            auto pshape = node_decoder->get_attribute("shape").as<ov::PartialShape>();
+            auto type = node_decoder->get_attribute("dtype").as<ov::element::Type>();
             std::vector<std::string> names = {op_name};
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
             m_tensor_places[op_name] = tensor_place;
