@@ -226,8 +226,8 @@ macro(ov_add_frontend)
 
         if(OV_FRONTEND_LINKABLE_FRONTEND)
             # install -dev part
-            install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/
-                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+            install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
+                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}/
                     COMPONENT core_dev
                     FILES_MATCHING PATTERN "*.hpp")
 
