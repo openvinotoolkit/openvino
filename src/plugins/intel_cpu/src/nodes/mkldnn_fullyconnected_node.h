@@ -55,7 +55,8 @@ private:
     void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
                                   const mkldnn::memory::desc &outputDesc);
 
-    VectorDims inDummyDims, outDummyDims;
+    VectorDims inDims;
+    VectorDims outDims;
 
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
 

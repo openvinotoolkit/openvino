@@ -13,44 +13,15 @@
 
 namespace MKLDNNPlugin {
 
-class Interval {
-public:
-    Interval(Dim val) {
-        minValue = val;
-        maxValue = val;
-    }
-
-    Interval(Dim minVal, Dim maxVal) {
-        minValue = minVal;
-        maxValue = maxVal;
-    }
-
-    bool isStatic() const {
-        return minValue == maxValue;
-    }
-
-    Dim getMinValue() const {
-        return minValue;
-    }
-
-    Dim getMaxValue() const {
-        return maxValue;
-    }
-
-private:
-    Dim minValue = 0;
-    Dim maxValue = 0;
-};
-
 class Shape {
 public:
     Shape() = default;
 
-    explicit Shape(const ov::PartialShape& shape) {
+    explicit Shape(const ngraph::PartialShape& shape) {
         minDims = shape.get_min_shape();
-        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ov::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
         maxDims = shape.get_max_shape();
-        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ov::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();
@@ -58,7 +29,7 @@ public:
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
-    explicit Shape(const InferenceEngine::SizeVector& shape) {
+    explicit Shape(const VectorDims& shape) {
         minDims = shape;
         maxDims = shape;
         type = ShapeType::Static;
@@ -68,32 +39,22 @@ public:
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
-    explicit Shape(const std::vector<Interval>& shape) {
-        minDims.reserve(shape.size());
-        maxDims.reserve(shape.size());
-        type = ShapeType::Static;
-        for (auto dim : shape) {
-            minDims.emplace_back(dim.getMinValue());
-            maxDims.emplace_back(dim.getMaxValue());
-            if (!dim.isStatic())
-                type = ShapeType::Dynamic;
+    explicit Shape(const VectorDims& minDims, const VectorDims& maxDims) {
+        if (minDims.size() != maxDims.size()) {
+            IE_THROW() << "Can't create shape from min/max dims with different rank";
         }
+        this->minDims = minDims;
+        this->maxDims = maxDims;
 
         initDims();
-    }
 
-    explicit Shape(const std::initializer_list<Interval>& shape) {
-        minDims.reserve(shape.size());
-        maxDims.reserve(shape.size());
-        type = ShapeType::Static;
-        for (auto dim : shape) {
-            minDims.push_back(dim.getMinValue());
-            maxDims.push_back(dim.getMaxValue());
-            if (!dim.isStatic())
-                type = ShapeType::Dynamic;
+        if (std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == Shape::UNDEFINED_DIM; } ))  {
+            type = ShapeType::Dynamic;
+        } else {
+            type = ShapeType::Static;
         }
 
-        initDims();
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     /**
@@ -159,21 +120,6 @@ public:
         return dims;
     }
 
-    const Interval getInterval(size_t i) const {
-        if (i >= minDims.size()) {
-            IE_THROW() << "Can't get interval. Shape index " << i << " is out of bound " << minDims.size();
-        }
-        return Interval(minDims[i], maxDims[i]);
-    }
-
-    const std::vector<Interval> getInervalDims() const {
-        std::vector<Interval> intervalDims;
-        for (size_t i = 0; i < minDims.size(); i++) {
-            intervalDims.emplace_back(minDims[i], maxDims[i]);
-        }
-        return intervalDims;
-    }
-
     bool isStatic() const {
         return type == ShapeType::Static;
     }
@@ -204,8 +150,8 @@ public:
         return size;
     }
 
-    ov::PartialShape toPartialShape() const {
-        using ov::Dimension;
+    ngraph::PartialShape toPartialShape() const {
+        using ngraph::Dimension;
         std::vector<Dimension> nGraphDims;
         nGraphDims.reserve(minDims.size());
         for (int i = 0; i < minDims.size(); i++) {
@@ -213,7 +159,7 @@ public:
             Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : maxDims[i];
             nGraphDims.emplace_back(minDim, maxDim);
         }
-        return ov::PartialShape(nGraphDims);
+        return ngraph::PartialShape(nGraphDims);
     }
 
     bool isCompatible(const VectorDims& vecDims) const;
