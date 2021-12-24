@@ -4,7 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.ops.transpose import Transpose
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_insert
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_insert, mo_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.const import Const
@@ -85,13 +85,13 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         direction = 2 if rnn_layer.has_num_directions else 1
         bsize = (2 * rnn_layer.hidden_size * direction * 1) * rnn_layer.multiplier
 
-        W = np.array(params[0:len(params) - bsize])
-        B = np.array(params[len(params) - bsize:])
+        W = mo_array(params[0:len(params) - bsize])
+        B = mo_array(params[len(params) - bsize:])
 
         W = W.reshape((direction, -1))
         B = B.reshape((direction, -1))
 
-        W, R = np.array(W[:, 0:rnn_layer.hidden_size * rnn_layer.multiplier * input_size]), np.array(W[:, rnn_layer.hidden_size * rnn_layer.multiplier* input_size:])
+        W, R = mo_array(W[:, 0:rnn_layer.hidden_size * rnn_layer.multiplier * input_size]), mo_array(W[:, rnn_layer.hidden_size * rnn_layer.multiplier* input_size:])
 
         W, R = [x.reshape([
             direction,  # 0: num of directions
@@ -125,7 +125,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 rnn_layer,
-                {'value': blob, 'shape': np.array(blob.shape, dtype=np.int64)},
+                {'value': blob, 'shape': int64_array(blob.shape)},
                 {'in': port, 'permutation': None}
             )
 
@@ -148,7 +148,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 rnn_cell,
-                {'value': h_init, 'shape': np.array(h_init.shape, dtype=np.int64)},
+                {'value': h_init, 'shape': int64_array(h_init.shape)},
                 {'in': h_init_port, 'permutation': None}
             )
         else:
@@ -162,7 +162,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
                 Op.create_and_connect_input_data_node(
                     graph,
                     rnn_cell,
-                    {'value': c_init, 'shape': np.array(c_init.shape, dtype=np.int64)},
+                    {'value': c_init, 'shape': int64_array(c_init.shape)},
                     {'in': c_init_port, 'permutation': None}
                 )
             else:

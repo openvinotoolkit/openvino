@@ -202,7 +202,6 @@ class LeakyReLU(Op):
 
     @staticmethod
     def leaky_relu(values: np.ndarray, negative_slope: float):
-        values = values.astype(float)
         for index, x in np.ndenumerate(values):
             if x < 0:
                 values[index] = negative_slope * x

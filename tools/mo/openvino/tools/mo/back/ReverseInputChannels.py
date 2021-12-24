@@ -9,6 +9,7 @@ from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.split import Split
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.graph.graph import Node
@@ -221,7 +222,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
         # insert ReverseChannels on weights port of Convolution
         ric_to_move_to_weights = reverse_channels if group == 1 else reverse_channels.copy_node()
-        ric_to_move_to_weights['axis'] = np.array(channel_idx)
+        ric_to_move_to_weights['axis'] = mo_array(channel_idx)
         src = node.in_port(1).get_connection().get_source()
         node.in_port(1).get_connection().set_source(ric_to_move_to_weights.out_port(0))
         src.disconnect()
@@ -235,8 +236,8 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
             multiplier = int(bottom_channels / group)
             new_order = np.take(np.arange(bottom_channels).reshape((group, multiplier)),
                                 indices=reverse_channels.order, axis=0).flatten()
-            reverse_channels['axis'] = np.array(reverse_channels.axis.copy())
-            reverse_channels['order'] = np.array(new_order)
+            reverse_channels['axis'] = mo_array(reverse_channels.axis.copy())
+            reverse_channels['order'] = mo_array(new_order)
 
             node.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
             node.out_port(0).disconnect()
@@ -285,7 +286,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
         # reversing eltwise inputs where applicable
         for port, axis in port_axis:
-            ric_copy = reverse_channels.copy_node({'axis': np.array(axis), 'order': np.array(reverse_channels.order)})
+            ric_copy = reverse_channels.copy_node({'axis': mo_array(axis), 'order': mo_array(reverse_channels.order)})
 
             src = port.get_connection().get_source()
             port.get_connection().set_source(ric_copy.out_port(0))
@@ -452,7 +453,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
 
         copies = []
         for port, axis in port_axis:
-            reverse_channels_copy = reverse_channels.copy_node({'axis': np.array(axis)})
+            reverse_channels_copy = reverse_channels.copy_node({'axis': mo_array(axis)})
 
             src = port.get_connection().get_source()
             if src.node.soft_get('type') == 'Parameter':

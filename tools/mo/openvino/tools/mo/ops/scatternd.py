@@ -55,7 +55,7 @@ class ScatterNDBase(Op):
         expected_updates_shape = np.ma.concatenate((indices_shape[:-1], input_shape[indices_shape[-1]:]), axis=0)
         assert compatible_shapes(updates_shape, expected_updates_shape) or \
                (strict_compare_tensors(expected_updates_shape, []) and
-                strict_compare_tensors(updates_shape, np.ones(len(updates_shape)))), \
+                strict_compare_tensors(updates_shape, np.ones(len(updates_shape), dtype=np.int64))), \
             'The updates shape must be equal to indices_shape[:-1] + input_shape[indices_shape[-1]:] for the node ' \
             '"{}"'.format(node_name)
 

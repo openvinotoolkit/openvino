@@ -5,6 +5,7 @@ import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
 from openvino.tools.mo.utils.error import Error
@@ -150,7 +151,7 @@ class AttributedGather(Op):
         data_value = node.in_port(0).data.get_value()
         indices_value = node.in_port(1).data.get_value()
         if data_value is not None and indices_value is not None:
-            node.out_port(0).data.set_value(np.array(np.take(data_value, indices_value, axis), dtype=data_value.dtype))
+            node.out_port(0).data.set_value(mo_array(np.take(data_value, indices_value, axis), dtype=data_value.dtype))
             return
 
         shape = np.concatenate((data_shape[:axis], indices_shape))

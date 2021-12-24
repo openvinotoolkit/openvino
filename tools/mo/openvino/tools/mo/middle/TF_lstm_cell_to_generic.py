@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
@@ -82,9 +83,9 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
         weights = weights.transpose()
 
         weights_node.value = weights
-        weights_node.shape = np.array(weights.shape, dtype=np.int64)
+        weights_node.shape = int64_array(weights.shape)
         biases_node.value = biases
-        biases_node.shape = np.array(biases.shape, dtype=np.int64)
+        biases_node.shape = int64_array(biases.shape)
 
         # Cut all extra inputs off
         for i in range(len(node.inputs), len(node.inputs) + len(node.extra_inputs)):

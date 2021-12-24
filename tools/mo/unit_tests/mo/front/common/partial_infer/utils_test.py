@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, \
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array, is_fully_defined, dynamic_dimension_value, \
     dynamic_dimension, shape_array, compatible_shapes, shape_delete, shape_insert, strict_compare_tensors
 from openvino.tools.mo.utils.error import Error
 
@@ -129,3 +129,17 @@ class ShapeInsertTest(unittest.TestCase):
         with self.assertRaisesRegex(Error, '.*Incorrect parameter type.*'):
             shape_insert(gen_masked_array([1, 2, 3], []), 2, {})
 
+
+@generator
+class mo_array_test(unittest.TestCase):
+    @generate(*[(mo_array([2, 3, 5, 7]), np.array([2, 3, 5, 7])),
+                (mo_array([2., 3., 5., 7.], dtype=np.float64), np.array([2., 3., 5., 7.])),
+                (mo_array([2., 3., 5., 7.]), np.array([2., 3., 5., 7.], dtype=np.float32)),
+                ])
+    def test_mo_array_positive(self, data, result):
+        self.assertEqual(data.dtype, result.dtype)
+
+    @generate(*[(mo_array([2., 3., 5., 7.]), np.array([2., 3., 5., 7.])),
+                ])
+    def test_mo_array_negative(self, data, result):
+        self.assertNotEqual(data.dtype, result.dtype)
