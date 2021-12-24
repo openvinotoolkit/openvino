@@ -295,18 +295,6 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     OPENVINO_ASSERT(exeNetwork != nullptr);
     OPENVINO_ASSERT(function != nullptr);
 
-    std::unordered_set<std::string> leaf_names;
-    for (const auto& vals : {function->inputs(), function->outputs()}) {
-        for (const auto& val : vals) {
-            for (const auto& name : val.get_names()) {
-                OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
-                                "Model tensor names have collisions.",
-                                " Please use MO to generate new IR version, it should allow to avoid the issue");
-                leaf_names.insert(name);
-            }
-        }
-    }
-
     std::vector<std::shared_ptr<const ov::Node>> const_params;
     std::vector<std::shared_ptr<const ov::Node>> const_results;
 
@@ -319,6 +307,16 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
         // getInputs / getOutputs. Since these functions are designed to be used in new API only
         // always need to add operation names for IR v10
         add_operation_names = ir_version == 10;
+    }
+    std::unordered_set<std::string> leaf_names;
+    if (add_operation_names) {
+        for (const auto& vals : {function->inputs(), function->outputs()}) {
+            for (const auto& val : vals) {
+                for (const auto& name : val.get_names()) {
+                    leaf_names.insert(name);
+                }
+            }
+        }
     }
 
     const auto& inputsInfo = exeNetwork->GetInputsInfo();
