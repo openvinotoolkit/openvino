@@ -15,7 +15,7 @@ import numpy.testing as npt
 from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
     get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
-    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values
+    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value
 from openvino.tools.mo.utils.error import Error
 
 
@@ -469,7 +469,7 @@ class TestShapesParsing(unittest.TestCase):
         for i in placeholder_values_ref.keys():
             npt.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
-    def test_get_shapes_and_freezing_with_scalar(self):
+    def test_get_shapes_and_freezing_with_scalar_and_without_shapes_in_input(self):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1,inp2->157"
         result_shapes, _ = get_placeholder_shapes(argv_input, None)
