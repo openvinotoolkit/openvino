@@ -1,15 +1,6 @@
 {# Add version selector #}
-{% if versions and current_version %}
 <div class="dropdown sst-dropdown sst-dropdown-navbar">
-  <button class="btn sst-btn dropdown-toggle" type="button" id="version-selector" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{current_version}}</button>
+  <button class="btn sst-btn dropdown-toggle" type="button" id="version-selector" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"></button>
   <div class="dropdown-menu" aria-labelledby="version-selector">
-    {% for slug, url in versions%}
-      {% if slug == current_version %}
-        <a class="dropdown-item font-weight-bold" href="{{ url }}/{{ pagename }}.html">{{ slug }}</a>
-      {% else %}
-        <a  class="dropdown-item" href="{{ url }}/{{ pagename }}.html">{{ slug }}</a>
-      {% endif %}
-    {% endfor %}
   </div>
 </div>
-{% endif %}
