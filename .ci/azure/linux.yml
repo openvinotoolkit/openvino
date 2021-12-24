@@ -293,7 +293,7 @@ jobs:
     displayName: 'IE FuncTests'
     continueOnError: false
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: false
 

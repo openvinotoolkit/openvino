@@ -164,7 +164,7 @@ void program::load_tuning_cache() {
     }
 }
 
-kernel_id program::add_kernel(const std::shared_ptr<kernel_string> kernelSring) {
+kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring) {
     return _kernels_cache->set_kernel_source(kernelSring, false);
 }
 
