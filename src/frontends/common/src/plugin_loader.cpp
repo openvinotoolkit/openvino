@@ -45,7 +45,7 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
-            {"paddle", "paddlepaddle"},
+            {"paddle", "paddle"},
         };
         auto it = predefined_frontends.find(factory.m_name);
         if (it != predefined_frontends.end()) {

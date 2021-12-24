@@ -171,6 +171,10 @@ protected:
 
     virtual std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs();
 
+    /// default method to convert parameters for reference operation. Used before reference implementation execution
+    /// can be overridden by specific operation test
+    virtual void ConvertRefsParams();
+
     virtual std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;

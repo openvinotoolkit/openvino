@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 
+/// \ingroup ngraph_cpp_api
 namespace ONNX_NAMESPACE {
 class ModelProto;
 }
