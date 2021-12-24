@@ -161,7 +161,10 @@ def main():
         return 0
 
 # --------------------------- Step 6. Set up input --------------------------------------------------------------------
-    input_names = [_input.any_name for _input in compiled_model.inputs]
+    if args.input_layers:
+        input_names = re.split(', |,', args.input_layers)
+    else:
+        input_names = [_input.any_name for _input in compiled_model.inputs]
 
     if args.output_layers:
         output_names, output_ports = parse_outputs_from_args(args)
