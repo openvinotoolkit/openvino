@@ -6,7 +6,7 @@
 # Common cmake options
 #
 
-ie_dependent_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON "X86_64" OFF)
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for inference engine" ON "X86_64" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
@@ -86,22 +86,6 @@ ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in Open
 
 ie_dependent_option (ENABLE_INTEL_GNA "GNA support for inference engine" ON
     "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
-
-if (ENABLE_INTEL_GNA)
-    if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
-        set (DEFAULT_GNA_LIB GNA1)
-    else()
-        set (DEFAULT_GNA_LIB GNA2)
-    endif()
-    set(GNA_LIBRARY_VERSION "${DEFAULT_GNA_LIB}" CACHE STRING "GNAVersion")
-    set_property(CACHE GNA_LIBRARY_VERSION PROPERTY STRINGS "GNA1" "GNA1_1401" "GNA2")
-    list (APPEND IE_OPTIONS GNA_LIBRARY_VERSION)
-    if (NOT GNA_LIBRARY_VERSION STREQUAL "GNA1" AND
-        NOT GNA_LIBRARY_VERSION STREQUAL "GNA1_1401" AND
-        NOT GNA_LIBRARY_VERSION STREQUAL "GNA2")
-        message(FATAL_ERROR "GNA_LIBRARY_VERSION should be set to GNA1, GNA1_1401 or GNA2. Default option is ${DEFAULT_GNA_LIB}")
-    endif()
-endif()
 
 if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
     set(ENABLE_IR_V7_READER_DEFAULT ON)
@@ -207,17 +191,12 @@ if (ENABLE_INTEL_GPU)
     add_definitions(-DENABLE_INTEL_GPU=1)
 endif()
 
-if (ENABLE_MKL_DNN)
-    add_definitions(-DENABLE_MKL_DNN=1)
+if (ENABLE_INTEL_CPU)
+    add_definitions(-DENABLE_INTEL_CPU=1)
 endif()
 
 if (ENABLE_INTEL_GNA)
     add_definitions(-DENABLE_INTEL_GNA)
-
-    if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
-        message(WARNING "${GNA_LIBRARY_VERSION} is not supported on GCC version ${CMAKE_CXX_COMPILER_VERSION}. Fallback to GNA1")
-        set(GNA_LIBRARY_VERSION GNA1)
-    endif()
 endif()
 
 print_enabled_features()

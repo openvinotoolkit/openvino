@@ -44,7 +44,10 @@ public:
             });
             if (plugin_it != m_plugins.end()) {
                 if (plugin_it->load()) {
-                    return plugin_it->get_creator().m_creator();
+                    auto fe_obj = std::make_shared<FrontEnd>();
+                    fe_obj->m_shared_object = plugin_it->get_so_pointer();
+                    fe_obj->m_actual = plugin_it->get_creator().m_creator();
+                    return fe_obj;
                 }
             }
         }
@@ -52,7 +55,10 @@ public:
         for (auto& plugin : m_plugins) {
             plugin.load();
             if (plugin.get_creator().m_name == framework) {
-                return plugin.get_creator().m_creator();
+                auto fe_obj = std::make_shared<FrontEnd>();
+                fe_obj->m_shared_object = plugin.get_so_pointer();
+                fe_obj->m_actual = plugin.get_creator().m_creator();
+                return fe_obj;
             }
         }
         FRONT_END_INITIALIZATION_CHECK(false, "FrontEnd for Framework ", framework, " is not found");
@@ -86,10 +92,13 @@ public:
             auto fe = plugin.get_creator().m_creator();
             OPENVINO_ASSERT(fe, "Frontend error: frontend '", plugin.get_creator().m_name, "' created null FrontEnd");
             if (fe->supported(variants)) {
-                return fe;
+                auto fe_obj = std::make_shared<FrontEnd>();
+                fe_obj->m_shared_object = plugin.get_so_pointer();
+                fe_obj->m_actual = fe;
+                return fe_obj;
             }
         }
-        return {};
+        return nullptr;
     }
 
     void register_front_end(const std::string& name, FrontEndFactory creator) {
@@ -175,7 +184,10 @@ private:
             auto fe = plugin_info.get_creator().m_creator();
             if (fe && fe->supported(variants)) {
                 // Priority FE (e.g. IR) is found and is suitable
-                return fe;
+                auto fe_obj = std::make_shared<FrontEnd>();
+                fe_obj->m_shared_object = plugin_info.get_so_pointer();
+                fe_obj->m_actual = fe;
+                return fe_obj;
             }
         }
         return {};
