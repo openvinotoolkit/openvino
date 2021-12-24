@@ -17,6 +17,8 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+#define THROW_ERROR IE_THROW() << "PriorBox layer with name '" << getName() << "': "
+
 namespace {
 float clip_great(float x, float threshold) {
     return x < threshold ? x : threshold;
@@ -68,7 +70,7 @@ MKLDNNPriorBoxNode::MKLDNNPriorBoxNode(
         exist = false;
 
         if (std::fabs(aspect_ratio_item) < std::numeric_limits<float>::epsilon()) {
-            THROW_IE_EXCEPTION << "aspect_ratio param can't be equal to zero";
+            THROW_ERROR << "Aspect_ratio param can't be equal to zero";
         }
 
         for (float _aspect_ratio : aspect_ratio) {
@@ -93,7 +95,7 @@ MKLDNNPriorBoxNode::MKLDNNPriorBoxNode(
     if (attrs.variance.size() == 1 || attrs.variance.size() == 4) {
         for (float i : attrs.variance) {
             if (i < 0) {
-                THROW_IE_EXCEPTION << "Variance must be > 0.";
+                THROW_ERROR << "Variance must be > 0.";
             }
 
             variance.push_back(i);
@@ -101,7 +103,7 @@ MKLDNNPriorBoxNode::MKLDNNPriorBoxNode(
     } else if (attrs.variance.empty()) {
         variance.push_back(0.1f);
     } else {
-        THROW_IE_EXCEPTION << "Wrong number of variance values. Not less than 1 and more than 4 variance values.";
+        THROW_ERROR << "Wrong number of variance values. Not less than 1 and more than 4 variance values.";
     }
 }
 
