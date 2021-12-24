@@ -7,7 +7,7 @@ from copy import deepcopy
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from openvino.tools.mo.utils.logger import init_logger
-from openvino.runtime import Core  # pylint: disable=E0611
+from openvino.runtime import Core  # pylint: disable=E0401
 from openvino.offline_transformations_pybind import apply_pot_transformations, serialize # pylint: disable=import-error,no-name-in-module
 
 from ..graph.passes import ModelPreprocessor, remove_converts, add_removed_converts
