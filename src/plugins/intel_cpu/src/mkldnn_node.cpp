@@ -53,6 +53,8 @@
 #include "mkldnn_debug.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include <dnnl_types.h>
 #include <ie_ngraph_utils.hpp>
@@ -1456,6 +1458,13 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
         "SecondStagePostprocessor/BatchMultiClassNonMaxSuppression/MultiClassNonMaxSuppression/range_48"
     };
     if (expected_names.count(current_name) != 0) {
+        if (std::dynamic_pointer_cast<ngraph::opset8::Gather>(opToShapeInfer)) {
+            std::cout << "Current node is a node with the operation Gather v8\n";
+        } else if (std::dynamic_pointer_cast<ngraph::opset7::Gather>(opToShapeInfer)) {
+            std::cout << "Current node is a node with the operation Gather v7\n";
+        } else if (std::dynamic_pointer_cast<ngraph::opset1::Gather>(opToShapeInfer)) {
+            std::cout << "Current node is a node with the operation Gather v1\n";
+        }
         for (size_t i = 0; i < newOutputShapes.size(); i++) {
             const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
             std::cout << "output shape for the output port " << i << " is " << partShape << "\n";
