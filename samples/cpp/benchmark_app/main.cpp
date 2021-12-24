@@ -205,7 +205,7 @@ int main(int argc, char* argv[]) {
                     slog::warn << "-hint default value is determined as" << CONFIG_VALUE(THROUGHPUT)
                                << " automatically for " << device
                                << " device. For more detailed information look at README." << slog::endl;
-                    FLAGS_hint = "throughput";
+                    FLAGS_hint = CONFIG_VALUE(THROUGHPUT);
                 }
             }
         }
