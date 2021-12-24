@@ -194,6 +194,7 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), Layout());
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), Layout());
 }
 
 TEST(pre_post_process, convert_color_nv12_rgb_single) {
@@ -208,6 +209,7 @@ TEST(pre_post_process, convert_color_nv12_rgb_single) {
     EXPECT_EQ(f->get_parameters().size(), 1);
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::u8);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), "NHWC");
     EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
     EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
@@ -566,6 +568,18 @@ TEST(pre_post_process, test_2_inputs_basic) {
     f = p.build();
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
     EXPECT_EQ(f->get_output_element_type(1), element::f32);
+}
+
+TEST(pre_post_process, set_model_input_layout_helper) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
+    ov::layout::set_layout(f->input(0), "NCHW");
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), "NCHW");
+}
+
+TEST(pre_post_process, set_model_output_layout_helper) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 1});
+    ov::layout::set_layout(f->output(0), "NCHW");
+    EXPECT_EQ(ov::layout::get_layout(f->output(0)), "NCHW");
 }
 
 TEST(pre_post_process, reuse_model_layout_no_tensor_info) {
@@ -1192,6 +1206,7 @@ TEST(pre_post_process, postprocess_set_layout_model) {
     p.output().model().set_layout("NCHW");
     p.build();
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+    EXPECT_EQ(ov::layout::get_layout(f->output(0)), "NCHW");
 }
 
 TEST(pre_post_process, postprocess_convert_layout_implicit) {

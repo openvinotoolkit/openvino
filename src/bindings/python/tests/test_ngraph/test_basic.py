@@ -624,6 +624,23 @@ def test_coordinate_diff_iteration_methods():
     assert np.equal(coordinateDiff, data2).all()
 
 
+def test_get_and_set_layout():
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
+
+    model = Model(parameter_a + parameter_b, [parameter_a, parameter_b])
+
+    assert layout_helpers.get_layout(model.input(0)) == ov.Layout()
+    assert layout_helpers.get_layout(model.input(1)) == ov.Layout()
+
+    layout_helpers.set_layout(model.input(0), ov.Layout("CH"))
+    layout_helpers.set_layout(model.input(1), ov.Layout("HW"))
+
+    assert layout_helpers.get_layout(model.input(0)) == ov.Layout("CH")
+    assert layout_helpers.get_layout(model.input(1)) == ov.Layout("HW")
+
+
 def test_layout():
     layout = ov.Layout("NCWH")
     layout2 = ov.Layout("NCWH")
