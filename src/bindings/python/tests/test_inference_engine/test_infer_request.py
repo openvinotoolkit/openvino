@@ -27,23 +27,24 @@ def create_function_with_memory(input_shape, data_type):
     return func
 
 
-def test_get_profiling_info(device):
+def test_set_shape_gpu(device):
     core = Core()
     func = core.read_model(test_net_xml, test_net_bin)
     core.set_config({"PERF_COUNT": "YES"}, device)
     exec_net = core.compile_model(func, device)
     img = read_image()
     request = exec_net.create_infer_request()
-    tensor_name = exec_net.input("data").any_name
-    request.infer({tensor_name: img})
-    assert request.latency > 0
-    prof_info = request.get_profiling_info()
-    soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
-    assert soft_max_node.node_type == "Softmax"
-    assert soft_max_node.status == ProfilingInfo.Status.OPTIMIZED_OUT
-    assert isinstance(soft_max_node.real_time, datetime.timedelta)
-    assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
-    assert isinstance(soft_max_node.exec_type, str)
+    outputs = request.infer({0: img})
+    assert np.allclose(list(outputs.values()), list(request.results.values()))
+
+
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "GPU",
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
+def test_get_profiling_info(device):
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net = core.compile_model(func, device)
+    exec_net.create_infer_request().get_input_tensor().shape = exec_net.input().shape
 
 
 def test_tensor_setter(device):
