@@ -16,6 +16,7 @@ var wapSection = 'openvinotoolkit';
 })();
 
 $(document).ready(function() {
+    createVersions();
     init_col_sections();
     init_switchers();
     handleSwitcherParam();
@@ -25,6 +26,51 @@ $(document).ready(function() {
         addTableSort();
     }
 });
+
+function getCurrentVersion() {
+    var protocol = window.location.protocol + "//";
+    var index = window.location.href.indexOf(protocol);
+    var link = window.location.href.slice(index + protocol.length).split('/');
+    var wordAfterDomain = link[1];
+    if (wordAfterDomain === 'cn') {
+        wordAfterDomain = link[2];
+    }
+    if (["index.html", "404.html", "", "latest"].indexOf(wordAfterDomain) >= 0) {
+        /*
+        * If this landing page, 404 or domain.com we should get first version
+        * */
+        return versions[0].version;
+    }
+    return encodeURI(wordAfterDomain);
+}
+
+
+function createVersions() {
+    var versions;
+    var currentVersion = getCurrentVersion()
+    
+    try {
+        versions = JSON.parse(data);
+    }
+    catch(err) {
+        console.log(err);
+        versions = [];
+    }
+    var versionBtn = $('#version-selector');
+    versionBtn.text(currentVersion);
+    versionBtn.width((currentVersion.length * 10) + 'px');
+    var versionsContainer = $('[aria-labelledby="version-selector"]');
+    versions.forEach(item => {
+        var link = $('<a class="dropdown-item" href="#">' + item.version + '</a>');
+        if (item.version === currentVersion) {
+            link.addClass('font-weight-bold');
+        }
+        versionsContainer.append(link);
+    })
+    var downloadBtn = $('#download-zip-btn');
+    downloadBtn.attr('href', '/archives/' + currentVersion + '.zip')
+
+}
 
 
 function addTableSort() {
