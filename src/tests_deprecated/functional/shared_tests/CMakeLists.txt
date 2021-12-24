@@ -25,6 +25,10 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} ov_auto_plugin)
 endif()
 
+if(ENABLE_AUTO_BATCH)
+    add_dependencies(${TARGET_NAME} ov_auto_batch_plugin)
+endif()
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 ie_faster_build(${TARGET_NAME}

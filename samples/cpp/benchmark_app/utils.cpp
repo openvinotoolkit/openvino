@@ -109,8 +109,10 @@ std::vector<float> splitFloat(const std::string& s, char delim) {
 
 std::vector<std::string> parseDevices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
-    if (comma_separated_devices.find(":") != std::string::npos) {
-        comma_separated_devices = comma_separated_devices.substr(comma_separated_devices.find(":") + 1);
+    auto colon = comma_separated_devices.find(":");
+    if (colon != std::string::npos) {
+        auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
+        comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
     if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
         return std::vector<std::string>();

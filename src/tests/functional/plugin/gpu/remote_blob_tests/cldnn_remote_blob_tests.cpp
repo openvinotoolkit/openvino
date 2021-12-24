@@ -21,16 +21,27 @@ using namespace ::testing;
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
 
-class RemoteBlob_Test : public CommonTestUtils::TestsCommon {
+class RemoteBlob_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<bool> {
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
+    std::string deviceName;
 
+public:
     void SetUp() override {
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+        deviceName = CommonTestUtils::DEVICE_GPU;
+        auto with_auto_batching = this->GetParam();
+        if (with_auto_batching) { // BATCH:GPU
+            deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
+        }
+    }
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
+        auto with_auto_batch = obj.param;
+        return std::string("RemoteBlob_Test") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
     }
 };
 
-TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
+TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
@@ -41,7 +52,7 @@ TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
 
     // TODO: Issue: investigate issue with IECore
     auto ie = InferenceEngine::Core();
-    auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+    auto exec_net = ie.LoadNetwork(net, deviceName);
 
     // regular inference
     auto inf_req_regular = exec_net.CreateInferRequest();
@@ -70,6 +81,7 @@ TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
 
     Blob::Ptr shared_blob = make_shared_blob(net.getInputsInfo().begin()->second->getTensorDesc(), cldnn_context,
                                              shared_buffer);
+    shared_blob->allocate();
     inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, shared_blob);
 
     inf_req_shared.Infer();
@@ -85,7 +97,7 @@ TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
 }
 
 
-TEST_F(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
+TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
@@ -96,7 +108,7 @@ TEST_F(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
 
     // TODO: Issue: investigate issue with IECore
     auto ie = InferenceEngine::Core();
-    auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+    auto exec_net = ie.LoadNetwork(net, deviceName);
 
     // regular inference
     auto inf_req_regular = exec_net.CreateInferRequest();
@@ -139,7 +151,7 @@ TEST_F(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
 }
 
 
-TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
+TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
     auto fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     CNNNetwork net(fn_ptr);
 
@@ -149,7 +161,7 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
     auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
-    auto exec_net_regular = ie->LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie->LoadNetwork(net, deviceName);
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
@@ -161,7 +173,7 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
 
     // inference using remote blob
     auto ocl_instance = std::make_shared<OpenCL>();
-    auto remote_context = make_shared_context(*ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_context.get());
+    auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_context.get());
     auto exec_net_shared = ie->LoadNetwork(net, remote_context);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
     inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
@@ -178,7 +190,7 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
     }
 }
 
-TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
+TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
 #if defined _WIN32
     GTEST_SKIP();
 #endif
@@ -191,7 +203,7 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
     auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
-    auto exec_net_regular = ie->LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie->LoadNetwork(net, deviceName);
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
@@ -214,7 +226,7 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
 
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
-    auto remote_context = make_shared_context(*ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_queue.get());
+    auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
     auto exec_net_shared = ie->LoadNetwork(net, remote_context);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
@@ -270,7 +282,7 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
     }
 }
 
-TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
+TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
 #if defined _WIN32
     GTEST_SKIP();
 #endif
@@ -283,7 +295,7 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
     auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
-    auto exec_net_regular = ie->LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie->LoadNetwork(net, deviceName);
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
@@ -307,7 +319,7 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
 
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
-    auto remote_context = make_shared_context(*ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_queue.get());
+    auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
     auto exec_net_shared = ie->LoadNetwork(net, remote_context);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
@@ -357,6 +369,10 @@ TEST_F(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
         FuncTestUtils::compareBlobs(outputBlob_regular, output_blob, thr);
     }
 }
+
+std::vector<bool> with_auto_batching {true, false};
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, RemoteBlob_Test, ::testing::ValuesIn(with_auto_batching),
+        RemoteBlob_Test::getTestCaseName);
 
 class BatchedBlob_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {

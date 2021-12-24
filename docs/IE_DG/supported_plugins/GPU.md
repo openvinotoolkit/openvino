@@ -141,6 +141,9 @@ When specifying key values as raw strings (that is, when using Python API), omit
 
 @snippet snippets/GPU_Metric1.cpp part1
 
+* OPTIMAL_BATCH_SIZE : Returns _optimal_ batch size for a given network on the given GPU device. The returned value is aligned to power of 2. Also, MODEL_PTR is the required option for this metric since the optimal batch size highly depends on the model. If the MODEL_PTR is not given, the value of 1 is returned. The example code to set the required and optional configs for this metric is available in the following snippet:
+
+@snippet snippets/GPU_Metric1.cpp part2
 ## GPU Context and Video Memory Sharing RemoteBlob API
 
 See [RemoteBlob API of GPU Plugin](GPU_RemoteBlob_API.md)
