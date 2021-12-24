@@ -209,7 +209,7 @@ TEST(pre_post_process, convert_color_nv12_rgb_single) {
     EXPECT_EQ(f->get_parameters().size(), 1);
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::u8);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
-    EXPECT_EQ(ov::layout::get_layout(f->input(0)), "NCHW");
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), "NHWC");
     EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
     EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
