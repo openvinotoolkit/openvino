@@ -100,6 +100,8 @@ ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
 ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
 
+ie_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
+
 ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 
 ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
