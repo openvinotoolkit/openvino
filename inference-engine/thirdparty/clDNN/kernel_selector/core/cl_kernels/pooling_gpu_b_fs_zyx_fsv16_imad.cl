@@ -255,7 +255,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     ACCUMULATOR_TYPE result[FEATURE_SLICE_SIZE] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL,
                                                     INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
 
-#ifdef CHECK_BOUNDRY
+#ifdef CHECK_BOUNDARY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
         offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y ||
         offset_z + POOL_SIZE_Z < 0 || offset_z >= INPUT0_SIZE_Z)
@@ -341,7 +341,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     const int wend = min(offset_x + POOL_SIZE_X, INPUT0_SIZE_X + PADDING_SIZE_X);
     const uint num_elements = (dend - offset_z) * (hend - offset_y) * (wend - offset_x);
 #endif
-#else // !CHECK_BOUNDRY
+#else // !CHECK_BOUNDARY
 #if INPUT0_DIMS == 4
     uint input_idx = INPUT0_GET_INDEX(b, f, offset_y, offset_x);
 #else

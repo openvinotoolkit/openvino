@@ -51,7 +51,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
 
     ACCUMULATOR_TYPE result[4] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
 
-#ifdef CHECK_BOUNDRY
+#ifdef CHECK_BOUNDARY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
         offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y)
     {
@@ -96,7 +96,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
     const int wend = min(offset_x + POOL_SIZE_X, INPUT0_SIZE_X + PADDING_SIZE_X);
     const uint num_elements = (hend - offset_y) * (wend - offset_x);
 #endif
-#else // !CHECK_BOUNDRY
+#else // !CHECK_BOUNDARY
     uint input_idx = GET_DATA_B_FS_YX_FSV4_INDEX(INPUT0, b, f, offset_y, offset_x);
 
     for(uint j = 0; j < POOL_SIZE_Y; j++)

@@ -144,7 +144,9 @@ public:
         std::vector<size_t> padBegin, padEnd;
         ngraph::op::PadType padType;
         ngraph::op::RoundingType roundingType;
-        std::tie(kernel, stride, dilation, padBegin, padEnd, roundingType, padType) = basicParamsSet;
+        ngraph::element::Type indexElementType;
+        int64_t axis;
+        std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = basicParamsSet;
 
         std::ostringstream results;
         results << "IS=(";
@@ -181,7 +183,9 @@ protected:
         std::vector<size_t> padBegin, padEnd;
         ngraph::op::PadType padType;
         ngraph::op::RoundingType roundingType;
-        std::tie(kernel, stride, dilation, padBegin, padEnd, roundingType, padType) = basicParamsSet;
+        ngraph::element::Type indexElementType;
+        int64_t axis;
+        std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = basicParamsSet;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
@@ -192,7 +196,8 @@ protected:
 
         auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
         std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makeMaxPoolingV8(params[0], stride, dilation, padBegin, padEnd,
-                                                                                  kernel, roundingType, padType);
+                                                                                  kernel, roundingType, padType,
+                                                                                  indexElementType, axis);
         pooling->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling->output(0))};
         function = std::make_shared<ngraph::Function>(results, params, "MaxPooling");
@@ -375,15 +380,19 @@ const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax4D = {
 
 const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV84D = {
         LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
+                                                        ngraph::element::Type_t::i32, 0,
                                                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER },
 };
 
 const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV84D_ref = {
         LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+                                                        ngraph::element::Type_t::i32, 0,
                                                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER },
         LayerTestsDefinitions::maxPoolV8SpecificParams{ {4, 2}, {2, 2}, {1, 2}, {0, 0}, {0, 0},
+                                                        ngraph::element::Type_t::i32, 0,
                                                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
         LayerTestsDefinitions::maxPoolV8SpecificParams{ {4, 2}, {2, 1}, {2, 2}, {0, 0}, {0, 0},
+                                                        ngraph::element::Type_t::i32, 0,
                                                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
 };
 
@@ -467,15 +476,19 @@ const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax5D = {
 
 const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV85D = {
         LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
+                                                        ngraph::element::Type_t::i32, 0,
                                                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER },
 };
 
 const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV85D_ref = {
         LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
+                                                        ngraph::element::Type_t::i32, 0,
                                                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER },
         LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
+                                                        ngraph::element::Type_t::i32, 0,
                                                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
         LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
+                                                        ngraph::element::Type_t::i32, 0,
                                                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
 };
 

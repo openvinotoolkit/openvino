@@ -221,6 +221,7 @@ REGISTER_FACTORY(v8, NV12toBGR);
 REGISTER_FACTORY(v8, I420toRGB);
 REGISTER_FACTORY(v8, I420toBGR);
 REGISTER_FACTORY(v8, RandomUniform)
+REGISTER_FACTORY(v8, MaxPool);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

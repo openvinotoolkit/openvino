@@ -27,6 +27,8 @@ ParamsKey PoolingKernelGPURef::GetSupportedKey() const {
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC);
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC_WITH_PADDING);
     k.EnableDifferentTypes();
+    k.EnablePoolDilation();
+    k.EnablePoolIndicesOutput();
     return k;
 }
 

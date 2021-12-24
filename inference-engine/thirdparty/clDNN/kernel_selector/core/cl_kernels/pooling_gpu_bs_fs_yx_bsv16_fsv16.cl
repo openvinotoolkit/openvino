@@ -48,7 +48,7 @@ KERNEL(pooling_gpu_bs_fs_yx_bsv16_fsv16)(const __global INPUT0_TYPE* input,
     const uint input_fs_pitch = input_y_pitch * (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
     int16 result = INIT_VAL;
 
-#ifdef CHECK_BOUNDRY
+#ifdef CHECK_BOUNDARY
     uint batch_and_feature_offset = GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(INPUT0, b, f, 0, 0);
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X || offset_y + POOL_SIZE_Y < 0 ||
         offset_y >= INPUT0_SIZE_Y) {
@@ -88,7 +88,7 @@ KERNEL(pooling_gpu_bs_fs_yx_bsv16_fsv16)(const __global INPUT0_TYPE* input,
     const int wend = min(offset_x + POOL_SIZE_X, INPUT0_SIZE_X + PADDING_SIZE_X);
     const uint num_elements = (hend - offset_y) * (wend - offset_x);
 #endif
-#else  // !CHECK_BOUNDRY
+#else  // !CHECK_BOUNDARY
     uint input_idx = GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(INPUT0, b, f, offset_y, offset_x);
     __attribute__((opencl_unroll_hint(POOL_SIZE_Y)))
     for (uint j = 0; j < POOL_SIZE_Y; j++) {

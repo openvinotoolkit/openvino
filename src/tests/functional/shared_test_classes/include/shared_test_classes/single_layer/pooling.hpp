@@ -54,6 +54,8 @@ typedef std::tuple<
         std::vector<size_t>,            // Dilation
         std::vector<size_t>,            // Pad begin
         std::vector<size_t>,            // Pad end
+        ngraph::element::Type_t,        // Index element type
+        int64_t,                        // Axis
         ngraph::op::RoundingType,       // Rounding type
         ngraph::op::PadType             // Pad type
 > maxPoolV8SpecificParams;
