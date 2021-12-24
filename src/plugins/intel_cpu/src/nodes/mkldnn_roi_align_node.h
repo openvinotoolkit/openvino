@@ -13,6 +13,43 @@
 
 namespace MKLDNNPlugin {
 
+struct jit_roi_align_params {
+    Algorithm alg;
+    InferenceEngine::Precision data_prc;
+    int data_size;
+};
+
+struct jit_roi_align_call_args {
+    explicit jit_roi_align_call_args(const void *src_, const int *idx_y_, const int *idx_x_, const int *stride_y_, const int *stride_x_,
+        const float *weights_, const float *scale_, void *dst_, size_t work_amount_) : src(src_), idx_y(idx_y_), idx_x(idx_x_),
+        stride_y(stride_y_), stride_x(stride_x_), weights(weights_), scale(scale_), dst(dst_), work_amount(work_amount_) {}
+    const void *src;
+    const int *idx_y;
+    const int *idx_x;
+    const int *stride_y;
+    const int *stride_x;
+    const float *weights;
+    const float *scale;
+    void *dst;
+    size_t work_amount;
+};
+
+struct jit_uni_roi_align_kernel {
+    void (*ker_)(const jit_roi_align_call_args *);
+
+    void operator()(const jit_roi_align_call_args *args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    explicit jit_uni_roi_align_kernel(jit_roi_align_params jcp) : ker_(nullptr), jcp_(jcp) {}
+    virtual ~jit_uni_roi_align_kernel() {}
+
+    virtual void create_ker() = 0;
+
+    jit_roi_align_params jcp_;
+};
+
 class MKLDNNROIAlignNode : public MKLDNNNode {
 public:
     MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
@@ -36,6 +73,9 @@ private:
     void executeSpecified();
     template<typename T>
     struct ROIAlignExecute;
+
+    void createJitKernel(const InferenceEngine::Precision& dataPrec);
+    std::shared_ptr<jit_uni_roi_align_kernel> roi_align_kernel = nullptr;
 
     std::string errorPrefix;
 };
