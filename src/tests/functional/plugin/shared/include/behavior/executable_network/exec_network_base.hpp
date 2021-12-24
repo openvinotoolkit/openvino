@@ -337,7 +337,7 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
         function->set_friendly_name("SimpleReLU");
     }
     InferenceEngine::CNNNetwork cnnNet(function);
-    EXPECT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration), InferenceEngine::Exception);
+    EXPECT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
 
 TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
@@ -359,6 +359,7 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
         function->get_rt_info()["version"] = int64_t(11);
         function->set_friendly_name("SimpleReLU");
     }
+    InferenceEngine::CNNNetwork cnnNet(function);
     EXPECT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
 
