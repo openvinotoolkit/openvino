@@ -325,7 +325,7 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
         auto relu = std::make_shared<ov::opset8::Relu>(param1);
@@ -333,7 +333,7 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
         relu->output(0).get_tensor().set_names({"relu"});
         auto result = std::make_shared<ov::opset8::Result>(relu);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function = std::make_shared<Model>(ResultVector{result}, ParameterVector{param1});
         function->get_rt_info()["version"] = int64_t(10);
         function->set_friendly_name("SimpleReLU");
     }
@@ -349,7 +349,7 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
         auto relu = std::make_shared<ov::opset8::Relu>(param1);
@@ -357,7 +357,7 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
         relu->output(0).get_tensor().set_names({"relu"});
         auto result = std::make_shared<ov::opset8::Result>(relu);
         result->set_friendly_name("result");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function = std::make_shared<Model>(ResultVector{result}, ParameterVector{param1});
         function->get_rt_info()["version"] = int64_t(11);
         function->set_friendly_name("SimpleReLU");
     }
