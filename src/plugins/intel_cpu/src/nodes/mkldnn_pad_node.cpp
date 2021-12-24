@@ -373,6 +373,8 @@ void MKLDNNPadNode::PadExecutor::padConstantCommon(MKLDNNMemoryPtr& srcMemPtr, M
         parallel_for(workAmount, [&](size_t i) {
             dstData[i] = value;
         });
+
+        return;
     }
 
     const T* srcData = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
