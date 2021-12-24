@@ -264,10 +264,6 @@ def main():
             log.error('The number of output files is not equal to the number of network outputs.')
             sys.exit(-6)
 
-# ---------------------------Step 5. Create infer request--------------------------------------------------------------
-    infer_request = compiled_model.create_infer_request()
-
-# ---------------------------Step 6. Prepare input---------------------------------------------------------------------
     file_data = [read_utterance_file(file_name) for file_name in input_files]
 
     input_data = {
@@ -280,7 +276,10 @@ def main():
     if args.reference:
         references = {output_names[i]: read_utterance_file(reference_files[i]) for i in range(len(output_names))}
 
-# ---------------------------Step 7. Do inference----------------------------------------------------------------------
+# --------------------------- Step 7. Create infer request ------------------------------------------------------------
+    infer_request = compiled_model.create_infer_request()
+
+# --------------------------- Step 8. Do inference --------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
     results = {name: {} for name in output_names}
     total_infer_time = 0
@@ -307,7 +306,7 @@ def main():
         num_of_frames = file_data[0][key].shape[0]
         avg_infer_time_per_frame = infer_time / num_of_frames
 
-# ---------------------------Step 8. Process output--------------------------------------------------------------------
+# --------------------------- Step 9. Process output ------------------------------------------------------------------
         log.info('')
         log.info(f'Utterance {i} ({key}):')
         log.info(f'Total time in Infer (HW and SW): {infer_time * 1000:.2f}ms')
