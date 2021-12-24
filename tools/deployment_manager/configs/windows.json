@@ -16,17 +16,14 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/bin/intel64/Release/inference_engine.dll",
-        "runtime/bin/intel64/Release/inference_engine_transformations.dll",
+        "runtime/bin/intel64/Release/ov_runtime.dll",
         "runtime/bin/intel64/Release/inference_engine_preproc.dll",
         "runtime/bin/intel64/Release/inference_engine_c_api.dll",
         "runtime/bin/intel64/Release/ov_hetero_plugin.dll",
         "runtime/bin/intel64/Release/ov_auto_plugin.dll",
-        "runtime/bin/intel64/Release/ngraph.dll",
-        "runtime/bin/intel64/Release/frontend_common.dll",
         "runtime/bin/intel64/Release/ov_ir_frontend.dll",
         "runtime/bin/intel64/Release/ov_onnx_frontend.dll",
-        "runtime/bin/intel64/Release/ov_paddlepaddle_frontend.dll",
+        "runtime/bin/intel64/Release/ov_paddle_frontend.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -36,8 +33,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
-        "runtime/bin/intel64/Release/MKLDNNPlugin.dll"
+        "runtime/bin/intel64/Release/ov_intel_cpu_plugin.dll"
       ]
     },
     "gpu": {
@@ -46,7 +42,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/bin/intel64/Release/cache.json",
-        "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
         "runtime/bin/intel64/Release/ov_intel_gpu_plugin.dll"
       ]
     },
@@ -79,22 +74,10 @@
         "runtime/3rdparty/hddl"
       ]
     },
-    "opencv": {
-      "ui_name": "OpenCV",
-      "group": ["opencv"],
-      "dependencies" : [],
-      "files": [
-        "extras/opencv/version.txt",
-        "extras/opencv/setupvars.bat",
-        "extras/opencv/lib",
-        "extras/opencv/bin"
-      ]
-    },
     "python_common": {
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
-        "python/python3",
         "python/requirements.txt"
       ]
     },

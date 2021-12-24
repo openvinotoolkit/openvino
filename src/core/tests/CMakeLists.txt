@@ -53,7 +53,7 @@ set(SRC
     file_util.cpp
     float16.cpp
     framework_node.cpp
-    function.cpp
+    model.cpp
     graph_rewrite.cpp
     input_output_assign.cpp
     int4.cpp
@@ -409,7 +409,7 @@ set(SRC
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Add include path to so_extension.hpp
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
@@ -420,15 +420,15 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
+list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_extension)
 
-if (ENABLE_MKL_DNN AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
+if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
-        list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_intel_cpu_plugin)
     endif()
 endif()
 
@@ -446,7 +446,7 @@ if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
-        list(APPEND UNIT_TESTS_DEPENDENCIES templatePlugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_plugin)
     endif()
 endif()
 
@@ -559,7 +559,7 @@ add_dependencies(ov_core_unit_tests template_extension)
 target_include_directories(ov_core_unit_tests PRIVATE ".")
 target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
-get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
+get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
 target_include_directories(ov_core_unit_tests PRIVATE ${OV_CORE_SRC_DIR}/src)
 
 target_compile_definitions(ov_core_unit_tests

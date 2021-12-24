@@ -85,6 +85,17 @@ class OPENVINO_API Any {
         constexpr static const bool value = sizeof(test<std::map<T...>>(nullptr)) == sizeof(char);
     };
 
+    template <typename... T>
+    struct EqualityComparable<std::vector<T...>> {
+        static void* conv(bool);
+        template <typename U>
+        static char test(decltype(conv(std::declval<typename U::value_type>() ==
+                                       std::declval<typename U::value_type>())));
+        template <typename U>
+        static long test(...);
+        constexpr static const bool value = sizeof(test<std::vector<T...>>(nullptr)) == sizeof(char);
+    };
+
     template <typename T>
     struct HasBaseMemberType {
         template <class U>
@@ -333,7 +344,7 @@ class OPENVINO_API Any {
     friend class ::ov::runtime::RemoteTensor;
     friend class ::ov::runtime::InferencePlugin;
 
-    Any(const std::shared_ptr<void>& so, const Any& other);
+    Any(const Any& other, const std::shared_ptr<void>& so);
 
     void impl_check() const;
 
@@ -342,10 +353,31 @@ class OPENVINO_API Any {
     Base::Ptr _impl;
 
 public:
-    /**
-     * @brief Default constructor
-     */
+    /// @brief Default constructor
     Any() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other Any object
+    Any(const Any& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other Any object
+    /// @return reference to the current object
+    Any& operator=(const Any& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other Any object
+    Any(Any&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other Any object
+    /// @return reference to the current object
+    Any& operator=(Any&& other) = default;
+
+    /**
+     * @brief Destructor presereves unload order of implementation object and reference to library
+     */
+    ~Any();
 
     /**
      * @brief Constructor creates any with object

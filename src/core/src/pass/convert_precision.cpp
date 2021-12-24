@@ -40,6 +40,8 @@ bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node>
                                              ngraph::element::Type to,
                                              size_t idx);
 
+bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx);
+
 bool extend_select_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 
 template <typename T>
@@ -275,7 +277,8 @@ bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::
         {opset4::ReduceLogicalAnd::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
         {opset4::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
         {opset1::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},
-        {opset4::Range::get_type_info_static(), fuse_type_to_range_v4}};
+        {opset4::Range::get_type_info_static(), fuse_type_to_range_v4},
+        {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
 
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
 
@@ -315,6 +318,16 @@ bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, element::T
     if (auto range = ov::as_type_ptr<opset4::Range>(node)) {
         if (to.is_integral_number() || to.is_real()) {
             range->set_output_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
+    if (auto random_uniform = ov::as_type_ptr<opset8::RandomUniform>(node)) {
+        if (to.is_integral_number() || to.is_real()) {
+            random_uniform->set_out_type(to);
             return true;
         }
     }
