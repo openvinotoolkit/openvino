@@ -70,10 +70,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         print("{}: \t{}".format("Model Optimizer version", mo_version))
 
         versions_mismatch = False
-        # ie_version has a prefix from CI_BUILD_NUMBER but
-        # if mo_version is from git then it does not have that prefix,
-        # therefore smart comparison is needed
-        if mo_version not in ie_version:
+        if mo_version == ie_version:
             versions_mismatch = True
             extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)
