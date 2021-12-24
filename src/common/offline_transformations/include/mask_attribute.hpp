@@ -210,10 +210,20 @@ Mask::Ptr getMask(const Output<Node> & output);
 
 void setMask(Output<Node> output, const Mask::Ptr & mask);
 
+/**
+ * Set mask for result operation using special result key.
+ * Result operation share output tensor with previous operation
+ * so, to not rewrite previous operation mask, new key in
+ * output tensor rtInfo hashmap is needed.
+ */
 void setResultMask(Output<Node> output, const Mask::Ptr & mask);
 
+#ifdef ENABLE_OPENVINO_DEBUG
+/* Get mask which was defined on InitMasks matcher pass*/
 Mask::Ptr getInitMask(const Output<Node> & output);
 
+/* Set mask which was defined on InitMasks matcher pass*/
 void setInitMask(Output<Node> output, const Mask::Ptr & mask);
+#endif
 
 }  // namespace ngraph

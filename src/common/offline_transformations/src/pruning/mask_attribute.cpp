@@ -12,7 +12,6 @@
 
 namespace ngraph {
 
-static const char g_init_mask_key[] = "InitMask";
 static const char g_result_pruning_mask_key[] = "ResultMask";
 
 Mask::Ptr getMask(const Output<const Node> & output) {
@@ -45,6 +44,8 @@ void setResultMask(Output<Node> output, const Mask::Ptr & mask) {
     rtInfo[g_result_pruning_mask_key] = mask;
 }
 
+#ifdef ENABLE_OPENVINO_DEBUG
+static const char g_init_mask_key[] = "InitMask";
 Mask::Ptr getInitMask(const Output<Node> & output) {
     auto &rtInfo = output.get_rt_info();
 
@@ -61,6 +62,7 @@ void setInitMask(Output<Node> output, const Mask::Ptr & mask) {
     std::copy(mask->begin(), mask->end(), std::back_inserter(*copy_mask));
     rtInfo[g_init_mask_key] = copy_mask;
 }
+#endif
 
 std::ostream & operator<< (std::ostream & out, const Mask & mask) {
     out << "[ ";
