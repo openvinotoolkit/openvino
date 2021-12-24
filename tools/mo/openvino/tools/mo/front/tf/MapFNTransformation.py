@@ -7,7 +7,7 @@ import numpy as np
 
 from openvino.tools.mo.front.tf.WhileNormalize import WhileNormalize
 from openvino.tools.mo.ops.loop import Loop
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -205,7 +205,7 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
             if 'purpose' in record and record['purpose'] == 'execution_condition':
                 exec_cond_layer_id = record['internal_layer_id']
                 exec_cond_node = Loop.get_body_node_by_internal_id(loop_node, exec_cond_layer_id)
-                const_true = Const(body_graph, {'value': np.array(True, dtype=np.bool)}).create_node()
+                const_true = Const(body_graph, {'value': mo_array(True, dtype=np.bool)}).create_node()
                 exec_cond_node.in_port(0).get_connection().set_source(const_true.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):

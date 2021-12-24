@@ -37,4 +37,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestWaitTests,
                                  ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestWaitTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Batch_BehaviorTests, InferRequestWaitTests,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_BATCH))),
+                         InferRequestWaitTests::getTestCaseName);
 }  // namespace
