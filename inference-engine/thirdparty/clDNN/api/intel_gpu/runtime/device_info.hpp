@@ -6,6 +6,7 @@
 
 #include <string>
 #include <vector>
+#include <tuple>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -25,6 +26,10 @@ struct gfx_version {
     uint16_t major;
     uint8_t minor;
     uint8_t revision;
+    friend bool operator < (const gfx_version& l, const gfx_version& r)  {
+        return std::tie(l.major, l.minor, l.revision)
+               < std::tie(r.major, r.minor, r.revision); // same order
+    }
 };
 
 /// @brief Information about the device properties and capabilities.

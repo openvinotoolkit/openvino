@@ -1,8 +1,8 @@
 # Convert ONNX* Mask R-CNN Model to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN}
 
-These instructions are applicable only to the [Mask R-CNN model](https://onnxzoo.blob.core.windows.net/models/opset_10/mask_rcnn/mask_rcnn_R_50_FPN_1x.onnx) converted to the ONNX* file format from the [facebookresearch/maskrcnn-benchmark model](https://github.com/facebookresearch/maskrcnn-benchmark).
+These instructions are applicable only to the Mask R-CNN model converted to the ONNX* file format from the [facebookresearch/maskrcnn-benchmark model](https://github.com/facebookresearch/maskrcnn-benchmark).
 
-**Step 1**. Download the [pre-trained model file](https://onnxzoo.blob.core.windows.net/models/opset_10/mask_rcnn/mask_rcnn_R_50_FPN_1x.onnx).
+**Step 1**. Download the pre-trained model file from [onnx/models](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/mask-rcnn) (commit-SHA: 8883e49e68de7b43e263d56b9ed156dfa1e03117).
 
 **Step 2**. To generate the Intermediate Representation (IR) of the model, change your current working directory to the Model Optimizer installation directory and run the Model Optimizer with the following parameters:
 ```sh
