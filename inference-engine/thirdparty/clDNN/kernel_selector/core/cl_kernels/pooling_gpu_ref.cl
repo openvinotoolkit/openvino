@@ -28,6 +28,9 @@ KERNEL(pooling_gpu)(
 #if MAX_WITH_ARGMAX_POOLING
 , __global float* arg_max
 #endif
+#ifdef SELECTED_INDICES_TYPE
+, __global SELECTED_INDICES_TYPE* indices
+#endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif
@@ -91,11 +94,15 @@ KERNEL(pooling_gpu)(
 
     ACCUMULATOR_TYPE result = INIT_VAL;
 
+#ifdef SELECTED_INDICES_TYPE
+    uint result_idx = 0;
+#endif
+
 #if MAX_WITH_ARGMAX_POOLING
     uint arg_max_idx = 0;
 #endif
 
-#ifdef CHECK_BOUNDRY
+#ifdef CHECK_BOUNDARY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
         offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y ||
         offset_z + POOL_SIZE_Z < 0 || offset_z >= INPUT0_SIZE_Z)
@@ -107,6 +114,16 @@ KERNEL(pooling_gpu)(
     uint num_elementes = 0;
 #endif
 
+#ifndef DILATION_SIZE_X
+    #define DILATION_SIZE_X 1
+#endif
+#ifndef DILATION_SIZE_Y
+    #define DILATION_SIZE_Y 1
+#endif
+#ifndef DILATION_SIZE_Z
+    #define DILATION_SIZE_Z 1
+#endif
+
 #if OUTPUT_DIMS == 5
     const uint batch_and_feature_offset = INPUT0_GET_INDEX(b, f, 0, 0, 0);
 #else
@@ -116,20 +133,20 @@ KERNEL(pooling_gpu)(
 #if OUTPUT_DIMS == 5
     for(uint l = 0; l < POOL_SIZE_Z; l++)
     {
-        int input_offset_z = offset_z + l;
+        int input_offset_z = offset_z + (l * DILATION_SIZE_Z);
         bool zero_z = input_offset_z >= INPUT0_SIZE_Z || input_offset_z < 0;
         if (!zero_z)
         {
 #endif
             for(uint j = 0; j < POOL_SIZE_Y; j++)
             {
-                int input_offset_y = offset_y + j;
+                int input_offset_y = offset_y + (j * DILATION_SIZE_Y);
                 bool zero_y = input_offset_y >= INPUT0_SIZE_Y || input_offset_y < 0;
                 if(!zero_y)
                 {
                     for(uint i = 0; i < POOL_SIZE_X; i++)
                     {
-                        int input_offset_x = offset_x + i;
+                        int input_offset_x = offset_x + (i * DILATION_SIZE_X);
                         bool zero = input_offset_x >= INPUT0_SIZE_X || input_offset_x < 0;
                         if(!zero)
                         {
@@ -159,7 +176,17 @@ KERNEL(pooling_gpu)(
                                 arg_max_idx = input_idx_bfyx_no_padding;
                             }
 #endif
-                            result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
+                            const ACCUMULATOR_TYPE casted_input = TO_ACCUMULATOR_TYPE(input[input_idx]);
+                            #ifdef SELECTED_INDICES_TYPE
+                                if (casted_input > result)
+                                {
+                                    result = casted_input;
+                                    result_idx = input_idx;
+                                }
+                            #else
+                                result = FUNC_CALL(apply_pooling)(result, casted_input);
+                            #endif
+
 
 #ifdef DYNAMIC_KERNEL_DIVIDER
                             num_elementes++;
@@ -185,7 +212,7 @@ KERNEL(pooling_gpu)(
 
 #endif  // DYNAMIC_WITH_PADDING_KERNEL_DIVIDER
 
-#else  // CHECK_BOUNDRY
+#else  // CHECK_BOUNDARY
 
 #if  OUTPUT_DIMS == 5  // 3D
     uint input_idx = INPUT0_GET_INDEX(b, f, offset_z, offset_y, offset_x);
@@ -227,7 +254,16 @@ KERNEL(pooling_gpu)(
                 uint input_idx = INPUT0_GET_INDEX(b, f, offset_y + j, offset_x + i);
                 result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
     #else
-                result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
+                #ifdef SELECTED_INDICES_TYPE
+                    const current_input_value = input[input_idx];
+                    if (current_input_value > result)
+                    {
+                        result = current_input_value;
+                        result_idx = input_idx;
+                    }
+                #else
+                    result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
+                #endif
                 input_idx += INPUT0_X_PITCH;
     #endif
 #endif
@@ -253,7 +289,7 @@ KERNEL(pooling_gpu)(
     const uint num_elementes = POOL_SIZE_X*POOL_SIZE_Y*POOL_SIZE_Z;
 #endif
 
-#endif // CHECK_BOUNDRY
+#endif // CHECK_BOUNDARY
 
 #if defined AVG_POOLING
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
@@ -280,6 +316,13 @@ KERNEL(pooling_gpu)(
 #endif
     output[output_pos] = final_result;
 
+#ifdef SELECTED_INDICES_TYPE
+    #ifdef INDICES_UPPER_BOUND
+        result_idx %= INDICES_UPPER_BOUND;
+    #endif
+    indices[output_pos] = TO_SELECTED_INDICES_TYPE(result_idx);
+#endif
+
 #if MAX_WITH_ARGMAX_POOLING
     //INPUT1 macro stands for Argmax
     const uint arg_max_pos = GET_DATA_INDEX_5D(INPUT1, b, f, z, y, x);
@@ -288,3 +331,7 @@ KERNEL(pooling_gpu)(
 }
 
 #undef INIT_VAL
+
+#undef DILATION_SIZE_X
+#undef DILATION_SIZE_Y
+#undef DILATION_SIZE_Z

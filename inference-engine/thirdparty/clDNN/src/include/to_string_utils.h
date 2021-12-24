@@ -9,6 +9,10 @@
 #include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "program_node.h"
+#endif
+
 
 #include <string>
 #include <sstream>
@@ -97,6 +101,8 @@ inline std::string fmt_to_str(format fmt) {
             return "bs_fs_yx_bsv4_fsv2";
         case format::bs_fs_yx_bsv4_fsv4:
             return "bs_fs_yx_bsv4_fsv4";
+        case format::bs_fs_yx_bsv8_fsv4:
+            return "bs_fs_yx_bsv8_fsv4";
         case format::bs_fs_yx_bsv32_fsv32:
             return "bs_fs_yx_bsv32_fsv32";
         case format::b_fs_zyx_fsv16:
@@ -267,5 +273,27 @@ inline std::string allocation_type_to_str(allocation_type type) {
     default: return "unknown";
     }
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+inline std::string onednn_post_op_type_to_str(onednn_post_op_type type) {
+    switch (type) {
+    case onednn_post_op_type::eltwise_act: return "eltwise_act";
+    case onednn_post_op_type::eltwise_clip: return "eltwise_clip";
+    case onednn_post_op_type::eltwise_linear: return "eltwise_linear";
+    case onednn_post_op_type::eltwise_round: return "eltwise_round";
+    case onednn_post_op_type::binary_mul: return "binary_mul";
+    case onednn_post_op_type::binary_add: return "binary_add";
+    case onednn_post_op_type::binary_max: return "binary_max";
+    case onednn_post_op_type::binary_min: return "binary_min";
+    case onednn_post_op_type::binary_relu: return "binary_relu";
+    case onednn_post_op_type::scale: return "scale";
+    case onednn_post_op_type::sum: return "sum";
+    case onednn_post_op_type::optimized: return "optimized";
+    case onednn_post_op_type::optimized_eltwise: return "optimized_eltwise";
+    case onednn_post_op_type::optimized_sum: return "optimized_sum";
+    default: return "unknown";
+    }
+}
+#endif
 
 }  // namespace cldnn

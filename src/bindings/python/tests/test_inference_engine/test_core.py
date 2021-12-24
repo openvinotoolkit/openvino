@@ -208,7 +208,7 @@ def test_query_model(device):
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
     ie = Core()
-    ie.register_plugin("MKLDNNPlugin", "BLA")
+    ie.register_plugin("ov_intel_cpu_plugin", "BLA")
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(func, "BLA")
     assert isinstance(exec_net, CompiledModel), \
@@ -380,3 +380,18 @@ def test_read_model_from_buffer_no_weights(device):
     core = Core()
     func = core.read_model(model=model)
     assert isinstance(func, Model)
+
+
+def test_infer_new_request_return_type(device):
+    ie = Core()
+    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    img = read_image()
+    exec_net = ie.compile_model(func, device)
+    res = exec_net.infer_new_request({"data": img})
+    arr = res[list(res)[0]][0]
+
+    assert isinstance(arr, np.ndarray)
+    assert arr.itemsize == 4
+    assert arr.shape == (10,)
+    assert arr.dtype == "float32"
+    assert arr.nbytes == 40

@@ -20,6 +20,7 @@ enum class KernelType {
     LRN,
     NORMALIZE,
     POOLING,
+    RANGE,
     ROI_POOLING,
     ROI_ALIGN,
     FULLY_CONNECTED,
@@ -55,6 +56,7 @@ enum class KernelType {
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHUFFLE_CHANNELS,
+    SLICE,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     BINARY_CONVOLUTION,
@@ -74,7 +76,8 @@ enum class KernelType {
     NON_MAX_SUPPRESSION,
     DETECTION_OUTPUT,
     EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR,
-    CONVERT_COLOR
+    CONVERT_COLOR,
+    RANDOM_UNIFORM
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

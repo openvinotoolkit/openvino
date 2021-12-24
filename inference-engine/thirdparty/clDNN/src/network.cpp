@@ -110,8 +110,18 @@ template <class T>
 static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     auto&& size = mem->get_layout().size;
 
-    file_stream << "shape: " << size.to_string() << " ";
-    file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto batch_size = std::max(std::min(debug_config->dump_layers_limit_batch, size.batch[0]), 1);
+    tensor tmp_size(size);
+    tmp_size.batch[0] = batch_size;
+    if (tmp_size == size) {
+        file_stream << "shape: " << size.to_string() << " ";
+        file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
+    } else {
+        file_stream << "shape: " << tmp_size.to_string() << " ";
+        file_stream << "(count: " << tmp_size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+            << ", original shape: " << size.to_string() << ")" << std::endl;
+    }
 
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
@@ -119,7 +129,7 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     std::stringstream buffer;
 
     for (cldnn::tensor::value_type g = 0; g < size.group[0]; ++g) {
-        for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
+        for (cldnn::tensor::value_type b = 0; b < batch_size; ++b) {
             for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
                 for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
                     for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
@@ -168,13 +178,14 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
 }
 
 static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
+    std::cout << "Dump " << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string filename = layerName;
     std::replace(filename.begin(), filename.end(), '\\', '_');
     std::replace(filename.begin(), filename.end(), '/', '_');
     std::replace(filename.begin(), filename.end(), ' ', '_');
     std::replace(filename.begin(), filename.end(), ':', '_');
-        filename = debug_config->dump_layers_path + filename + ".txt";
+    filename = debug_config->dump_layers_path + filename + ".txt";
 
     std::ofstream file_stream(filename);
     auto mem_dt = mem->get_layout().data_type;
@@ -198,6 +209,7 @@ static void log_memory_to_file(memory::ptr mem, stream& stream, std::string laye
     (void)layerName;
 }
 #endif
+
 /*
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
@@ -617,6 +629,7 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     return result;
 }
 
+
 void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::Execute");
     // Wait for previous execution completion
@@ -637,19 +650,16 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
 
     set_arguments();
-
     for (auto& inst : _exec_order) {
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             auto& node = _program->get_node(inst->id());
-            std::string layer_name = node.id();
+            const std::string layer_name = node.id();
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
                 std::cerr << get_primitive_info(inst->id()) << std::endl;
             }
 
             GPU_DEBUG_IF(debug_config->dump_layers_dst_only == 0 &&
-                            (debug_config->dump_layers.length() == 0 ||
-                            (debug_config->dump_layers.length() != 0 && debug_config->dump_layers.find(" " + layer_name + " ") != std::string::npos))) {
-                std::cout << "Dump " << layer_name << " layer src" << std::endl;
+                            debug_config->is_dumped_layer(layer_name)) {
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
                                     layer_name + "_src_" + std::to_string(i));
@@ -672,10 +682,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             get_stream().finish();
             auto& node = _program->get_node(inst->id());
-            std::string layer_name = node.id();
-            GPU_DEBUG_IF(debug_config->dump_layers.length() == 0 ||
-                        (debug_config->dump_layers.length() != 0 && debug_config->dump_layers.find(" " + layer_name + " ") != std::string::npos)) {
-                std::cout << "Dump " << layer_name << " layer dst" << std::endl;
+            const std::string layer_name = node.id();
+            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name)) {
                 log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
             }
         }

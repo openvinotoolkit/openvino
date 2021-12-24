@@ -284,10 +284,11 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<convolution>() &&
-        (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4) &&
+        (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
         ((fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
         (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
         (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
+        (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
         (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 &&
         (prev_output_layout.size.feature[0] == 3 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
         return true;
@@ -919,7 +920,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 
         if (i8_u8_input) {
             if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
-                if (input_layout.size.batch[0] % 16 == 0) {
+                if (input_layout.size.batch[0] >= 16) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
                     if (data_type_traits::is_floating_point(output_layout.data_type) &&
@@ -1269,6 +1270,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             format::bs_fs_yx_bsv32_fsv16,
             format::bs_fs_yx_bsv32_fsv32,
             format::bs_fs_yx_bsv4_fsv4,
+            format::bs_fs_yx_bsv8_fsv4,
             format::bs_fs_yx_bsv4_fsv2,
             format::bs_fs_zyx_bsv4_fsv4,
             format::bs_fs_zyx_bsv4_fsv2,
@@ -1279,6 +1281,23 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         // Unexpected layout
         if (std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), preferred_format) == onednn_optimized_formats.end()) {
             impl_candidate = impl_types::ocl;
+        }
+
+        // [WA] to avoid an onednn kernel issue of multiple sum post-ops
+        if (!node.get_fused_primitives().empty()) {
+            size_t sum_post_op_cnt = 0;
+            for (auto& fused_op : node.get_fused_primitives()) {
+                if (fused_op.node->is_type<eltwise>() && node.get_dependencies().size() > fused_op.dep_start_idx && fused_op.deps.size() == 1)  {
+                    auto& eltw_in = node.get_dependency(fused_op.dep_start_idx);
+                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in.get_output_layout(), node.get_output_layout()) &&
+                        fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in.get_output_layout())) {
+                        if (sum_post_op_cnt > 0)
+                            return impl_types::ocl;
+
+                        sum_post_op_cnt += 1;
+                    }
+                }
+            }
         }
 
         if (node.is_type<convolution>()) {
@@ -1463,7 +1482,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                     if (data_type_traits::is_floating_point(conv.get_output_layout().data_type) || ws.spatial[0] != 7 || conv.get_primitive()->groups > 1)
                         expected = format::bfyx;
                     else
-                        expected = format::bs_fs_yx_bsv4_fsv4;
+                        expected = format::bs_fs_yx_bsv8_fsv4;
 
                     auto conv_output_layout = conv.get_output_layout();
                     auto weights_layout = conv.weights(0).get_output_layout();

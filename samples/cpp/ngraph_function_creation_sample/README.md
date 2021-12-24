@@ -95,7 +95,7 @@ ngraph_function_creation_sample.exe -m lenet.bin -i 7-ubyte
 [ INFO ] Loading Inference Engine
 [ INFO ] Device info:
         CPU
-        MKLDNNPlugin version ......... <version>
+        ov_intel_cpu_plugin version ......... <version>
         Build ........... <build>
 
 [ INFO ] Preparing input blobs

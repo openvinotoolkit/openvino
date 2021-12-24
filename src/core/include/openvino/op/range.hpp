@@ -39,6 +39,11 @@ public:
     void set_output_type(element::Type output_type) {
         m_output_type = output_type;
     }
+
+    const element::Type& get_output_type() const {
+        return m_output_type;
+    }
+
     // Overload collision with method on Node
     using Node::set_output_type;
 
