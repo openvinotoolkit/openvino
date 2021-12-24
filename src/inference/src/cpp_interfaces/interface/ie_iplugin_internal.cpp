@@ -295,6 +295,18 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     OPENVINO_ASSERT(exeNetwork != nullptr);
     OPENVINO_ASSERT(function != nullptr);
 
+    std::unordered_set<std::string> leaf_names;
+    for (const auto& vals : {function->inputs(), function->outputs()}) {
+        for (const auto& val : vals) {
+            for (const auto& name : val.get_names()) {
+                OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
+                                "Model tensor names have collisions.",
+                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                leaf_names.insert(name);
+            }
+        }
+    }
+
     std::vector<std::shared_ptr<const ov::Node>> const_params;
     std::vector<std::shared_ptr<const ov::Node>> const_results;
 
@@ -315,14 +327,21 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
 
     for (const auto& param : function->get_parameters()) {
+        const auto& param_name = param->get_friendly_name();
         auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
-        new_param->set_friendly_name(param->get_friendly_name());
-        if (add_operation_names)
-            new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
+        new_param->set_friendly_name(param_name);
+        if (add_operation_names) {
+            OPENVINO_ASSERT(leaf_names.find(param_name) == leaf_names.end() ||
+                                param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
+                            "Model operation names have collisions with tensor names.",
+                            " Please use MO to generate new IR version, it should allow to avoid the issue");
+            leaf_names.insert(param_name);
+            new_param->output(0).get_tensor().add_names({param_name});
+        }
         // WA: use CNNNetwork's precisions since plugins sometimes override their precisions
         // after transformation pipeline is run
         new_param->set_element_type(
-            InferenceEngine::details::convertPrecision(inputsInfo.at(new_param->get_friendly_name())->getPrecision()));
+            InferenceEngine::details::convertPrecision(inputsInfo.at(param_name)->getPrecision()));
         new_param->set_layout(param->get_layout());
         new_param->validate_and_infer_types();
         const_params.emplace_back(new_param);
@@ -330,15 +349,20 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     for (const auto& result : function->get_results()) {
         auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                   result->get_output_partial_shape(0));
-        const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
-        fake_param->set_friendly_name(param_name);
+        const std::string res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        fake_param->set_friendly_name(res_name);
         fake_param->set_element_type(
-            InferenceEngine::details::convertPrecision(outputsInfo.at(param_name)->getPrecision()));
+            InferenceEngine::details::convertPrecision(outputsInfo.at(res_name)->getPrecision()));
         fake_param->validate_and_infer_types();
         auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
         if (add_operation_names) {
-            new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
+            OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
+                                result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
+                            "Model operation names have collisions with tensor names.",
+                            " Please use MO to generate new IR version, it should allow to avoid the issue");
+            leaf_names.insert(res_name);
+            new_result->output(0).get_tensor().add_names({res_name});
         }
         auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
         OPENVINO_ASSERT(r, "Internal error. SetNetworkInfo failure casting output copy to Result");

@@ -6,6 +6,7 @@
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "openvino/core/model.hpp"
 
 namespace BehaviorTestsDefinitions {
 class ExecutableNetworkBaseTest : public testing::WithParamInterface<BehaviorTestsUtils::InferRequestParams>,
@@ -316,4 +317,51 @@ TEST_P(ExecNetSetPrecision, canSetOutputPrecisionForNetwork) {
     outputs_info.begin()->second->setPrecision(netPrecision);
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
+TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
+    using namespace ov;
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(10);
+        function->set_friendly_name("SimpleReLU");
+    }
+    InferenceEngine::CNNNetwork cnnNet(function);
+    EXPECT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration), InferenceEngine::Exception);
+}
+
+TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
+    using namespace ov;
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(11);
+        function->set_friendly_name("SimpleReLU");
+    }
+    EXPECT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+}
+
 }  // namespace BehaviorTestsDefinitions
