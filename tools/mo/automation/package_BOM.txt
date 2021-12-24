@@ -604,6 +604,7 @@ openvino/tools/mo/front/tf/placeholder_ext.py
 openvino/tools/mo/front/tf/placeholder_with_default_ext.py
 openvino/tools/mo/front/tf/pooling_ext.py
 openvino/tools/mo/front/tf/prelu.py
+openvino/tools/mo/front/tf/QueueDequeue_ext.py
 openvino/tools/mo/front/tf/random_uniform_ext.py
 openvino/tools/mo/front/tf/random_uniform_int_ext.py
 openvino/tools/mo/front/tf/range_ext.py

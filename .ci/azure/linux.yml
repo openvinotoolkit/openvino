@@ -203,7 +203,7 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - script: python3 -m pip install $(INSTALL_DIR)/tools/*.whl --find-links=$(INSTALL_DIR)/tools
+  - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install wheels'
 
   - script: |

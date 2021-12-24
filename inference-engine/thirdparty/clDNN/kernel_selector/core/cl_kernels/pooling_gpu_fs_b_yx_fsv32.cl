@@ -84,7 +84,7 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
     const size_t fs_offset = fs * fs_pitch; // locate beginning of feature tile
     const size_t b_offset = b * b_pitch;   // locate beginning of batch
 
-#ifdef CHECK_BOUNDRY
+#ifdef CHECK_BOUNDARY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
         offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y)
     {
@@ -121,7 +121,7 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
     const int wend = min(offset_x + POOL_SIZE_X, INPUT0_SIZE_X + PADDING_SIZE_X);
     const uint num_elements = (hend - offset_y) * (wend - offset_x);
 #endif
-#else // !CHECK_BOUNDRY
+#else // !CHECK_BOUNDARY
     for(uint in_dy = 0; in_dy < POOL_SIZE_Y; in_dy++)
     {
         const size_t input_offset_y = (offset_y + in_dy) * y_pitch;
