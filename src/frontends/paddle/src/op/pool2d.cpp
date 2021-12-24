@@ -14,7 +14,7 @@ namespace paddle {
 namespace op {
 // helper func - get pad_begin and pad_end
 static void get_paddings(const NodeContext& node, ov::Shape& pad_begin, ov::Shape& pad_end, ov::op::PadType& auto_pad) {
-    if (node.has_attribute<std::string>("padding_algorithm")) {
+    if (node.has_attribute("padding_algorithm")) {
         auto pad_algo = node.get_attribute<std::string>("padding_algorithm");
         if (pad_algo == "SAME") {
             auto_pad = ov::op::PadType::SAME_UPPER;

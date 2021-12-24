@@ -12,7 +12,7 @@ namespace op {
 NamedOutputs squeeze(const NodeContext& node) {
     auto data = node.get_input("X");
     std::vector<int32_t> axes;
-    if (node.has_attribute<std::vector<int32_t>>("axes")) {
+    if (node.has_attribute("axes")) {
         axes = node.get_attribute<std::vector<int32_t>>("axes");
     }
 

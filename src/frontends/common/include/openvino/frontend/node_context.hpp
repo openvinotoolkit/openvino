@@ -34,6 +34,7 @@ public:
     }
 
     /// Returns node attribute by name
+    /// TODO use default template parameter (T) = ov::Any, is it possible?
     template <class T>
     T get_attribute(const std::string& name) const {
         auto res = get_attribute_as_any(name);
@@ -51,12 +52,12 @@ public:
         return def;
     }
 
-    /// Check if an attribute of a given name exists
-    template <typename T>
+    /// Check if an attribute of a given name exist
     bool has_attribute(const std::string& name) const {
-        return get_attribute_as_any(name).empty();
+        return !get_attribute_as_any(name).empty();
     }
 
+    // todo private, use default parameter get_attribute<>() to return ov::Any
     virtual ov::Any get_attribute_as_any(const std::string& name) const = 0;
 
 private:

@@ -372,7 +372,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                                  }});
     } else if (const auto& paddle_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(paddle_conv_ext);
-        m_op_translators.insert({common_conv_ext->get_op_type(), paddle_conv_ext->get_converter()});
+        m_op_translators.insert({paddle_conv_ext->get_op_type(), paddle_conv_ext->get_converter()});
     }
 }
 

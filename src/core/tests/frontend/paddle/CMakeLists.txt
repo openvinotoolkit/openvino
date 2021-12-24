@@ -61,3 +61,7 @@ add_dependencies(${TARGET_NAME} ov_paddle_frontend)
 if (ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} ov_intel_cpu_plugin)
 endif()
+
+# Add include path to so_extension.hpp
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/conversion.cpp
+        PROPERTIES INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")

@@ -57,20 +57,14 @@ void regclass_frontend_JsonConfigExtension(py::module m) {
 }
 
 void regclass_frontend_ConversionExtension(py::module m) {
-    py::class_<ov::frontend::ConversionExtension,
-               std::shared_ptr<ov::frontend::ConversionExtension>,
-               ov::Extension>
+    py::class_<ov::frontend::ConversionExtension, std::shared_ptr<ov::frontend::ConversionExtension>, ov::Extension>
         ext(m, "ConversionExtension", py::dynamic_attr());
 
-    ext.def(py::init(
-        [](const std::string& op_type,
-           const ov::frontend::CreatorFunction& f) {
-            return std::make_shared<ov::frontend::ConversionExtension>(op_type, f);
-        }));
+    ext.def(py::init([](const std::string& op_type, const ov::frontend::CreatorFunction& f) {
+        return std::make_shared<ov::frontend::ConversionExtension>(op_type, f);
+    }));
 
-    ext.def(py::init(
-        [](const std::string& op_type,
-           const ov::frontend::CreatorFunctionNamed& f) {
-            return std::make_shared<ov::frontend::ConversionExtension>(op_type,f);
-        }));
+    ext.def(py::init([](const std::string& op_type, const ov::frontend::CreatorFunctionNamed& f) {
+        return std::make_shared<ov::frontend::ConversionExtension>(op_type, f);
+    }));
 }

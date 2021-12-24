@@ -18,10 +18,9 @@ public:
     bool transform(const std::shared_ptr<ov::Model>& function, const std::string& config) const override;
 };
 
-ov::OutputVector CustomTranslatorCommon_1(const ov::frontend::NodeContext<ov::OutputVector>& node);
+ov::OutputVector CustomTranslatorCommon_1(const ov::frontend::NodeContext& node);
 
-std::map<std::string, ov::OutputVector> CustomTranslatorCommon_2(
-    const ov::frontend::NodeContext<std::map<std::string, ov::OutputVector>>& node);
+std::map<std::string, ov::OutputVector> CustomTranslatorCommon_2(const ov::frontend::NodeContext& node);
 
 ov::OutputVector CustomTranslatorTensorflow(const ov::frontend::tensorflow::NodeContext& node);
 

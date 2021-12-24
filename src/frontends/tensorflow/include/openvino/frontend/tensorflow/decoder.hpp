@@ -13,12 +13,18 @@ namespace tensorflow {
 
 class TENSORFLOW_API DecoderBase {
 public:
-    /// \brief Get attribute value by name and requested type
+    /// \brief Get attribute value by name
     ///
     /// \param name Attribute name
-    /// \param type_info Attribute type information
-    /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
+    /// \return Shared pointer to appropriate value converted to openvino data type if it exists, 'nullptr' otherwise
     virtual ov::Any get_attribute(const std::string& name) const = 0;
+
+    /// \brief Get attribute value by name
+    ///
+    /// \param name Attribute name
+    /// \return Shared pointer to appropriate value in native (tensorflow data type) form if it exists,
+    /// 'nullptr' otherwise
+    virtual ov::Any get_native_attribute(const std::string& name) const = 0;
 
     /// \brief Get a number of inputs
     virtual size_t get_input_size() const = 0;

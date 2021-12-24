@@ -81,6 +81,12 @@ void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T
     FRONT_END_THROW("Node must be converted to Constant.");
 }
 
+// TODO: move to decoder or rewrite
+// should be part of DecoderProto
+// tensor_proto -> HostTensor?? avoid double copying of data
+
+// decoder.get_native_attribute() for TensorProto/DataType
+
 // Taken from: tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc
 // Extract values from a Const op to `values`. Returns true if succeeds.
 //
@@ -91,8 +97,9 @@ void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T
 template <typename T, typename VecT = T>
 void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
     TENSORFLOW_OP_VALIDATION(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
-    auto dt = node.get_attribute<::tensorflow::DataType>("dtype");
-    auto tensor_proto = node.get_attribute<::tensorflow::TensorProto>("value");
+    const auto* decoder = node.get_decoder();
+    auto dt = decoder->get_native_attribute("dtype").as<::tensorflow::DataType>();
+    auto tensor_proto = decoder->get_native_attribute("value").as<::tensorflow::TensorProto>();
     const ::tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
     tf_shape_to_ov_shape(shape, &pshape);

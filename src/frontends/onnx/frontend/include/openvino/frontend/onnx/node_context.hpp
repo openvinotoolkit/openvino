@@ -12,11 +12,9 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 
-class Node;
-
 class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext {
 public:
-    explicit NodeContext(const ov::frontend::onnx::Node& context);
+    explicit NodeContext(const Node& context);
     size_t get_input_size() const override;
     size_t get_input_size(const std::string& name) const override;
 
@@ -27,10 +25,10 @@ public:
     ov::Any get_attribute_as_any(const std::string& name) const override;
 
 protected:
-    const ov::frontend::onnx::Node& m_context;
+    const Node& m_context;
     OutputVector m_inputs;
 };
-using CreatorFunction = std::function<OutputVector(const Node&)>;
+using CreatorFunction = std::function<OutputVector(const ov::frontend::onnx::NodeContext&)>;
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

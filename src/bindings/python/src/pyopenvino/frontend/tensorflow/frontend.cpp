@@ -53,6 +53,4 @@ void regclass_frontend_tensorflow_NodeContext(py::module m) {
         ext(m, "NodeContext", py::dynamic_attr());
 }
 
-void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
-
-}
+void regclass_frontend_tensorflow_ConversionExtension(py::module m) {}

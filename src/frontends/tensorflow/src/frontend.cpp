@@ -11,6 +11,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pass/transpose_sinking.hpp"
+#include "so_extension.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 
@@ -25,7 +26,8 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
-    NodeContext node_ctx(*node->get_decoder(), node->input_values());
+    ov::OutputVector ng_inputs = node->input_values();
+    NodeContext node_ctx(*node->get_decoder(), ng_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
 
     auto new_output = new_node_outputs.begin();
@@ -374,6 +376,9 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_telemetry = telemetry;
     } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_transformation_extensions.push_back(transformation);
+    } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+        add_extension(so_ext->extension());
+        m_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         m_op_translators.insert({common_conv_ext->get_op_type(), [=](const NodeContext& context) {
@@ -381,6 +386,6 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                                  }});
     } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
-        m_op_translators.insert({common_conv_ext->get_op_type(), tensorflow_conv_ext->get_converter()});
+        m_op_translators.insert({tensorflow_conv_ext->get_op_type(), tensorflow_conv_ext->get_converter()});
     }
 }

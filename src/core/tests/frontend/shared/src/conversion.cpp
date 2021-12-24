@@ -27,33 +27,39 @@ void FrontEndConversionExtensionTest::initParamTest() {
     m_param.m_modelName = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_modelName);
 }
 
-template <class T>
-class ConversionExtensionMock : public ov::frontend::ConversionExtension<T> {
-public:
-    ConversionExtensionMock(const std::string& op_type, const ov::frontend::CreatorFunction<T>& converter)
-        : ov::frontend::ConversionExtension<T>(op_type, converter) {}
-
-    ~ConversionExtensionMock() override = default;
-};
+inline std::string get_lib_path(const std::string& lib_name) {
+    return ov::util::make_plugin_library_name<char>(ov::util::get_ov_lib_path(), lib_name + IE_BUILD_POSTFIX);
+}
 
 ///////////////////////////////////////////////////////////////////
 
-TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionMock) {
+TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
     auto frontend = m_param.m_frontend;
     if (m_param.m_frontEndName == "paddle") {
-        frontend->add_extension(std::make_shared<ConversionExtensionMock<std::map<std::string, ov::OutputVector>>>(
+        frontend->add_extension(std::make_shared<ConversionExtension>(
             m_param.m_translatorName,
-            [&](const NodeContext<std::map<std::string, ov::OutputVector>>& node)
-                -> std::map<std::string, ov::OutputVector> {
+            [&](const NodeContext& node) -> std::map<std::string, ov::OutputVector> {
                 return {};
             }));
     } else {
-        frontend->add_extension(std::make_shared<ConversionExtensionMock<ov::OutputVector>>(
-            m_param.m_translatorName,
-            [&](const ov::frontend::NodeContext<ov::OutputVector>& node) -> ov::OutputVector {
-                return {};
-            }));
+        frontend->add_extension(
+            std::make_shared<ConversionExtension>(m_param.m_translatorName,
+                                                  [&](const ov::frontend::NodeContext& node) -> ov::OutputVector {
+                                                      return {};
+                                                  }));
     }
+    std::shared_ptr<InputModel> input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));
+    ASSERT_NE(input_model, nullptr);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = frontend->convert(input_model));
+    ASSERT_NE(model, nullptr);
+}
+
+TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
+    auto frontend = m_param.m_frontend;
+    const auto& lib_path = get_lib_path("test_builtin_extensions_1");
+    frontend->add_extension(lib_path);
     std::shared_ptr<InputModel> input_model;
     ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));
     ASSERT_NE(input_model, nullptr);

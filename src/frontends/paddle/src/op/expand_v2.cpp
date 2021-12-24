@@ -25,7 +25,7 @@ NamedOutputs expand_v2(const NodeContext& node) {
         shape_expected_node = std::make_shared<ov::opset6::Concat>(node_vec, 0);
     } else {
         std::vector<int32_t> shape_expected;
-        if (node.has_attribute<std::vector<int32_t>>("shape")) {
+        if (node.has_attribute("shape")) {
             shape_expected = node.get_attribute<std::vector<int32_t>>("shape");
         } else {
             throw std::runtime_error("expand: has no shape attribute");

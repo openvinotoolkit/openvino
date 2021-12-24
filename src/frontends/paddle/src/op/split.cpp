@@ -20,7 +20,7 @@ NamedOutputs split(const NodeContext& node) {
         axis = std::make_shared<ReduceMin>(input, zero_node, false);
     } else {
         auto dim = -1;
-        if (node.has_attribute<int32_t>("axis")) {
+        if (node.has_attribute("axis")) {
             dim = node.get_attribute<int32_t>("axis");
         }
         axis = std::make_shared<Constant>(ov::element::i32, Shape{}, dim);
@@ -34,9 +34,7 @@ NamedOutputs split(const NodeContext& node) {
             auto inputs = node.get_ng_inputs("SectionsTensorList");
             sections_node = std::make_shared<ov::opset7::Concat>(inputs, 0);
         } else {
-            PADDLE_OP_CHECK(node,
-                            node.has_attribute<std::vector<int32_t>>("sections"),
-                            "split: num==0 && no sections is invalid.");
+            PADDLE_OP_CHECK(node, node.has_attribute("sections"), "split: num==0 && no sections is invalid.");
             auto sections = node.get_attribute<std::vector<int32_t>>("sections");
             sections_node = Constant::create(element::i32, {sections.size()}, sections);
         }

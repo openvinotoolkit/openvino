@@ -13,11 +13,6 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-using InPortName = size_t;
-using OutPortName = size_t;
-using NamedOutputs = std::map<OutPortName, OutputVector>;
-using NamedInputs = std::map<InPortName, OutputVector>;
-
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
 class NodeContext : public ov::frontend::NodeContext {

@@ -19,11 +19,11 @@ NamedOutputs pad3d(const NodeContext& node) {
 
     // padding of type int feature only supported by paddle 'develop'
     // version(>=2.1.0)
-    if (node.has_attribute<std::vector<int32_t>>("paddings")) {
+    if (node.has_attribute("paddings")) {
         auto paddings_vector = node.get_attribute<std::vector<int32_t>>("paddings");
         PADDLE_OP_CHECK(node, paddings_vector.size() == 6, "paddings Params size should be 6 in pad3d!");
         paddings = paddings_vector;
-    } else if (node.has_attribute<int32_t>("paddings")) {
+    } else if (node.has_attribute("paddings")) {
         auto padding_int = node.get_attribute<int32_t>("paddings");
         for (int i = 0; i < 6; i++)
             paddings[i] = padding_int;

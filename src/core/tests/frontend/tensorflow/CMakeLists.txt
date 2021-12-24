@@ -67,3 +67,7 @@ add_dependencies(${TARGET_NAME} ov_tensorflow_frontend)
 
 get_target_property(TENSORFLOW_FRONTEND_SRC_DIR ov_tensorflow_frontend SOURCE_DIR)
 target_include_directories(${TARGET_NAME} PRIVATE ${TENSORFLOW_FRONTEND_SRC_DIR}/src/pass/)
+
+# Add include path to so_extension.hpp
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/conversion.cpp
+        PROPERTIES INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")

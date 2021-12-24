@@ -13,12 +13,11 @@ bool TestExtension1::transform(const std::shared_ptr<ov::Model>& function, const
 
 TestExtension1::TestExtension1() : ov::frontend::JsonTransformationExtension("buildin_extensions_1::TestExtension1") {}
 
-ov::OutputVector CustomTranslatorCommon_1(const ov::frontend::NodeContext<ov::OutputVector>& node) {
+ov::OutputVector CustomTranslatorCommon_1(const ov::frontend::NodeContext& node) {
     return ov::OutputVector();
 }
 
-std::map<std::string, ov::OutputVector> CustomTranslatorCommon_2(
-    const ov::frontend::NodeContext<std::map<std::string, ov::OutputVector>>& node) {
+std::map<std::string, ov::OutputVector> CustomTranslatorCommon_2(const ov::frontend::NodeContext& node) {
     return std::map<std::string, ov::OutputVector>();
 }
 

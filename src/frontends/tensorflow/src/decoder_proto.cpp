@@ -27,6 +27,22 @@ const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
 }
 }  // namespace
 
+ov::Any DecoderProto::get_native_attribute(const std::string& name) const {
+    auto attrs = decode_attribute_helper(name);
+    if (attrs.empty()) {
+        return {};
+    }
+
+    switch (attrs[0].value_case()) {
+    case ::tensorflow::AttrValue::ValueCase::kTensor:
+        return attrs[0].tensor();
+    case ::tensorflow::AttrValue::ValueCase::kType:
+        return attrs[0].type();
+    default:
+        FRONT_END_GENERAL_CHECK(false, "Data type is not covered.");
+    }
+}
+
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
     if (attrs.empty()) {
@@ -50,11 +66,9 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
         return ov::PartialShape(dims);
     }
-    case ::tensorflow::AttrValue::ValueCase::kTensor:
-        return attrs[0].tensor();
 
     case ::tensorflow::AttrValue::ValueCase::kType:
-        return attrs[0].type();
+        return TYPE_MAP().at(attrs[0].type());
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
         const auto& list = attrs[0].list();
@@ -82,26 +96,23 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
 
         if (list.type_size()) {
-            std::vector<::tensorflow::DataType> res;
+            std::vector<ov::element::Type> res;
             for (int idx = 0; idx < list.type_size(); ++idx) {
-                res.emplace_back(list.type(idx));
+                res.emplace_back(TYPE_MAP().at(list.type(idx)));
             }
             return res;
         }
 
-        if (list.tensor_size())
-            return std::vector<::tensorflow::TensorProto>(list.tensor().begin(), list.tensor().end());
-
-        if (list.func_size())
-            return std::vector<::tensorflow::NameAttrList>(list.func().begin(), list.func().end());
+        if (list.tensor_size() || list.func_size())
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Conversion from tensorflow data type to openvino data type is not supported.");
     }
+
+    case ::tensorflow::AttrValue::ValueCase::kTensor:
     case ::tensorflow::AttrValue::ValueCase::kPlaceholder:
-        return attrs[0].placeholder();
     case ::tensorflow::AttrValue::ValueCase::kFunc:
-        return attrs[0].func();
     default:
-        // type is not supported by decoder
-        return {};
+        FRONT_END_GENERAL_CHECK(false, "Conversion from tensorflow data type to openvino data type is not supported.");
     }
 }
 

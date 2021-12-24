@@ -16,7 +16,7 @@ namespace py = pybind11;
 using namespace ov::frontend;
 
 void regclass_frontend_NodeContext(py::module m) {
-    py::class_<ov::frontend::NodeContext,
-               std::shared_ptr<ov::frontend::NodeContext>>
-        ext(m, "NodeContext", py::dynamic_attr());
+    py::class_<ov::frontend::NodeContext, std::shared_ptr<ov::frontend::NodeContext>> ext(m,
+                                                                                          "NodeContext",
+                                                                                          py::dynamic_attr());
 }

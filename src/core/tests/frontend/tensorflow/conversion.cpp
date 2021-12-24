@@ -3,7 +3,9 @@
 //
 
 #include "conversion_extension.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/tensorflow/frontend.hpp"
+#include "so_extension.hpp"
 #include "tf_utils.hpp"
 
 using namespace ov::frontend;
@@ -15,11 +17,23 @@ static const std::string translator_name = "NewCustomOp";
 class TensorflowFrontendWrapper : public ov::frontend::tensorflow::FrontEnd {
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
         ov::frontend::tensorflow::FrontEnd::add_extension(extension);
-        EXPECT_NE(std::find(m_conversion_extensions.begin(), m_conversion_extensions.end(), extension),
-                  m_conversion_extensions.end())
-            << "ConversionExtension is not registered.";
-        EXPECT_NE(m_op_translators.find(translator_name), m_op_translators.end())
-            << translator_name << " translator is not registered.";
+
+        if (auto conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+            EXPECT_NE(std::find(m_conversion_extensions.begin(), m_conversion_extensions.end(), conv_ext),
+                      m_conversion_extensions.end())
+                << "ConversionExtension is not registered.";
+            EXPECT_NE(m_op_translators.find(conv_ext->get_op_type()), m_op_translators.end())
+                << conv_ext->get_op_type() << " translator is not registered.";
+        } else if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+            EXPECT_EQ(m_telemetry, telemetry) << "TelemetryExtension is not registered.";
+        } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
+            EXPECT_NE(std::find(m_transformation_extensions.begin(), m_transformation_extensions.end(), transformation),
+                      m_transformation_extensions.end())
+                << "DecoderTransformationExtension is not registered.";
+        } else if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+            EXPECT_NE(std::find(m_extensions.begin(), m_extensions.end(), so_ext), m_extensions.end())
+                << "SOExtension is not registered.";
+        }
     }
 };
 

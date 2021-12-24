@@ -19,7 +19,7 @@ public:
         return m_loaded_extensions;
     };
 
-    std::vector<std::pair<std::shared_ptr<DecoderTransformationExtension>, std::string>> get_target_extensions() {
+    std::vector<std::pair<DecoderTransformationExtension::Ptr, std::string>> get_target_extensions() {
         return m_target_extensions;
     }
 };
