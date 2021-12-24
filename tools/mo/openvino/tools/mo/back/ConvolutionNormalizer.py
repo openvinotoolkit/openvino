@@ -6,6 +6,7 @@ import numpy as np
 from openvino.tools.mo.back.ReshapeMutation import ReshapeMutation
 from openvino.tools.mo.back.ReverseInputChannels import ApplyReverseChannels
 from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, is_fully_defined, int64_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node
@@ -207,15 +208,15 @@ class DeconvolutionNormalizer(BackReplacementPattern):
             shape_src = node.in_port(2).get_source()
             node.in_port(2).disconnect()
 
-            ss_0 = create_op_with_const_inputs(graph, StridedSlice, {1: np.array([2], dtype=np.int32),
-                                                                     2: np.array([in_rank], dtype=np.int32),
-                                                                     3: np.array([1], dtype=np.int32)},
+            ss_0 = create_op_with_const_inputs(graph, StridedSlice, {1: mo_array([2], dtype=np.int32),
+                                                                     2: mo_array([in_rank], dtype=np.int32),
+                                                                     3: mo_array([1], dtype=np.int32)},
                                                {'name': node_name + '/ss_0_port',
-                                                'begin_mask': np.array([1], dtype=np.int32),
-                                                'end_mask': np.array([0], dtype=np.int32),
-                                                'new_axis_mask': np.array([0], dtype=np.int32),
-                                                'shrink_axis_mask': np.array([0], dtype=np.int32),
-                                                'ellipsis_mask': np.array([0], dtype=np.int32)})
+                                                'begin_mask': mo_array([1], dtype=np.int32),
+                                                'end_mask': mo_array([0], dtype=np.int32),
+                                                'new_axis_mask': mo_array([0], dtype=np.int32),
+                                                'shrink_axis_mask': mo_array([0], dtype=np.int32),
+                                                'ellipsis_mask': mo_array([0], dtype=np.int32)})
 
             shape_src.connect(ss_0.in_port(0))
             ss_0.out_port(0).connect(node.in_port(2))
