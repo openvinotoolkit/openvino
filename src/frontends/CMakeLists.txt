@@ -22,4 +22,5 @@ endif()
 
 if(ENABLE_OV_TF_FRONTEND)
     add_subdirectory(tensorflow)
+    add_subdirectory(tf_conversion_extensions)
 endif()

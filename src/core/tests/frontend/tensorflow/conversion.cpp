@@ -5,6 +5,7 @@
 #include "conversion_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/tensorflow/frontend.hpp"
+#include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "so_extension.hpp"
 #include "tf_utils.hpp"
 
@@ -24,6 +25,13 @@ class TensorflowFrontendWrapper : public ov::frontend::tensorflow::FrontEnd {
                 << "ConversionExtension is not registered.";
             EXPECT_NE(m_op_translators.find(conv_ext->get_op_type()), m_op_translators.end())
                 << conv_ext->get_op_type() << " translator is not registered.";
+        } else if (auto conv_ext_spec = std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
+            EXPECT_NE(std::find(m_conversion_extensions.begin(), m_conversion_extensions.end(), conv_ext_spec),
+                      m_conversion_extensions.end())
+                                << "ConversionExtension is not registered.";
+            EXPECT_NE(m_op_translators.find(conv_ext_spec->get_op_type()), m_op_translators.end())
+                                << conv_ext_spec->get_op_type() << " translator is not registered.";
+            std::cout << conv_ext_spec->get_op_type() << " is registered." << std::endl;
         } else if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
             EXPECT_EQ(m_telemetry, telemetry) << "TelemetryExtension is not registered.";
         } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {

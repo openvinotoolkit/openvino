@@ -67,3 +67,15 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
     ASSERT_NO_THROW(model = frontend->convert(input_model));
     ASSERT_NE(model, nullptr);
 }
+
+TEST_P(FrontEndConversionExtensionTest, TestConversionExtension_FUSED_OPS) {
+    auto frontend = m_param.m_frontend;
+    const auto& lib_path = get_lib_path("tf_conversion_extensions");
+    frontend->add_extension(lib_path);
+    std::shared_ptr<InputModel> input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));
+    ASSERT_NE(input_model, nullptr);
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = frontend->convert(input_model));
+    ASSERT_NE(model, nullptr);
+}
