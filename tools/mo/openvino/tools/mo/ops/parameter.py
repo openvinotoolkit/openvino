@@ -50,6 +50,8 @@ class Parameter(Op):
         if not node.has_valid('user_shape'):
             return ','.join([str(i) for i in unmask_shape(node.shape)])
         shape = node.soft_get('user_shape')
+        if isinstance(shape, np.ma.masked_array):
+            shape = unmask_shape(shape)
         return ','.join(map(serialize_dimension, shape))
 
     def supported_attrs(self):
