@@ -218,7 +218,7 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.core.compile_model(args.path_to_model)
+            compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
@@ -226,15 +226,15 @@ def run(args):
                                           [
                                               ('load network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_model().get_parameters())
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
         elif not is_network_compiled:
             # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
             next_step()
 
             start_time = datetime.utcnow()
-            function = benchmark.read_model(args.path_to_model)
-            topology_name = function.get_name()
+            model = benchmark.read_model(args.path_to_model)
+            topology_name = model.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Read model took {duration_ms} ms")
             if statistics:
@@ -246,13 +246,13 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.get_parameters())
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, model.inputs)
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.partial_shape for info in app_inputs_info }
                 logger.info(
                     'Reshaping model: {}'.format(', '.join("'{}': {}".format(k, str(v)) for k, v in shapes.items())))
-                function.reshape(shapes)
+                model.reshape(shapes)
                 duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
                 logger.info(f"Reshape model took {duration_ms} ms")
                 if statistics:
@@ -268,14 +268,14 @@ def run(args):
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
 
-            pre_post_processing(function, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
-            print_inputs_and_outputs_info(function)
+            pre_post_processing(model, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
+            print_inputs_and_outputs_info(model)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.core.compile_model(function, benchmark.device)
+            compiled_model = benchmark.core.compile_model(model, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
@@ -295,7 +295,7 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.core.import_model(args.path_to_model)
+            compiled_model = benchmark.core.import_model(args.path_to_model)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Import model took {duration_ms} ms")
             if statistics:
@@ -303,7 +303,7 @@ def run(args):
                                           [
                                               ('import network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_model().get_parameters())
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
@@ -314,7 +314,7 @@ def run(args):
                 keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
                 logger.info(f'DEVICE: {device}')
                 for k in keys:
-                    logger.info(f'  {k}  , {exe_network.get_config(k)}')
+                    logger.info(f'  {k}  , {compiled_model.get_config(k)}')
 
         # Update number of streams
         for device in device_number_streams.keys():
@@ -326,7 +326,7 @@ def run(args):
 
         # Create infer requests
         start_time = datetime.utcnow()
-        requests = benchmark.create_infer_requests(exe_network)
+        requests = benchmark.create_infer_requests(compiled_model)
         duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
         logger.info(f"Create {benchmark.nireq} infer requests took {duration_ms} ms")
         if statistics:
@@ -435,7 +435,7 @@ def run(args):
             logger.info(f"Inference Engine configuration settings were dumped to {args.dump_config}")
 
         if args.exec_graph_path:
-            dump_exec_graph(exe_network, args.exec_graph_path)
+            dump_exec_graph(compiled_model, args.exec_graph_path)
 
         if perf_counts:
             perfs_count_list = []
@@ -523,7 +523,7 @@ def run(args):
 
         print(f'Throughput: {fps:.2f} FPS')
 
-        del exe_network
+        del compiled_model
 
         next_step.step_id = 0
     except Exception as e:

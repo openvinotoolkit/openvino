@@ -71,52 +71,49 @@ def get_element_type(precision):
     raise Exception("Can't find openvino element type for precision: " + precision)
 
 
-def pre_post_processing(function: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
-    pre_post_processor = PrePostProcessor(function)
+def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+    pre_post_processor = PrePostProcessor(model)
     if input_precision:
         element_type = get_element_type(input_precision)
-        for i in range(len(function.inputs)):
+        for i in range(len(model.inputs)):
             pre_post_processor.input(i).tensor().set_element_type(element_type)
             app_inputs_info[i].element_type = element_type
     if output_precision:
         element_type = get_element_type(output_precision)
-        for i in range(len(function.outputs)):
+        for i in range(len(model.outputs)):
             pre_post_processor.output(i).tensor().set_element_type(element_type)
     user_precision_map = {}
     if input_output_precision:
         user_precision_map = _parse_arg_map(input_output_precision)
-        input_names = get_input_output_names(function.get_parameters())
-        output_names = get_input_output_names(function.get_results())
+        input_names = get_input_output_names(model.inputs)
+        output_names = get_input_output_names(model.outputs)
         for node_name, precision in user_precision_map.items():
             user_precision_map[node_name] = get_element_type(precision)
         for name, element_type in user_precision_map.items():
             if name in input_names:
                 port = input_names.index(name)
                 app_inputs_info[port].element_type = element_type
-                pre_post_processor.input(port).tensor().set_element_type(element_type)
+                pre_post_processor.input(name).tensor().set_element_type(element_type)
             elif name in output_names:
-                port = output_names.index(name)
-                pre_post_processor.output(port).tensor().set_element_type(element_type)
+                pre_post_processor.output(name).tensor().set_element_type(element_type)
             else:
                 raise Exception(f"Node '{name}' does not exist in network")
 
     # update app_inputs_info
     if not input_precision:
-        inputs = function.inputs
+        inputs = model.inputs
         for i in range(len(inputs)):
             if app_inputs_info[i].name in user_precision_map.keys():
                 app_inputs_info[i].element_type = user_precision_map[app_inputs_info[i].name]
             elif app_inputs_info[i].is_image:
                 app_inputs_info[i].element_type = Type.u8
                 pre_post_processor.input(i).tensor().set_element_type(Type.u8)
-            else:
-                app_inputs_info[i].element_type = inputs[i].get_element_type()
 
     # set layout for model input
-    for port, info in enumerate(app_inputs_info):
-        pre_post_processor.input(port).model().set_layout(info.layout)
+    for info in app_inputs_info:
+        pre_post_processor.input(info.name).model().set_layout(info.layout)
 
-    function = pre_post_processor.build()
+    model = pre_post_processor.build()
 
 
 def _parse_arg_map(arg_map: str):
@@ -148,20 +145,19 @@ def get_precision(element_type: Type):
     raise Exception("Can't find  precision for openvino element type: " + str(element_type))
 
 
-def print_inputs_and_outputs_info(function: Model):
-    parameters = function.get_parameters()
-    input_names = get_input_output_names(parameters)
-    for i in range(len(parameters)):
-        logger.info(f"Network input '{input_names[i]}' precision {get_precision(parameters[i].get_element_type())}, "
-                                                    f"dimensions ({str(parameters[i].get_layout())}): "
-                                                    f"{' '.join(str(x) for x in parameters[i].get_partial_shape())}")
-    results = function.get_results()
-    output_names = get_input_output_names(results)
-    results = function.get_results()
-    for i in range(len(results)):
-        logger.info(f"Network output '{output_names[i]}' precision {get_precision(results[i].get_element_type())}, "
-                                        f"dimensions ({str(results[i].get_layout())}): "
-                                        f"{' '.join(str(x) for x in  results[i].get_output_partial_shape(0))}")
+def print_inputs_and_outputs_info(model: Model):
+    inputs = model.inputs
+    input_names = get_input_output_names(inputs)
+    for i in range(len(inputs)):
+        logger.info(f"Model input '{input_names[i]}' precision {get_precision(inputs[i].element_type)}, "
+                                                    f"dimensions ({str(inputs[i].node.layout)}): "
+                                                    f"{' '.join(str(x) for x in inputs[i].partial_shape)}")
+    outputs = model.outputs
+    output_names = get_input_output_names(outputs)
+    for i in range(len(outputs)):
+        logger.info(f"Model output '{output_names[i]}' precision {get_precision(outputs[i].element_type)}, "
+                                        f"dimensions ({str(outputs[i].node.layout)}): "
+                                        f"{' '.join(str(x) for x in  outputs[i].partial_shape)}")
 
 
 def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, api_type: str):
@@ -311,10 +307,10 @@ def process_help_inference_string(benchmark_app, device_number_streams):
     return output_string
 
 
-def dump_exec_graph(exe_network, model_path, weight_path = None):
+def dump_exec_graph(compiled_model, model_path, weight_path = None):
     if not weight_path:
         weight_path = model_path[:model_path.find(".xml")] + ".bin"
-    serialize(exe_network.get_runtime_model(), model_path, weight_path)
+    serialize(compiled_model.get_runtime_model(), model_path, weight_path)
 
 
 
@@ -361,8 +357,8 @@ def get_command_line_arguments(argv):
     return parameters
 
 
-def get_input_output_names(nodes):
-    return [node.friendly_name for node in nodes]
+def get_input_output_names(ports):
+    return [port.any_name for port in ports]
 
 
 def get_data_shapes_map(data_shape_string, input_names):
@@ -544,31 +540,33 @@ def parse_batch_size(batch_size_str):
         return Dimension(0)
 
 
-def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, scale_string, mean_string, parameters):
-    input_names = get_input_output_names(parameters)
+def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, scale_string, mean_string, inputs):
+    input_names = get_input_output_names(inputs)
     shape_map = parse_input_parameters(shape_string, input_names)
     data_shape_map = get_data_shapes_map(data_shape_string, input_names)
     layout_map = parse_input_parameters(layout_string, input_names)
     batch_size = parse_batch_size(batch_size)
     reshape = False
     input_info = []
-    for i in range(len(parameters)):
+    for i in range(len(inputs)):
         info = AppInputInfo()
         # Input name
         info.name = input_names[i]
+        # Input precision
+        info.element_type = inputs[i].element_type
         # Shape
-        info.original_shape = parameters[i].get_partial_shape()
+        info.original_shape = inputs[i].partial_shape
         if info.name in shape_map.keys():
             info.partial_shape = parse_partial_shape(shape_map[info.name])
             reshape = True
         else:
-            info.partial_shape = parameters[i].get_partial_shape()
+            info.partial_shape = inputs[i].partial_shape
 
         # Layout
         if info.name in layout_map.keys():
             info.layout = Layout(layout_map[info.name])
-        elif parameters[i].get_layout() != Layout():
-            info.layout = parameters[i].get_layout()
+        elif inputs[i].node.layout != Layout():
+            info.layout = inputs[i].node.layout
         else:
             image_colors_dim = Dimension(3)
             shape = info.partial_shape
