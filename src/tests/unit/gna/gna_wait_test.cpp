@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if GNA_LIB_VER == 2
-
 #include <memory>
 
 #include <gtest/gtest.h>
@@ -66,4 +64,3 @@ TEST_F(GNAWaitTest, ReturnsGna2StatusWarningDeviceBusy) {
     GNAInferRequestForGNAWaitTest inferRequest{ plugin };
     ASSERT_EQ(InferenceEngine::RESULT_NOT_READY, inferRequest.Wait(0));
 }
-#endif

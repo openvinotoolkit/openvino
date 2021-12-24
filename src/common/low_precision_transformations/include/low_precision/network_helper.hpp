@@ -300,7 +300,7 @@ public:
     static void reassign(
         const std::shared_ptr<typename SharedAttribute::SharedValueAttribute::SharedValue>& sharedValue,
         const std::vector<std::weak_ptr<typename SharedAttribute::SharedValueAttribute>>& attributes) {
-        for (const auto attributeWeakPtr : attributes) {
+        for (const auto& attributeWeakPtr : attributes) {
             auto attribute = attributeWeakPtr.lock();
             if (attribute == nullptr) {
                 continue;
