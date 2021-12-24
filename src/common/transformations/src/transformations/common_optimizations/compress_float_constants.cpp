@@ -73,6 +73,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
         }
         auto convert = std::make_shared<ov::opset8::Convert>(new_const, const_node->get_element_type());
 
+        new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
         convert->set_friendly_name(const_node->get_friendly_name());
         ngraph::copy_runtime_info(const_node, convert);
         ov::mark_as_decompression(convert);
