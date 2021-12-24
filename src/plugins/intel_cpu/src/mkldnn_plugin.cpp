@@ -609,11 +609,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
                 const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
                 const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
-                const float L3_cache_size = mkldnn::utils::get_cache_size(3, false);
                 ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
                         clonedNetwork.getFunction(),
-                        L2_cache_size, L3_cache_size,
-                        memThresholdAssumeLimitedForISA);
+                        L2_cache_size, memThresholdAssumeLimitedForISA);
                 // num of phys CPU cores (most aggressive value for #streams)
                 const auto num_cores = getNumberOfCPUCores();
                 // less aggressive
