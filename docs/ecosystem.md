@@ -5,7 +5,7 @@
    
    <link rel="stylesheet" type="text/css" href="_static/css/ecosystem_style.css">
 
-   <p>OpenVINO™ is a family of tools and utilities providing a comprehensive workflow for developing deep learning Solutions. Learn more about each of them to the full potential of OpenVINO™. </p>
+   <p>OpenVINO™ is a family of tools and utilities providing a comprehensive workflow for developing deep learning solutions. Learn more about each of them to the full potential of OpenVINO™. </p>
 
    
    <div id="eco_list">
