@@ -92,10 +92,13 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     auto output_datatype = node.get_output_layout().data_type;
     auto concat_axis = node.get_primitive()->axis;
 
-    // oneDNN doens't support paddings and such concat optimizations
-    for (auto& input : node.get_dependencies()) {
-        if (input->get_preferred_impl_type() == impl_types::onednn)
-            return false;
+    layout out_layout = node.get_output_layout();
+    // oneDNN only support paddings and such concat optimizations in batch 1.
+    if (out_layout.size.batch[0] != 1) {
+        for (auto& input : node.get_dependencies()) {
+            if (input->get_preferred_impl_type() == impl_types::onednn)
+                return false;
+        }
     }
 
     for (auto& input : node.get_dependencies()) {

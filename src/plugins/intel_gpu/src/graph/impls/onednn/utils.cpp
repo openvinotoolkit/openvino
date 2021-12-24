@@ -108,6 +108,35 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     l.size.spatial[last_spatial_dim_idx] = 1;
 }
 
+int64_t get_offset(dnnl::memory::desc desc) {
+    int64_t offset = 0;
+    int32_t padded_idx = -1;
+    for (int32_t i = 0; i < DNNL_MAX_NDIMS; ++i) {
+        if (desc.data.padded_offsets[i] > 0) {
+            padded_idx = i;
+            break;
+        }
+    }
+    if (padded_idx > -1) {
+        offset = desc.data.padded_offsets[padded_idx];
+        for (int32_t i = padded_idx + 1; i < desc.data.ndims; ++i) {
+            offset *= desc.data.padded_dims[i];
+        }
+    }
+    switch (desc.data.data_type) {
+        case dnnl_data_type_t::dnnl_s8:
+        case dnnl_data_type_t::dnnl_u8:
+            return offset;
+        case dnnl_data_type_t::dnnl_f16:
+        case dnnl_data_type_t::dnnl_bf16:
+            return (offset * 2);
+        case dnnl_data_type_t::dnnl_f32:
+        case dnnl_data_type_t::dnnl_s32:
+            return (offset * 4);
+        default: throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ") + dnnl_dt2str(desc.data.data_type));
+    }
+}
+
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten) {
     dnnl::memory::dims dims;
     dnnl::memory::dims padded_dims;
