@@ -81,6 +81,16 @@ public:
                            #NAME " is not implemented for this FrontEnd class")
 
 /// \brief Assert macro.
+/// \param COND Condition. If 'false', throws 'NotImplementedFailure'
+/// \param NAME Name of the function that is not implemented
+/// \throws ::ov::frontend::NotImplementedFailure
+#define FRONT_END_CHECK_IMPLEMENTED(COND, NAME)                   \
+    OPENVINO_ASSERT_HELPER(::ov::frontend::NotImplementedFailure, \
+                           "",                                    \
+                           (COND),                                \
+                           #NAME " is not implemented for this FrontEnd class")
+
+/// \brief Assert macro.
 /// \param MSG Error message
 /// \throws ::ov::frontend::GeneralFailure
 #define FRONT_END_THROW(MSG) FRONT_END_GENERAL_CHECK(false, MSG)
