@@ -8,8 +8,8 @@ set -e
 #===================================================================================================
 # Option parsing
 
-dafault_comp=(dev python myriad cl_compiler)
-all_comp=(${dafault_comp[@]} opencv_req opencv_opt)
+default_comp=(dev python myriad cl_compiler)
+all_comp=(${default_comp[@]} opencv_req opencv_opt)
 os=${os:-auto}
 
 # public options
@@ -48,7 +48,7 @@ done
 
 # No components selected - install default
 if [ ${#comp[@]} -eq 0 ]; then
-    comp=(${dafault_comp[@]})
+    comp=(${default_comp[@]})
 fi
 
 #===================================================================================================
