@@ -468,6 +468,8 @@ std::string algToString(const Algorithm alg) {
     CASE(MathSoftPlus);
     CASE(MathSoftsign);
     CASE(MathTan);
+    CASE(TensorIteratorCommon);
+    CASE(TensorIteratorLoop);
 #undef CASE
     return "Undefined";
 }

@@ -6,26 +6,29 @@
 
 #include <string>
 #include <vector>
-#include <map>
 #include <mkldnn_extension_utils.h>
 #include <ie_ngraph_utils.hpp>
 #include <utils/general_utils.h>
 #include "common/blocked_desc_creator.h"
 #include "utils/ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
+using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace MKLDNNPlugin {
 
-static NodeConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
+#define THROW_ERROR IE_THROW() << getTypeStr() << " layer with name '" << getName() << "' "
+
+static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     NodeConfig config;
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &origShape = op->get_input_partial_shape(i);
-        const auto& shape = Shape(origShape.rank().get_length() == 0 ? ngraph::PartialShape{1} : origShape);
+        const auto& shape = Shape(origShape.rank().get_length() == 0 ? ov::PartialShape{1} : origShape);
         const auto prec = InferenceEngine::details::convertPrecision(op->get_input_element_type(i));
 
         PortConfig data_conf {};
@@ -36,7 +39,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
 
     for (size_t i = 0; i < op->get_output_size(); i++) {
         const auto &origShape = op->get_output_partial_shape(i);
-        const auto& shape = Shape(origShape.rank().get_length() == 0 ? ngraph::PartialShape{1} : origShape);
+        const auto& shape = Shape(origShape.rank().get_length() == 0 ? ov::PartialShape{1} : origShape);
         const auto prec = InferenceEngine::details::convertPrecision(op->get_output_element_type(i));
 
         PortConfig data_conf {};
@@ -47,6 +50,31 @@ static NodeConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
 
     config.dynBatchSupport = true;
     return config;
+}
+
+static void redefineToMemories(const std::vector<MKLDNNMemoryPtr>& to_mems, const std::shared_ptr<MemoryDesc> new_desc) {
+    const auto &currDesc = to_mems.front()->getDesc();
+    if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != new_desc->getShape().getStaticDims()) {
+        // WA [DS] : need to rewrite it. Updated copypaste is from MKLDNNNode::redefineOutputMemory
+        // this path is necessary if there are several edges per one port
+        // in this case edge memory share same physical memory
+        // so we need to find which edge allocate memory, reallocate memory and share this memory between other edges
+        size_t sharedEdgeNum = 0;
+        for (size_t j = 0; j < to_mems.size(); j++) {
+            if (!to_mems[j]->isUsedExternalStorage()) {
+                sharedEdgeNum = j;
+                break;
+            }
+        }
+
+        to_mems[sharedEdgeNum]->redefineDesc(new_desc);
+        void *data = to_mems[sharedEdgeNum]->GetData();
+        for (size_t j = 0; j < to_mems.size(); j++) {
+            if (j == sharedEdgeNum)
+                continue;
+            to_mems[j]->redefineDesc(new_desc, data);
+        }
+    }
 }
 
 class PortIteratorHelper : public PortMapHelper {
@@ -101,7 +129,7 @@ public:
 
         auto &chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
         chunk_mem.set_data_handle(static_cast<uint8_t *>(full_mem.get_data_handle()) +
-                chunk_offset_in_byte + chunk_stride_in_byte * iter);
+                                          chunk_offset_in_byte + chunk_stride_in_byte * iter);
 
         reorder.execute(strm, mem_holder_src, mem_holder_dst);
     }
@@ -136,7 +164,7 @@ public:
     IterCountPortHelper(const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
         // Only scalar I32 tensor is supported
         IE_ASSERT(to->GetDataType() == memory::data_type::s32);
-        IE_ASSERT(to->GetShape() == Shape(InferenceEngine::SizeVector{1}));
+        IE_ASSERT(to->GetShape() == Shape(VectorDims{1}));
         mem_holder_dst = to->GetPrimitive();
     }
 
@@ -171,8 +199,7 @@ class asIntCheck : public PortChecker {
 public:
     asIntCheck(const MKLDNNMemoryPtr &mem) {
         IE_ASSERT(mem->GetDataType() == memory::data_type::s32);
-        const auto a = Shape(InferenceEngine::SizeVector{1});
-        IE_ASSERT(mem->GetShape() == a);
+        IE_ASSERT(mem->GetShape() == Shape(InferenceEngine::SizeVector{1}));
         mem_holder = mem->GetPrimitive();
     }
 
@@ -196,96 +223,115 @@ private:
     int value;
 };
 
-}  // namespace MKLDNNPlugin
-
-static int getNumIteration(const std::shared_ptr<const ngraph::Node>& op, const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) {
-    const auto isIterable = [](const PortMap& rule) { return rule.axis != -1; };
-
-    const auto getNumIterations = [](const PortMap& rule, const std::vector<size_t>& dimensions) -> int {
-        const auto axis = rule.axis;
-        if (axis < 0 || static_cast<std::size_t>(axis) >= dimensions.size()) {
-            IE_THROW() << R"(: Invalid "axis" value in an iteration component: )"
-                               << rule.axis  << ", dimensions number = " << dimensions.size() << " (out of range)";
-        }
-        const auto space = dimensions[axis];
-        const int start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
-        const int end   = static_cast<int>((rule.end   < 0 ? (space + 1) : 0) + rule.end);
-
-        const auto stride = rule.stride;
-        if (stride == 0) {
-            IE_THROW() << R"(: Invalid "stride" value in an iteration component: )" << rule.stride << " (infinite loop)";
-        }
-        const auto step = std::abs(stride);
-
-        const auto src = stride < 0 ? end : start;
-        const auto dst = stride < 0 ? start : end;
-        const auto length = dst - src;
-        if (src < 0 || src >= dst || dst > static_cast<int64_t>(space) || length < step) {
-            IE_THROW() << R"(: Invalid "start"/"stride"/"end" values in an iteration component)"
-                               << ": \"start\" = " << rule.start << ", \"stride\" = " << rule.stride  << ", \"end\" = " << rule.end;
-        }
-
-        if (length % step != 0) {
-            IE_THROW() << ": Each iteration must be the same size: length (" << length << ") is not divisible by step (" << step << ")";
-        }
-
-        return static_cast<int>(length / step);
-    };
-
-
-    int numIterations = 1;
-    bool isDefault = true;
-    for (const auto& rule : inputPortMap) {
-        if (!isIterable(rule)) {
-            continue;
-        }
-
-        if (rule.from < 0 || rule.from >= static_cast<int64_t>(op->get_input_size())) {
-            IE_THROW() << R"(: Invalid "from" value: "from" = )" << rule.from
-                               << " inputs number = " << op->get_input_size() << " (out of range)";
-        }
-
-        const auto currentNumIterations = getNumIterations(rule, op->get_input_shape(rule.from));
-        if (isDefault) {
-            isDefault = false;
-            numIterations = currentNumIterations;
-        } else if (numIterations != currentNumIterations) {
-            IE_THROW() << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
-        }
-    }
-
-    for (const auto& rule : outputPortMap) {
-        if (!isIterable(rule)) {
-            continue;
-        }
-
-        if (rule.from < 0 || rule.from >= static_cast<int64_t>(op->get_output_size())) {
-            IE_THROW() << R"(: Invalid "from" value: "from" = )" << rule.from
-                               << " inputs number = " << op->get_output_size() << " (out of range)";
-        }
-
-        const auto currentNumIterations = getNumIterations(rule, op->get_output_shape(rule.from));
-        if (isDefault) {
-            isDefault = false;
-            numIterations = currentNumIterations;
-        } else if (numIterations != currentNumIterations) {
-            IE_THROW() << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
-        }
-    }
-
-    return numIterations;
+DynamicBuffer::DynamicBuffer(const MKLDNNMemoryPtr &from, const std::vector<MKLDNNMemoryPtr> &to,
+                             const PortMap &map_rule) : from(from), to(to), map_rule(map_rule) {
+    elem_size = MKLDNNExtensionUtils::sizeOfDataType(from->GetDataType());
 }
 
-bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
-    try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
+void DynamicBuffer::execute(const mkldnn::engine& eng, const int iter) {
+    if (iter == 0) {
+        init(eng);
+        return;
+    }
 
+    auto new_buffer = create_buffer(eng);
+    move_buffer(new_buffer);
+    move_data();
+}
+
+void DynamicBuffer::init(const mkldnn::engine& eng) {
+    chunk_offset_in_byte = 0;
+    buffer_offset_in_byte = 0;
+
+    const auto axis = map_rule.axis;
+    const auto stride = map_rule.stride;
+    const auto abs_stride = std::abs(stride);
+
+    auto src_mem = from->GetPrimitive();
+    auto src_desc = src_mem.get_desc();
+    auto dims = src_desc.dims();
+
+    if (dims[axis] != abs_stride)
+        IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
+                   " is expected, but actual: " << dims[axis];
+
+    count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, 1, std::multiplies<size_t>());
+    len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
+    mem_holder_buffer.reset(new memory(src_desc, eng));
+    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()), 0, 0, 1, from->GetSize());
+}
+
+std::shared_ptr<mkldnn::memory> DynamicBuffer::create_buffer(const mkldnn::engine& eng) {
+    const auto axis = map_rule.axis;
+    const auto stride = map_rule.stride;
+    const auto abs_stride = std::abs(stride);
+
+    const auto old_desc = mem_holder_buffer->get_desc();
+    auto dims = old_desc.dims();
+
+    if (from->getStaticDims()[axis] != abs_stride)
+        IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
+        " is expected, but actual: " << from->getStaticDims()[axis];
+
+    dims[axis] += abs_stride;
+    mkldnn::memory::desc new_buffer_desc(dims, old_desc.data_type(), MKLDNNExtensionUtils::GetPlainFormatByRank(dims.size()));
+
+    if (stride > 0.0f) {
+        chunk_offset_in_byte += new_buffer_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+    } else {
+        buffer_offset_in_byte = from->GetPrimitive().get_desc().data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+    }
+
+    return std::make_shared<mkldnn::memory>(new_buffer_desc, eng);
+}
+
+void DynamicBuffer::move_buffer(std::shared_ptr<mkldnn::memory> new_buffer) {
+    const auto axis = map_rule.axis;
+    const auto src_stride = mem_holder_buffer->get_desc().dims()[axis] * len;
+    const auto dst_stride = new_buffer->get_desc().dims()[axis] * len;
+
+    copy(get_ptr(*mem_holder_buffer.get()), get_ptr(*new_buffer.get()) + buffer_offset_in_byte,
+         src_stride, dst_stride, count, src_stride);
+    mem_holder_buffer = new_buffer;
+}
+
+void DynamicBuffer::move_data() {
+    const auto axis = map_rule.axis;
+    const auto src_stride = abs(map_rule.stride) * len;
+    const auto dst_stride = mem_holder_buffer->get_desc().dims()[axis] * len;
+
+    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()) + chunk_offset_in_byte,
+         src_stride, dst_stride, count, src_stride);
+}
+
+void DynamicBuffer::transfer(const MKLDNNNode* node) {
+    const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
+            MKLDNNExtensionUtils::convertToVectorDims(mem_holder_buffer->get_desc().dims()));
+    redefineToMemories(to, desc);
+
+    copy(get_ptr(*mem_holder_buffer.get()), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());
+}
+
+void DynamicBuffer::copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len) {
+    parallel_for(count, [&](const size_t i) {
+        cpu_memcpy(&dst[i * dst_stride], &src[i * src_stride], len);
+    });
+}
+
+uint8_t* DynamicBuffer::get_ptr(mkldnn::memory& prim) {
+    auto ptr = static_cast<uint8_t*>(prim.get_data_handle());
+    auto md = prim.get_desc().data;
+    mkldnn::impl::memory_desc_wrapper wrapper(md);
+    return ptr + wrapper.offset0() * wrapper.data_type_size();
+}
+
+}  // namespace MKLDNNPlugin
+
+bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+    try {
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::TensorIterator::get_type_info_static(),
-                ngraph::op::v5::Loop::get_type_info_static())) {
+                    ov::op::v0::TensorIterator::get_type_info_static(),
+                    ov::op::v5::Loop::get_type_info_static())) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
             return false;
         }
@@ -295,7 +341,7 @@ bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const 
     return true;
 }
 
-MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache), ngraphOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -304,19 +350,18 @@ MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(const std::shared_ptr<ngraph:
 }
 
 void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
-    auto tiOp = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(ngraphOp);
-    if (tiOp == nullptr) {
-        IE_THROW() << "Can't cast TensorIterator node with name: " << getName() << " to ngraph::op::util::SubGraphOp";
+    auto tiOp = ov::as_type_ptr<const ov::op::util::SubGraphOp>(ngraphOp);
+    if (!tiOp) {
+        THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
     }
-    const std::shared_ptr<const ngraph::Function> body = tiOp->get_function();
+    const std::shared_ptr<const ov::Model> body = tiOp->get_function();
     sub_graph.CreateGraph(body, ext_mng, weightCache);
 
     const auto &inMap = sub_graph.GetInputNodesMap();
     for (const auto &param : tiOp->get_function()->get_parameters()) {
         auto inNode = inMap.find(param->get_friendly_name());
         if (inNode != inMap.end()) {
-            auto inMem = inNode->second->getChildEdgeAt(0)->getMemoryPtr();
-            input_mem.push_back(inMem);
+            input_mems.push_back(getToMemories(inNode->second.get(), 0));
         }
     }
 
@@ -337,20 +382,20 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
 
         std::string type_name = desc->get_type_info().name;
         if (type_name == "ConcatOutputDescription") {
-            auto output_desc = ::ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::ConcatOutputDescription>(desc);
             IE_ASSERT(output_desc != nullptr);
 
             outputPortMap.emplace_back(PortMap {
-                static_cast<int>(output_desc->m_output_index), static_cast<int>(body_output_idx),
-                static_cast<int>(output_desc->m_axis), static_cast<int>(output_desc->m_stride),
-                static_cast<int>(output_desc->m_start), static_cast<int>(output_desc->m_end),
-                static_cast<int>(output_desc->m_part_size)});
+                    static_cast<int>(output_desc->m_output_index), static_cast<int>(body_output_idx),
+                    static_cast<int>(output_desc->m_axis), static_cast<int>(output_desc->m_stride),
+                    static_cast<int>(output_desc->m_start), static_cast<int>(output_desc->m_end),
+                    static_cast<int>(output_desc->m_part_size)});
         } else if (type_name == "BodyOutputDescription") {
-            auto output_desc = ::ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::BodyOutputDescription>(desc);
             IE_ASSERT(output_desc != nullptr);
 
             outputPortMap.emplace_back(PortMap {
-                static_cast<int>(output_desc->m_output_index), static_cast<int>(body_output_idx), -1, 1, 0, -1, 1});
+                    static_cast<int>(output_desc->m_output_index), static_cast<int>(body_output_idx), -1, 1, 0, -1, 1});
         } else {
             IE_THROW() << "Incorrect type of the output description.";
         }
@@ -360,31 +405,30 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
     for (const auto& desc : tiOp->get_input_descriptions()) {
         auto body_input_index = desc->m_body_parameter_index;
 
-        if (const auto slice_desc = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::SliceInputDescription>(desc)) {
+        if (auto slice_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::SliceInputDescription>(desc)) {
             inputPortMap.emplace_back(PortMap {
-                static_cast<int>(slice_desc->m_input_index), static_cast<int>(body_input_index),
-                static_cast<int>(slice_desc->m_axis), static_cast<int>(slice_desc->m_stride),
-                static_cast<int>(slice_desc->m_start), static_cast<int>(slice_desc->m_end),
-                static_cast<int>(slice_desc->m_part_size)});
-        } else if (const auto merge_desc = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::MergedInputDescription>(desc)) {
+                    static_cast<int>(slice_desc->m_input_index), static_cast<int>(body_input_index),
+                    static_cast<int>(slice_desc->m_axis), static_cast<int>(slice_desc->m_stride),
+                    static_cast<int>(slice_desc->m_start), static_cast<int>(slice_desc->m_end),
+                    static_cast<int>(slice_desc->m_part_size)});
+        } else if (auto merge_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::MergedInputDescription>(desc)) {
             inputPortMap.emplace_back(PortMap {
-                static_cast<int>(merge_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
+                    static_cast<int>(merge_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
 
             auto body_output_idx = merge_desc->m_body_value_index;
 
             backEdges.emplace_back(PortMap {
-                static_cast<int>(body_output_idx), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
-        } else if (const auto inv_desc = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::InvariantInputDescription>(desc)) {
+                    static_cast<int>(body_output_idx), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
+        } else if (auto inv_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::InvariantInputDescription>(desc)) {
             inputPortMap.emplace_back(PortMap {
                     static_cast<int>(inv_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
         } else {
-            IE_THROW() << "Incorrect type of the input description.";
+            THROW_ERROR << "has incorrect type of the input description.";
         }
     }
 
-    n_iter = getNumIteration(ngraphOp, inputPortMap, outputPortMap);
-
-    if (const auto loopOp = std::dynamic_pointer_cast<const ngraph::op::v5::Loop>(ngraphOp)) {
+    if (auto loopOp = ov::as_type_ptr<const ov::op::v5::Loop>(ngraphOp)) {
+        algorithm = TensorIteratorLoop;
         auto spec_port = loopOp->get_special_body_ports();
         if (spec_port.current_iteration_input_idx != -1) {
             loopBodyCurrentIterationIdx.push_back(spec_port.current_iteration_input_idx);
@@ -394,74 +438,60 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
         }
         loopTripCountIdx = 0;
         loopExecutionConditionIdx = 1;
+    } else if (auto ti = ov::as_type_ptr<const ov::op::v0::TensorIterator>(ngraphOp)) {
+        algorithm = TensorIteratorCommon;
+    } else {
+        THROW_ERROR << "isn't supported!";
     }
-
-    config = make_plain_config(ngraphOp);
 }
 
 void MKLDNNTensorIteratorNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    supportedPrimitiveDescriptors.emplace_back(make_plain_config(ngraphOp), impl_desc_type::unknown);
 }
 
-
 void MKLDNNTensorIteratorNode::createPrimitive() {
-    const auto &eng = getEngine();
-
-    for (auto map_rule : inputPortMap) {
-        auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &to_mem = input_mem[map_rule.to];
-
-        if (map_rule.axis == -1)
-            first_mappers.emplace_back(new BackEdgePortHelper(from_mem, to_mem, eng));
-        else
-            before_mappers.emplace_back(new PortIteratorHelper(from_mem, to_mem, true, map_rule, eng));
-    }
-
-    for (auto map_rule : outputPortMap) {
-        auto &to_mem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &from_mem = output_mem[map_rule.to];
-
-        if (map_rule.axis == -1)
-            last_mappers.emplace_back(new BackEdgePortHelper(from_mem, to_mem, eng));
-        else
-            after_mappers.emplace_back(new PortIteratorHelper(from_mem, to_mem, false, map_rule, eng));
-    }
-
-    for (auto map_rule : backEdges) {
-        auto from_mem = output_mem[map_rule.from];
-        auto to_mem = input_mem[map_rule.to];
-
-        before_mappers.emplace_back(new BackEdgePortHelper(from_mem, to_mem, eng));
-    }
-
-    // special purpose ports
-    for (auto idx : loopBodyCurrentIterationIdx) {
-        auto to_mem = input_mem[idx];
-        before_mappers.emplace_back(new IterCountPortHelper(to_mem, eng));
-    }
-
-    if (loopBodyConditionOutputIdx == -1) {
+    if (loopBodyConditionOutputIdx == -1)
         continue_cond_check.reset(new staticValueCheck(true)); // always true
-    } else {
-        auto mem = output_mem[loopBodyConditionOutputIdx];
-        continue_cond_check.reset(new asBoolCheck(mem));
-    }
-
-    if (loopTripCountIdx == -1) {
-        trip_count_check.reset(new staticValueCheck(n_iter)); // use statically calculated num of iteration
-    } else {
-        auto mem = getParentEdgesAtPort(loopTripCountIdx)[0]->getMemoryPtr();
-        trip_count_check.reset(new asIntCheck(mem));
-    }
-
-    if (loopExecutionConditionIdx == -1) {
+    if (loopExecutionConditionIdx == -1)
         initial_cond_check.reset(new staticValueCheck(true));
-    } else {
-        auto mem = getParentEdgesAtPort(loopExecutionConditionIdx)[0]->getMemoryPtr();
-        initial_cond_check.reset(new asBoolCheck(mem));
+
+    if (isDynamicNode())
+        prepareDynamicBuffers();
+
+    MKLDNNNode::createPrimitive();
+}
+
+bool MKLDNNTensorIteratorNode::needPrepareParams() const {
+    if (getAlgorithm() == TensorIteratorLoop) {
+        const auto tripCountPtr = reinterpret_cast<const uint32_t*>(getParentEdgesAtPort(loopTripCountIdx).front()->getMemoryPtr()->GetPtr());
+        const auto condPtr = reinterpret_cast<const uint8_t*>(getParentEdgesAtPort(loopExecutionConditionIdx).front()->getMemoryPtr()->GetPtr());
+        if (tripCountPtr[0] != lastUsedTripCount || condPtr[0] != lastUsedCond)
+            return true;
+    }
+
+    return MKLDNNNode::needPrepareParams();
+}
+
+void MKLDNNTensorIteratorNode::prepareParams() {
+    reshapeSubgraphInput();
+
+    first_mappers.clear();
+    before_mappers.clear();
+    back_mappers.clear();
+
+    prepareInputPorts();
+    prepareInitialCond();
+    prepareContinueCond();
+    prepareTripCount();
+    // special purpose ports
+    prepareLoopBodyCurrentIteration();
+
+    if (!isDynamicNode()) {
+        prepareOutputPorts();
+        prepareBackEdges();
     }
 }
 
@@ -485,13 +515,273 @@ void MKLDNNTensorIteratorNode::execute(mkldnn::stream strm) {
         continue_cond = continue_cond_check->getStatus();
 
         // copy data from subgraph iteration to outputs
-        // or to next iteration inputs
+        // or to the next iteration inputs
         for (auto &mapper : after_mappers)
             mapper->execute(strm, i);
     }
 
     for (auto &mapper : last_mappers)
         mapper->execute(strm);
+}
+
+void MKLDNNTensorIteratorNode::executeDynamicImpl(mkldnn::stream strm) {
+    const auto &eng = getEngine();
+    sub_graph.ResetInferCount();
+
+    bool continue_cond = initial_cond_check->getStatus();
+    int max_num_iter = trip_count_check->getStatus();
+
+    for (auto &mapper : first_mappers)
+        mapper->execute(strm);
+
+    if (!continue_cond || max_num_iter == 0)
+        THROW_ERROR << "has incorrect iteration count for dynamic execution";
+
+    // use  "i != max_num_iter" only to allow "-1" works like infinite loop
+    for (int i = 0; i != max_num_iter && continue_cond; i++) {
+        // copy data to subgraph iteration
+        for (auto &mapper : before_mappers)
+            mapper->execute(strm, i);
+        for (auto &mapper : back_mappers)
+            mapper->execute(strm, i);
+
+        sub_graph.Infer();
+
+        continue_cond = continue_cond_check->getStatus();
+
+        for (auto& buffer : buffers)
+            buffer->execute(eng, i);
+
+        // on the last iteration we shouldn't reshape body inputs and init back edges
+        if ((i + 1 != max_num_iter) && continue_cond)
+            prepareDynamicBackEdges();
+    }
+
+    reshapeAndFillOutput(strm);
+}
+
+/* *==============* Prepare reorders, edges between body and TI *==============* */
+
+void MKLDNNTensorIteratorNode::prepareInputPorts() {
+    const auto &eng = getEngine();
+    for (auto map_rule : inputPortMap) {
+        auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto &to_mem = input_mems[map_rule.to].front();  // first memory is enough to get common memory ptr
+
+        if (map_rule.axis == -1)
+            first_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+        else
+            before_mappers.emplace_back(
+                    std::make_shared<PortIteratorHelper>(from_mem, to_mem, true, map_rule, eng));
+    }
+}
+
+void MKLDNNTensorIteratorNode::prepareOutputPorts() {
+    const auto &eng = getEngine();
+    for (auto map_rule : outputPortMap) {
+        auto &to_mem = getChildEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto &from_mem = output_mem[map_rule.to];
+
+        if (map_rule.axis == -1)
+            last_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+        else
+            after_mappers.emplace_back(std::make_shared<PortIteratorHelper>(from_mem, to_mem, false, map_rule, eng));
+    }
+}
+
+void MKLDNNTensorIteratorNode::prepareBackEdges() {
+    const auto &eng = getEngine();
+    for (auto map_rule : backEdges) {
+        auto from_mem = output_mem[map_rule.from];
+        auto to_mem = input_mems[map_rule.to].front();
+
+        before_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+    }
+}
+
+void MKLDNNTensorIteratorNode::prepareDynamicBackEdges() {
+    const auto &eng = getEngine();
+    back_mappers.clear();
+    for (auto map_rule : backEdges) {
+        auto from_mem = output_mem[map_rule.from];
+        auto to_mems = input_mems[map_rule.to];
+
+        const auto& desc = from_mem->getDesc();
+        redefineToMemories(to_mems, desc.clone());
+
+        // first memory is enough to get common memory ptr
+        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mems.front(), eng));
+    }
+}
+
+void MKLDNNTensorIteratorNode::prepareDynamicBuffers() {
+    for (auto map_rule : outputPortMap) {
+        if (map_rule.axis != -1) {
+            auto to_mems = getToMemories(this, map_rule.from);
+            auto &from_mem = output_mem[map_rule.to];
+            buffers.emplace_back(std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule));
+        }
+    }
+}
+
+void MKLDNNTensorIteratorNode::prepareLoopBodyCurrentIteration() {
+    const auto &eng = getEngine();
+    for (auto idx : loopBodyCurrentIterationIdx) {
+        auto to_mem = input_mems[idx].front();  // first memory is enough to get common memory ptr
+        before_mappers.emplace_back(std::make_shared<IterCountPortHelper>(to_mem, eng));
+    }
+}
+
+void MKLDNNTensorIteratorNode::prepareContinueCond() {
+    if (loopBodyConditionOutputIdx != -1 || !continue_cond_check) {
+        auto mem = output_mem[loopBodyConditionOutputIdx];
+        continue_cond_check.reset(new asBoolCheck(mem));
+    }
+}
+
+void MKLDNNTensorIteratorNode::prepareInitialCond() {
+    if (loopExecutionConditionIdx != -1 || !initial_cond_check) {
+        auto mem = getParentEdgesAtPort(loopExecutionConditionIdx)[0]->getMemoryPtr();
+        initial_cond_check.reset(new asBoolCheck(mem));
+        lastUsedCond = initial_cond_check->getStatus();
+    }
+}
+
+void MKLDNNTensorIteratorNode::prepareTripCount() {
+    if (loopTripCountIdx == -1) {
+        trip_count_check.reset(new staticValueCheck(getNumIteration(inputPortMap, outputPortMap)));
+    } else {
+        auto mem = getParentEdgesAtPort(loopTripCountIdx)[0]->getMemoryPtr();
+        trip_count_check.reset(new asIntCheck(mem));
+    }
+    lastUsedTripCount = trip_count_check->getStatus();
+}
+
+/* *==============* *==============* *==============* *==============* *==============* */
+
+void MKLDNNTensorIteratorNode::reshapeSubgraphInput() {
+    for (auto map_rule : inputPortMap) {
+        auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto &to_mems = input_mems[map_rule.to];
+        auto new_dims = from_mem->getStaticDims();
+        if (map_rule.axis != -1)
+            new_dims[map_rule.axis] = abs(map_rule.stride);
+
+        const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
+        redefineToMemories(to_mems, desc);
+    }
+}
+
+void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
+    auto eng = strm.get_engine();
+    for (auto map_rule : outputPortMap) {
+        if (map_rule.axis == -1) {
+            auto to_mems = getToMemories(this, map_rule.from);
+            auto &from_mem = output_mem[map_rule.to];
+
+            const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(from_mem->getStaticDims());
+            redefineToMemories(to_mems, desc);
+
+            PortMapHelper *mapper = new BackEdgePortHelper(from_mem, to_mems.front(), eng);
+            mapper->execute(strm);
+        }
+    }
+
+    for (auto buffer : buffers) {
+        buffer->transfer(this);
+    }
+}
+
+int MKLDNNTensorIteratorNode::getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const {
+    const auto isIterable = [](const PortMap& rule) {
+        return rule.axis != -1;
+    };
+
+    const auto getNumIterations = [this](const PortMap& rule, const std::vector<size_t>& dimensions) -> int {
+        const auto axis = rule.axis;
+        if (axis < 0 || static_cast<std::size_t>(axis) >= dimensions.size()) {
+            THROW_ERROR << ": Invalid \"axis\" value in an iteration component: "
+                        << rule.axis  << ", dimensions number = " << dimensions.size() << " (out of range)";
+        }
+        const auto space = dimensions[axis];
+        const int start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
+        const int end   = static_cast<int>((rule.end   < 0 ? (space + 1) : 0) + rule.end);
+
+        const auto stride = rule.stride;
+        if (stride == 0) {
+            THROW_ERROR << ": Invalid \"stride\" value in an iteration component: " << rule.stride << " (infinite loop)";
+        }
+        const auto step = std::abs(stride);
+
+        const auto src = stride < 0 ? end : start;
+        const auto dst = stride < 0 ? start : end;
+        const auto length = dst - src;
+        if (src < 0 || src >= dst || dst > static_cast<int64_t>(space) || length < step) {
+            THROW_ERROR << ": Invalid \"start\",\"stride\",\"end\" values in an iteration component"
+                        << ": \"start\" = " << rule.start << ", \"stride\" = " << rule.stride  << ", \"end\" = " << rule.end;
+        }
+
+        if (length % step != 0) {
+            THROW_ERROR << ": Each iteration must be the same size: length (" << length << ") is not divisible by step (" << step << ")";
+        }
+
+        return static_cast<int>(length / step);
+    };
+
+
+    int numIterations = 1;
+    bool isDefault = true;
+    for (const auto& rule : inputPortMap) {
+        const auto& dims = getParentEdgesAtPort(rule.from)[0]->getMemoryPtr()->getStaticDims();
+        if (!isIterable(rule)) {
+            continue;
+        }
+
+        if (rule.from < 0 || rule.from >= static_cast<int64_t>(inputShapes.size())) {
+            THROW_ERROR << ": Invalid \"from\" value: \"from\" = " << rule.from
+                        << " inputs number = " << inputShapes.size() << " (out of range)";
+        }
+
+        const auto currentNumIterations = getNumIterations(rule, dims);
+        if (isDefault) {
+            isDefault = false;
+            numIterations = currentNumIterations;
+        } else if (numIterations != currentNumIterations) {
+            THROW_ERROR << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
+        }
+    }
+
+    for (const auto& rule : outputPortMap) {
+        const auto& dims = getBaseMemDescAtOutputPort(rule.from)->getShape().getDims();
+        if (!isIterable(rule)) {
+            continue;
+        }
+
+        if (dims[rule.axis] == Shape::UNDEFINED_DIM)
+            continue;
+
+        if (rule.from < 0 || rule.from >= static_cast<int64_t>(outputShapes.size())) {
+            THROW_ERROR << ": Invalid \"from\" value: \"from\" = " << rule.from
+                        << " inputs number = " << outputShapes.size() << " (out of range)";
+        }
+
+        const auto currentNumIterations = getNumIterations(rule, dims);
+        if (isDefault) {
+            isDefault = false;
+            numIterations = currentNumIterations;
+        } else if (numIterations != currentNumIterations) {
+            THROW_ERROR << ": There are at least two different iterations numbers: " << numIterations << " and " << currentNumIterations;
+        }
+    }
+
+    return numIterations;
+}
+
+std::vector<MKLDNNMemoryPtr> MKLDNNTensorIteratorNode::getToMemories(const MKLDNNNode* node, const size_t port) const {
+    std::vector<MKLDNNMemoryPtr> memories;
+    for (auto edge : node->getChildEdgesAtPort(port))
+        memories.push_back(edge->getMemoryPtr());
+    return memories;
 }
 
 bool MKLDNNTensorIteratorNode::created() const {
