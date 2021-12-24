@@ -14,19 +14,11 @@ using namespace testing;
 class GNA_AmIntelDnn_test : public GNATest<> {
 protected:
     GNAPluginNS::backend::AMIntelDNN amIntelDnn;
-#if GNA_LIB_VER == 2
     Gna2Model desc = {};
-#else
-    intel_nnet_type_t  desc = {};
-#endif
 };
 
 TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_tSecondInitNotAllowed) {
-#if GNA_LIB_VER == 2
     desc.Operations = nullptr;
-#else
-    desc.pLayers = nullptr;
-#endif
     amIntelDnn.component.resize(1);
     amIntelDnn.component[0].operation = kDnnAffineOp;
     // First init is ok
@@ -45,10 +37,6 @@ TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_t_pLayersIsNotNullptr) {
 }
 
 TEST_F(GNA_AmIntelDnn_test, ComponentIsEmpty) {
-#if GNA_LIB_VER == 2
     desc.Operations = nullptr;
-#else
-    desc.pLayers = nullptr;
-#endif
     ASSERT_THROW(amIntelDnn.InitGNAStruct(&desc), InferenceEngine::Exception);
 }
