@@ -11,7 +11,7 @@
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "transformations/rt_info/reverse_input_channels.hpp"
+#include "transformations/rt_info/preprocessing_attribute.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -56,6 +56,7 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
         auto constant = op::v0::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
+        set_is_preprocessing_node(new_op);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
     });
 }
@@ -83,6 +84,7 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
         auto constant = op::v0::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
+        set_is_preprocessing_node(new_op);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
     });
 }
@@ -366,7 +368,7 @@ void PreStepsList::add_reverse_channels() {
         auto resp = reverse_channels(nodes, function, context);
         auto outputs = std::get<0>(resp);
         OPENVINO_ASSERT(outputs.size() == 1, "Internal error: reverse_channels returned unexpected number of outputs");
-        set_is_reverse_input_channels(outputs.at(0).get_node_shared_ptr());
+        set_is_preprocessing_node(outputs.at(0).get_node_shared_ptr());
         return resp;
     });
 }

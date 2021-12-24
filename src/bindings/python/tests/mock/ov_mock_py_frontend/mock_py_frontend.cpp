@@ -7,6 +7,10 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
 
+FeStat FrontEndMockPy::m_stat = {};
+ModelStat InputModelMockPy::m_stat = {};
+PlaceStat PlaceMockPy::m_stat = {};
+
 using namespace ngraph;
 using namespace ov::frontend;
 
