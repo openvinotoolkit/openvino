@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import networkx as nx
 
-from openvino.tools.mo.ops.transpose import Transpose
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
@@ -11,6 +10,7 @@ from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.elementwise import Div
 from openvino.tools.mo.ops.reshape import Reshape
 from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.transpose import Transpose
 from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
 
 
@@ -35,10 +35,10 @@ def find_max_frame_time(node: Node):
 
 def propagate_time_dim_through_branch(node: Node, dest_port: Port):
     """
-    Propagate time_dim for one branch starting from given node:dest_port.
-    MemoryOffset/Splice nodes increase time_dim
-    Convolution/Pooling decrease time_dim to 0 value because it works through the whole context
-    other nodes don't change time_dim
+    Propagate time_dim for one branch starting from given node:dest_port :
+    MemoryOffset/Splice nodes increase time_dim;
+    Convolution/Pooling decrease time_dim to 0 value because it works through the whole context;
+    other nodes don't change time_dim;
     If we find out node with several inputs, one of which have undefined time_dim, process stops.
     """
     child = dest_port.node
@@ -98,6 +98,7 @@ def update_time_dim_for_start_convolution(graph):
         if not param_node.out_port(0).disconnected() and \
                 param_node.out_port(0).get_destination().node.op == 'Convolution':
             conv_node = param_node.out_port(0).get_destination().node
+            # time_dim starts from 0, kernel from 1
             param_node.time_dim = conv_node.soft_get('kernel')[1] - 1
 
 
@@ -146,6 +147,7 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
             # shape = [in_shape[0], t, patch_stride, C = in_shape[1]/(patch_stride*t)]
             # or before pooling
             # shape = [in_shape[0], t, in_shape[1]/(pool_stride*t), pool_stride]
+            # adapt time_dim to use in kernel as dimension
             time_dim = node.in_port(0).get_source().node.time_dim + 1
             if node.op == 'Convolution':
                 frame_height = node.patch_stride if node.has_valid('patch_stride') else node.height_in
