@@ -8,8 +8,8 @@ from sys import platform
 from pathlib import Path
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Model, Core, CompiledModel, Tensor, PartialShape, tensor_from_file, compile_model
-from openvino.pyopenvino import Extension
+from openvino.runtime import Model, Core, CompiledModel, Tensor, PartialShape, Extension,\
+    tensor_from_file, compile_model
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
@@ -246,7 +246,7 @@ def test_unregister_plugin(device):
 
 
 @pytest.mark.template_extension
-def test_add_extension_as_path(device):
+def test_add_extension_template_extension(device):
     ir = bytes(b"""<net name="Activation" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
@@ -312,6 +312,18 @@ def test_add_extension_as_path(device):
 
     # CVS-74584
     del model
+
+
+def test_add_extension():
+    class EmptyExtension(Extension):
+        def __init__(self) -> None:
+            super().__init__()
+
+    core = Core()
+    core.add_extension(EmptyExtension())
+    core.add_extension([EmptyExtension(), EmptyExtension()])
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(model, Model)
 
 
 def test_read_model_from_buffer_no_weights(device):
@@ -392,15 +404,3 @@ def test_infer_new_request_return_type(device):
     assert arr.shape == (10,)
     assert arr.dtype == "float32"
     assert arr.nbytes == 40
-
-
-def test_add_extension():
-    class EmptyExtension(Extension):
-        def __init__(self) -> None:
-            super().__init__()
-
-    core = Core()
-    core.add_extension(EmptyExtension())
-    core.add_extension([EmptyExtension(), EmptyExtension()])
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert isinstance(model, Model)
