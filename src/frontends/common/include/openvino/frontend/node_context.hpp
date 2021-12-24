@@ -22,12 +22,33 @@ class FRONTEND_API NodeContext {
 public:
     explicit NodeContext(const std::string& op_type) : m_op_type(op_type) {}
 
-    virtual size_t get_input_size() const = 0;
-    virtual size_t get_input_size(const std::string& port_name) const = 0;
+    /// Get a number of inputs
+    virtual size_t get_input_size() const {
+        FRONT_END_NOT_IMPLEMENTED(get_input_size);
+    };
 
-    virtual Output<Node> get_input(int idx) const = 0;
-    virtual Output<Node> get_input(const std::string& name, int idx) const = 0;
-    virtual Output<Node> get_input(const std::string& name) const = 0;
+    /// Get a number of inputs
+    virtual size_t get_input_size(const std::string& port_name) const {
+        FRONT_END_NOT_IMPLEMENTED(get_input_size);
+    }
+
+    /// Returns exactly one input with a given idx; throws if there is no inputs or
+    /// there are more than one input
+    virtual Output<Node> get_input(int idx) const {
+        FRONT_END_NOT_IMPLEMENTED(get_input);
+    }
+
+    /// Returns exactly one input with a given name and idx; throws if there is no inputs or
+    /// there are more than one input
+    virtual Output<Node> get_input(const std::string& name, int idx) const {
+        FRONT_END_NOT_IMPLEMENTED(get_input);
+    }
+
+    /// Returns exactly one input with a given name; throws if there is no inputs or
+    /// there are more than one input
+    virtual Output<Node> get_input(const std::string& name) const {
+        FRONT_END_NOT_IMPLEMENTED(get_input);
+    }
 
     virtual const std::string& get_op_type() const {
         return m_op_type;

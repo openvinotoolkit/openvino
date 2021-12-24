@@ -36,21 +36,9 @@ public:
         return m_inputs.at(port_index);
     }
 
-    Output<Node> get_input(const std::string& name) const override {
-        return Output<Node>();
-    }
-
-    Output<Node> get_input(const std::string& name, int idx) const override {
-        return Output<Node>();
-    }
-
     /// Get a number of inputs
     size_t get_input_size() const override {
         return m_inputs.size();
-    }
-
-    size_t get_input_size(const std::string& name) const override {
-        return 0;
     }
 
     /// Get a node name
