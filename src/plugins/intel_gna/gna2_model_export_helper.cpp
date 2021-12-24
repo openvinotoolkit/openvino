@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if GNA_LIB_VER == 2
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
 #include "gna_device.hpp"
@@ -101,5 +100,3 @@ void ExportGnaDescriptorPartiallyFilled(uint32_t number_of_layers, std::ostream&
     outStream.width(scratchPadSize);
     outStream << constScratchFill;
 }
-
-#endif
