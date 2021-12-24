@@ -1449,8 +1449,18 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     for (size_t i = 0; i < newOutputShapes.size(); i++) {
         const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
         if (partShape.is_dynamic()) {
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for node " << getTypeStr()
-                                     << " with internal dynamism. Operation name: " << getName();
+            std::ostringstream errorMessage;
+            errorMessage << "Can't compute static output shape on " << i << " port for node with name: " << getName();
+            errorMessage << ". Input shapes = ( ";
+            for (size_t in = 0; in < opToShapeInfer->get_input_size(); in++) {
+                errorMessage << in << " port = " << opToShapeInfer->get_input_partial_shape(in) << ", ";
+            }
+            errorMessage << "). Output shapes = ( ";
+            for (size_t out = 0; out < opToShapeInfer->get_output_size(); out++) {
+                errorMessage << out << " port = " << opToShapeInfer->get_output_partial_shape(out) << ", ";
+            }
+            errorMessage << ")";
+            IE_THROW(NotImplemented) << errorMessage.str();
         }
 
         newOutputShapes[i] = partShape.get_shape();
