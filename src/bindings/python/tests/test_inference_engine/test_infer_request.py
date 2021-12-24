@@ -8,7 +8,7 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, Type
+from openvino.runtime import Core, AsyncInferQueue, Tensor, Model, Type
 from openvino.preprocess import PrePostProcessor
 
 from ..conftest import model_path, read_image
