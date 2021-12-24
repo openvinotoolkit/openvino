@@ -115,6 +115,8 @@
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
+#include <ngraph/pass/visualize_tree.hpp>
+
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 # ifdef _WIN32
 #  include <intrin.h>
@@ -493,6 +495,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     });
 
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
+    // postLPTPassManager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/end-of-cpu-pipeline-2.svg");
     postLPTPassManager.run_passes(nGraphFunc);
 
     if (!useLpt && _enableSnippets && with_cpu_x86_avx2()) {

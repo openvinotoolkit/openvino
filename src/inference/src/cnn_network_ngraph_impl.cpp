@@ -450,8 +450,8 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             specialized_ngraph_function->validate_nodes_and_infer_types();
         }
 
-#if 0
-        bool obfuscate = true; // set to false to get exact dimensions
+#if 1
+        bool obfuscate = false; // set to false to get exact dimensions
         std::map<std::string, std::map<std::string, size_t>> signatures;
         for (const auto& op : _ngraph_function->get_ordered_ops()) {
             const auto& type_name = string(op->get_type_info().name) + "_" + to_string(op->get_type_info().version);

@@ -62,6 +62,10 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
+#include <iostream>
+#include <set>
+#include <string>
+
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace openvino;
@@ -1445,6 +1449,38 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     opToShapeInfer->validate_and_infer_types();
 
     std::vector<VectorDims> newOutputShapes(opToShapeInfer->get_output_size());
+    const auto current_name = getName();
+    std::cout << "Current name: " << current_name << "\n";
+    const std::set<std::string> expected_names = {
+        "SecondStagePostprocessor/BatchMultiClassNonMaxSuppression/MultiClassNonMaxSuppression/Gather_48/GatherV2_6",
+        "SecondStagePostprocessor/BatchMultiClassNonMaxSuppression/MultiClassNonMaxSuppression/range_48"
+    };
+    if (expected_names.count(current_name) != 0) {
+        for (size_t i = 0; i < newOutputShapes.size(); i++) {
+            const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
+            std::cout << "output shape for the output port " << i << " is " << partShape << "\n";
+        }
+        for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+            const auto& partShape = opToShapeInfer->get_input_partial_shape(i);
+            std::cout << "input shape for the input port " << i << " is " << partShape << "\n";
+        }
+        std::cout << "Input nodes:\n";
+        for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+            const auto input_node = opToShapeInfer->input_value(i).get_node_shared_ptr();
+            const auto current_input_node_name = input_node->get_name();
+            std::cout << "Input node name: "  << current_input_node_name << "\n";
+            std::cout << "Its input shapes are:\n";
+            for (size_t ii = 0; ii < input_node->get_input_size(); ii++) {
+                const auto& partShape = input_node->get_input_partial_shape(ii);
+                std::cout << "    input shape for the input port " << ii << " is " << partShape << "\n";
+            }
+            std::cout << "Its output shapes are:\n";
+            for (size_t ii = 0; ii < input_node->get_output_size(); ii++) {
+                const auto &partShape = input_node->get_output_partial_shape(ii);
+                std::cout << "    output shape for the output port " << ii << " is " << partShape << "\n";
+            }
+        }
+    }
     for (size_t i = 0; i < newOutputShapes.size(); i++) {
         const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
         if (partShape.is_dynamic()) {
