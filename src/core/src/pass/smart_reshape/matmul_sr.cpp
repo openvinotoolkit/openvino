@@ -136,19 +136,19 @@ ngraph::pass::TransposeMatMul::TransposeMatMul() {
         };
 
         NodeVector fused_nodes;
-        auto input_A = matmul->get_input_node_shared_ptr(0);
+        auto input_A = matmul->input_value(0);
         bool transpose_A = matmul->get_transpose_a();
-        if (transpose_is_fusable(input_A)) {
-            fused_nodes.push_back(input_A);
-            input_A = input_A->get_input_node_shared_ptr(0);
+        if (transpose_is_fusable(input_A.get_node_shared_ptr())) {
+            fused_nodes.push_back(input_A.get_node_shared_ptr());
+            input_A = input_A.get_node()->input_value(0);
             transpose_A = !transpose_A;
         }
 
-        auto input_B = matmul->get_input_node_shared_ptr(1);
+        auto input_B = matmul->input_value(1);
         auto transpose_B = matmul->get_transpose_b();
-        if (transpose_is_fusable(input_B)) {
-            fused_nodes.push_back(input_B);
-            input_B = input_B->get_input_node_shared_ptr(0);
+        if (transpose_is_fusable(input_B.get_node_shared_ptr())) {
+            fused_nodes.push_back(input_B.get_node_shared_ptr());
+            input_B = input_B.get_node()->input_value(0);
             transpose_B = !transpose_B;
         }
 
