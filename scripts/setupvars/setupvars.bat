@@ -58,6 +58,10 @@ if errorlevel 1 (
 
 :: Check Python version if user did not pass -pyver
 
+set PYTHON_VERSION_MAJOR=3
+set MIN_REQUIRED_PYTHON_VERSION_MINOR=6
+set MAX_SUPPORTED_PYTHON_VERSION_MINOR=9
+
 if "%python_version%" == "" (
     for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(str(sys.version_info[0])+'.'+str(sys.version_info[1]))" 2^>^&1`) DO (
        set python_version=%%F
@@ -69,14 +73,16 @@ for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
    set pyversion_minor=%%b
 )
 
-if "%pyversion_major%" geq "3" (
-   if "%pyversion_minor%" geq "6" (
-      set check_pyversion=okay
-   )
+if "%pyversion_major%" equ "%PYTHON_VERSION_MAJOR%" (
+   if "%pyversion_minor%" geq "%MIN_REQUIRED_PYTHON_VERSION_MINOR%" (
+      if "%pyversion_minor%" leq "%MAX_SUPPORTED_PYTHON_VERSION_MINOR%" (
+         set check_pyversion=okay
+      )
+   )   
 )
 
 if not "%check_pyversion%"=="okay" (
-   echo Unsupported Python version. Please install one of Python 3.6 - 3.9 ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python version. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR% ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
@@ -92,7 +98,7 @@ for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(64 if sys.maxsi
 )
 
 if not "%bitness%"=="64" (
-   echo Unsupported Python bitness. Please install one of Python 3.6 - 3.9 ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python bitness. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR%^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
