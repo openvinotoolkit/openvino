@@ -484,6 +484,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             </input>
             <output>
                 <port id="2" precision="FP32" names="output_tensor">
+                    <rt_info>
+                        <attribute name="layout" version="0" layout="[N,H,W,C]"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>22</dim>
                     <dim>22</dim>
@@ -497,9 +500,6 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             </rt_info>
             <input>
                 <port id="0" precision="FP32">
-                    <rt_info>
-                        <attribute name="layout" version="0" layout="[N,H,W,C]"/>
-                    </rt_info>
                     <dim>1</dim>
                     <dim>22</dim>
                     <dim>22</dim>
@@ -909,6 +909,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
                 <port id="2" precision="FP32">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test4,test5"/>
+                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -922,7 +923,6 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
                 <port id="0" precision="FP32">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test5,test6"/>
-                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
