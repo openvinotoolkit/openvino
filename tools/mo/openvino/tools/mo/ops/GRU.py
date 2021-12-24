@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from openvino.tools.mo.ops.RNN import rnn_infer
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -21,7 +20,7 @@ class GRU(Op):
             'infer': __class__.infer,
             'multiplier': 3,
             'multilayers': False,
-            'gate_order': np.array([0, 1, 2]),  # TODO: change it later
+            'gate_order': mo_array([0, 1, 2]),  # TODO: change it later
             'normalized': False,
 
             'activation_alpha': None,

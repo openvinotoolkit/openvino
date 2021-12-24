@@ -48,6 +48,10 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
     list(APPEND DEPENDENCIES ov_auto_plugin)
 endif()
 
+if(ENABLE_AUTO_BATCH)
+    list(APPEND DEPENDENCIES ov_auto_batch_plugin)
+endif()
+
 if (NOT ENABLE_OV_ONNX_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
