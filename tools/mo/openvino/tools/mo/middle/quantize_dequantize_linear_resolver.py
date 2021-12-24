@@ -25,7 +25,6 @@ class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
-    force_clean_up = True
 
     def run_after(self):
         from openvino.tools.mo.middle.quantize_fuses import MarkNodesToFuseUpToFakeQuantize
