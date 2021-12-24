@@ -164,7 +164,7 @@ void program::load_tuning_cache() {
     }
 }
 
-kernel_id program::add_kernel(const std::shared_ptr<kernel_string> kernelSring) {
+kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring) {
     return _kernels_cache->set_kernel_source(kernelSring, false);
 }
 
@@ -741,10 +741,10 @@ program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
 }
 
 void program::add_intermediate(program_node& node,
-                                    program_node& next,
-                                    size_t prev_idx,
-                                    bool connect_int_node_with_old_dep,
-                                    bool move_usrs_of_prev_to_node) {
+                               program_node& next,
+                               size_t prev_idx,
+                               bool connect_int_node_with_old_dep,
+                               bool move_usrs_of_prev_to_node) {
     if (connect_int_node_with_old_dep && !node.dependencies.empty())
         throw std::invalid_argument(
             "Node which is about to be added in between two other nodes should not have any existing dependencies");
@@ -1112,8 +1112,8 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use
 // primitive_inst::to_string?)
 void program::dump_program(const char* stage,
-                                bool with_full_info,
-                                std::function<bool(program_node const&)> const& filter) const {
+                           bool with_full_info,
+                           std::function<bool(program_node const&)> const& filter) const {
     std::string path = get_dir_path(options);
     if (path.empty() || !with_full_info) {
         return;
@@ -1225,12 +1225,17 @@ program::primitives_info program::get_current_stage_info() const {
 
 void program::save_pass_info(std::string pass_name) {
     // TODO: Directory path here can be probably changed to some bool flag
-    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty())
+    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty()) {
+        for (auto& node : this->get_processing_order()) {
+            if (!node->is_type<data>())
+                node->get_output_layout();
+        }
         optimizer_passes_info.emplace_back(pass_name, get_current_stage_info());
+    }
 }
 
 void program::add_optimized_primitive_info(primitive_id optimized_primitive_id,
-                                                std::vector<primitive_id> replaced_with_ids) {
+                                           std::vector<primitive_id> replaced_with_ids) {
     for (auto& e : optimized) {
         auto it = std::find_if(e.second.begin(), e.second.end(), [&optimized_primitive_id](const primitive_id& id) {
            return optimized_primitive_id == id;
@@ -1454,6 +1459,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>())) {
             const_sum += out_size;
         } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
+            continue;
+        } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
             allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), pool, *node, false));

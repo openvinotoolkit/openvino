@@ -13,6 +13,8 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
@@ -21,6 +23,7 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfwzyx);
 
     k.EnableBatching();
+    k.EnableDifferentTypes();
 
     return k;
 }
@@ -117,25 +120,29 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     if (tuning_data.tile_k_size > tuning_data.simd_size) {
         jit.AddConstants({
             MakeJitConstant("A_VEC_SIZE", tuning_data.tile_k_size / tuning_data.simd_size),
-            MakeJitConstant("A_FLOATN", std::string("UNIT_TYPE") + toCodeString(tuning_data.tile_k_size / tuning_data.simd_size)),
+            MakeJitConstant("A_FLOATN", std::string("CAT(INPUT0_TYPE, ") + toCodeString(tuning_data.tile_k_size / tuning_data.simd_size) + ")"),
         });
     } else {
         jit.AddConstants({
             MakeJitConstant("A_VEC_SIZE", 1),
-            MakeJitConstant("A_FLOATN", std::string("UNIT_TYPE")),
+            MakeJitConstant("A_FLOATN", std::string("INPUT0_TYPE")),
         });
     }
 
     if (tuning_data.tile_n_size > tuning_data.simd_size) {
         jit.AddConstants({
             MakeJitConstant("B_VEC_SIZE", b_vec_size),
-            MakeJitConstant("B_FLOATN", std::string("UNIT_TYPE") + toCodeString(b_vec_size)),
+            MakeJitConstant("B_FLOATN", std::string("CAT(INPUT1_TYPE, ") + toCodeString(b_vec_size) + ")"),
+            MakeJitConstant("OUTPUT_TYPE_VEC", std::string("CAT(OUTPUT_TYPE, ") + toCodeString(b_vec_size) + ")"),
+            MakeJitConstant("ACCUMULATOR_TYPE_VEC", std::string("CAT(ACCUMULATOR_TYPE, ") + toCodeString(b_vec_size) + ")"),
         });
     } else {
         b_vec_size = 1;
         jit.AddConstants({
-            MakeJitConstant("B_VEC_SIZE", 1),
-            MakeJitConstant("B_FLOATN", std::string("UNIT_TYPE")),
+            MakeJitConstant("B_VEC_SIZE", b_vec_size),
+            MakeJitConstant("B_FLOATN", std::string("INPUT1_TYPE")),
+            MakeJitConstant("OUTPUT_TYPE_VEC", std::string("OUTPUT_TYPE")),
+            MakeJitConstant("ACCUMULATOR_TYPE_VEC", std::string("ACCUMULATOR_TYPE")),
         });
     }
 
@@ -153,7 +160,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                                                "dequantized",
                                                input_dt,
                                                1,
-                                               LoadType::LT_ALIGNED_READ,
+                                               LoadType::LT_UNALIGNED,
                                                BoundaryCheck::ENABLED,
                                                IndexType::TENSOR_COORD,
                                                Tensor::DataChannelName::Y };
@@ -182,6 +189,10 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
                           gmm_params.inputs[1].X().v % 16 || gmm_params.inputs[1].Y().v % 16;
     if ((gmm_params.transpose_input0 || gmm_params.transpose_input1) && gemm_leftovers)
         return false;
+
+    for (size_t i = 1; i < gmm_params.inputs.size(); i++)
+        if (gmm_params.inputs[0].GetDType() != gmm_params.inputs[i].GetDType())
+            return false;
 
     return true;
 }

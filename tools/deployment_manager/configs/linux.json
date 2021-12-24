@@ -22,17 +22,14 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/lib/intel64/libinference_engine.so",
-        "runtime/lib/intel64/libinference_engine_transformations.so",
+        "runtime/lib/intel64/libov_runtime.so",
         "runtime/lib/intel64/libinference_engine_preproc.so",
         "runtime/lib/intel64/libinference_engine_c_api.so",
         "runtime/lib/intel64/libov_hetero_plugin.so",
         "runtime/lib/intel64/libov_auto_plugin.so",
-        "runtime/lib/intel64/libngraph.so",
-        "runtime/lib/intel64/libfrontend_common.so",
-        "runtime/lib/intel64/libir_ov_frontend.so",
-        "runtime/lib/intel64/libonnx_ov_frontend.so",
-        "runtime/lib/intel64/libpaddlepaddle_ov_frontend.so",
+        "runtime/lib/intel64/libov_ir_frontend.so",
+        "runtime/lib/intel64/libov_onnx_frontend.so",
+        "runtime/lib/intel64/libov_paddle_frontend.so",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -42,8 +39,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libinference_engine_lp_transformations.so",
-        "runtime/lib/intel64/libMKLDNNPlugin.so"
+        "runtime/lib/intel64/libov_intel_cpu_plugin.so"
       ]
     },
     "gpu": {
@@ -53,7 +49,6 @@
       "files": [
         "runtime/lib/intel64/cache.json",
         "runtime/lib/intel64/libov_intel_gpu_plugin.so",
-        "runtime/lib/intel64/libinference_engine_lp_transformations.so",
         "install_dependencies/install_NEO_OCL_driver.sh"
       ]
     },
@@ -90,22 +85,10 @@
         "runtime/3rdparty/hddl"
       ]
     },
-    "opencv": {
-      "ui_name": "OpenCV",
-      "group": ["opencv"],
-      "dependencies" : [],
-      "files": [
-        "extras/opencv/version.txt",
-        "extras/opencv/setupvars.sh",
-        "extras/opencv/lib",
-        "extras/opencv/bin"
-      ]
-    },
     "python_common": {
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
-        "python/python3",
         "python/requirements.txt"
       ]
     },

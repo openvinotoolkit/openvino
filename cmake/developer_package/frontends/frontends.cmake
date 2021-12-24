@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
-set(FRONTEND_NAME_SUFFIX "_ov_frontend")
+set(FRONTEND_INSTALL_INCLUDE "runtime/include/")
+set(FRONTEND_NAME_PREFIX "ov_")
+set(FRONTEND_NAME_SUFFIX "_frontend")
 
 set(FRONTEND_NAMES "" CACHE INTERNAL "")
 
@@ -20,7 +21,7 @@ function(ov_target_link_frontends TARGET_NAME)
     endif()
 
     foreach(name IN LISTS FRONTEND_NAMES)
-        set(frontend_target_name "${name}${FRONTEND_NAME_SUFFIX}")
+        set(frontend_target_name "${FRONTEND_NAME_PREFIX}${name}${FRONTEND_NAME_SUFFIX}")
         target_link_libraries(${TARGET_NAME} PRIVATE ${frontend_target_name})
     endforeach()
 endfunction()
@@ -34,7 +35,7 @@ function(ov_generate_frontends_hpp)
     endif()
 
     # add frontends to libraries including ov_frontends.hpp
-    ov_target_link_frontends(frontend_common)
+    ov_target_link_frontends(ov_runtime)
 
     set(ov_frontends_hpp "${CMAKE_BINARY_DIR}/src/frontends/common/src/ov_frontends.hpp")
     set(frontends_hpp_in "${IEDevScripts_DIR}/frontends/ov_frontends.hpp.in")
@@ -59,7 +60,7 @@ function(ov_generate_frontends_hpp)
     add_dependencies(frontend_common _ov_frontends_hpp)
 
     # add dependency for object files
-    get_target_property(sources frontend_common::static SOURCES)
+    get_target_property(sources frontend_common_obj SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library
@@ -99,7 +100,7 @@ macro(ov_add_frontend)
         endif()
     endforeach()
 
-    set(TARGET_NAME "${OV_FRONTEND_NAME}${FRONTEND_NAME_SUFFIX}")
+    set(TARGET_NAME "${FRONTEND_NAME_PREFIX}${OV_FRONTEND_NAME}${FRONTEND_NAME_SUFFIX}")
 
     list(APPEND FRONTEND_NAMES ${OV_FRONTEND_NAME})
     set(FRONTEND_NAMES "${FRONTEND_NAMES}" CACHE INTERNAL "" FORCE)
@@ -176,7 +177,7 @@ macro(ov_add_frontend)
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE frontend_common::static ${OV_FRONTEND_LINK_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${OV_FRONTEND_LINK_LIBRARIES})
 
     # WA for TF frontends which always requires protobuf (not protobuf-lite)
     # if TF FE is built in static mode, use protobuf for all other FEs
@@ -225,8 +226,8 @@ macro(ov_add_frontend)
 
         if(OV_FRONTEND_LINKABLE_FRONTEND)
             # install -dev part
-            install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/${OV_FRONTEND_NAME}_frontend
-                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+            install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
+                    DESTINATION ${FRONTEND_INSTALL_INCLUDE}/
                     COMPONENT core_dev
                     FILES_MATCHING PATTERN "*.hpp")
 

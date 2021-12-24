@@ -298,6 +298,6 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
 // ! [plugin:get_metric]
 
 // ! [plugin:create_plugin_engine]
-static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "templatePlugin"};
+static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "ov_template_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 // ! [plugin:create_plugin_engine]
