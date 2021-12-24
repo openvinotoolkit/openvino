@@ -810,7 +810,11 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
         if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
-            auto outBlobDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
+            // User can initialize output via SetOutput API using tensorDesc with ANY layout.
+            // For these cases we create planar memory descriptor.
+            auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
+                                ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
+                                : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
             auto outBloMem = MKLDNNMemory(eng);
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
