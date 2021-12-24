@@ -202,7 +202,8 @@ int main(int argc, char* argv[]) {
                 if (std::find(supported_config_keys.begin(),
                               supported_config_keys.end(),
                               CONFIG_KEY(PERFORMANCE_HINT)) != supported_config_keys.end()) {
-                    slog::warn << "-hint default value is determined as \'THROUGHPUT\' automatically for " << device
+                    slog::warn << "-hint default value is determined as" << CONFIG_VALUE(THROUGHPUT)
+                               << " automatically for " << device
                                << " device. For more detailed information look at README." << slog::endl;
                     FLAGS_hint = "throughput";
                 }
