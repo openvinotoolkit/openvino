@@ -111,31 +111,35 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     }
 
     const auto& inShape = getInputShapeAtPort(DATA_ID);
-    inDummyDims = inShape.getDims();
+    inDims = inShape.getDims();
     const auto& weightDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
-    outDummyDims = getOutputShapeAtPort(0).getDims();
+    outDims = getOutputShapeAtPort(0).getDims();
 
     if (isDynamicNode()) {
-        auto intervalDims = inShape.getInervalDims();
-        if (intervalDims.size() == 3) {
-            intervalDims.back() = weightDims.back();
+        auto inMinDims = inShape.getMinDims();
+        auto inMaxDims = inShape.getMaxDims();
+
+        if (inMinDims.size() == 3) {
+            inMinDims.back() = weightDims.back();
+            inMaxDims.back() = weightDims.back();
         } else {
-            for (size_t i = 1; i < intervalDims.size(); i++) {
-                intervalDims[i] = weightDims[i];
+            for (size_t i = 1; i < inMinDims.size(); i++) {
+                inMinDims[i] = weightDims[i];
+                inMaxDims[i] = weightDims[i];
             }
         }
-        inDummyDims = MemoryDescUtils::makeDummyShape(Shape(intervalDims)).getStaticDims();
+        inDims = MemoryDescUtils::makeDummyShape(Shape(inMinDims, inMaxDims)).getStaticDims();
 
-        std::vector<Shape> inShapes = {Shape(inDummyDims), Shape(weightDims)};
+        std::vector<Shape> inShapes = {Shape(inDims), Shape(weightDims)};
         if (inputShapes.size() > 2) {
             inShapes.emplace_back(getInputShapeAtPort(BIAS_ID));
         }
-        outDummyDims = shapeInferGeneric(inShapes).front();
+        outDims = shapeInferGeneric(inShapes).front();
     }
 
     for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
-        auto in_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(inDummyDims), inputDataType, format);
-        auto out_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(outDummyDims), outputDataType, mkldnn::memory::format_tag::any);
+        auto in_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
+        auto out_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(outDims), outputDataType, mkldnn::memory::format_tag::any);
 
         createDescriptorInternal(in_candidate, out_candidate);
     }
@@ -239,7 +243,8 @@ void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
                     mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
                     primArgs.at(argType) = newMem;
                 } else {
-                    // in case parameter -> FullyConnected we keep old pointer to data in primArgs on second iteration
+                    // in cases parameter -> FullyConnected or dynamic shapes
+                    // we keep old pointer to data in primArgs on second iteration with same input shapes
                     if (argType == DNNL_ARG_SRC && getInputShapeAtPort(DATA_ID).getRank() == 3) {
                         primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
                     }
@@ -350,7 +355,7 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
 MKLDNNNode::AttrPtr MKLDNNFullyConnectedNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
-    setPostOps(*attr, outDummyDims);
+    setPostOps(*attr, outDims);
 
     return attr;
 }
@@ -411,14 +416,14 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<MemoryDescPtr>
     if (inputDesc[0]->isDefined()) {
         inpDesc = inputDesc[0];
     } else {
-        inpDesc = inputDesc[0]->cloneWithNewDims(inDummyDims);
+        inpDesc = inputDesc[0]->cloneWithNewDims(inDims);
     }
 
     MemoryDescPtr outDesc;
     if (outputDesc[0]->isDefined()) {
         outDesc = outputDesc[0];
     } else {
-        outDesc = outputDesc[0]->cloneWithNewDims(outDummyDims);
+        outDesc = outputDesc[0]->cloneWithNewDims(outDims);
     }
     createDescriptorInternal(MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc)->getDnnlDesc(),
                              MemoryDescUtils::convertToDnnlMemoryDesc(outDesc)->getDnnlDesc());
