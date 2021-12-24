@@ -17,6 +17,14 @@
 
 .. toctree::
    :maxdepth: 1
+   :caption: Other OpenVINO™ Components
+   :hidden:
+    
+   openvino_docs_resources_openvino_family
+
+
+.. toctree::
+   :maxdepth: 1
    :caption: Intermediate Representation and Operations Sets
    :hidden:
     
@@ -43,6 +51,10 @@ This section includes a variety of reference information in three broad categori
 [Supported Devices](IE_DG/supported_plugins/Supported_Devices.md) is compatibility information about supported hardware accelerators.
 
 [Legal Information](Legal_Information.md) has trademark information and other legal statements.
+
+### Other OpenVINO™ Components
+
+[OpenVINO™ Family](ecosystem.md) provides information about other tools and utilities from the OpenVINO™ toolkit.
 
 ### Intermediate Representation and Operations Sets
 [Available Operation Sets](ops/opset.md) is a list of supported operations and explanation of supported capabilities.
