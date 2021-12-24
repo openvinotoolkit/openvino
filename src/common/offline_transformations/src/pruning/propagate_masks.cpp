@@ -670,14 +670,13 @@ public:
                     }
                 }
             if (any_input_with_masks) {
-                // TODO: find out if any other operation except Result
-                // share output tesnors with previous operation
+                // Set mask to stop op first input tensor to prevent mask rewriting for
+                // nodes which share output tensor with previous node.
                 if (ngraph::is_type<opset6::Result>(m_output.get_node_shared_ptr()))
-                    setResultMask(m_output, output_mask);
+                    setMask(*m_output.get_node()->inputs().begin(), output_mask);
                 else
                     setMask(m_output, output_mask);
             }
-
             return true;
         };
 

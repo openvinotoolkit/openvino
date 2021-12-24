@@ -12,8 +12,6 @@
 
 namespace ngraph {
 
-static const char g_result_pruning_mask_key[] = "ResultMask";
-
 Mask::Ptr getMask(const Output<const Node> & output) {
     auto &rtInfo = output.get_rt_info();
 
@@ -39,9 +37,9 @@ void setMask(Output<Node> output, const Mask::Ptr & mask) {
     rtInfo[Mask::get_type_info_static()] = mask;
 }
 
-void setResultMask(Output<Node> output, const Mask::Ptr & mask) {
-    auto &rtInfo = output.get_rt_info();
-    rtInfo[g_result_pruning_mask_key] = mask;
+void setMask(Input<Node> node, const Mask::Ptr & mask) {
+    auto &rtInfo = node.get_rt_info();
+    rtInfo[Mask::get_type_info_static()] = mask;
 }
 
 #ifdef ENABLE_OPENVINO_DEBUG
