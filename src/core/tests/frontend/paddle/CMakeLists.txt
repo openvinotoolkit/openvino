@@ -58,6 +58,6 @@ add_dependencies(${TARGET_NAME} paddle_test_models)
 add_dependencies(${TARGET_NAME} ov_paddle_frontend)
 
 # Fuzzy tests for PaddlePaddle use IE_CPU engine
-if (ENABLE_MKL_DNN)
-    add_dependencies(${TARGET_NAME} MKLDNNPlugin)
+if (ENABLE_INTEL_CPU)
+    add_dependencies(${TARGET_NAME} ov_intel_cpu_plugin)
 endif()

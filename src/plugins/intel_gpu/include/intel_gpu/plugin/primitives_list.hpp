@@ -178,6 +178,7 @@ REGISTER_FACTORY(v4, LSTMCell);
 REGISTER_FACTORY(v4, Mish);
 // REGISTER_FACTORY(v4, NonMaxSuppression); Supported via v4 -> v5 internal conversion
 REGISTER_FACTORY(v4, Proposal);
+REGISTER_FACTORY(v4, Range);
 REGISTER_FACTORY(v4, ReduceL1);
 REGISTER_FACTORY(v4, ReduceL2);
 REGISTER_FACTORY(v4, SoftPlus);

@@ -876,5 +876,5 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     return execNetwork;
 }
 
-static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "ov_intel_cpu_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
