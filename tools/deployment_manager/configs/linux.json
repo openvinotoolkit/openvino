@@ -39,7 +39,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libMKLDNNPlugin.so"
+        "runtime/lib/intel64/libov_intel_cpu_plugin.so"
       ]
     },
     "gpu": {
@@ -85,22 +85,10 @@
         "runtime/3rdparty/hddl"
       ]
     },
-    "opencv": {
-      "ui_name": "OpenCV",
-      "group": ["opencv"],
-      "dependencies" : [],
-      "files": [
-        "extras/opencv/version.txt",
-        "extras/opencv/setupvars.sh",
-        "extras/opencv/lib",
-        "extras/opencv/bin"
-      ]
-    },
     "python_common": {
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
-        "python/python3",
         "python/requirements.txt"
       ]
     },
