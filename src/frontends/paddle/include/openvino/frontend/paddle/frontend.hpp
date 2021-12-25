@@ -23,6 +23,7 @@ class OpPlace;
 
 class PADDLE_API FrontEnd : public ov::frontend::FrontEnd {
 public:
+    using Ptr = std::shared_ptr<FrontEnd>;
     FrontEnd();
 
     /// \brief Completely convert the remaining, not converted part of a function.

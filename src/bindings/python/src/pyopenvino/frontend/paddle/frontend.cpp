@@ -47,10 +47,16 @@ void regclass_frontend_paddle_FrontEnd(py::module m) {
 }
 
 void regclass_frontend_paddle_NodeContext(py::module m) {
-    py::class_<ov::frontend::paddle::NodeContext,
-               std::shared_ptr<ov::frontend::paddle::NodeContext>,
-               ov::frontend::NodeContext>
-        ext(m, "NodeContext", py::dynamic_attr());
+    py::class_<NodeContext, NodeContext::Ptr, ov::frontend::NodeContext> ext(m, "NodeContext", py::dynamic_attr());
 }
 
-void regclass_frontend_paddle_ConversionExtension(py::module m) {}
+void regclass_frontend_paddle_ConversionExtension(py::module m) {
+    py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> ext(
+        m,
+        "ConversionExtension",
+        py::dynamic_attr());
+
+    ext.def(py::init([](const std::string& op_type, const CreatorFunction& f) {
+        return std::make_shared<ConversionExtension>(op_type, f);
+    }));
+}

@@ -14,6 +14,7 @@ namespace onnx {
 
 class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext {
 public:
+    using Ptr = std::shared_ptr<NodeContext>;
     explicit NodeContext(const Node& context);
     size_t get_input_size() const override;
     size_t get_input_size(const std::string& name) const override;

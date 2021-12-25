@@ -21,10 +21,8 @@ using NamedInputs = std::map<InPortName, OutputVector>;
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
 class NodeContext : public ov::frontend::NodeContext {
-    const DecoderBase& decoder;
-    const NamedInputs& name_map;
-
 public:
+    using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map)
         : ov::frontend::NodeContext(_decoder.get_op_type()),
           decoder(_decoder),
@@ -90,6 +88,9 @@ private:
         auto res = decoder.convert_attribute(any, type_info);
         return res;
     }
+
+    const DecoderBase& decoder;
+    const NamedInputs& name_map;
 };
 
 inline NamedOutputs NodeContext::default_single_output_mapping(

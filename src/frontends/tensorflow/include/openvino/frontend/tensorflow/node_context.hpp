@@ -16,10 +16,8 @@ namespace tensorflow {
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
 class NodeContext : public ov::frontend::NodeContext {
-    const DecoderBase& m_decoder;
-    const OutputVector& m_inputs;
-
 public:
+    using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const DecoderBase& decoder, const OutputVector& inputs)
         : ov::frontend::NodeContext(decoder.get_op_type()),
           m_decoder(decoder),
@@ -57,6 +55,10 @@ protected:
         FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
         return res;
     }
+
+private:
+    const DecoderBase& m_decoder;
+    const OutputVector& m_inputs;
 };
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;

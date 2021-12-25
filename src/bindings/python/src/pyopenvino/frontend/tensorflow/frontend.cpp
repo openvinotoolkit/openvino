@@ -9,6 +9,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/frontend.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
@@ -47,10 +48,16 @@ void regclass_frontend_tensorflow_FrontEnd(py::module m) {
 }
 
 void regclass_frontend_tensorflow_NodeContext(py::module m) {
-    py::class_<ov::frontend::tensorflow::NodeContext,
-               std::shared_ptr<ov::frontend::tensorflow::NodeContext>,
-               ov::frontend::NodeContext>
-        ext(m, "NodeContext", py::dynamic_attr());
+    py::class_<NodeContext, NodeContext::Ptr, ov::frontend::NodeContext> ext(m, "NodeContext", py::dynamic_attr());
 }
 
-void regclass_frontend_tensorflow_ConversionExtension(py::module m) {}
+void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
+    py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> ext(
+        m,
+        "ConversionExtension",
+        py::dynamic_attr());
+
+    ext.def(py::init([](const std::string& op_type, const CreatorFunction& f) {
+        return std::make_shared<ConversionExtension>(op_type, f);
+    }));
+}

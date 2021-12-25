@@ -24,6 +24,7 @@ namespace tensorflow {
 
 class TENSORFLOW_API FrontEnd : public ov::frontend::FrontEnd {
 public:
+    using Ptr = std::shared_ptr<FrontEnd>;
     FrontEnd();
 
     /// \brief Completely convert the model
