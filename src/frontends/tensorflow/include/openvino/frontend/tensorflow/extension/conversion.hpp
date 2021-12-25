@@ -13,8 +13,7 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-
-class TENSORFLOW_API ConversionExtension : public ov::frontend::ConversionExtensionBase {
+class TENSORFLOW_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
 

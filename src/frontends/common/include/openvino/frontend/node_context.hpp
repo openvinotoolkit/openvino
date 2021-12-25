@@ -55,11 +55,15 @@ public:
     }
 
     /// Returns node attribute by name
-    /// TODO use default template parameter (T) = ov::Any, is it possible?
     template <class T>
     T get_attribute(const std::string& name) const {
-        auto res = get_attribute_as_any(name);
-        FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
+        auto any = get_attribute_as_any(name);
+        FRONT_END_GENERAL_CHECK(!any.empty(), "Attribute with name '", name, "' does not exist");
+
+        // sometimes we can't unambiguously recognize types in protobuf, e.g.
+        // int we can interpret as int or as enum inherited from int, so
+        // we have to apply additional rules based on the type (T) passed from the user.
+        auto res = apply_additional_conversion_rules(any, typeid(T));
         return res.as<T>();
     }
 
@@ -78,10 +82,12 @@ public:
         return !get_attribute_as_any(name).empty();
     }
 
-    // todo private, use default parameter get_attribute<>() to return ov::Any
     virtual ov::Any get_attribute_as_any(const std::string& name) const = 0;
 
 private:
+    virtual ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const {
+        return data;
+    }
     std::string m_op_type;
 };
 
