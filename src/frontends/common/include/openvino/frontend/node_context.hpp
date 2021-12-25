@@ -70,7 +70,12 @@ public:
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <class T>
     T get_attribute(const std::string& name, const T& def) const {
-        auto res = get_attribute_as_any(name);
+        auto any = get_attribute_as_any(name);
+
+        // sometimes we can't unambiguously recognize types in protobuf, e.g.
+        // int we can interpret as int or as enum inherited from int, so
+        // we have to apply additional rules based on the type (T) passed from the user.
+        auto res = apply_additional_conversion_rules(any, typeid(T));
         if (!res.empty()) {
             return res.as<T>();
         }
