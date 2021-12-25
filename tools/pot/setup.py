@@ -52,8 +52,7 @@ INSTALL_REQUIRES = [
     'networkx~=2.5',
     'tqdm>=4.54.1',
     'texttable~=1.6.3',
-    'pandas~=1.1.5',
-    'openvino-telemetry>=2022.1.0'
+    'pandas~=1.1.5'
 ]
 
 ALGO_EXTRAS = [
