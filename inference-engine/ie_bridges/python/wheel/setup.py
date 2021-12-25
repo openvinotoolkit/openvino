@@ -78,6 +78,11 @@ LIB_INSTALL_CFG = {
         'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
+    'batch_plugin': {
+        'name': 'batch',
+        'prefix': 'libs.core',
+        'install_dir': OV_RUNTIME_LIBS_DIR,
+    },
     'tbb_libs': {
         'name': 'tbb',
         'prefix': 'libs.tbb',
