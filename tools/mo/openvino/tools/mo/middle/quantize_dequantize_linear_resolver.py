@@ -61,4 +61,6 @@ class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
                 # only patterns with same scale/zero_point values for Q and DQ are supported
                 if not (scales_and_zerop_is_const or scales_and_zerop_equals):
                     continue
+
                 QuantizeLinearResolver.quantize_to_fakequantize(graph, quantize_node, True)
+                quantize_node['isolated'] = True

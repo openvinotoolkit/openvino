@@ -40,6 +40,10 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for quantize_node in graph.get_op_nodes(op='QuantizeLinear'):
+            # if quantize_node has True attribute 'isolated', node was isolated in QuantizeDequantizeLinearResolver and
+            # will be deleted after next cleanup
+            if quantize_node.has('isolated') and quantize_node['isolated']:
+                continue
             QuantizeLinearResolver.quantize_to_fakequantize(graph, quantize_node)
 
     @staticmethod
