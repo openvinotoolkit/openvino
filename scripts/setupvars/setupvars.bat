@@ -21,6 +21,11 @@ if not "%1"=="" (
 )
 
 :: OpenCV
+if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
+call "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat"
+goto :opencv_done
+)
+
 if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
 call "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat"
 goto :opencv_done

@@ -60,6 +60,10 @@ if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
 fi
 
 # OpenCV environment
+if [ -f "$INSTALLDIR/opencv/setupvars.sh" ]; then
+    source "$INSTALLDIR/opencv/setupvars.sh"
+fi
+
 if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
     source "$INSTALLDIR/extras/opencv/setupvars.sh"
 fi
