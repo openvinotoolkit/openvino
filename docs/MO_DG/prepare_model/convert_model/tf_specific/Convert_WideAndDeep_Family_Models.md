@@ -29,7 +29,6 @@ by changing the `build_model_columns()` function in `census_dataset.py` as follo
 
 ```python
 def build_model_columns():
-  import tensorflow as tf
   """Builds a set of wide and deep feature columns."""
   # Continuous variable columns
   age = tf.feature_column.numeric_column('age')
