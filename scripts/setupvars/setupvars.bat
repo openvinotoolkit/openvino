@@ -49,18 +49,17 @@ set "PATH=%INTEL_OPENVINO_DIR%\tools\compile_tool;%PATH%"
 set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 
 :: Check if Python is installed
-python --version 2>NUL
-if errorlevel 1 (
-   echo Error^: Python is not installed. Please install one of Python 3.6 - 3.9 ^(64-bit^) from https://www.python.org/downloads/
-   exit /B 1
-)
-
-:: Check Python version if user did not pass -pyver
-
 set PYTHON_VERSION_MAJOR=3
 set MIN_REQUIRED_PYTHON_VERSION_MINOR=6
 set MAX_SUPPORTED_PYTHON_VERSION_MINOR=9
 
+python --version 2>NUL
+if errorlevel 1 (
+   echo Error^: Python is not installed. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR% ^(64-bit^) from https://www.python.org/downloads/
+   exit /B 1
+)
+
+:: Check Python version if user did not pass -pyver
 if "%python_version%" == "" (
     for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(str(sys.version_info[0])+'.'+str(sys.version_info[1]))" 2^>^&1`) DO (
        set python_version=%%F
