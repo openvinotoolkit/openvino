@@ -65,9 +65,13 @@ if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
 fi
 
 if [ -z "$python_version" ]; then
-    python_version_major=$(python3 -c 'import sys; print(str(sys.version_info[0]))')
-    python_version_minor=$(python3 -c 'import sys; print(str(sys.version_info[1]))')
-    python_version="${python_version_major}.${python_version_minor}"
+    python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
+fi
+
+version_arr=(${python_version//./ })
+if [ "${#version_arr[@]}" -ge "2" ]; then
+    python_version_major=${version_arr[0]}
+    python_version_minor=${version_arr[1]}
 fi
 
 OS_NAME=""
