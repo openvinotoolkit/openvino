@@ -131,7 +131,7 @@ def main():
     model_path = sys.argv[1]
     device_name = sys.argv[2]
     labels = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-    number_top = 10
+    number_top = 1
     # ---------------------------Step 1. Initialize inference engine core--------------------------------------------------
     log.info('Creating OpenVINO Runtime Core')
     core = Core()
@@ -159,8 +159,8 @@ def main():
     # 4) Apply preprocessing modifing the original 'model'
     model = ppp.build()
 
-    # Set a batch size to a equal number of input images
-    model.reshape({model.input().get_any_name(): PartialShape((number_top, model.input().shape[1], model.input().shape[2], model.input().shape[3]))})
+    # Set a batch size equal to number of input images
+    model.reshape({model.input().get_any_name(): PartialShape((digits.shape[0], model.input().shape[1], model.input().shape[2], model.input().shape[3]))})
 
     # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')
@@ -181,6 +181,7 @@ def main():
     # ---------------------------Step 7. Process output--------------------------------------------------------------------
     predictions = next(iter(results.values()))
 
+    log.info(f'Top {number_top} results: ')
     for i in range(n):
         probs = predictions[i]
         # Get an array of number_top class IDs in descending order of probability
@@ -189,8 +190,8 @@ def main():
         header = 'classid probability'
         header = header + ' label' if labels else header
 
-        log.info(f'Number of image is: {i}')
-        log.info(f'Top {number_top} results: ')
+        log.info(f'Image {i}')
+        log.info('')
         log.info(header)
         log.info('-' * len(header))
 
