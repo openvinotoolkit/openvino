@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from openvino.tools.mo.front.common.partial_infer.utils import convert_tf_padding_to_str, int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.tf.extractors.utils import tf_data_format_channel, tf_data_format_batch, \
@@ -39,7 +37,7 @@ class DepthwiseConv2dNativeFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = tf_create_attrs(node, 2, 2)
         attrs.update({'op': __class__.op,
-                      'kernel_spatial_idx': np.array([0, 1], dtype=np.int64),
+                      'kernel_spatial_idx': int64_array([0, 1]),
                       'get_group': lambda node: node.kernel_shape[node.output_feature_channel],
                       'get_output_feature_dim': lambda node: node.kernel_shape[-1] * node.kernel_shape[-2],
                       'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([2, 3, 0, 1]),
