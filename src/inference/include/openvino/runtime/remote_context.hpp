@@ -119,17 +119,6 @@ public:
     }
 
     /**
-     * @brief Casts this RemoteContext object to the type T.
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the RemoteContext
-     * @return T object
-     */
-    template <typename T>
-    operator T() const {
-        return as<T>();
-    }
-
-    /**
      * @brief Returns name of the device on which underlying object is allocated.
      * Abstract method.
      * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]`.
