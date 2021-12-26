@@ -124,6 +124,8 @@ public:
                         uint32_t dynamicKenrelDivider : 1;
                         uint32_t dynamicKenrelDividerWithPadding : 1;
                         uint32_t position_sensitive : 1;
+                        uint32_t dilation : 1;
+                        uint32_t indices_output : 1;
                     } pooling;
                     struct conv_t {
                         uint32_t split : 1;
@@ -281,6 +283,8 @@ public:
     void EnablePoolKernelDividerMode(KernelDividerMode m);
     void EnablePoolType(PoolType t);
     void EnablePoolRemainder(PoolRemainder r);
+    void EnablePoolDilation() { key.restrict.val.dedicated.pooling.dilation = 1; }
+    void EnablePoolIndicesOutput() { key.restrict.val.dedicated.pooling.indices_output = 1; }
     void EnableQuantization(QuantizationType q);
     void EnablePositionSensitivePooling() { key.restrict.val.dedicated.pooling.position_sensitive = 1; }
     void EnableSplitSupport() { key.restrict.val.dedicated.conv.split = 1; }

@@ -18,14 +18,8 @@ file(GLOB_RECURSE HEADERS
 addVersionDefines(gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
 
 find_package(libGNA REQUIRED
-             PATHS "${IE_MAIN_SOURCE_DIR}/cmake"
+             PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
              NO_DEFAULT_PATH)
-
-if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-    set(GNA_LIBRARY_VERSION_NUMBER 2)
-else()
-    set(GNA_LIBRARY_VERSION_NUMBER 1)
-endif()
 
 #
 # Shared plugin library
@@ -45,8 +39,7 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
         _NO_MKL_
-    PUBLIC
-        GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER})
+    )
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -61,7 +54,6 @@ target_compile_definitions(${TARGET_NAME}_test_static
             _NO_MKL_
             IMPLEMENT_INFERENCE_ENGINE_PLUGIN
         PUBLIC
-            GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER}
             INTEGER_LOW_P
             USE_STATIC_IE)
 
