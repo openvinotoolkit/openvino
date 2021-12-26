@@ -30,11 +30,11 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassNetworkTestP, OVClassNetworkTestP, ::tes
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_AVAILABLE_DEVICES,
@@ -42,7 +42,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
@@ -62,11 +62,11 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
         OVClassGetConfigTest_ThrowUnsupported,
-        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO"));
+        ::testing::Values("GPU", "MULTI", "HETERO", "AUTO", "BATCH"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailableDevices, ::testing::Values("GPU"));
 
