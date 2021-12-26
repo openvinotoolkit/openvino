@@ -10,7 +10,7 @@
 #include <openvino/frontend/frontend.hpp>
 #include <openvino/frontend/input_model.hpp>
 
-#include "openvino/frontend/paddle/exceptions.hpp"
+#include "openvino/frontend/paddle/exception.hpp"
 #include "openvino/frontend/paddle/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"

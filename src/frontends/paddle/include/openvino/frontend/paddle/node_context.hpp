@@ -6,7 +6,7 @@
 #include "ngraph/compatibility.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/paddle/decoder.hpp"
-#include "openvino/frontend/paddle/exceptions.hpp"
+#include "openvino/frontend/paddle/exception.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {

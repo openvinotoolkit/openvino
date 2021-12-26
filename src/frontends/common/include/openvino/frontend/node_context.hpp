@@ -21,30 +21,31 @@ namespace frontend {
 class FRONTEND_API NodeContext {
 public:
     explicit NodeContext(const std::string& op_type) : m_op_type(op_type) {}
+    virtual ~NodeContext() = default;
 
-    /// Get a number of inputs
+    /// \brief  Returns a number of inputs
     virtual size_t get_input_size() const {
         FRONT_END_NOT_IMPLEMENTED(get_input_size);
     };
 
-    /// Get a number of inputs
+    /// \brief Returns a number of inputs
     virtual size_t get_input_size(const std::string& port_name) const {
         FRONT_END_NOT_IMPLEMENTED(get_input_size);
     }
 
-    /// Returns exactly one input with a given idx; throws if there is no inputs or
+    /// \brief Returns exactly one input with a given idx; throws if there is no inputs or
     /// there are more than one input
     virtual Output<Node> get_input(int idx) const {
         FRONT_END_NOT_IMPLEMENTED(get_input);
     }
 
-    /// Returns exactly one input with a given name and idx; throws if there is no inputs or
+    /// \brief Returns exactly one input with a given name and idx; throws if there is no inputs or
     /// there are more than one input
     virtual Output<Node> get_input(const std::string& name, int idx) const {
         FRONT_END_NOT_IMPLEMENTED(get_input);
     }
 
-    /// Returns exactly one input with a given name; throws if there is no inputs or
+    /// \brief Returns exactly one input with a given name; throws if there is no inputs or
     /// there are more than one input
     virtual Output<Node> get_input(const std::string& name) const {
         FRONT_END_NOT_IMPLEMENTED(get_input);
@@ -54,7 +55,7 @@ public:
         return m_op_type;
     }
 
-    /// Returns node attribute by name
+    /// \brief Returns node attribute by name.
     template <class T>
     T get_attribute(const std::string& name) const {
         auto any = get_attribute_as_any(name);
@@ -67,7 +68,7 @@ public:
         return res.as<T>();
     }
 
-    /// Returns node attribute by name. Returns 'def' value if attribute does not exist
+    /// \brief Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <class T>
     T get_attribute(const std::string& name, const T& def) const {
         auto any = get_attribute_as_any(name);
@@ -82,11 +83,12 @@ public:
         return def;
     }
 
-    /// Check if an attribute of a given name exist
+    /// \brief Check if an attribute of a given name exist
     bool has_attribute(const std::string& name) const {
         return !get_attribute_as_any(name).empty();
     }
 
+    /// \brief Returns node attribute by name as ov::Any.
     virtual ov::Any get_attribute_as_any(const std::string& name) const = 0;
 
 private:

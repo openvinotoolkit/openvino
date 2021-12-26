@@ -5,7 +5,6 @@
 #pragma once
 
 #include <openvino/frontend/exception.hpp>
-#include <openvino/frontend/paddle/node_context.hpp>
 
 namespace ov {
 namespace frontend {

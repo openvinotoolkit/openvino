@@ -50,7 +50,6 @@ public:
     ~ConversionExtension() override = default;
 
 private:
-    // todo: try to use ov::Any
     CreatorFunction m_converter;
     CreatorFunctionNamed m_converter_named;
 };

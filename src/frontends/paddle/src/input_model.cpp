@@ -7,7 +7,7 @@
 #include <fstream>
 #include <queue>
 
-#include "decoder.hpp"
+#include "decoder_proto.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"

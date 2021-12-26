@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "decoder.hpp"
+#include "decoder_proto.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -65,8 +65,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     case proto::AttrType::BLOCKS:
         return std::vector<std::int32_t>(attrs[0].blocks_idx().begin(), attrs[0].blocks_idx().end());
     default:
-        // Type is not supported by decoder
-        return {};
+        FRONT_END_GENERAL_CHECK(false, "Conversion from PaddlePaddle to OpenVINO data type is not supported.");
     }
 }
 

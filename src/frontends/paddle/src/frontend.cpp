@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "decoder.hpp"
+#include "decoder_proto.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
 #include "op_table.hpp"
