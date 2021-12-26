@@ -3,10 +3,9 @@
 :: Copyright (C) 2018-2021 Intel Corporation
 :: SPDX-License-Identifier: Apache-2.0
 
-set ROOT=%~dp0
 set SCRIPT_NAME=%~nx0
 
-set "INTEL_OPENVINO_DIR=%ROOT%"
+set "INTEL_OPENVINO_DIR=%~dp0"
 
 set "python_version="
 

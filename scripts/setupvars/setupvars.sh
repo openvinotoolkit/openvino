@@ -84,9 +84,9 @@ PYTHON_VERSION_MAJOR="3"
 MIN_REQUIRED_PYTHON_VERSION_MINOR="6"
 MAX_SUPPORTED_PYTHON_VERSION_MINOR="9"
 
-if  [ $PYTHON_VERSION_MAJOR != $python_version_major ] ||
-    [ $python_version_minor -lt $MIN_REQUIRED_PYTHON_VERSION_MINOR ] ||
-    [ $python_version_minor -gt $MAX_SUPPORTED_PYTHON_VERSION_MINOR ] ; then
+if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
+    [ "$python_version_minor" -lt "$MIN_REQUIRED_PYTHON_VERSION_MINOR" ] ||
+    [ "$python_version_minor" -gt "$MAX_SUPPORTED_PYTHON_VERSION_MINOR" ] ; then
     echo "[setupvars.sh] ERROR: Unsupported Python version. Please install one of Python" \
     "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
     "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
