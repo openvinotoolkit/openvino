@@ -33,7 +33,7 @@ public:
     /// \param model_path Path to the file containing the model.
     ONNXModelEditor(const std::string& model_path, frontend::ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ONNXModelEditor(const std::wstring& model_path, ExtensionHolder extensions);
+    ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions = {});
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded

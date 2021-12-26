@@ -156,7 +156,8 @@ void Graph::convert_to_ngraph_nodes() {
             }
         }
         OutputVector ng_nodes{make_ng_nodes(node)};
-        m_extensions.progress_reporter->report_progress(++completed / total, total, completed);
+        ++completed;
+        m_extensions.progress_reporter->report_progress(completed / total, total, completed);
     }
 }
 
@@ -229,7 +230,8 @@ void Graph::decode_to_framework_nodes() {
         for (std::size_t i{0}; i < node.get_outputs_size(); ++i) {
             m_cache->emplace_node(node.output(i), std::move(ng_nodes.at(i)));
         }
-        m_extensions.progress_reporter->report_progress(++completed / total, total, completed);
+        ++completed;
+        m_extensions.progress_reporter->report_progress(completed / total, total, completed);
     }
 }
 

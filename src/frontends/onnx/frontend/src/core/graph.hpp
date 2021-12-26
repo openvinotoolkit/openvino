@@ -21,7 +21,8 @@ namespace ngraph {
 namespace onnx_import {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov::frontend::ExtensionHolder extensions);
+    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+          ov::frontend::ExtensionHolder extensions = {});
     Graph() = delete;
 
     Graph(const Graph&) = delete;
