@@ -113,7 +113,9 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     // before CommonOptimization pipeline execution
     manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
 
-    manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy, false>();
+    // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
+    // after support for FP16 IR is implemented
+    manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy>();
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();

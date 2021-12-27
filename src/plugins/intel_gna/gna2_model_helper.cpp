@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if GNA_LIB_VER == 2
-
 #if defined __INTEL_COMPILER || defined _MSC_VER
 #include <malloc.h>
 #else
@@ -310,5 +308,3 @@ void HelperGna2OperationInitDeInterleave(Gna2Operation * operation,
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, InOpIdx, inputs);
     HelperGna2OperationSetOperand(operation, userAllocator, userFree, OutOpIdx, outputs);
 }
-
-#endif

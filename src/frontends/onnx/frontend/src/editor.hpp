@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <common/telemetry_extension.hpp>
 #include <istream>
 #include <map>
 #include <memory>
@@ -15,6 +14,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 
 namespace ov {
 namespace onnx_editor {
@@ -80,7 +80,12 @@ public:
     ///
     /// \param inputs A collection of input edges which become new inputs to the graph
     /// \param outputs A collection of output edges which become new outputs of the graph
-    void cut_graph_fragment(const std::vector<InputEdge>& inputs, const std::vector<OutputEdge>& outputs);
+    /// \param merge_inputs Flag indicates whether newly created inputs after cutting shall be independent or merged,
+    ///                     false - each cutted edge will be connected with one new input (default),
+    ///                     true - all input edges will be connected to one new input
+    void extract_subgraph(const std::vector<InputEdge>& inputs,
+                          const std::vector<OutputEdge>& outputs,
+                          const bool merge_inputs = false);
 
     /// \brief Modifies the in-memory representation of the model by setting custom input
     ///        values for inputs specified in the provided map.
@@ -111,6 +116,11 @@ public:
     /// \param node Handle to node.
     /// \param new_name New name of the node.
     void set_node_name(const EditorNode& node, const std::string& new_name);
+
+    /// \brief Retrieves a node name from the in-memory ONNX model.
+    ///
+    /// \param node Node descriptor for which the lookup should be performed.
+    std::string get_node_name(const EditorNode& node) const;
 
     /// \brief Removes node name for all nodes with given name.
     ///
@@ -270,6 +280,18 @@ public:
     ///        decoded to framework nodes
     ///
     std::shared_ptr<Model> decode();
+
+    /// \brief     Adds output to provided OutputEdge.
+    ///
+    /// \param output_edge An output_edge type where graph output shall be added.
+    ///
+    void add_output(const OutputEdge& output_edge) const;
+
+    /// \brief     Provides element type for given input tensor name.
+    ///
+    /// \param output_edge Name of tensor for which element type will be returned.
+    ///
+    element::Type_t get_input_type(const std::string& tensor_name) const;
 
 private:
     void update_mapper_if_needed() const;

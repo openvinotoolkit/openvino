@@ -59,7 +59,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
-def check_keys_valid(ov_function: Model, keys: list, search_outputs: bool):
+def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs: bool):
     """
     Internal function: checks if keys from cmd line arguments correspond to ov_function's inputs/outputs
     Throws if some key is not found
@@ -70,7 +70,28 @@ def check_keys_valid(ov_function: Model, keys: list, search_outputs: bool):
     if search_outputs:
         nodes += ov_function.outputs
 
-    for name in keys:
+    # We need to replace all node names from dict to tensor names
+    rename_dict = {}
+    # Find names for replacing
+    for name in dict_to_validate.keys():
+        for ov_node in nodes:
+            if name in ov_node.get_tensor().get_names():
+                break
+            elif name == ov_node.get_node().get_friendly_name():
+                assert len(ov_node.get_tensor().get_names()) > 0, 'Node must have at least one tensor name'
+                new_name = list(ov_node.get_tensor().get_names())[0]
+                rename_dict[name] = new_name
+                break
+
+    # Replace found node names with tensor names
+    for name, new_name in rename_dict.items():
+        assert name in dict_to_validate, 'Key {} is not in initial dict'.format(name)
+        assert new_name not in dict_to_validate, 'Key {} is already in initial dict'.format(new_name)
+        dict_to_validate[new_name] = dict_to_validate[name]
+        del dict_to_validate[name]
+
+    # validate the dict
+    for name in dict_to_validate.keys():
         node_found = False
         for ov_node in nodes:
             if name in ov_node.get_tensor().get_names():
@@ -349,8 +370,8 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
                 'target_layout': layout_values[''].get('target_layout')
             }
         }
-    check_keys_valid(ov_function=ov_function, keys=mean_scale_values.keys(), search_outputs=False)
-    check_keys_valid(ov_function=ov_function, keys=layout_values.keys(), search_outputs=True)
+    check_keys_valid(ov_function=ov_function, dict_to_validate=mean_scale_values, search_outputs=False)
+    check_keys_valid(ov_function=ov_function, dict_to_validate=layout_values, search_outputs=True)
 
     layout_values = update_layout_is_input_flag(ov_function, layout_values)
     layout_values = guess_source_layouts_by_mean_scale(ov_function, layout_values, mean_scale_values)

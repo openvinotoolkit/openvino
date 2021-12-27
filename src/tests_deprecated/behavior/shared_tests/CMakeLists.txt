@@ -14,6 +14,11 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} ov_auto_plugin)
 endif()
 
+if(ENABLE_AUTO_BATCH)
+    add_dependencies(${TARGET_NAME} ov_auto_batch_plugin)
+endif()
+
+
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/plugin_tests")
 
 target_link_libraries(${TARGET_NAME} PUBLIC

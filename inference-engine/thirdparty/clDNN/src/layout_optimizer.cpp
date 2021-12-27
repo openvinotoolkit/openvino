@@ -902,8 +902,6 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     if (use_onednn_impls) {
         std::function<bool(const program_node&)> has_any_convolutions_below;
         has_any_convolutions_below = [&](const program_node& node) -> bool {
-            if (node.get_users().empty())
-                return false;
             for (auto& usr : node.get_users()) {
                 if (usr->is_type<convolution>())
                     return true;
@@ -920,7 +918,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 
         if (i8_u8_input) {
             if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
-                if (input_layout.size.batch[0] % 16 == 0) {
+                if (input_layout.size.batch[0] >= 16) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
                     if (data_type_traits::is_floating_point(output_layout.data_type) &&
@@ -1281,6 +1279,23 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         // Unexpected layout
         if (std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), preferred_format) == onednn_optimized_formats.end()) {
             impl_candidate = impl_types::ocl;
+        }
+
+        // [WA] to avoid an onednn kernel issue of multiple sum post-ops
+        if (!node.get_fused_primitives().empty()) {
+            size_t sum_post_op_cnt = 0;
+            for (auto& fused_op : node.get_fused_primitives()) {
+                if (fused_op.node->is_type<eltwise>() && node.get_dependencies().size() > fused_op.dep_start_idx && fused_op.deps.size() == 1)  {
+                    auto& eltw_in = node.get_dependency(fused_op.dep_start_idx);
+                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in.get_output_layout(), node.get_output_layout()) &&
+                        fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in.get_output_layout())) {
+                        if (sum_post_op_cnt > 0)
+                            return impl_types::ocl;
+
+                        sum_post_op_cnt += 1;
+                    }
+                }
+            }
         }
 
         if (node.is_type<convolution>()) {
