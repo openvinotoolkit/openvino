@@ -286,13 +286,12 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const std::shared_ptr<const ov::Model>& function) {
-    InferenceEngine::SetExeNetworkInfo(exeNetwork, function, GetCore() && GetCore()->isNewAPI());
+    InferenceEngine::SetExeNetworkInfo(exeNetwork, function);
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
 void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                       const std::shared_ptr<const ov::Model>& function,
-                       bool new_api) {
+                       const std::shared_ptr<const ov::Model>& function) {
     OPENVINO_ASSERT(exeNetwork != nullptr);
     OPENVINO_ASSERT(function != nullptr);
 
@@ -302,7 +301,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     bool add_operation_names = false;
     const auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
-    if (new_api && it != rt_info.end()) {
+    if (GetCore() && GetCore()->isNewAPI() && it != rt_info.end()) {
         const int64_t ir_version = it->second.as<int64_t>();
         // here we decide whether we need to add operation_names as tensor names for
         // getInputs / getOutputs. Since these functions are designed to be used in new API only

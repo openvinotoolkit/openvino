@@ -92,8 +92,7 @@ INFERENCE_ENGINE_API_CPP(OutputsDataMap) copyInfo(const OutputsDataMap& networkO
  */
 INFERENCE_ENGINE_API_CPP(void)
 SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                  const std::shared_ptr<const ov::Model>& function,
-                  bool new_api);
+                  const std::shared_ptr<const ov::Model>& function);
 
 /**
  * @interface IInferencePlugin

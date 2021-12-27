@@ -512,7 +512,7 @@ public:
                 res = compile_model_impl(network, plugin, parsed._config, context, hash);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
+                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction());
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, context, {});
@@ -589,7 +589,7 @@ public:
                 res = compile_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
+                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction());
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
