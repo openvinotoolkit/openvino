@@ -31,7 +31,7 @@
     "cpu": {
       "ui_name": "Inference Engine Runtime for Intel(R) CPU",
       "group": ["ie"],
-      "dependencies" : ["ie_core"],,
+      "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/libov_intel_cpu_plugin.so"
       ]
@@ -39,7 +39,7 @@
     "vpu": {
       "ui_name": "Inference Engine Runtime for Intel(R) Movidius(tm) VPU",
       "group": ["ie"],
-      "dependencies" : ["ie_core"],,
+      "dependencies" : ["ie_core"],
       "files": [
         "runtime/lib/intel64/libmyriadPlugin.so",
         "runtime/lib/intel64/usb-ma2x8x.mvcmd",
