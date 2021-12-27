@@ -132,11 +132,13 @@ void regclass_Core(py::module m) {
             py::arg("library_path"));
 
     cls.def("add_extension",
-            static_cast<void (ov::runtime::Core::*)(const std::shared_ptr<ov::Extension>&)>(&ov::runtime::Core::add_extension),
+            static_cast<void (ov::runtime::Core::*)(const std::shared_ptr<ov::Extension>&)>(
+                &ov::runtime::Core::add_extension),
             py::arg("extension"));
 
     cls.def("add_extension",
-            static_cast<void (ov::runtime::Core::*)(const std::vector<std::shared_ptr<ov::Extension>>&)>(&ov::runtime::Core::add_extension),
+            static_cast<void (ov::runtime::Core::*)(const std::vector<std::shared_ptr<ov::Extension>>&)>(
+                &ov::runtime::Core::add_extension),
             py::arg("extensions"));
 
     cls.def_property_readonly("available_devices", &ov::runtime::Core::get_available_devices);
