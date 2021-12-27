@@ -902,8 +902,6 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     if (use_onednn_impls) {
         std::function<bool(const program_node&)> has_any_convolutions_below;
         has_any_convolutions_below = [&](const program_node& node) -> bool {
-            if (node.get_users().empty())
-                return false;
             for (auto& usr : node.get_users()) {
                 if (usr->is_type<convolution>())
                     return true;
