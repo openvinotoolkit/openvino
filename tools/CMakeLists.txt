@@ -17,7 +17,7 @@ if(NOT CPACK_GENERATOR STREQUAL "DEB")
     ie_cpack_add_component(deployment_manager REQUIRED)
 
     install(DIRECTORY deployment_manager
-            DESTINATION share/openvino/tools
+            DESTINATION share/openvino${OpenVINO_VERSION}/tools
             COMPONENT deployment_manager
             USE_SOURCE_PERMISSIONS)
 endif()
