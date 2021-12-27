@@ -94,7 +94,7 @@ private:
     mutable ze_command_list_handle_t  _command_list = 0;
     mutable std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};
-    ze_event_handle_t _last_barrier_ev;
+    ze_event_handle_t _last_barrier_ev = 0;
     ze_event_pool_handle_t _last_barrier_pool;
 #ifdef SINGLE_EVENT_POOL
     ze_event_pool_handle_t _event_pool;

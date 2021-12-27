@@ -35,7 +35,7 @@ using namespace ze;
 
 void ze_event::wait_impl() {
     if (_event != nullptr) {
-        //std::cout << "wait_impl " << _queue_stamp << std::endl;
+        std::cout << "wait_impl " << _queue_stamp << std::endl;
         //if (!_queue_stamp)
             //ZE_CHECK(zeEventHostSignal(_event));
         ZE_CHECK(zeEventHostSynchronize(_event, UINT32_MAX));
@@ -43,6 +43,7 @@ void ze_event::wait_impl() {
 }
 
 void ze_event::set_impl() {
+    std::cout << "set_impl " << _queue_stamp << std::endl;
     ZE_CHECK(zeEventHostSignal(_event));
     wait_impl();
 }
@@ -80,12 +81,14 @@ bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_inte
 
 void ze_events::wait_impl() {
     if (_last_ze_event != nullptr) {
-        //std::cout << "ze_events::wait_impl() " << _last_ze_event << std::endl;
+        std::cout << "ze_events::wait_impl() " << _last_ze_event << std::endl;
         ZE_CHECK(zeEventHostSynchronize(_last_ze_event, UINT32_MAX));
     }
 }
 
 void ze_events::set_impl() {
+    std::cout << "ze_events::set_impl() " << _queue_stamp << std::endl;
+    //ZE_CHECK(zeEventHostSignal(_last_ze_event));
     wait_impl();
 }
 
