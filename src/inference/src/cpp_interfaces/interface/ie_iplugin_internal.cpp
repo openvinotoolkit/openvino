@@ -298,18 +298,17 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     std::vector<std::shared_ptr<const ov::Node>> const_params;
     std::vector<std::shared_ptr<const ov::Node>> const_results;
 
+    std::unordered_set<std::string> leaf_names;
     bool add_operation_names = false;
     const auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
-    if (GetCore() && GetCore()->isNewAPI() && it != rt_info.end()) {
+    if (it != rt_info.end()) {
         const int64_t ir_version = it->second.as<int64_t>();
         // here we decide whether we need to add operation_names as tensor names for
         // getInputs / getOutputs. Since these functions are designed to be used in new API only
         // always need to add operation names for IR v10
         add_operation_names = ir_version == 10;
-    }
-    std::unordered_set<std::string> leaf_names;
-    if (add_operation_names) {
+
         for (const auto& vals : {function->inputs(), function->outputs()}) {
             for (const auto& val : vals) {
                 for (const auto& name : val.get_names()) {
