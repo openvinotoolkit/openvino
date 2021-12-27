@@ -1682,26 +1682,26 @@ void MKLDNNFakeQuantizeNode::initializePostOpData(const VectorDims &dims, const 
             }
         }
     } else {
-            if (cropLow.size() > 1)
-                cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
-            if (cropHigh.size() > 1)
-                cropHigh.resize(rnd_up(cropHigh.size(), bufferAlignment), 0);
-            if (inputScale.size() > 1)
-                inputScale.resize(rnd_up(inputScale.size(), bufferAlignment), 0);
-            if (inputShift.size() > 1)
-                inputShift.resize(rnd_up(inputShift.size(), bufferAlignment), 0);
-            if (outputScale.size() > 1)
-                outputScale.resize(rnd_up(outputScale.size(), bufferAlignment), 0);
-            if (outputShift.size() > 1)
-                outputShift.resize(rnd_up(outputShift.size(), bufferAlignment), 0);
+        if (cropLow.size() > 1)
+            cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
+        if (cropHigh.size() > 1)
+            cropHigh.resize(rnd_up(cropHigh.size(), bufferAlignment), 0);
+        if (inputScale.size() > 1)
+            inputScale.resize(rnd_up(inputScale.size(), bufferAlignment), 0);
+        if (inputShift.size() > 1)
+            inputShift.resize(rnd_up(inputShift.size(), bufferAlignment), 0);
+        if (outputScale.size() > 1)
+            outputScale.resize(rnd_up(outputScale.size(), bufferAlignment), 0);
+        if (outputShift.size() > 1)
+            outputShift.resize(rnd_up(outputShift.size(), bufferAlignment), 0);
 
-            cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
-            cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
-            inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
-            inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
-            outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
-            outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
-        }
+        cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
+        cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
+        inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
+        inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
+        outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
+        outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+    }
 
     isPostOpDataInitialized = true;
 }

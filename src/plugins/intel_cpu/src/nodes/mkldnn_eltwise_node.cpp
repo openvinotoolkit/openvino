@@ -1075,10 +1075,9 @@ struct EltwiseKey {
                       *postOps.get() == *rhs.postOps.get() &&
                       useDynBatch == rhs.useDynBatch &&
                       useJit == rhs.useJit;
-        if (result && !inpDims.empty()) {
-            for (size_t i = 0; i < inpDims.size() && result; ++i) {
-                result = result && (inpDims[i] == rhs.inpDims[i]);
-            }
+
+        for (size_t i = 0; i < inpDims.size() && result; ++i) {
+            result = result && (inpDims[i] == rhs.inpDims[i]);
         }
         return result;
     }
@@ -1931,13 +1930,17 @@ void MKLDNNEltwiseNode::prepareParams() {
         }
     }
 
-    // this is  a dirty hack actually
+    // TODO: we need to rewrite quantization_t to remove the pointers from its content and update all the jit kernels at once
+    // together with the corresponding appendPostOps method to pass the scales and shifts pointers at runtime.
+    // Until then we have to read them from the quantization_t directly, store them somewhere
+    // and nullify them to get read of the address dependency in the key structure
     for (int i = 0; i < key.postOps.len(); ++i) {
         auto &data = key.postOps.get()->entry_[i].quantization.data;
         fqDataPtrs.insert(fqDataPtrs.end(), std::begin(data), std::end(data));
         memset(data, 0, sizeof(data));
     }
-    // end of the dirty hack
+    // end of TODO
+
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;

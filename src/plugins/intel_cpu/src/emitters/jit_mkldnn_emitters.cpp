@@ -23,9 +23,9 @@ jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa, 
 }
 
 jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa,
-                                       mkldnn_alg_kind_t algKind, float inpAlpha, float inpBeta,
+                                       mkldnn_alg_kind_t algKind, float alpha, float beta,
                                        InferenceEngine::Precision exec_prc)
-    : jit_emitter(host, host_isa, exec_prc), kind(algKind), alpha(inpAlpha), beta(inpBeta) {
+    : jit_emitter(host, host_isa, exec_prc), kind(algKind), alpha(alpha), beta(beta) {
 
     set_injector();
 }
