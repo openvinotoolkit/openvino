@@ -45,15 +45,15 @@ if '--install-dev-extras' in sys.argv:
     sys.argv.remove('--install-dev-extras')
 
 INSTALL_REQUIRES = [
-    'scipy~=1.5.4',
-    'jstyleson~=0.0.2',
-    'numpy>=1.16.6,<1.20',
-    'addict>=2.4.0',
-    'networkx~=2.5; python_version <= 3.6'
-    'networkx~=2.6; python_version > 3.6'
-    'tqdm>=4.54.1',
-    'texttable~=1.6.3',
-    'pandas~=1.1.5',
+    "scipy~=1.5.4",
+    "jstyleson~=0.0.2",
+    "numpy>=1.16.6,<1.20",
+    "addict>=2.4.0",
+    "networkx~=2.5;python_version<='3.6'",
+    "networkx~=2.6;python_version>'3.6'",
+    "tqdm>=4.54.1",
+    "texttable~=1.6.3",
+    "pandas~=1.1.5",
 ]
 
 ALGO_EXTRAS = [
