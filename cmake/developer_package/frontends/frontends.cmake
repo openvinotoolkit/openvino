@@ -218,10 +218,11 @@ macro(ov_add_frontend)
         if(BUILD_SHARED_LIBS)
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 set(export_set EXPORT OpenVINOTargets)
+                set(archive_dest ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core)
             endif()
             install(TARGETS ${TARGET_NAME} ${export_set}
                     RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-                    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
+                    ${archive_dest}
                     LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
                     NAMELINK_COMPONENT core_dev)
         else()

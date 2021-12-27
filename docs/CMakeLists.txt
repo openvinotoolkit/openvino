@@ -38,8 +38,14 @@ if(NOT ENABLE_DOCKER)
 
     foreach(target ov_template_plugin template_extension ov_template_extension)
         if(TARGET ${target})
+            if(target MATCHES ".*_plugin$")
+                set(dest_location ${IE_CPACK_PLUGIN_PATH})
+            else()
+                set(dest_location ${IE_CPACK_RUNTIME_PATH})
+            endif()
+
             install(TARGETS ${target}
-                    LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                    LIBRARY DESTINATION ${dest_location}
                     COMPONENT tests
                     EXCLUDE_FROM_ALL)
         endif()

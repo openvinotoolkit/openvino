@@ -71,7 +71,18 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
 
 # install
 
-file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-install(FILES ${source_list}
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
-        COMPONENT gna)
+file(GLOB_RECURSE gna_libraries "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
+set(gna_library_installed OFF)
+
+foreach(lib IN LISTS gna_libraries)
+    if(lib MATCHES "^.*${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$")
+        install(FILES ${lib}
+                DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                COMPONENT gna)
+        set(gna_library_installed ON)
+    endif()
+endforeach()
+
+if(NOT gna_library_installed)
+    message(FATAL_ERROR "Failed to install GNA library (available libraries: ${gna_libraries})")
+endif()

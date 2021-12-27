@@ -60,7 +60,7 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # for ieFuncTests
 install(TARGETS ${TARGET_NAME}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+        LIBRARY DESTINATION ${IE_CPACK_PLUGIN_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 
 # for InferenceEngineUnitTest
 # For public CI

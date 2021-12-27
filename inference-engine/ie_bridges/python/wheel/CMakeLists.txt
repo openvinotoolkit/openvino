@@ -45,6 +45,7 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E env WHEEL_VERSION=${WHEEL_VERSION}
         WHEEL_BUILD=${WHEEL_BUILD}
         CMAKE_BUILD_DIR=${CMAKE_BINARY_DIR}
+        # TODO: check whether need to add plugins path
         OV_RUNTIME_LIBS_DIR=${IE_CPACK_RUNTIME_PATH}
         TBB_LIBS_DIR=${TBB_LIBS_DIR}
         PY_PACKAGES_DIR=${PY_PACKAGES_DIR}

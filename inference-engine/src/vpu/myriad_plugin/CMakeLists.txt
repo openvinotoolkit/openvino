@@ -56,6 +56,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 # install
 if (LINUX)
     install(FILES ${mvnc_SOURCE_DIR}/src/97-myriad-usbboot.rules
-        DESTINATION runtime/3rdparty
-        COMPONENT myriad)
+            DESTINATION share/openvino${OpenVINO_VERSION}/install_dependencies
+            COMPONENT myriad)
 endif()

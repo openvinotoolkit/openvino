@@ -98,13 +98,13 @@ ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
 
 if(BUILD_SHARED_LIBS)
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-            DESTINATION ${IE_CPACK_RUNTIME_PATH}
+            DESTINATION ${IE_CPACK_PLUGIN_PATH}
             COMPONENT core)
 
     # for InferenceEngineUnitTest
     # For public tests
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-        DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     # For private tests
     if (NOT WIN32)
         install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml

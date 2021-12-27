@@ -14,7 +14,7 @@ endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 
-set(PYTHON_BRIDGE_CPACK_PATH "python")
+set(PYTHON_BRIDGE_CPACK_PATH ${IE_CPACK_PLUGIN_PATH})
 
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.

@@ -80,12 +80,12 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(${OV_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
 
     install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../openvino
-            DESTINATION python/${PYTHON_VERSION}
+            DESTINATION ${IE_CPACK_PLUGIN_PATH}/${PYTHON_VERSION}
             COMPONENT ${OV_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
 
     install(TARGETS ${PROJECT_NAME}
-            DESTINATION python/${PYTHON_VERSION}/openvino
+            DESTINATION ${IE_CPACK_PLUGIN_PATH}/${PYTHON_VERSION}/openvino
             COMPONENT ${OV_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
 endif()
 

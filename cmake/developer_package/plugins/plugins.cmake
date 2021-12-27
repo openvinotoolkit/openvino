@@ -139,9 +139,8 @@ function(ie_add_plugin)
                 # TODO: install for openvino<ver> folder for side by side installation
                 # since the plugins (CMake MODULEs) cannot be versioned
                 install(TARGETS ${IE_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
-                        COMPONENT ${install_component}
-                        NAMELINK_SKIP)
+                        LIBRARY DESTINATION ${IE_CPACK_PLUGIN_PATH}
+                        COMPONENT ${install_component})
             else()
                 ov_install_static_lib(${IE_PLUGIN_NAME} ${install_component})
             endif()
