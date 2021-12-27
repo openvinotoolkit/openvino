@@ -7,7 +7,7 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
-#include <src/include/json_object.h>
+#include "json_object.h"
 
 namespace cldnn {
 primitive_type_id resample::type_id() {
