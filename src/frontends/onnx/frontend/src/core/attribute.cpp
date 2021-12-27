@@ -33,20 +33,20 @@ ov::Any Attribute::get_any() const {
         return get_integer();
     case Type::string:
         return get_string();
-        // case Type::tensor: return get_tensor();
-        // case Type::graph: return get_subgraph(?);
-    case Type::sparse_tensor:
-        return get_sparse_tensor();  // TODO: Cannot use in ov::Any, no comparison
     case Type::float_point_array:
         return get_float_array();
     case Type::integer_array:
         return get_integer_array();
     case Type::string_array:
         return get_string_array();
+    // TODO: support attributes.
+    case Type::sparse_tensor_array:
+    case Type::graph_array:
     case Type::tensor_array:
-        return get_tensor_array();
-        // case Type::sparse_tensor_array: return get_sparse_tensor_array();
-        // graph_array: return ?;
+    case Type::tensor:
+    case Type::graph:
+    case Type::sparse_tensor:
+        throw ov::Exception(get_name() + " attribute is not supported.");
     default:
         throw ov::Exception("Unknown type of attribute " + get_name());
     }

@@ -4,19 +4,10 @@
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/frontend/visibility.hpp"
-
-// Defined if we are building the plugin DLL (instead of using it)
-#ifdef ov_mock_py_frontend_EXPORTS
-#    define MOCK_API OPENVINO_CORE_EXPORTS
-#else
-#    define MOCK_API OPENVINO_CORE_IMPORTS
-#endif  // ov_mock_py_frontend_EXPORTS
+#include "visibility.hpp"
 
 // OK to have 'using' in mock header
-
 using namespace ngraph;
 using namespace ov::frontend;
 

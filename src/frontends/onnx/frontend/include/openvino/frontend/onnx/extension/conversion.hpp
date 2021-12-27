@@ -17,7 +17,9 @@ public:
     ConversionExtension() = delete;
     ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
         : ConversionExtensionBase(op_type),
-          m_converter(converter) {}
+          m_converter(converter) {
+        std::cout << "XXXX ctor onnx::ConversionExtension" << std::endl;
+    }
     const CreatorFunction& get_converter() {
         return m_converter;
     }

@@ -17,6 +17,7 @@ namespace frontend {
 
 class FRONTEND_API ConversionExtensionBase : public ov::Extension {
 public:
+    using Ptr = std::shared_ptr<ConversionExtensionBase>;
     explicit ConversionExtensionBase(const std::string& op_type) : m_op_type(op_type) {}
 
     const std::string& get_op_type() const {
@@ -31,6 +32,7 @@ private:
 
 class FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
+    using Ptr = std::shared_ptr<ConversionExtension>;
     ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}

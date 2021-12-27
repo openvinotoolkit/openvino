@@ -104,8 +104,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
 
         if (list.tensor_size() || list.func_size())
-            FRONT_END_GENERAL_CHECK(false,
-                                    "Conversion from Tensorflow to OpenVINO data type is not supported.");
+            FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type is not supported.");
     }
 
     case ::tensorflow::AttrValue::ValueCase::kTensor:

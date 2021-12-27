@@ -35,20 +35,6 @@ if sys.platform == "win32":
                 os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
 
 
-# main classes
-from openvino.pyopenvino import FrontEndManager
-from openvino.pyopenvino import FrontEnd
-from openvino.pyopenvino import InputModel
-from openvino.pyopenvino import NodeContext
-from openvino.pyopenvino import Place
-from openvino.pyopenvino import TelemetryExtension
-from openvino.pyopenvino import DecoderTransformationExtension
-from openvino.pyopenvino import JsonConfigExtension
-from openvino.pyopenvino import ConversionExtension
-
-# exceptions
-from openvino.pyopenvino import NotImplementedFailure
-from openvino.pyopenvino import InitializationFailure
-from openvino.pyopenvino import OpConversionFailure
-from openvino.pyopenvino import OpValidationFailure
-from openvino.pyopenvino import GeneralFailure
+from openvino.pyopenvino import FrontEndTensorflow as FrontEnd
+from openvino.pyopenvino import NodeContextTensorflow as NodeContext
+from openvino.pyopenvino import ConversionExtensionTensorflow as ConversionExtension

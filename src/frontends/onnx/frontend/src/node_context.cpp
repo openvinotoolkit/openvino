@@ -11,15 +11,7 @@ ov::frontend::onnx::NodeContext::NodeContext(const ov::frontend::onnx::Node& con
       m_inputs(context.get_ng_inputs()) {}
 
 ov::Output<ov::Node> ov::frontend::onnx::NodeContext::get_input(int port_idx) const {
-    return ov::Output<ov::Node>();
-}
-
-ov::Output<ov::Node> ov::frontend::onnx::NodeContext::get_input(const std::string& port_name) const {
-    return ov::Output<ov::Node>();
-}
-
-ov::Output<ov::Node> ov::frontend::onnx::NodeContext::get_input(const std::string& port_name, int port_idx) const {
-    return ov::Output<ov::Node>();
+    return m_inputs.at(port_idx);
 }
 
 ov::Any ov::frontend::onnx::NodeContext::get_attribute_as_any(const std::string& name) const {
@@ -27,9 +19,5 @@ ov::Any ov::frontend::onnx::NodeContext::get_attribute_as_any(const std::string&
 }
 
 size_t ov::frontend::onnx::NodeContext::get_input_size() const {
-    return 0;
-}
-
-size_t ov::frontend::onnx::NodeContext::get_input_size(const std::string& name) const {
-    return 0;
+    return m_inputs.size();
 }

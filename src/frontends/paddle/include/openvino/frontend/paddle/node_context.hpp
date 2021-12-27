@@ -48,23 +48,12 @@ public:
         return name_map.at(name);
     }
 
-    /// Returns exactly one input with a given name; throws if there is no inputs or
-    /// there are more than one input
-    Output<Node> get_input(int port_index) const override {
-        return Output<Node>();
-    }
-
     Output<Node> get_input(const std::string& name, int idx) const override {
-        return Output<Node>();
-    }
-
-    /// Get a number of inputs
-    size_t get_input_size() const override {
-        return 0;
+        return name_map.at(name).at(idx);
     }
 
     size_t get_input_size(const std::string& name) const override {
-        return 0;
+        return name_map.at(name).size();
     }
 
     std::vector<OutPortName> get_output_names() const {
