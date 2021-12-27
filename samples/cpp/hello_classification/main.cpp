@@ -5,6 +5,7 @@
 #include <iterator>
 #include <memory>
 #include <string>
+#include <sstream>
 #include <vector>
 
 // clang-format off
@@ -53,8 +54,9 @@ int tmain(int argc, tchar* argv[]) {
         // without resize and layout conversions
         FormatReader::ReaderPtr reader(image_path.c_str());
         if (reader.get() == nullptr) {
-            slog::warn << "Image " + image_path + " cannot be read!" << slog::endl;
-            throw std::logic_error("");
+            std::stringstream ss;
+            ss << "Image " + image_path + " cannot be read!";
+            throw std::logic_error(ss.str());
         }
 
         ov::element::Type input_type = ov::element::u8;
