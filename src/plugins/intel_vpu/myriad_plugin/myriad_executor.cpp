@@ -26,7 +26,7 @@
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
-#include <vpu/configuration/options/denable_mx_boot.hpp>
+#include <vpu/configuration/options/disable_mx_boot.hpp>
 
 #include "myriad_executor.h"
 
@@ -83,7 +83,7 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
-    auto st = config.get<DenableMXBootOption>();
+    auto st = config.get<DisableMXBootOption>();
     if (st) {
         return ncStatus_t(st);
     }

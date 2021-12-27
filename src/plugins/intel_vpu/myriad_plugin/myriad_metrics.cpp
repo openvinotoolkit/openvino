@@ -36,7 +36,7 @@ IE_SUPPRESS_DEPRECATED_START
     _supportedConfigKeys = {
         MYRIAD_CUSTOM_LAYERS,
         MYRIAD_ENABLE_FORCE_RESET,
-        MYRIAD_DENABLE_MX_BOOT,
+        MYRIAD_DISABLE_MX_BOOT,
 
         // deprecated
         KEY_VPU_CUSTOM_LAYERS,
