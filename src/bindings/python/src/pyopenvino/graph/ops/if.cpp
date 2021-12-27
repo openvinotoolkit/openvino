@@ -92,6 +92,17 @@ void regclass_graph_op_If(py::module m) {
     cls.doc() = "openvino.impl.op.If wraps ov::op::v0::If";
     cls.def(py::init<>());
     cls.def(py::init<const ov::Output<ov::Node>&>(), py::arg("execution_condition"));
+    cls.def(py::init([](ov::Node& execution_condition) {
+                auto name = std::string(execution_condition.get_type_name());
+                if (name == "Constant" || name == "Parameter") {
+                    return ov::op::v8::If(execution_condition.output(0));
+                } else {
+                    NGRAPH_WARN << "Please specify execution_condition as Constant or Parameter. Default If() "
+                                   "constructor was applied.";
+                    return ov::op::v8::If();
+                }
+            }),
+            py::arg("execution_condition"));
     cls.def("get_else_body", &ov::op::v8::If::get_else_body);
     cls.def("set_then_body", &ov::op::v8::If::set_then_body, py::arg("body"));
     cls.def("set_else_body", &ov::op::v8::If::set_else_body, py::arg("body"));

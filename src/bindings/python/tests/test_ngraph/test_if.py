@@ -38,7 +38,7 @@ def create_simple_if_with_two_outputs(condition_val):
     Z = ov.constant(4.0, dtype=np.float32)
     W = ov.constant(2.0, dtype=np.float32)
 
-    if_node = ov.if_op(condition.output(0))
+    if_node = ov.if_op(condition)
     if_node.set_then_body(then_body)
     if_node.set_else_body(else_body)
     if_node.set_input(X.output(0), X_t, X_e)
@@ -74,7 +74,7 @@ def create_diff_if_with_two_outputs(condition_val):
     Y = ov.constant([2, 1], dtype=np.float32)
     Z = ov.constant(4.0, dtype=np.float32)
 
-    if_node = ov.if_op(condition.output(0))
+    if_node = ov.if_op(condition)
     if_node.set_then_body(then_body)
     if_node.set_else_body(else_body)
     if_node.set_input(X.output(0), X_t, X_e)
@@ -106,7 +106,7 @@ def simple_if(condition_val):
     X = ov.constant([3, 4], dtype=np.float32)
     Y = ov.constant([2, 1], dtype=np.float32)
 
-    if_node = ov.if_op(condition.output(0))
+    if_node = ov.if_op(condition)
     if_node.set_then_body(then_body)
     if_node.set_else_body(else_body)
     if_node.set_input(X.output(0), X_t, X_e)
