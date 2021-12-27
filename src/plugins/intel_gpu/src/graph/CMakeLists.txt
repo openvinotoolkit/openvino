@@ -25,7 +25,7 @@ endif()
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC})
 
 target_include_directories(${TARGET_NAME} PUBLIC
-                                          $<BUILD_INTERFACE:${MAIN_DIR}>
+                                          $<BUILD_INTERFACE:${MAIN_DIR}/src>
                                           $<BUILD_INTERFACE:${INCLUDE_DIR}>
                                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)

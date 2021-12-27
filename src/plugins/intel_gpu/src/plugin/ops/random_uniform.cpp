@@ -5,7 +5,7 @@
 #include "intel_gpu/plugin/program.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "ngraph/op/random_uniform.hpp"
-#include "api/intel_gpu/primitives/random_uniform.hpp"
+#include "intel_gpu/primitives/random_uniform.hpp"
 
 
 namespace ov {

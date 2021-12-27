@@ -1,21 +1,6 @@
 ﻿
-# Compute Library for Deep Neural Networks (clDNN)
-[![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
-![v1.0](https://img.shields.io/badge/1.0-RC1-green.svg)
-
-*Compute Library for Deep Neural Networks* (*clDNN*) is an open source performance
-library for Deep Learning (DL) applications intended for acceleration of
-DL Inference on Intel® Processor Graphics – including HD Graphics and
-Iris® Graphics.
-*clDNN* includes highly optimized building blocks for implementation of
-convolutional neural networks (CNN) with C++ interface.
-
-## License
-clDNN is licensed is licensed under
-[Apache License Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
-
 ### Attached licenses
-clDNN uses 3<sup>rd</sup>-party components licensed under following licenses:
+GPU plugin uses 3<sup>rd</sup>-party components licensed under following licenses:
 - *googletest* under [Google\* License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
 - *OpenCL™ ICD and C++ Wrapper* under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
 - *RapidJSON* under [Tencent\* License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
@@ -25,7 +10,7 @@ Please report issues and suggestions
 [GitHub issues](https://github.com/openvinotoolkit/openvino/issues).
 
 ## How to Contribute
-We welcome community contributions to clDNN. If you have an idea how to improve the library:
+We welcome community contributions to GPU plugin. If you have an idea how to improve the library:
 
 - Share your proposal via
  [GitHub issues](https://github.com/openvinotoolkit/openvino/issues)
@@ -38,11 +23,11 @@ are necessary, may provide feedback to guide you. When accepted, your pull
 request will be merged into our GitHub repository.
 
 ## System Requirements
-clDNN supports Intel® HD Graphics and Intel® Iris® Graphics and is optimized for Gen9-Gen12LP architectures
+GPU plugin supports Intel® HD Graphics and Intel® Iris® Graphics and is optimized for Gen9-Gen12LP architectures
 
-clDNN currently uses OpenCL™ with multiple Intel OpenCL™ extensions and requires Intel® Graphics Driver to run.
+GPU plugin currently uses OpenCL™ with multiple Intel OpenCL™ extensions and requires Intel® Graphics Driver to run.
 
-clDNN requires CPU with Intel® SSE/Intel® AVX support.
+GPU plugin requires CPU with Intel® SSE/Intel® AVX support.
 
 ---
 

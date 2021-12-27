@@ -4,7 +4,7 @@
 
 #include <random_uniform_inst.h>
 #include <random_uniform/random_uniform_kernel_ref.h>
-#include <api/intel_gpu/runtime/error_handler.hpp>
+#include "intel_gpu/runtime/error_handler.hpp"
 #include <impls/implementation_map.hpp>
 #include <random_uniform/random_uniform_kernel_selector.h>
 #include "primitive_base.hpp"
