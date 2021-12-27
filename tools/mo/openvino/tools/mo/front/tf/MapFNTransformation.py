@@ -258,7 +258,7 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
             for internal_match in internal_matches:
                 # check if TensorListReserve from the main graph is connected with Parameter node from the body graph
                 # that is assigned for storing intermediate output results of While Loop. If yes, the transformation
-                # detects intermediate outputs concatentation by this port and can use Loop axis attribute
+                # detects intermediate outputs concatenation by this port and can use Loop axis attribute
                 reserve_node = Loop.get_external_nodes_by_internal_id(loop_node,
                                                                       internal_match['container'].internal_layer_id)
                 reserve_node = reserve_node[0] if (len(reserve_node) == 1 and
@@ -297,7 +297,7 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
                     MapFNOutputConcatenation.transform_map_fn_output_concatenation(external_match, internal_match)
 
 
-class MapFN2OutputConcatenation(FrontReplacementSubgraph):
+class TensorListOutputConcatenation(FrontReplacementSubgraph):
     """
     The transformation handles inputs slicing in While loop. It avoids TensorListPushBack, and EmptyTensorList
     operations and replaces the original sub-graph by adding axis attribute in Loop node for concatenation of
@@ -322,95 +322,64 @@ class MapFN2OutputConcatenation(FrontReplacementSubgraph):
         )
 
     @staticmethod
-    def transform_map_fn_output_concatenation(external_match: dict, internal_match: dict):
+    def transform_tensor_list_output_concatenation(external_match: dict, internal_match: dict):
         """
         Transforms TensorFlow 2 output concatenation into use of axis attribute for output port of Loop node
         :param external_match: a match used for handling a part of the main graph responsible for output concatenation
         :param internal_match: a match used for handling a part of the body graph responsible for output concatenation
         """
         loop_node = external_match['while']
-        stack_node = external_match['stack']
-        list_reserve_node = external_match['reserve']
+        empty_tensor_list_node = external_match['reserve']
         body_graph = loop_node['body']
 
-        tensor_list_set_item_node = internal_match['concatenation']
-        tensor_list_set_item_node_name = tensor_list_set_item_node.soft_get('name', tensor_list_set_item_node.id)
+        tensor_list_push_back_node = internal_match['concatenation']
+        tensor_list_push_back_node_name = tensor_list_push_back_node.soft_get('name', tensor_list_push_back_node.id)
         list_result_node = internal_match['concatenation_result']
 
         # replace TensorListPushBack with Unsqueeze and use axis attribute for corresponding Result node
         # to concatenate results from different iterations
         unsqueeze_list_element = create_op_with_const_inputs(body_graph, Unsqueeze, {1: int64_array(0)},
                                                              {'name': 'TensorListPushBackUnsqueeze'})
-        tensor_list_set_item_node.in_port(1).get_connection().set_destination(unsqueeze_list_element.in_port(0))
-        tensor_list_set_item_node.out_port(0).get_connection().set_source(unsqueeze_list_element.out_port(0))
-        rename_nodes([(tensor_list_set_item_node, tensor_list_set_item_node_name + '/AbandonedName'),
-                      (unsqueeze_list_element, tensor_list_set_item_node_name)])
+        tensor_list_push_back_node.in_port(1).get_connection().set_destination(unsqueeze_list_element.in_port(0))
+        tensor_list_push_back_node.out_port(0).get_connection().set_source(unsqueeze_list_element.out_port(0))
+        rename_nodes([(tensor_list_push_back_node, tensor_list_push_back_node_name + '/AbandonedName'),
+                      (unsqueeze_list_element, tensor_list_push_back_node_name)])
         list_result_node_layer_id = list_result_node.internal_layer_id
         Loop.update_port_map_value_ext(loop_node.output_port_map, 'internal_layer_id', list_result_node_layer_id,
                                        'axis', 0)
 
-        # remove TensorListStack to by-pass the node since the result from the Loop node is already concatenated
-        if stack_node is not None:
-            stack_node.out_port(0).get_connection().set_source(stack_node.in_port(0).get_connection().get_source())
+        # disconnect EmptyTensorList node because it is no longer needed for Loop
+        empty_tensor_list_node.out_port(0).disconnect()
 
-        # disconnect ListReserve node because it is no longer needed for Loop
-        list_reserve_node.out_port(0).disconnect()
-
-        # connect a number of iterations with trip count that can be received from the second input of ListReserve
-        # create a constant network with True value for execution_condition so that IE can ignore execution condition
-        # and perform trip_counts iterations. This approach with known trip count value allows to avoid dynamism.
         loop_node.in_port(1).disconnect()
-        list_reserve_node.in_port(1).get_source().connect(loop_node.in_port(1))
-        for record in loop_node.output_port_map:
-            if 'purpose' in record and record['purpose'] == 'execution_condition':
-                exec_cond_layer_id = record['internal_layer_id']
-                exec_cond_node = Loop.get_body_node_by_internal_id(loop_node, exec_cond_layer_id)
-                const_true = Const(body_graph, {'value': np.array(True, dtype=np.bool)}).create_node()
-                exec_cond_node.in_port(0).get_connection().set_source(const_true.out_port(0))
+        empty_tensor_list_node.in_port(1).get_source().connect(loop_node.in_port(1))
+
 
     def find_and_replace_pattern(self, graph: Graph):
         for loop_node in graph.get_op_nodes(op='Loop'):
             loop_name = loop_node.soft_get('name', loop_node.id)
             body_graph = loop_node['body']
-            body_pattern = MapFN2OutputConcatenation.get_body_pattern()
+            body_pattern = TensorListOutputConcatenation.get_body_pattern()
             internal_matches = find_subgraph_match_to_pattern(body_graph, body_pattern)
 
             for internal_match in internal_matches:
                 # check if EmptyTensorList from the main graph is connected with Parameter node from the body graph
                 # that is assigned for storing intermediate output results of While Loop. If yes, the transformation
-                # detects intermediate outputs concatentation by this port and can use Loop axis attribute
+                # detects intermediate outputs concatenation by this port and can use Loop axis attribute
                 reserve_node = Loop.get_external_nodes_by_internal_id(loop_node,
                                                                       internal_match['container'].internal_layer_id)
                 reserve_node = reserve_node[0] if (len(reserve_node) == 1 and
                                                    reserve_node[0].op == 'EmptyTensorList') else None
                 if reserve_node is None:
                     log.info("A sub-graph around the loop node {} does not match "
-                             "TensorFlow 2 MapFN pattern for intermediate outputs concatenation".format(loop_name))
+                             "TensorFlow 2 EmptyTensorList->TensorListPushBack pattern for intermediate "
+                             "outputs concatenation".format(loop_name))
                     continue
-                stack_node = Loop.get_external_nodes_by_internal_id(
-                    loop_node, internal_match['concatenation_result'].internal_layer_id)
-                stack_node = stack_node[0] if len(stack_node) == 1 else None
-
-                if stack_node is not None:
-
-                    if stack_node is None:
-                        log.info("A sub-graph around the loop node {} does not match "
-                                 "TensorFlow 2 MapFN pattern for intermediate outputs concatenation".format(loop_name))
-                        continue
-
-                    # skip StopGradient node if it exists between While loop output port and TensorListStack operation
-                    stack_node = skip_nodes_by_condition(stack_node, lambda x: x.has_and_set('identity'), True)
-                    stack_node = stack_node if stack_node.op == 'TensorListStack' else None
-                    if stack_node is None:
-                        log.info("A sub-graph around the loop node {} does not match "
-                                 "TensorFlow 2 MapFN pattern for intermediate outputs concatenation".format(loop_name))
-                        continue
 
                 external_match = {'while': loop_node,
-                                  'reserve': reserve_node,
-                                  'stack': stack_node}
+                                  'reserve': reserve_node}
                 # check that back edges connect Parameter node (or container with intermediate output results)
-                # and concatenation result produced by TensorListSetItem node
+                # and concatenation result produced by TensorListPushBach node
                 if Loop.back_edge_exists(loop_node.back_edges, internal_match['concatenation_result'].internal_layer_id,
                                          internal_match['container'].internal_layer_id):
-                    MapFN2OutputConcatenation.transform_map_fn_output_concatenation(external_match, internal_match)
+                    TensorListOutputConcatenation.transform_tensor_list_output_concatenation(external_match, internal_match)
