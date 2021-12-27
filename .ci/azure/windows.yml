@@ -156,7 +156,7 @@ jobs:
   - script: dir $(INSTALL_DIR) /s
     displayName: 'List install files'
 
-  - script: for %%f  in ($(INSTALL_DIR)\tools\*.whl) do (python -m pip install  %%f --find-links=$(INSTALL_DIR)\tools\)
+  - script: python -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
     displayName: 'Install Wheels'
 
   - script: call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)"  $(REPO_DIR)\tests\samples_tests
@@ -253,7 +253,7 @@ jobs:
     displayName: 'IE FuncTests'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\templateFuncTests --gtest_output=xml:TEST-templateFuncTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: false
 

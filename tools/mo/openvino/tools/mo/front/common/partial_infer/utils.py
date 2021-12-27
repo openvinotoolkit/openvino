@@ -179,12 +179,23 @@ def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.nda
     return np.array(value, dtype=np.int64)
 
 
-def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
-    return np.array(value, dtype=np.float64)
-
-
 def float32_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
     return np.array(value, dtype=np.float32)
+
+
+def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return float32_array(value)
+
+
+def mo_array(value: Union[Iterable[Union[float, int]], float, int], dtype=None) -> np.ndarray:
+    """
+    This function acts in a same way as np.array except for the case when dtype is not provided
+    and np.array return fp64 array this function returns fp32 array
+    """
+    x = np.array(value, dtype=dtype)
+    if not isinstance(value, np.ndarray) and x.dtype == np.float64 and dtype != np.float64:
+        x = x.astype(np.float32)
+    return x
 
 
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
@@ -200,9 +211,9 @@ def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
 
 def assign_dims_to_weights(node, spatial, input_channel, output_channel=None, dims_number=None):
     if spatial is not None:
-        node['spatial_dims'] = np.array(spatial, dtype=np.int64)
-    node['input_channel_dim'] = np.array(input_channel, dtype=np.int64)
-    node['output_channel_dim'] = np.array(output_channel, dtype=np.int64)
+        node['spatial_dims'] = int64_array(spatial)
+    node['input_channel_dim'] = int64_array(input_channel)
+    node['output_channel_dim'] = int64_array(output_channel)
     if 'dim_attrs' in node and 'input_channel_dim' not in node['dim_attrs']:
         node['dim_attrs'].append('input_channel_dim')
     node['dims_number'] = dims_number
