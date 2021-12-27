@@ -12,7 +12,7 @@
 #include "pyopenvino/graph/axis_vector.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
 #include "pyopenvino/graph/coordinate_diff.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/node_factory.hpp"
 #include "pyopenvino/graph/node_input.hpp"
@@ -24,6 +24,7 @@
 #include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
+#include "pyopenvino/core/extension.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
@@ -31,9 +32,10 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
+#include "pyopenvino/frontend/extensions.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
-#include "pyopenvino/frontend/frontend_manager.hpp"
 #include "pyopenvino/frontend/inputmodel.hpp"
+#include "pyopenvino/frontend/manager.hpp"
 #include "pyopenvino/frontend/place.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
@@ -124,6 +126,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
+    regclass_Extension(m);
 
     regclass_frontend_Place(m);
     regclass_frontend_InitializationFailureFrontEnd(m);
@@ -131,11 +134,12 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_OpConversionFailureFrontEnd(m);
     regclass_frontend_OpValidationFailureFrontEnd(m);
     regclass_frontend_NotImplementedFailureFrontEnd(m);
-    regclass_frontend_Extension(m);
     regclass_frontend_FrontEndManager(m);
     regclass_frontend_FrontEnd(m);
     regclass_frontend_InputModel(m);
     regclass_frontend_TelemetryExtension(m);
+    regclass_frontend_DecoderTransformationExtension(m);
+    regclass_frontend_JsonConfigExtension(m);
 
     regmodule_offline_transformations(m);
 }

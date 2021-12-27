@@ -69,7 +69,7 @@ void HeteroInferRequest::CreateInferRequest(
 
     // go over all subnet and create requests
     for (auto&& desc : _inferRequests) {
-        desc._request = {desc._network._so, desc._network->CreateInferRequest()};
+        desc._request = {desc._network->CreateInferRequest(), desc._network._so};
         // go over all inputs and get blobs from subnet infer requests
         for (auto&& outputInfo : desc._network->GetOutputsInfo()) {
             requestBlob(outputInfo.first, desc._request, true);

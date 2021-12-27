@@ -10,6 +10,7 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                       SKIP "${OpenVINO_SOURCE_DIR}/bin"
                            "${OpenVINO_SOURCE_DIR}/build"
                            "${OpenVINO_SOURCE_DIR}/thirdparty"
+                           "${OpenVINO_SOURCE_DIR}/src/plugins/intel_cpu/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/tools/pot/thirdparty"
@@ -24,6 +25,28 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
 #
 # cpack
 #
+
+# install setupvars
+
+# ie_cpack_add_component(setupvars REQUIRED)
+
+# if(UNIX)
+#     set(_setupvars_file setupvars/setupvars.sh)
+# elseif(WIN32)
+#     set(_setupvars_file setupvars/setupvars.bat)
+#     if (USE_BUILD_TYPE_SUBFOLDER AND CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE EQUAL "Debug")
+#         # Patch primary configuration in setupvars.bat which is "Release" by default.
+#         # Note setupvars secondary configuration is always "Debug".
+#         file(READ "${_setupvars_file}" _setupvars_content)
+#         string(REPLACE "Release" ${CMAKE_BUILD_TYPE} _setupvars_content "${_setupvars_content}")
+#         set(_setupvars_file "${CMAKE_BINARY_DIR}/${_setupvars_file}")
+#         file(WRITE "${_setupvars_file}" "${_setupvars_content}")
+#     endif()
+# endif()
+
+# install(PROGRAMS "${_setupvars_file}"
+#         DESTINATION .
+#         COMPONENT setupvars)
 
 # install install_dependencies
 

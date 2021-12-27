@@ -447,6 +447,29 @@ std::int64_t width_idx(const Layout& layout) {
     return layout.get_index_by_name(WIDTH);
 }
 
+ov::Layout get_layout(const ov::Output<const ov::Node>& output) {
+    auto it = output.get_rt_info().find(ov::LayoutAttribute::get_type_info_static());
+    if (it == output.get_rt_info().end()) {
+        return {};
+    }
+    return it->second.as<ov::LayoutAttribute>().value;
+}
+
+ov::Layout get_layout(const ov::Output<ov::Node>& output) {
+    return get_layout(ov::Output<const ov::Node>(output.get_node(), output.get_index()));
+}
+
+void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout) {
+    OPENVINO_ASSERT(
+        dynamic_cast<ov::op::v0::Parameter*>(output.get_node()) || dynamic_cast<ov::op::v0::Result*>(output.get_node()),
+        "Layout can be set only for Parameter and Result operations.");
+    if (layout.empty()) {
+        output.get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
+    } else {
+        output.get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = ov::LayoutAttribute(layout);
+    }
+}
+
 }  // namespace layout
 
 const std::string& AttributeAdapter<ov::Layout>::get() {

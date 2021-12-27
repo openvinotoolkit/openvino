@@ -196,12 +196,26 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 networkInputLayout.format = cldnn::format::nv12;
             }
         }
-        networkInputLayout.size = { TensorValue(inputDims[0]), TensorValue(inputDims[3]),
-                                    TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
 
-        p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
-        p.AddPrimitive(cldnn::input_layout(inputName, networkInputLayout, inputInfo->name()));
-        p.AddPrimitiveToProfiler(op);
+        if (networkInputLayout.format == cldnn::format::nv12 && networkInputLayout.size.batch[0] > 1) {
+            networkInputLayout.size = { 1, TensorValue(inputDims[3]), TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
+
+            std::vector<cldnn::primitive_id> inputs;
+            for (size_t i = 0; i < inputDims[0]; ++i) {
+                std::string batched_name = inputName + "_" + std::to_string(i);
+                p.inputLayouts.insert({ inputInfo->name() + "_" + std::to_string(i), networkInputLayout });
+                inputs.emplace_back(batched_name);
+                p.AddPrimitive(cldnn::input_layout(batched_name, networkInputLayout, inputInfo->name()));
+                p.AddPrimitiveToProfiler(op);
+            }
+        } else {
+            networkInputLayout.size = { TensorValue(inputDims[0]), TensorValue(inputDims[3]),
+                                        TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
+
+            p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
+            p.AddPrimitive(cldnn::input_layout(inputName, networkInputLayout, inputInfo->name()));
+            p.AddPrimitiveToProfiler(op);
+        }
     } else {
         if (ColorFormat::NV12 == preProcess.getColorFormat() && p.GetConfig().nv12_two_inputs) {
             // for NV12, create two input layouts with reorder instead of one,

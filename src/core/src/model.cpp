@@ -778,6 +778,26 @@ ov::Output<ov::Node> ov::Model::input(const std::string& tensor_name) {
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
 }
 
+void ov::Model::reshape(const ov::PartialShape& partial_shape) {
+    if (m_parameters.size() != 1) {
+        throw ov::Exception("reshape(const ov::PartialShape&) must be called on a Model with exactly one parameter.");
+    }
+    std::map<size_t, ov::PartialShape> shapes;
+    shapes[0] = partial_shape;
+    reshape(shapes);
+}
+
+void ov::Model::reshape(const std::map<size_t, ov::PartialShape>& partial_shapes) {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
+    std::unordered_map<ov::Node*, std::string> port_tensor_map;
+    for (const auto& it : partial_shapes) {
+        const auto port = input(it.first);
+        port_tensor_map[port.get_node()] = it.first;
+        const_pshape[port] = it.second;
+    }
+    reshape(const_pshape);
+}
+
 void ov::Model::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes) {
     std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
     std::unordered_map<ov::Node*, std::string> port_tensor_map;

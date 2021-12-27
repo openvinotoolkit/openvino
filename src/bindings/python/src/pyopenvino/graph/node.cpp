@@ -129,14 +129,14 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_input_tensor",
              &ov::Node::get_input_tensor,
-             py::arg("i"),
+             py::arg("index"),
              py::return_value_policy::reference_internal,
              R"(
                 Returns the tensor for the node's input with index i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of Input.
 
                 Returns
@@ -166,13 +166,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("input_value",
              &ov::Node::input_value,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns input of the node with index i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of Input.
 
                 Returns
@@ -202,13 +202,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_element_type",
              &ov::Node::get_output_element_type,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns the element type for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
@@ -218,13 +218,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_shape",
              &ov::Node::get_output_shape,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns the shape for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
@@ -234,13 +234,13 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_partial_shape",
              &ov::Node::get_output_partial_shape,
-             py::arg("i"),
+             py::arg("index"),
              R"(
                 Returns the partial shape for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
@@ -250,14 +250,14 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_output_tensor",
              &ov::Node::get_output_tensor,
-             py::arg("i"),
+             py::arg("index"),
              py::return_value_policy::reference_internal,
              R"(
                 Returns the tensor for output i
 
                 Parameters
                 ----------
-                i : int
+                index : int
                     Index of the output.
 
                 Returns
