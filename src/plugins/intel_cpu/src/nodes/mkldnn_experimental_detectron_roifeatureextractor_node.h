@@ -36,8 +36,6 @@ private:
     std::vector<int64_t> pyramid_scales_;
     int sampling_ratio_ = 0;
     bool aligned_ = false;
-
-    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

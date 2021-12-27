@@ -18,7 +18,7 @@ file(GLOB_RECURSE HEADERS
 addVersionDefines(gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
 
 find_package(libGNA REQUIRED
-             PATHS "${IE_MAIN_SOURCE_DIR}/cmake"
+             PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
              NO_DEFAULT_PATH)
 
 #

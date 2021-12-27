@@ -219,7 +219,11 @@ enum Algorithm {
     MathSinh,
     MathSoftPlus,
     MathSoftsign,
-    MathTan
+    MathTan,
+
+    // TensorIterator
+    TensorIteratorCommon,
+    TensorIteratorLoop
 };
 
 extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;

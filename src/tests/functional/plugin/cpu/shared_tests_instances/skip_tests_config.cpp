@@ -177,6 +177,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
         // Issue:
         R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
+        // Waiting for common fix of zero dims
+        R"(smoke_If.*TS=\(.*\.0.*\).*)",
     };
 
 #define FIX_62820 0
