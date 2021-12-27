@@ -234,7 +234,8 @@ protected:
     void ExecuteConstantNodesOnly() const;
 
     friend class MKLDNNInferRequest;
-    friend class MKLDNNGraphlessInferRequest;
+    friend class MKLDNNInferRequestOldApi;
+    friend class MKLDNNInferRequestNewApi;
     friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:

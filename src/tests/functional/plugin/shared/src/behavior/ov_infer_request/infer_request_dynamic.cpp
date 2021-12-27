@@ -115,7 +115,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output().get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
@@ -141,7 +141,7 @@ TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     //OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output().get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
@@ -373,6 +373,59 @@ TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
     ov::runtime::CompiledModel execNet;
     ASSERT_THROW((execNet = ie->compile_model(function, targetDevice, configuration)), ov::Exception);
 }
+
+// this test necessary only as reproducer
+// need to refactor test to support arbitrary shapes
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensorBlocked) {
+    /* ======================== function creation start ======================== */
+    const std::vector<size_t> inputShape = {1, 4, 20, 20, 20, 20};
+    const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
+
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    params.front()->set_friendly_name("Param_1");
+    params.front()->get_output_tensor(0).set_names({"input_tensor"});
+    auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
+
+    auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1, 1, 1}, std::vector<float>{}, true);
+    auto add = ngraph::builder::makeEltwise(split->output(0), in2add, ngraph::helpers::EltwiseTypes::ADD);
+    auto relu1 = std::make_shared<ngraph::opset1::Relu>(add);
+
+    auto in2mult = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1, 1, 1}, std::vector<float>{}, true);
+    auto mult = ngraph::builder::makeEltwise(split->output(1), in2mult, ngraph::helpers::EltwiseTypes::MULTIPLY);
+    auto relu2 = std::make_shared<ngraph::opset1::Relu>(mult);
+
+    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 3);
+    concat->get_output_tensor(0).set_names({"concat"});
+
+    function = std::make_shared<ngraph::Function>(concat, params, "SplitAddConcat");
+    /* ======================== function creation end ======================== */
+
+    const std::string tensor_name = "input_tensor";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20, 20, 20};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor, otensor;
+    const std::string outputname = function->outputs().back().get_any_name();
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    //OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20, 20, 20}));
+    ASSERT_EQ(tensor.get_shape(), (ov::Shape{1, 4, 20, 20, 20, 20}));
+    OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
+    ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    EXPECT_NE(0, otensor.get_size()); // output tensor is allocated after infer
+    OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
+    ASSERT_EQ(otensor.get_shape(), (ov::Shape{1, 2, 20, 40, 20, 20}));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

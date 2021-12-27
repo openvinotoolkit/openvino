@@ -120,10 +120,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-        // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
-        // Issue: CVS-66780
-        R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
-        R"(.*smoke_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
 
         // TODO: Issue CVS-51680
         R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
