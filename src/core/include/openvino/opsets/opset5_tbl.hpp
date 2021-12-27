@@ -131,6 +131,7 @@ _OPENVINO_OP_REG(Broadcast, ov::op::v3)
 _OPENVINO_OP_REG(Bucketize, ov::op::v3)
 _OPENVINO_OP_REG(ExtractImagePatches, ov::op::v3)
 _OPENVINO_OP_REG(ScatterNDUpdate, ov::op::v3)
+_OPENVINO_OP_REG(CumSum, ov::op::v3)
 
 // New operations added in opset4
 _OPENVINO_OP_REG(Acosh, ov::op::v4)
