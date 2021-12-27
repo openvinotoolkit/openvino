@@ -1,7 +1,7 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "behavior/ov_executable_network/exec_graph_info.hpp"
+#include "behavior/ov_executable_network/ov_exec_net_import_export.hpp"
 
 #include "ie_plugin_config.hpp"
 #include <common_test_utils/test_constants.hpp>
@@ -18,11 +18,11 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVExecGraphImportExportTest,
+                         OVExecNetworkImportExport,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                  ::testing::ValuesIn(configs)),
-                         OVExecGraphImportExportTest::getTestCaseName);
+                         OVExecNetworkImportExport::getTestCaseName);
 
 }  // namespace

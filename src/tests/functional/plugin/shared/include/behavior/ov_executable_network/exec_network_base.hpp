@@ -621,6 +621,7 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
 
     ov::runtime::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, targetDevice, configuration));
+    CommonTestUtils::removeIRFiles(m_out_xml_path_1, m_out_bin_path_1);
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();
