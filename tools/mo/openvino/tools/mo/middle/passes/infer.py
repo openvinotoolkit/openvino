@@ -6,6 +6,7 @@ from typing import List
 
 import networkx as nx
 
+from openvino.tools.mo.front.common.layout import get_dim_from_layout
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 from openvino.tools.mo.graph.graph import Node, Graph, dict_includes
 from openvino.tools.mo.utils.error import Error
@@ -221,29 +222,16 @@ def override_batch(graph: Graph, batch: int):
     """
     if batch is not None:
         in_nodes = graph.get_op_nodes(op='Parameter')
-        layout_values = None
-        if 'layout_values' in graph.graph['cmd_params']:
-            layout_values = graph.graph['cmd_params'].layout_values.copy()
-            if '' in layout_values:
-                if len(in_nodes) == 1:
-                    in_node = in_nodes[0]
-                    layout_values[in_node.soft_get('name', in_node.id)] = layout_values['']
-                    del layout_values['']
         for node in in_nodes:
             if not node.soft_get('fixed_batch', False):
                 name = node.soft_get('name', node.id)
-                if layout_values and name in layout_values and layout_values[name]['source_layout']:
-                    from openvino.runtime import Layout  # pylint: disable=no-name-in-module,import-error
-
-                    layout = layout_values[name]['source_layout']
-                    layout_parsed = Layout(layout)
-                    if layout_parsed.has_name('N'):
-                        idx = layout_parsed.get_index_by_name('N')
+                idx, has_layout = get_dim_from_layout(node, 'N')
+                if has_layout:
+                    if idx:
                         node['shape'][idx] = batch
                     else:
                         log.warning(
-                            'Layout {} for input {} doesn\'t have batch dimension. Skipping this input.'.format(layout,
-                                                                                                                name))
+                            'Layout for input {} doesn\'t have batch dimension. Skipping this input.'.format(name))
                 else:
                     validate_batch_in_shape(node['shape'], name)
                     node['shape'][0] = batch

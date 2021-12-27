@@ -114,7 +114,13 @@ def shape_for_layout(layout: str, **kwargs):
     return output_shape
 
 
-def get_channel_dim_from_layout(node: Node, guessed_layout=None):
+def get_dim_from_layout(node: Node, dim: str):
+    """
+    Gets index of dimension from layout specified for node.
+    :param node: node to get dim for.
+    :param dim: name of dimension to get index for.
+    :return: tuple with index of the dimension and bool flag if the node has layout specified or no.
+    """
     layout = None
     graph = node.graph
     if 'layout_values' in graph.graph['cmd_params'] and graph.graph['cmd_params'].layout_values:
@@ -134,10 +140,13 @@ def get_channel_dim_from_layout(node: Node, guessed_layout=None):
         from openvino.runtime import Layout  # pylint: disable=no-name-in-module,import-error
 
         layout_parsed = Layout(layout)
-        assert layout_parsed.has_name('C'), "Layout {} doesn't have C (channel) dimension".format(layout)
-        idx = layout_parsed.get_index_by_name('C')
-        if idx < 0:
-            idx = len(node.shape) + idx
-        return idx
+        has_dim = layout_parsed.has_name(dim)
+        if has_dim:
+            idx = layout_parsed.get_index_by_name(dim)
+            if idx < 0:
+                idx = len(node.shape) + idx
+            return idx, True
+        else:
+            return None, True
     else:
-        return get_features_dim(guessed_layout, len(node.shape))
+        return None, False

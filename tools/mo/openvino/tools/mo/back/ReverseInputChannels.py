@@ -5,16 +5,16 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.layout import get_channel_dim_from_layout
-from openvino.tools.mo.ops.gather import Gather
-from openvino.tools.mo.ops.split import Split
 from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.layout import get_dim_from_layout, get_features_dim
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.ops.split import Split
 
 
 class ReverseChannels(Op):
@@ -64,26 +64,35 @@ class InsertReverseChannels(BackReplacementPattern):
                     assert len(order) == len(guessed_layout)
                     guessed_layout = np.array(list(guessed_layout))[order]
                     guessed_layout = ''.join(guessed_layout)
-        return get_channel_dim_from_layout(node, guessed_layout)
+        idx, has_layout = get_dim_from_layout(node, 'C')
+        if has_layout:
+            return idx
+        else:
+            return get_features_dim(guessed_layout, len(node.shape))
 
     def find_and_replace_pattern(self, graph: Graph):
         all_params = [(p.soft_get('name', p.id), p, list(p.out_port(0).data.get_shape()))
                       for p in graph.get_op_nodes(type='Parameter')]
-        suitable_params = [(name, p, shape) for name, p, shape in all_params if
-                           len(shape) == 4 and shape[self.get_channel_index(p)] == 3]
+        suitable_params = []
+        for name, p, shape in all_params:
+            if len(shape) == 4:
+                idx = self.get_channel_index(p)
+                if idx and shape[idx] == 3:
+                    suitable_params.append((name, p, shape, idx))
+
 
         log.debug('All network inputs: {}'.format({name: shape for name, _, shape in all_params}))
-        log.debug('Will reverse input channels for: {}'.format({name: shape for name, _, shape in suitable_params}))
+        log.debug('Will reverse input channels for: {}'.format({name: shape for name, _, shape, _ in suitable_params}))
         if len(suitable_params) < len(all_params):
             log.error('Network has {} inputs overall, but only {} of them are suitable for input channels reversing.\n'
                       'Suitable for input channel reversing inputs are 4-dimensional with 3 channels\nAll inputs: {}\n'
                       'Suitable inputs {}'.format(len(all_params), len(suitable_params),
                                                   {name: shape for name, _, shape in all_params},
-                                                  {name: shape for name, _, shape in suitable_params}),
+                                                  {name: shape for name, _, shape, _ in suitable_params}),
                       extra={'is_warning': True})
 
-        for name, parameter, _ in suitable_params:
-            reverse_index = int64_array(self.get_channel_index(parameter))
+        for name, parameter, _, idx in suitable_params:
+            reverse_index = int64_array(idx)
 
             if parameter.out_port(0).disconnected():
                 continue
