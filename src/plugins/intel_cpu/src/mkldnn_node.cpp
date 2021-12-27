@@ -543,8 +543,6 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
             newOutputShape.push_back(1);
         }
 
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
-
         const auto &currDesc = edges[0]->getMemory().getDesc();
         if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
             continue;
@@ -559,6 +557,8 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
                 break;
             }
         }
+
+        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
         edges[sharedEdgeNum]->getMemoryPtr()->redefineDesc(*memDesc);
         void *data = edges[sharedEdgeNum]->getMemoryPtr()->GetData();
         for (size_t j = 0; j < edges.size(); j++) {
