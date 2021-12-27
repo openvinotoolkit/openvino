@@ -1655,9 +1655,6 @@ void BroadcastConstPass::run() {
 
 void BreakFusingOfOutputLayersPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BreakFusingOfOutputLayersPass");
-#if GNA_LIB_VER == 1
-    return;
-#endif
     OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
     for (auto layer : *pLayers) {
         /* Inserion of the second activation after pooling will break Conv - Pooling - Activation component

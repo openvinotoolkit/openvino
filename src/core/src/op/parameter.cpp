@@ -49,19 +49,11 @@ void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
 }
 
 ov::Layout op::Parameter::get_layout() const {
-    auto it = output(0).get_rt_info().find(ov::LayoutAttribute::get_type_info_static());
-    if (it == output(0).get_rt_info().end()) {
-        return {};
-    }
-    return it->second.as<ov::LayoutAttribute>().value;
+    return ov::layout::get_layout(output(0));
 }
 
 void op::Parameter::set_layout(const ov::Layout& layout) {
-    if (layout.empty()) {
-        output(0).get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
-    } else {
-        output(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] = ov::LayoutAttribute(layout);
-    }
+    ov::layout::set_layout(output(0), layout);
 }
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);

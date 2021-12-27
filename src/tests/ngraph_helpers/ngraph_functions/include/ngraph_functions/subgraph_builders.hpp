@@ -242,6 +242,44 @@ inline std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inpu
     return fn_ptr;
 }
 
+inline std::shared_ptr<ngraph::Function> makeEltwisePlusDetectionOutput(std::vector<std::vector<size_t>> inShapes =
+        {{1, 60}, {1, 165}, {1, 1, 75}},
+                                                                         ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
+    // adding Eltwise so that we can tests Auto-Batching's HETERO code-path that splits the DetectionOutput and the rest of the network
+    auto params = ngraph::builder::makeParams(ngraph::element::f32, inShapes);
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+            ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+    ngraph::OutputVector outs;
+    for (size_t i = 0; i < inShapes.size(); i++) {
+        auto shape = inShapes[i];
+        auto p = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{shape});
+        auto add = ngraph::builder::makeEltwise(paramOuts[i], p, ngraph::helpers::EltwiseTypes::ADD);
+        params.push_back(p);
+        outs.push_back(add->output(0));
+    }
+    ngraph::op::DetectionOutput::Attributes attr;
+    attr.num_classes = 11;
+    attr.background_label_id = 0;
+    attr.top_k = 75;
+    attr.variance_encoded_in_target = true;
+    attr.keep_top_k = {50};
+    attr.code_type = std::string{"caffe.PriorBoxParameter.CORNER"};
+    attr.share_location = true;
+    attr.nms_threshold = 0.5f;
+    attr.confidence_threshold = 0.5f;
+    attr.clip_after_nms = false;
+    attr.clip_before_nms = false;
+    attr.decrease_label_id = false;
+    attr.normalized = false;
+    attr.input_height = 1;
+    attr.input_width = 1;
+    attr.objectness_score = 0.4f;
+
+    auto detOut = ngraph::builder::makeDetectionOutput(outs, attr);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+    return std::make_shared<ngraph::Function>(results, params, "EltWiseWithDetectionOutput");
+}
+
 inline std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24},
     ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
