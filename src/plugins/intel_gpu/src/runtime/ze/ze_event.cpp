@@ -48,6 +48,7 @@ void ze_event::set_impl() {
 }
 
 bool ze_event::is_set_impl() {
+    std::cout << "is_set_impl " << _event << std::endl;
     if (_event != nullptr) {
         return zeEventQueryStatus(_event) == ZE_RESULT_SUCCESS;
     }

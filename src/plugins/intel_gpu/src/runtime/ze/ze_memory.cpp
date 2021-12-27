@@ -305,6 +305,9 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     // // TODO: Do we really need blocking call here? Non-blocking one causes accuracy issues right now, but hopefully it can be fixed in more performant way.
     // const bool blocking = true;
     // cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ze);
+    //ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
+    //ZE_CHECK(zeEventHostSynchronize(ev_ze, UINT32_MAX));
+    _ze_stream.finish();
     return ev;
 }
 

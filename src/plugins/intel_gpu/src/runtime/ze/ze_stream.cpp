@@ -47,11 +47,9 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
         switch (args[i].t) {
             case args_t::INPUT:
                 if (args[i].index < data.inputs.size() && data.inputs[args[i].index]) {
-                //if (args[i].index < data.inputs.size()) {
                     const auto& input_mem = data.inputs[args[i].index];
                     if (input_mem) {
                         if (memory_capabilities::is_usm_type(input_mem->get_allocation_type())) {
-                            //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer());
                             auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get();
                             status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
                             ZE_CHECK(status);
@@ -64,7 +62,6 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                     const auto& input_mem = data.fused_op_inputs[args[i].index];
                     if (input_mem) {
                         if (memory_capabilities::is_usm_type(input_mem->get_allocation_type())) {
-                            //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer());
                             auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get();
                             status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
                             ZE_CHECK(status);
@@ -93,7 +90,6 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                 break;
             case args_t::WEIGHTS:
                 if (data.weights) {
-                    //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(data.weights)->get_buffer());
                     auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.weights)->get_buffer().get();
                     status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
                     ZE_CHECK(status);
@@ -101,7 +97,6 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                 break;
             case args_t::BIAS:
                 if (data.bias) {
-                    //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(data.bias)->get_buffer());
                     auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.bias)->get_buffer().get();
                     status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
                     ZE_CHECK(status);
@@ -300,27 +295,11 @@ ze_stream::ze_stream(const ze_engine& engine)
         ZE_STRUCTURE_TYPE_EVENT_POOL_DESC,
         nullptr,
         ZE_EVENT_POOL_FLAG_HOST_VISIBLE, // all events in pool are visible to Host
-        1000 // count
+        pool_size // count
     };
     event_idx = 0;
     ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_event_pool));
-
-    // ze_command_queue_desc_t commandQueueDesc = {
-    //     ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC ,
-    //     nullptr,
-    //     0,
-    //     0,
-    //     0,
-    //     ZE_COMMAND_QUEUE_MODE_DEFAULT ,
-    //     ZE_COMMAND_QUEUE_PRIORITY_NORMAL
-    // };
-    // ZE_CHECK(zeCommandQueueCreate(_engine.get_context(), _engine.get_device(), &commandQueueDesc, &hCommandQueue));
-    // ze_fence_desc_t fenceDesc = {
-    //     ZE_STRUCTURE_TYPE_FENCE_DESC ,
-    //     nullptr,
-    //     0
-    // };
-    // ZE_CHECK(zeFenceCreate(hCommandQueue, &fenceDesc, &hFence));
+    ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_last_barrier_pool));
 #else
     ze_event_pool_desc_t event_pool_desc = {
         ZE_STRUCTURE_TYPE_EVENT_POOL_DESC,
@@ -328,15 +307,16 @@ ze_stream::ze_stream(const ze_engine& engine)
         ZE_EVENT_POOL_FLAG_HOST_VISIBLE, // all events in pool are visible to Host
         1 // count
     };
-    // ze_event_desc_t eventDesc = {
-    //     ZE_STRUCTURE_TYPE_EVENT_DESC,
-    //     nullptr,
-    //     0,         // index
-    //     0,                         // no additional memory/cache coherency required on signal
-    //     ZE_EVENT_SCOPE_FLAG_HOST // ensure memory coherency across device and Host after event completes
-    // };
+    ze_event_desc_t eventDesc = {
+        ZE_STRUCTURE_TYPE_EVENT_DESC,
+        nullptr,
+        0,         // index
+        0,                         // no additional memory/cache coherency required on signal
+        ZE_EVENT_SCOPE_FLAG_HOST // ensure memory coherency across device and Host after event completes
+    };
     ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_last_barrier_pool));
-    // ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
+    ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
+    std::cout << "init _last_barrier_ev " << _last_barrier_ev << std::endl;
 #endif
 #ifdef IMMIDIATLY
     command_queue_desc.flags = 0;
@@ -438,20 +418,11 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     ZE_CHECK(zeCommandListAppendLaunchKernel(_command_list,
                                     kern,
                                     &launchArgs,
-                                    //set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
                                     std::dynamic_pointer_cast<ze_base_event>(ev)->get(),
+                                    //set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
                                     dep_events_ptr == nullptr ? 0 : dep_events_ptr->size(),
                                     dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
-    //std::cout << "-------------------------------------" << std::endl;
-    //ZE_CHECK(zeEventHostSynchronize(std::dynamic_pointer_cast<ze_base_event>(ev)->get(), UINT32_MAX));
-    // zeEventHostSynchronize(ret_ev2, 0);
-    // if (!set_output_event) {
-    //     ZE_CHECK(zeEventHostSignal(std::dynamic_pointer_cast<ze_base_event>(ev)->get()));
-    // }
-    //return std::make_shared<ze_event>(std::dynamic_pointer_cast<ze_event>(ev)->get_pool(), std::dynamic_pointer_cast<ze_event>(ev)->get(), ++_queue_counter);
     return ev;
-    //return std::make_shared<ze_event>(std::dynamic_pointer_cast<ze_event>(ev)->get_pool(), std::dynamic_pointer_cast<ze_event>(ev)->get(), ++_queue_counter);
-    //return ev;
 }
 
 void ze_stream::enqueue_barrier() {
@@ -517,15 +488,15 @@ ze_event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, 
         //std::cout << "_last_barrier " << _last_barrier << ' ' << _queue_counter << std::endl;
         return std::make_shared<ze_event>(_last_barrier_pool, _last_barrier_ev, _last_barrier);
 #else
-        ze_event_desc_t eventDesc = {
-        ZE_STRUCTURE_TYPE_EVENT_DESC,
-            nullptr,
-            event_idx++ % 1000,         // index
-            0,                         // no additional memory/cache coherency required on signal
-            ZE_EVENT_SCOPE_FLAG_HOST // ensure memory coherency across device and Host after event completes
-        };
-        ZE_CHECK(zeEventCreate(_event_pool, &eventDesc, &_last_barrier_ev));
-        return std::make_shared<ze_event>(_event_pool, _last_barrier_ev, _last_barrier);
+        // ze_event_desc_t eventDesc = {
+        // ZE_STRUCTURE_TYPE_EVENT_DESC,
+        //     nullptr,
+        //     event_idx++ % pool_size,         // index
+        //     0,                         // no additional memory/cache coherency required on signal
+        //     ZE_EVENT_SCOPE_FLAG_HOST // ensure memory coherency across device and Host after event completes
+        // };
+        // ZE_CHECK(zeEventCreate(_event_pool, &eventDesc, &_last_barrier_ev));
+        return std::make_shared<ze_event>(_last_barrier_pool, _last_barrier_ev, _last_barrier);
 #endif
     } else {
         // ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_event_pool));
@@ -556,7 +527,7 @@ ze_event::ptr ze_stream::create_user_event(bool set) {
         ZE_STRUCTURE_TYPE_EVENT_DESC,
         nullptr,
 #ifdef SINGLE_EVENT_POOL
-        event_idx++ % 1000,         // index
+        event_idx++ % pool_size,         // index
 #else
         0,         // index
 #endif
@@ -568,6 +539,7 @@ ze_event::ptr ze_stream::create_user_event(bool set) {
     if (set) {
         result->set();
     }
+    std::cout << "create_user_event " << hEvent << std::endl;
     //std::cout << "create_user_event " << hEvent << " " << set << std::endl;
     return result;//_engine.get_context(), set);
 }
@@ -589,7 +561,7 @@ ze_event::ptr ze_stream::create_base_event() {
         ZE_STRUCTURE_TYPE_EVENT_DESC,
         nullptr,
 #ifdef SINGLE_EVENT_POOL
-        event_idx++ % 1000,         // index
+        event_idx++ % pool_size,         // index
 #else
         0,         // index
 #endif
@@ -598,6 +570,7 @@ ze_event::ptr ze_stream::create_base_event() {
     };
 
     ZE_CHECK(zeEventCreate(_event_pool, &tsEventDesc, &hEvent));
+    std::cout << "create_base_event " << hEvent << std::endl;
     auto result =  std::make_shared<ze_event>(_event_pool, hEvent, ++_queue_counter);
     //std::cout << "create_base_event " << hEvent << " " << _queue_counter << std::endl;
     return result;
@@ -607,15 +580,6 @@ void ze_stream::flush() const {
     //std::cout << "finish " << std::endl;
     ZE_CHECK(zeCommandListAppendBarrier(_command_list, nullptr, 0, nullptr));
     ZE_CHECK(zeCommandListClose(_command_list));
-    // ze_command_queue_desc_t commandQueueDesc = {
-    //     ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC ,
-    //     nullptr,
-    //     0,
-    //     0,
-    //     0,
-    //     ZE_COMMAND_QUEUE_MODE_DEFAULT ,
-    //     ZE_COMMAND_QUEUE_PRIORITY_NORMAL
-    // };
     ze_command_queue_handle_t hCommandQueue;
     ZE_CHECK(zeCommandQueueCreate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &hCommandQueue));
 
@@ -631,14 +595,6 @@ void ze_stream::flush() const {
     ZE_CHECK(zeFenceHostSynchronize(hFence, UINT32_MAX));
     ZE_CHECK(zeFenceReset(hFence));
     ZE_CHECK(zeCommandListReset(_command_list));
-
-    //ze_command_list_desc_t command_list_desc = {};
-    //command_list_desc.flags = 0;
-    //command_list_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC;
-    //command_list_desc.pNext = nullptr;
-    //ze_command_list_handle_t  _command_list_new = 0;
-    //ZE_CHECK(zeCommandListCreate(_engine.get_context(), _engine.get_device(), &command_list_desc, &_command_list_new));
-    //_command_list = _command_list_new;
 
     _queue_counter.store(uint64_t(0));
 }
@@ -667,14 +623,11 @@ void ze_stream::finish() const {
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
-    //std::cout << "wait_for_events " << std::endl;
     if (events.empty())
         return;
     std::vector<ze_event_handle_t> _ze_events;
     for (auto& ev : events) {
         if (auto ze_base_ev = dynamic_cast<ze_base_event*>(ev.get())) {
-            //_ze_events.push_back(ze_base_ev->get());
-            //std::cout << "wait_for_events: " << ze_base_ev->get() << std::endl;
             ZE_CHECK(zeEventHostSynchronize(ze_base_ev->get(), UINT32_MAX));
         }
     }
@@ -703,7 +656,6 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
     for (auto& dep : deps) {
         auto* ze_base_ev = dynamic_cast<ze_base_event*>(dep.get());
         if (ze_base_ev->get_queue_stamp() > _last_barrier) {
-            //std::cout << "get_queue_stamp " << ze_base_ev->get_queue_stamp() << ">" << _last_barrier << " " << is_output << std::endl;
             needs_barrier = true;
         }
     }
@@ -711,43 +663,32 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
     if (needs_barrier) {
         //try {
             if (is_output) {
-                //sync_events(deps, is_output);
 //                 ze_event_desc_t eventDesc = {
 //                     ZE_STRUCTURE_TYPE_EVENT_DESC,
 //                     nullptr,
 // #ifdef SINGLE_EVENT_POOL
-//                     event_idx++ % 1000,         // index
+//         0,//event_idx++ % pool_size,         // index
 // #else
-//                     0,         // index
+//         0,         // index
 // #endif
 //                     0,                         // no additional memory/cache coherency required on signal
 //                     ZE_EVENT_SCOPE_FLAG_HOST // ensure memory coherency across device and Host after event completes
 //                 };
-// #ifndef SINGLE_EVENT_POOL
-//                 ze_event_pool_desc_t event_pool_desc = {
-//                     ZE_STRUCTURE_TYPE_EVENT_POOL_DESC,
-//                     nullptr,
-//                     ZE_EVENT_POOL_FLAG_HOST_VISIBLE, // all events in pool are visible to Host
-//                     1 // count
-//                 };
-//                 std::cout << "_last_barrier_pool " << _last_barrier_pool << std::endl;
-//                 ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_last_barrier_pool));
-//                 ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
-// #else
-//                 ZE_CHECK(zeEventCreate(_event_pool, &eventDesc, &_last_barrier_ev));
-// #endif
-//                 std::cout << "_last_barrier_ev " << _last_barrier_ev << std::endl;
-                ze_event_desc_t eventDesc = {
-                    ZE_STRUCTURE_TYPE_EVENT_DESC,
-                    nullptr,
-                    0,         // index
-                    0,                         // no additional memory/cache coherency required on signal
-                    ZE_EVENT_SCOPE_FLAG_HOST // ensure memory coherency across device and Host after event completes
-                };
+#ifdef SINGLE_EVENT_POOL
                 ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
+#else
+                // ze_event_pool_desc_t event_pool_desc = {
+                //     ZE_STRUCTURE_TYPE_EVENT_POOL_DESC,
+                //     nullptr,
+                //     ZE_EVENT_POOL_FLAG_HOST_VISIBLE, // all events in pool are visible to Host
+                //     1 // count
+                // };
+                // ZE_CHECK(zeEventPoolCreate(_engine.get_context(), &event_pool_desc, 0, nullptr, &_last_barrier_pool));
+                // ZE_CHECK(zeEventCreate(_last_barrier_pool, &eventDesc, &_last_barrier_ev));
+#endif
+                std::cout << "_last_barrier_ev " << _last_barrier_ev << std::endl;
                 ZE_CHECK(zeCommandListAppendBarrier(_command_list, _last_barrier_ev, 0, nullptr));//_last_barrier_ev
             } else {
-                //std::cout << "_last_barrier_ev nullptr" << std::endl;
                 ZE_CHECK(zeCommandListAppendBarrier(_command_list, nullptr, 0, nullptr));
             }
         //} catch (ze::Error const& err) {
