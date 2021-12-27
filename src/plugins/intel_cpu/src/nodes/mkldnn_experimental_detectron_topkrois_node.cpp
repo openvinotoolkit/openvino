@@ -43,8 +43,8 @@ MKLDNNExperimentalDetectronTopKROIsNode::MKLDNNExperimentalDetectronTopKROIsNode
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    if (getInputShapeAtPort(INPUT_ROIS).getDims().size() != 2 || getInputShapeAtPort(INPUT_PROBS).getDims().size() != 1)
-        IE_THROW() << errorPrefix << " has nsupported input shape";
+    if (getInputShapeAtPort(INPUT_ROIS).getRank() != 2 || getInputShapeAtPort(INPUT_PROBS).getRank() != 1)
+        IE_THROW() << errorPrefix << " has unsupported input shape";
 
     max_rois_num_ = topKROI->get_max_rois();
 }
