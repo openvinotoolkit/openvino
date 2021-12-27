@@ -13,12 +13,14 @@ add_subdirectory(compile_tool)
 
 # install deployment_manager
 
-ie_cpack_add_component(deployment_manager REQUIRED)
+if(NOT CPACK_GENERATOR STREQUAL "DEB")
+    ie_cpack_add_component(deployment_manager REQUIRED)
 
-install(DIRECTORY deployment_manager
-        DESTINATION share/openvino/tools
-        COMPONENT deployment_manager
-        USE_SOURCE_PERMISSIONS)
+    install(DIRECTORY deployment_manager
+            DESTINATION share/openvino/tools
+            COMPONENT deployment_manager
+            USE_SOURCE_PERMISSIONS)
+endif()
 
 # outbound requirements.txt files for openvino-dev package
 
@@ -42,7 +44,11 @@ foreach(EXTRAS ${EXTRAS_LIST})
         EXCLUDE_FROM_ALL)
 endforeach()
 
+# MO
+
 add_subdirectory(mo)
+
+# POT
 
 file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/pot/version.txt ${CI_BUILD_NUMBER})
 

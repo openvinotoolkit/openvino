@@ -121,7 +121,7 @@ set(library_sources $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 if(ENABLE_GAPI_PREPROCESSING)
     if(BUILD_SHARED_LIBS)
-        set(library_type SHARED)
+        set(library_type MODULE)
     else()
         set(library_type STATIC)
     endif()
@@ -144,8 +144,6 @@ if(ENABLE_GAPI_PREPROCESSING)
         # for static linkage the dependencies are in opposite order
         target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
     endif()
-
-    set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION 2022.1.1)
 
     # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
     if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND

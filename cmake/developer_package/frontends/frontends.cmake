@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(FRONTEND_INSTALL_INCLUDE "runtime/include/")
+set(FRONTEND_INSTALL_INCLUDE "include/")
 set(FRONTEND_NAME_PREFIX "ov_")
 set(FRONTEND_NAME_SUFFIX "_frontend")
 
@@ -178,7 +178,7 @@ macro(ov_add_frontend)
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-    set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION 2022.1.1)
+    set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION ${OpenVINO_VERSION})
 
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${OV_FRONTEND_LINK_LIBRARIES})
 
@@ -229,7 +229,7 @@ macro(ov_add_frontend)
         endif()
 
         if(OV_FRONTEND_LINKABLE_FRONTEND)
-            # install -dev part
+            # install library development files
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}/
                     COMPONENT core_dev

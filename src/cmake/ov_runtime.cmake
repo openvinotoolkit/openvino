@@ -59,8 +59,8 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        INCLUDES DESTINATION runtime/include
-                             runtime/include/ie)
+        INCLUDES DESTINATION include
+                             include/ie)
 
 # --------------- OpenVINO runtime library dev ------------------------------
 
@@ -89,10 +89,9 @@ ov_install_static_lib(${TARGET_NAME}_dev core)
 # Install OpenVINO runtime
 
 set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME openvino
-                                                SOVERSION 2022.1.1)
+                                                SOVERSION ${OpenVINO_VERSION})
 
-list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
-                      "IE_PARALLEL_CMAKE")
+list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
@@ -118,13 +117,11 @@ endif()
 install(EXPORT OpenVINOTargets
         FILE OpenVINOTargets.cmake
         NAMESPACE openvino::
-        DESTINATION runtime/cmake
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}/cmake/openvino${OpenVINO_VERSION}
         COMPONENT core_dev)
 
-set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/src/core")
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
-set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -137,10 +134,8 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
                               PATH_VARS ${PATH_VARS})
 
 set(IE_INCLUDE_DIR "include/ie")
-set(OV_CORE_DIR ".")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
-set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
@@ -159,11 +154,10 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-              "${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake"
-        DESTINATION runtime/cmake
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}/cmake/inferenceengine${OpenVINO_VERSION}
         COMPONENT core_dev)
 
 install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
               "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake"
-        DESTINATION runtime/cmake
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}/cmake/openvino${OpenVINO_VERSION}
         COMPONENT core_dev)

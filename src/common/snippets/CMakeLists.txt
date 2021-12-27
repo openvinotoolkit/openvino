@@ -35,11 +35,10 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_mark_target_as_cc(${TARGET_NAME})
 
-set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION 2022.1.1)
-
 # LTO
+
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-
 # install
+
 ov_install_static_lib(${TARGET_NAME} core)

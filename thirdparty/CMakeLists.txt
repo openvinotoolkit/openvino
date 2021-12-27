@@ -205,21 +205,21 @@ ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 #
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-        DESTINATION share/openvino/samples/cpp/thirdparty
+        DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
         COMPONENT ${OV_COMP_CPP_SAMPLES}
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-        DESTINATION share/openvino/samples/cpp/thirdparty
+        DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
         COMPONENT ${OV_COMP_CPP_SAMPLES}
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION share/openvino/samples/cpp/thirdparty
+        DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
         COMPONENT ${OV_COMP_CPP_SAMPLES}
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
-        DESTINATION share/openvino/samples/cpp/thirdparty
+        DESTINATION share/openvino${OpenVINO_VERSION}/samples/cpp/thirdparty
         COMPONENT ${OV_COMP_CPP_SAMPLES}
         USE_SOURCE_PERMISSIONS)

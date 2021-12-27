@@ -127,13 +127,13 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
-    INSTALL_DESTINATION ${IE_CPACK_LIBRARY_PATH}/openvino/cmake)
+    INSTALL_DESTINATION ${IE_CPACK_LIBRARY_PATH}/cmake/ngraph${OpenVINO_VERSION})
 
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-    VERSION ${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}
+    VERSION ${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}
     COMPATIBILITY SameMajorVersion)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}/openvino/cmake
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}/cmake/ngraph${OpenVINO_VERSION}
         COMPONENT core_dev)

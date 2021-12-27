@@ -4,6 +4,7 @@
 
 include(CMakeParseArguments)
 include(CPackComponent)
+include(GNUInstallDirs)
 
 #
 # ie_cpack_set_library_dir()
@@ -17,10 +18,9 @@ function(ie_cpack_set_library_dir)
         set(IE_CPACK_ARCHIVE_PATH lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
     else()
         if(CPACK_GENERATOR STREQUAL "DEB")
-            # TODO: support other architectures
-            set(IE_CPACK_LIBRARY_PATH lib/x86_64-linux-gnu PARENT_SCOPE)
-            set(IE_CPACK_RUNTIME_PATH lib/x86_64-linux-gnu PARENT_SCOPE)
-            set(IE_CPACK_ARCHIVE_PATH lib/x86_64-linux-gnu PARENT_SCOPE)
+            set(IE_CPACK_LIBRARY_PATH ${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE} PARENT_SCOPE)
+            set(IE_CPACK_RUNTIME_PATH ${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE} PARENT_SCOPE)
+            set(IE_CPACK_ARCHIVE_PATH ${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE} PARENT_SCOPE)
         else()
             set(IE_CPACK_LIBRARY_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
             set(IE_CPACK_RUNTIME_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
@@ -116,7 +116,7 @@ macro(ie_cpack)
         set(CPACK_STRIP_FILES ON)
     endif()
 
-    string(REPLACE "/" "_" CPACK_PACKAGE_VERSION "2022.1.1")
+    string(REPLACE "/" "_" CPACK_PACKAGE_VERSION "${OpenVINO_VERSION}")
     if(WIN32)
         set(CPACK_PACKAGE_NAME openvino_${CMAKE_BUILD_TYPE})
     else()
@@ -124,8 +124,8 @@ macro(ie_cpack)
     endif()
 
     foreach(ver MAJOR MINOR PATCH)
-        if(DEFINED IE_VERSION_${ver})
-            set(CPACK_PACKAGE_VERSION_${ver} ${IE_VERSION_${ver}})
+        if(DEFINED OpenVINO_VERSION_${ver})
+            set(CPACK_PACKAGE_VERSION_${ver} ${OpenVINO_VERSION_${ver}})
         endif()
     endforeach()
 
@@ -398,10 +398,10 @@ macro(ie_cpack)
             set(package_name "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
 
             # copyright
-            install(FILES "${OpenVINO_SOURCE_DIR}/LICENSE"
-                    DESTINATION share/doc/${package_name}/
-                    COMPONENT ${comp}
-                    RENAME copyright)
+            # install(FILES "${OpenVINO_SOURCE_DIR}/LICENSE"
+            #         DESTINATION share/doc/${package_name}/
+            #         COMPONENT ${comp}
+            #         RENAME copyright)
 
             # TODO: install changelog
 

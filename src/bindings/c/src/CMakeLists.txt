@@ -31,7 +31,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 # export
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c
-                                                SOVERSION 2022.1.1)
+                                                SOVERSION ${OpenVINO_VERSION})
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
