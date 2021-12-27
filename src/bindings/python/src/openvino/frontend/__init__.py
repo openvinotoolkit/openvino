@@ -44,6 +44,7 @@ from openvino.pyopenvino import Place
 from openvino.pyopenvino import TelemetryExtension
 from openvino.pyopenvino import DecoderTransformationExtension
 from openvino.pyopenvino import JsonConfigExtension
+from openvino.pyopenvino import ConversionExtensionBase
 from openvino.pyopenvino import ConversionExtension
 
 # exceptions

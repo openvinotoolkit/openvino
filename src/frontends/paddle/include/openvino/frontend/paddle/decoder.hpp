@@ -34,6 +34,7 @@ public:
 
     virtual std::vector<OutPortName> get_output_names() const = 0;
 
+    /// \brief Get the output size
     virtual size_t get_output_size() const = 0;
 
     /// \brief Get output port type
@@ -47,6 +48,7 @@ public:
     /// \return Type of specified output port
     virtual ov::element::Type get_out_port_type(const std::string& port_name) const = 0;
 
+    /// \brief Get the type of the operation
     virtual std::string get_op_type() const = 0;
 };
 }  // namespace paddle
