@@ -544,22 +544,6 @@ private:
         broadcast_d(0x3f000000);   // 0.5f
         dw(0x0001);
     }
-
-    void uni_vmovshdup(const Xbyak::Xmm &x, const Xbyak::Xmm &y) {
-        if (mayiuse(cpu::x64::avx))
-            vmovshdup(x, y);
-        else
-            movshdup(x, y);
-    }
-
-    void uni_vmovhlps(const Xbyak::Xmm &x, const Xbyak::Xmm &y, const Xbyak::Xmm &z) {
-        if (mayiuse(cpu::x64::avx)) {
-            vmovhlps(x, y, z);
-        } else {
-            if (x.getIdx() != y.getIdx()) uni_vmovups(x, y);
-            movhlps(x, z);
-        }
-    }
 };
 
 bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
