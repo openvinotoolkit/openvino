@@ -92,10 +92,37 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroin
     }
 }
 
-void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const {
-    MKLDNNReorderNode::reorderData(src, *this, size);
+void MKLDNNMemory::SetData(const MKLDNNMemory& src, bool ftz, bool dynBatch) const {
+    if (dynBatch) {
+        const auto srcBatch = src.getStaticDims()[0];
+        const auto dstBatch = this->getStaticDims()[0];
+
+        auto tmpMem = MKLDNNMemory(eng);
+        if (srcBatch < dstBatch) {
+            auto newDims = this->getStaticDims();
+            newDims[0] = srcBatch;
+
+            auto newDesc = this->getDesc().cloneWithNewDims(newDims, true);
+            tmpMem.Create(newDesc, this->GetData(), false);
+
+            MKLDNNReorderNode::reorderData(src, tmpMem);
+        } else if (srcBatch > dstBatch) {
+            auto newDims = src.getStaticDims();
+            newDims[0] = dstBatch;
+
+            auto newDesc = src.getDesc().cloneWithNewDims(newDims, true);
+            tmpMem.Create(newDesc, src.GetData(), false);
+
+            MKLDNNReorderNode::reorderData(tmpMem, *this);
+        } else {
+            MKLDNNReorderNode::reorderData(src, *this);
+        }
+    } else {
+        MKLDNNReorderNode::reorderData(src, *this);
+    }
 
     if (ftz
+        && !dynBatch
         && src.GetDataType() == memory::data_type::f32
         && prim->get_desc().data.format_kind != dnnl_format_kind_wino
         // WA: to avoid zero filling auxiliary information

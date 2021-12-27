@@ -22,6 +22,7 @@
 #include <ie_system_conf.h>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ie_ngraph_utils.hpp>
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -82,6 +83,23 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         // check topology for applicability
         if (!CanProcessDynBatch(_network)) {
             IE_THROW() << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
+        }
+    }
+
+    // WA for inference dynamic batch cases in new API
+    if (isNewApi) {
+        int64_t maxBatchSize = -1;
+        if (canBeExecViaLegacyDynBatch(function, maxBatchSize)) {
+            IE_ASSERT(maxBatchSize > -1);
+            _cfg.canBeExecAsDynBatch = true;
+            upperBoundModel = ngraph::clone_function(*function);
+            std::map<ov::Output<ov::Node>, ov::PartialShape> newInShape;
+            for (const auto& in : upperBoundModel->get_parameters()) {
+                auto newShape = in->get_output_partial_shape(0);
+                newShape[0] = maxBatchSize;
+                newInShape[in] = newShape;
+            }
+            upperBoundModel->reshape(newInShape);
         }
     }
 
@@ -164,7 +182,7 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
                     std::lock_guard<std::mutex> lock{_cfgMutex};
                     graphLock._graph.setConfig(_cfg);
                 }
-                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId]);
+                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId], upperBoundModel);
             } catch(...) {
                 exception = std::current_exception();
             }
@@ -339,6 +357,141 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
     return GetMetricLegacy(name, graph);
+}
+
+bool MKLDNNExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Model> function, int64_t& maxBatchSize) const {
+    maxBatchSize = -1;
+    auto isDynBatchWithUpperBound = [](const ov::PartialShape& shape) -> bool {
+        bool retVal = shape[0].is_dynamic() && shape[0].get_max_length() != -1;
+        for (size_t i = 1; i < shape.size(); i++) {
+            retVal = retVal && shape[i].is_static();
+        }
+        return retVal;
+    };
+
+    auto isValidParamsForDynBatchExec = [&maxBatchSize, &isDynBatchWithUpperBound](std::shared_ptr<const ov::Model> function) {
+        if (function->get_parameters().empty()) {
+            return false;
+        }
+
+        for (const auto& param : function->get_parameters()) {
+            const auto shape = param->get_output_partial_shape(0);
+            if (shape.rank().is_dynamic()) {
+                return false;
+            }
+
+            if (one_of(shape.rank().get_length(), 0, 1, 3)) {
+                return false;
+            } else {
+                if (maxBatchSize == -1) {
+                    maxBatchSize = shape[0].get_max_length();
+                }
+
+                if (!isDynBatchWithUpperBound(shape) || shape[0].get_max_length() != maxBatchSize) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    if (isValidParamsForDynBatchExec(function)) {
+        auto ops = function->get_ordered_ops();
+        for (auto op : ops) {
+            if (op->get_type_info() == ngraph::op::Constant::get_type_info_static()) {
+                continue;
+            }
+
+            auto type = TypeFromName(op->get_type_name());
+            if (!one_of(type, Input,
+                              Output,
+                              Convolution,
+                              Deconvolution,
+                              Lrn,
+                              Pooling,
+                              FullyConnected,
+                              MatMul,
+                              Softmax,
+                              Split,
+                              Concatenation,
+                              Eltwise,
+                              Reshape,
+                              Tile)) {
+                return false;
+            }
+
+            for (size_t i = 0; i < op->get_output_size(); i++) {
+                if (!isDynBatchWithUpperBound(op->get_output_partial_shape(i))) {
+                    return false;
+                }
+            }
+
+            if (type == Tile) {
+                const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
+                const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(tile->get_input_node_shared_ptr(1));
+
+                if (!(tile && repeatsNode && repeatsNode->cast_vector<int64_t>()[0] == 1)) {
+                    return false;
+                }
+            }
+
+            if (type == Reshape) {
+                const auto inShape = op->get_input_partial_shape(0);
+                const auto outShape = op->get_output_partial_shape(0);
+                if (isDynBatchWithUpperBound(inShape) && isDynBatchWithUpperBound(outShape)) {
+                    size_t inSize = 1, outSize = 1;
+                    for (size_t i = 1; i < inShape.size(); i++) {
+                        inSize *= inShape[i].get_length();
+                    }
+                    for (size_t i = 1; i < outShape.size(); i++) {
+                        outSize *= outShape[i].get_length();
+                    }
+
+                    if (inSize != outSize) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+
+            if (type == Split) {
+                const auto axis = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
+                if (!axis || axis->cast_vector<int64_t>()[0] == 0) {
+                    return false;
+                }
+            }
+
+            if (type == Concatenation) {
+                const auto concat = std::dynamic_pointer_cast<const ngraph::op::v0::Concat>(op);
+                if (!concat || concat->get_axis() == 0) {
+                    return false;
+                }
+            }
+
+            if (type == Softmax) {
+                const auto softmax = std::dynamic_pointer_cast<const ngraph::opset1::Softmax>(op);
+                if (!softmax || softmax->get_axis() == 0) {
+                    return false;
+                }
+            }
+
+            if ((type == MatMul || type == FullyConnected) &&
+                (op->get_input_node_ptr(1)->get_type_info() != ngraph::op::Constant::get_type_info_static() ||
+                    op->get_input_partial_shape(0).rank().get_length() < 2)) {
+                return false;
+            }
+
+            if (type == Eltwise && std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(op) &&
+                !(op->get_input_node_ptr(0)->get_type_info() == ngraph::op::Constant::get_type_info_static() ||
+                        op->get_input_node_ptr(1)->get_type_info() == ngraph::op::Constant::get_type_info_static())) {
+                    return false;
+            }
+        }
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {

@@ -48,7 +48,7 @@ public:
     template<typename NET>
     void CreateGraph(NET &network,
                      const MKLDNNExtensionManager::Ptr& extMgr,
-                     MKLDNNWeightsSharing::Ptr &w_cache);
+                     MKLDNNWeightsSharing::Ptr &w_cache, std::shared_ptr<ov::Model> upperBoundModel = nullptr);
 
     bool hasMeanImageFor(const std::string& name) {
         return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
@@ -57,7 +57,7 @@ public:
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
     void PullOutputData(InferenceEngine::BlobMap &out);
 
-    void Infer(MKLDNNInferRequestBase* request = nullptr, int batch = -1);
+    void Infer(MKLDNNInferRequestBase* request = nullptr);
 
     const std::vector<MKLDNNNodePtr>& GetNodes() const {
         return graphNodes;
@@ -219,8 +219,10 @@ protected:
 
     static mkldnn::engine eng;
 
-    void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr,
+                   std::shared_ptr<ov::Model> upperBoundModel);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr,
+                   std::shared_ptr<ov::Model> upperBoundModel = nullptr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
