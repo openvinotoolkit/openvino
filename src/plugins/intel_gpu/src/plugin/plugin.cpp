@@ -832,7 +832,6 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         }
         IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
     } else if (name == GPU_METRIC_KEY(MAX_BATCH_SIZE)) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
         const auto& config = _impl->m_configs.GetConfig(device_id);
         uint32_t n_streams = static_cast<uint32_t>(config.throughput_streams);
         uint64_t occupied_device_mem = 0;
