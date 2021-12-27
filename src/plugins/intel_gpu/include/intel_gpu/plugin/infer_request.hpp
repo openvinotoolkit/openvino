@@ -45,6 +45,7 @@ public:
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
+    void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr> &data) override;
 
     void SetBatch(int batch = -1) override;
     void SetGraph(std::shared_ptr<Graph> graph);
@@ -71,6 +72,8 @@ private:
     InferenceEngine::BlobMap _deviceOutputs;
     std::map<std::string, cldnn::primitive_id> inputsMap;
     std::map<std::string, cldnn::primitive_id> outputsMap;
+
+    std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> inputTensorsMap;
 
     bool m_useProfiling = false;
     bool m_useStreams = false;

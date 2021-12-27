@@ -12,7 +12,7 @@
 #include "pyopenvino/graph/axis_vector.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
 #include "pyopenvino/graph/coordinate_diff.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/node_factory.hpp"
 #include "pyopenvino/graph/node_input.hpp"

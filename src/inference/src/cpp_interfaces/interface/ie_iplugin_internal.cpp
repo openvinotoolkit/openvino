@@ -285,7 +285,13 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 }
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                                         const std::shared_ptr<ov::Model>& function) {
+                                         const std::shared_ptr<const ov::Model>& function) {
+    InferenceEngine::SetExeNetworkInfo(exeNetwork, function);
+    exeNetwork->SetPointerToPlugin(shared_from_this());
+}
+
+void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                       const std::shared_ptr<const ov::Model>& function) {
     OPENVINO_ASSERT(exeNetwork != nullptr);
     OPENVINO_ASSERT(function != nullptr);
 
@@ -317,6 +323,8 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         // after transformation pipeline is run
         new_param->set_element_type(
             InferenceEngine::details::convertPrecision(inputsInfo.at(new_param->get_friendly_name())->getPrecision()));
+        new_param->set_layout(param->get_layout());
+        new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
         new_param->validate_and_infer_types();
         const_params.emplace_back(new_param);
     }
@@ -333,12 +341,14 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         if (add_operation_names) {
             new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
         }
+        auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
+        OPENVINO_ASSERT(r, "Internal error. SetNetworkInfo failure casting output copy to Result");
+        r->set_layout(result->get_layout());
         const_results.emplace_back(new_result);
     }
 
     exeNetwork->setInputs(const_params);
     exeNetwork->setOutputs(const_results);
-    exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
 }  //  namespace InferenceEngine

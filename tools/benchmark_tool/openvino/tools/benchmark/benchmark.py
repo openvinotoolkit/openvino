@@ -61,11 +61,11 @@ class Benchmark:
         weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
         return self.core.read_model(model_filename, weights_filename)
 
-    def create_infer_requests(self, exe_network):
+    def create_infer_requests(self, compiled_model):
         if self.api_type == 'sync':
-            requests = [exe_network.create_infer_request()]
+            requests = [compiled_model.create_infer_request()]
         else:
-            requests = AsyncInferQueue(exe_network, self.nireq)
+            requests = AsyncInferQueue(compiled_model, self.nireq)
             self.nireq = len(requests)
         return requests
 
