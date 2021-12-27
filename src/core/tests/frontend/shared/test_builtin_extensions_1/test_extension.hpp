@@ -22,8 +22,8 @@ ov::OutputVector CustomTranslatorCommon_1(const ov::frontend::NodeContext& node)
 
 std::map<std::string, ov::OutputVector> CustomTranslatorCommon_2(const ov::frontend::NodeContext& node);
 
-ov::OutputVector CustomTranslatorTensorflow(const ov::frontend::tensorflow::NodeContext& node);
+ov::OutputVector CustomTranslatorTensorflow(const ov::frontend::NodeContext& node);
 
-ov::OutputVector CustomTranslatorONNX(const ov::frontend::onnx::NodeContext& node);
+ov::OutputVector CustomTranslatorONNX(const ov::frontend::NodeContext& node);
 
-std::map<std::string, ov::OutputVector> CustomTranslatorPaddle(const ov::frontend::paddle::NodeContext& node);
+std::map<std::string, ov::OutputVector> CustomTranslatorPaddle(const ov::frontend::NodeContext& node);

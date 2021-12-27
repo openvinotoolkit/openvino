@@ -13,7 +13,7 @@ using namespace ov::frontend;
 
 using TFConversionExtensionTest = FrontEndConversionExtensionTest;
 
-static const std::string translator_name = "NewCustomOp";
+static const std::string translator_name = "Relu";
 
 class TensorflowFrontendWrapper : public ov::frontend::tensorflow::FrontEnd {
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {

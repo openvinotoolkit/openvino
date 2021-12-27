@@ -14,13 +14,11 @@ namespace onnx {
 
 class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext {
 public:
+    using Ptr = std::shared_ptr<NodeContext>;
     explicit NodeContext(const Node& context);
     size_t get_input_size() const override;
-    size_t get_input_size(const std::string& name) const override;
 
     Output<ov::Node> get_input(int port_idx) const override;
-    Output<ov::Node> get_input(const std::string& port_name) const override;
-    Output<ov::Node> get_input(const std::string& port_name, int port_idx) const override;
 
     ov::Any get_attribute_as_any(const std::string& name) const override;
 

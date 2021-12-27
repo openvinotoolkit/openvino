@@ -14,13 +14,11 @@ class NodeContext;
 
 class OpValidationFailure : public ov::frontend::OpValidationFailure {
 public:
-    OpValidationFailure(const CheckLocInfo& check_loc_info,
-                        const paddle::NodeContext& node,
-                        const std::string& explanation)
+    OpValidationFailure(const CheckLocInfo& check_loc_info, const NodeContext& node, const std::string& explanation)
         : ov::frontend::OpValidationFailure(check_loc_info, get_error_msg_prefix_paddle(node), explanation) {}
 
 private:
-    static std::string get_error_msg_prefix_paddle(const paddle::NodeContext& node);
+    static std::string get_error_msg_prefix_paddle(const NodeContext& node);
 };
 }  // namespace paddle
 }  // namespace frontend

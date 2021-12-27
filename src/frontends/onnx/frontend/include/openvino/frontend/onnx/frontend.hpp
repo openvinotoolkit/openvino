@@ -17,6 +17,7 @@ namespace onnx {
 
 class ONNX_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
+    using Ptr = std::shared_ptr<FrontEnd>;
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override;
     void convert(const std::shared_ptr<ov::Model>& partially_converted) const override;
     std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override;

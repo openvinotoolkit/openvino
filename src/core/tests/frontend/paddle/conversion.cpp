@@ -12,7 +12,7 @@ using namespace ov::frontend;
 
 using PDPDConversionExtensionTest = FrontEndConversionExtensionTest;
 
-static const std::string translator_name = "NewCustomOp";
+static const std::string translator_name = "relu";
 
 class PaddleFrontendWrapper : public ov::frontend::paddle::FrontEnd {
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {

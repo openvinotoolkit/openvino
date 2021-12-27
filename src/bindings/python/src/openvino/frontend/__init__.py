@@ -39,10 +39,13 @@ if sys.platform == "win32":
 from openvino.pyopenvino import FrontEndManager
 from openvino.pyopenvino import FrontEnd
 from openvino.pyopenvino import InputModel
+from openvino.pyopenvino import NodeContext
 from openvino.pyopenvino import Place
 from openvino.pyopenvino import TelemetryExtension
 from openvino.pyopenvino import DecoderTransformationExtension
 from openvino.pyopenvino import JsonConfigExtension
+from openvino.pyopenvino import ConversionExtensionBase
+from openvino.pyopenvino import ConversionExtension
 
 # exceptions
 from openvino.pyopenvino import NotImplementedFailure

@@ -15,15 +15,15 @@ class ONNX_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
     ConversionExtension() = delete;
-    ConversionExtension(const std::string& op_type, const CreatorFunction& converter)
+    ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter)
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
-    const CreatorFunction& get_converter() {
+    const ov::frontend::CreatorFunction& get_converter() {
         return m_converter;
     }
 
 private:
-    CreatorFunction m_converter;
+    ov::frontend::CreatorFunction m_converter;
 };
 }  // namespace onnx
 }  // namespace frontend

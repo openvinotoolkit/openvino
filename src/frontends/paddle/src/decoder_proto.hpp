@@ -30,6 +30,8 @@ public:
 
     ov::Any get_attribute(const std::string& name) const override;
 
+    ov::Any convert_attribute(const ov::Any& data, const std::type_info& type_info) const override;
+
     std::vector<paddle::OutPortName> get_output_names() const override;
 
     size_t get_output_size() const override;

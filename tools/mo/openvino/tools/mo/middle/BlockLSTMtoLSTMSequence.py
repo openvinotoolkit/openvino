@@ -4,6 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.ops.LSTM import LSTM
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.utils.error import Error
@@ -182,9 +183,9 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
         weights = weights.transpose()
 
         weights_node.value = weights
-        weights_node.shape = np.array(weights.shape, dtype=np.int64)
+        weights_node.shape = int64_array(weights.shape)
         biases_node.value = biases
-        biases_node.shape = np.array(biases.shape, dtype=np.int64)
+        biases_node.shape = int64_array(biases.shape)
 
         attrs = dict(graph.get_edge_data(match['gather_1'].id, match['gather_1_data'].id)[0])
         attrs.update({'out': 2})

@@ -6,7 +6,7 @@
 #include <openvino/core/any.hpp>
 
 #include "decoder.hpp"
-#include "exceptions.hpp"
+#include "exception.hpp"
 #include "openvino/frontend/node_context.hpp"
 
 namespace ov {
@@ -16,10 +16,8 @@ namespace tensorflow {
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
 class NodeContext : public ov::frontend::NodeContext {
-    const DecoderBase& m_decoder;
-    const OutputVector& m_inputs;
-
 public:
+    using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const DecoderBase& decoder, const OutputVector& inputs)
         : ov::frontend::NodeContext(decoder.get_op_type()),
           m_decoder(decoder),
@@ -30,37 +28,37 @@ public:
         return m_inputs.size() >= port_index + 1;
     }
 
-    /// Returns exactly one input with a given name; throws if there is no inputs or
-    /// there are more than one input
     Output<Node> get_input(int port_index) const override {
         return m_inputs.at(port_index);
     }
 
-    /// Get a number of inputs
     size_t get_input_size() const override {
         return m_inputs.size();
     }
 
-    /// Get a node name
+    /// \brief Get a node name
     std::string get_name() const {
         return m_decoder.get_op_name();
     }
 
-    /// Get a decoder
+    /// \brief Get a decoder
     const DecoderBase* get_decoder() const {
         return &m_decoder;
     }
 
-protected:
     ov::Any get_attribute_as_any(const std::string& name) const override {
         auto res = m_decoder.get_attribute(name);
         FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
         return res;
     }
+
+private:
+    const DecoderBase& m_decoder;
+    const OutputVector& m_inputs;
 };
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
-using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
+using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 
 }  // namespace tensorflow
 }  // namespace frontend

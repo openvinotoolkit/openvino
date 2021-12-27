@@ -6,7 +6,7 @@
 #include "ngraph/compatibility.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/paddle/decoder.hpp"
-#include "openvino/frontend/paddle/exceptions.hpp"
+#include "openvino/frontend/paddle/exception.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
@@ -21,10 +21,8 @@ using NamedInputs = std::map<InPortName, OutputVector>;
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
 class NodeContext : public ov::frontend::NodeContext {
-    const DecoderBase& decoder;
-    const NamedInputs& name_map;
-
 public:
+    using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map)
         : ov::frontend::NodeContext(_decoder.get_op_type()),
           decoder(_decoder),
@@ -50,23 +48,12 @@ public:
         return name_map.at(name);
     }
 
-    /// Returns exactly one input with a given name; throws if there is no inputs or
-    /// there are more than one input
-    Output<Node> get_input(int port_index) const override {
-        return Output<Node>();
-    }
-
     Output<Node> get_input(const std::string& name, int idx) const override {
-        return Output<Node>();
-    }
-
-    /// Get a number of inputs
-    size_t get_input_size() const override {
-        return 0;
+        return name_map.at(name).at(idx);
     }
 
     size_t get_input_size(const std::string& name) const override {
-        return 0;
+        return name_map.at(name).size();
     }
 
     std::vector<OutPortName> get_output_names() const {
@@ -80,12 +67,19 @@ public:
     NamedOutputs default_single_output_mapping(const std::shared_ptr<Node>& node,
                                                const std::vector<OutPortName>& required_pdpd_out_names) const;
 
-protected:
     ov::Any get_attribute_as_any(const std::string& name) const override {
         auto res = decoder.get_attribute(name);
-        FRONT_END_GENERAL_CHECK(!res.empty(), "Attribute with name '", name, "' does not exist");
         return res;
     }
+
+private:
+    ov::Any apply_additional_conversion_rules(const ov::Any& any, const std::type_info& type_info) const override {
+        auto res = decoder.convert_attribute(any, type_info);
+        return res;
+    }
+
+    const DecoderBase& decoder;
+    const NamedInputs& name_map;
 };
 
 inline NamedOutputs NodeContext::default_single_output_mapping(

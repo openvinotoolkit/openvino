@@ -6,7 +6,7 @@
 
 #include <openvino/op/util/framework_node.hpp>
 
-#include "decoder.hpp"
+#include "decoder_proto.hpp"
 
 namespace ov {
 namespace frontend {

@@ -9,6 +9,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/frontend.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
@@ -17,10 +18,22 @@ namespace py = pybind11;
 
 using namespace ov::frontend::tensorflow;
 
-void regclass_frontend_tensorflow_FrontEnd(py::module m) {
-    py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
-    fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::tensorflow::FrontEnd";
+#define CHECK_RET(any, T)                   \
+    {                                       \
+        if ((any).is<T>())                  \
+            return py::cast((any).as<T>()); \
+    }
 
+void regclass_frontend_tensorflow_FrontEnd(py::module m) {
+    py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m,
+                                                        "FrontEndTensorflow",
+                                                        py::dynamic_attr(),
+                                                        py::module_local());
+    fem.doc() = "openvino.frontend.tensorflow.FrontEnd wraps ov::frontend::tensorflow::FrontEnd";
+
+    fem.def(py::init([]() {
+        return std::make_shared<FrontEnd>();
+    }));
     fem.def("convert",
             static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const ov::frontend::InputModel::Ptr&) const>(
                 &FrontEnd::convert),
@@ -46,11 +59,13 @@ void regclass_frontend_tensorflow_FrontEnd(py::module m) {
     });
 }
 
-void regclass_frontend_tensorflow_NodeContext(py::module m) {
-    py::class_<ov::frontend::tensorflow::NodeContext,
-               std::shared_ptr<ov::frontend::tensorflow::NodeContext>,
-               ov::frontend::NodeContext>
-        ext(m, "NodeContext", py::dynamic_attr());
-}
+void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
+    py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> ext(
+        m,
+        "ConversionExtensionTensorflow",
+        py::dynamic_attr());
 
-void regclass_frontend_tensorflow_ConversionExtension(py::module m) {}
+    ext.def(py::init([](const std::string& op_type, const ov::frontend::CreatorFunction& f) {
+        return std::make_shared<ConversionExtension>(op_type, f);
+    }));
+}

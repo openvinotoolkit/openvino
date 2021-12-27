@@ -50,7 +50,9 @@ endif()
 
 # create target
 
-file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp
+        frontend/onnx/*.cpp frontend/tensorflow/*.cpp frontend/paddle/*.cpp
+        pyopenvino.cpp)
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 

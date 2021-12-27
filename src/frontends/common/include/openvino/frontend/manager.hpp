@@ -22,7 +22,8 @@ using FrontEndFactory = std::function<FrontEnd::Ptr()>;
 /// frontends This is a main frontend entry point for client applications
 class FRONTEND_API FrontEndManager final {
 public:
-    /*/ \brief Default constructor. Searches and loads of available frontends*/ FrontEndManager();
+    /// \brief Default constructor. Searches and loads of available frontends
+    FrontEndManager();
 
     /// \brief Default move constructor
     FrontEndManager(FrontEndManager&&) noexcept;

@@ -10,8 +10,9 @@
 #include <openvino/frontend/frontend.hpp>
 #include <openvino/frontend/input_model.hpp>
 
-#include "openvino/frontend/paddle/exceptions.hpp"
+#include "openvino/frontend/paddle/exception.hpp"
 #include "openvino/frontend/paddle/extension/conversion.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
@@ -22,6 +23,7 @@ class OpPlace;
 
 class PADDLE_API FrontEnd : public ov::frontend::FrontEnd {
 public:
+    using Ptr = std::shared_ptr<FrontEnd>;
     FrontEnd();
 
     /// \brief Completely convert the remaining, not converted part of a function.

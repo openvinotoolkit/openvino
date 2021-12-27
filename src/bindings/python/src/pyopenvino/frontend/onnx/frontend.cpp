@@ -9,6 +9,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
@@ -17,10 +18,18 @@ namespace py = pybind11;
 
 using namespace ov::frontend::onnx;
 
-void regclass_frontend_onnx_FrontEnd(py::module m) {
-    py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
-    fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::onnx::FrontEnd";
+#define CHECK_RET(any, T)                   \
+    {                                       \
+        if ((any).is<T>())                  \
+            return py::cast((any).as<T>()); \
+    }
 
+void regclass_frontend_onnx_FrontEnd(py::module m) {
+    py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEndONNX", py::dynamic_attr(), py::module_local());
+    fem.doc() = "openvino.frontend.onnx.FrontEnd wraps ov::frontend::onnx::FrontEnd";
+    fem.def(py::init([]() {
+        return std::make_shared<FrontEnd>();
+    }));
     fem.def("convert",
             static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const ov::frontend::InputModel::Ptr&) const>(
                 &FrontEnd::convert),
@@ -42,11 +51,13 @@ void regclass_frontend_onnx_FrontEnd(py::module m) {
     });
 }
 
-void regclass_frontend_onnx_NodeContext(py::module m) {
-    py::class_<ov::frontend::onnx::NodeContext,
-               std::shared_ptr<ov::frontend::onnx::NodeContext>,
-               ov::frontend::NodeContext>
-        ext(m, "NodeContext", py::dynamic_attr());
-}
+void regclass_frontend_onnx_ConversionExtension(py::module m) {
+    py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> ext(
+        m,
+        "ConversionExtensionONNX",
+        py::dynamic_attr());
 
-void regclass_frontend_onnx_ConversionExtension(py::module m) {}
+    ext.def(py::init([](const std::string& op_type, const ov::frontend::CreatorFunction& f) {
+        return std::make_shared<ConversionExtension>(op_type, f);
+    }));
+}

@@ -22,12 +22,19 @@ public:
     /// \brief Get attribute value by name and requested type
     ///
     /// \param name Attribute name
-    /// \param type_info Attribute type information
     /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
     virtual ov::Any get_attribute(const std::string& name) const = 0;
 
+    /// \brief Applies additional conversion rules to the data based on type_info
+    ///
+    /// \param data Data
+    /// \param type_info Attribute type information
+    /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
+    virtual ov::Any convert_attribute(const ov::Any& data, const std::type_info& type_info) const = 0;
+
     virtual std::vector<OutPortName> get_output_names() const = 0;
 
+    /// \brief Get the output size
     virtual size_t get_output_size() const = 0;
 
     /// \brief Get output port type
@@ -41,6 +48,7 @@ public:
     /// \return Type of specified output port
     virtual ov::element::Type get_out_port_type(const std::string& port_name) const = 0;
 
+    /// \brief Get the type of the operation
     virtual std::string get_op_type() const = 0;
 };
 }  // namespace paddle

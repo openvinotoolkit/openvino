@@ -39,7 +39,7 @@ ov::Any DecoderProto::get_native_attribute(const std::string& name) const {
     case ::tensorflow::AttrValue::ValueCase::kType:
         return attrs[0].type();
     default:
-        FRONT_END_GENERAL_CHECK(false, "Data type is not covered.");
+        FRONT_END_GENERAL_CHECK(false, "DataType is not covered.");
     }
 }
 
@@ -104,15 +104,14 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
 
         if (list.tensor_size() || list.func_size())
-            FRONT_END_GENERAL_CHECK(false,
-                                    "Conversion from tensorflow data type to openvino data type is not supported.");
+            FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type is not supported.");
     }
 
     case ::tensorflow::AttrValue::ValueCase::kTensor:
     case ::tensorflow::AttrValue::ValueCase::kPlaceholder:
     case ::tensorflow::AttrValue::ValueCase::kFunc:
     default:
-        FRONT_END_GENERAL_CHECK(false, "Conversion from tensorflow data type to openvino data type is not supported.");
+        FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type is not supported.");
     }
 }
 

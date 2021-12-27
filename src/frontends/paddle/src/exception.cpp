@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/tensorflow/exceptions.hpp"
+#include "openvino/frontend/paddle/exception.hpp"
 
-#include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
-namespace tensorflow {
-std::string OpValidationFailure::get_error_msg_prefix_tf(const NodeContext& node) {
+namespace paddle {
+std::string OpValidationFailure::get_error_msg_prefix_paddle(const paddle::NodeContext& node) {
     std::stringstream ss;
     ss << "While validating node '" << node.get_op_type() << '\'';
     return ss.str();
 }
-}  // namespace tensorflow
+}  // namespace paddle
 }  // namespace frontend
 }  // namespace ov

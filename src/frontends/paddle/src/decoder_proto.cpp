@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "decoder.hpp"
+#include "decoder_proto.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -21,7 +21,7 @@ namespace paddle {
 
 using namespace ::paddle::framework;
 
-std::map<::paddle::framework::proto::VarType_Type, ov::element::Type> TYPE_MAP{
+std::map<proto::VarType_Type, ov::element::Type> TYPE_MAP{
     {proto::VarType_Type::VarType_Type_BOOL, ov::element::boolean},
     {proto::VarType_Type::VarType_Type_INT16, ov::element::i16},
     {proto::VarType_Type::VarType_Type_INT32, ov::element::i32},
@@ -65,9 +65,16 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     case proto::AttrType::BLOCKS:
         return std::vector<std::int32_t>(attrs[0].blocks_idx().begin(), attrs[0].blocks_idx().end());
     default:
-        // Type is not supported by decoder
-        return {};
+        FRONT_END_GENERAL_CHECK(false, "Conversion from PaddlePaddle to OpenVINO data type is not supported.");
     }
+}
+
+ov::Any DecoderProto::convert_attribute(const Any& data, const std::type_info& type_info) const {
+    if (data.is<int32_t>() && type_info == typeid(ov::element::Type)) {
+        return TYPE_MAP.at(static_cast<proto::VarType_Type>(data.as<int32_t>()));
+    }
+    // no conversion rules found.
+    return data;
 }
 
 std::vector<paddle::OutPortName> DecoderProto::get_output_names() const {
