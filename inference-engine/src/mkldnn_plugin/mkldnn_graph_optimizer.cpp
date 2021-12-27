@@ -1640,7 +1640,8 @@ void MKLDNNGraphOptimizer::HorizontalReorderFusion(MKLDNNNodePtr& node, MKLDNNGr
         if (edge->getChild()->getType() != Reorder)
             continue;
         const auto reorder = edge->getChild();
-        if (!reorder->isExecutable())
+        const auto reorderPtr = dynamic_cast<MKLDNNReorderNode*>(reorder.get());
+        if (!reorderPtr || !reorderPtr->getIsOptimized())
             continue;
 
         auto key = MKLDNNReorderNode::getReorderArgs(edge->getInputDesc(), reorder->getChildEdgeAt(0)->getOutputDesc());
@@ -1666,8 +1667,9 @@ void MKLDNNGraphOptimizer::HorizontalReorderFusion(MKLDNNNodePtr& node, MKLDNNGr
             for (auto childEdge : reorderNode->getChildEdges()) {
                 auto reorderChildEdge = childEdge.lock();
                 auto reorderChild = reorderChildEdge->getChild();
+                const auto reorderPtr = dynamic_cast<MKLDNNReorderNode*>(reorderChild.get());
                 if (!firstReorderOutputDesc.isCompatible(reorderChildEdge->getOutputDesc()) ||
-                    !reorderChild->isExecutable()) {
+                    !reorderPtr || !reorderPtr->getIsOptimized()) {
                     canRemove = false;
                     continue;
                 }
