@@ -83,7 +83,7 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
-    auto st = config.get<DisableMXBootOption>();
+    auto st = config.get<DisableMXBootOption>() == true;
     if (st) {
         return ncStatus_t(st);
     }
