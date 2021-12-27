@@ -230,7 +230,42 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Outp
     if (!constant_ptr->get_all_data_elements_bitwise_identical()) {
         return false;
     }
-    float actual_const = constant_ptr->cast_vector<float>()[0];
+    float actual_const = 0;
+    const void* data_ptr = constant_ptr->get_data_ptr();
+    switch (constant_ptr->get_element_type()) {
+        case element::f32:
+            actual_const = reinterpret_cast<const float*>(data_ptr)[0];
+            break;
+        case element::i32:
+            actual_const = static_cast<float>(reinterpret_cast<const int32_t*>(data_ptr)[0]);
+            break;
+        case element::u32:
+            actual_const = static_cast<float>(reinterpret_cast<const uint32_t*>(data_ptr)[0]);
+            break;
+        case element::i64:
+            actual_const = static_cast<float>(reinterpret_cast<const int64_t*>(data_ptr)[0]);
+            break;
+        case element::u64:
+            actual_const = static_cast<float>(reinterpret_cast<const uint64_t*>(data_ptr)[0]);
+            break;
+        case element::i8:
+            actual_const = static_cast<float>(reinterpret_cast<const int8_t*>(data_ptr)[0]);
+            break;
+        case element::u8:
+            actual_const = static_cast<float>(reinterpret_cast<const uint8_t*>(data_ptr)[0]);
+            break;
+        case element::i16:
+            actual_const = static_cast<float>(reinterpret_cast<const int16_t*>(data_ptr)[0]);
+            break;
+        case element::u16:
+            actual_const = static_cast<float>(reinterpret_cast<const uint16_t*>(data_ptr)[0]);
+            break;
+        case element::f64:
+            actual_const = static_cast<float>(reinterpret_cast<const double*>(data_ptr)[0]);
+            break;
+        default:
+            return false;
+    }
     float expected_const = 0;
     if (is_type<opset8::Multiply>(eltwise) ||
         is_type<opset8::Divide>(eltwise)) {

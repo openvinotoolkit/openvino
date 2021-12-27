@@ -858,19 +858,21 @@ struct TypeParams {
     bool can_fuse;
 };
 
-using EliminateEltwiseParams = std::tuple<ShapeParams, TypeParams>;
+using EliminateEltwiseParams = std::tuple<ShapeParams, TypeParams, element::Type>;
 
 class EliminateEltwiseTests: public testing::WithParamInterface<EliminateEltwiseParams>, virtual public TransformationTestsF {
     public:
         static std::string get_test_case_name(testing::TestParamInfo<EliminateEltwiseParams> info) {
             const auto& shape_params = std::get<0>(info.param);
             const auto& type_params = std::get<1>(info.param);
+            const auto& element_type = std::get<2>(info.param);
             std::ostringstream result;
             result << type_params.op_type
                    << "_input1=" << shape_params.shape1
                    << "_input2=" << shape_params.shape2
                    << "_swap_inputs=" << std::boolalpha << shape_params.swap_inputs
-                   << "_constant=" << type_params.constant_kind;
+                   << "_constant=" << type_params.constant_kind
+                   << "_type=" << element_type;
             return result.str();
         }
 };
@@ -879,12 +881,12 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
     auto params = GetParam();
     const auto& shape_params = std::get<0>(params);
     const auto& type_params = std::get<1>(params);
+    const auto& type = std::get<2>(params);
     const auto& shape1 = shape_params.shape1;
     const auto& shape2 = shape_params.shape2;
     bool swap_inputs = shape_params.swap_inputs;
     bool can_fuse = shape_params.can_fuse && type_params.can_fuse;
 
-    auto type = element::f32;
     auto parameter = make_shared<op::Parameter>(type, shape1);
     std::shared_ptr<Node> constant;
     switch (type_params.constant_kind) {
@@ -937,7 +939,9 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    if (type == element::f32) {
+        enable_accuracy_check();
+    }
 }
 
 std::vector<ShapeParams> shape_params = {
@@ -991,10 +995,19 @@ std::vector<TypeParams> type_params = {
     { EltwiseTypes::DIVIDE, ConstantKind::RANDOM, false },
 };
 
+std::vector<element::Type> types{
+    element::f32, element::f64,
+    element::i32, element::u32,
+    element::i64, element::u64,
+    element::i8, element::u8,
+    element::i16, element::u16,
+};
+
 INSTANTIATE_TEST_SUITE_P(EliminateEltwise, EliminateEltwiseTests,
                         ::testing::Combine(
                             ::testing::ValuesIn(shape_params),
-                            ::testing::ValuesIn(type_params)),
+                            ::testing::ValuesIn(type_params),
+                            ::testing::ValuesIn(types)),
                         EliminateEltwiseTests::get_test_case_name);
 
 
