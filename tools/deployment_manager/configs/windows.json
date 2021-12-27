@@ -85,7 +85,7 @@
     "python3.7": {
       "ui_name": "OpenVINO Python API for Python3.7",
       "group": ["python"],
-     "dependencies" : ["ie_core"],
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.7"
       ]
@@ -93,7 +93,7 @@
     "python3.8": {
       "ui_name": "OpenVINO Python API for Python3.8",
       "group": ["python"],
-     "dependencies" : ["ie_core"],
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.8"
       ]
@@ -101,7 +101,7 @@
     "python3.9": {
       "ui_name": "OpenVINO Python API for Python3.9",
       "group": ["python"],
-     "dependencies" : ["ie_core"],
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.9"
       ]

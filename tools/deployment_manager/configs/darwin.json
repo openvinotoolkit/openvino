@@ -31,7 +31,7 @@
     "cpu": {
       "ui_name": "Inference Engine Runtime for Intel(R) CPU",
       "group": ["ie"],
-      "dependencies" : ["ie_core"],
+      "dependencies" : ["ie_core"],,
       "files": [
         "runtime/lib/intel64/libov_intel_cpu_plugin.so"
       ]
@@ -39,7 +39,7 @@
     "vpu": {
       "ui_name": "Inference Engine Runtime for Intel(R) Movidius(tm) VPU",
       "group": ["ie"],
-      "dependencies" : ["ie_core"],
+      "dependencies" : ["ie_core"],,
       "files": [
         "runtime/lib/intel64/libmyriadPlugin.so",
         "runtime/lib/intel64/usb-ma2x8x.mvcmd",
@@ -49,7 +49,7 @@
     "python3.6": {
       "ui_name": "OpenVINO Python API for Python3.6",
       "group": ["python"],
-      "dependencies" : ["ie_core"]
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.6"
       ]
@@ -57,7 +57,7 @@
     "python3.7": {
       "ui_name": "OpenVINO Python API for Python3.7",
       "group": ["python"],
-      "dependencies" : ["ie_core"]
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.7"
       ]
@@ -65,7 +65,7 @@
     "python3.8": {
       "ui_name": "OpenVINO Python API for Python3.8",
       "group": ["python"],
-      "dependencies" : ["ie_core"]
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.8"
       ]
@@ -73,7 +73,7 @@
     "python3.9": {
       "ui_name": "OpenVINO Python API for Python3.9",
       "group": ["python"],
-      "dependencies" : ["ie_core"]
+      "dependencies" : ["ie_core"],
       "files": [
         "python/python3.9"
       ]
