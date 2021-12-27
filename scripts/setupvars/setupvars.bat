@@ -79,12 +79,12 @@ for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
 if "%pyversion_major%" equ "%PYTHON_VERSION_MAJOR%" (
    if "%pyversion_minor%" geq "%MIN_REQUIRED_PYTHON_VERSION_MINOR%" (
       if "%pyversion_minor%" leq "%MAX_SUPPORTED_PYTHON_VERSION_MINOR%" (
-         set check_pyversion=okay
+         set "check_pyversion=true"
       )
    )   
 )
 
-if not "%check_pyversion%"=="okay" (
+if not "%check_pyversion%"=="true" (
    echo Unsupported Python version. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR% ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
