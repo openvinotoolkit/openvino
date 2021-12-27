@@ -24,6 +24,13 @@ namespace InferenceEngine {
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_FORCE_RESET);
 
+/**
+ * @brief The flag to prevent IE from booting MX VPU.
+ * This is a plugin scope option and must be used with the plugin's SetConfig method
+ * The only possible values are:
+ *     CONFIG_VALUE(YES)
+ *     CONFIG_VALUE(NO) (default value)
+ */
 DECLARE_VPU_CONFIG(MYRIAD_DISABLE_MX_BOOT);
 
 /**

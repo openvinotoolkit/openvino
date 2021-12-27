@@ -25,8 +25,6 @@ namespace {
 
             {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(YES)}},
             {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO)}},
-            {{InferenceEngine::MYRIAD_DISABLE_MX_BOOT, CONFIG_VALUE(YES)}},
-            {{InferenceEngine::MYRIAD_DISABLE_MX_BOOT, CONFIG_VALUE(NO)}},
 
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_NONE)}},
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_ERROR)}},
