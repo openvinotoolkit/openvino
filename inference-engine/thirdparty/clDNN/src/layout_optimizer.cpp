@@ -326,10 +326,12 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         // Remove Reorder for Convolution: b_fs_yx_fsv32 (i8/u8) -> b_fs_yx_fsv16 (fp32/fp16)
         //                                 b_fs_yx_fsv16 (fp32/fp16) -> b_fs_yx_fsv32 (i8/u8)
         if (next.is_type<convolution>()) {
-            const bool fsv32_to_fsv16 = (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::b_fs_yx_fsv16 &&
-                    !data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_floating_point(next_dt));
-            const bool fsv16_to_fsv32 = (fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv32 &&
-                    data_type_traits::is_floating_point(prev_dt) && !data_type_traits::is_floating_point(next_dt));
+            const bool fsv32_to_fsv16 = (((fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::b_fs_yx_fsv16) ||
+                                          (fmt_prev == format::bs_fs_yx_bsv32_fsv32 && fmt_next == format::bs_fs_yx_bsv32_fsv16)) &&
+                                          !data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_floating_point(next_dt));
+            const bool fsv16_to_fsv32 = (((fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv32) ||
+                                          (fmt_prev == format::bs_fs_yx_bsv32_fsv16 && fmt_next == format::bs_fs_yx_bsv32_fsv32)) &&
+                                          data_type_traits::is_floating_point(prev_dt) && !data_type_traits::is_floating_point(next_dt));
             if (fsv32_to_fsv16 || fsv16_to_fsv32) {
                 auto& node = prev.get_users().front();
                 // Avoid to fuse padding reorder to previous onednn convolution
