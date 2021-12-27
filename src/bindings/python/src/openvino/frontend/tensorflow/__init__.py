@@ -36,5 +36,4 @@ if sys.platform == "win32":
 
 
 from openvino.pyopenvino import FrontEndTensorflow as FrontEnd
-from openvino.pyopenvino import NodeContextTensorflow as NodeContext
 from openvino.pyopenvino import ConversionExtensionTensorflow as ConversionExtension

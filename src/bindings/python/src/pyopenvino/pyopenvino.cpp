@@ -149,15 +149,12 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_ConversionExtension(m);
 
     regclass_frontend_onnx_FrontEnd(m);
-    regclass_frontend_onnx_NodeContext(m);
     regclass_frontend_onnx_ConversionExtension(m);
 
     regclass_frontend_tensorflow_FrontEnd(m);
-    regclass_frontend_tensorflow_NodeContext(m);
     regclass_frontend_tensorflow_ConversionExtension(m);
 
     regclass_frontend_paddle_FrontEnd(m);
-    regclass_frontend_paddle_NodeContext(m);
     regclass_frontend_paddle_ConversionExtension(m);
 
     regmodule_offline_transformations(m);

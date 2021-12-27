@@ -33,7 +33,7 @@ def test_tensorflow_conversion_extension_fe_wrapper():
     skip_if_frontend_is_disabled(TENSORFLOW_FRONTEND_NAME)
 
     from openvino.frontend.tensorflow import ConversionExtension
-    from openvino.frontend.tensorflow import NodeContext
+    from openvino.frontend import NodeContext
 
     fe = FrontEndWrapperTensorflow()
 
@@ -50,7 +50,7 @@ def test_paddle_conversion_extension_fe_wrapper():
     skip_if_frontend_is_disabled(PADDLE_FRONTEND_NAME)
 
     from openvino.frontend.paddle import ConversionExtension
-    from openvino.frontend.paddle import NodeContext
+    from openvino.frontend import NodeContext
 
     fe = FrontEndWrapperPaddle()
 
@@ -67,7 +67,7 @@ def test_onnx_conversion_extension():
 
     from openvino.frontend.onnx import FrontEnd
     from openvino.frontend.onnx import ConversionExtension
-    from openvino.frontend.onnx import NodeContext
+    from openvino.frontend import NodeContext
 
     fe = FrontEnd()
 
@@ -83,7 +83,7 @@ def test_paddle_conversion_extension():
 
     from openvino.frontend.paddle import FrontEnd
     from openvino.frontend.paddle import ConversionExtension
-    from openvino.frontend.paddle import NodeContext
+    from openvino.frontend import NodeContext
 
     fe = FrontEnd()
 
@@ -99,7 +99,7 @@ def test_tensorflow_conversion_extension():
 
     from openvino.frontend.tensorflow import FrontEnd
     from openvino.frontend.tensorflow import ConversionExtension
-    from openvino.frontend.tensorflow import NodeContext
+    from openvino.frontend import NodeContext
 
     fe = FrontEnd()
 

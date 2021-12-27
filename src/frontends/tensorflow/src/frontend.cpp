@@ -381,11 +381,13 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
-        m_op_translators.insert({common_conv_ext->get_op_type(), [=](const NodeContext& context) {
-                                     return common_conv_ext->get_converter()(context);
-                                 }});
+        m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return common_conv_ext->get_converter()(context);
+        };
     } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
-        m_op_translators.insert({tensorflow_conv_ext->get_op_type(), tensorflow_conv_ext->get_converter()});
+        m_op_translators[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
+            return tensorflow_conv_ext->get_converter()(context);
+        };
     }
 }

@@ -36,5 +36,4 @@ if sys.platform == "win32":
 
 
 from openvino.pyopenvino import FrontEndONNX as FrontEnd
-from openvino.pyopenvino import NodeContextONNX as NodeContext
 from openvino.pyopenvino import ConversionExtensionONNX as ConversionExtension

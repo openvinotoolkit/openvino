@@ -5,6 +5,7 @@
 #include <openvino/frontend/extension/conversion.hpp>
 #include <openvino/frontend/extension/decoder_transformation.hpp>
 #include <openvino/op/util/framework_node.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "conversion_extension.hpp"
 #include "utils.hpp"
@@ -35,17 +36,33 @@ inline std::string get_lib_path(const std::string& lib_name) {
 
 TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
     auto frontend = m_param.m_frontend;
+    bool invoked = false;
     if (m_param.m_frontEndName == "paddle") {
         frontend->add_extension(std::make_shared<ConversionExtension>(
             m_param.m_translatorName,
             [&](const NodeContext& node) -> std::map<std::string, ov::OutputVector> {
-                return {};
+                auto relu = std::make_shared<ov::opset8::Relu>(node.get_input("X"));
+                invoked = true;
+                return {{"Out", {relu}}};
             }));
-    } else {
+    } else if (m_param.m_frontEndName == "tf") {
         frontend->add_extension(
             std::make_shared<ConversionExtension>(m_param.m_translatorName,
                                                   [&](const ov::frontend::NodeContext& node) -> ov::OutputVector {
-                                                      return {};
+                                                      invoked = true;
+                                                      auto ng_input = node.get_input(0);
+                                                      auto res = std::make_shared<ov::opset8::Relu>(ng_input);
+                                                      return {res};
+                                                  }));
+    } else if (m_param.m_frontEndName == "onnx") {
+        frontend->add_extension(
+            std::make_shared<ConversionExtension>(m_param.m_translatorName,
+                                                  [&](const ov::frontend::NodeContext& node) -> ov::OutputVector {
+                                                      invoked = true;
+                                                      auto a = node.get_input(0);
+                                                      auto b = node.get_input(1);
+                                                      auto res = std::make_shared<ov::opset8::Add>(a, b);
+                                                      return {res};
                                                   }));
     }
     std::shared_ptr<InputModel> input_model;
@@ -54,6 +71,7 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = frontend->convert(input_model));
     ASSERT_NE(model, nullptr);
+    EXPECT_EQ(invoked, true);
 }
 
 TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {

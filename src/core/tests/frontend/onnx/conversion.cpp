@@ -11,7 +11,7 @@ using namespace ov::frontend;
 
 using ONNXConversionExtensionTest = FrontEndConversionExtensionTest;
 
-static const std::string translator_name = "NewCustomOp";
+static const std::string translator_name = "Add";
 
 class ONNXFrontendWrapper : public ov::frontend::onnx::FrontEnd {
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
