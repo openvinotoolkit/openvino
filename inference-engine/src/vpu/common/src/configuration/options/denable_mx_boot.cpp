@@ -25,7 +25,7 @@ std::string DenableMXBootOption::key() {
 }
 
 details::Access DenableMXBootOption::access() {
-    return details::Access::Public;
+    return details::Access::Private;
 }
 
 details::Category DenableMXBootOption::category() {
