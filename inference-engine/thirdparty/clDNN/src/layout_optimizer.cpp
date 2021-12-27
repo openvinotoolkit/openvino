@@ -902,8 +902,6 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     if (use_onednn_impls) {
         std::function<bool(const program_node&)> has_any_convolutions_below;
         has_any_convolutions_below = [&](const program_node& node) -> bool {
-            if (node.get_users().empty())
-                return false;
             for (auto& usr : node.get_users()) {
                 if (usr->is_type<convolution>())
                     return true;
@@ -920,7 +918,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 
         if (i8_u8_input) {
             if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
-                if (input_layout.size.batch[0] % 16 == 0) {
+                if (input_layout.size.batch[0] >= 16) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
                     if (data_type_traits::is_floating_point(output_layout.data_type) &&

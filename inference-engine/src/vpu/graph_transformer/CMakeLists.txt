@@ -53,8 +53,8 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
 
     target_link_libraries(${TARGET_NAME}
         PUBLIC
-            ngraph
-            inference_engine_plugin_api
+            openvino::runtime
+            openvino::runtime::dev
         PRIVATE
             openvino::itt
     )
