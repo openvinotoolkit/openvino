@@ -1848,7 +1848,7 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
             std::string vs = vec_size > 1 ? toCodeString(vec_size)  : "";
             std::string block_read;
 
-            if (input_dt == Datatype::F32) {
+            if (input_dt == Datatype::F32 || input_dt == Datatype::INT32 || input_dt == Datatype::UINT32) {
                 block_read = CastToType(" intel_sub_group_block_read" + vs + "("
                                         + "(const __global uint*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
@@ -1868,10 +1868,10 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
                 return block_read;
             } else if (input_tensor.LogicalSize() > 1) {
                 // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
-                return Broadcast(block_read, input_dt, conf.vec_size);
+                return Broadcast(block_read, input_dt, vec_size);
             } else {
                 // Input has only one element, so broadcast it for the whole vector size
-                return Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, conf.vec_size);
+                return Broadcast(GetInputPtrName(input_id) + "[" + index_func_call + "]", input_dt, vec_size);
             }
         } else {
             if (vec_size > 1) {
