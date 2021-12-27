@@ -1,6 +1,17 @@
 GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU}
 =======
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API
+
+      
+@endsphinxdirective
+
 The GPU plugin uses the Intel® Compute Library for Deep Neural Networks (clDNN) to infer deep neural networks.
 clDNN is an open source performance library for Deep Learning (DL) applications intended for acceleration of Deep Learning Inference on Intel® Processor Graphics including Intel® HD Graphics, Intel® Iris® Graphics, Intel® Iris® Xe Graphics, and Intel® Iris® Xe MAX graphics.
 For an in-depth description of clDNN, see [Inference Engine source files](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/) and [Accelerate Deep Learning Inference with Intel® Processor Graphics](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
@@ -99,7 +110,6 @@ The plugin supports the configuration parameters listed below.
 All parameters must be set before calling <code>InferenceEngine::Core::LoadNetwork()</code> in order to take effect.
 When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
 
-
 | Parameter Name          | Parameter Values                | Default         | Description                                               |
 |---------------------|-----------------------------|-----------------|-----------------------------------------------------------|
 | `KEY_CACHE_DIR`      | `"<cache_dir>"`                    | `""`              | Specifies a directory where compiled OCL binaries can be cached. First model loading generates the cache, and all subsequent LoadNetwork calls use precompiled kernels which significantly improves load time. If empty - caching is disabled             |
@@ -131,6 +141,9 @@ When specifying key values as raw strings (that is, when using Python API), omit
 
 @snippet snippets/GPU_Metric1.cpp part1
 
+* OPTIMAL_BATCH_SIZE : Returns _optimal_ batch size for a given network on the given GPU device. The returned value is aligned to power of 2. Also, MODEL_PTR is the required option for this metric since the optimal batch size highly depends on the model. If the MODEL_PTR is not given, the value of 1 is returned. The example code to set the required and optional configs for this metric is available in the following snippet:
+
+@snippet snippets/GPU_Metric1.cpp part2
 ## GPU Context and Video Memory Sharing RemoteBlob API
 
 See [RemoteBlob API of GPU Plugin](GPU_RemoteBlob_API.md)
