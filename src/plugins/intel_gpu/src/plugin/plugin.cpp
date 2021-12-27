@@ -667,9 +667,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     std::string device_id = GetConfig(CONFIG_KEY(DEVICE_ID), options);
 
     auto iter = device_map.find(device_id);
-    auto device_info = iter != device_map.end() ?
-        iter->second->get_info() :
-        device_map.begin()->second->get_info();
+    auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
+    auto device_info = device->get_info();
 
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
@@ -899,8 +898,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
 
         InferenceEngine::CNNNetwork network(model);
         size_t base_batch_size = 16; // empirically decided for DG1
-        auto engine_params = Plugin::GetParams(config, iter->second, nullptr);
-        auto engine = cldnn::engine::create(engine_params.engine_type, engine_params.runtime_type, iter->second,
+        auto engine_params = Plugin::GetParams(config, device, nullptr);
+        auto engine = cldnn::engine::create(engine_params.engine_type, engine_params.runtime_type, device,
                                 cldnn::engine_configuration(false, engine_params.queue_type, std::string(),
                                 config.queuePriority, config.queueThrottle, config.memory_pool_on,
                                 engine_params.use_unified_shared_memory, std::string(), config.throughput_streams),

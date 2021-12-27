@@ -14,9 +14,9 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct convert_color_params : public base_params {
     convert_color_params() : base_params(KernelType::CONVERT_COLOR) {}
-    color_format input_color_format;
-    color_format output_color_format;
-    memory_type mem_type;
+    color_format input_color_format = color_format::BGR;
+    color_format output_color_format = color_format::BGR;
+    memory_type mem_type = memory_type::buffer;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

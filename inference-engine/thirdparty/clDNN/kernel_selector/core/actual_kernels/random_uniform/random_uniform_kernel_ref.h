@@ -20,8 +20,8 @@ struct random_uniform_params: public base_params {
     }
 
     // operation attributes
-    uint64_t global_seed;
-    uint64_t op_seed;
+    uint64_t global_seed = 0;
+    uint64_t op_seed = 0;
 };
 
 /**

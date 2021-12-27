@@ -236,7 +236,11 @@ public:
     void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
         if (!_usm_host_blob)
             return nullptr;
-        return _usm_host_blob->get();
+        try {
+            return _usm_host_blob->get();
+        } catch (...) {
+            return nullptr;
+        }
     };
 
     /**
@@ -252,11 +256,15 @@ public:
     * @return Handle to the allocated resource
     */
     void* alloc(size_t size) noexcept override {
-        auto td = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, InferenceEngine::SizeVector{size}, InferenceEngine::Layout::C);
-        InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
-        _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
-        _usm_host_blob->allocate();
-        return _usm_host_blob->get();
+        try {
+            auto td = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, InferenceEngine::SizeVector{size}, InferenceEngine::Layout::C);
+            InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
+            _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
+            _usm_host_blob->allocate();
+            return _usm_host_blob->get();
+        } catch (...) {
+            return nullptr;
+        }
     }
 
     /**

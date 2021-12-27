@@ -185,28 +185,48 @@ void RemoteBlobImpl::unlock() const {
 }
 
 LockedMemory<void> RemoteBlobImpl::buffer() noexcept {
-    lock();
-    return LockedMemory<void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<void>(nullptr, nullptr, 0);
+    }
 }
 
 LockedMemory<const void> RemoteBlobImpl::cbuffer() const noexcept {
-    lock();
-    return LockedMemory<const void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<const void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<const void>(nullptr, nullptr, 0);
+    }
 }
 
 LockedMemory<void> RemoteBlobImpl::rwmap()noexcept {
-    lock();
-    return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<void>(nullptr, nullptr, 0);
+    }
 }
 
 LockedMemory<const void> RemoteBlobImpl::rmap() const noexcept {
-    lock();
-    return LockedMemory<const void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<const void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<const void>(nullptr, nullptr, 0);
+    }
 }
 
 LockedMemory<void> RemoteBlobImpl::wmap()noexcept {
-    lock();
-    return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<void>(nullptr, nullptr, 0);
+    }
 }
 
 void RemoteAllocator::regLockedBlob(void* handle, const RemoteBlobImpl* blob) {
