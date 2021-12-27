@@ -65,18 +65,21 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
 # --------------- OpenVINO runtime library dev ------------------------------
 
 add_library(${TARGET_NAME}_dev INTERFACE)
-target_include_directories(${TARGET_NAME}_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
-                                                        $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
-                                                        $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
-                                                        $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>
-                                                        )
+add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
+
+target_include_directories(${TARGET_NAME}_dev INTERFACE
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
+    $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(${TARGET_NAME}_dev INTERFACE
     $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} pugixml::static openvino::itt openvino::util)
-add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
+
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
+
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
 
 openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME}_dev)

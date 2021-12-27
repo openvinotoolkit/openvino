@@ -18,11 +18,13 @@ if(ENABLE_MYRIAD)
 
     if(DEFINED VPU_CLC_MA2X8X_ROOT)
         install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/custom_kernels/
-                DESTINATION ${IE_CPACK_LIBRARY_PATH}/vpu_custom_kernels
+                DESTINATION ${IE_CPACK_PLUGIN_PATH}/vpu_custom_kernels
                 COMPONENT myriad)
         install(DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu_custom_kernels/
-                DESTINATION ${IE_CPACK_LIBRARY_PATH}/vpu_custom_kernels
+                DESTINATION ${IE_CPACK_PLUGIN_PATH}/vpu_custom_kernels
                 COMPONENT myriad)
+
+        # TODO: custom installation
         install(DIRECTORY ${VPU_CLC_MA2X8X_ROOT}/
                 DESTINATION tools/cl_compiler
                 COMPONENT myriad

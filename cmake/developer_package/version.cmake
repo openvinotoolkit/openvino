@@ -26,7 +26,7 @@ function (commitHash VAR)
     set (${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)
 endfunction()
 
-macro(ie_parse_ci_build_number)
+macro(ov_parse_ci_build_number)
     set(OpenVINO_VERSION_BUILD 000)
     set(IE_VERSION_BUILD ${OpenVINO_VERSION_BUILD})
 
@@ -107,10 +107,10 @@ else()
     set(CI_BUILD_NUMBER "${custom_build}")
 endif()
 
-# provides Inference Engine version
+# provides OpenVINO version
 # 1. If CI_BUILD_NUMBER is defined, parses this information
-# 2. Otherwise, parses ie_version.hpp
-ie_parse_ci_build_number()
+# 2. Otherwise, parses openvino/core/version.hpp
+ov_parse_ci_build_number()
 
 macro (addVersionDefines FILE)
     set(__version_file ${FILE})
