@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v1 {
+namespace v2 {
 /// \brief SpaceToBatch permutes data tensor blocks of spatial data into batch
 /// dimension.
 ///
@@ -52,6 +52,6 @@ public:
 private:
     bool evaluate_space_to_batch(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
-}  // namespace v1
+}  // namespace v2
 }  // namespace op
 }  // namespace ov

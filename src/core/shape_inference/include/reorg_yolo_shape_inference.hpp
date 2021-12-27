@@ -10,14 +10,14 @@
 #include "utils.hpp"
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v2 {
 
 template <class T>
 void shape_infer(const ReorgYolo* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 1) && output_shapes.size() == 1);
     const auto& input_shape = input_shapes[0];
     auto& output_shape = output_shapes[0];
-    const auto & strides = op->get_strides();
+    const auto& strides = op->get_strides();
     if (input_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, input_shape.size() == 4, "[N, C, H, W] input shape is required.");
 
@@ -53,6 +53,6 @@ void shape_infer(const ReorgYolo* op, const std::vector<T>& input_shapes, std::v
         output_shape = ov::PartialShape::dynamic(input_shape.rank());
     }
 }
-}  // namespace v0
+}  // namespace v2
 }  // namespace op
 }  // namespace ov

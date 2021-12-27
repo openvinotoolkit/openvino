@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Squeeze);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Squeeze);
 
 op::Squeeze::Squeeze() : Op() {}
 
@@ -32,17 +32,17 @@ op::Squeeze::Squeeze(const Output<Node>& data) : Op({data}) {
 }
 
 void op::Squeeze::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Squeeze_validate_and_infer_types);
+    NGRAPH_OP_SCOPE(v1_Squeeze_validate_and_infer_types);
     auto data = input_value(0);
     bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
     bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
     auto data_partial_shape = data.get_partial_shape();
 
-    std::shared_ptr<op::v0::Constant> axes_constant;
+    std::shared_ptr<op::v1::Constant> axes_constant;
     if (get_input_size() == 1) {
         // Handling the case when Squeeze op is created with a single input - data.
         // This way the following code (validation, shape inference) can be used in both cases.
-        axes_constant = make_shared<op::v0::Constant>(element::i64, ov::Shape{0}, vector<int64_t>{});
+        axes_constant = make_shared<op::v1::Constant>(element::i64, ov::Shape{0}, vector<int64_t>{});
     } else {
         auto axes_node = input_value(1).get_node_shared_ptr();
         auto axes_pshape = get_input_partial_shape(1);
@@ -119,13 +119,13 @@ void op::Squeeze::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), ov::PartialShape(output_data_shape));
 }
 
-bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Squeeze_visit_attributes);
+bool ov::op::v1::Squeeze::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_Squeeze_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v1_Squeeze_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 1) {
         return make_shared<Squeeze>(new_args.at(0));
@@ -207,8 +207,8 @@ bool evaluate_squeeze(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 }  // namespace
 }  // namespace squeeze
 
-bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate);
+bool ov::op::v1::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v1_Squeeze_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
@@ -219,8 +219,8 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensor
     return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
 }
 
-bool op::v0::Squeeze::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_has_evaluate);
+bool ov::op::v1::Squeeze::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v1_Squeeze_has_evaluate);
 
     if (get_input_size() == 2) {
         switch (get_input_element_type(1)) {
@@ -244,8 +244,8 @@ bool op::v0::Squeeze::has_evaluate() const {
     }
 }
 
-bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate_lower);
+bool ov::op::v1::Squeeze::evaluate_lower(const HostTensorVector& output_values) const {
+    NGRAPH_OP_SCOPE(v1_Squeeze_evaluate_lower);
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
 
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
@@ -253,8 +253,8 @@ bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) cons
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate_upper);
+bool ov::op::v1::Squeeze::evaluate_upper(const HostTensorVector& output_values) const {
+    NGRAPH_OP_SCOPE(v1_Squeeze_evaluate_upper);
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
 
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
@@ -262,21 +262,21 @@ bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) cons
     return default_upper_bound_evaluator(this, output_values);
 }
 
-bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    NGRAPH_OP_SCOPE(v0_Squeeze_constant_fold);
+bool ov::op::v1::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+    NGRAPH_OP_SCOPE(v1_Squeeze_constant_fold);
     if (get_output_partial_shape(0).is_dynamic()) {
         return false;
     }
 
     const auto& shape = get_output_shape(0);
 
-    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
+    if (auto data_const = std::dynamic_pointer_cast<op::v1::Constant>(inputs_values[0].get_node_shared_ptr())) {
+        output_values[0] = std::make_shared<op::v1::Constant>(*data_const, shape);
         return true;
     }
     return false;
 }
 
-bool op::v0::Squeeze::is_dynamic() const {
+bool ov::op::v1::Squeeze::is_dynamic() const {
     return get_output_partial_shape(0).is_dynamic();
 }

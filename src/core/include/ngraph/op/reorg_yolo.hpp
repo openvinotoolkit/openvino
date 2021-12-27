@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::ReorgYolo;
+using ov::op::v2::ReorgYolo;
 }  // namespace v0
 using v0::ReorgYolo;
 }  // namespace op

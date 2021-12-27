@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class OPENVINO_API Squeeze : public Op {
 public:
     OPENVINO_OP("Squeeze", "opset1");
@@ -37,6 +37,6 @@ public:
 private:
     Output<Node> get_default_axes_input() const;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

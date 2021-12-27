@@ -9,10 +9,10 @@
 
 namespace ngraph {
 namespace op {
-using PriorBoxClusteredAttrs = ov::op::v0::PriorBoxClustered::Attributes;
+using PriorBoxClusteredAttrs = ov::op::v1::PriorBoxClustered::Attributes;
 
 namespace v0 {
-using ov::op::v0::PriorBoxClustered;
+using ov::op::v1::PriorBoxClustered;
 }  // namespace v0
 using v0::PriorBoxClustered;
 }  // namespace op

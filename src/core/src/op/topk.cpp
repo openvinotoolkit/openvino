@@ -258,7 +258,7 @@ size_t op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
         k_element_type,
         ").");
 
-    const auto k_constant = ov::as_type_ptr<op::v0::Constant>(node);
+    const auto k_constant = ov::as_type_ptr<op::v1::Constant>(node);
 
     size_t k = 0;
 
@@ -280,7 +280,7 @@ size_t op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
 }
 
 template <typename T>
-size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::v0::Constant>& k_constant) const {
+size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::v1::Constant>& k_constant) const {
     const auto k_const_contents = k_constant->get_vector<T>();
 
     NODE_VALIDATION_CHECK(this,
@@ -322,7 +322,7 @@ size_t op::v1::TopK::get_k() const {
 }
 
 void op::v1::TopK::set_k(size_t k) {
-    this->input(1).replace_source_output(op::v0::Constant::create(element::i64, ov::Shape{}, {k})->output(0));
+    this->input(1).replace_source_output(op::v1::Constant::create(element::i64, ov::Shape{}, {k})->output(0));
 }
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -448,7 +448,7 @@ void op::v3::TopK::validate_and_infer_types() {
 
 size_t op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
                                                const element::Type& k_element_type) const {
-    const auto k_constant = ov::as_type_ptr<op::v0::Constant>(node);
+    const auto k_constant = ov::as_type_ptr<op::v1::Constant>(node);
 
     size_t k = 0;
 

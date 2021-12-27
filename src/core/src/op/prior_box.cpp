@@ -13,11 +13,11 @@
 #include "openvino/runtime/tensor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v0::PriorBox);
+BWDCMP_RTTI_DEFINITION(op::v1::PriorBox);
 
-op::v0::PriorBox::PriorBox(const Output<Node>& layer_shape,
+op::v1::PriorBox::PriorBox(const Output<Node>& layer_shape,
                            const Output<Node>& image_shape,
                            const PriorBox::Attributes& attrs)
     : Op({layer_shape, image_shape}),
@@ -25,8 +25,8 @@ op::v0::PriorBox::PriorBox(const Output<Node>& layer_shape,
     constructor_validate_and_infer_types();
 }
 
-void op::v0::PriorBox::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_PriorBox_validate_and_infer_types);
+void op::v1::PriorBox::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_PriorBox_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
@@ -68,13 +68,13 @@ void op::v0::PriorBox::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> op::v0::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_PriorBox_clone_with_new_inputs);
+shared_ptr<Node> op::v1::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_PriorBox_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-int64_t op::v0::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
+int64_t op::v1::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
     // Starting with 0 number of prior and then various conditions on attributes will contribute
     // real number of prior boxes as PriorBox is a fat thing with several modes of
     // operation that will be checked in order in the next statements.
@@ -103,7 +103,7 @@ int64_t op::v0::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
     return num_priors;
 }
 
-std::vector<float> op::v0::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
+std::vector<float> op::v1::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
         unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
@@ -114,8 +114,8 @@ std::vector<float> op::v0::PriorBox::normalized_aspect_ratio(const std::vector<f
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
 }
 
-bool op::v0::PriorBox::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_PriorBox_visit_attributes);
+bool op::v1::PriorBox::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_PriorBox_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("max_size", m_attrs.max_size);
     visitor.on_attribute("aspect_ratio", m_attrs.aspect_ratio);
@@ -137,7 +137,7 @@ template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
-              op::v0::PriorBox::Attributes attrs) {
+              op::v1::PriorBox::Attributes attrs) {
     op::v8::PriorBox::Attributes attrs_v8;
     attrs_v8.min_size = attrs.min_size;
     attrs_v8.max_size = attrs.max_size;
@@ -151,18 +151,18 @@ bool evaluate(const HostTensorPtr& arg0,
     attrs_v8.offset = attrs.offset;
     attrs_v8.variance = attrs.variance;
     attrs_v8.scale_all_sizes = attrs.scale_all_sizes;
-    runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
-                                  arg1->get_data_ptr<ET>(),
-                                  out->get_data_ptr<float>(),
-                                  out->get_shape(),
-                                  attrs_v8);
+    ngraph::runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
+                                          arg1->get_data_ptr<ET>(),
+                                          out->get_data_ptr<float>(),
+                                          out->get_shape(),
+                                          attrs_v8);
     return true;
 }
 
 bool evaluate_prior_box(const HostTensorPtr& arg0,
                         const HostTensorPtr& arg1,
                         const HostTensorPtr& out,
-                        const op::v0::PriorBox::Attributes& attrs) {
+                        const op::v1::PriorBox::Attributes& attrs) {
     bool rc = true;
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
@@ -182,13 +182,13 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
 }  // namespace
 }  // namespace prior_box
 
-bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_PriorBox_evaluate);
+bool op::v1::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v1_PriorBox_evaluate);
     return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
 
-bool op::v0::PriorBox::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_PriorBox_has_evaluate);
+bool op::v1::PriorBox::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v1_PriorBox_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
@@ -331,11 +331,11 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               op::v8::PriorBox::Attributes attrs) {
-    runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
-                                  arg1->get_data_ptr<ET>(),
-                                  out->get_data_ptr<float>(),
-                                  out->get_shape(),
-                                  attrs);
+    ngraph::runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
+                                          arg1->get_data_ptr<ET>(),
+                                          out->get_data_ptr<float>(),
+                                          out->get_shape(),
+                                          attrs);
     return true;
 }
 

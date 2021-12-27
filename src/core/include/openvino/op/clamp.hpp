@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Performs a clipping operation on all elements of the input node
 ///
 /// All input values that are outside of the <min;max> range are set to 'min' or 'max'
@@ -48,6 +48,6 @@ private:
     double m_min;
     double m_max;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

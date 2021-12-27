@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 // clang-format off
 /// \brief Elementwise Local Response Normalization (LRN) operation.
 ///
@@ -74,6 +74,6 @@ protected:
     double m_bias;
     size_t m_size;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

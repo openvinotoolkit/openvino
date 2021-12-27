@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset1");
@@ -50,7 +50,7 @@ private:
 
     double m_epsilon;
 };
-}  // namespace v0
+}  // namespace v1
 namespace v5 {
 class OPENVINO_API BatchNormInference : public Op {
 public:

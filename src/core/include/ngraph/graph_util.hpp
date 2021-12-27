@@ -21,18 +21,18 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class Parameter;
 class Result;
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov
 namespace ngraph {
 
 namespace op {
 namespace v0 {
-using ov::op::v0::Parameter;
-using ov::op::v0::Result;
+using ov::op::v1::Parameter;
+using ov::op::v1::Result;
 }  // namespace v0
 }  // namespace op
 

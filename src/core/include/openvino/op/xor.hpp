@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Elementwise logical-xor operation.
 ///
 class OPENVINO_API Xor : public util::BinaryElementwiseLogical {
@@ -39,6 +39,6 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

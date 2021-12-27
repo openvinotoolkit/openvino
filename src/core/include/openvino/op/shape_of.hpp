@@ -47,7 +47,7 @@ private:
 };
 }  // namespace v3
 
-namespace v0 {
+namespace v1 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 class OPENVINO_API ShapeOf : public Op {
 public:
@@ -72,6 +72,6 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

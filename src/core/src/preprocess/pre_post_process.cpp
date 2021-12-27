@@ -208,7 +208,7 @@ struct InputInfo::InputInfoImpl {
     InputTensorInfo m_tensor_info;
     PreProcessSteps m_preprocess;
     InputModelInfo m_model_data;
-    std::shared_ptr<op::v0::Parameter> m_resolved_param;
+    std::shared_ptr<op::v1::Parameter> m_resolved_param;
 };
 
 /// \brief OutputInfoImpl - internal data structure
@@ -373,7 +373,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         }
     }
     auto results = function->get_results();
-    auto parameters_list = std::list<std::shared_ptr<op::v0::Parameter>>(function->get_parameters().begin(),
+    auto parameters_list = std::list<std::shared_ptr<op::v1::Parameter>>(function->get_parameters().begin(),
                                                                          function->get_parameters().end());
 
     for (const auto& input_info : m_impl->m_inputs) {
@@ -432,13 +432,13 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         }
 
         std::vector<Output<Node>> nodes;
-        std::vector<std::shared_ptr<op::v0::Parameter>> new_params;
+        std::vector<std::shared_ptr<op::v1::Parameter>> new_params;
 
         // Create separate parameter for each plane. Shape is based on color format
         for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
             auto plane_shape = color_info->shape(plane, new_param_shape);
             auto plane_param =
-                std::make_shared<op::v0::Parameter>(input->get_tensor_data()->get_element_type(), plane_shape);
+                std::make_shared<op::v1::Parameter>(input->get_tensor_data()->get_element_type(), plane_shape);
             if (plane < input->get_tensor_data()->planes_sub_names().size()) {
                 std::unordered_set<std::string> plane_tensor_names;
                 std::string sub_name;
@@ -558,11 +558,11 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     // Post processing
     for (const auto& output_info : m_impl->m_outputs) {
         const auto& output = output_info.m_impl;
-        std::shared_ptr<op::v0::Result> result;
+        std::shared_ptr<op::v1::Result> result;
         Output<Node> node = output->m_output_node;
         auto start_out_node_names = node.get_tensor().get_names();
         node.get_tensor().set_names({});
-        result = std::dynamic_pointer_cast<op::v0::Result>(node.get_node_shared_ptr());
+        result = std::dynamic_pointer_cast<op::v1::Result>(node.get_node_shared_ptr());
         // Set result layout from 'model' information
         if (output->get_model_data()->is_layout_set()) {
             // Overwrite existing model's layout here (fix 74065)
@@ -610,7 +610,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
             result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
 
         // Create result
-        auto new_result = std::make_shared<ov::op::v0::Result>(node);
+        auto new_result = std::make_shared<ov::op::v1::Result>(node);
         new_result->set_friendly_name(result->get_friendly_name());
         node.get_tensor().set_names(start_out_node_names);
 

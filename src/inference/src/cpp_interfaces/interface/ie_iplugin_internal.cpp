@@ -315,7 +315,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
 
     for (const auto& param : function->get_parameters()) {
-        auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
+        auto new_param = ov::as_type_ptr<ov::op::v1::Parameter>(param->copy_with_new_inputs({}));
         new_param->set_friendly_name(param->get_friendly_name());
         if (add_operation_names)
             new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
@@ -329,7 +329,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
         const_params.emplace_back(new_param);
     }
     for (const auto& result : function->get_results()) {
-        auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
+        auto fake_param = std::make_shared<ov::op::v1::Parameter>(result->get_output_element_type(0),
                                                                   result->get_output_partial_shape(0));
         const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(param_name);
@@ -341,7 +341,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
         if (add_operation_names) {
             new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
         }
-        auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
+        auto r = std::dynamic_pointer_cast<ov::op::v1::Result>(new_result);
         OPENVINO_ASSERT(r, "Internal error. SetNetworkInfo failure casting output copy to Result");
         r->set_layout(result->get_layout());
         const_results.emplace_back(new_result);

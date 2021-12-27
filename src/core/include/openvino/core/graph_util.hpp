@@ -214,7 +214,7 @@ void replace_node(const std::shared_ptr<Node>& target, const std::shared_ptr<Nod
 ///      `body_replacement_map`, behavior is unspecified.
 OPENVINO_API
 void replace_nodes(const std::shared_ptr<Model>& f,
-                   const std::unordered_map<std::shared_ptr<op::v0::Parameter>, std::shared_ptr<op::v0::Parameter>>&
+                   const std::unordered_map<std::shared_ptr<op::v1::Parameter>, std::shared_ptr<op::v1::Parameter>>&
                        parameter_replacement_map,
                    const std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Node>>& body_replacement_map);
 

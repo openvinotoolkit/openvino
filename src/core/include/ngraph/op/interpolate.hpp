@@ -15,8 +15,8 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using InterpolateAttrs = ov::op::v0::Interpolate::Attributes;
-using ov::op::v0::Interpolate;
+using InterpolateAttrs = ov::op::v1::Interpolate::Attributes;
+using ov::op::v1::Interpolate;
 }  // namespace v0
 namespace v4 {
 using ov::op::v4::Interpolate;

@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::ReverseSequence;
+using ov::op::v1::ReverseSequence;
 }  // namespace v0
 using v0::ReverseSequence;
 }  // namespace op

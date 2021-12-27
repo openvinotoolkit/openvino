@@ -9,7 +9,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Layer which performs non-max suppression to
 /// generate detection output using location and confidence predictions
 class OPENVINO_API DetectionOutput : public op::util::DetectionOutputBase {
@@ -60,7 +60,7 @@ public:
 private:
     Attributes m_attrs;
 };
-}  // namespace v0
+}  // namespace v1
 
 namespace v8 {
 /// \brief Layer which performs non-max suppression to

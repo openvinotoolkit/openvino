@@ -9,13 +9,13 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-// ------------------------------ V0 ------------------------------
+// ------------------------------ V2 ------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v0::MVN);
+BWDCMP_RTTI_DEFINITION(op::v2::MVN);
 
-op::v0::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
+op::v2::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
     : Op({data}),
       m_eps{eps},
       m_across_channels{across_channels},
@@ -23,7 +23,7 @@ op::v0::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_
     constructor_validate_and_infer_types();
 }
 
-op::v0::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_variance, double eps)
+op::v2::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_variance, double eps)
     : Op({data}),
       m_eps{eps},
       m_across_channels{false},
@@ -34,8 +34,8 @@ op::v0::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normaliz
     m_across_channels = (m_reduction_axes.count(chanelAxis) > 0);
 }
 
-void op::v0::MVN::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_MVN_validate_and_infer_types);
+void op::v2::MVN::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v2_MVN_validate_and_infer_types);
     // if m_across_channels is true we should calculate mean and variance per batch
     // else we calculate these per channel
     if (m_reduction_axes.empty() && input_value(0).get_partial_shape().rank().is_static()) {
@@ -50,17 +50,17 @@ void op::v0::MVN::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v0::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_MVN_clone_with_new_inputs);
+shared_ptr<Node> op::v2::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v2_MVN_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 1,
                           "Expected 1 element in new_args for the MVN op but got ",
                           new_args.size());
-    return std::make_shared<op::v0::MVN>(new_args.at(0), m_reduction_axes, m_normalize_variance, m_eps);
+    return std::make_shared<op::v2::MVN>(new_args.at(0), m_reduction_axes, m_normalize_variance, m_eps);
 }
 
-bool op::v0::MVN::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_MVN_visit_attributes);
+bool op::v2::MVN::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v2_MVN_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("across_channels", m_across_channels);
     visitor.on_attribute("normalize_variance", m_normalize_variance);

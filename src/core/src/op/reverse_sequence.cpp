@@ -16,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::ReverseSequence);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::ReverseSequence);
 
 op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
                                      const Output<Node>& seq_indices,
@@ -30,15 +30,15 @@ op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_ReverseSequence_visit_attributes);
+bool ov::op::v1::ReverseSequence::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_ReverseSequence_visit_attributes);
     visitor.on_attribute("batch_axis", m_batch_axis);
     visitor.on_attribute("seq_axis", m_seq_axis);
     return true;
 }
 
 void op::ReverseSequence::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_ReverseSequence_validate_and_infer_types);
+    NGRAPH_OP_SCOPE(v1_ReverseSequence_validate_and_infer_types);
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& seq_lengths_et = get_input_element_type(1);
     const auto& seq_lengths_pshape = get_input_partial_shape(1);
@@ -54,7 +54,7 @@ void op::ReverseSequence::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_ReverseSequence_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v1_ReverseSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ReverseSequence>(new_args.at(0), new_args.at(1), m_batch_axis, m_seq_axis);
 }

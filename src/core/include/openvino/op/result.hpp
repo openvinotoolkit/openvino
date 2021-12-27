@@ -5,11 +5,12 @@
 #pragma once
 
 #include "openvino/core/layout.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class OPENVINO_API Result : public Op {
 public:
     OPENVINO_OP("Result", "opset1");
@@ -51,9 +52,8 @@ public:
     /// \param layout Layout to set. If empty (default constructed), layout runtime information is erased.
     void set_layout(const Layout& layout);
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
-using ResultVector = std::vector<std::shared_ptr<op::v0::Result>>;
 
 template <>
 class OPENVINO_API AttributeAdapter<ResultVector> : public VisitorAdapter {

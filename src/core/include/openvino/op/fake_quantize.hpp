@@ -9,7 +9,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 ///
 /// \brief      Class performing element-wise linear quantization.
 ///
@@ -79,6 +79,6 @@ private:
     std::size_t m_levels;
     AutoBroadcastSpec m_auto_broadcast = op::AutoBroadcastType::NUMPY;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

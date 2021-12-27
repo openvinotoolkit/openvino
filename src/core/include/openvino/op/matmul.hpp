@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Operator performing Matrix Multiplication.
 class OPENVINO_API MatMul : public Op {
 public:
@@ -53,6 +53,6 @@ private:
     bool m_transpose_a{false};
     bool m_transpose_b{false};
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

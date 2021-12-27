@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Dynamic Tiling operation which repeats a tensor multiple times
 ///        along each dimension
 class OPENVINO_API Tile : public Op {
@@ -36,6 +36,6 @@ public:
 private:
     bool evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

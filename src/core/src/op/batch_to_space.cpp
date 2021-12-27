@@ -22,14 +22,14 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v1::BatchToSpace);
+BWDCMP_RTTI_DEFINITION(op::v2::BatchToSpace);
 
-ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
-                                           const ngraph::Output<ngraph::Node>& block_shape,
-                                           const ngraph::Output<ngraph::Node>& crops_begin,
-                                           const ngraph::Output<ngraph::Node>& crops_end)
+ov::op::v2::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
+                                       const ngraph::Output<ngraph::Node>& block_shape,
+                                       const ngraph::Output<ngraph::Node>& crops_begin,
+                                       const ngraph::Output<ngraph::Node>& crops_end)
     : Op({data, block_shape, crops_begin, crops_end}) {
     ov::mark_as_precision_sensitive(input(1));
     ov::mark_as_precision_sensitive(input(2));
@@ -37,8 +37,8 @@ ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& d
     constructor_validate_and_infer_types();
 }
 
-void op::v1::BatchToSpace::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
+void op::v2::BatchToSpace::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v2_BatchToSpace_validate_and_infer_types);
 
     const auto& data_et = get_input_element_type(0);
     const auto& block_shape_et = get_input_element_type(1);
@@ -160,14 +160,14 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
     }
 }
 
-std::shared_ptr<ngraph::Node> ngraph::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_clone_with_new_inputs);
+std::shared_ptr<ngraph::Node> ov::op::v2::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v2_BatchToSpace_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<BatchToSpace>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_visit_attributes);
+bool ov::op::v2::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v2_BatchToSpace_visit_attributes);
     return true;
 }
 
@@ -242,12 +242,12 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
     for (size_t block_idx = 1; block_idx < block_values_size; ++block_idx) {
         dispersed_shape[0] = block_values[block_idx];
         dispersed_shape[1] /= block_values[block_idx];
-        runtime::opt_kernel::reshape(flat_data,
-                                     dispersed_data.data(),
-                                     data_shape,
-                                     plain_axes_order,
-                                     dispersed_shape,
-                                     elem_size);
+        ngraph::runtime::opt_kernel::reshape(flat_data,
+                                             dispersed_data.data(),
+                                             data_shape,
+                                             plain_axes_order,
+                                             dispersed_shape,
+                                             elem_size);
 
         size_t val = 1;
         for (size_t axis_idx = 0; axis_idx <= block_values_size; ++axis_idx) {
@@ -262,21 +262,21 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
             post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
         }
 
-        runtime::opt_kernel::reshape(dispersed_data.data(),
-                                     post_transpose_data.data(),
-                                     dispersed_shape,
-                                     axes_order,
-                                     post_transpose_shape,
-                                     elem_size);
+        ngraph::runtime::opt_kernel::reshape(dispersed_data.data(),
+                                             post_transpose_data.data(),
+                                             dispersed_shape,
+                                             axes_order,
+                                             post_transpose_shape,
+                                             elem_size);
         squeezed_shape[0] = dispersed_shape[1];
         squeezed_shape[block_idx] *= block_values[block_idx];
         dispersed_shape[block_idx + 1] = squeezed_shape[block_idx];
-        runtime::opt_kernel::reshape(post_transpose_data.data(),
-                                     flat_data,
-                                     post_transpose_shape,
-                                     plain_axes_order,
-                                     squeezed_shape,
-                                     elem_size);
+        ngraph::runtime::opt_kernel::reshape(post_transpose_data.data(),
+                                             flat_data,
+                                             post_transpose_shape,
+                                             plain_axes_order,
+                                             squeezed_shape,
+                                             elem_size);
         data_shape = squeezed_shape;
     }
 
@@ -292,29 +292,33 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
     begins.assign(crops_begin_values, crops_begin_values + shape_size(inputs[2]->get_shape()));
 
     std::vector<int64_t> default_strides(begins.size(), 1);
-    SlicePlan slice_plan = make_slice_plan(data_shape,
-                                           begins,
-                                           upperbounds_values,
-                                           default_strides,
-                                           begin_mask,
-                                           end_mask,
-                                           AxisSet(),
-                                           AxisSet(),
-                                           AxisSet());
-    runtime::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
+    ngraph::SlicePlan slice_plan = make_slice_plan(data_shape,
+                                                   begins,
+                                                   upperbounds_values,
+                                                   default_strides,
+                                                   begin_mask,
+                                                   end_mask,
+                                                   AxisSet(),
+                                                   AxisSet(),
+                                                   AxisSet());
+    ngraph::runtime::reference::strided_slice(flat_data,
+                                              outputs[0]->get_data_ptr<char>(),
+                                              data_shape,
+                                              slice_plan,
+                                              elem_size);
     return true;
 }
 }  // namespace
 
-bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_evaluate);
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 4));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+bool ov::op::v2::BatchToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v2_BatchToSpace_evaluate);
+    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 4));
+    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
     return batch_to_space_evaluate(outputs, inputs);
 }
 
-bool ngraph::op::v1::BatchToSpace::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace_has_evaluate);
+bool ov::op::v2::BatchToSpace::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v2_BatchToSpace_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic() && get_input_shape(0).size() >= 2 &&
            get_input_shape(0).size() <= shape_size(get_input_shape(1));
 }

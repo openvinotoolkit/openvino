@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::TensorIterator;
+using ov::op::v1::TensorIterator;
 }  // namespace v0
 using v0::TensorIterator;
 }  // namespace op

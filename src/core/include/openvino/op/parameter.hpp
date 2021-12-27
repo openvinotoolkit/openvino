@@ -9,7 +9,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief A function parameter.
 ///
 /// Parameters are nodes that represent the arguments that will be passed to
@@ -65,9 +65,9 @@ protected:
     element::Type m_element_type;
     bool m_is_relevant_to_shapes{false};
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
-using ParameterVector = std::vector<std::shared_ptr<op::v0::Parameter>>;
+using ParameterVector = std::vector<std::shared_ptr<op::v1::Parameter>>;
 
 template <>
 class OPENVINO_API AttributeAdapter<ParameterVector> : public VisitorAdapter {

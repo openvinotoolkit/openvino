@@ -220,8 +220,8 @@ ov::op::v8::If::OutputMap ov::op::v8::If::get_mapping_outputs_on_body_descriptio
 }
 
 void ov::op::v8::If::set_input(const Output<Node>& value,
-                               const std::shared_ptr<v0::Parameter>& then_parameter,
-                               const std::shared_ptr<v0::Parameter>& else_parameter) {
+                               const std::shared_ptr<v1::Parameter>& then_parameter,
+                               const std::shared_ptr<v1::Parameter>& else_parameter) {
     NGRAPH_CHECK(then_parameter != nullptr || else_parameter != nullptr,
                  "Missing parameters! Both parameters are nullptr!");
     auto then_param_index = m_bodies[THEN_BODY_INDEX]->get_parameter_index(then_parameter);
@@ -237,8 +237,8 @@ void ov::op::v8::If::set_input(const Output<Node>& value,
     set_invariant_inputs(value, {then_parameter, else_parameter});
 }
 
-ov::Output<ov::Node> ov::op::v8::If::set_output(const std::shared_ptr<v0::Result>& then_result,
-                                                const std::shared_ptr<v0::Result>& else_result) {
+ov::Output<ov::Node> ov::op::v8::If::set_output(const std::shared_ptr<v1::Result>& then_result,
+                                                const std::shared_ptr<v1::Result>& else_result) {
     NGRAPH_CHECK(then_result != nullptr, "Incorrect result in \"then_body\"! Result cant be \'nullptr\'");
     NGRAPH_CHECK(else_result != nullptr, "Incorrect result in \"else_body\"! Result cant be \'nullptr\'");
     auto then_result_id = m_bodies[THEN_BODY_INDEX]->get_result_index(then_result);

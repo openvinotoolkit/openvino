@@ -115,7 +115,7 @@ void range_shape_infer(const Node* op,
 }
 }  // namespace ShapeInferRange
 
-namespace v0 {
+namespace v1 {
 
 template <class T>
 void shape_infer(const Range* op,
@@ -130,7 +130,7 @@ void shape_infer(const Range* op,
                                        constant_data);
 }
 
-}  // namespace v0
+}  // namespace v1
 
 namespace v4 {
 

@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Permutes data in the channel dimension of the input
 class OPENVINO_API ShuffleChannels : public Op {
 public:
@@ -52,6 +52,6 @@ private:
     int64_t m_axis{1};
     int64_t m_group{1};
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

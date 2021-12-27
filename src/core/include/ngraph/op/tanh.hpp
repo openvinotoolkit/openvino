@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Tanh;
+using ov::op::v1::Tanh;
 }  // namespace v0
 using v0::Tanh;
 }  // namespace op

@@ -53,7 +53,7 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
                         "'convert_element_type' before scaling. Current type is: ",
                         element_type);
 
-        auto constant = op::v0::Constant::create(element_type, shape, values);
+        auto constant = op::v1::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
         set_is_preprocessing_node(new_op);
@@ -81,7 +81,7 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
                         "before scaling. Current type is: ",
                         element_type);
 
-        auto constant = op::v0::Constant::create(element_type, shape, values);
+        auto constant = op::v1::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
         set_is_preprocessing_node(new_op);
@@ -103,7 +103,7 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
             OPENVINO_ASSERT(node.get_element_type().is_static(),
                             "Can't insert 'convert_element_type' for dynamic source tensor type.");
             if (t != node.get_element_type()) {
-                auto convert = std::make_shared<op::v0::Convert>(node, t);
+                auto convert = std::make_shared<op::v1::Convert>(node, t);
                 res.emplace_back(convert);
             } else {
                 res.emplace_back(node);
@@ -153,11 +153,11 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
         int new_image_height = dst_height < 0 ? static_cast<int>(ctxt.get_model_height_for_resize()) : dst_height;
 
         auto target_spatial_shape =
-            op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {new_image_height, new_image_width});
-        auto scales = op::v0::Constant::create<float>(element::f32, Shape{2}, {1, 1});
+            op::v1::Constant::create<int64_t>(element::i64, Shape{2}, {new_image_height, new_image_width});
+        auto scales = op::v1::Constant::create<float>(element::f32, Shape{2}, {1, 1});
         // In future consider replacing this to set of new OV operations like `getDimByName(node, "H")`
         // This is to allow specifying layout on 'evaluation' stage
-        auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {height_idx, width_idx});
+        auto axes = op::v1::Constant::create<int64_t>(element::i64, Shape{2}, {height_idx, width_idx});
 
         op::v4::Interpolate::InterpolateAttrs attrs(to_mode(alg),
                                                     op::v4::Interpolate::ShapeCalcMode::SIZES,
@@ -186,7 +186,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
             }
             return std::make_tuple(nodes, false);
         }
-        auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
+        auto perm_constant = op::v1::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
         context.layout() = dst_layout;  // Update context's current layout
         // return false to avoid excess function revalidations as layout conversion
@@ -208,7 +208,7 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
                         "Can't convert layout for multi-plane input. Suggesting to convert current image to "
                         "RGB/BGR color format using 'convert_color'");
         auto new_layout = layout::utils::apply_permutation(context.layout(), dims);
-        auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
+        auto perm_constant = op::v1::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
         context.layout() = std::move(new_layout);  // Update context's current layout
         // return false to avoid excess function revalidations as layout conversion
@@ -389,12 +389,12 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
         if (shape[channels_idx].is_static()) {
             auto channels_count = shape[channels_idx].get_length();
             // Add range from constants
-            auto range_from = op::v0::Constant::create(element::i64, {}, {channels_count - 1});
-            auto range_to = op::v0::Constant::create(element::i64, {}, {-1});
-            auto range_step = op::v0::Constant::create(element::i64, {}, {-1});
+            auto range_from = op::v1::Constant::create(element::i64, {}, {channels_count - 1});
+            auto range_to = op::v1::Constant::create(element::i64, {}, {-1});
+            auto range_step = op::v1::Constant::create(element::i64, {}, {-1});
             auto range = std::make_shared<op::v4::Range>(range_from, range_to, range_step, element::i32);
 
-            auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
+            auto constant_axis = op::v1::Constant::create(element::i32, {1}, {channels_idx});
             auto convert = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
             return std::make_tuple(std::vector<Output<Node>>{convert}, false);
         }
@@ -402,24 +402,24 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
 
     auto channels_idx = ov::layout::channels_idx(context.layout());
     // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
-    auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}
+    auto shape_of = std::make_shared<ov::op::v1::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}
 
-    auto constant_chan_idx = op::v0::Constant::create(element::i32, {}, {channels_idx});  // E.g. 1
-    auto constant_chan_axis = op::v0::Constant::create(element::i32, {}, {0});
+    auto constant_chan_idx = op::v1::Constant::create(element::i32, {}, {channels_idx});  // E.g. 1
+    auto constant_chan_axis = op::v1::Constant::create(element::i32, {}, {0});
     // Gather will return scalar with number of channels (e.g. 3)
     auto gather_channels_num = std::make_shared<op::v8::Gather>(shape_of, constant_chan_idx, constant_chan_axis);
 
     // Create Range from channels_num-1 to 0 (e.g. {2, 1, 0})
-    auto const_minus1 = op::v0::Constant::create(element::i64, {}, {-1});
+    auto const_minus1 = op::v1::Constant::create(element::i64, {}, {-1});
     auto channels_num_minus1 = std::make_shared<op::v1::Add>(gather_channels_num, const_minus1);  // E.g. 3-1=2
     // Add range
-    auto range_to = op::v0::Constant::create(element::i64, {}, {-1});
-    auto range_step = op::v0::Constant::create(element::i64, {}, {-1});
+    auto range_to = op::v1::Constant::create(element::i64, {}, {-1});
+    auto range_step = op::v1::Constant::create(element::i64, {}, {-1});
     // E.g. {2, 1, 0}
     auto range = std::make_shared<op::v4::Range>(channels_num_minus1, range_to, range_step, element::i32);
 
     // Gather slices in reverse order (indexes are specified by 'range' operation)
-    auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
+    auto constant_axis = op::v1::Constant::create(element::i32, {1}, {channels_idx});
     auto gather = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
     return std::make_tuple(std::vector<Output<Node>>{gather}, false);
 }
@@ -455,7 +455,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
         OPENVINO_ASSERT(
             !t.is_dynamic() && t != element::undefined,
             "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
-        auto convert = std::make_shared<op::v0::Convert>(node, t);
+        auto convert = std::make_shared<op::v1::Convert>(node, t);
         return std::make_tuple(Output<Node>(convert), true);
     });
 }
@@ -471,7 +471,7 @@ void PostStepsList::add_convert_layout_impl(const Layout& layout) {
             }
             return std::make_tuple(node, false);
         }
-        auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
+        auto perm_constant = op::v1::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
         auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
         context.layout() = dst_layout;  // Update context's current layout
         return std::make_tuple(Output<Node>(transpose), true);
@@ -483,7 +483,7 @@ void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         return;
     }
     m_actions.emplace_back([dims](const Output<Node>& node, PostprocessingContext& context) {
-        auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
+        auto perm_constant = op::v1::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
         auto new_layout = layout::utils::apply_permutation(context.layout(), dims);
         auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
         auto res = std::make_tuple(Output<Node>(transpose), true);

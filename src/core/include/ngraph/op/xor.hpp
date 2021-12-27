@@ -16,7 +16,7 @@ namespace v1 {
 using ov::op::v1::LogicalXor;
 }  // namespace v1
 namespace v0 {
-using ov::op::v0::Xor;
+using ov::op::v1::Xor;
 }  // namespace v0
 using v0::Xor;
 }  // namespace op

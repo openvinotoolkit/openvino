@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v2 {
 class OPENVINO_API ROIPooling : public Op {
 public:
     OPENVINO_OP("ROIPooling", "opset2");
@@ -48,6 +48,6 @@ private:
     float m_spatial_scale;
     std::string m_method = "max";
 };
-}  // namespace v0
+}  // namespace v2
 }  // namespace op
 }  // namespace ov

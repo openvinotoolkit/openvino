@@ -20,7 +20,7 @@ namespace op {
 using ov::op::LSTMWeightsFormat;
 
 namespace v0 {
-using ov::op::v0::LSTMCell;
+using ov::op::v1::LSTMCell;
 }  // namespace v0
 
 namespace v4 {

@@ -236,25 +236,25 @@ bool op::v4::Range::has_evaluate() const {
     return false;
 }
 
-BWDCMP_RTTI_DEFINITION(op::v0::Range);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Range);
 
-op::v0::Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
+ov::op::v1::Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
     : Op({start, stop, step}) {
     constructor_validate_and_infer_types();
 }
 
 template <typename T>
-static void check_start(const op::v0::Range* node, T start) {
+static void check_start(const ov::op::v1::Range* node, T start) {
     NODE_VALIDATION_CHECK(node, check_value(start), "'start' cannot be nan or infinite.");
 }
 
 template <typename T>
-void check_stop(const op::v0::Range* node, T stop) {
+void check_stop(const ov::op::v1::Range* node, T stop) {
     NODE_VALIDATION_CHECK(node, check_value(stop), "'stop' cannot be nan or infinite.");
 }
 
 template <typename T>
-void static check_step(const op::v0::Range* node, T step) {
+void static check_step(const ov::op::v1::Range* node, T step) {
     NODE_VALIDATION_CHECK(node,
                           check_value(step) && ((step > static_cast<T>(0) || step < static_cast<T>(0))),
                           "'step' cannot be zero, nan, or infinite.");
@@ -275,7 +275,7 @@ adjust_for_step_and_sign(T span, T step) {
 }
 
 template <typename T>
-static ov::PartialShape infer_output_shape(const op::v0::Range* node, const element::Type& /* et */) {
+static ov::PartialShape infer_output_shape(const ov::op::v1::Range* node, const element::Type& /* et */) {
     auto const_start = get_constant_from_source(node->input_value(0));
     auto const_stop = get_constant_from_source(node->input_value(1));
     auto const_step = get_constant_from_source(node->input_value(2));
@@ -326,13 +326,13 @@ static ov::PartialShape infer_output_shape(const op::v0::Range* node, const elem
     return result;
 }
 
-bool ngraph::op::v0::Range::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Range_visit_attributes);
+bool ov::op::v1::Range::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_Range_visit_attributes);
     return true;
 }
 
-void op::v0::Range::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Range_validate_and_infer_types);
+void ov::op::v1::Range::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_Range_validate_and_infer_types);
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
@@ -363,14 +363,14 @@ void op::v0::Range::validate_and_infer_types() {
         for (int i = 0; i < get_input_size(); i++)
             input_shapes.push_back(get_input_partial_shape(i));
 
-        op::v0::shape_infer(this, input_shapes, result_shapes);
+        op::v1::shape_infer(this, input_shapes, result_shapes);
 
         set_output_type(0, result_et, result_shapes[0]);
     }
 }
 
-shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Range_clone_with_new_inputs);
+shared_ptr<Node> ov::op::v1::Range::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_Range_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Range>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
@@ -378,8 +378,8 @@ shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_ar
 template <element::Type_t ET, typename T>
 void positive_range(T start_val, T stop_val, T step_val) {}
 
-bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Range_evaluate);
+bool ov::op::v1::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v1_Range_evaluate);
     HostTensorPtr out = outputs[0];
     HostTensorPtr start = inputs[0];
     HostTensorPtr stop = inputs[1];
@@ -387,8 +387,8 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
 }
 
-bool op::v0::Range::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Range_has_evaluate);
+bool ov::op::v1::Range::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v1_Range_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:

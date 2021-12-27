@@ -9,10 +9,10 @@
 
 namespace ngraph {
 namespace op {
-using DetectionOutputAttrs = ov::op::v0::DetectionOutput::Attributes;
+using DetectionOutputAttrs = ov::op::v1::DetectionOutput::Attributes;
 
 namespace v0 {
-using ov::op::v0::DetectionOutput;
+using ov::op::v1::DetectionOutput;
 }  // namespace v0
 using v0::DetectionOutput;
 

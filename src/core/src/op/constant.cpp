@@ -32,9 +32,9 @@ static inline string to_cpp_string(T value) {
     return rc;
 }
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Constant);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Constant);
 
-ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor) {
+ov::op::v1::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor) {
     m_element_type = tensor->get_element_type();
     m_shape = tensor->get_shape();
     // Share data from HostTensor if we work with it
@@ -53,7 +53,7 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
     constructor_validate_and_infer_types();
 }
 
-ov::op::v0::Constant::Constant(const element::Type& type,
+ov::op::v1::Constant::Constant(const element::Type& type,
                                const ov::Shape& shape,
                                const std::vector<std::string>& values)
     : Constant(type, shape) {
@@ -187,26 +187,26 @@ ov::op::v0::Constant::Constant(const element::Type& type,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape)
+ov::op::v1::Constant::Constant(const element::Type& type, const ov::Shape& shape)
     : m_element_type(type),
       m_shape(shape) {
     allocate_buffer();
     constructor_validate_and_infer_types();
 }
 
-void ov::op::v0::Constant::allocate_buffer() {
+void ov::op::v1::Constant::allocate_buffer() {
     m_data = make_shared<ngraph::runtime::AlignedBuffer>(mem_size(), host_alignment());
     std::memset(m_data->get_ptr(), 0, m_data->size());
 }
 
-ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
+ov::op::v1::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
     : Constant(type, shape) {
     size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
     std::memcpy(get_data_ptr_nc(), data, size);
     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
 }
 
-ov::op::v0::Constant::Constant(const Constant& other) {
+ov::op::v1::Constant::Constant(const Constant& other) {
     m_element_type = other.m_element_type;
     m_shape = other.m_shape;
     m_data = other.m_data;
@@ -214,7 +214,7 @@ ov::op::v0::Constant::Constant(const Constant& other) {
     constructor_validate_and_infer_types();
 }
 
-ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape) {
+ov::op::v1::Constant::Constant(const Constant& other, const ov::Shape& new_shape) {
     NGRAPH_CHECK(shape_size(other.m_shape) == shape_size(new_shape),
                  "ov::Shape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
                      std::to_string(shape_size(other.m_shape)));
@@ -225,9 +225,9 @@ ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape
     constructor_validate_and_infer_types();
 }
 
-ov::op::v0::Constant::~Constant() = default;
+ov::op::v1::Constant::~Constant() = default;
 
-string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
+string ov::op::v1::Constant::convert_value_to_string(size_t index) const {
     string rc;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic push
@@ -295,7 +295,7 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
     return rc;
 }
 
-vector<string> ov::op::v0::Constant::get_value_strings() const {
+vector<string> ov::op::v1::Constant::get_value_strings() const {
     vector<string> rc;
 
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -391,7 +391,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
     return rc;
 }
 
-ov::Shape ov::op::v0::Constant::get_shape_val() const {
+ov::Shape ov::op::v1::Constant::get_shape_val() const {
     NGRAPH_CHECK(m_element_type.is_integral_number());
     std::vector<int64_t> out_shape = cast_vector<int64_t>();
     ov::Shape output_shape(shape_size(m_shape));
@@ -401,7 +401,7 @@ ov::Shape ov::op::v0::Constant::get_shape_val() const {
     return output_shape;
 }
 
-ov::Strides ov::op::v0::Constant::get_strides_val() const {
+ov::Strides ov::op::v1::Constant::get_strides_val() const {
     NGRAPH_CHECK(m_element_type == element::i64);
     std::vector<int64_t> out_strides = cast_vector<int64_t>();
     Strides output_strides(shape_size(m_shape));
@@ -411,7 +411,7 @@ ov::Strides ov::op::v0::Constant::get_strides_val() const {
     return output_strides;
 }
 
-ov::Coordinate ov::op::v0::Constant::get_coordinate_val() const {
+ov::Coordinate ov::op::v1::Constant::get_coordinate_val() const {
     NGRAPH_CHECK(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate = cast_vector<int64_t>();
     Coordinate output_coordinate(shape_size(m_shape));
@@ -421,7 +421,7 @@ ov::Coordinate ov::op::v0::Constant::get_coordinate_val() const {
     return output_coordinate;
 }
 
-ov::CoordinateDiff ov::op::v0::Constant::get_coordinate_diff_val() const {
+ov::CoordinateDiff ov::op::v1::Constant::get_coordinate_diff_val() const {
     NGRAPH_CHECK(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate_diff = cast_vector<int64_t>();
     CoordinateDiff output_coordinate_diff(shape_size(m_shape));
@@ -434,7 +434,7 @@ ov::CoordinateDiff ov::op::v0::Constant::get_coordinate_diff_val() const {
     return output_coordinate_diff;
 }
 
-ov::AxisVector ov::op::v0::Constant::get_axis_vector_val() const {
+ov::AxisVector ov::op::v1::Constant::get_axis_vector_val() const {
     NGRAPH_CHECK(m_element_type.is_integral_number());
     std::vector<int64_t> out_axis_vector = cast_vector<int64_t>();
     AxisVector output_axis_vector(shape_size(m_shape));
@@ -444,7 +444,7 @@ ov::AxisVector ov::op::v0::Constant::get_axis_vector_val() const {
     return output_axis_vector;
 }
 
-ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
+ov::AxisSet ov::op::v1::Constant::get_axis_set_val() const {
     NGRAPH_CHECK(m_element_type.is_integral_number());
     std::vector<int64_t> out_axis_set = cast_vector<int64_t>();
     AxisSet output_axis_set;
@@ -454,13 +454,13 @@ ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
     return output_axis_set;
 }
 
-void ov::op::v0::Constant::set_data_shape(const ov::Shape& shape) {
+void ov::op::v1::Constant::set_data_shape(const ov::Shape& shape) {
     NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
     m_shape = shape;
 }
 
-shared_ptr<ov::Node> ov::op::v0::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Constant_clone_with_new_inputs);
+shared_ptr<ov::Node> ov::op::v1::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_Constant_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Constant>(*this);
 }
@@ -481,7 +481,7 @@ static bool test_bitwise_identical(const T* data, const size_t size) {
     return data_is_constant;
 }
 
-bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
+bool ov::op::v1::Constant::are_all_data_elements_bitwise_identical() const {
     bool rc = false;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic push
@@ -527,8 +527,8 @@ bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
     return rc;
 }
 
-bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Constant_visit_attributes);
+bool ov::op::v1::Constant::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_Constant_visit_attributes);
     ov::Shape prev_shape = m_shape;
     element::Type prev_type = m_element_type;
     visitor.on_attribute("element_type", m_element_type);
@@ -544,21 +544,21 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool ov::op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Constant_evaluate);
+bool ov::op::v1::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v1_Constant_evaluate);
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
 }
 
-bool ov::op::v0::Constant::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Constant_has_evaluate);
+bool ov::op::v1::Constant::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v1_Constant_has_evaluate);
     return true;
 }
 
-bool ov::op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const {
+bool ov::op::v1::Constant::evaluate_lower(const HostTensorVector& outputs) const {
     return evaluate(outputs, {});
 }
-bool ov::op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const {
+bool ov::op::v1::Constant::evaluate_upper(const HostTensorVector& outputs) const {
     return evaluate(outputs, {});
 }

@@ -20,7 +20,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::LSTMSequence;
+using ov::op::v1::LSTMSequence;
 }  // namespace v0
 
 namespace v5 {

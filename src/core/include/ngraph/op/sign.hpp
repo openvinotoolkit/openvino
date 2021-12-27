@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Sign;
+using ov::op::v1::Sign;
 }  // namespace v0
 using v0::Sign;
 }  // namespace op

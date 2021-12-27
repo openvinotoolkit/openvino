@@ -204,5 +204,5 @@ shared_ptr<ov::Node> ov::op::v1::AvgPool::clone_with_new_inputs(const OutputVect
 }
 
 shared_ptr<ov::Node> ov::op::v1::AvgPool::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
+    return op::v1::Constant::create(get_element_type(), get_shape(), {0});
 }

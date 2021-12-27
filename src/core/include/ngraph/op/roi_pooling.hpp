@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::ROIPooling;
+using ov::op::v2::ROIPooling;
 }  // namespace v0
 using v0::ROIPooling;
 }  // namespace op

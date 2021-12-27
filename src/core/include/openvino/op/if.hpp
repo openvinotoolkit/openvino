@@ -66,8 +66,8 @@ public:
     /// \param     then_parameter  parameter for then_body or nullptr
     /// \param     else_parameter  parameter for else_body or nullpt
     void set_input(const Output<Node>& value,
-                   const std::shared_ptr<v0::Parameter>& then_parameter,
-                   const std::shared_ptr<v0::Parameter>& else_parameter);
+                   const std::shared_ptr<v1::Parameter>& then_parameter,
+                   const std::shared_ptr<v1::Parameter>& else_parameter);
 
     /// \brief     sets new output from the operation associated with results
     /// of each sub-graphs
@@ -75,8 +75,8 @@ public:
     /// \param     then_result     result from then_body
     /// \param     else_parameter  result from else_body
     /// \return    output from operation
-    Output<Node> set_output(const std::shared_ptr<v0::Result>& then_result,
-                            const std::shared_ptr<v0::Result>& else_result);
+    Output<Node> set_output(const std::shared_ptr<v1::Result>& then_result,
+                            const std::shared_ptr<v1::Result>& else_result);
 
     void validate_and_infer_types() override;
 

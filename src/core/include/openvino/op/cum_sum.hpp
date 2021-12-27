@@ -9,7 +9,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v3 {
 /// \brief Tensor cumulative sum operation.
 ///
 /// Compute the cumulative sum of the input tensor along the axis specified.
@@ -56,6 +56,6 @@ private:
     bool m_exclusive = false;
     bool m_reverse = false;
 };
-}  // namespace v0
+}  // namespace v3
 }  // namespace op
 }  // namespace ov

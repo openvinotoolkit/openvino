@@ -11,11 +11,11 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v0::BatchNormInference);
+BWDCMP_RTTI_DEFINITION(op::v1::BatchNormInference);
 
-op::v0::BatchNormInference::BatchNormInference(const Output<Node>& input,
+op::v1::BatchNormInference::BatchNormInference(const Output<Node>& input,
                                                const Output<Node>& gamma,
                                                const Output<Node>& beta,
                                                const Output<Node>& mean,
@@ -26,14 +26,14 @@ op::v0::BatchNormInference::BatchNormInference(const Output<Node>& input,
     constructor_validate_and_infer_types();
 }
 
-bool op::v0::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_BatchNormInference_visit_attributes);
+bool op::v1::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_BatchNormInference_visit_attributes);
     visitor.on_attribute("epsilon", m_epsilon);
     return true;
 }
 
-void op::v0::BatchNormInference::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_BatchNormInference_validate_and_infer_types);
+void op::v1::BatchNormInference::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_BatchNormInference_validate_and_infer_types);
     element::Type result_et;
     ov::PartialShape result_batch_shape;
     ov::PartialShape result_channel_shape;  // unused here
@@ -45,23 +45,23 @@ void op::v0::BatchNormInference::validate_and_infer_types() {
 
     set_output_size(1);
     std::tie(result_et, result_batch_shape, result_channel_shape) =
-        infer_batch_norm_forward(this,
-                                 get_input_element_type(INPUT_DATA),
-                                 get_input_element_type(INPUT_GAMMA),
-                                 get_input_element_type(INPUT_BETA),
-                                 get_input_element_type(INPUT_MEAN),
-                                 get_input_element_type(INPUT_VARIANCE),
-                                 get_input_partial_shape(INPUT_DATA),
-                                 get_input_partial_shape(INPUT_GAMMA),
-                                 get_input_partial_shape(INPUT_BETA),
-                                 get_input_partial_shape(INPUT_MEAN),
-                                 get_input_partial_shape(INPUT_VARIANCE));
+        ngraph::infer_batch_norm_forward(this,
+                                         get_input_element_type(INPUT_DATA),
+                                         get_input_element_type(INPUT_GAMMA),
+                                         get_input_element_type(INPUT_BETA),
+                                         get_input_element_type(INPUT_MEAN),
+                                         get_input_element_type(INPUT_VARIANCE),
+                                         get_input_partial_shape(INPUT_DATA),
+                                         get_input_partial_shape(INPUT_GAMMA),
+                                         get_input_partial_shape(INPUT_BETA),
+                                         get_input_partial_shape(INPUT_MEAN),
+                                         get_input_partial_shape(INPUT_VARIANCE));
 
     set_output_type(0, result_et, result_batch_shape);
 }
 
-std::shared_ptr<Node> op::v0::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_BatchNormInference_clone_with_new_inputs);
+std::shared_ptr<Node> op::v1::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_BatchNormInference_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<BatchNormInference>(new_args.at(2),
                                                 new_args.at(0),
@@ -103,17 +103,17 @@ void op::v5::BatchNormInference::validate_and_infer_types() {
 
     set_output_size(1);
     std::tie(result_et, result_batch_shape, result_channel_shape) =
-        infer_batch_norm_forward(this,
-                                 get_input_element_type(INPUT_DATA),
-                                 get_input_element_type(INPUT_GAMMA),
-                                 get_input_element_type(INPUT_BETA),
-                                 get_input_element_type(INPUT_MEAN),
-                                 get_input_element_type(INPUT_VARIANCE),
-                                 get_input_partial_shape(INPUT_DATA),
-                                 get_input_partial_shape(INPUT_GAMMA),
-                                 get_input_partial_shape(INPUT_BETA),
-                                 get_input_partial_shape(INPUT_MEAN),
-                                 get_input_partial_shape(INPUT_VARIANCE));
+        ngraph::infer_batch_norm_forward(this,
+                                         get_input_element_type(INPUT_DATA),
+                                         get_input_element_type(INPUT_GAMMA),
+                                         get_input_element_type(INPUT_BETA),
+                                         get_input_element_type(INPUT_MEAN),
+                                         get_input_element_type(INPUT_VARIANCE),
+                                         get_input_partial_shape(INPUT_DATA),
+                                         get_input_partial_shape(INPUT_GAMMA),
+                                         get_input_partial_shape(INPUT_BETA),
+                                         get_input_partial_shape(INPUT_MEAN),
+                                         get_input_partial_shape(INPUT_VARIANCE));
 
     set_output_type(0, result_et, result_batch_shape);
 }

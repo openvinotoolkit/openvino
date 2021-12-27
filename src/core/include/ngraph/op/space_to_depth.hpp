@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::SpaceToDepth;
+using ov::op::v1::SpaceToDepth;
 }  // namespace v0
 using v0::SpaceToDepth;
 }  // namespace op

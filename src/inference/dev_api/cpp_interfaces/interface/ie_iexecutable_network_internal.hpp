@@ -16,12 +16,12 @@
 #include "so_ptr.hpp"
 
 namespace ov {
-class Function;
+class Model;
 namespace op {
-namespace v0 {
+namespace v1 {
 class Parameter;
 class Result;
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov
 namespace InferenceEngine {
@@ -113,7 +113,7 @@ public:
      * @brief Get executable graph information from a device
      * @return A network object to store executable graph information
      */
-    virtual std::shared_ptr<ngraph::Function> GetExecGraphInfo();
+    virtual std::shared_ptr<ov::Model> GetExecGraphInfo();
 
     /**
      * @brief      Sets the pointer to plugin internal.

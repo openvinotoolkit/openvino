@@ -12,7 +12,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
 class OPENVINO_API TensorIterator : public op::util::SubGraphOp {
 public:
@@ -39,6 +39,6 @@ public:
 private:
     void try_to_set_num_iterations_if_no_slice_inputs();
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

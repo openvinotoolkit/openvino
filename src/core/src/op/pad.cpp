@@ -37,7 +37,7 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
                  const Output<Node>& pads_end,
                  PadMode pad_mode)
-    : Op({arg, pads_begin, pads_end, op::v0::Constant::create(arg.get_element_type(), ov::Shape{}, {0})}),
+    : Op({arg, pads_begin, pads_end, op::v1::Constant::create(arg.get_element_type(), ov::Shape{}, {0})}),
       m_pad_mode{pad_mode} {
     ov::mark_as_precision_sensitive(input(1));
     ov::mark_as_precision_sensitive(input(2));
@@ -131,9 +131,9 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs, const HostTensor
     // and pads_end shapes and reshape output to determine shape
     // (in case pads_begin and pads_end are Parameters, output is dynamic with static rank).
 
-    op::v0::Constant pads_begin_const(inputs[1]);
+    op::v1::Constant pads_begin_const(inputs[1]);
     CoordinateDiff pads_begin_coord(pads_begin_const.cast_vector<ptrdiff_t>());
-    op::v0::Constant pads_end_const(inputs[2]);
+    op::v1::Constant pads_end_const(inputs[2]);
     CoordinateDiff pads_end_coord(pads_end_const.cast_vector<ptrdiff_t>());
 
     auto data_shape = data->get_shape();

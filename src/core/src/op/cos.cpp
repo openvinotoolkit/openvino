@@ -12,19 +12,19 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Cos);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Cos);
 
 op::Cos::Cos(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 bool op::Cos::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Cos_visit_attributes);
+    NGRAPH_OP_SCOPE(v1_Cos_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Cos::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Cos_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v1_Cos_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Cos>(new_args.at(0));
 }
@@ -59,13 +59,13 @@ bool evaluate_cos(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 }  // namespace cosop
 
 bool op::Cos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Cos_evaluate);
+    NGRAPH_OP_SCOPE(v1_Cos_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return cosop::evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Cos::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Cos_has_evaluate);
+    NGRAPH_OP_SCOPE(v1_Cos_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

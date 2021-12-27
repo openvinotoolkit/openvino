@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::HardSigmoid;
+using ov::op::v1::HardSigmoid;
 }  // namespace v0
 using v0::HardSigmoid;
 }  // namespace op

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Parametrized Relu
 /// x <  0 => f(x) = x * slope
 /// x >= 0 => f(x) = x
@@ -35,6 +35,6 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

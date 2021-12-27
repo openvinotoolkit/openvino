@@ -63,7 +63,7 @@ shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_
 }
 
 shared_ptr<Node> op::v1::MaxPool::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
+    return op::v1::Constant::create(get_element_type(), get_shape(), {0});
 }
 
 namespace maxpool {

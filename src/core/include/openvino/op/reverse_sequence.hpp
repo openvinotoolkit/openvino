@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class OPENVINO_API ReverseSequence : public Op {
 public:
     OPENVINO_OP("ReverseSequence", "opset1");
@@ -59,6 +59,6 @@ private:
 
     void normalize_axes(ReverseSequence* op);
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

@@ -227,7 +227,7 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const AutoBroadcastSpec& broadcast_spec)
     : util::BroadcastBase{arg,
                           target_shape,
-                          op::v0::Constant::create(element::u8, ov::Shape{}, {0})->output(0),
+                          op::v1::Constant::create(element::u8, ov::Shape{}, {0})->output(0),
                           to_broadcast_mode(broadcast_spec)},
       m_broadcast_spec{broadcast_spec} {
     constructor_validate_and_infer_types();
@@ -243,7 +243,7 @@ void op::v1::Broadcast::validate_and_infer_types() {
 
     // Mocking axes_mapping input for cases that don't require it
     if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY && get_input_size() < 3) {
-        auto output = op::v0::Constant::create(element::u8, ov::Shape{}, {0})->output(0);
+        auto output = op::v1::Constant::create(element::u8, ov::Shape{}, {0})->output(0);
         set_argument(2, output);
     }
 

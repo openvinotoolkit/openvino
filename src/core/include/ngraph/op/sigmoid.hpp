@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Sigmoid;
+using ov::op::v1::Sigmoid;
 }  // namespace v0
 using v0::Sigmoid;
 }  // namespace op

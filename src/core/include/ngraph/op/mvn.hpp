@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::MVN;
+using ov::op::v2::MVN;
 }  // namespace v0
 using v0::MVN;
 

@@ -15,7 +15,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 ///
 /// \brief      Class for single RNN cell node.
 ///
@@ -128,6 +128,6 @@ private:
 
     static constexpr std::size_t s_gates_count{1};
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

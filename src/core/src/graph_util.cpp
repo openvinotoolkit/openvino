@@ -168,7 +168,7 @@ void ov::replace_node(const std::shared_ptr<Node>& target, const std::shared_ptr
 }
 
 void ov::replace_nodes(const std::shared_ptr<Model>& f,
-                       const unordered_map<shared_ptr<ov::op::v0::Parameter>, shared_ptr<ov::op::v0::Parameter>>&
+                       const unordered_map<shared_ptr<ov::op::v1::Parameter>, shared_ptr<ov::op::v1::Parameter>>&
                            parameter_replacement_map,
                        const unordered_map<shared_ptr<Node>, shared_ptr<Node>>& body_replacement_map) {
     auto& params = f->get_parameters();
@@ -336,7 +336,7 @@ std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func, ngraph::NodeMa
     // get cloned model results and sinks and parameters
     ResultVector cloned_results;
     for (shared_ptr<Node> node : func.get_results()) {
-        auto result = ov::as_type_ptr<op::v0::Result>(node_map.at(node.get()));
+        auto result = ov::as_type_ptr<op::v1::Result>(node_map.at(node.get()));
         if (!result) {
             throw ngraph::ngraph_error("Results should be of type op::Result");
         }
@@ -347,9 +347,9 @@ std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func, ngraph::NodeMa
         cloned_sinks.push_back(static_pointer_cast<op::Sink>(node_map.at(node.get())));
     }
 
-    std::vector<std::shared_ptr<op::v0::Parameter>> cloned_params;
+    std::vector<std::shared_ptr<op::v1::Parameter>> cloned_params;
     for (const auto& param : func.get_parameters()) {
-        cloned_params.push_back(ov::as_type_ptr<op::v0::Parameter>(node_map.at(param.get())));
+        cloned_params.push_back(ov::as_type_ptr<op::v1::Parameter>(node_map.at(param.get())));
     }
 
     // create and return cloned model
@@ -611,8 +611,8 @@ bool ov::compare_constants(const std::shared_ptr<Node>& n1, const std::shared_pt
         return false;
     }
 
-    if (static_pointer_cast<op::v0::Constant>(n1)->get_value_strings() !=
-        static_pointer_cast<op::v0::Constant>(n2)->get_value_strings()) {
+    if (static_pointer_cast<op::v1::Constant>(n1)->get_value_strings() !=
+        static_pointer_cast<op::v1::Constant>(n2)->get_value_strings()) {
         return false;
     }
 
@@ -746,7 +746,7 @@ bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& 
 bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& replacement) {
     bool has_result_output = false;
     for (auto& target_input : output.get_target_inputs()) {
-        if (ov::is_type<op::v0::Result>(target_input.get_node())) {
+        if (ov::is_type<op::v1::Result>(target_input.get_node())) {
             // ignore trivial elimination
             has_result_output = true;
             if (ov::is_type<ngraph::op::Parameter>(replacement.get_node())) {
@@ -786,7 +786,7 @@ bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& rep
 bool ov::replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement) {
     for (auto& output : target->output(0).get_target_inputs()) {
         if (ov::as_type<ngraph::op::Parameter>(replacement->input_value(0).get_node()) &&
-            ov::as_type<op::v0::Result>(output.get_node())) {
+            ov::as_type<op::v1::Result>(output.get_node())) {
             return false;
         }
     }

@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief  Global Response Normalization with L2 norm (across channels only).
 ///
 class OPENVINO_API GRN : public Op {
@@ -37,6 +37,6 @@ public:
 protected:
     float m_bias = 1.0f;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

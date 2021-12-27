@@ -51,7 +51,7 @@ private:
     element::Type m_output_type;
 };
 }  // namespace v4
-namespace v0 {
+namespace v1 {
 /// \brief Range operation, analogous to `range()` in Python.
 class OPENVINO_API Range : public Op {
 public:
@@ -80,6 +80,6 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

@@ -15,7 +15,7 @@
 namespace ov {
 class Node;
 namespace op {
-namespace v0 {
+namespace v1 {
 class Constant;
 }
 }  // namespace op
@@ -23,7 +23,7 @@ class Constant;
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Constant;
+using ov::op::v1::Constant;
 }
 }  // namespace op
 namespace runtime {

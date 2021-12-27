@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Exponential Linear Unit
 /// x <  0 => f(x) = alpha * (exp(x) - 1.)
 /// x >= 0 => f(x) = x
@@ -37,6 +37,6 @@ public:
 private:
     double m_alpha;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief      Parameterized, bounded sigmoid-like, piecewise linear
 ///             function. min(max(alpha*x + beta, 0), 1)
 ///
@@ -31,6 +31,6 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

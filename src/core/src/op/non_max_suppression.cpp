@@ -41,9 +41,9 @@ op::v1::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const bool sort_result_descending)
     : Op({boxes,
           scores,
-          op::v0::Constant::create(element::i64, ov::Shape{}, {0}),
-          op::v0::Constant::create(element::f32, ov::Shape{}, {.0f}),
-          op::v0::Constant::create(element::f32, ov::Shape{}, {.0f})}),
+          op::v1::Constant::create(element::i64, ov::Shape{}, {0}),
+          op::v1::Constant::create(element::f32, ov::Shape{}, {.0f}),
+          op::v1::Constant::create(element::f32, ov::Shape{}, {.0f})}),
       m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending} {
     constructor_validate_and_infer_types();
@@ -55,11 +55,11 @@ std::shared_ptr<Node> op::v1::NonMaxSuppression::clone_with_new_inputs(const Out
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
 
     const auto& arg2 =
-        new_args.size() > 2 ? new_args.at(2) : ngraph::op::v0::Constant::create(element::i32, ov::Shape{}, {0});
+        new_args.size() > 2 ? new_args.at(2) : ov::op::v1::Constant::create(element::i32, ov::Shape{}, {0});
     const auto& arg3 =
-        new_args.size() > 3 ? new_args.at(3) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
+        new_args.size() > 3 ? new_args.at(3) : ov::op::v1::Constant::create(element::f32, ov::Shape{}, {.0f});
     const auto& arg4 =
-        new_args.size() > 4 ? new_args.at(4) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
+        new_args.size() > 4 ? new_args.at(4) : ov::op::v1::Constant::create(element::f32, ov::Shape{}, {.0f});
 
     return std::make_shared<op::v1::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -219,9 +219,9 @@ op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const element::Type& output_type)
     : Op({boxes,
           scores,
-          op::v0::Constant::create(element::i64, ov::Shape{}, {0}),
-          op::v0::Constant::create(element::f32, ov::Shape{}, {.0f}),
-          op::v0::Constant::create(element::f32, ov::Shape{}, {.0f})}),
+          op::v1::Constant::create(element::i64, ov::Shape{}, {0}),
+          op::v1::Constant::create(element::f32, ov::Shape{}, {.0f}),
+          op::v1::Constant::create(element::f32, ov::Shape{}, {.0f})}),
       m_box_encoding{box_encoding},
       m_sort_result_descending{sort_result_descending},
       m_output_type{output_type} {
@@ -234,11 +234,11 @@ std::shared_ptr<Node> op::v3::NonMaxSuppression::clone_with_new_inputs(const Out
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
 
     const auto& arg2 =
-        new_args.size() > 2 ? new_args.at(2) : ngraph::op::v0::Constant::create(element::i32, ov::Shape{}, {0});
+        new_args.size() > 2 ? new_args.at(2) : ov::op::v1::Constant::create(element::i32, ov::Shape{}, {0});
     const auto& arg3 =
-        new_args.size() > 3 ? new_args.at(3) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
+        new_args.size() > 3 ? new_args.at(3) : ov::op::v1::Constant::create(element::f32, ov::Shape{}, {.0f});
     const auto& arg4 =
-        new_args.size() > 4 ? new_args.at(4) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
+        new_args.size() > 4 ? new_args.at(4) : ov::op::v1::Constant::create(element::f32, ov::Shape{}, {.0f});
 
     return std::make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -412,9 +412,9 @@ op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const element::Type& output_type)
     : op::v3::NonMaxSuppression(boxes,
                                 scores,
-                                op::v0::Constant::create(element::i64, ov::Shape{}, {0}),
-                                op::v0::Constant::create(element::f32, ov::Shape{}, {.0f}),
-                                op::v0::Constant::create(element::f32, ov::Shape{}, {.0f}),
+                                op::v1::Constant::create(element::i64, ov::Shape{}, {0}),
+                                op::v1::Constant::create(element::f32, ov::Shape{}, {.0f}),
+                                op::v1::Constant::create(element::f32, ov::Shape{}, {.0f}),
                                 box_encoding,
                                 sort_result_descending,
                                 output_type) {
@@ -427,11 +427,11 @@ std::shared_ptr<Node> op::v4::NonMaxSuppression::clone_with_new_inputs(const Out
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
 
     const auto& arg2 =
-        new_args.size() > 2 ? new_args.at(2) : ngraph::op::v0::Constant::create(element::i32, ov::Shape{}, {0});
+        new_args.size() > 2 ? new_args.at(2) : ov::op::v1::Constant::create(element::i32, ov::Shape{}, {0});
     const auto& arg3 =
-        new_args.size() > 3 ? new_args.at(3) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
+        new_args.size() > 3 ? new_args.at(3) : ov::op::v1::Constant::create(element::f32, ov::Shape{}, {.0f});
     const auto& arg4 =
-        new_args.size() > 4 ? new_args.at(4) : ngraph::op::v0::Constant::create(element::f32, ov::Shape{}, {.0f});
+        new_args.size() > 4 ? new_args.at(4) : ov::op::v1::Constant::create(element::f32, ov::Shape{}, {.0f});
 
     return std::make_shared<op::v4::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -778,7 +778,7 @@ bool op::v5::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const {
     if (inputs().size() < 6 || !ngraph::op::is_constant(soft_nms_sigma_node)) {
         return false;
     }
-    const auto soft_nms_sigma_input = ov::as_type_ptr<op::v0::Constant>(soft_nms_sigma_node);
+    const auto soft_nms_sigma_input = ov::as_type_ptr<op::v1::Constant>(soft_nms_sigma_node);
     return soft_nms_sigma_input->cast_vector<float>().at(0) == 0.0f;
 }
 

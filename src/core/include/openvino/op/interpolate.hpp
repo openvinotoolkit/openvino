@@ -14,7 +14,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 
 /// \brief Layer which performs bilinear interpolation
 class OPENVINO_API Interpolate : public Op {
@@ -74,7 +74,7 @@ public:
 private:
     Attributes m_attrs;
 };
-}  // namespace v0
+}  // namespace v1
 
 namespace v4 {
 class OPENVINO_API Interpolate : public Op {
@@ -319,7 +319,7 @@ private:
 
 //---------------------------------------- v0 --------------------------------------------------
 OPENVINO_API
-std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type);
+std::ostream& operator<<(std::ostream& s, const op::v1::Interpolate::InterpolateMode& type);
 
 //---------------------------------------- v4 --------------------------------------------------
 
@@ -336,13 +336,13 @@ OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type);
 
 template <>
-class OPENVINO_API AttributeAdapter<op::v0::Interpolate::InterpolateMode>
-    : public EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode> {
+class OPENVINO_API AttributeAdapter<op::v1::Interpolate::InterpolateMode>
+    : public EnumAttributeAdapterBase<op::v1::Interpolate::InterpolateMode> {
 public:
-    AttributeAdapter(op::v0::Interpolate::InterpolateMode& value)
-        : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
+    AttributeAdapter(op::v1::Interpolate::InterpolateMode& value)
+        : EnumAttributeAdapterBase<op::v1::Interpolate::InterpolateMode>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<ov::op::v0::Interpolate::InterpolateMode>");
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v1::Interpolate::InterpolateMode>");
     BWDCMP_RTTI_DECLARATION;
 };
 template <>

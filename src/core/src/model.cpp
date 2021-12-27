@@ -611,7 +611,7 @@ void ov::Model::add_results(const ResultVector& results) {
 void ov::Model::remove_result(const std::shared_ptr<ngraph::op::Result>& result) {
     m_results.erase(std::remove_if(m_results.begin(),
                                    m_results.end(),
-                                   [&result](std::shared_ptr<ngraph::op::v0::Result>& r) {
+                                   [&result](std::shared_ptr<ov::op::v1::Result>& r) {
                                        return r == result;
                                    }),
                     m_results.end());
@@ -637,7 +637,7 @@ void ov::Model::add_parameters(const ngraph::ParameterVector& params) {
 void ov::Model::remove_parameter(const std::shared_ptr<ngraph::op::Parameter>& param) {
     m_parameters.erase(std::remove_if(m_parameters.begin(),
                                       m_parameters.end(),
-                                      [&param](std::shared_ptr<ngraph::op::v0::Parameter>& r) {
+                                      [&param](std::shared_ptr<ov::op::v1::Parameter>& r) {
                                           return r == param;
                                       }),
                        m_parameters.end());
@@ -827,7 +827,7 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
         return;
 
     const auto& params = get_parameters();
-    std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> new_param_shapes;
+    std::unordered_map<ov::op::v1::Parameter*, ov::PartialShape> new_param_shapes;
 
     // Check that we need to do reshape only if input shapes will be changed
     bool need_reshape = false;
@@ -858,12 +858,12 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
         return;
 
     // save original parameters shape
-    std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> original_input_shapes;
+    std::unordered_map<ov::op::v1::Parameter*, ov::PartialShape> original_input_shapes;
     for (const auto& param : params) {
         original_input_shapes[param.get()] = param->get_output_partial_shape(0);
     }
 
-    auto reshape_only = [&](const std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape>& pshapes) {
+    auto reshape_only = [&](const std::unordered_map<ov::op::v1::Parameter*, ov::PartialShape>& pshapes) {
         for (const auto& pshape : pshapes) {
             pshape.first->set_partial_shape(pshape.second);
         }
@@ -925,7 +925,7 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
             return input.get_node()->output(0);
         }
     }
-    auto result = std::make_shared<ov::op::v0::Result>(port);
+    auto result = std::make_shared<ov::op::v1::Result>(port);
     add_results({result});
     return result->output(0);
 }

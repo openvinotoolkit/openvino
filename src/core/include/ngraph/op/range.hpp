@@ -14,7 +14,7 @@ namespace v4 {
 using ov::op::v4::Range;
 }  // namespace v4
 namespace v0 {
-using ov::op::v0::Range;
+using ov::op::v1::Range;
 }  // namespace v0
 using v0::Range;
 }  // namespace op

@@ -16,20 +16,20 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::GRN);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::GRN);
 
-op::v0::GRN::GRN(const Output<Node>& data, float bias) : Op({data}), m_bias(bias) {
+ov::op::v1::GRN::GRN(const Output<Node>& data, float bias) : Op({data}), m_bias(bias) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v0::GRN::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_GRN_visit_attributes);
+bool ov::op::v1::GRN::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_GRN_visit_attributes);
     visitor.on_attribute("bias", m_bias);
     return true;
 }
 
-void op::v0::GRN::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_GRN_validate_and_infer_types);
+void ov::op::v1::GRN::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_GRN_validate_and_infer_types);
     const auto& data_pshape = get_input_partial_shape(0);
 
     if (data_pshape.is_static()) {
@@ -46,8 +46,8 @@ void op::v0::GRN::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v0::GRN::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_GRN_clone_with_new_inputs);
+shared_ptr<Node> ov::op::v1::GRN::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_GRN_clone_with_new_inputs);
     if (new_args.size() != 1) {
         throw ngraph_error("Incorrect number of new arguments");
     }

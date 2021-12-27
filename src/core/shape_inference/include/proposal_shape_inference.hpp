@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 template <class OpType, class ShapeType>
 void infer_prop_shape(const OpType* op,
                       const std::vector<ShapeType>& input_shapes,
@@ -81,12 +81,12 @@ void infer_prop_shape(const OpType* op,
     proposed_boxes_shape[1] = 5;
 }
 template <class T>
-void shape_infer(const ov::op::v0::Proposal* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const ov::op::v1::Proposal* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
-    ov::op::v0::infer_prop_shape(op, input_shapes, output_shapes);
+    ov::op::v1::infer_prop_shape(op, input_shapes, output_shapes);
 }
 
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov
 
@@ -98,7 +98,7 @@ template <class T>
 void shape_infer(const ov::op::v4::Proposal* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 2);
 
-    ov::op::v0::infer_prop_shape(op, input_shapes, output_shapes);
+    ov::op::v1::infer_prop_shape(op, input_shapes, output_shapes);
     const auto& proposals_ps = output_shapes[0];
     auto& out_ps = output_shapes[1];
     out_ps = T{proposals_ps[0]};

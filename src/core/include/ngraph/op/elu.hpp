@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Elu;
+using ov::op::v1::Elu;
 }  // namespace v0
 using v0::Elu;
 }  // namespace op

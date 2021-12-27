@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace op {
 namespace v1 {
-using ov::op::v1::SpaceToBatch;
+using ov::op::v2::SpaceToBatch;
 }  // namespace v1
 using v1::SpaceToBatch;
 }  // namespace op

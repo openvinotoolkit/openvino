@@ -10,7 +10,7 @@
 #include "utils.hpp"
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 
 template <class T>
 void shape_infer(const RegionYolo* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
@@ -54,6 +54,6 @@ void shape_infer(const RegionYolo* op, const std::vector<T>& input_shapes, std::
         output_shape = ov::PartialShape::dynamic(ov::Rank(1, 4));
     }
 }
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

@@ -9,7 +9,7 @@
 namespace ov {
 namespace op {
 
-namespace v0 {
+namespace v1 {
 /// \brief Layer which generates prior boxes of specified sizes
 /// normalized to input image size
 class OPENVINO_API PriorBoxClustered : public Op {
@@ -57,6 +57,6 @@ public:
 private:
     Attributes m_attrs;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

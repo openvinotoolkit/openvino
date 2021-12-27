@@ -14,7 +14,7 @@ using ov::op::v3::ShapeOf;
 }  // namespace v3
 
 namespace v0 {
-using ov::op::v0::ShapeOf;
+using ov::op::v1::ShapeOf;
 }  // namespace v0
 using v0::ShapeOf;
 }  // namespace op

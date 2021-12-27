@@ -9,7 +9,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v2 {
 /// \brief Gaussian Error Linear Unit
 /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) )
 class OPENVINO_API Gelu : public Op {
@@ -29,7 +29,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
-}  // namespace v0
+}  // namespace v2
 
 /// \brief Specifies the approximation to calculate Gelu
 enum class GeluApproximationMode { TANH, ERF };

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Elementwise type conversion operation.
 class OPENVINO_API Convert : public Op {
 public:
@@ -51,6 +51,6 @@ public:
 protected:
     ov::element::Type m_destination_type;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

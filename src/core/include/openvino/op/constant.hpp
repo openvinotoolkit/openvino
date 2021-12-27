@@ -17,7 +17,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Class for constants.
 class OPENVINO_API Constant : public Op {
 public:
@@ -712,6 +712,6 @@ private:
     bool m_all_elements_bitwise_identical;
     bool m_alloc_buffer_on_visit_attributes = true;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

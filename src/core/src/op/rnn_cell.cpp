@@ -15,38 +15,38 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::RNNCell);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::RNNCell);
 
-op::v0::RNNCell::RNNCell() {
+ov::op::v1::RNNCell::RNNCell() {
     m_activations = {"tanh"};
     m_activation_f = get_activation_function(0);
 }
 
-op::v0::RNNCell::RNNCell(const Output<Node>& X,
-                         const Output<Node>& initial_hidden_state,
-                         const Output<Node>& W,
-                         const Output<Node>& R,
-                         size_t hidden_size,
-                         const vector<string>& activations,
-                         const vector<float>& activations_alpha,
-                         const vector<float>& activations_beta,
-                         float clip)
+ov::op::v1::RNNCell::RNNCell(const Output<Node>& X,
+                             const Output<Node>& initial_hidden_state,
+                             const Output<Node>& W,
+                             const Output<Node>& R,
+                             size_t hidden_size,
+                             const vector<string>& activations,
+                             const vector<float>& activations_alpha,
+                             const vector<float>& activations_beta,
+                             float clip)
     : RNNCellBase({X, initial_hidden_state, W, R}, hidden_size, clip, activations, activations_alpha, activations_beta),
       m_activation_f{get_activation_function(0)} {
     set_argument(4, get_default_bias_input());
     constructor_validate_and_infer_types();
 }
 
-op::v0::RNNCell::RNNCell(const Output<Node>& X,
-                         const Output<Node>& initial_hidden_state,
-                         const Output<Node>& W,
-                         const Output<Node>& R,
-                         const Output<Node>& B,
-                         size_t hidden_size,
-                         const vector<string>& activations,
-                         const vector<float>& activations_alpha,
-                         const vector<float>& activations_beta,
-                         float clip)
+ov::op::v1::RNNCell::RNNCell(const Output<Node>& X,
+                             const Output<Node>& initial_hidden_state,
+                             const Output<Node>& W,
+                             const Output<Node>& R,
+                             const Output<Node>& B,
+                             size_t hidden_size,
+                             const vector<string>& activations,
+                             const vector<float>& activations_alpha,
+                             const vector<float>& activations_beta,
+                             float clip)
     : RNNCellBase({X, initial_hidden_state, W, R, B},
                   hidden_size,
                   clip,
@@ -57,13 +57,13 @@ op::v0::RNNCell::RNNCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool op::v0::RNNCell::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_RNNCell_visit_attributes);
+bool ov::op::v1::RNNCell::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_RNNCell_visit_attributes);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-void op::v0::RNNCell::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_RNNCell_validate_and_infer_types);
+void ov::op::v1::RNNCell::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_RNNCell_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
@@ -146,14 +146,14 @@ void op::v0::RNNCell::validate_and_infer_types() {
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
 }
 
-Output<Node> op::v0::RNNCell::get_default_bias_input() const {
-    return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
+Output<Node> ov::op::v1::RNNCell::get_default_bias_input() const {
+    return Output<Node>{op::v1::Constant::create(get_input_element_type(0),
                                                  ov::Shape{s_gates_count * get_hidden_size()},
                                                  vector<float>(s_gates_count * get_hidden_size(), 0.f))};
 }
 
-shared_ptr<Node> op::v0::RNNCell::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_RNNCell_clone_with_new_inputs);
+shared_ptr<Node> ov::op::v1::RNNCell::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_RNNCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4) {
         return make_shared<RNNCell>(new_args.at(0),

@@ -109,7 +109,7 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     bool use_context = var_value != variable_values.end() && !var_value->second->get_reset();
 
     // initial value (inputs[0]) is not supported, use zeros
-    auto zero_const = make_shared<v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
+    auto zero_const = make_shared<v1::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
     auto zero_tensor = make_shared<HostTensor>(zero_const);
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
     outputs[0]->set_unary(input_tensor);

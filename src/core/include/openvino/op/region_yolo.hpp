@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class OPENVINO_API RegionYolo : public Op {
 public:
     OPENVINO_OP("RegionYolo", "opset1");
@@ -83,6 +83,6 @@ private:
     template <class T>
     friend void shape_infer(const RegionYolo* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

@@ -11,7 +11,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief  Normalization with L2 norm.
 ///
 class OPENVINO_API NormalizeL2 : public Op {
@@ -49,6 +49,6 @@ protected:
     float m_eps;
     EpsMode m_eps_mode;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

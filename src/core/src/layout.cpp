@@ -461,7 +461,7 @@ ov::Layout get_layout(const ov::Output<ov::Node>& output) {
 
 void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout) {
     OPENVINO_ASSERT(
-        dynamic_cast<ov::op::v0::Parameter*>(output.get_node()) || dynamic_cast<ov::op::v0::Result*>(output.get_node()),
+        dynamic_cast<ov::op::v1::Parameter*>(output.get_node()) || dynamic_cast<ov::op::v1::Result*>(output.get_node()),
         "Layout can be set only for Parameter and Result operations.");
     if (layout.empty()) {
         output.get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());

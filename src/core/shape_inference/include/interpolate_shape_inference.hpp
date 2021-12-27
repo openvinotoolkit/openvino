@@ -11,7 +11,7 @@
 namespace ov {
 namespace op {
 
-namespace v0 {
+namespace v1 {
 template <class T>
 void shape_infer(const Interpolate* op,
                  const std::vector<T>& input_shapes,
@@ -51,7 +51,7 @@ void shape_infer(const Interpolate* op,
         }
     }
 }
-}  // namespace v0
+}  // namespace v1
 
 namespace v4 {
 

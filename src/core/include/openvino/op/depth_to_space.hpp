@@ -9,7 +9,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief DepthToSpace permutes data from the depth dimension of the input blob into
 ///        spatial dimensions.
 ///
@@ -59,20 +59,20 @@ protected:
     std::size_t m_blocksize;
     DepthToSpaceMode m_mode;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 
 OPENVINO_API
-std::ostream& operator<<(std::ostream& s, const op::v0::DepthToSpace::DepthToSpaceMode& type);
+std::ostream& operator<<(std::ostream& s, const op::v1::DepthToSpace::DepthToSpaceMode& type);
 
 template <>
-class OPENVINO_API AttributeAdapter<op::v0::DepthToSpace::DepthToSpaceMode>
-    : public EnumAttributeAdapterBase<op::v0::DepthToSpace::DepthToSpaceMode> {
+class OPENVINO_API AttributeAdapter<op::v1::DepthToSpace::DepthToSpaceMode>
+    : public EnumAttributeAdapterBase<op::v1::DepthToSpace::DepthToSpaceMode> {
 public:
-    AttributeAdapter(op::v0::DepthToSpace::DepthToSpaceMode& value)
-        : EnumAttributeAdapterBase<op::v0::DepthToSpace::DepthToSpaceMode>(value) {}
+    AttributeAdapter(op::v1::DepthToSpace::DepthToSpaceMode& value)
+        : EnumAttributeAdapterBase<op::v1::DepthToSpace::DepthToSpaceMode>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<ov::op::v0::DepthToSpace::DepthToSpaceMode>");
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v1::DepthToSpace::DepthToSpaceMode>");
     BWDCMP_RTTI_DECLARATION;
 };
 

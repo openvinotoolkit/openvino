@@ -23,7 +23,7 @@ enum class LSTMWeightsFormat {
     IOFC,  // ONNX
 };
 
-namespace v0 {
+namespace v1 {
 ///
 /// \brief      Class for single lstm cell node.
 ///
@@ -244,7 +244,7 @@ private:
     template <class T>
     friend void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
-}  // namespace v0
+}  // namespace v1
 
 namespace v4 {
 ///

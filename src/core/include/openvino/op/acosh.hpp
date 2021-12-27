@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace v3 {
+namespace v4 {
 /// \brief Elementwise inverse hyperbolic cos operation.
 ///
 class OPENVINO_API Acosh : public util::UnaryElementwiseArithmetic {
@@ -38,6 +38,6 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
-}  // namespace v3
+}  // namespace v4
 }  // namespace op
 }  // namespace ov

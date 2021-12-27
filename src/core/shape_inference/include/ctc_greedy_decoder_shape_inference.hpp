@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 
 template <class T>
 void shape_infer(const CTCGreedyDecoder* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
@@ -46,6 +46,6 @@ void shape_infer(const CTCGreedyDecoder* op, const std::vector<T>& input_shapes,
                               "The second dimensions of input tensors must match.");
     }
 }
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

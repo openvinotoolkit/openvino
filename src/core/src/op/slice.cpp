@@ -81,14 +81,14 @@ bool op::v8::Slice::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-std::shared_ptr<ngraph::op::v0::Constant> op::v8::Slice::get_default_const_axes(const Output<Node>& start) const {
+std::shared_ptr<ov::op::v1::Constant> op::v8::Slice::get_default_const_axes(const Output<Node>& start) const {
     const auto start_pshape = start.get_partial_shape();
     // Static case
     if (start_pshape.rank().is_static() && start_pshape.rank().get_length() == 1 && start_pshape[0].is_static()) {
         size_t axes_length = start_pshape[0].get_length();
         std::vector<int64_t> axes(axes_length);
         std::iota(axes.begin(), axes.end(), 0);
-        return op::v0::Constant::create(element::i64, Shape{axes_length}, axes);
+        return op::v1::Constant::create(element::i64, Shape{axes_length}, axes);
     }
     // Dynamic case
     return nullptr;
@@ -172,7 +172,7 @@ void op::v8::Slice::validate_and_infer_types() {
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    std::shared_ptr<ngraph::op::v0::Constant> axes_const;
+    std::shared_ptr<ov::op::v1::Constant> axes_const;
     if (get_input_size() > 4) {
         set_input_is_relevant_to_shape(4);
         axes_const = get_constant_from_source(input_value(4));

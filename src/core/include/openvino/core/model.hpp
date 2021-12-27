@@ -186,7 +186,7 @@ public:
     ///
     /// \param parameter_index The index of the parameter to replace.
     /// \param parameter The parameter to substitute for the `parameter_index`th parameter.
-    void replace_parameter(size_t parameter_index, const std::shared_ptr<ov::op::v0::Parameter>& parameter);
+    void replace_parameter(size_t parameter_index, const std::shared_ptr<ov::op::v1::Parameter>& parameter);
 
     using topological_sort_t =
         std::function<std::vector<std::shared_ptr<ov::Node>>(const std::vector<std::shared_ptr<ov::Node>>& root_nodes)>;
@@ -203,7 +203,7 @@ public:
         return m_results;
     };
     /// Index for parameter, or -1
-    int64_t get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const;
+    int64_t get_parameter_index(const std::shared_ptr<ov::op::v1::Parameter>& parameter) const;
 
     /// \brief Return the index of this function's Result represented by the "value" Output object.
     /// This method returns -1 if an the passed output is not related to the Results of a function.
@@ -257,7 +257,7 @@ public:
     /// \brief Delete Result node from the list of results. Method will not delete node from
     /// graph.
     /// \param result Result node to delete
-    void remove_result(const std::shared_ptr<ov::op::v0::Result>& result);
+    void remove_result(const std::shared_ptr<ov::op::v1::Result>& result);
 
     /// \brief Add new Parameter nodes to the list.
     ///
@@ -284,7 +284,7 @@ public:
     /// * call graph validation to check all changes
     ///
     /// \param param Parameter node to delete
-    void remove_parameter(const std::shared_ptr<ov::op::v0::Parameter>& param);
+    void remove_parameter(const std::shared_ptr<ov::op::v1::Parameter>& param);
 
     /// \brief Add new variables to the list. Method doesn't validate graph, it should be done
     /// manually after all changes.

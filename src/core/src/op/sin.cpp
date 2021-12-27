@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Sin);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Sin);
 
 op::Sin::Sin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

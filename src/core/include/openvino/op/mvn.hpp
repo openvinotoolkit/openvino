@@ -11,7 +11,7 @@
 namespace ov {
 namespace op {
 
-namespace v0 {
+namespace v2 {
 /// \brief Operator performing Mean Variance Normalization
 ///
 class OPENVINO_API MVN : public Op {
@@ -71,7 +71,7 @@ private:
     bool m_normalize_variance;
     AxisSet m_reduction_axes;
 };
-}  // namespace v0
+}  // namespace v2
 
 /// \brief Specifies how eps is applied in MVN
 enum class MVNEpsMode {

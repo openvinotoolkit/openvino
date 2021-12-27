@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Negative;
+using ov::op::v1::Negative;
 }  // namespace v0
 using v0::Negative;
 }  // namespace op

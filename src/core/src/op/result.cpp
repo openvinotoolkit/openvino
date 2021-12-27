@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Result);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Result);
 
 op::Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -25,13 +25,13 @@ op::Result::Result(const Output<Node>& arg, bool) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Result_visit_attributes);
+bool op::Result::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_Result_visit_attributes);
     return true;
 }
 
 void op::Result::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Result_validate_and_infer_types);
+    NGRAPH_OP_SCOPE(v1_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
     // Result doesn't change change in/out tensors
@@ -41,7 +41,7 @@ void op::Result::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Result_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v1_Result_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     auto res = make_shared<Result>(new_args.at(0));
@@ -49,7 +49,7 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
 }
 
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Result_evaluate);
+    NGRAPH_OP_SCOPE(v1_Result_evaluate);
     outputs[0]->set_unary(inputs[0]);
     void* output = outputs[0]->get_data_ptr();
     void* input = inputs[0]->get_data_ptr();
@@ -59,7 +59,7 @@ bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVecto
 }
 
 bool op::Result::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Result_has_evaluate);
+    NGRAPH_OP_SCOPE(v1_Result_has_evaluate);
     return true;
 }
 
@@ -95,7 +95,7 @@ bool ov::AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visi
         }
         visitor.on_attribute(index.str(), id);
         if (!m_ref[i]) {
-            m_ref[i] = ov::as_type_ptr<ngraph::op::v0::Result>(visitor.get_registered_node(id));
+            m_ref[i] = ov::as_type_ptr<ov::op::v1::Result>(visitor.get_registered_node(id));
         }
     }
     return true;

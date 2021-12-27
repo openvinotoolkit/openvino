@@ -188,28 +188,28 @@ bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
-// op::v0::ShapeOf
-BWDCMP_RTTI_DEFINITION(op::v0::ShapeOf);
+// op::v1::ShapeOf
+BWDCMP_RTTI_DEFINITION(ov::op::v1::ShapeOf);
 
-op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
+ov::op::v1::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-void op::v0::ShapeOf::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_validate_and_infer_types);
+void ov::op::v1::ShapeOf::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_ShapeOf_validate_and_infer_types);
     set_input_is_relevant_to_value(0, false);
     set_output_type(0, element::i64, ov::PartialShape{get_input_partial_shape(0).rank()});
 }
 
-bool ngraph::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_visit_attributes);
+bool ov::op::v1::ShapeOf::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_ShapeOf_visit_attributes);
     return true;
 }
 
-shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_clone_with_new_inputs);
+shared_ptr<Node> ov::op::v1::ShapeOf::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_ShapeOf_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto new_shape_of = make_shared<op::v0::ShapeOf>(new_args.at(0));
+    auto new_shape_of = make_shared<op::v1::ShapeOf>(new_args.at(0));
     NGRAPH_CHECK(new_shape_of.get(),
                  new_shape_of != nullptr,
                  "Cannot clone ",
@@ -219,15 +219,15 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
-bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate);
+bool ov::op::v1::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
+    NGRAPH_OP_SCOPE(v1_ShapeOf_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
-bool op::v0::ShapeOf::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_has_evaluate);
+bool ov::op::v1::ShapeOf::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v1_ShapeOf_has_evaluate);
     switch (get_output_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -240,17 +240,17 @@ bool op::v0::ShapeOf::has_evaluate() const {
     return false;
 }
 
-bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
+bool ov::op::v1::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v1::ShapeOf::constant_fold");
     if (get_rt_info().count(ov::pass::DisableConstantFolding::get_type_info_static()))
         return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
-bool op::v0::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const {
+bool ov::op::v1::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, false);
 }
 
-bool op::v0::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const {
+bool ov::op::v1::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, true);
 }

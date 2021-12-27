@@ -10,11 +10,11 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Proposal);
+BWDCMP_RTTI_DEFINITION(op::v1::Proposal);
 
-op::v0::Proposal::Proposal(const Output<Node>& class_probs,
+op::v1::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
                            const Output<Node>& image_shape,
                            const Attributes& attrs)
@@ -23,7 +23,7 @@ op::v0::Proposal::Proposal(const Output<Node>& class_probs,
     constructor_validate_and_infer_types();
 }
 
-void op::v0::Proposal::validate_element_types() {
+void op::v1::Proposal::validate_element_types() {
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_real(),
                           "Proposal layer input class_probs should have floating point type (",
@@ -43,8 +43,8 @@ void op::v0::Proposal::validate_element_types() {
                           ").");
 }
 
-void op::v0::Proposal::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Proposal_validate_and_infer_types);
+void op::v1::Proposal::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_Proposal_validate_and_infer_types);
     validate_element_types();
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
@@ -54,14 +54,14 @@ void op::v0::Proposal::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Proposal_clone_with_new_inputs);
+shared_ptr<Node> op::v1::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_Proposal_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v0::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+    return make_shared<op::v1::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
-bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Proposal_visit_attributes);
+bool op::v1::Proposal::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_Proposal_visit_attributes);
     visitor.on_attribute("base_size", m_attrs.base_size);
     visitor.on_attribute("pre_nms_topn", m_attrs.pre_nms_topn);
     visitor.on_attribute("post_nms_topn", m_attrs.post_nms_topn);
@@ -84,14 +84,14 @@ BWDCMP_RTTI_DEFINITION(op::v4::Proposal);
 op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape,
-                           const op::v0::Proposal::Attributes& attrs)
-    : v0::Proposal(class_probs, class_bbox_deltas, image_shape, attrs) {
+                           const op::v1::Proposal::Attributes& attrs)
+    : v1::Proposal(class_probs, class_bbox_deltas, image_shape, attrs) {
     constructor_validate_and_infer_types();
 }
 
 void op::v4::Proposal::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_Proposal_validate_and_infer_types);
-    v0::Proposal::validate_element_types();
+    v1::Proposal::validate_element_types();
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),

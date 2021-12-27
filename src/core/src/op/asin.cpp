@@ -22,14 +22,14 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Asin);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Asin);
 
 op::Asin::Asin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 shared_ptr<Node> op::Asin::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Asin_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v1_Asin_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Asin>(new_args.at(0));
 }
@@ -64,7 +64,7 @@ bool evaluate_asin(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 }  // namespace asinop
 
 bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Asin_evaluate);
+    NGRAPH_OP_SCOPE(v1_Asin_evaluate);
     return asinop::evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 

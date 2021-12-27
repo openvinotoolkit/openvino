@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Elementwise Relu operation.
 ///
 class OPENVINO_API Relu : public util::UnaryElementwiseArithmetic {
@@ -31,6 +31,6 @@ public:
     bool has_evaluate() const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

@@ -10,9 +10,9 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::PSROIPooling);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::PSROIPooling);
 
-ov::op::v0::PSROIPooling::PSROIPooling(const Output<Node>& input,
+ov::op::v1::PSROIPooling::PSROIPooling(const Output<Node>& input,
                                        const Output<Node>& coords,
                                        const size_t output_dim,
                                        const size_t group_size,
@@ -30,8 +30,8 @@ ov::op::v0::PSROIPooling::PSROIPooling(const Output<Node>& input,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_PSROIPooling_visit_attributes);
+bool ov::op::v1::PSROIPooling::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_PSROIPooling_visit_attributes);
     visitor.on_attribute("output_dim", m_output_dim);
     visitor.on_attribute("group_size", m_group_size);
     visitor.on_attribute("spatial_scale", m_spatial_scale);
@@ -41,8 +41,8 @@ bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void ov::op::v0::PSROIPooling::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_PSROIPooling_validate_and_infer_types);
+void ov::op::v1::PSROIPooling::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_PSROIPooling_validate_and_infer_types);
     auto feat_maps_et = get_input_element_type(0);
     auto coords_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
@@ -104,8 +104,8 @@ void ov::op::v0::PSROIPooling::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> ov::op::v0::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_PSROIPooling_clone_with_new_inputs);
+shared_ptr<Node> ov::op::v1::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_PSROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PSROIPooling>(new_args.at(0),
                                      new_args.at(1),

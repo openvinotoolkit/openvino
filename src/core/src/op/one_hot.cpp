@@ -117,7 +117,7 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostT
     const auto out_shape = out_Pshape.get_shape();
     const size_t axis = get_axis();
     NGRAPH_CHECK(axis >= 0 && axis < out_shape.size(), "Invalid axis value.");
-    const auto depth = std::make_shared<op::v0::Constant>(input_values[1])->cast_vector<int64_t>()[0];
+    const auto depth = std::make_shared<op::v1::Constant>(input_values[1])->cast_vector<int64_t>()[0];
     const auto ind_shape = ind_Pshape.get_shape();
     NGRAPH_CHECK(shape_size(ind_shape) * depth == shape_size(out_shape),
                  "Incompatible I/O shapes or wrong depth value.");

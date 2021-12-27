@@ -12,12 +12,12 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::TensorIterator);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::TensorIterator);
 
-op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
+ov::op::v1::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
-bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_visit_attributes);
+bool ov::op::v1::TensorIterator::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_TensorIterator_visit_attributes);
     visitor.on_attribute("body", m_bodies[0]);
     visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
     visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
@@ -25,7 +25,7 @@ bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
+void ov::op::v1::TensorIterator::revalidate_and_infer_types_for_body_ops() {
     std::stack<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>> nodes_to_do;
     std::unordered_set<std::shared_ptr<Node>> nodes_done;
 
@@ -35,7 +35,7 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
     while (nodes_to_do.size() > 0) {
         auto node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
-            NGRAPH_CHECK(ov::as_type_ptr<op::v0::TensorIterator>(node) == nullptr, "No nested TensorIterator");
+            NGRAPH_CHECK(ov::as_type_ptr<op::v1::TensorIterator>(node) == nullptr, "No nested TensorIterator");
             bool can_add = true;
             size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
@@ -56,8 +56,8 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
     }
 }
 
-void op::v0::TensorIterator::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
+void ov::op::v1::TensorIterator::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_TensorIterator_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
 
@@ -183,7 +183,7 @@ bool has_slice_input_desc(const Desc& desc) {
 }
 }  // namespace
 
-void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
+void ov::op::v1::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
     if (m_num_iterations != -1 || has_slice_input_desc(get_input_descriptions())) {
         return;
     }
@@ -196,9 +196,9 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
     }
 }
 
-std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
-    auto op = make_shared<op::v0::TensorIterator>(new_args);
+std::shared_ptr<Node> ov::op::v1::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_TensorIterator_clone_with_new_inputs);
+    auto op = make_shared<op::v1::TensorIterator>(new_args);
     NGRAPH_CHECK(op.get(), op != nullptr, "Cannot clone ", description(), " operation with name ", get_friendly_name());
     op->set_output_size(m_output_descriptions[0].size());
 
@@ -212,7 +212,7 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
                 new_shapes[input_description->m_body_parameter_index] = new_args[input_index].get_partial_shape();
 
                 if (new_shapes[input_description->m_body_parameter_index].is_static()) {
-                    if (auto slice_in = ::ngraph::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(
+                    if (auto slice_in = ::ngraph::as_type_ptr<ov::op::v1::TensorIterator::SliceInputDescription>(
                             input_description)) {
                         new_shapes[slice_in->m_body_parameter_index][slice_in->m_axis] = slice_in->m_part_size;
                     }

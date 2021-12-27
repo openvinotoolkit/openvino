@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class OPENVINO_API PSROIPooling : public Op {
 public:
     OPENVINO_OP("PSROIPooling", "opset1");
@@ -68,6 +68,6 @@ private:
     int m_spatial_bins_y;
     std::string m_mode;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

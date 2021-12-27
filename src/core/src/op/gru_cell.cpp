@@ -172,7 +172,7 @@ void op::v3::GRUCell::validate_and_infer_types() {
 
 void op::v3::GRUCell::add_default_bias_input() {
     Output<Node> B =
-        op::v0::Constant::create(get_input_element_type(0),
+        op::v1::Constant::create(get_input_element_type(0),
                                  ov::Shape{(s_gates_count + m_linear_before_reset) * get_hidden_size()},
                                  vector<float>((s_gates_count + m_linear_before_reset) * get_hidden_size(), 0.f));
     set_argument(4, B);

@@ -9,9 +9,9 @@
 
 namespace ngraph {
 namespace op {
-using PriorBoxAttrs = ov::op::v0::PriorBox::Attributes;
+using PriorBoxAttrs = ov::op::v1::PriorBox::Attributes;
 namespace v0 {
-using ov::op::v0::PriorBox;
+using ov::op::v1::PriorBox;
 }  // namespace v0
 namespace v8 {
 using ov::op::v8::PriorBox;

@@ -18,28 +18,28 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::LSTMCell);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::LSTMCell);
 BWDCMP_RTTI_DEFINITION(op::v4::LSTMCell);
 
-op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
+ov::op::v1::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
     m_activation_f = get_activation_function(0);
     m_activation_g = get_activation_function(1);
     m_activation_h = get_activation_function(2);
 }
 
-op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
-                           const Output<Node>& initial_hidden_state,
-                           const Output<Node>& initial_cell_state,
-                           const Output<Node>& W,
-                           const Output<Node>& R,
-                           size_t hidden_size,
-                           op::LSTMWeightsFormat weights_format,
-                           const vector<string>& activations,
-                           const vector<float>& activations_alpha,
-                           const vector<float>& activations_beta,
-                           float clip,
-                           bool input_forget)
+ov::op::v1::LSTMCell::LSTMCell(const Output<Node>& X,
+                               const Output<Node>& initial_hidden_state,
+                               const Output<Node>& initial_cell_state,
+                               const Output<Node>& W,
+                               const Output<Node>& R,
+                               size_t hidden_size,
+                               op::LSTMWeightsFormat weights_format,
+                               const vector<string>& activations,
+                               const vector<float>& activations_alpha,
+                               const vector<float>& activations_beta,
+                               float clip,
+                               bool input_forget)
     : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R},
                   hidden_size,
                   clip,
@@ -56,19 +56,19 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
-                           const Output<Node>& initial_hidden_state,
-                           const Output<Node>& initial_cell_state,
-                           const Output<Node>& W,
-                           const Output<Node>& R,
-                           const Output<Node>& B,
-                           size_t hidden_size,
-                           op::LSTMWeightsFormat weights_format,
-                           const vector<string>& activations,
-                           const vector<float>& activations_alpha,
-                           const vector<float>& activations_beta,
-                           float clip,
-                           bool input_forget)
+ov::op::v1::LSTMCell::LSTMCell(const Output<Node>& X,
+                               const Output<Node>& initial_hidden_state,
+                               const Output<Node>& initial_cell_state,
+                               const Output<Node>& W,
+                               const Output<Node>& R,
+                               const Output<Node>& B,
+                               size_t hidden_size,
+                               op::LSTMWeightsFormat weights_format,
+                               const vector<string>& activations,
+                               const vector<float>& activations_alpha,
+                               const vector<float>& activations_beta,
+                               float clip,
+                               bool input_forget)
     : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R, B},
                   hidden_size,
                   clip,
@@ -84,20 +84,20 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
-                           const Output<Node>& initial_hidden_state,
-                           const Output<Node>& initial_cell_state,
-                           const Output<Node>& W,
-                           const Output<Node>& R,
-                           const Output<Node>& B,
-                           const Output<Node>& P,
-                           size_t hidden_size,
-                           op::LSTMWeightsFormat weights_format,
-                           const vector<string>& activations,
-                           const vector<float>& activations_alpha,
-                           const vector<float>& activations_beta,
-                           float clip,
-                           bool input_forget)
+ov::op::v1::LSTMCell::LSTMCell(const Output<Node>& X,
+                               const Output<Node>& initial_hidden_state,
+                               const Output<Node>& initial_cell_state,
+                               const Output<Node>& W,
+                               const Output<Node>& R,
+                               const Output<Node>& B,
+                               const Output<Node>& P,
+                               size_t hidden_size,
+                               op::LSTMWeightsFormat weights_format,
+                               const vector<string>& activations,
+                               const vector<float>& activations_alpha,
+                               const vector<float>& activations_beta,
+                               float clip,
+                               bool input_forget)
     : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R, B, P},
                   hidden_size,
                   clip,
@@ -112,8 +112,8 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_LSTMCell_visit_attributes);
+bool ov::op::v1::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_LSTMCell_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -125,8 +125,8 @@ bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v0::LSTMCell::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_LSTMCell_validate_and_infer_types);
+void ov::op::v1::LSTMCell::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_LSTMCell_validate_and_infer_types);
 
     // There should be 7 inputs, if no, it's possible the op can be fixed by
     // generating default ones for input 6 and 7 (bias input, peepholes)
@@ -177,23 +177,23 @@ void op::v0::LSTMCell::validate_and_infer_types() {
     set_output_type(1, result_et, output_shapes[1]);
 }
 
-Output<Node> op::v0::LSTMCell::get_default_bias_input() const {
-    return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
+Output<Node> ov::op::v1::LSTMCell::get_default_bias_input() const {
+    return Output<Node>{op::v1::Constant::create(get_input_element_type(0),
                                                  Shape{s_gates_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 
-Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const {
-    return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
+Output<Node> ov::op::v1::LSTMCell::get_default_peepholes_input() const {
+    return Output<Node>{op::v1::Constant::create(get_input_element_type(0),
                                                  Shape{s_peepholes_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 
-shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_LSTMCell_clone_with_new_inputs);
+shared_ptr<Node> ov::op::v1::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_LSTMCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 5) {
-        return make_shared<op::v0::LSTMCell>(new_args.at(0),
+        return make_shared<op::v1::LSTMCell>(new_args.at(0),
                                              new_args.at(1),
                                              new_args.at(2),
                                              new_args.at(3),
@@ -206,7 +206,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                              get_clip(),
                                              m_input_forget);
     } else if (new_args.size() == 6) {
-        return make_shared<op::v0::LSTMCell>(new_args.at(0),
+        return make_shared<op::v1::LSTMCell>(new_args.at(0),
                                              new_args.at(1),
                                              new_args.at(2),
                                              new_args.at(3),
@@ -220,7 +220,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                              get_clip(),
                                              m_input_forget);
     } else if (new_args.size() == 7) {
-        return make_shared<op::v0::LSTMCell>(new_args.at(0),
+        return make_shared<op::v1::LSTMCell>(new_args.at(0),
                                              new_args.at(1),
                                              new_args.at(2),
                                              new_args.at(3),
@@ -358,7 +358,7 @@ void op::v4::LSTMCell::validate_and_infer_types() {
 }
 
 Output<Node> op::v4::LSTMCell::get_default_bias_input() const {
-    return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
+    return Output<Node>{op::v1::Constant::create(get_input_element_type(0),
                                                  Shape{s_gates_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }

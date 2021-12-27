@@ -12,7 +12,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Acos;
+using ov::op::v1::Acos;
 }  // namespace v0
 using v0::Acos;
 }  // namespace op

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class OPENVINO_API Sigmoid : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Sigmoid", "opset1", util::UnaryElementwiseArithmetic);
@@ -21,6 +21,6 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

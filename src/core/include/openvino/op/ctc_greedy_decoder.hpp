@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class OPENVINO_API CTCGreedyDecoder : public Op {
 public:
     OPENVINO_OP("CTCGreedyDecoder", "opset1");
@@ -33,6 +33,6 @@ public:
 private:
     bool m_ctc_merge_repeated;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

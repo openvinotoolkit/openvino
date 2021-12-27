@@ -397,15 +397,15 @@ PartialShape ov::infer_convolution_forward(const Node* node,
                           filter_output_channel_count.is_dynamic() || filter_output_channel_count.get_length() > 0,
                           "Filter output channel count is zero.");
 
-    PartialShape data_output_shape = infer_windowed_reduction_output_shape(node,
-                                                                           data_spatial_shape,
-                                                                           data_dilation,
-                                                                           data_padding_below,
-                                                                           data_padding_above,
-                                                                           filter_spatial_shape,
-                                                                           filter_strides,
-                                                                           filter_dilation,
-                                                                           true);
+    PartialShape data_output_shape = ngraph::infer_windowed_reduction_output_shape(node,
+                                                                                   data_spatial_shape,
+                                                                                   data_dilation,
+                                                                                   data_padding_below,
+                                                                                   data_padding_above,
+                                                                                   filter_spatial_shape,
+                                                                                   filter_strides,
+                                                                                   filter_dilation,
+                                                                                   true);
 
     PartialShape batch_output_shape(PartialShape::dynamic(spatial_rank + 2));
     batch_output_shape[0] = batch_size;
@@ -652,13 +652,13 @@ void ov::infer_auto_padding(const Shape& image_shape,
                             CoordinateDiff& padding_below) {
     const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
     // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
-    try_apply_auto_padding(image_dims,
-                           filter_shape,
-                           filter_strides,
-                           filter_dilations,
-                           pad_type,
-                           padding_above,
-                           padding_below);
+    ngraph::try_apply_auto_padding(image_dims,
+                                   filter_shape,
+                                   filter_strides,
+                                   filter_dilations,
+                                   pad_type,
+                                   padding_above,
+                                   padding_below);
 }
 
 bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
@@ -984,7 +984,7 @@ struct MaxValue {
 
 vector<MaxValue> exec_constant(Node* node, vector<MaxValue>& inputs) {
     auto result = MaxValue();
-    auto op = ov::as_type<op::Constant>(node);
+    auto op = ov::as_type<ov::op::v1::Constant>(node);
     auto element_type = op->get_output_element_type(0);
     if (element_type.is_integral()) {
         uint64_t max_val = 0;
@@ -1042,7 +1042,7 @@ vector<MaxValue> exec_minimum(Node* node, vector<MaxValue>& inputs) {
 }
 
 vector<MaxValue> exec_concat(Node* node, vector<MaxValue>& inputs) {
-    auto op = ov::as_type<op::v0::Concat>(node);
+    auto op = ov::as_type<ov::op::v1::Concat>(node);
     vector<uint64_t> slice_maxen;
     for (const auto& input : inputs) {
         slice_maxen.push_back(input.m_value);
@@ -1054,7 +1054,7 @@ vector<MaxValue> exec_concat(Node* node, vector<MaxValue>& inputs) {
 vector<MaxValue> exec_reduce_min(Node* node, vector<MaxValue>& inputs) {
     auto data = inputs.at(0);
     if (data.m_slice_axis >= 0 && data.m_slices.size() > 1) {
-        if (auto indices_const = ov::as_type<op::v0::Constant>(node->get_input_node_ptr(1))) {
+        if (auto indices_const = ov::as_type<ov::op::v1::Constant>(node->get_input_node_ptr(1))) {
             if (indices_const->get_output_element_type(0).is_integral()) {
                 const auto& indices_shape = indices_const->get_output_shape(0);
                 if (indices_shape == Shape{1}) {
@@ -1088,8 +1088,8 @@ vector<MaxValue> exec_shape_of(Node* node, vector<MaxValue>& inputs) {
 vector<MaxValue> exec_gather(Node* node, vector<MaxValue>& inputs) {
     auto gather = ov::as_type<op::v1::Gather>(node);
 
-    const auto& indices = ov::as_type_ptr<op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
-    const auto& axis = ov::as_type_ptr<op::v0::Constant>(node->input_value(2).get_node_shared_ptr());
+    const auto& indices = ov::as_type_ptr<ov::op::v1::Constant>(node->input_value(1).get_node_shared_ptr());
+    const auto& axis = ov::as_type_ptr<ov::op::v1::Constant>(node->input_value(2).get_node_shared_ptr());
 
     if (!indices || !axis) {
         return {MaxValue()};
@@ -1113,16 +1113,17 @@ vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) {
 }  // namespace
 
 pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value) {
-    static Evaluator<MaxValue>::op_handler_map handlers = {{op::v0::Concat::get_type_info_static(), exec_concat},
-                                                           {op::v0::Constant::get_type_info_static(), exec_constant},
-                                                           {op::v0::Convert::get_type_info_static(), exec_nop},
-                                                           {op::v1::Gather::get_type_info_static(), exec_gather},
-                                                           {op::v1::Minimum::get_type_info_static(), exec_minimum},
-                                                           {op::v1::ReduceMin::get_type_info_static(), exec_reduce_min},
-                                                           {op::v1::Reshape::get_type_info_static(), exec_nop},
-                                                           {op::v3::ShapeOf::get_type_info_static(), exec_shape_of},
-                                                           {op::v0::Squeeze::get_type_info_static(), exec_nop},
-                                                           {op::v0::Unsqueeze::get_type_info_static(), exec_nop}};
+    static Evaluator<MaxValue>::op_handler_map handlers = {
+        {ov::op::v1::Concat::get_type_info_static(), exec_concat},
+        {ov::op::v1::Constant::get_type_info_static(), exec_constant},
+        {ov::op::v1::Convert::get_type_info_static(), exec_nop},
+        {ov::op::v1::Gather::get_type_info_static(), exec_gather},
+        {ov::op::v1::Minimum::get_type_info_static(), exec_minimum},
+        {ov::op::v1::ReduceMin::get_type_info_static(), exec_reduce_min},
+        {ov::op::v1::Reshape::get_type_info_static(), exec_nop},
+        {ov::op::v3::ShapeOf::get_type_info_static(), exec_shape_of},
+        {ov::op::v1::Squeeze::get_type_info_static(), exec_nop},
+        {ov::op::v1::Unsqueeze::get_type_info_static(), exec_nop}};
     Evaluator<MaxValue>::value_map value_map;
     Evaluator<MaxValue> evaluator(handlers, value_map);
     auto val = evaluator.evaluate(value);
@@ -1170,7 +1171,7 @@ bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& ord
 
         if (current_node->inputs().empty() && !is_type<op::Constant>(current_node))
             status = false;
-        else if (!is_type<op::v0::ShapeOf>(current_node) && !is_type<op::v3::ShapeOf>(current_node)) {
+        else if (!is_type<ov::op::v1::ShapeOf>(current_node) && !is_type<op::v3::ShapeOf>(current_node)) {
             // not a leaf, not a shape_of -- continue to search
             for (const auto& input_value : current_node->input_values()) {
                 const auto& input_node = input_value.get_node();
@@ -1287,8 +1288,8 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;
     if (lb && ub) {
-        auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
-        auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
+        auto lower_bound = std::make_shared<op::v1::Constant>(lb)->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v1::Constant>(ub)->cast_vector<int64_t>();
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
@@ -1460,7 +1461,7 @@ bool ngraph::interval_bound_evaluator(const Node* node,
         return node->evaluate(upper_output_values, *input_variants.begin()) &&
                node->evaluate(lower_output_values, *input_variants.begin());
 
-    auto zero = op::v0::Constant::create(element::i64, {1}, {0});
+    auto zero = ov::op::v1::Constant::create(element::i64, {1}, {0});
     std::vector<HostTensorVector> unsqueezed_output_variants;
     for (auto& input_variant : input_variants) {
         HostTensorVector vector_of_output_variants;
@@ -1477,7 +1478,7 @@ bool ngraph::interval_bound_evaluator(const Node* node,
             auto unsqueezed_shape = output->get_shape();
             unsqueezed_shape.insert(unsqueezed_shape.begin(), 1);
             const auto unsqueezed = make_shared<HostTensor>(output->get_element_type(), unsqueezed_shape);
-            op::v0::Unsqueeze().evaluate({unsqueezed}, {output, make_shared<HostTensor>(zero)});
+            ov::op::v1::Unsqueeze().evaluate({unsqueezed}, {output, make_shared<HostTensor>(zero)});
             vector_of_unsqueezed_output_variants.push_back(unsqueezed);
         }
         unsqueezed_output_variants.push_back(vector_of_unsqueezed_output_variants);
@@ -1570,9 +1571,9 @@ bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
 shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source) {
     if (!has_and_set_equal_bounds(source))
         return nullptr;
-    if (const auto& c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
+    if (const auto& c = ov::as_type_ptr<op::v1::Constant>(source.get_node_shared_ptr()))
         return c;
-    return std::make_shared<op::v0::Constant>(source.get_tensor().get_upper_value());
+    return std::make_shared<op::v1::Constant>(source.get_tensor().get_upper_value());
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {

@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Tile;
+using ov::op::v1::Tile;
 }  // namespace v0
 }  // namespace op
 }  // namespace ngraph

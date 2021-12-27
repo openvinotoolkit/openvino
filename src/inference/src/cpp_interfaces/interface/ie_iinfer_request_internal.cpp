@@ -193,10 +193,10 @@ void IInferRequestInternal::checkBlobsForBatch(const std::string& name, const st
                     name,
                     "'");
 
-    std::shared_ptr<const ov::op::v0::Parameter> param;
+    std::shared_ptr<const ov::op::v1::Parameter> param;
     const auto& inputs = GetInputs();
     for (const auto& input : inputs) {
-        if (auto p = std::dynamic_pointer_cast<const ov::op::v0::Parameter>(input)) {
+        if (auto p = std::dynamic_pointer_cast<const ov::op::v1::Parameter>(input)) {
             if (name == p->get_friendly_name()) {
                 param = p;
                 break;

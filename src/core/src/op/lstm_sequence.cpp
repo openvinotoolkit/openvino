@@ -16,10 +16,10 @@
 using namespace ngraph;
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(op::v0::LSTMSequence);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::LSTMSequence);
 BWDCMP_RTTI_DEFINITION(op::v5::LSTMSequence);
 
-op::v0::LSTMSequence::LSTMSequence()
+ov::op::v1::LSTMSequence::LSTMSequence()
     : Op(),
       m_activations_alpha(),
       m_activations_beta(),
@@ -30,22 +30,22 @@ op::v0::LSTMSequence::LSTMSequence()
       m_input_forget(),
       m_weights_format() {}
 
-op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
-                                   const Output<Node>& initial_hidden_state,
-                                   const Output<Node>& initial_cell_state,
-                                   const Output<Node>& sequence_lengths,
-                                   const Output<Node>& W,
-                                   const Output<Node>& R,
-                                   const Output<Node>& B,
-                                   const Output<Node>& P,
-                                   const std::int64_t hidden_size,
-                                   const LSTMSequence::direction lstm_direction,
-                                   LSTMWeightsFormat weights_format,
-                                   const std::vector<float> activations_alpha,
-                                   const std::vector<float> activations_beta,
-                                   const std::vector<std::string> activations,
-                                   const float clip_threshold,
-                                   const bool input_forget)
+ov::op::v1::LSTMSequence::LSTMSequence(const Output<Node>& X,
+                                       const Output<Node>& initial_hidden_state,
+                                       const Output<Node>& initial_cell_state,
+                                       const Output<Node>& sequence_lengths,
+                                       const Output<Node>& W,
+                                       const Output<Node>& R,
+                                       const Output<Node>& B,
+                                       const Output<Node>& P,
+                                       const std::int64_t hidden_size,
+                                       const LSTMSequence::direction lstm_direction,
+                                       LSTMWeightsFormat weights_format,
+                                       const std::vector<float> activations_alpha,
+                                       const std::vector<float> activations_beta,
+                                       const std::vector<std::string> activations,
+                                       const float clip_threshold,
+                                       const bool input_forget)
     : Op({X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, P}),
       m_activations_alpha(activations_alpha),
       m_activations_beta(activations_beta),
@@ -58,22 +58,22 @@ op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
-                                   const Output<Node>& initial_hidden_state,
-                                   const Output<Node>& initial_cell_state,
-                                   const Output<Node>& sequence_lengths,
-                                   const Output<Node>& W,
-                                   const Output<Node>& R,
-                                   const Output<Node>& B,
-                                   const std::int64_t hidden_size,
-                                   const LSTMSequence::direction lstm_direction,
-                                   LSTMWeightsFormat weights_format,
-                                   const std::vector<float>& activations_alpha,
-                                   const std::vector<float>& activations_beta,
-                                   const std::vector<std::string>& activations,
-                                   const float clip_threshold,
-                                   const bool input_forget)
-    : op::v0::LSTMSequence(
+ov::op::v1::LSTMSequence::LSTMSequence(const Output<Node>& X,
+                                       const Output<Node>& initial_hidden_state,
+                                       const Output<Node>& initial_cell_state,
+                                       const Output<Node>& sequence_lengths,
+                                       const Output<Node>& W,
+                                       const Output<Node>& R,
+                                       const Output<Node>& B,
+                                       const std::int64_t hidden_size,
+                                       const LSTMSequence::direction lstm_direction,
+                                       LSTMWeightsFormat weights_format,
+                                       const std::vector<float>& activations_alpha,
+                                       const std::vector<float>& activations_beta,
+                                       const std::vector<std::string>& activations,
+                                       const float clip_threshold,
+                                       const bool input_forget)
+    : op::v1::LSTMSequence(
           X,
           initial_hidden_state,
           initial_cell_state,
@@ -94,8 +94,8 @@ op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
           clip_threshold,
           input_forget) {}
 
-bool op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_LSTMSequence_visit_attributes);
+bool ov::op::v1::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_LSTMSequence_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -108,11 +108,11 @@ bool op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_LSTMSequence_clone_with_new_inputs);
+shared_ptr<Node> ov::op::v1::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_LSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 8) {
-        return make_shared<op::v0::LSTMSequence>(new_args.at(0),  // X
+        return make_shared<op::v1::LSTMSequence>(new_args.at(0),  // X
                                                  new_args.at(1),  // initial_hidden_state
                                                  new_args.at(2),  // initial_cell_state
                                                  new_args.at(3),  // sequence_lengths
@@ -129,7 +129,7 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
                                                  m_clip_threshold,
                                                  m_input_forget);
     } else if (new_args.size() == 7) {
-        return make_shared<op::v0::LSTMSequence>(new_args.at(0),  // X
+        return make_shared<op::v1::LSTMSequence>(new_args.at(0),  // X
                                                  new_args.at(1),  // initial_hidden_state
                                                  new_args.at(2),  // initial_cell_state
                                                  new_args.at(3),  // sequence_lengths
@@ -149,10 +149,10 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
     }
 }
 
-shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
-                                                       int32_t time_step,
-                                                       size_t batch_axis,
-                                                       const Output<Node>& default_value) const {
+shared_ptr<Node> ov::op::v1::LSTMSequence::get_masked_node(const Output<Node>& data,
+                                                           int32_t time_step,
+                                                           size_t batch_axis,
+                                                           const Output<Node>& default_value) const {
     Output<Node> mask_value = default_value;
     // Create zero mask value node.
     if (!mask_value.get_node_shared_ptr()) {
@@ -181,7 +181,7 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
     return make_shared<opset1::Select>(mask_condition, mask_value, data);
 }
 
-OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
+OutputVector ov::op::v1::LSTMSequence::lstm_pass(bool is_reverse) const {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
     //
@@ -277,9 +277,9 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
     return {Y, Y_h, Y_c};
 }
 
-shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
-                                                     bool is_reverse,
-                                                     size_t num_direction_axis) const {
+shared_ptr<Node> ov::op::v1::LSTMSequence::prepare_input(Output<Node> node,
+                                                         bool is_reverse,
+                                                         size_t num_direction_axis) const {
     // In bidirectional mode inputs are stacked together, so we must split them.
     Output<Node> tmp = node;
     if (m_direction == direction::BIDIRECTIONAL) {
@@ -289,8 +289,8 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
     return builder::opset1::squeeze(tmp, {num_direction_axis});
 }
 
-void op::v0::LSTMSequence::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_LSTMSequence_validate_and_infer_types);
+void ov::op::v1::LSTMSequence::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_LSTMSequence_validate_and_infer_types);
     std::vector<ov::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;

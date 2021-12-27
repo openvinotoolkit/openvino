@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::CumSum;
+using ov::op::v3::CumSum;
 }  // namespace v0
 using v0::CumSum;
 }  // namespace op

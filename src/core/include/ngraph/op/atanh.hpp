@@ -12,7 +12,7 @@
 namespace ngraph {
 namespace op {
 namespace v3 {
-using ov::op::v3::Atanh;
+using ov::op::v4::Atanh;
 }  // namespace v3
 using v3::Atanh;
 }  // namespace op

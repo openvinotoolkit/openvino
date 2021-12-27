@@ -12,7 +12,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Concat;
+using ov::op::v1::Concat;
 }  // namespace v0
 using v0::Concat;
 }  // namespace op

@@ -8,9 +8,9 @@
 
 using namespace std;
 
-// ------------------------------ V0 ------------------------------
-BWDCMP_RTTI_DEFINITION(ov::op::v0::DetectionOutput);
-ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
+// ------------------------------ V1 ------------------------------
+BWDCMP_RTTI_DEFINITION(ov::op::v1::DetectionOutput);
+ov::op::v1::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,
                                              const Output<Node>& proposals,
                                              const Output<Node>& aux_class_preds,
@@ -21,7 +21,7 @@ ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
     constructor_validate_and_infer_types();
 }
 
-ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
+ov::op::v1::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,
                                              const Output<Node>& proposals,
                                              const Attributes& attrs)
@@ -30,14 +30,14 @@ ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
     constructor_validate_and_infer_types();
 }
 
-void ov::op::v0::DetectionOutput::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
+void ov::op::v1::DetectionOutput::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_DetectionOutput_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, m_attrs.num_classes > 0, "Number of classes must be greater than zero");
     validate_and_infer_types_base(m_attrs, m_attrs.num_classes);
 }
 
-shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
+shared_ptr<ov::Node> ov::op::v1::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_DetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     auto num_args = new_args.size();
@@ -56,8 +56,8 @@ shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const Ou
     }
 }
 
-bool ov::op::v0::DetectionOutput::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_visit_attributes);
+bool ov::op::v1::DetectionOutput::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_DetectionOutput_visit_attributes);
     visitor.on_attribute("num_classes", m_attrs.num_classes);
     visit_attributes_base(visitor, m_attrs);
     return true;
@@ -86,12 +86,12 @@ ov::op::v8::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
 }
 
 void ov::op::v8::DetectionOutput::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
+    NGRAPH_OP_SCOPE(v1_DetectionOutput_validate_and_infer_types);
     validate_and_infer_types_base(m_attrs, Dimension::dynamic());
 }
 
 shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v8_DetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     auto num_args = new_args.size();
@@ -111,7 +111,7 @@ shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const Ou
 }
 
 bool ov::op::v8::DetectionOutput::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_visit_attributes);
+    NGRAPH_OP_SCOPE(v8_DetectionOutput_visit_attributes);
     visit_attributes_base(visitor, m_attrs);
     return true;
 }

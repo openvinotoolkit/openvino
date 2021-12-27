@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 /// \brief Concatenation operation.
 class OPENVINO_API Concat : public Op {
 public:
@@ -65,6 +65,6 @@ protected:
     /// \brief m_concat_axis stores m_axis plus the number of rank for each iteration
     int64_t m_concat_axis = -1;
 };
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::MatMul);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::MatMul);
 
 op::MatMul::MatMul(const Output<Node>& A, const Output<Node>& B, const bool& transpose_a, const bool& transpose_b)
     : Op(OutputVector{A, B}),
@@ -24,15 +24,15 @@ op::MatMul::MatMul(const Output<Node>& A, const Output<Node>& B, const bool& tra
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_MatMul_visit_attributes);
+bool ov::op::v1::MatMul::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_MatMul_visit_attributes);
     visitor.on_attribute("transpose_a", m_transpose_a);
     visitor.on_attribute("transpose_b", m_transpose_b);
     return true;
 }
 
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_MatMul_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v1_MatMul_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
 }
@@ -227,12 +227,12 @@ bool evaluate_matmul(const HostTensorPtr& arg0,
 }  // namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_MatMul_evaluate);
+    NGRAPH_OP_SCOPE(v1_MatMul_evaluate);
     return matmul::evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }
 
 bool op::MatMul::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_MatMul_has_evaluate);
+    NGRAPH_OP_SCOPE(v1_MatMul_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -247,8 +247,8 @@ bool op::MatMul::has_evaluate() const {
     return false;
 }
 
-void ngraph::op::v0::MatMul::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_MatMul_validate_and_infer_types);
+void ov::op::v1::MatMul::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_MatMul_validate_and_infer_types);
     element::Type result_et;
 
     NODE_VALIDATION_CHECK(this,

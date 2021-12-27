@@ -84,8 +84,8 @@ void op::v1::Reshape::validate_and_infer_types() {
     HostTensorPtr lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(1));
     if (lb && ub) {
-        const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
-        auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
+        const auto lower_bound = std::make_shared<op::v1::Constant>(lb)->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v1::Constant>(ub)->cast_vector<int64_t>();
         shape_can_be_calculated = true;
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
@@ -219,8 +219,8 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
 
     const auto& shape = get_output_shape(0);
 
-    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
+    if (auto data_const = std::dynamic_pointer_cast<op::v1::Constant>(inputs_values[0].get_node_shared_ptr())) {
+        output_values[0] = std::make_shared<op::v1::Constant>(*data_const, shape);
         return true;
     }
     return false;

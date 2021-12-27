@@ -10,28 +10,27 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Elu);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Elu);
 
-op::Elu::Elu(const Output<Node>& data, const double alpha) : Op({data}), m_alpha{alpha} {
+ov::op::v1::Elu::Elu(const Output<Node>& data, const double alpha) : Op({data}), m_alpha{alpha} {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Elu::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Elu_visit_attributes);
+bool ov::op::v1::Elu::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_Elu_visit_attributes);
     visitor.on_attribute("alpha", m_alpha);
     return true;
 }
 
-void op::v0::Elu::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Elu_validate_and_infer_types);
+void ov::op::v1::Elu::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_Elu_validate_and_infer_types);
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::Elu::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Elu_clone_with_new_inputs);
+shared_ptr<ov::Node> ov::op::v1::Elu::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_Elu_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Elu>(new_args.at(0), m_alpha);
 }

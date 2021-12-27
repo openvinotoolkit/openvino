@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::BatchNormInference;
+using ov::op::v1::BatchNormInference;
 }  // namespace v0
 namespace v5 {
 using ov::op::v5::BatchNormInference;

@@ -17,7 +17,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 
 ///
 /// \brief      Class for lstm sequence node.
@@ -135,7 +135,7 @@ private:
     bool m_input_forget;
     LSTMWeightsFormat m_weights_format;
 };
-}  // namespace v0
+}  // namespace v1
 
 namespace v5 {
 ///

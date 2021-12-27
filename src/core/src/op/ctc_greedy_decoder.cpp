@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::CTCGreedyDecoder);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::CTCGreedyDecoder);
 
 op::CTCGreedyDecoder::CTCGreedyDecoder(const Output<Node>& input,
                                        const Output<Node>& seq_len,
@@ -22,7 +22,7 @@ op::CTCGreedyDecoder::CTCGreedyDecoder(const Output<Node>& input,
 }
 
 void op::CTCGreedyDecoder::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_CTCGreedyDecoder_validate_and_infer_types);
+    NGRAPH_OP_SCOPE(v1_CTCGreedyDecoder_validate_and_infer_types);
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& seq_mask_pshape = get_input_partial_shape(1);
     const auto& input_et = get_input_element_type(0);
@@ -34,13 +34,13 @@ void op::CTCGreedyDecoder::validate_and_infer_types() {
 }
 
 bool op::CTCGreedyDecoder::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_CTCGreedyDecoder_visit_attributes);
+    NGRAPH_OP_SCOPE(v1_CTCGreedyDecoder_visit_attributes);
     visitor.on_attribute("ctc_merge_repeated", m_ctc_merge_repeated);
     return true;
 }
 
 shared_ptr<Node> op::CTCGreedyDecoder::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_CTCGreedyDecoder_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v1_CTCGreedyDecoder_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<CTCGreedyDecoder>(new_args.at(0), new_args.at(1), m_ctc_merge_repeated);
 }

@@ -9,7 +9,7 @@
 namespace ov {
 namespace op {
 
-namespace v0 {
+namespace v1 {
 class OPENVINO_API Proposal : public Op {
 public:
     OPENVINO_OP("Proposal", "opset1");
@@ -68,10 +68,10 @@ protected:
     Attributes m_attrs;
     void validate_element_types();
 };
-}  // namespace v0
+}  // namespace v1
 
 namespace v4 {
-class OPENVINO_API Proposal : public op::v0::Proposal {
+class OPENVINO_API Proposal : public op::v1::Proposal {
 public:
     OPENVINO_OP("Proposal", "opset4", op::Op, 4);
     BWDCMP_RTTI_DECLARATION;

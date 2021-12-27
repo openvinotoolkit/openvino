@@ -28,8 +28,8 @@ ov::ResultVector ov::as_result_vector(const OutputVector& values) {
     ResultVector result;
     for (const auto& value : values) {
         std::shared_ptr<Node> node = value.get_node_shared_ptr();
-        result.push_back(ov::is_type<ov::op::v0::Result>(node) ? ov::as_type_ptr<ov::op::v0::Result>(node)
-                                                               : std::make_shared<ov::op::v0::Result>(value));
+        result.push_back(ov::is_type<ov::op::v1::Result>(node) ? ov::as_type_ptr<ov::op::v1::Result>(node)
+                                                               : std::make_shared<ov::op::v1::Result>(value));
     }
     return result;
 }

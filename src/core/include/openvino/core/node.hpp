@@ -49,9 +49,9 @@ class HostTensor;
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class Result;
-}  // namespace v0
+}  // namespace v1
 struct AutoBroadcastSpec;
 }  // namespace op
 namespace pass {

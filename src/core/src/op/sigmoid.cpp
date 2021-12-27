@@ -15,15 +15,15 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Sigmoid);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Sigmoid);
 
-shared_ptr<Node> ov::op::v0::Sigmoid::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Sigmoid_clone_with_new_inputs);
+shared_ptr<Node> ov::op::v1::Sigmoid::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_Sigmoid_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Sigmoid>(new_args.at(0));
 }
 
-ov::op::v0::Sigmoid::Sigmoid(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+ov::op::v1::Sigmoid::Sigmoid(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
@@ -57,14 +57,14 @@ bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 }  // namespace
 }  // namespace sigmoid
 
-bool ov::op::v0::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Sigmoid_evaluate);
+bool ov::op::v1::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v1_Sigmoid_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return sigmoid::evaluate_sigmoid(inputs[0], outputs[0]);
 }
 
-bool ov::op::v0::Sigmoid::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Sigmoid_has_evaluate);
+bool ov::op::v1::Sigmoid::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v1_Sigmoid_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

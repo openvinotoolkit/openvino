@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v2 {
 class OPENVINO_API ReorgYolo : public Op {
 public:
     OPENVINO_OP("ReorgYolo", "opset2");
@@ -37,6 +37,6 @@ public:
 private:
     Strides m_strides;
 };
-}  // namespace v0
+}  // namespace v2
 }  // namespace op
 }  // namespace ov

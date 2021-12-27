@@ -41,7 +41,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 class Result;
 }
 }  // namespace op
@@ -60,7 +60,7 @@ using HostTensorVector = std::vector<HostTensorPtr>;
 namespace op {
 
 namespace v0 {
-using ov::op::v0::Result;
+using ov::op::v1::Result;
 }
 }  // namespace op
 

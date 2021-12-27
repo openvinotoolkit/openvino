@@ -15,7 +15,7 @@ class FunctionGuard {
     ParameterVector m_parameters;
     ResultVector m_results;
     std::vector<std::unordered_set<std::string>> m_result_tensors;
-    std::map<std::shared_ptr<op::v0::Parameter>, std::set<Input<Node>>> m_backup;
+    std::map<std::shared_ptr<op::v1::Parameter>, std::set<Input<Node>>> m_backup;
     bool m_done = false;
 
 public:

@@ -21,7 +21,7 @@ using namespace ngraph;
 BWDCMP_RTTI_DEFINITION(op::v1::GroupConvolution);
 
 shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
+    return op::v1::Constant::create(get_element_type(), get_shape(), {0});
 }
 
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
@@ -236,7 +236,7 @@ const ov::PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_out
 
 void op::v1::GroupConvolutionBackpropData::set_output_shape(const ov::Shape& shape) {
     this->input(2).replace_source_output(
-        op::v0::Constant::create(this->get_input_element_type(2), ov::Shape{shape.size()}, shape)->output(0));
+        op::v1::Constant::create(this->get_input_element_type(2), ov::Shape{shape.size()}, shape)->output(0));
 }
 
 void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(

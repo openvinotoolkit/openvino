@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace op {
 namespace v1 {
-using ov::op::v1::BatchToSpace;
+using ov::op::v2::BatchToSpace;
 }  // namespace v1
 }  // namespace op
 }  // namespace ngraph

@@ -9,10 +9,10 @@
 
 namespace ngraph {
 namespace op {
-using ProposalAttrs = ov::op::v0::Proposal::Attributes;
+using ProposalAttrs = ov::op::v1::Proposal::Attributes;
 
 namespace v0 {
-using ov::op::v0::Proposal;
+using ov::op::v1::Proposal;
 }  // namespace v0
 
 namespace v4 {

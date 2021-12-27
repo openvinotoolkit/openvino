@@ -178,7 +178,7 @@ const ov::PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
 
 void op::v1::ConvolutionBackpropData::set_output_shape(const ov::Shape& shape) {
     this->input(2).replace_source_output(
-        op::v0::Constant::create(this->get_input_element_type(2), ov::Shape{shape.size()}, shape)->output(0));
+        op::v1::Constant::create(this->get_input_element_type(2), ov::Shape{shape.size()}, shape)->output(0));
 }
 
 void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(

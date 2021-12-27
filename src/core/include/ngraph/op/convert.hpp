@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace op {
 namespace v0 {
-using ov::op::v0::Convert;
+using ov::op::v1::Convert;
 }  // namespace v0
 using v0::Convert;
 }  // namespace op
