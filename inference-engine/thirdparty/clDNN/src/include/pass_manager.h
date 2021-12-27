@@ -159,6 +159,7 @@ private:
     void remove_fake_reorders(program& p, reorder_node& reorder_node);
     void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);
     void prepare_scale_shift_opt(program &p, quantize_node& quantize_node);
+    bool optimize_quantize(program &p, quantize_node& quantize_node);
 };
 
 class prepare_conv_eltw_fusing : public base_pass {

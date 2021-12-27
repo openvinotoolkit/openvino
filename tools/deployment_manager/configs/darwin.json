@@ -16,17 +16,14 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/lib/intel64/libinference_engine.dylib",
-        "runtime/lib/intel64/libinference_engine_transformations.dylib",
+        "runtime/lib/intel64/libov_runtime.dylib",
         "runtime/lib/intel64/libinference_engine_preproc.so",
         "runtime/lib/intel64/libinference_engine_c_api.dylib",
         "runtime/lib/intel64/libov_hetero_plugin.so",
         "runtime/lib/intel64/libov_auto_plugin.so",
-        "runtime/lib/intel64/libngraph.dylib",
-        "runtime/lib/intel64/libfrontend_common.dylib",
         "runtime/lib/intel64/libov_ir_frontend.dylib",
         "runtime/lib/intel64/libov_onnx_frontend.dylib",
-        "runtime/lib/intel64/libov_paddlepaddle_frontend.dylib",
+        "runtime/lib/intel64/libov_paddle_frontend.dylib",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -36,8 +33,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libinference_engine_lp_transformations.dylib",
-        "runtime/lib/intel64/libMKLDNNPlugin.so"
+        "runtime/lib/intel64/libov_intel_cpu_plugin.so"
       ]
     },
     "vpu": {
@@ -50,22 +46,10 @@
         "runtime/lib/intel64/pcie-ma2x8x.mvcmd"
       ]
     },
-    "opencv": {
-      "ui_name": "OpenCV",
-      "group": ["opencv"],
-      "dependencies" : [],
-      "files": [
-        "extras/opencv/version.txt",
-        "extras/opencv/setupvars.sh",
-        "extras/opencv/lib",
-        "extras/opencv/bin"
-      ]
-    },
     "python_common": {
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
-        "python/python3",
         "python/requirements.txt"
       ]
     },

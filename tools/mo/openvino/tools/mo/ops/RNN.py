@@ -4,6 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import mark_input_bins, shape_array, shape_insert
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph, add_opoutput
 from openvino.tools.mo.ops.op import Op
 
@@ -20,7 +21,7 @@ class RNN(Op):
             'direction': 'forward',
             'infer': self.infer,
             'multiplier': 1,
-            'gate_order': np.array([0]),  # Only one gate in this cell
+            'gate_order': mo_array([0]),  # Only one gate in this cell
             'normalized': False,
 
             'activation_alpha': None,
