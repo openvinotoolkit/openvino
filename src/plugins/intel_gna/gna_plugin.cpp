@@ -78,6 +78,7 @@
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/unfuse_reshape_and_transpose.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -699,6 +700,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SwapInputMatMul>();
         manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
+        manager.register_pass<Unfuse2dto4dReshapeAndTranspose>();
+        manager.register_pass<Unfuse4dto2dReshapeAndTranspose>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();

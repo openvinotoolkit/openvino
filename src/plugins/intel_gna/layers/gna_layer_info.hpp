@@ -271,6 +271,24 @@ class LayerInfo {
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
+    bool isPermuteViaReshape() const noexcept {
+        if (!isOfType("reshape")) return false;
+
+        auto input_dims = layer->insData[0].lock()->getDims();
+        auto output_dims = layer->outData[0]->getDims();
+
+        if (input_dims.size() != output_dims.size()) {
+            return false;
+        }
+
+        input_dims.erase(std::remove(input_dims.begin(), input_dims.end(), 1), input_dims.end());
+        output_dims.erase(std::remove(output_dims.begin(), output_dims.end(), 1), output_dims.end());
+
+        if (input_dims != output_dims) {
+            return false;
+        }
+        return true;
+    }
     // @brief this not only mathematically trivial, has some WA for kaldi case
     bool isTrivialPermute() const noexcept {
         if (!isPermute()) return false;

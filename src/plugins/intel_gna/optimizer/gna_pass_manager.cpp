@@ -633,11 +633,11 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 
         if (prev == nullptr || next == nullptr) continue;
 
-        if (LayerInfo(prev).isPermute()) {
+        if (LayerInfo(prev).isPermute() || LayerInfo(prev).isPermuteViaReshape()) {
             permutations_to_remove.insert(prev);
         }
 
-        if (LayerInfo(next).isPermute()) {
+        if (LayerInfo(next).isPermute() || LayerInfo(prev).isPermuteViaReshape()) {
             permutations_to_remove.insert(next);
         }
 
@@ -699,7 +699,8 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         };
         propogateNHWCOrderRecursive(current_layer);
 
-        if (LayerInfo(pattern_start).isPermute() && !getInputTo(pattern_start->outData.front()).empty()) {
+        if ((LayerInfo(pattern_start).isPermute() || LayerInfo(pattern_start).isPermuteViaReshape()) &&
+         !getInputTo(pattern_start->outData.front()).empty()) {
             auto layer_before_permute = CNNNetPrevLayer(pattern_start);
             DataPtr output = nullptr;
             for (auto before_output : layer_before_permute->outData) {
