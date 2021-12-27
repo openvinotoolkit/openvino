@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <api/intel_gpu/primitives/random_uniform.hpp>
+#include "intel_gpu/primitives/random_uniform.hpp"
 #include "primitive_inst.h"
-#include <api/intel_gpu/runtime/error_handler.hpp>
+#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 

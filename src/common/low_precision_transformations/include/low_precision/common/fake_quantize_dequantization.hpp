@@ -33,7 +33,6 @@ public:
     bool multiplyHasZeroOrDenormal() const;
     bool isShared() const;
     bool isLowPrecision() const;
-    std::shared_ptr<Node> copyWithNewInput(const std::shared_ptr<Node>& input) const;
 
     static bool checkElementwise(const std::shared_ptr<ngraph::Node>& elementwise);
 
