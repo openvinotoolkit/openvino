@@ -88,9 +88,9 @@ function(ie_add_plugin)
         endif()
 
         # new OpenVINO Developer Package
-        if(TARGET openvino::runtime::dev)
+        # if(TARGET openvino::runtime::dev)
             target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
-        endif()
+        # endif()
 
         if(WIN32)
             set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_PLUGIN_NAME})
