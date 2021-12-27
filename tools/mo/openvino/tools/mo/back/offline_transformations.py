@@ -9,10 +9,13 @@ from openvino.tools.mo.utils.cli_parser import parse_transform
 
 def get_available_transformations():
     try:
-        from openvino.offline_transformations_pybind import apply_low_latency_transformation, apply_make_stateful_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations_pybind import apply_low_latency_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations_pybind import apply_make_stateful_transformation # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations_pybind import apply_pruning_transformation # pylint: disable=import-error,no-name-in-module
         return {
             'MakeStateful': apply_make_stateful_transformation,
             'LowLatency2': apply_low_latency_transformation,
+            'Pruning': apply_pruning_transformation,
         }
     except Exception as e:
         return {}

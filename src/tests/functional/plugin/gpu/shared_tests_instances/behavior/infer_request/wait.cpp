@@ -19,6 +19,11 @@ namespace {
              CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}}
     };
 
+
+    const std::vector<std::map<std::string, std::string>> autoBatchConfigs = {
+            {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU}},
+    };
+
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
@@ -32,9 +37,15 @@ namespace {
                             InferRequestWaitTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestWaitTests,
-                            ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigs)),
-                            InferRequestWaitTests::getTestCaseName);
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                     ::testing::ValuesIn(autoConfigs)),
+                             InferRequestWaitTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, InferRequestWaitTests,
+                             ::testing::Combine(
+                                     ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                     ::testing::ValuesIn(autoBatchConfigs)),
+                             InferRequestWaitTests::getTestCaseName);
 
 }  // namespace

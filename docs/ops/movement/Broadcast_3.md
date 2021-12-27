@@ -1,4 +1,4 @@
-## Broadcast <a name="Broadcast"></a> {#openvino_docs_ops_movement_Broadcast_3}
+# Broadcast {#openvino_docs_ops_movement_Broadcast_3}
 
 **Versioned name**: *Broadcast-3*
 

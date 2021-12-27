@@ -24,7 +24,7 @@ TEST(StaticShapeInferenceTest, ScatterElementsUpdateTest) {
     int32_t axis_shape_val[] = {2};
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     constant_data[3] =
-        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axis_shape_val);
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{1}, axis_shape_val);
     std::vector<StaticShape> input_shapes = {StaticShape{1000, 256, 7, 7},
                                              StaticShape{125, 20, 7, 6},
                                              StaticShape{125, 20, 7, 6},
