@@ -9,7 +9,7 @@ import sys
 
 import cv2
 import numpy as np
-from openvino.preprocess import PrePostProcessor
+from openvino.preprocess import PrePostProcessor, ResizeAlgorithm
 from openvino.runtime import AsyncInferQueue, Core, InferRequest, Layout, Type
 
 
@@ -80,12 +80,8 @@ def main() -> int:
     # Read input images
     images = [cv2.imread(image_path) for image_path in args.input]
 
-    # Resize images to model input dims
-    _, _, h, w = model.input().shape
-    resized_images = [cv2.resize(image, (w, h)) for image in images]
-
     # Add N dimension
-    input_tensors = [np.expand_dims(image, 0) for image in resized_images]
+    input_tensors = [np.expand_dims(image, 0) for image in images]
 
 # --------------------------- Step 4. Apply preprocessing -------------------------------------------------------------
     ppp = PrePostProcessor(model)
@@ -94,9 +90,15 @@ def main() -> int:
     # - input() provides information about a single model input
     # - precision of tensor is supposed to be 'u8'
     # - layout of data is 'NHWC'
+    # - set dynamic spatial dimensions to input tensor to resize from
     ppp.input().tensor() \
         .set_element_type(Type.u8) \
-        .set_layout(Layout('NHWC'))  # noqa: N400
+        .set_layout(Layout('NHWC')) \
+        .set_spatial_dynamic_shape() # noqa: N400
+
+    # 2) Adding explicit preprocessing steps:
+    # - apply linear resize from tensor spatial dims to model spatial dims
+    ppp.input().preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR)
 
     # 2) Here we suppose model has 'NCHW' layout for input
     ppp.input().model().set_layout(Layout('NCHW'))
