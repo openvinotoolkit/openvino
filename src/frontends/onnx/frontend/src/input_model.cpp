@@ -7,6 +7,7 @@
 #include <common/frontend_exceptions.hpp>
 #include <openvino/util/file_util.hpp>
 
+#include "ngraph/log.hpp"
 #include "place.hpp"
 
 using namespace ov;
@@ -148,12 +149,69 @@ std::shared_ptr<Function> InputModelONNX::convert() {
 }
 
 // Editor features
+bool InputModelONNX::is_coorect_place(const ov::frontend::Place::Ptr& place) const {
+    if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
+        return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
+    } else if (const auto op = std::dynamic_pointer_cast<PlaceOpONNX>(place)) {
+        return m_editor->is_correct_and_unambiguous_node(op->get_editor_node());
+    } else if (const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(place)) {
+        if (auto tensor = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(input_edge->get_source_tensor())) {
+            return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
+        }
+    } else if (const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(place)) {
+        if (auto tensor = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(output_edge->get_target_tensor())) {
+            return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
+        }
+    }
+    return false;
+}
+
+std::string InputModelONNX::get_place_name(const ov::frontend::Place::Ptr& place) const {
+    if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
+        return place->get_names()[0];
+    } else if (const auto op = std::dynamic_pointer_cast<PlaceOpONNX>(place)) {
+        return op->get_editor_node().m_node_name;
+    } else if (const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(place)) {
+        if (auto tensor = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(input_edge->get_source_tensor())) {
+            return tensor->get_names()[0];
+        }
+    } else if (const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(place)) {
+        if (auto tensor = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(output_edge->get_target_tensor())) {
+            return tensor->get_names()[0];
+        }
+    }
+    throw std::invalid_argument("Incorrect place type");
+}
+
 void InputModelONNX::override_all_outputs(const std::vector<Place::Ptr>& outputs) {
-    extract_subgraph({}, outputs);
-    NGRAPH_CHECK(m_editor->model_outputs().size() == outputs.size(),
+    std::map<std::string, Place::Ptr> unique_outputs;
+    std::transform(outputs.begin(),
+                   outputs.end(),
+                   std::inserter(unique_outputs, unique_outputs.begin()),
+                   [this](const ov::frontend::Place::Ptr& output) {
+                       return std::make_pair(get_place_name(output), output);
+                   });
+
+    std::vector<Place::Ptr> valid_outputs;
+    for (auto output : unique_outputs) {
+        bool is_correct = is_coorect_place(output.second);
+        if (!is_correct)
+            NGRAPH_WARN << "Name  " << output.first
+                        << " of output node is not a correct node name. Ignoring this parameter.";
+        else
+            valid_outputs.push_back(output.second);
+    }
+
+    extract_subgraph({}, valid_outputs);
+
+    std::vector<std::string> editor_model_outputs = m_editor->model_outputs();
+    std::set<std::string> model_outputs(editor_model_outputs.begin(), editor_model_outputs.end());
+
+    NGRAPH_CHECK(model_outputs.size() == valid_outputs.size(),
                  "Unexpected number of outputs after override_all_outputs");
-    NGRAPH_CHECK(std::all_of(std::begin(outputs),
-                             std::end(outputs),
+
+    NGRAPH_CHECK(std::all_of(std::begin(valid_outputs),
+                             std::end(valid_outputs),
                              [](const Place::Ptr& place) {
                                  return place->is_output();
                              }),
