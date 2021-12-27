@@ -38,6 +38,7 @@ using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
 using ConfigParams = std::tuple<
+        bool,                        // if THROUGHPUT
         unsigned int,                // cpu OPTIMAL_NUMBER_OF_INFER_REQUESTS
         int,                         // cpu infer requet num of customer want
         bool,                        // if cpu sleep, cpu device will load slow
@@ -77,12 +78,18 @@ public:
         unsigned int expectOptimalNum;
         bool cpuSleep;
         bool gpuSleep;
-        std::tie(cpuOptimalNum, cpuCustomerNum, cpuSleep,
+        bool isThroughput;
+        std::tie(isThroughput, cpuOptimalNum, cpuCustomerNum, cpuSleep,
                  gpuOptimalNum, gpuCustomerNum, gpuSleep, expectOptimalNum) = obj.param;
         std::ostringstream result;
         result << "cpuOptimalNum_" << cpuOptimalNum << "cpuCustomerNum_" << cpuCustomerNum;
         result << "gpuOptimalNum_" << gpuOptimalNum << "gpuCustomerNum_" << gpuCustomerNum;
         result << "expectOptimalNum_" << expectOptimalNum;
+        if (isThroughput) {
+            result << "_isThroughput" << "true";
+        } else {
+            result << "__isThroughput" << "false";
+        }
         if (cpuSleep) {
             result << "_cpuSleep_" << "true";
         } else {
@@ -147,7 +154,7 @@ public:
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(supportConfigs));
-       EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).Times(AnyNumber());
+       EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
 
        // test auto plugin
        config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
@@ -168,11 +175,24 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
     unsigned int expectOptimalNum;
     bool cpuSleep;
     bool gpuSleep;
-    std::tie(cpuOptimalNum, cpuCustomerNum, cpuSleep,
+    bool isThroughput;
+    std::tie(isThroughput, cpuOptimalNum, cpuCustomerNum, cpuSleep,
              gpuOptimalNum, gpuCustomerNum, gpuSleep, expectOptimalNum) = this->GetParam();
-
-    metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
-    metaDevices.push_back({CommonTestUtils::DEVICE_GPU, {}, gpuCustomerNum, ""});
+    if (isThroughput) {
+        metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {{CONFIG_KEY(PERFORMANCE_HINT),
+                    InferenceEngine::PluginConfigParams::THROUGHPUT}}, cpuCustomerNum, ""});
+        metaDevices.push_back({CommonTestUtils::DEVICE_GPU, {{CONFIG_KEY(PERFORMANCE_HINT),
+                    InferenceEngine::PluginConfigParams::THROUGHPUT}}, gpuCustomerNum, ""});
+        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, optimalBatchNum, 256);
+        IE_SET_METRIC(RANGE_FOR_STREAMS, rangeOfStreams, std::make_tuple<unsigned int, unsigned int>(1, 2));
+        ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
+            .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
+        ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
+            .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
+    } else {
+        metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
+        metaDevices.push_back({CommonTestUtils::DEVICE_GPU, {}, gpuCustomerNum, ""});
+    }
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
@@ -241,27 +261,28 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
 }
 
 
-// ConfigParams {unsigned int, int, bool,
+// ConfigParams {bool, unsigned int, int, bool,
 //               unsigned int, int, bool, unsigned int}
 //
 // every element for ConfigParams
-// {cpuOptimalNum, customer hope for cpu infer requset num, if cpu sleep when load,
+// {is throughput mode, cpuOptimalNum, customer hope for cpu infer requset num, if cpu sleep when load,
 //  gpuOptimalNum, customer hope for gpu infer requset num, if gpu sleep when load,
 //  expectOptimalNum of Auto ExecNetwork}
 //
 const std::vector<ConfigParams> testConfigs = {
-                                               ConfigParams {1, -1, false, 2, -1, true, 8},
-                                               ConfigParams {1, -1, false, 10, -1, true, 8},
-                                               ConfigParams {12, -1, false, 2, -1, true, 12},
-                                               ConfigParams {12, -1, false, 10, -1, true, 12},
-                                               ConfigParams {1, -1, true, 2, -1, false, 8},
-                                               ConfigParams {1, -1, true, 10, -1, false, 10},
-                                               ConfigParams {6, -1, true, 2, -1, false, 8},
-                                               ConfigParams {6, -1, true, 10, -1, false, 10},
-                                               ConfigParams {6, 4, false, 2, 3, true, 8},
-                                               ConfigParams {6, 4, false, 10, 3, true, 8},
-                                               ConfigParams {1, 4, true, 2, 3, false, 8},
-                                               ConfigParams {1, 4, true, 10, 3, false, 10}
+                                               ConfigParams {false, 1, -1, false, 2, -1, true, 8},
+                                               ConfigParams {false, 1, -1, false, 10, -1, true, 8},
+                                               ConfigParams {false, 12, -1, false, 2, -1, true, 12},
+                                               ConfigParams {false, 12, -1, false, 10, -1, true, 12},
+                                               ConfigParams {false, 1, -1, true, 2, -1, false, 8},
+                                               ConfigParams {false, 1, -1, true, 10, -1, false, 10},
+                                               ConfigParams {false, 6, -1, true, 2, -1, false, 8},
+                                               ConfigParams {false, 6, -1, true, 10, -1, false, 10},
+                                               ConfigParams {false, 6, 4, false, 2, 3, true, 8},
+                                               ConfigParams {false, 6, 4, false, 10, 3, true, 8},
+                                               ConfigParams {false, 1, 4, true, 2, 3, false, 8},
+                                               ConfigParams {false, 1, 4, true, 10, 3, false, 10},
+                                               ConfigParams {true, 1, 4, false, 10, 3, true, 512}
                                               };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetworkGetMetric,

@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "visibility.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
