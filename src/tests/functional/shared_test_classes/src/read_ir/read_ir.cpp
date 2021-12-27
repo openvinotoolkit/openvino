@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <signal.h>
+#ifdef _WIN32
+#include <process.h>
+#endif
+
 #include <pugixml.hpp>
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
