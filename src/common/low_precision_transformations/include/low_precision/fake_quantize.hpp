@@ -22,10 +22,11 @@ public:
 
     static bool checkElementwise(const std::shared_ptr<Node>& eltwise);
 
-    static std::shared_ptr<opset1::FakeQuantize> fuseElementwise(
+private:
+    std::shared_ptr<opset1::FakeQuantize> fuseElementwise(
             TransformationContext& context,
             MatcherPass* matcherPass,
-            const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
+            const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
 };
 
 } // namespace low_precision

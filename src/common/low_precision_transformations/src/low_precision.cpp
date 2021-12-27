@@ -38,7 +38,6 @@
 
 // general transformations
 #include "low_precision/add.hpp"
-#include "low_precision/assign_and_read_value.hpp"
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/clamp.hpp"
 #include "low_precision/convolution.hpp"
@@ -208,7 +207,6 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
 
     std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
     common->add_matcher<ngraph::pass::low_precision::AddTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::AssignAndReadValueTransformation>(f, params);
     common->add_matcher<ngraph::pass::low_precision::AvgPoolTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ClampTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(params);
