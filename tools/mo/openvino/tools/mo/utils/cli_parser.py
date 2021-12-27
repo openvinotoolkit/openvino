@@ -291,11 +291,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'and values for freezing. The shape and value are specified as space-separated '
                                    'lists. The data type of input node is specified in braces and '
                                    'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
-                                   'i64 (int64), i32 (int32), u8 (uint8), boolean. Data type is optional and '
-                                   'in case if it is not specified then it will be derived from the original model. '
-                                   'Example, to set `input_1` with shape [1 100], `sequence_len` scalar input '
+                                   'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
+                                   'If it\'s not specified explicitly then there are two options: '
+                                   'if input node is a Parameter data type is inherited from the original node dtype, '
+                                   'if input node is not a Parameter data type is set to f32. '
+                                   'Example, to set `input_1` with shape [1 100], and Parameter node `sequence_len` '
+                                   'with scalar input '
                                    'with value `150`, and boolean input `is_training` with `False` value use the ' 
-                                   'following format: "input_1[1 10],sequence_len->150,is_training->False"'
+                                   'following format: "input_1[1 10],sequence_len->150,is_training->False". '
                                    'Another example, use the following format to set input port 0 of the node '
                                    '`node_name1` with the shape [3 4] as an input node and freeze output port 1 '
                                    'of the node `node_name2` with the value [20 15] of the int32 type and shape [2]: '
@@ -801,9 +804,11 @@ def get_shape_from_input_value(input_value: str):
     input_value = input_value.split('->')[0]
 
     # parse shape
-    shape = re.findall(r'[(\[]([0-9\.\?  -]+)[)\]]', input_value)
+    shape = re.findall(r'[(\[]([0-9\.\?  -]*)[)\]]', input_value)
     if len(shape) == 0:
         shape = None
+    elif len(shape) == 1 and shape[0] in ['', ' ']:
+        shape = ()
     elif len(shape) == 1:
         shape = tuple(map(parse_dimension, shape[0].split(' ')))
     else:
@@ -861,7 +866,7 @@ def parse_input_value(input_value: str):
     data_type = get_data_type_from_input_value(input_value)
     node_name = get_node_name_with_port_from_input_value(input_value)
     value = get_value_from_input_value(input_value)
-    shape = get_shape_from_input_value(input_value.split('->')[0])
+    shape = get_shape_from_input_value(input_value)
     value_size = np.prod(len(value)) if isinstance(value, list) else 1
 
     if value is not None and shape is not None:
