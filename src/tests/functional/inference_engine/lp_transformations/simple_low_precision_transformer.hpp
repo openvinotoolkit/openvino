@@ -24,10 +24,6 @@ public:
     void add(const TestTransformationParams& params) {
         commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
     }
-    template <class T, class Operation>
-    void add(const std::shared_ptr<ngraph::Function> function, const TestTransformationParams& params) {
-        commonGraphRewrite->add_matcher<T>(function, TestTransformationParams::toParams(params));
-    }
 
     void transform(std::shared_ptr<ngraph::Function>& function);
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;

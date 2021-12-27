@@ -37,6 +37,17 @@ bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordere
     return false;
 }
 
+bool NetworkHelper::notAllChildrensAreFQ(const NodeVector& childrens) {
+    // NOTE: This check was added for models that don't have FQ after AvgPool
+    //       They will have transparent precision as it was in old LPT.
+    for (const auto& child : childrens) {
+        if (!ov::is_type<opset1::FakeQuantize>(child)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Collect and return a vector with all nodes that consumes any of the `node` output
 std::vector<Input<Node>> NetworkHelper::consumer_inputs(std::shared_ptr<Node> node) {
     std::vector<Input<Node>> result;
@@ -186,6 +197,15 @@ size_t NetworkHelper::getGroupsCount(std::shared_ptr<Node> layer) {
     } else {
         THROW_TRANSFORMATION_EXCEPTION << "Invalid layer type of " << layer->get_friendly_name() << "; expected Convolution or GroupConvolution";
     }
+}
+
+// Assumin tensor in NC... layout, append necessary number of 1s to shape to align it to a give rank
+Shape NetworkHelper::alignShapeForChannelDim(const Shape& shape, Rank rank) {
+    assert(shape.size() == 1);
+    assert(rank.is_static());
+    Shape result = shape;
+    result.resize(rank.get_length() - 1, 1);
+    return result;
 }
 
 void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
@@ -1339,12 +1359,9 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
 
     const std::shared_ptr<opset1::Convert> convert = ov::as_type_ptr<opset1::Convert>(dataNode.get_node_shared_ptr());
     if (convert != nullptr) {
-        auto defaultPrecisions = LayerTransformation::getDefaultPrecisions();
-        auto el_type = convert->input(0).get_element_type();
-        auto foundIt = std::find(defaultPrecisions.begin(), defaultPrecisions.end(), el_type);
-        if (foundIt == defaultPrecisions.end() &&
-            el_type != element::i4  && el_type != element::u4 &&
-            el_type != element::f32 && el_type != element::f16) {
+        if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
+            (convert->input(0).get_element_type() != element::i4) && (convert->input(0).get_element_type() != element::u4) &&
+            (convert->output(0).get_element_type() != element::f32)) {
             return FakeQuantizeDequantization(dataNode, nullptr, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
         }
         dataNode = convert->get_input_source_output(0);
