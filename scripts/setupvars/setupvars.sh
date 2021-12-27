@@ -31,7 +31,6 @@ if [ -e "$INSTALLDIR/runtime" ]; then
 
     system_type=$(ls "$INSTALLDIR/runtime/lib/")
     IE_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
-    export OV_FRONTEND_PATH=${IE_PLUGINS_PATH}${OV_FRONTEND_PATH:+:$OV_FRONTEND_PATH}
 
     export HDDL_INSTALL_DIR=$INSTALLDIR/runtime/3rdparty/hddl
     if [[ "$OSTYPE" == "darwin"* ]]; then
