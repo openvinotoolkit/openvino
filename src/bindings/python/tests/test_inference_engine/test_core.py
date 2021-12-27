@@ -297,9 +297,9 @@ def test_add_extension_template_extension(device):
 
     core = Core()
     if platform == "win32":
-        core.add_extension(library_path="template_ov_extension.dll")
+        core.add_extension(library_path="ov_template_extension.dll")
     else:
-        core.add_extension(library_path="libtemplate_ov_extension.so")
+        core.add_extension(library_path="libov_template_extension.so")
     model = core.read_model(model=ir)
     assert isinstance(model, Model)
 
