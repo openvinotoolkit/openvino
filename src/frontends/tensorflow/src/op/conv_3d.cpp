@@ -11,7 +11,7 @@ using namespace ov::opset8;
 // Translate Conv3D Op
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_3d_op(const NodeContext& node) {
@@ -22,9 +22,9 @@ OutputVector translate_conv_3d_op(const NodeContext& node) {
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     auto tf_data_format = node.get_attribute<std::string>("data_format");
 
-    TF_OP_VALIDATION_CHECK(node,
-                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                           "Conv3D data format is neither NHWC nor NCHW");
+    TENSORFLOW_OP_VALIDATION(node,
+                             tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                             "Conv3D data format is neither NHWC nor NCHW");
 
     bool is_ndhwc = (tf_data_format == "NDHWC");
 
@@ -72,6 +72,6 @@ OutputVector translate_conv_3d_op(const NodeContext& node) {
     return {res};
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

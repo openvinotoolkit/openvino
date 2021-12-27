@@ -679,6 +679,15 @@ inline std::string getFullDeviceName(InferenceEngine::Core& ie, std::string devi
     }
 }
 
+inline std::string getFullDeviceName(ov::runtime::Core& ie, std::string device) {
+    InferenceEngine::Parameter p;
+    try {
+        p = ie.get_metric(device, METRIC_KEY(FULL_DEVICE_NAME));
+        return p.as<std::string>();
+    } catch (InferenceEngine::Exception&) {
+        return "";
+    }
+}
 /**
  * @brief This class represents an object that is found by an object detection net
  */
