@@ -30,6 +30,9 @@
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
 
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
+
 namespace MKLDNNPlugin {
 
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
@@ -742,7 +745,6 @@ protected:
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims = {}, uint32_t value_port_mask = 0) const;
-    std::vector<VectorDims> shapeInferWithSubgraph(const std::vector<Shape>& shapes_in) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(mkldnn::stream strm) {
@@ -758,7 +760,7 @@ protected:
 
     std::vector<VectorDims> lastInputDims = {};
 
-    std::shared_ptr<ngraph::Node> opToShapeInfer;
+    std::shared_ptr<IShapeInfer> shaperInference;
 
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;

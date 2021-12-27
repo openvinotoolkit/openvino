@@ -62,9 +62,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace openvino;
@@ -1421,60 +1418,23 @@ bool MKLDNNNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
-    // pass in all input values by default
-    return shapeInferGeneric({}, 0xFFFFFFFF);
-}
-
-std::vector<VectorDims> MKLDNNNode::shapeInferWithSubgraph(const std::vector<Shape>& shapes_in) const {
-    std::vector<Shape> shapes;
-
-    if (shapes_in.empty()) {
-        for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
-            shapes.push_back(getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
-        }
-    } else {
-        shapes = shapes_in;
-    }
-
-    if (shapes.size() < opToShapeInfer->get_input_size()) {
-        IE_THROW(Unexpected) << "MKLDNNNode::shapeInferGeneric input shapes vector size is " << shapes.size()
-                             << ", but " << opToShapeInfer->get_input_size()
-                             << " required for node with name: " << getName();
-    }
-
-    for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
-        if (!dynamic_cast<ngraph::opset1::Constant*>(opToShapeInfer->get_input_node_ptr(i))) {
-            opToShapeInfer->get_input_tensor(i).set_partial_shape(shapes[i].toPartialShape());
-        }
-    }
-
-    opToShapeInfer->validate_and_infer_types();
-
-    std::vector<VectorDims> newOutputShapes(opToShapeInfer->get_output_size());
-    for (size_t i = 0; i < newOutputShapes.size(); i++) {
-        const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
-        if (partShape.is_dynamic()) {
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for node " << getTypeStr()
-                                     << " with internal dynamism. Operation name: " << getName();
-        }
-
-        newOutputShapes[i] = partShape.get_shape();
-    }
-
-    return newOutputShapes;
+    return shapeInferGeneric({});
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes,
                                                       uint32_t input_value_port_mask) const {
     // collect input shapes
     std::vector<ov::StaticShape> input_shapes;
+
+    ov::Node* op = shaperInference->get_op();
+
     if (shapes.empty()) {
         // from graph runtime
-        for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+        for (size_t i = 0; i < op->get_input_size(); i++) {
             ov::StaticShape shape(getParentEdgesAtPort(i)[0]->getMemory().getStaticDims());
 
             // convert to scalar for length-1 1D if required by ngraph
-            if (shape.size() == 1 && shape[0] == 1 && opToShapeInfer->get_input_partial_shape(i).rank().compatible(0))
+            if (shape.size() == 1 && shape[0] == 1 && op->get_input_partial_shape(i).rank().compatible(0))
                 shape = ov::StaticShape();
 
             input_shapes.push_back(shape);
@@ -1488,15 +1448,14 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     // collect input values
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
     if (input_value_port_mask) {
-        for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+        for (size_t i = 0; i < op->get_input_size(); i++) {
             if (input_value_port_mask & (1 << i)) {
                 const auto& memPtr = getParentEdgesAtPort(i)[0]->getMemory();
 
                 ov::Shape shape(memPtr.getStaticDims());
 
                 // convert to scalar for length-1 1D if required by ngraph
-                if (shape.size() == 1 && shape[0] == 1 &&
-                    opToShapeInfer->get_input_partial_shape(i).rank().compatible(0))
+                if (shape.size() == 1 && shape[0] == 1 && op->get_input_partial_shape(i).rank().compatible(0))
                     shape = ov::Shape();
 
                 input_values[i] = std::make_shared<ngraph::runtime::HostTensor>(
@@ -1507,12 +1466,10 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
         }
     }
 
-    std::vector<ov::StaticShape> output_shapes(opToShapeInfer->get_output_size());
+    std::vector<ov::StaticShape> output_shapes(op->get_output_size());
 
     // call shape inference API
-    //   unlike validate_and_infer_types(), opToShapeInfer is guaranteed to be un-changed in state/attributes
-    //   to retrieve other by-product information like padding, you have to override shapeInfer()
-    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
+    shaperInference->infer(input_shapes, output_shapes, input_values);
 
     std::vector<VectorDims> result(output_shapes.size());
     std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s) {
@@ -1551,14 +1508,5 @@ bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
 }
 
 void MKLDNNNode::createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op) {
-    ngraph::OutputVector inputsForShapeInfer;
-    for (size_t i = 0; i < inputShapes.size(); i++) {
-        if (dynamic_cast<ngraph::opset1::Constant *>(op->get_input_node_ptr(i))) {
-            inputsForShapeInfer.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ngraph::OutputVector{}));
-        } else {
-            inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(op->get_input_element_type(i),
-                                                                                      op->get_input_partial_shape(i)));
-        }
-    }
-    opToShapeInfer = op->clone_with_new_inputs(inputsForShapeInfer);
+    shaperInference = make_shape_inference(op);
 }

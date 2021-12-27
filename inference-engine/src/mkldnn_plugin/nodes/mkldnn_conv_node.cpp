@@ -22,10 +22,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-#include "convolution_shape_inference.hpp"
-
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -499,6 +495,7 @@ MKLDNNConvolutionNode::createDescriptorInternal(const mkldnn::memory::desc& inpu
                                                 const mkldnn::memory::desc& weightDesc,
                                                 const mkldnn::memory::desc& outputDesc,
                                                 mkldnn::algorithm alg) {
+    updatePadding();
     std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
     try {
         conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
@@ -520,6 +517,7 @@ MKLDNNConvolutionNode::createDescriptorInternal(const mkldnn::memory::desc& inpu
                                                 const mkldnn::memory::desc& biasDesc,
                                                 const mkldnn::memory::desc& outputDesc,
                                                 mkldnn::algorithm alg) {
+    updatePadding();
     std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
     try {
         conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
@@ -533,70 +531,6 @@ MKLDNNConvolutionNode::createDescriptorInternal(const mkldnn::memory::desc& inpu
         IE_THROW() << "Cannot create convolution forward descriptor for layer: " << getName();
     }
     return conv_desc;
-}
-
-std::vector<VectorDims> MKLDNNConvolutionNode::shapeInfer() const {
-    // pass in all input values by default
-    return const_cast<MKLDNNConvolutionNode *>(this)->shapeInferInternal({});
-}
-
-std::vector<VectorDims> MKLDNNConvolutionNode::shapeInferInternal(const std::vector<Shape>& shapes) {
-    // collect input shapes
-    std::vector<ov::StaticShape> input_shapes;
-    if (shapes.empty()) {
-        // from graph runtime
-        for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
-            ov::StaticShape shape(getParentEdgesAtPort(i)[0]->getMemory().getStaticDims());
-
-            // convert to scalar for length-1 1D if required by ngraph
-            if (shape.size() == 1 && shape[0] == 1 && opToShapeInfer->get_input_partial_shape(i).rank().compatible(0))
-                shape = ov::StaticShape();
-
-            input_shapes.push_back(shape);
-        }
-    } else {
-        // from parameter given
-        for (size_t i = 0; i < shapes.size(); i++)
-            input_shapes.push_back(shapes[i].getStaticDims());
-    }
-
-    std::vector<ov::StaticShape> output_shapes(opToShapeInfer->get_output_size());
-
-    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes);
-
-    if (isDynamicNode() && autoPadding) {
-        ov::CoordinateDiff pads_begin, pads_end;
-        if (isGrouped) {
-            if (auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(opToShapeInfer)) {
-                IE_ASSERT(ov::op::v1::resolve_auto_pad_for_shape(groupConvolutionOp.get(),
-                                                                 pads_begin,
-                                                                 pads_end,
-                                                                 input_shapes,
-                                                                 2,
-                                                                 3));
-                paddingL = groupConvolutionOp->get_pads_begin();
-                paddingR = groupConvolutionOp->get_pads_end();
-            }
-        } else {
-            if (auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(opToShapeInfer)) {
-                IE_ASSERT(ov::op::v1::resolve_auto_pad_for_shape(convolutionOp.get(),
-                                                                 pads_begin,
-                                                                 pads_end,
-                                                                 input_shapes,
-                                                                 2,
-                                                                 2));
-                paddingL = pads_begin;
-                paddingR = pads_end;
-            }
-        }
-    }
-
-    std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s) {
-        return s.to_shape();
-    });
-
-    return result;
 }
 
 void MKLDNNConvolutionNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -616,7 +550,7 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<MemoryDescPtr>& i
         definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]);
     } else {
         std::vector<Shape> shapes = { definedInpMemDesc->getShape(), Shape(weightDims) };
-        auto outDims = shapeInferInternal(shapes);
+        auto outDims = shapeInferGeneric(shapes);
         definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]->cloneWithNewDims(outDims.front()));
     }
 
@@ -1130,6 +1064,14 @@ void MKLDNNConvolutionNode::execute(mkldnn::stream strm) {
 
 void MKLDNNConvolutionNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
+}
+
+void MKLDNNConvolutionNode::updatePadding() {
+    //update padding.
+    if (isDynamicNode() && autoPadding) {
+        paddingL = shaperInference->get_pads_begin();
+        paddingR = shaperInference->get_pads_end();
+    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNConvolutionNode, Convolution);
