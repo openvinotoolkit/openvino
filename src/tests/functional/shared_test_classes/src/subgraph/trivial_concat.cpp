@@ -52,4 +52,97 @@ void TrivialConcatLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(act)};
     function = std::make_shared<ngraph::Function>(results, params, "trivial_concat");
 }
+
+std::string TrivialConcatLayerTest2Inputs::getTestCaseName(const testing::TestParamInfo<trivialConcatParamsTuple>& obj) {
+    std::vector<size_t> inputShapes;
+    InferenceEngine::Precision netPrecision;
+    std::string targetName;
+    std::map<std::string, std::string> config;
+    std::tie(inputShapes, netPrecision, targetName, config) = obj.param;
+    std::ostringstream result;
+    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "netPRC=" << netPrecision.name() << "_";
+    result << "trgDev=" << targetName << "_";
+    return result.str();
+}
+
+void TrivialConcatLayerTest2Inputs::SetUp() {
+    InferenceEngine::SizeVector inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::map<std::string, std::string> additional_config;
+    std::tie(inputShape, netPrecision, targetDevice, additional_config) = this->GetParam();
+    configuration.insert(additional_config.begin(), additional_config.end());
+    int axis = inputShape.size() - 2;
+    size_t total_size = std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, { {1, total_size}, {1, total_size} });
+
+    auto input_relu = ngraph::builder::makeActivation(params[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+    auto input_relu2 = ngraph::builder::makeActivation(params[1], ngPrc, ngraph::helpers::ActivationTypes::Relu);
+
+    auto input_reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+        ngraph::Shape{ inputShape.size() }, std::vector<size_t>(inputShape));
+    auto input = std::make_shared<ngraph::op::v1::Reshape>(input_relu, input_reshape_pattern, false);
+    auto input2 = std::make_shared<ngraph::op::v1::Reshape>(input_relu2, input_reshape_pattern, false);
+
+    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector({ input2, input }), axis);
+
+    auto final_reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+        ngraph::Shape{ 2 }, std::vector<size_t>({ 1, 2 * total_size }));
+    auto final_reshape = std::make_shared<ngraph::op::v1::Reshape>(concat, final_reshape_pattern, false);
+
+    auto act = ngraph::builder::makeActivation(final_reshape, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(act) };
+    function = std::make_shared<ngraph::Function>(results, params, "trivial_concat");
+}
+
+std::string TrivialConcatLayerTest_MultipleInputs::getTestCaseName(const testing::TestParamInfo<trivialConcatParamsTuple>& obj) {
+    std::vector<size_t> inputShapes;
+    InferenceEngine::Precision netPrecision;
+    std::string targetName;
+    std::map<std::string, std::string> config;
+    std::tie(inputShapes, netPrecision, targetName, config) = obj.param;
+    std::ostringstream result;
+    result << "components=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "netPRC=" << netPrecision.name() << "_";
+    result << "trgDev=" << targetName << "_";
+    return result.str();
+}
+
+void TrivialConcatLayerTest_MultipleInputs::SetUp() {
+    InferenceEngine::SizeVector inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::map<std::string, std::string> additional_config;
+    std::tie(inputShape, netPrecision, targetDevice, additional_config) = this->GetParam();
+    configuration.insert(additional_config.begin(), additional_config.end());
+    size_t total_size_sum = std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(0), std::plus<size_t>());
+    std::vector<std::vector<size_t>> sizeVector;
+    for (auto s : inputShape) {
+        sizeVector.push_back({ 1, s });
+    }
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, sizeVector);
+
+    ngraph::OutputVector outVector;
+    for (auto parameter : params) {
+        auto act = ngraph::builder::makeActivation(parameter, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+        auto input_reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+            ngraph::Shape{ 2 }, std::vector<size_t>{1, ov::shape_size(parameter->get_shape())});
+        auto input = std::make_shared<ngraph::op::v1::Reshape>(act, input_reshape_pattern, false);
+        outVector.push_back(input);
+    }
+
+    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector(outVector), 1);
+
+    auto final_reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+        ngraph::Shape{ 2 }, std::vector<size_t>({ 1, total_size_sum }));
+    auto final_reshape = std::make_shared<ngraph::op::v1::Reshape>(concat, final_reshape_pattern, false);
+
+    auto act = ngraph::builder::makeActivation(final_reshape, ngPrc, ngraph::helpers::ActivationTypes::Relu);
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(act) };
+    function = std::make_shared<ngraph::Function>(results, params, "trivial_concat_multiple");
+}
+
 }  // namespace SubgraphTestsDefinitions

@@ -12,4 +12,12 @@ TEST_P(TrivialConcatLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(TrivialConcatLayerTest2Inputs, CompareWithRefs) {
+    Run();
+};
+
+TEST_P(TrivialConcatLayerTest_MultipleInputs, CompareWithRefs) {
+    Run();
+};
+
 }  // namespace SubgraphTestsDefinitions

@@ -29,4 +29,19 @@ protected:
     void SetUp() override;
 };
 
+class TrivialConcatLayerTest2Inputs : public testing::WithParamInterface<trivialConcatParamsTuple>,
+    virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<trivialConcatParamsTuple>& obj);
+protected:
+    void SetUp() override;
+};
+
+class TrivialConcatLayerTest_MultipleInputs : public testing::WithParamInterface<trivialConcatParamsTuple>,
+    virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<trivialConcatParamsTuple>& obj);
+protected:
+    void SetUp() override;
+};
 }  // namespace SubgraphTestsDefinitions
