@@ -1,12 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
 from openvino.tools.mo.graph.graph import Graph
-from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.broadcast import Broadcast
-from openvino.tools.mo.front.common.partial_infer.utils import float32_array
+from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.scatternd import ScatterNDUpdate
+
 
 class TFScatterNDDecomposition(FrontReplacementSubgraph):
     """
