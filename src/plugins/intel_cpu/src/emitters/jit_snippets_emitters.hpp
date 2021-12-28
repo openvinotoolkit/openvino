@@ -24,7 +24,7 @@ struct jit_snippets_compile_args {
     int64_t scheduler_dims[SNIPPETS_MAX_TILE_RANK] = {};
     int64_t scheduler_offsets[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
-    std::vector<int64_t> output_dims = {};
+    std::vector<size_t> output_dims = {};
 };
 ///
 /// \brief    Kernel is the only entry point to Codogen Jit compilation. Kernel calculates appropriate data offsets,
