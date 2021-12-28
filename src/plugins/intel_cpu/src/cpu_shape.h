@@ -41,7 +41,7 @@ public:
 
     explicit Shape(const VectorDims& minDims, const VectorDims& maxDims) {
         if (minDims.size() != maxDims.size()) {
-            IE_THROW() << "Can't create shape from min/max dims with different rank";
+            IE_THROW() << "Can't create shape due to min/max vectors dims size mismatch";
         }
         this->minDims = minDims;
         this->maxDims = maxDims;
