@@ -400,32 +400,11 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         auto reorder = reorder_pair.first;
 
         if (reorder) {
-            bool should_skip_add_reorder = false;
-            if (node->is_type<convolution>() && use_onednn_impls && fmt == cldnn::format::bs_fs_yx_bsv32_fsv32) {
-                const auto& conv = node->as<convolution>();
-                const std::vector<fused_primitive_desc>& post_ops = conv.get_fused_primitives();
-                std::set<size_t> dep_idx_set;
-                for (auto& p : post_ops) {
-                    if (p.node->is_type<eltwise>() && p.node->as<eltwise>().get_primitive()->mode == eltwise_mode::sum) {
-                        dep_idx_set.insert(p.dep_start_idx);
-                    }
-                }
-                for (size_t i = 0; i < conv.get_dependencies().size(); i++) {
-                    auto& d_node = conv.get_dependency(i);
-                    if (next->id() == d_node.id() && dep_idx_set.find(i) != dep_idx_set.end()) {
-                        should_skip_add_reorder = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!should_skip_add_reorder) {
-                auto& reorder_node = p.get_or_create(reorder);
-                p.add_intermediate(reorder_node,
-                                   *travel_direction_wrapper<dir>::second(node, next),
-                                   *travel_direction_wrapper<dir>::first(node, next),
-                                   !reorder_pair.second);
-            }
+            auto& reorder_node = p.get_or_create(reorder);
+            p.add_intermediate(reorder_node,
+                               *travel_direction_wrapper<dir>::second(node, next),
+                               *travel_direction_wrapper<dir>::first(node, next),
+                               !reorder_pair.second);
         }
     }
 }
