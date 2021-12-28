@@ -28,7 +28,8 @@ class FuseReshapesKaldiTests(unittest.TestCase):
         **valued_const_with_data('transpose_out_order', int64_array([0, 2, 3, 1])),
         **regular_op_with_shaped_data('transpose_out', [1, 1, 9, 128], {'op': 'Transpose', 'type': 'Transpose'}),
         **valued_const_with_data('reshape_out_shape', int64_array([0, -1])),
-        **regular_op_with_shaped_data('reshape_out', [1, 1152], {'op': 'Reshape', 'type': 'Reshape'}),
+        **regular_op_with_shaped_data('reshape_out', [1, 1152], {'op': 'Reshape', 'type': 'Reshape',
+                                                                 'special_zero': True}),
 
         **regular_op_with_shaped_data('shapeof', [4], {'op': 'ShapeOf', 'type': 'ShapeOf'}),
         **valued_const_with_data('ind', int64_array([0])),

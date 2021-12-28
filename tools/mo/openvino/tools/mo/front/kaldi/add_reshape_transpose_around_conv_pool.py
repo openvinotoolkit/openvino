@@ -17,7 +17,7 @@ from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
 def find_max_frame_time(node: Node):
     """
     Find maximum time_dim among all inputs of given node
-    If one of inputs have not set time_dim (=-1), then we can't find out time_dim for given node and return None
+    If one of inputs has undefined time_dim, it returns None.
     """
     in_frame_time_max = 0
 
@@ -33,7 +33,7 @@ def find_max_frame_time(node: Node):
     return in_frame_time_max
 
 
-def propagate_time_dim_through_branch(node: Node, dest_port: Port):
+def propagate_time_dim_through_branch(child_node: Node, dest_port: Port):
     """
     Propagate time_dim for one branch starting from given node:dest_port :
     MemoryOffset/Splice nodes increase time_dim;
@@ -47,19 +47,19 @@ def propagate_time_dim_through_branch(node: Node, dest_port: Port):
         return
 
     if child.op == "MemoryOffset":
-        child.time_dim = node.time_dim + abs(child.t)
+        child.time_dim = child_node.time_dim + abs(child.t)
     elif child.op == "Splice":
-        child.time_dim = node.time_dim + len(child.context) - 1
+        child.time_dim = child_node.time_dim + len(child.context) - 1
     elif child.op in ['Convolution', 'Pooling']:
         child.time_dim = 0
-    elif len(child.in_edges()) > 1:
-        tmp_time_dim = find_max_frame_time(child)
-        if tmp_time_dim is not None:
-            child.time_dim = tmp_time_dim
+    elif len([port for port in child_node.in_ports().values() if not port.disconnected()]) > 1:
+        child_supposed_time_dim = find_max_frame_time(child)
+        if child_supposed_time_dim is not None:
+            child.time_dim = child_supposed_time_dim
         else:
             return
-    else:  # len(child.in_edges()) == 1
-        child.time_dim = node.time_dim
+    else:  # len([port for port in child_node.in_ports() if not port.disconnected()]) == 1
+        child.time_dim = child_node.time_dim
 
     for p in child.out_ports():
         if child.out_port(p).disconnected():
@@ -93,6 +93,9 @@ def update_time_dim_for_start_convolution(graph):
     time_dim will be set as 1 and it will be wrong. For such pattern time_dim should be set as kernel[1]
     (convolution run through the whole splice)
     """
+    # set initial values for Parameters and Constants
+    set_time_dim(graph)
+
     params = graph.get_op_nodes(op="Parameter")
     for param_node in params:
         if not param_node.out_port(0).disconnected() and \
@@ -136,8 +139,6 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
         if len(conv_pool_nodes) == 0:
             return
 
-        set_time_dim(graph)
-
         update_time_dim_for_start_convolution(graph)
 
         for node in conv_pool_nodes:
@@ -172,20 +173,22 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
 
             N, H = node_to_get_shape_value_of_indices(i_shape, [0]), node_to_get_shape_value_of_indices(i_shape, [1])
 
-            div = create_op_with_const_inputs(
+            # H / (patch_stride * t)
+            H_div_stride_t = create_op_with_const_inputs(
                 graph, Div, {1: int64_array([frame_height * time_dim])}, {'name': node_name + '/div_stride_h'})
-            div.in_port(0).connect(H.out_port(0))
+            H_div_stride_t.in_port(0).connect(H.out_port(0))
 
-            concat = create_op_with_const_inputs(graph, Concat, {index_const: int64_array([frame_height]),
+            # gather all dims
+            concat_dims = create_op_with_const_inputs(graph, Concat, {index_const: int64_array([frame_height]),
                                                                  1: int64_array([time_dim])},
                                                  {'name': node_name + '/concat_all_dims', 'in_ports_count': 4,
                                                   'axis': 0})
-            concat.in_port(0).connect(N.out_port(0))
-            concat.in_port(index_div).connect(div.out_port(0))
+            concat_dims.in_port(0).connect(N.out_port(0))
+            concat_dims.in_port(index_div).connect(H_div_stride_t.out_port(0))
 
             reshape_in = Reshape(graph, {'name': node_name + '/reshape_in',
                                          'time_dim': time_dim - 1}).create_node()
-            reshape_in.in_port(1).connect(concat.out_port(0))
+            reshape_in.in_port(1).connect(concat_dims.out_port(0))
 
             # change layout from NHWC to NCHW
             # should be replaced by common Permute logic in future
@@ -199,7 +202,8 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
 
             # create Reshape after Convolution
             reshape_out = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
-                                                           {'name': node_name + '/reshape_out', 'time_dim': 0})
+                                                           {'name': node_name + '/reshape_out',
+                                                            'special_zero': True, 'time_dim': 0})
 
             # connect input_reshape_node
             source = node.in_port(0).get_source()

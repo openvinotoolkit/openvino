@@ -62,7 +62,7 @@ class ConvolutionalComponentFrontExtractor(FrontExtractorOp):
             'pad': np.array([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=np.int64),
             'pad_spatial_shape': np.array([[0, 0], [0, 0]], dtype=np.int64),
             'dilation': np.array([1, 1, 1, 1], dtype=np.int64),
-            'kernel': np.array([weights_shape[0], weights_shape[1]//kernel, 1, kernel], dtype=np.int64),
+            'kernel': np.array([weights_shape[0], weights_shape[1] // kernel, 1, kernel], dtype=np.int64),
             'stride': np.array([1, 1, 1, stride], dtype=np.int64),
             'kernel_spatial': np.array([1, kernel], dtype=np.int64),
             'input_feature_channel': 1,
