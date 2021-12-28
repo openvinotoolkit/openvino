@@ -6,6 +6,7 @@ import numpy as np
 from openvino.tools.mo.ops.split import VariadicSplit
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value, \
     is_dynamic_slice
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
@@ -247,4 +248,4 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                         res_slices[-1] is not None and not is_dynamic_slice(res_slices[-1]):
                     res_slices[-1] = slice(*res_slices[-1].indices(data_shape[in_idx]))  # convert negative begins/ends
                 in_idx += 1
-        node.slices = np.array(res_slices)
+        node.slices = mo_array(res_slices)

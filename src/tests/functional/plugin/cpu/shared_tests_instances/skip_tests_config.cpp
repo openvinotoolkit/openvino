@@ -109,11 +109,13 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: CVS-66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_Hetero_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+        R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-
+        R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+        R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
         // Issue: CVS-66780
         R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
@@ -166,6 +168,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
         // Issue:
         R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
+        // Waiting for common fix of zero dims
+        R"(smoke_If.*TS=\(.*\.0.*\).*)",
     };
 
 #define FIX_62820 0

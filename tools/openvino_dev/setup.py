@@ -40,12 +40,14 @@ PKG_INSTALL_CFG = {
         'black_list': [],
         'prefix': 'benchmark_tool',
         'extract_entry_points': True,
+        'extract_requirements': True,
     },
     "accuracy_checker": {
         'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
         'black_list': ['*tests*'],
         'prefix': 'accuracy_checker',
         'extract_entry_points': True,
+        'extract_requirements': True,
     },
     "omz_tools": {
         'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'model_tools',  # noqa:E501
@@ -60,6 +62,7 @@ PKG_INSTALL_CFG = {
         'black_list': ['*tests*'],
         'prefix': 'pot',
         'extract_entry_points': True,
+        'extract_requirements': True,
     },
 }
 
