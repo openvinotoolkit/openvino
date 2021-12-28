@@ -99,11 +99,11 @@ template <cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
-    explicit jit_uni_eltwise_generic(jit_eltwise_params jep,
+    explicit jit_uni_eltwise_generic(const jit_eltwise_params& jep,
                                      const std::vector<MKLDNNEltwiseNode::EltwiseData>& eltwise_data,
                                      const std::vector<MKLDNNPlugin::Type>& ops_list,
                                      const mkldnn::post_ops& post_ops)
-    : jit_uni_eltwise_kernel(std::move(jep)), jit_generator(), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
+    : jit_uni_eltwise_kernel(jep), jit_generator(), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
 
     void create_ker() override {
         jit_generator::create_kernel();

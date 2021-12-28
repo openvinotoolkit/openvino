@@ -590,6 +590,8 @@ public:
      */
     virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
 
+    virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
+
     void setRuntimeCache(MultiCachePtr cache) {
         rtParamsCache = cache;
     }
@@ -608,8 +610,6 @@ protected:
     virtual MemoryDescPtr getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
     virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
     virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
-
-    virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
 
     virtual AttrPtr initPrimitiveAttr() { return nullptr; }
 
