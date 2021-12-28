@@ -100,6 +100,60 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
+TEST(FrontEndManagerTest, testFEMDestroy_FrontEndHolder) {
+    FrontEnd::Ptr fe;
+    {
+        FrontEndManager fem;
+        auto frontends = fem.get_available_front_ends();
+        ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
+        ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
+    }
+    ASSERT_EQ(fe->get_name(), "mock1");
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_InputModelHolder) {
+    InputModel::Ptr input_model;
+    {
+        std::shared_ptr<ov::Model> model;
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        input_model = fe->load("test");
+        model = fe->convert(input_model);
+        ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+    }
+    ASSERT_TRUE(input_model);
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder) {
+    std::shared_ptr<ov::Model> model;
+    {
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        model = fe->convert(input_model);
+        ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+        ASSERT_TRUE(model->get_rt_info().count("mock_test"));
+        ASSERT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+    }
+    ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder_Clone) {
+    std::shared_ptr<ov::Model> model_clone;
+    {
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        auto model = fe->convert(input_model);
+        ASSERT_EQ(model->get_friendly_name(), "mock1_model");
+        ASSERT_TRUE(model->get_rt_info().count("mock_test"));
+        ASSERT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+        model_clone = ov::clone_model(*model);
+    }
+    ASSERT_EQ(model_clone->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+    ASSERT_EQ(model_clone->get_friendly_name(), "mock1_model");
+}
+
 TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     FrontEndManager fem;
     FrontEnd::Ptr fe;
