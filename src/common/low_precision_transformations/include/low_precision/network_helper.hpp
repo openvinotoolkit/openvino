@@ -306,7 +306,7 @@ public:
                 continue;
             }
             attribute->sharedValue = sharedValue;
-            sharedValue->attributes.push_back(attribute);
+            sharedValue->addAttribute(attribute);
         }
     }
 
