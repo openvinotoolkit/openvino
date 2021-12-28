@@ -89,23 +89,23 @@ protected:
 
         ov::ParameterVector functionParams;
         if (inputDynamicShapes.empty()) {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, targetStaticShapes.front().front()));
+            functionParams.push_back(std::make_shared<ov::op::v1::Parameter>(netPrecision, targetStaticShapes.front().front()));
         } else {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes.front()));
+            functionParams.push_back(std::make_shared<ov::op::v1::Parameter>(netPrecision, inputDynamicShapes.front()));
             if (!isRepeatsConst) {
-                functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]));
+                functionParams.push_back(std::make_shared<ov::op::v1::Parameter>(ov::element::i64, inputDynamicShapes[1]));
                 functionParams.back()->set_friendly_name("repeats");
             }
         }
         functionParams.front()->set_friendly_name("data");
 
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v1::Parameter>(functionParams));
         std::shared_ptr<ov::Node> tileNode;
         if (isRepeatsConst) {
-            tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0],
-                    ov::op::v0::Constant::create(ov::element::i64, { repeatsData.size() }, repeatsData));
+            tileNode = std::make_shared<ov::op::v1::Tile>(paramOuts[0],
+                    ov::op::v1::Constant::create(ov::element::i64, { repeatsData.size() }, repeatsData));
         } else {
-            tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0], paramOuts[1]);
+            tileNode = std::make_shared<ov::op::v1::Tile>(paramOuts[0], paramOuts[1]);
         }
         function = makeNgraphFunction(netPrecision, functionParams, tileNode, "CPUTile");
     }

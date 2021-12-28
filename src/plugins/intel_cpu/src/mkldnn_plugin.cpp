@@ -513,7 +513,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                     // todo: clarify whether we can evaluate snippets on const paths
                     const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
                                 [](const ov::Input<const ov::Node> &in) {
-                                        return ov::is_type<ov::op::v0::Constant>(in.get_source_output().get_node_shared_ptr());
+                                        return ov::is_type<ov::op::v1::Constant>(in.get_source_output().get_node_shared_ptr());
                                       });
                     // todo: clarify whether we can evaluate snippets on inputs with larger ranks
                     auto rank_is_too_large = [](const ov::descriptor::Tensor& t ) {

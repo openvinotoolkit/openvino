@@ -15,7 +15,7 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, UnaryEltwiseTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto node = std::make_shared<op::v0::Relu>(data);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 5, 5}},
@@ -26,8 +26,8 @@ TEST(StaticShapeInferenceTest, UnaryEltwiseTest) {
 }
 
 TEST(StaticShapeInferenceTest, BinaryEltwiseTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto data_1 = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
 
     auto node = std::make_shared<op::v1::Add>(data, data_1);
 
@@ -39,11 +39,11 @@ TEST(StaticShapeInferenceTest, BinaryEltwiseTest) {
 }
 
 TEST(StaticShapeInferenceTest, FakeQuantizeTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto il = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto ih = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto ol = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto oh = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto il = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto ih = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto ol = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto oh = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
 
     auto node = std::make_shared<op::v0::FakeQuantize>(data, il, ih, ol, oh, 256);
 

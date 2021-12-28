@@ -532,9 +532,9 @@ TEST(model_reshape, ReshapedDynamicShapeLayout) {
     {
         ov::PartialShape shape({-1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
         param->get_output_tensor(0).set_names({"tensor", "tensor2"});
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
 
         ov::ParameterVector params = {param};
         ngraph = std::make_shared<ov::Model>(relu, params);
@@ -555,10 +555,10 @@ TEST(model_reshape, ReshapeBatchReLU) {
     {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
         param->get_output_tensor(0).set_names({"tensor", "tensor2"});
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(relu);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};
@@ -584,10 +584,10 @@ TEST(model_reshape, ReshapeSpatialReLU) {
     {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
         param->get_output_tensor(0).set_names({"tensor"});
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(relu);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};
@@ -613,9 +613,9 @@ TEST(model_reshape, ReshapeSpatialReLUWithoutReplaceParameter) {
     {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(relu);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};
@@ -641,10 +641,10 @@ TEST(model_reshape, ReshapeSpatialReLUStaticToDynamic) {
     {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
         param->get_output_tensor(0).set_names({"tensor"});
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(relu);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};
@@ -673,10 +673,10 @@ TEST(model_reshape, ReshapeSpatialReLUStaticToFullyDynamic) {
     {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
         param->get_output_tensor(0).set_names({"tensor"});
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(relu);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};
@@ -705,10 +705,10 @@ TEST(model_reshape, ReshapeSpatialReLUDynamicToDynamic) {
     {
         ov::PartialShape shape({1, 3, 22, ov::Dimension::dynamic()});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
         param->get_output_tensor(0).set_names({"tensor"});
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(relu);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};
@@ -734,9 +734,9 @@ TEST(model_reshape, ReshapeSpatialReLUDynamicToDynamic) {
 TEST(model_reshape, TestInvalidReshape) {
     std::shared_ptr<ov::Model> f;
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
+        auto input = std::make_shared<ov::op::v1::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
         input->get_output_tensor(0).set_names({"tensor"});
-        auto shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 4000});
+        auto shape = ov::op::v1::Constant::create(ov::element::i64, {2}, {1, 4000});
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, true);
         f = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
@@ -752,10 +752,10 @@ TEST(model_reshape, TestInvalidReshape) {
 TEST(model_reshape, TestReshapeWithInvalidTensorName) {
     std::shared_ptr<ov::Model> f;
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
+        auto input = std::make_shared<ov::op::v1::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
         input->set_friendly_name("param");
         input->get_output_tensor(0).set_names({"tensor"});
-        auto shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 4000});
+        auto shape = ov::op::v1::Constant::create(ov::element::i64, {2}, {1, 4000});
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, true);
         f = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
@@ -770,10 +770,10 @@ TEST(model_reshape, TestReshapeWithInvalidTensorName) {
 TEST(model_reshape, TestReshapeWithInvalidShapesForTheSameTensor) {
     std::shared_ptr<ov::Model> f;
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
+        auto input = std::make_shared<ov::op::v1::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
         input->set_friendly_name("param");
         input->get_output_tensor(0).set_names({"tensor1", "tensor2"});
-        auto shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 4000});
+        auto shape = ov::op::v1::Constant::create(ov::element::i64, {2}, {1, 4000});
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, true);
         f = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
@@ -788,11 +788,11 @@ TEST(model_reshape, ReshapeBatchReLUByIndex) {
     {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
         param->get_output_tensor(0).set_names({"tensor", "tensor2"});
         port = param->output(0);
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(relu);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};
@@ -819,11 +819,11 @@ TEST(model_reshape, ReshapeBatchReLUByPort) {
     {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
         param->get_output_tensor(0).set_names({"tensor", "tensor2"});
         port = param->output(0);
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(relu);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};
@@ -850,11 +850,11 @@ TEST(model_reshape, ReshapeBatchReLUWithOneInput) {
     {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(type, shape);
         param->get_output_tensor(0).set_names({"tensor", "tensor2"});
         port = param->output(0);
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
+        auto relu = std::make_shared<ov::op::v1::Relu>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(relu);
 
         ov::ParameterVector params = {param};
         ov::ResultVector results = {result};

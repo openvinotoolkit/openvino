@@ -34,10 +34,10 @@ bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ov
             return false;
         }
 
-        if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(BEGIN_ID)) ||
-                !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(END_ID)) ||
-                (op->get_input_size() > STRIDE_ID && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(STRIDE_ID))) ||
-                (op->get_input_size() > AXES_ID && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_ID)))) {
+        if (!ov::is_type<ov::op::v1::Constant>(op->get_input_node_ptr(BEGIN_ID)) ||
+                !ov::is_type<ov::op::v1::Constant>(op->get_input_node_shared_ptr(END_ID)) ||
+                (op->get_input_size() > STRIDE_ID && !ov::is_type<ov::op::v1::Constant>(op->get_input_node_ptr(STRIDE_ID))) ||
+                (op->get_input_size() > AXES_ID && !ov::is_type<ov::op::v1::Constant>(op->get_input_node_ptr(AXES_ID)))) {
             // TODO: Support begin, end, stride, axis inputs for dynamic shapes.
             errorMessage = "Only Constant 'begin', 'end', 'stride' and 'axis' inputs are supported.";
             return false;
@@ -65,7 +65,7 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& 
         THROW_ERROR << "has incorrect number of output edges";
     }
     for (size_t i = 0lu; i < op->get_input_size(); i++) {
-        isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->inputs()[i].get_node());
+        isConstantInput[i] = ov::is_type<ov::op::v1::Constant>(op->inputs()[i].get_node());
     }
 
     attrs.beginDims = getInputShapeAtPort(BEGIN_ID).getStaticDims();

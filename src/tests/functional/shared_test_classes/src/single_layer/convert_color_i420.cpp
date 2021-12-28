@@ -32,27 +32,27 @@ void ConvertColorI420LayerTest::SetUp() {
     std::tie(inputShape, ngPrc, conversionToRGB, singlePlane, targetDevice) = GetParam();
     if (singlePlane) {
         inputShape[1] = inputShape[1] * 3 / 2;
-        auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape);
+        auto param = std::make_shared<ov::op::v1::Parameter>(ngPrc, inputShape);
         std::shared_ptr<ov::Node> convert_color;
         if (conversionToRGB) {
             convert_color = std::make_shared<ov::op::v8::NV12toRGB>(param);
         } else {
             convert_color = std::make_shared<ov::op::v8::NV12toBGR>(param);
         }
-        function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
+        function = std::make_shared<ov::Model>(std::make_shared<ov::op::v1::Result>(convert_color),
                                                       ov::ParameterVector{param}, "ConvertColorI420");
     } else {
         auto uvShape = ov::Shape{inputShape[0], inputShape[1] / 2, inputShape[2] / 2, 1};
-        auto param_y = std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShape);
-        auto param_u = std::make_shared<ov::op::v0::Parameter>(ngPrc, uvShape);
-        auto param_v = std::make_shared<ov::op::v0::Parameter>(ngPrc, uvShape);
+        auto param_y = std::make_shared<ov::op::v1::Parameter>(ngPrc, inputShape);
+        auto param_u = std::make_shared<ov::op::v1::Parameter>(ngPrc, uvShape);
+        auto param_v = std::make_shared<ov::op::v1::Parameter>(ngPrc, uvShape);
         std::shared_ptr<ov::Node> convert_color;
         if (conversionToRGB) {
             convert_color = std::make_shared<ov::op::v8::I420toRGB>(param_y, param_u, param_v);
         } else {
             convert_color = std::make_shared<ov::op::v8::I420toBGR>(param_y, param_u, param_v);
         }
-        function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
+        function = std::make_shared<ov::Model>(std::make_shared<ov::op::v1::Result>(convert_color),
                                                       ov::ParameterVector{param_y, param_u, param_v},
                                                       "ConvertColorI420");
     }

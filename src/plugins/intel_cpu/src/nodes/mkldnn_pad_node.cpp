@@ -35,10 +35,10 @@ bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
             return false;
         }
 
-        if (op->get_input_node_shared_ptr(PADS_BEGIN_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static() ||
-            op->get_input_node_shared_ptr(PADS_END_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static() ||
+        if (op->get_input_node_shared_ptr(PADS_BEGIN_ID)->get_type_info() != ov::op::v1::Constant::get_type_info_static() ||
+            op->get_input_node_shared_ptr(PADS_END_ID)->get_type_info() != ov::op::v1::Constant::get_type_info_static() ||
             (pad->get_input_size() == 4 && pad->get_pad_mode() == ngraph::op::PadMode::CONSTANT &&
-            op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static())) {
+            op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() != ov::op::v1::Constant::get_type_info_static())) {
             // TODO: Support pads_begin, pads_end, pad_value inputs for dynamic shapes.
             errorMessage = "Only Constant 'pads_begin', 'pads_end' and 'pad_value' inputs are supported.";
             return false;
@@ -79,8 +79,8 @@ MKLDNNPadNode::MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         THROW_ERROR << "couldn't be casted to op of opset1";
     }
 
-    if (op->get_input_node_shared_ptr(PADS_BEGIN_ID)->get_type_info() == ov::op::v0::Constant::get_type_info_static() &&
-        op->get_input_node_shared_ptr(PADS_END_ID)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
+    if (op->get_input_node_shared_ptr(PADS_BEGIN_ID)->get_type_info() == ov::op::v1::Constant::get_type_info_static() &&
+        op->get_input_node_shared_ptr(PADS_END_ID)->get_type_info() == ov::op::v1::Constant::get_type_info_static()) {
         const auto pb = pad->get_pads_begin();
         const auto pe = pad->get_pads_end();
 
@@ -97,7 +97,7 @@ MKLDNNPadNode::MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkld
     isPadValueSpecified = pad->get_input_size() == 4;
     if (pad_mode == ngraph::op::PadMode::CONSTANT) {
         attrs.padMode = CONSTANT;
-        if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
+        if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() == ov::op::v1::Constant::get_type_info_static()) {
             if (!ngraph::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
                 THROW_ERROR << "has non scalar 'pad_value' input";
             attrs.padValue = ov::as_type_ptr<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))->cast_vector<float>()[0];

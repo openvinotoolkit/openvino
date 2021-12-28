@@ -330,7 +330,7 @@ uint8_t* DynamicBuffer::get_ptr(mkldnn::memory& prim) {
 bool MKLDNNTensorIteratorNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                    ov::op::v0::TensorIterator::get_type_info_static(),
+                    ov::op::v1::TensorIterator::get_type_info_static(),
                     ov::op::v5::Loop::get_type_info_static())) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
             return false;
@@ -438,7 +438,7 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
         }
         loopTripCountIdx = 0;
         loopExecutionConditionIdx = 1;
-    } else if (auto ti = ov::as_type_ptr<const ov::op::v0::TensorIterator>(ngraphOp)) {
+    } else if (auto ti = ov::as_type_ptr<const ov::op::v1::TensorIterator>(ngraphOp)) {
         algorithm = TensorIteratorCommon;
     } else {
         THROW_ERROR << "isn't supported!";

@@ -31,14 +31,14 @@ std::string RandomUniformLayerTest::getTestCaseName(
 namespace {
 
 template<InferenceEngine::Precision::ePrecision p>
-std::shared_ptr<ov::op::v0::Constant>
+std::shared_ptr<ov::op::v1::Constant>
 createRangeConst(const typename InferenceEngine::PrecisionTrait<p>::value_type &value) {
-    return std::make_shared<ov::op::v0::Constant>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(p), ov::Shape{1},
+    return std::make_shared<ov::op::v1::Constant>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(p), ov::Shape{1},
                                                   std::vector<typename InferenceEngine::PrecisionTrait<p>::value_type>{
                                                           value});
 }
 
-std::shared_ptr<ov::op::v0::Constant> createConstant(InferenceEngine::Precision p, double value) {
+std::shared_ptr<ov::op::v1::Constant> createConstant(InferenceEngine::Precision p, double value) {
     using namespace InferenceEngine;
     switch (p) {
         case Precision::FP32:

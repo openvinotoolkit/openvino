@@ -34,9 +34,9 @@ bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ov::N
             return false;
         }
         if (!isDynamicNgraphNode(op) &&
-                (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)) ||
+                (!ov::is_type<ov::op::v1::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)) ||
                  (op->get_input_size() > AXES_MAPPING_IDX &&
-                 !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))))) {
+                 !ov::is_type<ov::op::v1::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))))) {
             errorMessage = "Only constant target shapes and axis mapping inputs are supported for static shapes.";
             return false;
         }
@@ -70,14 +70,14 @@ MKLDNNBroadcastNode::MKLDNNBroadcastNode(const std::shared_ptr<ov::Node>& op, co
         IE_THROW() << errorPrefix << "has unexpected broadcast type: " << broadcastOp->get_broadcast_spec().m_type;
     }
 
-    if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
+    if (ov::is_type<ov::op::v1::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
         constMap[TARGET_SHAPE_IDX] = true;
-        targetShape = (ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)))->get_vector<int32_t>();
+        targetShape = (ov::as_type<ov::op::v1::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)))->get_vector<int32_t>();
     }
     if (broadcastType == EXPLICIT &&
-                ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))) {
+                ov::is_type<ov::op::v1::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))) {
         constMap[AXES_MAPPING_IDX] = true;
-        axesMapping = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))->get_vector<int32_t>();
+        axesMapping = ov::as_type<ov::op::v1::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))->get_vector<int32_t>();
     }
 }
 
@@ -183,14 +183,14 @@ bool MKLDNNBroadcastNode::needShapeInfer() const {
 
 std::vector<VectorDims> MKLDNNBroadcastNode::shapeInfer() const {
     ngraph::OutputVector inputsForShapeInfer {
-            std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(INPUT_DATA_IDX),
+            std::make_shared<ov::op::v1::Parameter>(opToShapeInfer->get_input_element_type(INPUT_DATA_IDX),
                             getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemory().GetShape().toPartialShape()),
-            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
+            std::make_shared<ov::op::v1::Constant>(ov::element::Type_t::i32,
                             getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetShape().getStaticDims(),
                             getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetPtr())
         };
     if (opToShapeInfer->get_input_size() > AXES_MAPPING_IDX) {
-        inputsForShapeInfer.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
+        inputsForShapeInfer.push_back(std::make_shared<ov::op::v1::Constant>(ov::element::Type_t::i32,
                         getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetShape().getStaticDims(),
                         getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetPtr()));
     }

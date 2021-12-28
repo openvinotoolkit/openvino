@@ -12,8 +12,8 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, TileTest) {
-    auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto param1 = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{3}, std::vector<int>{3, 4, 1});
+    auto param0 = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto param1 = std::make_shared<ov::op::v1::Constant>(element::i64, ov::Shape{3}, std::vector<int>{3, 4, 1});
     auto tile = std::make_shared<op::v0::Tile>(param0, param1);
     // Test Static Shape
     std::vector<StaticShape> static_input_shapes = {StaticShape{6, 8, 10}, StaticShape{3}},
@@ -28,8 +28,8 @@ TEST(StaticShapeInferenceTest, TileTest) {
 }
 
 TEST(StaticShapeInferenceTest, TileFewRepeatsTest) {
-    auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto param1 = ov::op::v0::Constant::create(element::i64, Shape{2}, {4, 1});
+    auto param0 = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto param1 = ov::op::v1::Constant::create(element::i64, Shape{2}, {4, 1});
     auto tile = std::make_shared<op::v0::Tile>(param0, param1);
     // Test Static Shape
     std::vector<StaticShape> static_input_shapes = {StaticShape{6, 8, 10}, StaticShape{2}},
@@ -39,8 +39,8 @@ TEST(StaticShapeInferenceTest, TileFewRepeatsTest) {
 }
 
 TEST(StaticShapeInferenceTest, TileSmallDataRankTest) {
-    auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto param1 = ov::op::v0::Constant::create(element::i64, Shape{3}, {3, 4, 1});
+    auto param0 = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    auto param1 = ov::op::v1::Constant::create(element::i64, Shape{3}, {3, 4, 1});
     auto tile = std::make_shared<op::v0::Tile>(param0, param1);
     // Test Static Shape
     std::vector<StaticShape> static_input_shapes = {StaticShape{8, 10}, StaticShape{3}},

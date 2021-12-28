@@ -134,7 +134,7 @@ void BlobReader::parse(const std::vector<char>& blob) {
 
             ov::element::Type_t parameterType = readFromBlob<ov::element::Type_t>(blob, networkInfoOffset);
             std::shared_ptr<ov::Node> parameter =
-                std::make_shared<ov::op::v0::Parameter>(parameterType,
+                std::make_shared<ov::op::v1::Parameter>(parameterType,
                                                         parameterShape);
 
             std::unordered_set<std::string> tensorNames;
@@ -148,7 +148,7 @@ void BlobReader::parse(const std::vector<char>& blob) {
             }
             if (isResult) {
                 auto fakeParameter = parameter;
-                parameter = std::make_shared<ov::op::v0::Result>(parameter);
+                parameter = std::make_shared<ov::op::v1::Result>(parameter);
 
                 const auto inputNameLenght = readFromBlob<size_t>(blob, networkInfoOffset);
 

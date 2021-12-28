@@ -67,7 +67,7 @@ struct ProposalV1Params {
               imageShapeData = CreateTensor(iType, inputShapeValues);
           }
 
-    ov::op::v0::Proposal::Attributes attrs;
+    ov::op::v1::Proposal::Attributes attrs;
     ov::PartialShape clsScoreShape;
     ov::PartialShape bboxPredShape;
     ov::PartialShape imageShapeShape;

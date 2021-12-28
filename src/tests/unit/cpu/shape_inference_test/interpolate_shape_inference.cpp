@@ -29,7 +29,7 @@ static std::shared_ptr<op::v4::Interpolate> build_InterpolateV4() {
     attrs.pads_end = {0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
 
-    auto input_data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto input_data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto sizes = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
     auto scales = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     auto axes = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
@@ -49,17 +49,17 @@ static std::shared_ptr<op::v4::Interpolate> build_InterpolateV4ConstantInput() {
     attrs.pads_end = {0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
 
-    auto input_data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto sizes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{24, 160});
-    auto scales = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{2}, std::vector<float>{2.0, 0.5});
-    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{2, 3});
+    auto input_data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto sizes = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{24, 160});
+    auto scales = std::make_shared<ov::op::v1::Constant>(element::f32, Shape{2}, std::vector<float>{2.0, 0.5});
+    auto axes = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{2, 3});
 
     auto interpolate = std::make_shared<op::v4::Interpolate>(input_data, sizes, scales, axes, attrs);
     return interpolate;
 }
 
 static std::shared_ptr<op::v0::Interpolate> build_InterpolateV0() {
-    ov::op::v0::Interpolate::Attributes attrs;
+    ov::op::v1::Interpolate::Attributes attrs;
     attrs.axes = {2, 3};
     attrs.mode = "nearest";
     attrs.align_corners = true;
@@ -67,7 +67,7 @@ static std::shared_ptr<op::v0::Interpolate> build_InterpolateV0() {
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
 
-    auto input_data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto input_data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto sizes = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
 
     auto interpolate_v0 = std::make_shared<op::v0::Interpolate>(input_data, sizes, attrs);

@@ -103,33 +103,33 @@ protected:
 
         ov::ParameterVector functionParams;
         if (inputDynamicShapes.empty()) {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, targetStaticShapes.front().front()));
+            functionParams.push_back(std::make_shared<ov::op::v1::Parameter>(netPrecision, targetStaticShapes.front().front()));
         } else {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes.front()));
+            functionParams.push_back(std::make_shared<ov::op::v1::Parameter>(netPrecision, inputDynamicShapes.front()));
             if (!isTargetShapeConst) {
-                functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]));
+                functionParams.push_back(std::make_shared<ov::op::v1::Parameter>(ov::element::i64, inputDynamicShapes[1]));
                 functionParams.back()->set_friendly_name("targetShape");
             }
             if (!isAxesMapConst) {
-                functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes.back()));
+                functionParams.push_back(std::make_shared<ov::op::v1::Parameter>(ov::element::i64, inputDynamicShapes.back()));
                 functionParams.back()->set_friendly_name("axesMapping");
             }
         }
         functionParams.front()->set_friendly_name("data");
 
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v1::Parameter>(functionParams));
 
         std::shared_ptr<ov::op::v3::Broadcast> broadcastOp;
         if (mode == ov::op::BroadcastType::EXPLICIT) {
             std::shared_ptr<ov::Node> targetShapeOp;
             std::shared_ptr<ov::Node> axesMappingOp;
             if (isTargetShapeConst) {
-                targetShapeOp = ov::op::v0::Constant::create(ov::element::i64, {targetShapeRank}, targetShape);
+                targetShapeOp = ov::op::v1::Constant::create(ov::element::i64, {targetShapeRank}, targetShape);
             } else {
                 targetShapeOp = functionParams[0];
             }
             if (isAxesMapConst) {
-                axesMappingOp = ov::op::v0::Constant::create(ov::element::i64, {axesMappingRank}, axesMapping);
+                axesMappingOp = ov::op::v1::Constant::create(ov::element::i64, {axesMappingRank}, axesMapping);
             } else {
                 axesMappingOp = functionParams.size() > 2 ? functionParams[2] : functionParams[1];
             }
@@ -139,7 +139,7 @@ protected:
                                                                mode);
         } else if (mode == ov::op::BroadcastType::NUMPY) {
             if (isTargetShapeConst) {
-                auto targetShapeConst = ov::op::v0::Constant::create(ov::element::i64, {targetShapeRank}, targetShape);
+                auto targetShapeConst = ov::op::v1::Constant::create(ov::element::i64, {targetShapeRank}, targetShape);
                 broadcastOp = std::make_shared<ov::op::v3::Broadcast>(paramOuts[0],
                                                                       targetShapeConst,
                                                                       mode);

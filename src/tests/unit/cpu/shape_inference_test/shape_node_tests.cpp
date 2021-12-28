@@ -18,8 +18,8 @@ using namespace ov;
 
 
 TEST(StaticShapeInferenceTest, ReshapeTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{0, -1});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto pattern = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{0, -1});
 
     auto reduce =
             std::make_shared<op::v1::Reshape>(data, pattern, true);
@@ -32,8 +32,8 @@ TEST(StaticShapeInferenceTest, ReshapeTest) {
 }
 
 TEST(StaticShapeInferenceTest, SqueezeTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{-3, 0});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto pattern = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{-3, 0});
 
     auto reduce =
             std::make_shared<op::v0::Squeeze>(data, pattern);
@@ -46,8 +46,8 @@ TEST(StaticShapeInferenceTest, SqueezeTest) {
 }
 
 TEST(StaticShapeInferenceTest, UnsqueezeTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{-3, 0});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto pattern = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{-3, 0});
 
     auto reduce =
             std::make_shared<op::v0::Unsqueeze>(data, pattern);
@@ -60,7 +60,7 @@ TEST(StaticShapeInferenceTest, UnsqueezeTest) {
 }
 
 TEST(StaticShapeInferenceTest, ShapeOf5DTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
     auto shapeof =
             std::make_shared<op::v0::ShapeOf>(data);
@@ -73,7 +73,7 @@ TEST(StaticShapeInferenceTest, ShapeOf5DTest) {
 }
 
 TEST(StaticShapeInferenceTest, ShapeOf0DTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{});
 
     auto shapeof =
             std::make_shared<op::v3::ShapeOf>(data);

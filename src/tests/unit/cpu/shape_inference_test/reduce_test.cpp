@@ -15,8 +15,8 @@ using namespace ov;
 
 
 TEST(StaticShapeInferenceTest, ReduceTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 3});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 3});
 
     auto reduce =
             std::make_shared<op::v1::ReduceMean>(data, axes, true);

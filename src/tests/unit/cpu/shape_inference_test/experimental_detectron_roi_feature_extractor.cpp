@@ -21,11 +21,11 @@ TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractor) {
     attrs.sampling_ratio = 2;
     attrs.pyramid_scales = {4, 8, 16, 32};
 
-    auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto pyramid_layer0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, -1, -1, -1});
-    auto pyramid_layer1 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, -1, -1, -1});
-    auto pyramid_layer2 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, -1, -1, -1});
-    auto pyramid_layer3 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto input = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    auto pyramid_layer0 = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer1 = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer2 = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer3 = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{1, -1, -1, -1});
 
     auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(
         NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},

@@ -10,7 +10,7 @@ using namespace MKLDNNPlugin;
 
 bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v0::Tile>(op)) {
+        if (!ov::is_type<ov::op::v1::Tile>(op)) {
             errorMessage = "Only opset1 Tile operation is supported.";
             return false;
         }
@@ -19,7 +19,7 @@ bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             return false;
         }
         if (!isDynamicNgraphNode(op) &&
-                !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
+                !ov::is_type<ov::op::v1::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
             errorMessage = "Only constant 'Repeats' input is supported with static shapes.";
             return false;
         }
@@ -38,9 +38,9 @@ MKLDNNTileNode::MKLDNNTileNode(const std::shared_ptr<ov::Node>& op, const mkldnn
 
     errorPrefix = "Tile node with name '" + getName() + "'";
 
-    if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
+    if (ov::is_type<ov::op::v1::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
         constMap[TILE_REPEATS] = true;
-        repeats = originRepeats = ov::as_type<const ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))->cast_vector<size_t>();
+        repeats = originRepeats = ov::as_type<const ov::op::v1::Constant>(op->get_input_node_ptr(TILE_REPEATS))->cast_vector<size_t>();
         while (repeats.size() < getInputShapeAtPort(TILE_INPUT).getRank()) {
             repeats.insert(repeats.begin(), 1lu);
         }
@@ -124,9 +124,9 @@ bool MKLDNNTileNode::needShapeInfer() const {
 
 std::vector<VectorDims> MKLDNNTileNode::shapeInfer() const {
     ngraph::OutputVector inputsForShapeInfer {
-        std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(TILE_INPUT),
+        std::make_shared<ov::op::v1::Parameter>(opToShapeInfer->get_input_element_type(TILE_INPUT),
                                                 getParentEdgesAtPort(TILE_INPUT)[0]->getMemory().GetShape().toPartialShape()),
-        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
+        std::make_shared<ov::op::v1::Constant>(ov::element::Type_t::i32,
                                                getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetShape().getStaticDims(),
                                                getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetPtr())
     };

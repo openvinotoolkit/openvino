@@ -27,10 +27,10 @@ TEST(StaticShapeInferenceTest, ExperimentalDetectronDetectionOutputTest) {
     attrs.score_threshold = 0.01000000074505806f;
     int64_t rois_num = static_cast<int64_t>(attrs.max_detections_per_image);
 
-    auto rois = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
+    auto rois = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    auto deltas = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    auto scores = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    auto im_info = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1});
 
     auto detection =
         std::make_shared<ov::op::v6::ExperimentalDetectronDetectionOutput>(rois, deltas, scores, im_info, attrs);

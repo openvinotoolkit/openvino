@@ -189,7 +189,7 @@ void BackEnd::serializeParamsAndResults(const Model& model, const mv_blob_header
         BlobSerializer inputNameForResultSerializer;
 
         const auto nph = getNetworkParameterHeader(node);
-        const bool isResult = ov::is_type<ov::op::v0::Result>(node);
+        const bool isResult = ov::is_type<ov::op::v1::Result>(node);
         int totalNetworkInfoOffset =
             networkInfoOffset + sizeof(nph) + nph.name_lenght +
             nph.element_type_bytesize +

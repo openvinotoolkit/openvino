@@ -1645,7 +1645,7 @@ std::vector<std::shared_ptr<const ov::Node>> GNAPlugin::GetInputs() {
     std::vector<std::shared_ptr<const ov::Node>> params;
     params.reserve(inputs_ptr_->size());
     for (auto&& input : inputs_ptr_->Get()) {
-        auto param = std::make_shared<ov::op::v0::Parameter>(
+        auto param = std::make_shared<ov::op::v1::Parameter>(
             convertPrecision(input.model_precision),
             ov::PartialShape(input.dims));
         param->set_friendly_name(input.name);
@@ -1659,11 +1659,11 @@ std::vector<std::shared_ptr<const ov::Node>> GNAPlugin::GetOutputs() {
     std::vector<std::shared_ptr<const ov::Node>> results;
     results.reserve(outputs_.size());
     for (auto&& output : outputs_.Get()) {
-        auto param = std::make_shared<ov::op::v0::Parameter>(
+        auto param = std::make_shared<ov::op::v1::Parameter>(
             convertPrecision(output.model_precision),
             ov::PartialShape(output.dims));
         param->set_friendly_name(output.name);
-        auto result = std::make_shared<ov::op::v0::Result>(param);
+        auto result = std::make_shared<ov::op::v1::Result>(param);
         result->get_output_tensor(0).add_names(output.tensor_names);
         results.emplace_back(std::move(result));
     }

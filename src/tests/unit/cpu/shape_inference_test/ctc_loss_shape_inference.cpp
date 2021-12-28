@@ -13,11 +13,11 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, CTCLossTest) {
-    const auto& logits = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    const auto& logit_length = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    const auto& labels = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, -1});
-    const auto& label_length = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    const auto& blank_index = std::make_shared<ov::op::v0::Parameter>(element::i32, ov::Shape{});
+    const auto& logits = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    const auto& logit_length = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1});
+    const auto& labels = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1, -1});
+    const auto& label_length = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1});
+    const auto& blank_index = std::make_shared<ov::op::v1::Parameter>(element::i32, ov::Shape{});
 
     // create CTCLoss node
     auto ctc_loss = std::make_shared<op::v4::CTCLoss>(logits, logit_length, labels, label_length, blank_index);

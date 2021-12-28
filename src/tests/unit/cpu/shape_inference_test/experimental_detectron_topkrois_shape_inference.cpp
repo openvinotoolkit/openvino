@@ -14,8 +14,8 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, ExperimentalDetectronTopKROIsTest) {
-    auto input_rois = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto rois_probs = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1});
+    auto input_rois = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    auto rois_probs = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1});
     size_t max_rois = 5;
 
     auto rois = std::make_shared<op::v6::ExperimentalDetectronTopKROIs>(input_rois, rois_probs, max_rois);

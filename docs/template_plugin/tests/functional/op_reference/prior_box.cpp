@@ -38,7 +38,7 @@ struct PriorBoxParams {
         attrs.scale_all_sizes = scale_all_size;
     }
 
-    ov::op::v0::PriorBox::Attributes attrs;
+    ov::op::v1::PriorBox::Attributes attrs;
     ov::Shape layerShapeShape;
     ov::Shape imageShapeShape;
     ov::element::Type inType;

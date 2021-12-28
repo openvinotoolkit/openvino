@@ -7,7 +7,7 @@
 #include "utils.hpp"
 
 template <class T>
-void shape_infer(const ov::op::v0::FakeQuantize* op,
+void shape_infer(const ov::op::v1::FakeQuantize* op,
                  const std::vector<T> &input_shapes,
                  std::vector<T> &output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 5 && output_shapes.size() == 1);

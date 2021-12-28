@@ -51,13 +51,13 @@ void SimpleIfTest::SetUp() {
     init_input_shapes(shapes);
     auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
 
-    auto p1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
-    auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
-    auto p3 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+    auto p1 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
+    auto p2 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[1]);
+    auto p3 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
 
     auto thenOp = std::make_shared<ov::op::v1::Add>(p1, p2);
-    auto res1 = std::make_shared<ov::op::v0::Result>(thenOp);
-    auto res2 = std::make_shared<ov::op::v0::Result>(p3);
+    auto res1 = std::make_shared<ov::op::v1::Result>(thenOp);
+    auto res2 = std::make_shared<ov::op::v1::Result>(p3);
 
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res2}, ov::ParameterVector{p3});
@@ -70,7 +70,7 @@ void SimpleIfTest::SetUp() {
     ifOp->set_input(params[1], p2, nullptr);
     auto res = ifOp->set_output(res1, res2);
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(res)};
+    ov::ResultVector results{std::make_shared<ov::op::v1::Result>(res)};
     function = std::make_shared<ov::Model>(results, params, "simpleIf");
 }
 
@@ -83,16 +83,16 @@ void SimpleIf2OutTest::SetUp() {
     init_input_shapes(shapes);
     auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
 
-    auto p1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
-    auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
-    auto p3 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
-    auto p4 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
+    auto p1 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
+    auto p2 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[1]);
+    auto p3 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
+    auto p4 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[1]);
 
     auto thenOp = std::make_shared<ov::op::v1::Add>(p1, p2);
-    auto res1 = std::make_shared<ov::op::v0::Result>(thenOp);
-    auto res2 = std::make_shared<ov::op::v0::Result>(thenOp);
-    auto res3 = std::make_shared<ov::op::v0::Result>(p3);
-    auto res4 = std::make_shared<ov::op::v0::Result>(p4);
+    auto res1 = std::make_shared<ov::op::v1::Result>(thenOp);
+    auto res2 = std::make_shared<ov::op::v1::Result>(thenOp);
+    auto res3 = std::make_shared<ov::op::v1::Result>(p3);
+    auto res4 = std::make_shared<ov::op::v1::Result>(p4);
 
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1, res2}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res3, res4}, ov::ParameterVector{p3, p4});
@@ -106,7 +106,7 @@ void SimpleIf2OutTest::SetUp() {
     auto ifRes1 = ifOp->set_output(res1, res3);
     auto ifRes2 = ifOp->set_output(res2, res4);
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ifRes1), std::make_shared<ov::op::v0::Result>(ifRes2)};
+    ov::ResultVector results{std::make_shared<ov::op::v1::Result>(ifRes1), std::make_shared<ov::op::v1::Result>(ifRes2)};
     function = std::make_shared<ov::Model>(results, params, "simpleIf2Out");
 }
 
@@ -119,18 +119,18 @@ void SimpleIfNotConstConditionTest::SetUp() {
     for (auto &target : targetStaticShapes)
         target.emplace_back(ov::Shape{});
     auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
-    params.emplace_back(std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
+    params.emplace_back(std::make_shared<ov::op::v1::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
 
-    auto p1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
-    auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
-    auto p3 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
-    auto p4 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
+    auto p1 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
+    auto p2 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[1]);
+    auto p3 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
+    auto p4 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[1]);
 
     auto thenOp = std::make_shared<ov::op::v1::Add>(p1, p2);
-    auto res1 = std::make_shared<ov::op::v0::Result>(thenOp);
-    auto res2 = std::make_shared<ov::op::v0::Result>(thenOp);
-    auto res3 = std::make_shared<ov::op::v0::Result>(p3);
-    auto res4 = std::make_shared<ov::op::v0::Result>(p4);
+    auto res1 = std::make_shared<ov::op::v1::Result>(thenOp);
+    auto res2 = std::make_shared<ov::op::v1::Result>(thenOp);
+    auto res3 = std::make_shared<ov::op::v1::Result>(p3);
+    auto res4 = std::make_shared<ov::op::v1::Result>(p4);
 
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{res1, res2}, ov::ParameterVector{p1, p2});
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{res3, res4}, ov::ParameterVector{p3, p4});
@@ -143,7 +143,7 @@ void SimpleIfNotConstConditionTest::SetUp() {
     auto ifRes1 = ifOp->set_output(res1, res3);
     auto ifRes2 = ifOp->set_output(res2, res4);
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ifRes1), std::make_shared<ov::op::v0::Result>(ifRes2)};
+    ov::ResultVector results{std::make_shared<ov::op::v1::Result>(ifRes1), std::make_shared<ov::op::v1::Result>(ifRes2)};
     function = std::make_shared<ov::Model>(results, params, "SimpleIfNotConstConditionTest");
 }
 
@@ -175,25 +175,25 @@ void SimpleIfNotConstConditionAndInternalDynamismTest::SetUp() {
     for (auto &target : targetStaticShapes)
         target.emplace_back(ov::Shape{});
     auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
-    params.emplace_back(std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
+    params.emplace_back(std::make_shared<ov::op::v1::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
 
-    auto p1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
-    auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+    auto p1 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
+    auto p2 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
 
     // then body
     auto thenOp_0 = std::make_shared<ov::op::v3::NonZero>(p1, ov::element::i32);
-    auto thenOp_1 = std::make_shared<ov::op::v0::Convert>(thenOp_0, inType);
-    auto thenRes_0 = std::make_shared<ov::op::v0::Result>(p1);
-    auto thenRes_1 = std::make_shared<ov::op::v0::Result>(thenOp_1);
+    auto thenOp_1 = std::make_shared<ov::op::v1::Convert>(thenOp_0, inType);
+    auto thenRes_0 = std::make_shared<ov::op::v1::Result>(p1);
+    auto thenRes_1 = std::make_shared<ov::op::v1::Result>(thenOp_1);
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes_0, thenRes_1}, ov::ParameterVector{p1});
 
     // else body
-    auto add_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, std::vector<float>{ 2 });
+    auto add_const = std::make_shared<ov::op::v1::Constant>(inType, ov::Shape{}, std::vector<float>{ 2 });
     auto elseOp_0 = std::make_shared<ov::op::v1::Add>(p2, add_const);
     auto elseOp_1 = std::make_shared<ov::op::v3::NonZero>(elseOp_0, ov::element::i32);
-    auto elseOp_2 = std::make_shared<ov::op::v0::Convert>(elseOp_1, inType);
-    auto elseRes_0 = std::make_shared<ov::op::v0::Result>(elseOp_0);
-    auto elseRes_1 = std::make_shared<ov::op::v0::Result>(elseOp_2);
+    auto elseOp_2 = std::make_shared<ov::op::v1::Convert>(elseOp_1, inType);
+    auto elseRes_0 = std::make_shared<ov::op::v1::Result>(elseOp_0);
+    auto elseRes_1 = std::make_shared<ov::op::v1::Result>(elseOp_2);
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{elseRes_0, elseRes_1}, ov::ParameterVector{p2});
 
     auto ifOp = std::make_shared<ov::op::v8::If>(params[1]);
@@ -203,7 +203,7 @@ void SimpleIfNotConstConditionAndInternalDynamismTest::SetUp() {
     auto ifRes_0 = ifOp->set_output(thenRes_0, elseRes_0);
     auto ifRes_1 = ifOp->set_output(thenRes_1, elseRes_1);
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ifRes_0), std::make_shared<ov::op::v0::Result>(ifRes_1)};
+    ov::ResultVector results{std::make_shared<ov::op::v1::Result>(ifRes_0), std::make_shared<ov::op::v1::Result>(ifRes_1)};
     function = std::make_shared<ov::Model>(results, params, "SimpleIfNotConstConditionAndInternalDynamismTest");
 }
 
@@ -216,19 +216,19 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
     for (auto &target : targetStaticShapes)
         target.emplace_back(ov::Shape{});
     auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
-    params.emplace_back(std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
+    params.emplace_back(std::make_shared<ov::op::v1::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
 
-    auto p1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
-    auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+    auto p1 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
+    auto p2 = std::make_shared<ov::op::v1::Parameter>(inType, inputDynamicShapes[0]);
 
     // then body
     const std::vector<int64_t> pads(p1->get_partial_shape().rank().get_length(), 2);
     auto thenOp = ngraph::builder::makePad(p1, pads, pads, 0, ngraph::helpers::PadMode::CONSTANT);
-    auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp);
+    auto thenRes = std::make_shared<ov::op::v1::Result>(thenOp);
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
 
     // else body
-    auto elseRes = std::make_shared<ov::op::v0::Result>(p2);
+    auto elseRes = std::make_shared<ov::op::v1::Result>(p2);
     auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{elseRes}, ov::ParameterVector{p2});
 
     auto ifOp = std::make_shared<ov::op::v8::If>(params[1]);
@@ -237,7 +237,7 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
     ifOp->set_input(params[0], p1, p2);
     auto ifRes = ifOp->set_output(thenRes, elseRes);
 
-    function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(ifOp)},
+    function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v1::Result>(ifOp)},
                                            params, "SimpleIfNotConstConditionAndDimsIncreaseTest");
 }
 

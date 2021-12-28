@@ -667,7 +667,7 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngr
             return false;
         }
 
-        if (axesNode->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+        if (axesNode->get_type_info() != ov::op::v1::Constant::get_type_info_static()) {
             // TODO [DS]: Add 'axes' input dynamism support
             errorMessage = "Doesn't support dynamic 'axes' input";
             return false;

@@ -69,15 +69,15 @@
 //        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 //        auto params = ngraph::builder::makeParams(ngPrc, {inputDataShape});
 //        auto paramOuts = ngraph::helpers::convert2OutputVector(
-//                ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+//                ngraph::helpers::castOps2Nodes<ov::op::v1::Parameter>(params));
 //
 //        const auto inOrderShape = inputOrder.empty() ? ov::Shape({0}) : ov::Shape({inputDataShape.size()});
-//        const auto inputOrderOp = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+//        const auto inputOrderOp = std::make_shared<ov::op::v1::Constant>(ov::element::i64,
 //                                                                         inOrderShape,
 //                                                                         inputOrder);
 //        const auto transpose = std::make_shared<ov::op::v1::Transpose>(paramOuts.at(0), inputOrderOp);
 //        transpose->get_rt_info() = getCPUInfo();
-//        const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
+//        const ov::ResultVector results{std::make_shared<ov::op::v1::Result>(transpose)};
 //        function = std::make_shared<ov::Model>(results, params, "Transpose");
 //    }
 //};

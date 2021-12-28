@@ -621,9 +621,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
             tensorNames.insert(GetStrAttr(tensorNameNode, "value"));
         }
 
-        std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::Parameter>(elementType, partialShape);
+        std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v1::Parameter>(elementType, partialShape);
         if (!is_param)
-            node = std::make_shared<ov::op::v0::Result>(node);
+            node = std::make_shared<ov::op::v1::Result>(node);
         node->set_friendly_name(operation_name);
         node->output(0).get_tensor().add_names(tensorNames);
 
@@ -663,7 +663,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     }
 
     const auto serializeNode = [&](const std::shared_ptr<const ov::Node>& node, pugi::xml_node& xml_node) {
-        const bool is_result = ov::is_type<ov::op::v0::Result>(node);
+        const bool is_result = ov::is_type<ov::op::v1::Result>(node);
         const std::string name =
             is_result ? ngraph::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
         xml_node.append_attribute("operation_name").set_value(name.c_str());

@@ -12,13 +12,13 @@ using namespace ov;
 using namespace ov::preprocess;
 
 static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
-    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+    auto data1 = std::make_shared<op::v1::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
-    auto op = std::make_shared<op::v0::Relu>(data1);
+    auto op = std::make_shared<op::v1::Relu>(data1);
     op->set_friendly_name("Relu");
     op->get_output_tensor(0).set_names({"tensor_Relu"});
-    auto res = std::make_shared<op::v0::Result>(op);
+    auto res = std::make_shared<op::v1::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
@@ -30,12 +30,12 @@ static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialS
     ParameterVector params;
     for (size_t i = 0; i < N; i++) {
         auto index_str = std::to_string(i);
-        auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+        auto data1 = std::make_shared<op::v1::Parameter>(type, shape);
         data1->set_friendly_name("input" + index_str);
         data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
-        auto op1 = std::make_shared<op::v0::Relu>(data1);
+        auto op1 = std::make_shared<op::v1::Relu>(data1);
         op1->set_friendly_name("Relu" + index_str);
-        auto res1 = std::make_shared<op::v0::Result>(op1);
+        auto res1 = std::make_shared<op::v1::Result>(op1);
         res1->set_friendly_name("Result" + index_str);
         res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
         params.push_back(data1);
@@ -555,7 +555,7 @@ TEST(pre_post_process, custom_preprocessing) {
     auto f = create_simple_function(element::i32, Shape{1, 3, 1, 1});
     auto p = PrePostProcessor(f);
     p.input().preprocess().custom([](const Output<Node>& node) {
-        return std::make_shared<op::v0::Abs>(node);
+        return std::make_shared<op::v1::Abs>(node);
     });
     f = p.build();
     EXPECT_EQ(f->get_output_element_type(0), element::i32);
@@ -1111,7 +1111,7 @@ TEST(pre_post_process, postprocess_convert_element_type_explicit) {
     EXPECT_EQ(old_names.count("tensor_output1"), 1);
     auto ops = f->get_ordered_ops();
     auto res_count = std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& n) {
-        return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
+        return std::dynamic_pointer_cast<ov::op::v1::Result>(n) != nullptr;
     });
     EXPECT_EQ(res_count, 1);
     auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
@@ -1407,7 +1407,7 @@ TEST(pre_post_process, postprocess_custom_step) {
     auto p = PrePostProcessor(f);
 
     p.output().postprocess().custom([&hit](const ov::Output<Node>& node) {
-        auto abs = std::make_shared<op::v0::Abs>(node);
+        auto abs = std::make_shared<op::v1::Abs>(node);
         hit = true;
         return abs;
     });
@@ -1415,7 +1415,7 @@ TEST(pre_post_process, postprocess_custom_step) {
     EXPECT_TRUE(hit);
 
     EXPECT_EQ(std::string(f->get_results()[0]->get_input_source_output(0).get_node()->get_type_name()),
-              std::string(op::v0::Abs::get_type_info_static().name));
+              std::string(op::v1::Abs::get_type_info_static().name));
 }
 
 TEST(pre_post_process, postprocess_implicit_convert_element_type_and_layout) {
@@ -1478,7 +1478,7 @@ TEST(pre_post_process, postprocess_many) {
         .convert_element_type()
         .custom([&custom_called](const ov::Output<Node>& node) {
             custom_called = true;
-            return std::make_shared<op::v0::Abs>(node);
+            return std::make_shared<op::v1::Abs>(node);
         });
     p.output("tensor_output1").tensor().set_layout("NHWC").set_element_type(element::u8);
 

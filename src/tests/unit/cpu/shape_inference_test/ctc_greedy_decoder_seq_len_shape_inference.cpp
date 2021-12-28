@@ -13,8 +13,8 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, CtcGreedyDecoderSeqLenTest) {
-    auto P = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto I = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto P = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto I = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1});
     auto G = std::make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I);
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 100, 1200}, StaticShape{3}},

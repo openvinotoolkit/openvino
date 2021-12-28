@@ -47,7 +47,7 @@ ngraph::ParameterVector makeDynamicParams(const std::vector<element::Type>& type
     ngraph::ParameterVector outs;
     NGRAPH_CHECK(types.size() == shapes.size());
     for (size_t i = 0; i < types.size(); i++) {
-        auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], shapes[i]);
+        auto paramNode = std::make_shared<ov::op::v1::Parameter>(types[i], shapes[i]);
         outs.push_back(paramNode);
     }
     return outs;

@@ -114,9 +114,9 @@ MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::N
 
         externOutShape = inputShapes.size() == 3;
         if (externOutShape && isDynamicNode()) {
-            bool isConstOutShape = ngraph::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            bool isConstOutShape = ngraph::is_type<ov::op::v1::Constant>(op->get_input_node_shared_ptr(2));
             if (isConstOutShape) {
-                lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+                lastOutputSpatialDims = ov::as_type<ov::op::v1::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
             }
             const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
             if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum || (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {

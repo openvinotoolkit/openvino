@@ -9,7 +9,7 @@
 
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
+#include "openvino/op/parameter.hpp"  // ov::op::v1::Parameter
 #include "openvino/op/sink.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
@@ -679,7 +679,7 @@ void regclass_graph_Model(py::module m) {
 
     function.def(
         "get_parameter_index",
-        (int64_t(ov::Model::*)(const std::shared_ptr<ov::op::v0::Parameter>&) const) & ov::Model::get_parameter_index,
+        (int64_t(ov::Model::*)(const std::shared_ptr<ov::op::v1::Parameter>&) const) & ov::Model::get_parameter_index,
         py::arg("parameter"),
         R"(
                     Return the index position of `parameter`.

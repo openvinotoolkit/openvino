@@ -53,7 +53,7 @@ void Slice8LayerTest::SetUp() {
 
     ov::ResultVector results;
     for (int i = 0; i < sliceOp->get_output_size(); i++)
-         results.push_back(std::make_shared<ov::op::v0::Result>(sliceOp->output(i)));
+         results.push_back(std::make_shared<ov::op::v1::Result>(sliceOp->output(i)));
     function = std::make_shared<ngraph::Function>(results, params, "Slice-8");
 }
 

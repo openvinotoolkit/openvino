@@ -20,9 +20,9 @@ TEST(StaticShapeInferenceTest, PriorGridGenerator) {
     attrs.stride_x = 4.0f;
     attrs.stride_y = 4.0f;
 
-    auto priors = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto feature_map = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto im_data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto priors = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    auto feature_map = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto im_data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
     auto grid_gen =
         std::make_shared<ov::op::v6::ExperimentalDetectronPriorGridGenerator>(priors, feature_map, im_data, attrs);

@@ -134,7 +134,7 @@ template <class IT>
               auxConfShape = confShape;
           }
 
-    ov::op::v0::DetectionOutput::Attributes attrs;
+    ov::op::v1::DetectionOutput::Attributes attrs;
     ov::op::v8::DetectionOutput::Attributes attrs_v8;
     ov::PartialShape locShape;
     ov::PartialShape confShape;

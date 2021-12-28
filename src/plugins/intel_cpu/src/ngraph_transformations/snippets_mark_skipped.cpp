@@ -188,7 +188,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
             if (grandparents.size() == 2 &&
                 grandparents[0].get_partial_shape().is_static() &&
                 grandparents[1].get_partial_shape().is_static() &&
-                ov::is_type<ov::op::v0::Constant>(grandparents[1].get_node_shared_ptr())) {
+                ov::is_type<ov::op::v1::Constant>(grandparents[1].get_node_shared_ptr())) {
                 auto rank_a = grandparents[0].get_partial_shape().rank().get_length();
                 auto rank_w = grandparents[1].get_partial_shape().rank().get_length();
                 if (rank_a != 1 && rank_w != 1 && rank_a <= 3 && rank_w <= 3)

@@ -12,10 +12,10 @@
 
 TEST(StaticShapeInferenceTest, RollTest) {
     auto arg =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+        std::make_shared<ov::op::v1::Parameter>(ov::element::f32,
                                                 ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()});
-    auto shift = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ov::Dimension::dynamic()});
-    auto axes = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{ov::Dimension::dynamic()});
+    auto shift = std::make_shared<ov::op::v1::Parameter>(ov::element::i64, ov::PartialShape{ov::Dimension::dynamic()});
+    auto axes = std::make_shared<ov::op::v1::Parameter>(ov::element::i32, ov::PartialShape{ov::Dimension::dynamic()});
 
     auto roll = std::make_shared<ov::op::v7::Roll>(arg, shift, axes);
 
@@ -35,10 +35,10 @@ TEST(StaticShapeInferenceTest, RollTest) {
 
 TEST(StaticShapeInferenceTest, RollTestWithConstAxis) {
     auto arg =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+        std::make_shared<ov::op::v1::Parameter>(ov::element::f32,
                                                 ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()});
-    auto shift = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ov::Dimension::dynamic()});
-    auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 1, -1});
+    auto shift = std::make_shared<ov::op::v1::Parameter>(ov::element::i64, ov::PartialShape{ov::Dimension::dynamic()});
+    auto axes = std::make_shared<ov::op::v1::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 1, -1});
     auto roll = std::make_shared<ov::op::v7::Roll>(arg, shift, axes);
 
     const std::vector<ov::StaticShape> input_shapes = {ov::StaticShape{3, 3, 3},

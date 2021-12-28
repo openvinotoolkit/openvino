@@ -13,10 +13,10 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, ScatterElementsUpdateTest) {
-    auto data_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
-    auto indices_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
-    auto updates_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
-    auto axis_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto data_shape = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
+    auto indices_shape = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
+    auto updates_shape = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
+    auto axis_shape = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape::dynamic());
 
     auto scatter_elements =
         std::make_shared<op::v3::ScatterElementsUpdate>(data_shape, indices_shape, updates_shape, axis_shape);

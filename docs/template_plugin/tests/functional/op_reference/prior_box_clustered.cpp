@@ -38,7 +38,7 @@ struct PriorBoxClusteredParams {
                 attrs.variances = variances;
           }
 
-    ov::op::v0::PriorBoxClustered::Attributes attrs;
+    ov::op::v1::PriorBoxClustered::Attributes attrs;
     ov::Shape layerShapeShape;
     ov::Shape imageShapeShape;
     ov::element::Type inType;

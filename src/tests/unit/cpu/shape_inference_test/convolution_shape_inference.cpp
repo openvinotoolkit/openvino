@@ -22,8 +22,8 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
     Strides dilations{1, 1};
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto filters = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto filters = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
     auto conv =
         std::make_shared<op::v1::Convolution>(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
@@ -43,8 +43,8 @@ TEST(StaticShapeInferenceTest, GroupConvolutionTest) {
     Strides dilations{1, 1};
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto filters = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto filters = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
 
     auto conv =
         std::make_shared<op::v1::GroupConvolution>(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
@@ -57,8 +57,8 @@ TEST(StaticShapeInferenceTest, GroupConvolutionTest) {
 }
 
 TEST(StaticShapeInferenceTest, ConvolutionBackPropDataTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto filters = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto filters = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
     const Strides strides{2, 2};
     const Strides dilations{1, 1};
@@ -87,8 +87,8 @@ TEST(StaticShapeInferenceTest, ConvolutionBackPropDataTest) {
 }
 
 TEST(StaticShapeInferenceTest, GroupConvolutionBackPropDataTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto filters = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto filters = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
 
     const Strides strides{2, 2};
     const Strides dilations{1, 1};
@@ -124,8 +124,8 @@ TEST(StaticShapeInferenceTest, ConvolutionTimeTest) {
     CoordinateDiff pads_end{0, 0};
     Strides dilations{1, 1};
     const auto auto_pad = op::PadType::SAME_LOWER;
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{3, 6, 5, 5});
-    auto filters = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{7, 6, 3, 3});
+    auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{3, 6, 5, 5});
+    auto filters = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{7, 6, 3, 3});
     auto conv =
             std::make_shared<op::v1::Convolution>(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 5, 5}, StaticShape{7, 6, 3, 3}}, static_output_shapes = {StaticShape{}};

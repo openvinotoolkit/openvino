@@ -80,16 +80,16 @@
 //        if (!isAxisConstant) {
 //            functionParams.push_back(ngraph::builder::makeParams(ov::element::i32, { {"axis", {1}} })[0]);
 //        }
-//        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
+//        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v1::Parameter>(functionParams));
 //        std::shared_ptr<ov::Node> gatherNode;
 //        if (isAxisConstant) {
 //            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1],
-//                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape({}), { axis }), batchDims);
+//                    ov::op::v1::Constant::create(ov::element::i64, ov::Shape({}), { axis }), batchDims);
 //        } else {
 //            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1], paramOuts[2], batchDims);
 //        }
 //
-//        ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(gatherNode) };
+//        ov::ResultVector results{ std::make_shared<ov::op::v1::Result>(gatherNode) };
 //        function = std::make_shared<ov::Model>(results, functionParams, "Gather");
 //    }
 //

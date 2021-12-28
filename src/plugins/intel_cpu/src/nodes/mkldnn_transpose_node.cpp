@@ -21,7 +21,7 @@ bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::N
             return false;
         }
 
-        if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+        if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v1::Constant::get_type_info_static()) {
             // TODO: Support parameterized Order input for dynamic shapes.
             errorMessage = "Constant expected as the second input for static shapes.";
             return false;
@@ -39,9 +39,9 @@ MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ov::Node>& op, co
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
+    if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() == ov::op::v1::Constant::get_type_info_static()) {
         isInputOrderConst = true;
-        order = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(INPUT_ORDER_IDX))->cast_vector<size_t>();
+        order = ov::as_type<ov::op::v1::Constant>(op->get_input_node_ptr(INPUT_ORDER_IDX))->cast_vector<size_t>();
 
         if (order.empty()) {
             size_t rank = getInputShapeAtPort(INPUT_DATA_IDX).getRank();

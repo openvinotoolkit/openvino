@@ -15,39 +15,39 @@
 using namespace ov;
 
 static std::shared_ptr<op::v7::DFT> build_dft() {
-    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto input_shape = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape::dynamic());
     auto DFT = std::make_shared<ov::op::v7::DFT>(input_shape, axes);
     return DFT;
 }
 
 static std::shared_ptr<op::v7::DFT> build_dft_signal() {
-    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
-    auto signal = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto input_shape = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape::dynamic());
+    auto signal = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape::dynamic());
     auto DFT_signal = std::make_shared<ov::op::v7::DFT>(input_shape, axes, signal);
     return DFT_signal;
 }
 
 static std::shared_ptr<op::v7::DFT> build_dft_constant() {
-    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 2});
-    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{512, 100});
+    auto input_shape = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 2});
+    auto signal = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{512, 100});
     auto DFT_signal = std::make_shared<ov::op::v7::DFT>(input_shape, axes, signal);
     return DFT_signal;
 }
 
 static std::shared_ptr<op::v7::IDFT> build_idft() {
-    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto input_shape = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape::dynamic());
     auto IDFT = std::make_shared<ov::op::v7::IDFT>(input_shape, axes);
     return IDFT;
 }
 
 static std::shared_ptr<op::v7::IDFT> build_idft_signal() {
-    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
-    auto signal = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto input_shape = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape::dynamic());
+    auto signal = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape::dynamic());
     auto IDFT_signal = std::make_shared<ov::op::v7::IDFT>(input_shape, axes, signal);
     return IDFT_signal;
 }
