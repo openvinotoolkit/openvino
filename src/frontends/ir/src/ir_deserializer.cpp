@@ -7,7 +7,6 @@
 #include <pugixml.hpp>
 
 #include "ie_ngraph_utils.hpp"
-#include "ir_frontend/model.hpp"
 #include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "rt_info_deserializer.hpp"
@@ -251,14 +250,16 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         return;
     if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::Type>>(&adapter)) {
         static_cast<ngraph::element::Type&>(*a) = InferenceEngine::details::convertPrecision(val);
-    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::PartialShape>>(&adapter)) {
-        std::vector<int64_t> shape;
-        std::vector<ngraph::Dimension> dims;
-        if (!getParameters<int64_t>(m_node.child("data"), name, shape))
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<PartialShape>>(&adapter)) {
+        PartialShape shape;
+        if (!get_partial_shape_from_attribute(m_node.child("data"), name, shape))
             return;
-        for (const auto& dim : shape)
-            dims.emplace_back(dim);
-        static_cast<ngraph::PartialShape&>(*a) = ngraph::PartialShape(dims);
+        a->set(shape);
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<Dimension>>(&adapter)) {
+        Dimension dim;
+        if (!get_dimension_from_attribute(m_node.child("data"), name, dim))
+            return;
+        a->set(dim);
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::Shape>>(&adapter)) {
         std::vector<size_t> shape;
         if (!getParameters<size_t>(m_node.child("data"), name, shape))
@@ -422,6 +423,9 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     std::vector<size_t /*layer-id*/> outputs;
     std::unordered_set<std::string> opName;
 
+    std::vector<size_t> order;
+    std::set<size_t> dfs_used_nodes;
+    std::map<size_t /*to-layer-id*/, std::vector<edge>> edges;
     // Read all layers and store their parameters in params map
     FOREACH_CHILD (node, root.child("layers"), "layer") {
         auto node_param = parseGenericParams(node);
@@ -432,10 +436,14 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         if (node_param.type == "Result" || node_param.type == "Assign") {
             outputs.push_back(node_param.layerId);
         }
+        if (node_param.type == "Parameter") {
+            // Save Parameters order according to order in XML.
+            // To do so, handle nodes manually and ignore during DFS
+            dfs_used_nodes.insert(node_param.layerId);
+            order.push_back(node_param.layerId);
+            edges[node_param.layerId] = {};
+        }
     }
-
-    std::map<size_t /*to-layer-id*/, std::vector<edge>> edges;
-    std::map<size_t, std::shared_ptr<ngraph::Node>> id_to_node;
 
     // Read all edges and store them for further usage
     FOREACH_CHILD (_ec, root.child("edges"), "edge") {
@@ -447,12 +455,10 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     }
 
     // Run DFS starting from outputs to get nodes topological order
-    std::set<size_t> used;
-    std::vector<size_t> order;
-    std::function<void(size_t)> dfs = [&edges, &order, &used, &dfs](const size_t id) {
-        if (used.count(id))
+    std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes, &dfs](const size_t id) {
+        if (dfs_used_nodes.count(id))
             return;
-        used.insert(id);
+        dfs_used_nodes.insert(id);
         for (auto& edge : edges[id]) {
             dfs(edge.fromLayerId);
         }
@@ -463,7 +469,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     // OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ConstructNgraphNodes");
 
     FunctionNodes func_nodes;
-
+    std::map<size_t, std::shared_ptr<ngraph::Node>> id_to_node;
     std::map<std::string, std::shared_ptr<ngraph::Node>> variable_id_to_read_value;
 
     //  Following topological order create nGraph operations
@@ -601,10 +607,11 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
     return params;
 }
 
-std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngraph::Output<ngraph::Node>>& inputs,
-                                                          const pugi::xml_node& node,
-                                                          const ov::Weights& weights,
-                                                          const GenericLayerParams& params) {
+std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
+    const std::vector<ngraph::Output<ngraph::Node>>& inputs,
+    const pugi::xml_node& node,
+    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+    const GenericLayerParams& params) {
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
@@ -700,11 +707,11 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
     if (dn) {
         const auto pr_data = dn.attribute("PrimitivesPriority");
         if (pr_data) {
-            rtInfo["PrimitivesPriority"] = std::make_shared<::ngraph::VariantWrapper<std::string>>(pr_data.value());
+            rtInfo.emplace(ov::PrimitivesPriority::get_type_info_static(), ov::PrimitivesPriority{pr_data.value()});
         }
         const auto aw_data = dn.attribute("alt_width");
         if (aw_data) {
-            rtInfo["alt_width"] = std::make_shared<::ngraph::VariantWrapper<std::string>>(aw_data.value());
+            rtInfo["alt_width"] = aw_data.value();
         }
     }
 
@@ -721,24 +728,33 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
         for (const auto& item : rt_attrs) {
             std::string attribute_name, attribute_version;
             if (!getStrAttribute(item, "name", attribute_name)) {
-                IE_THROW() << "rt_info attribute has no \"name\" field";
+                std::stringstream ss;
+                item.print(ss);
+                IE_THROW() << "rt_info attribute has no \"name\" field: " << ss.str();
             }
             if (!getStrAttribute(item, "version", attribute_version)) {
-                IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field";
+                std::stringstream ss;
+                item.print(ss);
+                IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field: " << ss.str();
             }
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
-            if (rt_info.count(type_info)) {
-                IE_THROW() << "multiple rt_info attributes are detected: " << type_info;
-            }
-            if (auto attr = attrs_factory.create_by_type_info(type_info)) {
-                RTInfoDeserializer attribute_visitor(item);
-                if (attr->visit_attributes(attribute_visitor)) {
-                    rt_info[type_info] = attr;
+            auto attr = attrs_factory.create_by_type_info(type_info);
+            if (!attr.empty()) {
+                if (attr.is<ov::RuntimeAttribute>()) {
+                    RTInfoDeserializer attribute_visitor(item);
+                    if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
+                        auto res = rt_info.emplace(type_info, attr);
+                        if (!res.second) {
+                            IE_THROW() << "multiple rt_info attributes are detected: " << attribute_name;
+                        }
+                    } else {
+                        IE_THROW() << "VisitAttributes is not supported for: " << item.name() << " attribute";
+                    }
                 } else {
-                    IE_THROW() << "VisitAttributes is not supported for: " << attribute_name << " attribute";
+                    IE_THROW() << "Attribute: " << item.name() << " is not recognized as runtime attribute";
                 }
             } else {
-                IE_THROW() << "Attribute: " << attribute_name << " is not recognized";
+                IE_THROW() << "Attribute: " << item.name() << " is not recognized";
             }
         }
     };

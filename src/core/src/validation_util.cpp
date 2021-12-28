@@ -1212,8 +1212,15 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
 
                 auto& rt_info = consumer->get_rt_info();
                 for (const auto& it : orig_rt_info) {
-                    if (rt_info.find(it.first) == rt_info.end() && it.second->is_copyable())
-                        rt_info[it.first] = it.second;
+                    if (rt_info.find(it.first) == rt_info.end()) {
+                        bool copy = true;
+                        if (it.second.is<ov::RuntimeAttribute>()) {
+                            copy = it.second.as<ov::RuntimeAttribute>().is_copyable();
+                        }
+                        if (copy) {
+                            rt_info[it.first] = it.second;
+                        }
+                    }
                 }
             }
         }
@@ -1280,13 +1287,20 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;
     if (lb && ub) {
-        const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
-        const auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
+        auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
-            NGRAPH_CHECK(lower_bound[i] >= 0 && upper_bound[i] >= 0);
-            resulting_pshape[i] = {lower_bound[i], upper_bound[i]};
+            auto low = lower_bound[i], up = upper_bound[i];
+            NGRAPH_CHECK(low >= 0 && up >= 0);
+            if (output.get_element_type() == element::i32 && low != up) {
+                if (up == std::numeric_limits<std::int32_t>::max())
+                    up = std::numeric_limits<std::int64_t>::max();
+                if (low == std::numeric_limits<std::int32_t>::max())
+                    low = std::numeric_limits<std::int64_t>::max();
+            }
+            resulting_pshape[i] = {low, up};
         }
         pshape = PartialShape(resulting_pshape);
         shape_defined = true;

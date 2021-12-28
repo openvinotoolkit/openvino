@@ -71,10 +71,10 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 # Google Tests framework
 #
 
-if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
+if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
-    openvino_developer_export_targets(COMPONENT inference_engine_tests
+    openvino_developer_export_targets(COMPONENT tests
                                       TARGETS gmock gmock_main gtest gtest_main)
 endif()
 
@@ -82,8 +82,8 @@ endif()
 # Protobuf
 #
 
-if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE)
-    if(NGRAPH_USE_SYSTEM_PROTOBUF)
+if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
+    if(ENABLE_SYSTEM_PROTOBUF)
         set(Protobuf_USE_STATIC_LIBS ON)
         if(VERBOSE_BUILD)
             set(Protobuf_DEBUG ON)
@@ -111,7 +111,7 @@ if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONT
     # set public / interface compile options
     foreach(target IN LISTS Protobuf_LITE_LIBRARIES Protobuf_LIBRARIES)
         set(link_type PUBLIC)
-        if(NGRAPH_USE_SYSTEM_PROTOBUF)
+        if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
@@ -124,7 +124,7 @@ endif()
 # ONNX
 #
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()
 
@@ -164,7 +164,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
                 "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
-                "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
+                "-DDNNL_ENABLE_PRIMITIVE_CACHE=OFF"
                 "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
                 "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"
                 "-DDNNL_BUILD_TESTS=OFF"
@@ -191,28 +191,35 @@ endif()
 #
 # nlohmann json
 #
-if(ENABLE_SAMPLES OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE)
-    add_subdirectory(nlohmann_json EXCLUDE_FROM_ALL)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
-endif()
+
+add_subdirectory(json)
+
+openvino_developer_export_targets(COMPONENT openvino_common
+                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
+
+ov_install_static_lib(nlohmann_json openvino_common)
+ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 
 #
 # Install
 #
 
-ie_cpack_add_component(cpp_samples_deps)
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
+        USE_SOURCE_PERMISSIONS)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
+        DESTINATION "samples/cpp/thirdparty"
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)

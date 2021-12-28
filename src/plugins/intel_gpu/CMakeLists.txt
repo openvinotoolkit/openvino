@@ -5,7 +5,7 @@
 set (TARGET_NAME "ov_intel_gpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-all)
+    ie_add_compiler_flags(-Wno-all -Wno-missing-declarations)
     ie_add_compiler_flags(-msse4.1 -msse4.2)
     if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
         ie_add_compiler_flags(-Wno-error=terminate)
@@ -16,27 +16,31 @@ if(ENABLE_GPU_DEBUG_CAPS)
   add_definitions(-DGPU_DEBUG_CONFIG=1)
 endif()
 
-file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.h)
+set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-addVersionDefines(src/plugin/cldnn_engine.cpp CI_BUILD_NUMBER CLDNN_VERSION)
+add_subdirectory(src/runtime)
+add_subdirectory(src/kernel_selector)
+add_subdirectory(src/graph)
+add_subdirectory(thirdparty)
+
+file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
+
+addVersionDefines(src/plugin/plugin.cpp CI_BUILD_NUMBER)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
-              VERSION_DEFINES_FOR src/plugin/cldnn_engine.cpp)
+              VERSION_DEFINES_FOR src/plugin/plugin.cpp)
 
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
-                                             inference_engine_transformations
-                                             inference_engine_lp_transformations
-                                             ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE ov_intel_gpu_graph
+                                             pugixml::static)
 
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/
-        $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-        ${clDNN_SOURCE_DIR}/api)
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -45,11 +49,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
 endif()
 
+if(ENABLE_TESTS)
+  add_subdirectory(tests)
+endif()
+
 # Failed because of OpenCL
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
-# install
-
-install(FILES "${clDNN_SOURCE_DIR}/kernel_selector/core/cache/cache.json"
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
-        COMPONENT gpu)

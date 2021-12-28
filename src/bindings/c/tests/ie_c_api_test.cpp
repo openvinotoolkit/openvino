@@ -157,7 +157,7 @@ TEST(ie_core_register_plugin, registerPlugin) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *plugin_name = "MKLDNNPlugin";
+    const char *plugin_name = "ov_intel_cpu_plugin";
     const char *device_name = "BLA";
     IE_EXPECT_OK(ie_core_register_plugin(core, plugin_name, device_name));
 
@@ -368,12 +368,9 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
 
     IE_EXPECT_OK(ie_core_import_network_from_memory(core, buffer.data(), buffer.size(), "HETERO:CPU", nullptr, &network));
     EXPECT_NE(nullptr, network);
-    if (network != nullptr) {
-        ie_exec_network_free(&network);
-    }
-    if (exe_network != nullptr) {
-        ie_exec_network_free(&exe_network);
-    }
+
+    ie_exec_network_free(&network);
+    ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
 
@@ -384,17 +381,20 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
 
     ie_config_t conf = {nullptr, nullptr, nullptr};
 
-    ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &conf, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
+    ie_executable_network_t *network = nullptr;
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &conf, &network));
+    EXPECT_NE(nullptr, network);
 
     std::string exported_model = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
-    IE_EXPECT_OK(ie_core_export_network(exe_network, exported_model.c_str()));
+    IE_EXPECT_OK(ie_core_export_network(network, exported_model.c_str()));
     std::ifstream file(exported_model);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
 
+    ie_executable_network_t *exe_network = nullptr;
     IE_EXPECT_OK(ie_core_import_network(core, exported_model.c_str(), "HETERO:CPU", &conf, &exe_network));
     EXPECT_NE(nullptr, exe_network);
+
+     ie_exec_network_free(&network);
     ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
@@ -429,13 +429,8 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
     IE_EXPECT_OK(ie_core_import_network(core, exported_model.c_str(), "HETERO:CPU", nullptr, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    if (network != nullptr) {
-        ie_exec_network_free(&network);
-    }
-    if (exe_network != nullptr) {
-        ie_exec_network_free(&exe_network);
-    }
-
+    ie_exec_network_free(&network);
+    ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
 

@@ -10,7 +10,7 @@ void Any::Base::type_check(const std::type_info& type_info_) const {
     OPENVINO_ASSERT(type_info() == type_info_, "Bad cast from: ", type_info().name(), " To type: ", type_info_.name());
 }
 
-std::shared_ptr<Variant> Any::Base::as_variant() const {
+std::shared_ptr<RuntimeAttribute> Any::Base::as_runtime_attribute() const {
     return {};
 }
 
@@ -40,7 +40,12 @@ bool Any::Base::visit_attributes(AttributeVisitor& visitor) const {
     return const_cast<Any::Base*>(this)->visit_attributes(visitor);
 }
 
-Any::Any(const std::shared_ptr<void>& so, const Any& other) : _so{so}, _impl{other._impl} {}
+Any::~Any() {
+    _runtime_attribute_impl = {};
+    _impl = {};
+}
+
+Any::Any(const Any& other, const std::shared_ptr<void>& so) : _impl{other._impl}, _so{so} {}
 
 Any::Any(const char* str) : Any(std::string{str}) {}
 
@@ -48,6 +53,11 @@ Any::Any(const std::nullptr_t) : Any() {}
 
 void Any::impl_check() const {
     OPENVINO_ASSERT(_impl != nullptr, "Any was not initialized.");
+}
+
+const std::type_info& Any::type_info() const {
+    impl_check();
+    return _impl->type_info();
 }
 
 bool Any::empty() const {

@@ -20,44 +20,31 @@ install(DIRECTORY deployment_manager
         COMPONENT deployment_manager
         USE_SOURCE_PERMISSIONS)
 
-# copy benchmark_app scripts
+# outbound requirements.txt files for openvino-dev package
 
-if(ENABLE_PYTHON)
-    find_package(PythonInterp 3 REQUIRED)
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
+set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
+ie_cpack_add_component(openvino_dev_req_files)
 
-    if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
+foreach(EXTRAS ${EXTRAS_LIST})
+    if(${EXTRAS} STREQUAL "_")
+        set(REQUIREMENTS_OUT "requirements.txt")
+        set(EXTRAS "")
     else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
+        set(REQUIREMENTS_OUT "requirements_${EXTRAS}.txt")
+        set(EXTRAS "[${EXTRAS}]")
     endif()
+    configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
 
-    # creates a copy inside bin directory for developers to have ability running python benchmark_app
-    add_custom_target(python_tools_benchmark ALL
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_tool/openvino/tools/benchmark
-                                                   ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
-    )
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
+        DESTINATION tools
+        COMPONENT openvino_dev_req_files
+        EXCLUDE_FROM_ALL)
+endforeach()
 
-    # install BA tool for tests
-    install(FILES benchmark_tool/README.md
-                  benchmark_tool/requirements.txt
-            DESTINATION tools/benchmark_tool
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
+add_subdirectory(mo)
 
-    install(PROGRAMS benchmark_tool/benchmark_app.py
-            DESTINATION tools/benchmark_tool
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
-
-    # install openvino/tools/benchmark as a python package
-    install(DIRECTORY benchmark_tool/openvino/tools/benchmark
-            DESTINATION python/${PYTHON_VERSION}/openvino/tools
-            USE_SOURCE_PERMISSIONS
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
-endif()
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/pot/version.txt ${CI_BUILD_NUMBER})
 
 # build and install openvino-dev wheel
 

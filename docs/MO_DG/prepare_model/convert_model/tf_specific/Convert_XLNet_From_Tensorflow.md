@@ -24,15 +24,13 @@ To get pb-file from the archive contents, you need to do the following.
 1. Run commands
 
 ```sh
-cd ~
-mkdir XLNet-Base
-cd XLNet-Base
-git clone https://github.com/zihangdai/xlnet
-wget https://storage.googleapis.com/xlnet/released_models/cased_L-12_H-768_A-12.zip
-unzip cased_L-12_H-768_A-12.zip
-mkdir try_save
-cd xlnet
-sed -i "s/tf\.train\.Optimizer/tf\.train.Optimizer if tf.version < '1.15' else tf.compat.v1.train.Optimizer/g" model_utils.py
+   cd ~
+   mkdir XLNet-Base
+   cd XLNet-Base
+   git clone https://github.com/zihangdai/xlnet
+   wget https://storage.googleapis.com/xlnet/released_models/cased_L-12_H-768_A-12.zip
+   unzip cased_L-12_H-768_A-12.zip
+   mkdir try_save
 ```
 
    
@@ -186,7 +184,7 @@ The script should save into `~/XLNet-Large/xlnet`.
 
 To generate the XLNet Intermediate Representation (IR) of the model, run the Model Optimizer with the following parameters:
 ```sh
-python3 mo.py --input_model path-to-model/model_frozen.pb \
-    --input "input_mask[50 1],input_ids[50 1],seg_ids[50 1]"
+mo --input_model path-to-model/model_frozen.pb \
+   --input "input_mask[50 1],input_ids[50 1],seg_ids[50 1]"
 ```
 

@@ -24,12 +24,6 @@
 #include <legacy/ie_layers_property.hpp>
 #include <ngraph/node.hpp>
 
-#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#    define INFERENCE_ENGINE_INTERNAL(msg)
-#else
-#    define INFERENCE_ENGINE_INTERNAL(msg) INFERENCE_ENGINE_DEPRECATED(msg)
-#endif
-
 #ifdef _WIN32
 #    define _IE_SUPPRESS_DEPRECATED_START_MSVC IE_SUPPRESS_DEPRECATED_START
 #    define _IE_SUPPRESS_DEPRECATED_END_MSVC   IE_SUPPRESS_DEPRECATED_END
@@ -38,21 +32,12 @@
 #    define _IE_SUPPRESS_DEPRECATED_END_MSVC
 #endif
 
-#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-# define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
-#else
-# define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...)                                                                           \
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1") \
-    INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
-#endif
-
 namespace InferenceEngine {
 
 /**
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
- * @brief This is an internal common Layer parameter parsing arguments
  */
-struct INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(LayerParams) {
+struct LayerParams {
     /**
      * @brief Layer name
      */
@@ -103,9 +88,10 @@ struct INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(LayerParams) {
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This is a base abstraction Layer - all DNN Layers inherit from this class
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(CNNLayer) {
+class CNNLayer {
 protected:
     std::shared_ptr<ngraph::Node> node;
+
 public:
     /**
      * @brief A shared pointer to CNNLayer
@@ -433,10 +419,10 @@ using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
 
 IE_SUPPRESS_DEPRECATED_END
 
-INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data);
+CNNLayerWeakPtr& getCreatorLayer(const DataPtr & data);
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data);
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data);
+std::map<std::string, CNNLayerPtr>& getInputTo(const DataPtr & data);
+std::map<std::string, CNNLayerPtr>& getInputTo(Data * data);
 
 _IE_SUPPRESS_DEPRECATED_START_MSVC
 
@@ -444,7 +430,7 @@ _IE_SUPPRESS_DEPRECATED_START_MSVC
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a layer with Weights and/or Biases (e.g. Convolution/Fully Connected, etc.)
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(WeightableLayer): public CNNLayer {
+class WeightableLayer: public CNNLayer {
 public:
     IE_SUPPRESS_DEPRECATED_START
 
@@ -456,6 +442,11 @@ public:
     */
     explicit WeightableLayer(const LayerParams & prms);
 
+    /**
+     * @brief Constructs a WeightableLayer instance and initiates layer parameters with the given values
+     */
+    using CNNLayer::CNNLayer;
+
     IE_SUPPRESS_DEPRECATED_END
 
     /**
@@ -466,11 +457,6 @@ public:
      * @brief A pointer to a biases blob
      */
     Blob::Ptr _biases;
-
-    /**
-     * @brief Constructs a WeightableLayer instance and initiates layer parameters with the given values
-     */
-    using CNNLayer::CNNLayer;
 
     ~WeightableLayer() override;
 };
@@ -487,7 +473,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard 3D Convolution Layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ConvolutionLayer): public WeightableLayer {
+class ConvolutionLayer: public WeightableLayer {
 public:
     /**
      * @brief A convolution kernel array [X, Y, Z, ...]
@@ -567,10 +553,12 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard deconvolution layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(DeconvolutionLayer): public ConvolutionLayer {
+class DeconvolutionLayer: public ConvolutionLayer {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using ConvolutionLayer::ConvolutionLayer;
     using ConvolutionLayer::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~DeconvolutionLayer() override;
 };
@@ -579,10 +567,12 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard deformable convolution layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(DeformableConvolutionLayer): public ConvolutionLayer {
+class DeformableConvolutionLayer: public ConvolutionLayer {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using ConvolutionLayer::ConvolutionLayer;
     using ConvolutionLayer::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Number of deformable groups
@@ -596,7 +586,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard pooling layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(PoolingLayer): public CNNLayer {
+class PoolingLayer: public CNNLayer {
 public:
     /**
      * @brief Pooling kernel array [X, Y, Z, ...]
@@ -678,7 +668,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard binary convolution layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(BinaryConvolutionLayer): public WeightableLayer {
+class BinaryConvolutionLayer: public WeightableLayer {
 public:
     /**
      * @enum eBinaryConvolutionMode
@@ -783,7 +773,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a fully connected layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(FullyConnectedLayer): public WeightableLayer {
+class FullyConnectedLayer: public WeightableLayer {
 public:
     /**
      * @brief A size of output
@@ -793,7 +783,9 @@ public:
     /**
      * @brief Creates a new FullyConnectedLayer instance and initializes layer parameters with the given values.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~FullyConnectedLayer() override;
 };
@@ -804,7 +796,7 @@ public:
  *
  * Takes as input several data elements and merges them to one using the supplied axis
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ConcatLayer): public CNNLayer {
+class ConcatLayer: public CNNLayer {
 public:
     /**
      * @brief An axis on which concatenation operation is performed
@@ -817,7 +809,9 @@ public:
      * If batch is used, then batch needs to be specified as an input dimension also
      * In current implementation 1 means channels, 0 - batch
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ConcatLayer() override;
 };
@@ -826,7 +820,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a layer that evenly splits the input into the supplied outputs
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SplitLayer): public CNNLayer {
+class SplitLayer: public CNNLayer {
 public:
     /**
      * @brief An axis on which split operation is performed
@@ -836,7 +830,9 @@ public:
     /**
      * @brief Creates a new SplitLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SplitLayer() override;
 };
@@ -845,7 +841,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Linear Response Normalization (LRN) Layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(NormLayer): public CNNLayer {
+class NormLayer: public CNNLayer {
 public:
     /**
      * @brief Response size
@@ -871,7 +867,9 @@ public:
     /**
      * @brief Creates a new NormLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~NormLayer() override;
 };
@@ -880,7 +878,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents standard softmax Layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SoftMaxLayer): public CNNLayer {
+class SoftMaxLayer: public CNNLayer {
 public:
     /**
      * @brief Axis number for a softmax operation
@@ -889,7 +887,9 @@ public:
     /**
      * @brief Creates a new SoftMaxLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SoftMaxLayer() override;
 };
@@ -898,13 +898,15 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents standard GRN Layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(GRNLayer): public CNNLayer {
+class GRNLayer: public CNNLayer {
 public:
     /**
      * @brief A default constructor. Creates a new GRNLayer instance and initializes layer parameters with the given
      * values.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Bias for squares sum
@@ -918,13 +920,15 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents standard MVN Layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(MVNLayer): public CNNLayer {
+class MVNLayer: public CNNLayer {
 public:
     /**
      * @brief A default constructor. Creates a new MVNLayer instance and initializes layer parameters with the given
      * values.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Indicate that mean value is calculated across channels
@@ -943,7 +947,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Rectified Linear activation layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ReLULayer): public CNNLayer {
+class ReLULayer: public CNNLayer {
 public:
     /**
      * @brief Negative slope is used to takle negative inputs instead of setting them to 0
@@ -953,7 +957,9 @@ public:
     /**
      * @brief Creates a new ReLULayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ReLULayer() override;
 };
@@ -964,7 +970,7 @@ public:
  *
  * Clamps all tensor elements into the range [min_value, max_value]
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ClampLayer): public CNNLayer {
+class ClampLayer: public CNNLayer {
 public:
     /**
      * @brief A minimum value
@@ -978,7 +984,9 @@ public:
     /**
      * @brief Creates a new ClampLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ClampLayer() override;
 };
@@ -989,7 +997,7 @@ public:
  *
  * Clamps all tensor elements into the range [0, 6.0]
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ReLU6Layer): public ClampLayer {
+class ReLU6Layer: public ClampLayer {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**
@@ -1008,7 +1016,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents an element wise operation layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(EltwiseLayer): public CNNLayer {
+class EltwiseLayer: public CNNLayer {
 public:
     /**
      * @enum eOperation
@@ -1051,7 +1059,9 @@ public:
     /**
      * @brief Creates a new EltwiseLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~EltwiseLayer() override;
 };
@@ -1060,7 +1070,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard crop layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(CropLayer): public CNNLayer {
+class CropLayer: public CNNLayer {
 public:
     /**
      * @brief A vector of dimensions for cropping
@@ -1078,7 +1088,9 @@ public:
     /**
      * @brief Creates a new CropLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~CropLayer() override;
 };
@@ -1087,7 +1099,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard reshape layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ReshapeLayer): public CNNLayer {
+class ReshapeLayer: public CNNLayer {
 public:
     /**
      * @brief A vector of sizes of the shape
@@ -1105,7 +1117,9 @@ public:
     /**
      * @brief Creates a new ReshapeLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ReshapeLayer() override;
 };
@@ -1114,7 +1128,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Tile Layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(TileLayer): public CNNLayer {
+class TileLayer: public CNNLayer {
 public:
     /**
      * @brief An index of the axis to tile
@@ -1128,7 +1142,9 @@ public:
     /**
      * @brief Creates a new TileLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~TileLayer() override;
 };
@@ -1137,7 +1153,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Layer which performs Scale and Shift
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScaleShiftLayer): public WeightableLayer {
+class ScaleShiftLayer: public WeightableLayer {
 public:
     /**
      * @brief A flag that indicates if the same value is used for all the features. If false, the value is used pixel
@@ -1148,7 +1164,9 @@ public:
     /**
      * @brief Creates a new ScaleShiftLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ScaleShiftLayer() override;
 };
@@ -1157,7 +1175,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents TensorIterator layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(TensorIterator): public CNNLayer {
+class TensorIterator: public CNNLayer {
 public:
     struct PortMap {
         // Data map rule
@@ -1186,7 +1204,9 @@ public:
 
     Body body;  //!< A Tensor Iterator body
 
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~TensorIterator() override;
 };
@@ -1195,9 +1215,11 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief Base class for recurrent cell layers
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(RNNCellBase): public WeightableLayer {
+class RNNCellBase: public WeightableLayer {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Direct type of recurrent cell (including subtypes)
@@ -1288,10 +1310,12 @@ public:
  * - Ct = ft (.) Ct-1 + it (.) ct
  * - Ht = ot (.) _h(Ct)
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(LSTMCell): public RNNCellBase {
+class LSTMCell: public RNNCellBase {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
     using RNNCellBase::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~LSTMCell() override;
 };
@@ -1330,10 +1354,12 @@ public:
  * - ht = _g(Wh*[rt (.) Ht-1, Xt] + Bh)
  * - Ht = (1 - zt) (.) ht + zt (.) Ht-1
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(GRUCell): public RNNCellBase {
+class GRUCell: public RNNCellBase {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
     using RNNCellBase::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~GRUCell() override;
 };
@@ -1367,10 +1393,12 @@ public:
  *
  * - Ht = _f(Wi*[Ht-1, Xt] + Bi)
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(RNNCell): public RNNCellBase {
+class RNNCell: public RNNCellBase {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
     using RNNCellBase::operator=;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~RNNCell() override;
 };
@@ -1404,9 +1432,11 @@ public:
  * NB! if ND==2 weights are concatenated cell weights [forward_cell_weights, backward_cell_weights]
  *
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(RNNSequenceLayer): public RNNCellBase {
+class RNNSequenceLayer: public RNNCellBase {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     using RNNCellBase::RNNCellBase;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief An axis by which iteration is performed
@@ -1435,7 +1465,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Layer which performs Scale and Shift
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(PReLULayer): public WeightableLayer {
+class PReLULayer: public WeightableLayer {
 public:
     /**
      * @brief A flag that indicates if the same negative_slope value is used for all the features. If false, the value
@@ -1449,7 +1479,9 @@ public:
      *
      * @param prms Initial layer parameters
      */
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~PReLULayer() override;
 };
@@ -1460,7 +1492,7 @@ public:
  *
  * Formula is: output = (offset + scale * input) ^ power
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(PowerLayer): public CNNLayer {
+class PowerLayer: public CNNLayer {
 public:
     /**
      * @brief An exponent value
@@ -1478,7 +1510,9 @@ public:
     /**
      * @brief Creates a new PowerLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~PowerLayer() override;
 };
@@ -1487,7 +1521,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Batch Normalization Layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(BatchNormalizationLayer): public WeightableLayer {
+class BatchNormalizationLayer: public WeightableLayer {
 public:
     /**
      * @brief A small value to add to the variance estimate to avoid division by zero
@@ -1497,7 +1531,9 @@ public:
     /**
      * @brief Creates a new BatchNormalizationLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using WeightableLayer::WeightableLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~BatchNormalizationLayer() override;
 };
@@ -1508,7 +1544,7 @@ public:
  *
  * Formula is: dst := alpha*src1*src2 + beta*src3
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(GemmLayer): public CNNLayer {
+class GemmLayer: public CNNLayer {
 public:
     /**
      * @brief A scale factor of src1 matrix
@@ -1529,7 +1565,9 @@ public:
     /**
      * @brief Creates a new GemmLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~GemmLayer() override;
 };
@@ -1540,7 +1578,7 @@ public:
  *
  * Adds paddings to input tensor
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(PadLayer): public CNNLayer {
+class PadLayer: public CNNLayer {
 public:
     /**
      * @enum ePadMode
@@ -1567,7 +1605,9 @@ public:
     /**
      * @brief Creates a new PadLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~PadLayer() override;
 };
@@ -1578,7 +1618,7 @@ public:
  *
  * Gather slices from Dictionary according to Indexes
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(GatherLayer): public CNNLayer {
+class GatherLayer: public CNNLayer {
 public:
     /**
      * @brief The axis in Dictionary to gather Indexes from
@@ -1587,7 +1627,9 @@ public:
     /**
      * @brief Creates a new GatherLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~GatherLayer() override;
 };
@@ -1598,7 +1640,7 @@ public:
  *
  * Strided Slice picks from input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(StridedSliceLayer): public CNNLayer {
+class StridedSliceLayer: public CNNLayer {
 public:
     /**
      * @brief The begin_mask is a bitmask where bit i being 0 means
@@ -1628,7 +1670,9 @@ public:
     /**
      * @brief Creates a new StridedSliceLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~StridedSliceLayer() override;
 };
@@ -1638,7 +1682,7 @@ public:
  * @brief This class represents a standard Shuffle Channels layer
  * Shuffle Channels picks from input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ShuffleChannelsLayer): public CNNLayer {
+class ShuffleChannelsLayer: public CNNLayer {
 public:
     /**
      * @brief The axis in tensor to shuffle channels
@@ -1653,7 +1697,9 @@ public:
     /**
      * @brief Creates a new ShuffleChannelsLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ShuffleChannelsLayer() override;
 };
@@ -1663,7 +1709,7 @@ public:
  * @brief This class represents a standard Depth To Space layer
  * Depth To Space picks from input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(DepthToSpaceLayer): public CNNLayer {
+class DepthToSpaceLayer: public CNNLayer {
 public:
     /**
      * @brief The group of output shuffled channels
@@ -1673,7 +1719,9 @@ public:
     /**
      * @brief Creates a new DepthToSpaceLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~DepthToSpaceLayer() override;
 };
@@ -1683,7 +1731,7 @@ public:
  * @brief This class represents a standard Space To Depth layer
  * Space To Depth picks from input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SpaceToDepthLayer): public CNNLayer {
+class SpaceToDepthLayer: public CNNLayer {
 public:
     /**
      * @brief The group of output Space To Depth
@@ -1693,7 +1741,9 @@ public:
     /**
      * @brief Creates a new SpaceToDepthLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SpaceToDepthLayer() override;
 };
@@ -1704,7 +1754,7 @@ public:
  *
  * Space To Batch picks from input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SpaceToBatchLayer): public CNNLayer {
+class SpaceToBatchLayer: public CNNLayer {
 public:
     /**
      * @brief Spatial dimensions blocks sizes
@@ -1723,7 +1773,9 @@ public:
     /**
      * @brief Creates a new SpaceToBatchLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SpaceToBatchLayer() override;
 };
@@ -1734,7 +1786,7 @@ public:
  *
  * Batch To Space picks from input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(BatchToSpaceLayer): public CNNLayer {
+class BatchToSpaceLayer: public CNNLayer {
 public:
     /**
      * @brief Spatial dimensions blocks sizes
@@ -1756,7 +1808,9 @@ public:
     /**
      * @brief Creates a new BatchToSpaceLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~BatchToSpaceLayer() override;
 };
@@ -1767,12 +1821,14 @@ public:
  *
  * SparseFillEmptyRows fills empty rows in a sparse tensor
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SparseFillEmptyRowsLayer): public CNNLayer {
+class SparseFillEmptyRowsLayer: public CNNLayer {
 public:
     /**
      * @brief Creates a new SparseFillEmptyRowsLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SparseFillEmptyRowsLayer() override;
 };
@@ -1782,12 +1838,14 @@ public:
  * @brief This class represents SparseSegmentMean(SqrtN, Sum) layers
  * SparseSegmentMean(SqrtN, Sum) layer reduces data along sparse segments of a tensor.
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SparseSegmentReduceLayer): public CNNLayer {
+class SparseSegmentReduceLayer: public CNNLayer {
 public:
     /**
      * @brief Creates a new SparseSegmentReduceLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SparseSegmentReduceLayer() override;
 };
@@ -1797,12 +1855,14 @@ public:
  * @brief This class represents ExperimentalSparseWeightedReduce layer
  * ExperimentalSparseWeightedReduce layer reduces data along sparse segments of a tensor.
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ExperimentalSparseWeightedReduceLayer) : public CNNLayer {
+class ExperimentalSparseWeightedReduceLayer : public CNNLayer {
 public:
     /**
     * @brief Creates a new ExperimentalSparseWeightedReduceLayer instance.
     */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ExperimentalSparseWeightedReduceLayer() override;
 };
@@ -1812,12 +1872,14 @@ public:
  * @brief This class represents SparseToDense layer
  * SparseToDense layer converts a sparse tensor to a dense tensor.
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SparseToDenseLayer) : public CNNLayer {
+class SparseToDenseLayer : public CNNLayer {
 public:
     /**
     * @brief Creates a new SparseToDenseLayer instance.
     */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SparseToDenseLayer() override;
 };
@@ -1827,7 +1889,7 @@ public:
  * @brief This class represents Bucketize layer
  * Bucketize layer bucketizes the input based on the boundaries.
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(BucketizeLayer) : public CNNLayer {
+class BucketizeLayer : public CNNLayer {
 public:
     /**
      * @brief Indicates whether the intervals include the right or the left bucket edge.
@@ -1837,7 +1899,9 @@ public:
     /**
     * @brief Creates a new BucketizeLayer instance.
     */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~BucketizeLayer() override;
 };
@@ -1848,7 +1912,7 @@ public:
  *
  * Reverse Sequence modifies input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ReverseSequenceLayer): public CNNLayer {
+class ReverseSequenceLayer: public CNNLayer {
 public:
     /**
      * @brief The seq_axis dimension in tensor which is partially reversed
@@ -1863,7 +1927,9 @@ public:
     /**
      * @brief Creates a new ReverseSequence instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ReverseSequenceLayer() override;
 };
@@ -1873,7 +1939,7 @@ public:
  * @brief This class represents a OneHot layer
  * Converts input into OneHot representation.
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(OneHotLayer): public CNNLayer {
+class OneHotLayer: public CNNLayer {
 public:
     /**
      * @brief A depth of representation
@@ -1898,7 +1964,9 @@ public:
     /**
      * @brief Creates a new OneHot instance
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~OneHotLayer() override;
 };
@@ -1909,12 +1977,14 @@ public:
  *
  * RangeLayer modifies input tensor dimensions according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(RangeLayer): public CNNLayer {
+class RangeLayer: public CNNLayer {
 public:
     /**
      * @brief Creates a new RangeLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~RangeLayer() override;
 };
@@ -1925,12 +1995,14 @@ public:
  *
  * RFill modifies input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(FillLayer): public CNNLayer {
+class FillLayer: public CNNLayer {
 public:
     /**
      * @brief Creates a new Fill instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~FillLayer() override;
 };
@@ -1943,12 +2015,14 @@ public:
  * (“cond”) provided in the first input. The “cond” tensor is broadcasted to “then” and “else” tensors. The output
  * tensor shape is equal to broadcasted shape of “cond”, “then” and “else”.
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SelectLayer): public CNNLayer {
+class SelectLayer: public CNNLayer {
 public:
     /**
      * @brief Creates a new SelectLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~SelectLayer() override;
 };
@@ -1959,12 +2033,14 @@ public:
  *
  * Broadcast modifies input tensor dimensions according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(BroadcastLayer): public CNNLayer {
+class BroadcastLayer: public CNNLayer {
 public:
     /**
      * @brief Creates a new Broadcast instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~BroadcastLayer() override;
 };
@@ -1975,7 +2051,7 @@ public:
  *
  * Element-wise linear quantization of floating point input values into a descrete set of floating point values
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(QuantizeLayer): public CNNLayer {
+class QuantizeLayer: public CNNLayer {
 public:
     /**
      * @brief The number of quantization levels
@@ -1985,7 +2061,9 @@ public:
     /**
      * @brief Creates a new QuantizeLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~QuantizeLayer() override;
 };
@@ -1996,12 +2074,14 @@ public:
  *
  * Math modifies input tensor dimensions according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(MathLayer): public CNNLayer {
+class MathLayer: public CNNLayer {
 public:
     /**
      * @brief Creates a new Math instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~MathLayer() override;
 };
@@ -2012,7 +2092,7 @@ public:
  *
  * Reduce modifies input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ReduceLayer): public CNNLayer {
+class ReduceLayer: public CNNLayer {
 public:
     /**
      * @brief The keep_dims dimension in tensor which is partially reversed
@@ -2022,7 +2102,9 @@ public:
     /**
      * @brief Creates a new Reduce instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ReduceLayer() override;
 };
@@ -2033,7 +2115,7 @@ public:
  *
  * TopK picks top K values from input tensor according parameters
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(TopKLayer): public CNNLayer {
+class TopKLayer: public CNNLayer {
 public:
     /**
      * @brief The mode could be 'max' or 'min'
@@ -2051,7 +2133,9 @@ public:
     /**
      * @brief Creates a new TopKLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~TopKLayer() override;
 };
@@ -2062,7 +2146,7 @@ public:
  *
  * The Unique operation searches for unique elements in 1-D input
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(UniqueLayer): public CNNLayer {
+class UniqueLayer: public CNNLayer {
 public:
     /**
      * @brief A flag indicating whether to sort unique elements
@@ -2080,7 +2164,9 @@ public:
     /**
      * @brief Creates a new UniqueLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~UniqueLayer() override;
 };
@@ -2089,7 +2175,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard NonMaxSuppression layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(NonMaxSuppressionLayer): public CNNLayer {
+class NonMaxSuppressionLayer: public CNNLayer {
 public:
     /**
      * @brief The 'center_point_box' indicates the format of the box data
@@ -2107,7 +2193,9 @@ public:
     /**
      * @brief Creates a new NonMaxSuppressionLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~NonMaxSuppressionLayer() override;
 };
@@ -2116,12 +2204,14 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard ScatterUpdate layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScatterUpdateLayer): public CNNLayer {
+class ScatterUpdateLayer: public CNNLayer {
 public:
     /**
      * @brief Creates a new ScatterUpdateLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ScatterUpdateLayer() override;
 };
@@ -2130,12 +2220,14 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard ScatterElementsUpdate layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScatterElementsUpdateLayer): public CNNLayer {
+class ScatterElementsUpdateLayer: public CNNLayer {
 public:
     /**
      * @brief Creates a new ScatterElementsUpdateLayer instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     ~ScatterElementsUpdateLayer() override;
 };
@@ -2144,7 +2236,7 @@ public:
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents an onnx ExperimentalDetectronPriorGridGenerator Layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ExperimentalDetectronPriorGridGeneratorLayer): public CNNLayer {
+class ExperimentalDetectronPriorGridGeneratorLayer: public CNNLayer {
 public:
     /**
      * @brief flatten value
@@ -2170,7 +2262,9 @@ public:
     /**
      * @brief Creates a new ExperimentalDetectronPriorGridGenerator instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     virtual ~ExperimentalDetectronPriorGridGeneratorLayer();
 };
@@ -2178,7 +2272,7 @@ public:
 /**
  * @brief This class represents a standard ExperimentalDetectronTopKROIs layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ExperimentalDetectronTopKROIs): public CNNLayer {
+class ExperimentalDetectronTopKROIs: public CNNLayer {
 public:
     /**
      * @brief The maximum number of output rois
@@ -2187,7 +2281,9 @@ public:
     /**
      * @brief Creates a new ExperimentalDetectronTopKROIs instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     virtual ~ExperimentalDetectronTopKROIs();
 };
@@ -2195,7 +2291,7 @@ public:
 /**
  * @brief This class represents an onnx ExperimentalDetectronGenerateProposalsSingleImage Layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ExperimentalDetectronGenerateProposalsSingleImageLayer): public CNNLayer {
+class ExperimentalDetectronGenerateProposalsSingleImageLayer: public CNNLayer {
 public:
     /**
      * @brief Minimium width and height for boxes
@@ -2217,7 +2313,9 @@ public:
     /**
      * @brief Creates a new ExperimentalDetectronGenerateProposalsSingleImage instance.
      */
+    IE_SUPPRESS_DEPRECATED_START
     using CNNLayer::CNNLayer;
+    IE_SUPPRESS_DEPRECATED_END
 
     virtual ~ExperimentalDetectronGenerateProposalsSingleImageLayer();
 };

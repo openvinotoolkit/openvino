@@ -1,5 +1,36 @@
 # Inference Engine Samples {#openvino_docs_IE_DG_Samples_Overview}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_inference_engine_samples_classification_sample_async_README
+   openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README
+   openvino_inference_engine_samples_hello_classification_README
+   openvino_inference_engine_ie_bridges_c_samples_hello_classification_README
+   openvino_inference_engine_ie_bridges_python_sample_hello_classification_README
+   openvino_inference_engine_samples_hello_reshape_ssd_README
+   openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README
+   openvino_inference_engine_samples_hello_nv12_input_classification_README
+   openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README
+   openvino_inference_engine_samples_hello_query_device_README
+   openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README
+   openvino_inference_engine_samples_ngraph_function_creation_sample_README
+   openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README
+   openvino_inference_engine_samples_object_detection_sample_ssd_README
+   openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README
+   openvino_inference_engine_ie_bridges_c_samples_object_detection_sample_ssd_README
+   openvino_inference_engine_samples_speech_sample_README
+   openvino_inference_engine_ie_bridges_python_sample_speech_sample_README
+   openvino_inference_engine_samples_style_transfer_sample_README
+   openvino_inference_engine_ie_bridges_python_sample_style_transfer_sample_README
+   openvino_inference_engine_samples_benchmark_app_README
+   openvino_inference_engine_tools_benchmark_tool_README
+
+@endsphinxdirective
+
 The Inference Engine sample applications are simple console applications that show how to utilize specific Inference Engine capabilities within an application, assist developers in executing specific tasks such as loading a model, running inference, querying specific device capabilities and etc.
 
 After installation of Intel® Distribution of OpenVINO™ toolkit, С, C++ and Python* sample applications are available in the following directories, respectively:
@@ -34,9 +65,6 @@ Inference Engine sample applications include the following:
 - **nGraph Function Creation Sample** – Construction of the LeNet network using the nGraph function creation sample.
    - [nGraph Function Creation C++ Sample](../../samples/cpp/ngraph_function_creation_sample/README.md)
    - [nGraph Function Creation Python Sample](../../samples/python/ngraph_function_creation_sample/README.md)
-- **Object Detection for SSD Sample** – Inference of object detection networks based on the SSD, this sample is simplified version that supports only images as inputs.
-   - [Object Detection SSD C++ Sample](../../samples/cpp/object_detection_sample_ssd/README.md)
-   - [Object Detection SSD C Sample](../../samples/c/object_detection_sample_ssd/README.md)
  
 > **NOTE**: All C++ samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
 
@@ -105,7 +133,7 @@ for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
 The recommended Windows* build environment is the following:
 * Microsoft Windows* 10
-* Microsoft Visual Studio* 2017, or 2019. Make sure that C++ CMake tools for Windows is [enabled](https://docs.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-160#:~:text=The%20Visual%20C%2B%2B%20Tools%20for,Visual%20Studio%20generators%20are%20supported).
+* Microsoft Visual Studio* 2017, or 2019
 * CMake* version 3.10 or higher
 
 > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.

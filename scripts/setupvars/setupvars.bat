@@ -34,9 +34,9 @@ goto :opencv_done
 :opencv_done
 
 :: Model Optimizer
-if exist %INTEL_OPENVINO_DIR%\tools\model_optimizer (
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PYTHONPATH%
-set "PATH=%INTEL_OPENVINO_DIR%\tools\model_optimizer;%PATH%"
+if exist %INTEL_OPENVINO_DIR%\tools\mo (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\mo;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\tools\mo;%PATH%"
 )
 
 :: OpenVINO runtime
@@ -45,7 +45,6 @@ set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\hddl"
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENVINO_LIB_PATHS%"
-set "OV_FRONTEND_PATH=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OV_FRONTEND_PATH%"
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
