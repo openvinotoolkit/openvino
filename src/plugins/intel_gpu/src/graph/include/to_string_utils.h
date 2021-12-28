@@ -289,7 +289,10 @@ inline std::string onednn_post_op_type_to_str(onednn_post_op_type type) {
     case onednn_post_op_type::scale: return "scale";
     case onednn_post_op_type::sum: return "sum";
     case onednn_post_op_type::optimized: return "optimized";
-    case onednn_post_op_type::optimized_eltwise: return "optimized_eltwise";
+    case onednn_post_op_type::optimized_eltwise_act: return "optimized_eltwise_act";
+    case onednn_post_op_type::optimized_eltwise_linear: return "optimized_eltwise_linear";
+    case onednn_post_op_type::optimized_eltwise_clip: return "optimized_eltwise_clip";
+    case onednn_post_op_type::optimized_eltwise_round: return "optimized_eltwise_round";
     case onednn_post_op_type::optimized_sum: return "optimized_sum";
     default: return "unknown";
     }

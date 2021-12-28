@@ -128,7 +128,10 @@ protected:
 
                 case onednn_post_op_type::sum:
                 case onednn_post_op_type::optimized_sum:
-                case onednn_post_op_type::optimized_eltwise:
+                case onednn_post_op_type::optimized_eltwise_linear:
+                case onednn_post_op_type::optimized_eltwise_act:
+                case onednn_post_op_type::optimized_eltwise_round:
+                case onednn_post_op_type::optimized_eltwise_clip:
                 {
                     break;
                 }
