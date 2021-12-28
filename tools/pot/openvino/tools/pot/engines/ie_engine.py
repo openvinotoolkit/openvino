@@ -32,6 +32,7 @@ class IEEngine(Engine):
         self._accumulated_layer_stats = dict()
         self._per_sample_metrics = []
         self._tmp_dir = create_tmp_dir()
+        self._device = self.config.device
 
     def set_model(self, model):
         """ Loads NetworkX model into InferenceEngine and stores it in Engine class
@@ -327,12 +328,14 @@ class IEEngine(Engine):
         """
 
         progress_log_fn = logger.info if print_progress else logger.debug
+        self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'}, self._device)
 
         # Load model to the plugin
-        compiled_model = self._ie.compile_model(model=self._model, device_name=self.config.device)
+        compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
         free_irs = []
         optimal_requests_num = compiled_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
         requests_num = optimal_requests_num if requests_num == 0 else requests_num
+        logger.debug('Async mode requests number: %d', requests_num)
         for _ in range(requests_num):
             infer_request = compiled_model.create_infer_request()
             free_irs.append(infer_request)
@@ -376,7 +379,7 @@ class IEEngine(Engine):
         progress_log_fn = logger.info if print_progress else logger.debug
 
         # Load model to the plugin
-        compiled_model = self._ie.compile_model(model=self._model, device_name=self.config.device)
+        compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
         infer_request = compiled_model.create_infer_request()
 
         progress_log_fn('Start inference of %d images', len(sampler))
