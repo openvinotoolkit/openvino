@@ -20,6 +20,7 @@ class TRANSFORMATIONS_API EliminateConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateSplit;
+class TRANSFORMATIONS_API EliminateSqueeze;
 class TRANSFORMATIONS_API EliminateTranspose;
 class TRANSFORMATIONS_API NopElimination;
 
@@ -74,6 +75,16 @@ class ngraph::pass::EliminateSplit: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     EliminateSplit();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief EliminateSqueeze eliminates squeeze that does nothing
+ */
+class ngraph::pass::EliminateSqueeze : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    EliminateSqueeze();
 };
 
 /**

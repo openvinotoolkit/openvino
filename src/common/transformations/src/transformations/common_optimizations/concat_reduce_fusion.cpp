@@ -17,13 +17,12 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConcatReduceFusionWithoutFolding, "ConcatReduceFusionWithoutFolding", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ReplaceConcatReduceByMinOrMax, "ReplaceConcatReduceByMinOrMax", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::PullSqueezeThroughEltwise, "PullSqueezeThroughEltwise", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConcatReduceFusion, "ConcatReduceFusion", 0);
 
 
 namespace {
-
 enum class ReduceType {NONE, MAX, MIN};
 
 ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
@@ -35,7 +34,6 @@ ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
         return ReduceType::NONE;
     }
 }
-
 } // namespace
 
 ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
@@ -46,36 +44,35 @@ ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     auto squeeze_pattern = pattern::wrap_type<opset8::Squeeze>({eltwise_pattern, squeeze_axes_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto & pattern_map = m.get_pattern_map();
-        auto eltwise = pattern_map.at(eltwise_pattern);
-
-        if (!eltwise) {
-            return false;
-        }
+        const auto& pattern_map = m.get_pattern_map();
+        const auto& eltwise = pattern_map.at(eltwise_pattern);
+        const auto& squeeze = pattern_map.at(squeeze_pattern);
 
         size_t eltwise_inputs_size = eltwise->get_input_size();
         for (size_t input_index = 0; input_index < eltwise_inputs_size; ++input_index) {
-            auto input_node = eltwise->get_input_node_shared_ptr(input_index);
-            if (!is_type<opset8::Constant>(input_node) && !is_type<opset8::Unsqueeze>(input_node)) {
+            const auto input_node = eltwise->get_input_node_shared_ptr(input_index);
+            // check that we will able to fuse propagated squeeze in NopElimination pass
+            if (!is_type<opset8::Constant>(input_node) && !is_type<opset8::Unsqueeze>(input_node) &&
+                !is_type<opset8::Reshape>(input_node)) {
                 return false;
             }
         }
 
-        auto squeeze = pattern_map.at(squeeze_pattern);
-        if (!squeeze) {
-            return false;
-        }
-
         ngraph::OutputVector eltwise_inputs;
         for (size_t input_index = 0; input_index < eltwise_inputs_size; ++input_index) {
-            auto eltwise_input = eltwise->input_value(input_index);
-            std::shared_ptr<Node> new_input_node = squeeze->clone_with_new_inputs({eltwise_input, squeeze->input_value(1)});
+            const auto eltwise_input = eltwise->input_value(input_index);
+            const auto new_input_node =
+                ngraph::op::util::clone_try_fold(squeeze, {eltwise_input, squeeze->input_value(1)});
+
+            if (!is_type<opset8::Constant>(new_input_node))
+                register_new_node(as_type_ptr<opset8::Squeeze>(new_input_node));
+
             ngraph::copy_runtime_info(squeeze, new_input_node);
             eltwise_inputs.push_back(new_input_node);
         }
 
-        auto new_eltwise = eltwise->copy_with_new_inputs(eltwise_inputs);
-        new_eltwise->set_friendly_name(eltwise->get_friendly_name());
+        const auto new_eltwise = ngraph::op::util::clone_try_fold(eltwise,eltwise_inputs);
+        new_eltwise->set_friendly_name(squeeze->get_friendly_name());
         ngraph::copy_runtime_info({eltwise, squeeze}, new_eltwise);
         ngraph::replace_node(squeeze, new_eltwise);
         return true;
@@ -85,8 +82,8 @@ ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::ConcatReduceFusionWithoutFolding::ConcatReduceFusionWithoutFolding() {
-    MATCHER_SCOPE(ConcatReduceFusionWithoutFolding);
+ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
+    MATCHER_SCOPE(ReplaceConcatReduceByMinOrMax);
 
     auto concat_pattern = ngraph::pattern::wrap_type<opset8::Concat>({pattern::any_input(), pattern::any_input()});
     auto reduce_axes_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
@@ -96,23 +93,16 @@ ngraph::pass::ConcatReduceFusionWithoutFolding::ConcatReduceFusionWithoutFolding
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = as_type_ptr<opset8::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
-
-        ReduceType reduce_type = get_reduce_type(pattern_map.at(reduce_pattern).get_node_shared_ptr());
-        if (reduce_type == ReduceType::NONE) {
-            return false;
-        }
-
         auto reduce = as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
-
-        if (!reduce || !concat) {
-             return false;
-        }
+        if (!reduce || !concat)
+            return false;
 
         const auto& reduction_axes = reduce->get_reduction_axes();
         if (reduction_axes.size() != 1 || concat->get_axis() != static_cast<int64_t>(*reduction_axes.begin())) {
             return false;
         }
 
+        ReduceType reduce_type = get_reduce_type(reduce);
         std::shared_ptr<ngraph::Node> result_node;
         switch (reduce_type) {
         case ReduceType::MAX:
@@ -128,14 +118,13 @@ ngraph::pass::ConcatReduceFusionWithoutFolding::ConcatReduceFusionWithoutFolding
         copy_runtime_info({concat, reduce}, result_node);
 
         if (!reduce->get_keep_dims()) {
-            auto squeeze_axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {}, {*reduction_axes.begin()});
+            const auto squeeze_axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {}, {*reduction_axes.begin()});
             result_node = register_new_node<ngraph::opset8::Squeeze>(result_node, squeeze_axis_node);
+            copy_runtime_info({concat, reduce}, result_node);
         }
 
         result_node->set_friendly_name(reduce->get_friendly_name());
-
         replace_node(reduce, result_node);
-
         return true;
     };
 
@@ -143,13 +132,8 @@ ngraph::pass::ConcatReduceFusionWithoutFolding::ConcatReduceFusionWithoutFolding
     register_matcher(m, callback);
 }
 
-bool ngraph::pass::ConcatReduceFusion::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    RUN_ON_FUNCTION_SCOPE(ConcatReduceFusion);
-    ngraph::pass::Manager manager;
-    manager.register_pass<ConcatReduceFusionWithoutFolding>();
-    manager.register_pass<PullSqueezeThroughEltwise>();
-    manager.register_pass<ngraph::pass::NopElimination>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.run_passes(f);
-    return true;
+ngraph::pass::ConcatReduceFusion::ConcatReduceFusion() {
+    add_matcher<ReplaceConcatReduceByMinOrMax>();
+    add_matcher<PullSqueezeThroughEltwise>();
+    add_matcher<EliminateSqueeze>();
 }
