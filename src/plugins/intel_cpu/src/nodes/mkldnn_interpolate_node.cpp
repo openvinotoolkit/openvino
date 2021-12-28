@@ -1959,7 +1959,7 @@ bool MKLDNNInterpolateNode::needShapeInfer() const {
 
 std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
-    return shapeInferGeneric({}, (1 << port)|(1 << AXES_ID));
+    return shapeInferGeneric(PortMask(port, AXES_ID));
 }
 
 void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {

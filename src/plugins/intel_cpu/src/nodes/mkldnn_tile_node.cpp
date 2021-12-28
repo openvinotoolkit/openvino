@@ -123,7 +123,7 @@ bool MKLDNNTileNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNTileNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric({}, 1 << TILE_REPEATS);
+    return MKLDNNNode::shapeInferGeneric(PortMask(TILE_REPEATS));
 }
 
 void MKLDNNTileNode::executeDynamicImpl(mkldnn::stream strm) {

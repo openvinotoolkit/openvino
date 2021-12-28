@@ -167,7 +167,7 @@ bool MKLDNNTopKNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNTopKNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric({}, 1 << 1);
+    return MKLDNNNode::shapeInferGeneric(PortMask(1));
 }
 
 template <class Compare1, template <typename> class Compare2>

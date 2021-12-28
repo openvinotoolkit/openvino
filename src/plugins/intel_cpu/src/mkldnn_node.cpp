@@ -89,6 +89,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 
         bool isScalar = shape.rank().get_length() == 0;
         inputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+        inputIsScalar.emplace_back(isScalar);
         originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
     }
 
@@ -1418,47 +1419,26 @@ bool MKLDNNNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
-    return shapeInferGeneric({});
+    return shapeInferGeneric();
 }
 
-std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes,
+std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<ov::StaticShape>& input_shapes,
                                                       uint32_t input_value_port_mask) const {
-    // collect input shapes
-    std::vector<ov::StaticShape> input_shapes;
-
-    ov::Node* op = shaperInference->get_op();
-
-    if (shapes.empty()) {
-        // from graph runtime
-        for (size_t i = 0; i < op->get_input_size(); i++) {
-            ov::StaticShape shape(getParentEdgesAtPort(i)[0]->getMemory().getStaticDims());
-
-            // convert to scalar for length-1 1D if required by ngraph
-            if (shape.size() == 1 && shape[0] == 1 && op->get_input_partial_shape(i).rank().compatible(0))
-                shape = ov::StaticShape();
-
-            input_shapes.push_back(shape);
-        }
-    } else {
-        // from parameter given
-        for (size_t i = 0; i < shapes.size(); i++)
-            input_shapes.push_back(shapes[i].getStaticDims());
-    }
-
     // collect input values
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
     if (input_value_port_mask) {
-        for (size_t i = 0; i < op->get_input_size(); i++) {
-            if (input_value_port_mask & (1 << i)) {
-                const auto& memPtr = getParentEdgesAtPort(i)[0]->getMemory();
+        for (size_t port = 0; port < inputIsScalar.size(); port++) {
+            if (input_value_port_mask & (1 << port)) {
+                const auto& memPtr = getParentEdgesAtPort(port)[0]->getMemory();
 
                 ov::Shape shape(memPtr.getStaticDims());
 
                 // convert to scalar for length-1 1D if required by ngraph
-                if (shape.size() == 1 && shape[0] == 1 && op->get_input_partial_shape(i).rank().compatible(0))
+                if (inputIsScalar[port]) {
                     shape = ov::Shape();
+                }
 
-                input_values[i] = std::make_shared<ngraph::runtime::HostTensor>(
+                input_values[port] = std::make_shared<ngraph::runtime::HostTensor>(
                     InferenceEngine::details::convertPrecision(memPtr.getDesc().getPrecision()),
                     shape,
                     memPtr.GetPtr());
@@ -1466,10 +1446,8 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
         }
     }
 
-    std::vector<ov::StaticShape> output_shapes(op->get_output_size());
-
     // call shape inference API
-    shaperInference->infer(input_shapes, output_shapes, input_values);
+    std::vector<ov::StaticShape> output_shapes = shaperInference->infer(input_shapes, input_values);
 
     std::vector<VectorDims> result(output_shapes.size());
     std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s) {
@@ -1477,6 +1455,32 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     });
 
     return result;
+}
+
+std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes,
+                                                      uint32_t input_value_port_mask) const {
+    std::vector<ov::StaticShape> input_shapes;
+
+    for (size_t i = 0; i < shapes.size(); i++)
+        input_shapes.push_back(shapes[i].getStaticDims());
+
+    return shapeInferGeneric(input_shapes, input_value_port_mask);
+}
+
+
+std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(uint32_t input_value_port_mask) const {
+    std::vector<ov::StaticShape> input_shapes;
+    input_shapes.reserve(inputIsScalar.size());
+
+    for (size_t port = 0; port < inputIsScalar.size(); port++) {
+        if (inputIsScalar[port]) {
+            input_shapes.emplace_back();
+        } else {
+            input_shapes.emplace_back(getParentEdgesAtPort(port)[0]->getMemory().getStaticDims());
+        }
+    }
+
+    return shapeInferGeneric(input_shapes, input_value_port_mask);
 }
 
 void MKLDNNNode::updateLastInputDims() {

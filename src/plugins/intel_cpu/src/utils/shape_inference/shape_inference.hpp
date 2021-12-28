@@ -17,15 +17,13 @@ void shape_inference(ov::Node* op,
 
 class IShapeInfer {
 public:
-    virtual void infer(const std::vector<ov::StaticShape>& input_shapes,
-                       std::vector<ov::StaticShape>& output_shapes,
-                       const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) = 0;
+    virtual std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) = 0;
 
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
-    virtual const ov::CoordinateDiff& get_pads_begin();
-    virtual const ov::CoordinateDiff& get_pads_end();
-
-    virtual ngraph::Node * get_op();
+    virtual const ov::CoordinateDiff& get_pads_begin() = 0;
+    virtual const ov::CoordinateDiff& get_pads_end() = 0;
 };
 
 std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::Node>& op);

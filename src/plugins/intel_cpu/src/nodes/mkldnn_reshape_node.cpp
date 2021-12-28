@@ -85,7 +85,7 @@ std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
         lastSecondInputValues[i] = sndInput[i];
     }
 
-    return shapeInferGeneric({}, (1 << 1));
+    return shapeInferGeneric(PortMask(1));
 }
 
 void MKLDNNReshapeNode::getSupportedDescriptors() {

@@ -445,9 +445,7 @@ VectorDims MKLDNNDeconvolutionNode::shapeInferInternal(const VectorDims &inDims,
                                                                               outSpDims.data())});
     }
 
-    std::vector<ov::StaticShape> outputShapes(1);
-
-    shaperInference->infer(inputShapes, outputShapes, inputValues);
+    std::vector<ov::StaticShape> outputShapes = shaperInference->infer(inputShapes, inputValues);
 
     return outputShapes.back().to_shape();
 }

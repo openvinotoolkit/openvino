@@ -76,7 +76,7 @@ void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
 
 // TODO [DS]: rewrite after new shape infer will be added
 std::vector<VectorDims> MKLDNNReferenceNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric({}, 0xFFFFFFFF);
+    return MKLDNNNode::shapeInferGeneric(0xFFFFFFFF);
 }
 
 void MKLDNNReferenceNode::executeDynamicImpl(mkldnn::stream strm) {

@@ -63,14 +63,19 @@ void shape_inference(ov::Node* op,
                      std::vector<ov::StaticShape>& output_shapes,
                      const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     auto shapeInfer = make_shape_inference(op->shared_from_this());
-    shapeInfer->infer(input_shapes, output_shapes, constant_data);
+    output_shapes = shapeInfer->infer(input_shapes, constant_data);
 }
 
 class entryBase : public IShapeInfer {
 public:
     entryBase(std::shared_ptr<ov::Node> node) : node(node) {}
-    ov::Node* get_op() override {
-        return node.get();
+
+    const ov::CoordinateDiff& get_pads_begin() override {
+        OPENVINO_ASSERT(false, "entryBase do not support get_pads_begin() by default.");
+    }
+
+    const ov::CoordinateDiff& get_pads_end() override {
+        OPENVINO_ASSERT(false, "entryBase do not support get_pads_end() by default.");
     }
 
 protected:
@@ -82,11 +87,13 @@ class entryIO : public entryBase {
 public:
     using entryBase::entryBase;
 
-    void infer(const std::vector<ov::StaticShape>& input_shapes,
-               std::vector<ov::StaticShape>& output_shapes,
-               const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
-        OP* op = static_cast<OP*>(node.get());
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+        auto op = static_cast<OP*>(node.get());
+        std::vector<ov::StaticShape> output_shapes(op->get_output_size());
         shape_infer(op, input_shapes, output_shapes);
+        return output_shapes;
     }
 };
 
@@ -95,11 +102,13 @@ class entryIOC : public entryBase {
 public:
     using entryBase::entryBase;
 
-    void infer(const std::vector<ov::StaticShape>& input_shapes,
-               std::vector<ov::StaticShape>& output_shapes,
-               const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
         auto op = static_cast<OP*>(node.get());
+        std::vector<ov::StaticShape> output_shapes(op->get_output_size());
         shape_infer(op, input_shapes, output_shapes, constant_data);
+        return output_shapes;
     }
 };
 
@@ -107,10 +116,13 @@ class entryCOPY : public entryBase {
 public:
     using entryBase::entryBase;
 
-    void infer(const std::vector<ov::StaticShape>& input_shapes,
-               std::vector<ov::StaticShape>& output_shapes,
-               const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
-        copy_shape_infer(node.get(), input_shapes, output_shapes);
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+        auto op = node.get();
+        std::vector<ov::StaticShape> output_shapes(op->get_output_size());
+        copy_shape_infer(op, input_shapes, output_shapes);
+        return output_shapes;
     }
 };
 
@@ -118,10 +130,13 @@ class entryEltwise : public entryBase {
 public:
     using entryBase::entryBase;
 
-    void infer(const std::vector<ov::StaticShape>& input_shapes,
-               std::vector<ov::StaticShape>& output_shapes,
-               const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
-        eltwise_shape_infer(node.get(), input_shapes, output_shapes);
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+        auto op = node.get();
+        std::vector<ov::StaticShape> output_shapes(op->get_output_size());
+        eltwise_shape_infer(op, input_shapes, output_shapes);
+        return output_shapes;
     }
 };
 
@@ -129,11 +144,12 @@ class entryFallback : public entryBase {
 public:
     using entryBase::entryBase;
 
-    void infer(const std::vector<ov::StaticShape>& input_shapes,
-               std::vector<ov::StaticShape>& output_shapes,
-               const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
         ngraph::OutputVector new_inputs;
         auto op = node.get();
+        std::vector<ov::StaticShape> output_shapes;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (constant_data.count(i)) {
                 new_inputs.push_back(std::make_shared<ov::opset1::Constant>(constant_data.at(i)));
@@ -147,7 +163,7 @@ public:
         const auto local_op = op->clone_with_new_inputs(new_inputs);
         local_op->validate_and_infer_types();
 
-        output_shapes.resize(op->get_output_size());
+        output_shapes.resize(local_op->get_output_size());
         for (size_t i = 0; i < output_shapes.size(); ++i) {
             const auto& partial_shape = local_op->get_output_partial_shape(i);
             OPENVINO_ASSERT(
@@ -155,6 +171,8 @@ public:
                 "On device shape infer shouldn't support default shape infer for nodes with internal dynamism");
             output_shapes[i] = ov::StaticShape(partial_shape.to_shape());
         }
+
+        return output_shapes;
     }
 };
 
@@ -171,12 +189,13 @@ public:
     const ov::CoordinateDiff& get_pads_end() override {
         return pads_end;
     }
-    void infer(const std::vector<ov::StaticShape>& input_shapes,
-               std::vector<ov::StaticShape>& output_shapes,
-               const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
         // no shape infer routine, fallback to validate_and_infer_types + get_pads_begin/get_pads_end
         auto op = static_cast<OP*>(this->node.get());
         ngraph::OutputVector new_inputs;
+        std::vector<ov::StaticShape> output_shapes;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (constant_data.count(i)) {
                 new_inputs.push_back(std::make_shared<ov::opset1::Constant>(constant_data.at(i)));
@@ -203,7 +222,7 @@ public:
         pads_begin = convertPadding(node->get_pads_begin());
         pads_end = convertPadding(node->get_pads_end());
 
-        output_shapes.resize(op->get_output_size());
+        output_shapes.resize(local_op->get_output_size());
         for (size_t i = 0; i < output_shapes.size(); ++i) {
             const auto& partial_shape = local_op->get_output_partial_shape(i);
             OPENVINO_ASSERT(
@@ -211,6 +230,7 @@ public:
                 "On device shape infer shouldn't support default shape infer for nodes with internal dynamism");
             output_shapes[i] = ov::StaticShape(partial_shape.to_shape());
         }
+        return output_shapes;
     }
 };
 
@@ -219,13 +239,15 @@ class entryInterpolate : public entryBase {
 public:
     using entryBase::entryBase;
 
-    void infer(const std::vector<ov::StaticShape>& input_shapes,
-               std::vector<ov::StaticShape>& output_shapes,
-               const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
         std::vector<size_t> pads_begin, pads_end;
         auto op = static_cast<OP*>(node.get());
+        std::vector<ov::StaticShape> output_shapes(op->get_output_size());
         correct_pads_attr(op, pads_begin, pads_end, input_shapes);
         shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes, constant_data);
+        return output_shapes;
     }
 };
 
@@ -239,14 +261,16 @@ public:
     const ov::CoordinateDiff& get_pads_end() override {
         return pads_end;
     }
-    void infer(const std::vector<ov::StaticShape>& input_shapes,
-               std::vector<ov::StaticShape>& output_shapes,
-               const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
         auto op = static_cast<OP*>(node.get());
+        std::vector<ov::StaticShape> output_shapes(op->get_output_size());
         bool status = resolve_auto_pad_for_shape(op, pads_begin, pads_end, input_shapes, 2, is_grouped ? 3 : 2);
         OPENVINO_ASSERT(status,
                         "Convolution shape inference doesn't have enough information to calculate static shapes");
         shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes);
+        return output_shapes;
     }
 
 protected:
@@ -264,11 +288,12 @@ public:
     const ov::CoordinateDiff& get_pads_end() override {
         return pads_end;
     }
-    void infer(const std::vector<ov::StaticShape>& input_shapes,
-               std::vector<ov::StaticShape>& output_shapes,
-               const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
         ov::StaticShape output_shape_input;
         auto op = static_cast<OP*>(node.get());
+        std::vector<ov::StaticShape> output_shapes(op->get_output_size());
         if (op->get_input_size() == 3)
             get_data_as_shape<ov::StaticShape>(2, op, output_shape_input, constant_data);
         bool status = resolve_auto_pad_for_shape_back_prop(op,
@@ -282,20 +307,13 @@ public:
             status,
             "ConvolutionBackpropData shape inference doesn't have enough information to calculate static shapes");
         shape_infer(op, pads_begin, pads_end, output_shape_input, input_shapes, output_shapes);
+        return output_shapes;
     }
 
 protected:
     ov::CoordinateDiff pads_begin, pads_end;
     bool is_grouped;
 };
-
-const ov::CoordinateDiff& IShapeInfer::get_pads_begin() {
-    OPENVINO_ASSERT(false, "IShapeInfer do not support get_pads_begin() by default.");
-}
-
-const ov::CoordinateDiff& IShapeInfer::get_pads_end() {
-    OPENVINO_ASSERT(false, "IShapeInfer do not support get_pads_end() by default.");
-}
 
 template <typename OP>
 std::shared_ptr<entryIOC<OP>> make_shared_entryIOC(std::shared_ptr<OP> node) {

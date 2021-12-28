@@ -182,7 +182,7 @@ bool MKLDNNBroadcastNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNBroadcastNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric({}, (1 << TARGET_SHAPE_IDX) | (1 << AXES_MAPPING_IDX));
+    return MKLDNNNode::shapeInferGeneric(PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX));
 }
 
 bool MKLDNNBroadcastNode::isExecutable() const {
