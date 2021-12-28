@@ -396,7 +396,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     } else if (sync_method == sync_methods::barriers) {
         sync_events(deps, is_output);
     }
-    //bool set_output_event = sync_method == sync_methods::events || is_output;
+    bool set_output_event = sync_method == sync_methods::events || is_output;
 
     auto ev =  create_base_event();
     auto global = to_group_count(args_desc.workGroups.global);
@@ -410,10 +410,10 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                     //set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
                                     dep_events_ptr == nullptr ? 0 : dep_events_ptr->size(),
                                     dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
-    //std::cout << "enqueue_kernel " << std::dynamic_pointer_cast<ze_base_event>(ev)->get() << " " << set_output_event << std::endl;
-    // if (!set_output_event) {
-    //     std::dynamic_pointer_cast<ze_base_event>(ev)->set();
-    // }
+    std::cout << "enqueue_kernel " << std::dynamic_pointer_cast<ze_base_event>(ev)->get() << " " << set_output_event << std::endl;
+    if (set_output_event) {
+        std::dynamic_pointer_cast<ze_base_event>(ev)->set();
+    }
     return ev;
 }
 
