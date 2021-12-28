@@ -18,6 +18,7 @@ class FullyConnectedFrontExtractor(FrontExtractorOp):
         attrs = {
             'out-size': num_hidden,
             'transpose_weights': True,
+            'flatten': attr.bool('flatten', True)
         }
         FullyConnected.update_node_stat(node, attrs)
         return cls.enabled
