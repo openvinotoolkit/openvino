@@ -62,7 +62,6 @@ public:
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
     bool is_coorect_place(const ov::frontend::Place::Ptr& place) const;
-    std::string get_place_name(const ov::frontend::Place::Ptr& place) const;
 };
 }  // namespace frontend
 }  // namespace ov

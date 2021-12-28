@@ -166,68 +166,70 @@ bool InputModelONNX::is_coorect_place(const ov::frontend::Place::Ptr& place) con
     return false;
 }
 
-std::string InputModelONNX::get_place_name(const ov::frontend::Place::Ptr& place) const {
-    if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
-        return place->get_names()[0];
-    } else if (const auto op = std::dynamic_pointer_cast<PlaceOpONNX>(place)) {
-        return op->get_editor_node().m_node_name;
-    } else if (const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(place)) {
-        if (auto tensor = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(input_edge->get_source_tensor())) {
-            return tensor->get_names()[0];
-        }
-    } else if (const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(place)) {
-        if (auto tensor = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(output_edge->get_target_tensor())) {
-            return tensor->get_names()[0];
-        }
-    }
-    throw std::invalid_argument("Incorrect place type");
-}
-
 void InputModelONNX::override_all_outputs(const std::vector<Place::Ptr>& outputs) {
-    std::map<std::string, Place::Ptr> unique_outputs;
-    std::transform(outputs.begin(),
-                   outputs.end(),
-                   std::inserter(unique_outputs, unique_outputs.begin()),
-                   [this](const ov::frontend::Place::Ptr& output) {
-                       return std::make_pair(get_place_name(output), output);
-                   });
-
-    std::vector<Place::Ptr> valid_outputs;
-    for (auto output : unique_outputs) {
-        bool is_correct = is_coorect_place(output.second);
+    std::vector<Place::Ptr> expected_valid_outputs;
+    for (const auto& output : outputs) {
+        bool is_correct = is_coorect_place(output);
         if (!is_correct)
-            NGRAPH_WARN << "Name  " << output.first
+            NGRAPH_WARN << "Name  " << output->get_names().at(0)
                         << " of output node is not a correct node name. Ignoring this parameter.";
         else
-            valid_outputs.push_back(output.second);
+            expected_valid_outputs.push_back(output);
     }
 
-    extract_subgraph({}, valid_outputs);
+    extract_subgraph({}, expected_valid_outputs);
 
-    std::vector<std::string> editor_model_outputs = m_editor->model_outputs();
-    std::set<std::string> model_outputs(editor_model_outputs.begin(), editor_model_outputs.end());
-
-    NGRAPH_CHECK(model_outputs.size() == valid_outputs.size(),
-                 "Unexpected number of outputs after override_all_outputs");
-
-    NGRAPH_CHECK(std::all_of(std::begin(valid_outputs),
-                             std::end(valid_outputs),
+    NGRAPH_CHECK(std::all_of(std::begin(expected_valid_outputs),
+                             std::end(expected_valid_outputs),
                              [](const Place::Ptr& place) {
                                  return place->is_output();
                              }),
                  "Not all provided arguments of override_all_outputs are new outputs of the model");
+
+    const auto current_outputs = get_outputs();
+    NGRAPH_CHECK(std::all_of(std::begin(current_outputs),
+                             std::end(current_outputs),
+                             [&](const Place::Ptr& current_out) {
+                                 return std::find_if(std::begin(expected_valid_outputs),
+                                                     std::end(expected_valid_outputs),
+                                                     [&](const Place::Ptr& expected_out) {
+                                                         return expected_out->is_equal(current_out);
+                                                     }) != std::end(current_outputs);
+                             }),
+                 "Some other than expected outputs were created during override_all_outputs");
 }
 
 void InputModelONNX::override_all_inputs(const std::vector<Place::Ptr>& inputs) {
+    std::vector<Place::Ptr> expected_valid_inputs;
+    for (const auto& input : inputs) {
+        bool is_correct = is_coorect_place(input);
+        if (!is_correct)
+            NGRAPH_WARN << "Name  " << input->get_names().at(0)
+                        << " of input node is not a correct node name. Ignoring this parameter.";
+        else
+            expected_valid_inputs.push_back(input);
+    }
+
     const auto outputs_before_extraction = m_editor->model_outputs();
     extract_subgraph({inputs}, {});
+
     NGRAPH_CHECK(std::equal(std::begin(outputs_before_extraction),
                             std::end(outputs_before_extraction),
                             std::begin(m_editor->model_outputs())),
                  "All outputs should be preserved after override_all_inputs. Provided inputs does "
                  "not satisfy all outputs");
-    NGRAPH_CHECK(m_editor->model_inputs().size() == inputs.size(),
-                 "Unexpected number of inputs after override_all_inputs");
+
+    const auto current_inputs = get_inputs();
+    NGRAPH_CHECK(std::all_of(std::begin(current_inputs),
+                             std::end(current_inputs),
+                             [&](const Place::Ptr& current_in) {
+                                 return std::find_if(std::begin(expected_valid_inputs),
+                                                     std::end(expected_valid_inputs),
+                                                     [&](const Place::Ptr& expected_in) {
+                                                         return expected_in->is_equal(current_in);
+                                                     }) != std::end(current_inputs);
+                             }),
+                 "Some other than expected inputs were created during override_all_inputs");
 }
 
 void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) {
