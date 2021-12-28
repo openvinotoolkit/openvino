@@ -422,9 +422,9 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
             if (!should_skip_add_reorder) {
                 auto& reorder_node = p.get_or_create(reorder);
                 p.add_intermediate(reorder_node,
-                                *travel_direction_wrapper<dir>::second(node, next),
-                                *travel_direction_wrapper<dir>::first(node, next),
-                                !reorder_pair.second);
+                                   *travel_direction_wrapper<dir>::second(node, next),
+                                   *travel_direction_wrapper<dir>::first(node, next),
+                                   !reorder_pair.second);
             }
         }
     }
