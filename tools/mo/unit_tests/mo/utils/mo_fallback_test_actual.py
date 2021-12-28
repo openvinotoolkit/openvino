@@ -11,6 +11,9 @@ from onnx.helper import make_graph, make_model, make_tensor_value_info
 import argparse
 import os
 import onnx
+import paddle
+import numpy as np
+import shutil
 from generator import generator, generate
 from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.class_registration import _update
@@ -58,6 +61,15 @@ def base_args_config():
     return args
 
 
+def save_paddle_model(name, exe, feedkeys:list, fetchlist:list, target_dir:str):
+    model_dir = os.path.join(target_dir, name)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    paddle.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe)
+    paddle.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe, model_filename=name+".pdmodel", params_filename=name+".pdiparams")
+
+
 @generator
 class TestMoFallback(unittest.TestCase):
     def setUp(self):
@@ -103,10 +115,26 @@ class TestMoFallback(unittest.TestCase):
             f.write("[]") # json format
         self.trans_config_file = os.path.abspath(trans_config)
 
+        self.paddle_dir = "paddle_dir"
+        paddle.enable_static()
+        if not os.path.exists(self.paddle_dir):
+            os.mkdir(self.paddle_dir)
+        x = np.array([-2, 0, 1]).astype('float32')
+        node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
+        out = paddle.nn.functional.relu(node_x)
+
+        cpu = paddle.static.cpu_places(1)
+        exe = paddle.static.Executor(cpu[0])
+        exe.run(paddle.static.default_startup_program())
+
+        save_paddle_model("relu", exe, feedkeys=['x'], fetchlist=[out], target_dir=self.paddle_dir)
+
+
     def tearDown(self):
         for name in self.models.keys():
             os.remove(name)
         os.remove(self.trans_config_file)
+        shutil.rmtree(self.paddle_dir)
 
 
     @generate(*[('dir_to_extension', False, True, 'mo_legacy'),
@@ -175,5 +203,28 @@ class TestMoFallback(unittest.TestCase):
         Op.registered_ops['FakeElu'] = Elu
 
         prepare_ir(args)
+
+        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+
+
+    @generate(*[(True, False, 'dir_to_extension', 'paddle_frontend', True),
+                (True, False, None, 'paddle_frontend', False),
+                (False, False, 'dir_to_extension', 'paddle_frontend', True),
+                (False, False, None, 'paddle_frontend', False),
+    ])
+    def test_no_fallback_if_pdpd(self, use_new_fe, use_legacy, extension, expected_path, expected_exception):
+        args = base_args_config()
+        args.framework = 'paddle'
+        args.use_legacy_frontend = use_legacy
+        args.use_new_frontend = use_new_fe
+        args.extensions = extension
+        args.input_model = 'paddle_dir/relu/relu.pdmodel'
+
+        try:
+            prepare_ir(args)
+            assert not expected_exception
+        except:
+            assert expected_exception
+            return
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
