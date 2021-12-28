@@ -4,6 +4,7 @@
 
 #include <iterator>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -44,8 +45,8 @@ int tmain(int argc, tchar* argv[]) {
         std::shared_ptr<ov::Model> model = core.read_model(model_path);
         printInputAndOutputsInfo(*model);
 
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
+        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
 
         // -------- Step 3. Set up input
 
@@ -53,8 +54,9 @@ int tmain(int argc, tchar* argv[]) {
         // without resize and layout conversions
         FormatReader::ReaderPtr reader(image_path.c_str());
         if (reader.get() == nullptr) {
-            slog::warn << "Image " + image_path + " cannot be read!" << slog::endl;
-            throw std::logic_error("");
+            std::stringstream ss;
+            ss << "Image " + image_path + " cannot be read!";
+            throw std::logic_error(ss.str());
         }
 
         ov::element::Type input_type = ov::element::u8;
