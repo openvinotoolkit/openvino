@@ -239,6 +239,10 @@ bool MKLDNNSplitNode::needPrepareParams() const {
     return MKLDNNNode::inputShapesModified();
 }
 
+std::vector<VectorDims> MKLDNNSplitNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(1, 2));
+}
+
 void MKLDNNSplitNode::prepareParams() {
     const auto &srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
