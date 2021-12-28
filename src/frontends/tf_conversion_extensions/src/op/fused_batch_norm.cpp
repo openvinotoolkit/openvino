@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
+OutputVector translate_fused_batch_norm_op(const ov::frontend::NodeContext& node) {
     auto ng_input = node.get_input(0);
     auto ng_scale = node.get_input(1);
     auto ng_offset = node.get_input(2);
@@ -27,19 +27,18 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     // TODO: where does 0.0001 come from?
     auto tf_epsilon = node.get_attribute<float>("epsilon", 0.0001);
     NGRAPH_DEBUG << "epsilon: " << tf_epsilon;
-    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_nchw(is_nhwc, ng_input);
     auto ng_batch_norm =
         make_shared<BatchNormInference>(ng_input, ng_scale, ng_offset, ng_mean, ng_variance, tf_epsilon)->output(0);
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_batch_norm);
+    convert_nchw_to_nhwc(is_nhwc, ng_batch_norm);
 
     string activation_mode = node.get_attribute<string>("activation_mode");
     FRONT_END_GENERAL_CHECK(activation_mode == "Relu", "Unsupported _FusedBatchNormEx activation mode");
     auto relu_op = make_shared<Relu>(ng_batch_norm);
-    set_node_name(node.get_name(), relu_op);
     return {relu_op};
 }
 
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

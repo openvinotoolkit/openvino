@@ -60,6 +60,6 @@ void make_padding(const std::string& tf_padding_type,
         ng_padding_above.assign(ng_image_shape.size(), 0);
     }
 }
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

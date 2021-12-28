@@ -10,7 +10,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-void convert_nhwc_to_nchw(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
+void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& node) {
     if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
@@ -21,7 +21,7 @@ void convert_nhwc_to_nchw(const std::string& op_name, bool need_convert, ov::Out
     }
 }
 
-void convert_nchw_to_nhwc(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
+void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& node) {
     if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
@@ -32,6 +32,6 @@ void convert_nchw_to_nhwc(const std::string& op_name, bool need_convert, ov::Out
     }
 }
 
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

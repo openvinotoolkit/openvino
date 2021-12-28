@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
+OutputVector translate_depthwise_conv_2d_native_op(const ov::frontend::NodeContext& node) {
     auto ng_input = node.get_input(0);
     auto ng_filter = node.get_input(1);
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
@@ -30,7 +30,7 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
     convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
     convert_nhwc_to_hw(is_nhwc, tf_dilations, ng_dilations);
-    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_nchw(is_nhwc, ng_input);
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
@@ -62,8 +62,7 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
 
     auto op_type = node.get_op_type();
     if (op_type == "DepthwiseConv2dNative") {
-        convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_conv);
-        set_node_name(node.get_name(), ng_conv.get_node_shared_ptr());
+        convert_nchw_to_nhwc(is_nhwc, ng_conv);
         return {ng_conv};
     } else if (op_type == "_FusedDepthwiseConv2dNative") {
         int num_args = node.get_attribute<int>("num_args");
@@ -87,18 +86,16 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
 
         if (fused_ops == vector<string>{"BiasAdd", "Relu6"}) {
             auto ng_relu6 = make_shared<Clamp>(ng_add, 0, 6)->output(0);
-            convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_relu6);
-            set_node_name(node.get_name(), ng_relu6.get_node_shared_ptr());
+            convert_nchw_to_nhwc(is_nhwc, ng_relu6);
             return {ng_relu6};
         } else {
-            convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_add);
-            set_node_name(node.get_name(), ng_add.get_node_shared_ptr());
+            convert_nchw_to_nhwc(is_nhwc, ng_add);
             return {ng_add};
         }
     }
     FRONT_END_GENERAL_CHECK(false, "Unsupported operation type.");
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -14,7 +14,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_retval_op(const NodeContext& node) {
+OutputVector translate_retval_op(const ov::frontend::NodeContext& node) {
     // Make sure that this _Retval only has one input node.
     if (node.get_input_size() != 1) {
         FRONT_END_GENERAL_CHECK(false, "_Retval has " + to_string(node.get_input_size()) + " inputs, should have 1");
@@ -24,10 +24,9 @@ OutputVector translate_retval_op(const NodeContext& node) {
     // TODO: Put ret_val_index to RT info that should be later utilized to order outpus by indices
 
     auto res = make_shared<Result>(node.get_input(0));
-    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

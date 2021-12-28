@@ -75,9 +75,9 @@ void convert_nchw_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
 }
 }  // namespace detail
 
-void convert_nhwc_to_nchw(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& ng_input);
+void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& ng_input);
 
-void convert_nchw_to_nhwc(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& ng_node);
+void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& ng_node);
 
 template <typename T>
 void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst) {
@@ -88,6 +88,6 @@ void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<siz
     }
 }
 
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

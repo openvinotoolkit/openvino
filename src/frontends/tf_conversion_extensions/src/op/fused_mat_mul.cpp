@@ -14,7 +14,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_fused_mat_mul_op(const NodeContext& node) {
+OutputVector translate_fused_mat_mul_op(const ov::frontend::NodeContext& node) {
     // auto num_args = node.get_attribute<int>("num_args"); // TODO: it is unused but why?
     auto fused_ops = node.get_attribute<std::vector<string>>("fused_ops");
 
@@ -50,6 +50,6 @@ OutputVector translate_fused_mat_mul_op(const NodeContext& node) {
     }
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
