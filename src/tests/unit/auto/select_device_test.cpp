@@ -43,21 +43,22 @@ using ConfigParams = std::tuple<
 
 const DeviceInformation CPU_INFO = {CommonTestUtils::DEVICE_CPU, {}, 2, "01", "CPU_01"};
 const DeviceInformation IGPU_INFO = {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01"};
-const DeviceInformation DGPU_INFO = {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01"};
+const DeviceInformation DGPU1_INFO = {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "Intel(R) Iris(R) Xe MAX Graphics_01"};
+const DeviceInformation DGPU2_INFO = {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "0x4f87_01"};
 const DeviceInformation MYRIAD_INFO = {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01" };
 const DeviceInformation KEEMBAY_INFO = {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01" };
-const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, MYRIAD_INFO};
-const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO};
+const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU2_INFO, DGPU1_INFO, IGPU_INFO, CPU_INFO, MYRIAD_INFO};
+const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU2_INFO, DGPU1_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO};
 const std::vector<DeviceInformation>  int8DeviceVector = {KEEMBAY_INFO, CPU_INFO};
-const std::vector<DeviceInformation>  binDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
-const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO};
+const std::vector<DeviceInformation>  binDeviceVector = {DGPU2_INFO, DGPU1_INFO, IGPU_INFO, CPU_INFO};
+const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU2_INFO, DGPU1_INFO, IGPU_INFO};
 std::map<std::string, const std::vector<DeviceInformation>> devicesMap = {{"FP32", fp32DeviceVector},
                                                                            {"FP16", fp16DeviceVector},
                                                                            {"INT8", int8DeviceVector},
                                                                            {"BIN",  binDeviceVector},
                                                                            {"BATCHED_BLOB", batchedblobDeviceVector}
                                                                          };
-const std::vector<DeviceInformation> totalDevices = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO, KEEMBAY_INFO};
+const std::vector<DeviceInformation> totalDevices = {DGPU2_INFO, DGPU1_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO, KEEMBAY_INFO};
 const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"};
 std::vector<ConfigParams> testConfigs;
 

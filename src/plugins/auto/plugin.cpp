@@ -411,7 +411,8 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     }
 
     std::list<DeviceInformation> CPU;
-    std::list<DeviceInformation> dGPU;
+    std::list<DeviceInformation> dGPU_DG1;
+    std::list<DeviceInformation> dGPU_DG2;
     std::list<DeviceInformation> iGPU;
     std::list<DeviceInformation> MYRIAD;
     std::list<DeviceInformation> VPUX;
@@ -433,8 +434,10 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
             auto& gpuUniqueName = item.uniqueName;
             if (gpuUniqueName.find("iGPU") != std::string::npos) {
                 iGPU.push_back(item);
-            } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
-                dGPU.push_back(item);
+            } else if (gpuUniqueName.find("0x4f87") != std::string::npos) {
+                dGPU_DG2.push_back(item);
+            } else if (gpuUniqueName.find("Intel(R) Iris(R) Xe MAX Graphics") != std::string::npos) {
+                dGPU_DG1.push_back(item);
             }
             continue;
         }
@@ -442,7 +445,8 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
 
     // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
     std::list<DeviceInformation>  devices;
-    devices.splice(devices.end(), dGPU);
+    devices.splice(devices.end(), dGPU_DG2);
+    devices.splice(devices.end(), dGPU_DG1);
     devices.splice(devices.end(), VPUX);
     devices.splice(devices.end(), iGPU);
     devices.splice(devices.end(), MYRIAD);
