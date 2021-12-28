@@ -101,6 +101,7 @@ public:
     }
 
     ie::Parameter GetMetric(const std::string &name) const override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
 
