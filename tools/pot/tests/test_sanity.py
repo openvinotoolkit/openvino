@@ -84,7 +84,7 @@ def test_compression(_params, tmp_path, models):
     engine_config = get_engine_config(model_name)
     config = merge_configs(model.model_params, engine_config, algorithm_config)
     if model_name in CASCADE_MAP:
-        config.engine.evaluations[0].module_config.datasets[0].subsample_size = 2
+        config.engine.evaluations[0].module_config.datasets[0].subsample_size = 10
     else:
         config.engine.models[0].datasets[0].subsample_size = 1000
 
