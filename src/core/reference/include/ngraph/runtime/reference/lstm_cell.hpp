@@ -295,19 +295,32 @@ void lstm_cell_v1(const T* X,
     std::vector<T> PiCt_1(gate_shape_size);
     reference::multiply(P_fio[1].data(), C, PiCt_1.data(), P_gate_shape, C_shape, op::AutoBroadcastType::NUMPY);
 
-    // Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi + Pi (.) Ct-1
-    std::vector<T> XHBPi(gate_shape_size);
-    reference::add(X_W_fico[1].data(),
-                   PiCt_1.data(),
-                   XHBPi.data(),
-                   gate_shape,
-                   C_shape,
-                   op::AutoBroadcastType::NUMPY);
-
     // ft = f(Xt*(Wf^T) + Ht-1*(Rf^T) + Pf (.) Ct-1 + Wbf + Rbf)
     clip_activation(XHBPf, activation_f);
-    // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Pi (.) Ct-1 + Wbi + Rbi)
-    clip_activation(XHBPi, activation_f);
+
+    // it calculation per input_forget condition
+    std::vector<T> XHBPi(gate_shape_size);
+    if (input_forget) {
+        // it = (1 - ft))
+        std::vector<T> ones(gate_shape_size, 1.f);
+        reference::subtract(ones.data(),
+                    XHBPf.data(),
+                    XHBPi.data(),
+                    gate_shape,
+                    gate_shape,
+                    op::AutoBroadcastType::NUMPY);
+    } else {
+        // Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi + Pi (.) Ct-1
+        reference::add(X_W_fico[1].data(),
+                    PiCt_1.data(),
+                    XHBPi.data(),
+                    gate_shape,
+                    C_shape,
+                    op::AutoBroadcastType::NUMPY);
+        // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Pi (.) Ct-1 + Wbi + Rbi)
+        clip_activation(XHBPi, activation_f);
+    }
+
     // ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
     clip_activation(X_W_fico[2], activation_g);
 
@@ -323,7 +336,9 @@ void lstm_cell_v1(const T* X,
                         gate_shape,
                         gate_shape,
                         op::AutoBroadcastType::NUMPY);
-    // Ct = ft (.) Ct-1 + it (.) ct
+
+    // input_forget=true: Ct = ft (.) Ct-1 + (1 - ft)(.) ct
+    // input_forget=false: Ct = ft (.) Ct-1 + it (.) ct
     reference::add(mul1.data(), mul2.data(), Ct.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
     std::memcpy(out_Ct, Ct.data(), Ct.size() * sizeof(T));
 
