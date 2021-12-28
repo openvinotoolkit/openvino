@@ -155,6 +155,26 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
     return true;
 }
 
+std::shared_ptr<Node> FakeQuantizeDequantization::copyWithNewInput(const std::shared_ptr<Node>& input) const {
+    auto lastNode = input;
+    if (convert) {
+        lastNode = convert->copy_with_new_inputs({lastNode});
+    }
+    if (subtract) {
+        std::shared_ptr<Node> input1 = nullptr;
+        if (subtractConvert) {
+            input1 = subtractConvert;
+        } else {
+            input1 = subtractConstant;
+        }
+        lastNode = subtract->copy_with_new_inputs({lastNode, input1});
+    }
+    if (multiply) {
+        lastNode = multiply->copy_with_new_inputs({lastNode, multiplyConstant});
+    }
+    return lastNode;
+}
+
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ngraph::Node>& elementwise,
     std::shared_ptr<ngraph::opset1::Convert>& convert,
