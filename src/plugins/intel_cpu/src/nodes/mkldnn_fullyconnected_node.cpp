@@ -150,16 +150,16 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory hasn't been allocated.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory hasn't been allocated.";
     if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Weight memory didn't allocate.";
+        IE_THROW() << "Weight memory hasn't been allocated.";
     MKLDNNMemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
         if (!biasMemPtr || !biasMemPtr->GetPrimitivePtr())
-            IE_THROW() << "Input memory didn't allocate.";
+            IE_THROW() << "Input memory hasn't been allocated.";
     }
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -228,35 +228,42 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     }
 
     appendPostOpArgs(*attr, primArgs, binaryPostOpsArgs);
+
+    auto reshapeMemory = [this](int argType) {
+        auto param = primArgs.find(argType);
+        if (param != primArgs.end()) {
+            auto oldMem = param->second;
+            auto dims = oldMem.get_desc().dims();
+            if (dims.size() == 3) {
+                std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
+                mkldnn::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
+                mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+                primArgs.at(argType) = newMem;
+            }
+        }
+    };
+    reshapeMemory(DNNL_ARG_SRC);
+    reshapeMemory(DNNL_ARG_DST);
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
     if (prim) {
-        auto reshapeMemory = [this](int argType) {
+        // in cases parameter -> FullyConnected or dynamic shapes
+        // we keep old pointer to data in primArgs on second iteration with same input shapes
+        auto updateMemoryPtr = [this](int argType) {
             auto param = primArgs.find(argType);
             if (param != primArgs.end()) {
-                auto oldMem = param->second;
-                auto dims = oldMem.get_desc().dims();
-                if (dims.size() == 3) {
-                    std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
-                    mkldnn::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
-                    mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-                    primArgs.at(argType) = newMem;
-                } else {
-                    // in cases parameter -> FullyConnected or dynamic shapes
-                    // we keep old pointer to data in primArgs on second iteration with same input shapes
-                    if (argType == DNNL_ARG_SRC && getInputShapeAtPort(DATA_ID).getRank() == 3) {
-                        primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
-                    }
-                    if (argType == DNNL_ARG_DST && getOutputShapeAtPort(0).getRank() == 3) {
-                        primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
-                    }
+                if (argType == DNNL_ARG_SRC && getInputShapeAtPort(DATA_ID).getRank() == 3) {
+                    primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
+                }
+                if (argType == DNNL_ARG_DST && getOutputShapeAtPort(0).getRank() == 3) {
+                    primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
                 }
             }
         };
 
-        reshapeMemory(DNNL_ARG_SRC);
-        reshapeMemory(DNNL_ARG_DST);
+        updateMemoryPtr(DNNL_ARG_SRC);
+        updateMemoryPtr(DNNL_ARG_DST);
 
         (*prim).execute(strm, primArgs);
     }
