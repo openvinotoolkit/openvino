@@ -48,7 +48,7 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
             try:
                 if data_type != np.bool:
                     value = mo_array(string_value, dtype=data_type)
-                # TODO: investigate why bool is allowed only for TF
+                # TODO: investigate why boolean type is allowed only for TensorFlow
                 elif data_type == np.bool and graph.graph['fw'] == 'tf':
                     from openvino.tools.mo.front.tf.common import tf_data_type_cast
                     if isinstance(string_value, list):

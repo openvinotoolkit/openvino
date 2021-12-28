@@ -10,7 +10,6 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
-import numpy.testing as npt
 
 from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
     get_model_name, \
