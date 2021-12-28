@@ -190,6 +190,12 @@ public:
         }
     }
 
+    /* Ask mask to update ther dependencies
+    even if mask value wasn't changed on callback*/
+    void initialize_dependencies() {
+        m_need_initialization = true;
+    }
+
 private:
     bool m_is_shape_like{false};
 

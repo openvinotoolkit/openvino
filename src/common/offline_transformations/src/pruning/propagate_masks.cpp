@@ -620,15 +620,17 @@ public:
                 }, output_mask);
                 output_mask->add_callback([input_mask_row, reduce_dims](Mask::Ptr cur_mask) -> bool{
                     // Propagate masks through dimension only if this dimension isn't reduced
-                    for (size_t dim = 0; dim < input_mask_row->size(); ++dim)
+                    for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
                         if (std::find(reduce_dims.begin(), reduce_dims.end(), dim) == reduce_dims.end())
                             cur_mask->at(dim) = input_mask_row->at(dim);
+                        else if (cur_mask->at(dim) != input_mask_row->at(dim))
+                            cur_mask->initialize_dependencies();
                     return true;
                 }, input_mask);
 
                 // Invalidate current mask and its parent masks
                 output_mask->apply_callback(input_mask);
-                setMask(m_output, input_mask);
+                setMask(m_output, output_mask);
             }
 
             return true;
