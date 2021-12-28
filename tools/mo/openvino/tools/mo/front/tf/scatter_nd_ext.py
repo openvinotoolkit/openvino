@@ -1,8 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.TFScatterND import TFScatterND
+from openvino.tools.mo.ops.scatternd import TFScatterND
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+
 
 class ScatterNDExtractor(FrontExtractorOp):
     op = 'ScatterNd'
