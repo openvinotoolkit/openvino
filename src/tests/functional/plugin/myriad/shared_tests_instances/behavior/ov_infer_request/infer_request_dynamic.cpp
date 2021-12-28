@@ -23,7 +23,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
-    {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU}}
+        {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_MYRIAD}}
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
