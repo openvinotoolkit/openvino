@@ -4,7 +4,7 @@ import os
 import tempfile
 import unittest
 from defusedxml.common import EntitiesForbidden
-from mo.utils.ir_reader.restore_graph import restore_graph_from_ir
+from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir
 
 
 class TestIRReader(unittest.TestCase):
