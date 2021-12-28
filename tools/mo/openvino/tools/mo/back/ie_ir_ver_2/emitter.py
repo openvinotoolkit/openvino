@@ -140,6 +140,21 @@ def xml_ports(node: Node, element: Element, edges: Element):
             assert node.graph.node[u]['shape'] is not None, 'Input shape is not calculated properly for node {}'.format(
                 node.id)
             xml_shape(node.graph.node[u]['shape'], port)
+
+            # support saving rt_info passed from IR Reader
+            port_id = d['in']
+            if node.has('restored_input_ports') and port_id in node.restored_input_ports:
+                port_rt_info_value = node.restored_input_ports[port_id][2]
+                if port_rt_info_value != {}:
+                    port_rt_info = SubElement(port, 'rt_info')
+                    for (name, version), info_elem in port_rt_info_value.items():
+                        attribute = SubElement(port_rt_info, 'attribute')
+                        attribute.set('name', name)
+                        attribute.set('version', str(version))
+                        params = info_elem.serialize(node) if not isinstance(info_elem, dict) else info_elem
+                        for key, value in params.items():
+                            attribute.set(key, value)
+
             # u is a data node that has a single producer, let's find it
             assert (node.graph.node[u]['kind'] == 'data')
             in_nodes = list(node.graph.in_edges(u, data=True))
@@ -176,6 +191,18 @@ def xml_ports(node: Node, element: Element, edges: Element):
                 port.set('names', ','.join(tensor_names))
             xml_shape(node.graph.node[v]['shape'], port)
 
+            # support saving rt_info passed from IR Reader
+            if node.has('ports') and port_id in node.ports:
+                port_rt_info_value = node.ports[port_id][2]
+                if port_rt_info_value != []:
+                    port_rt_info = SubElement(port, 'rt_info')
+                    for (name, version), info_elem in port_rt_info_value.items():
+                        attribute = SubElement(port_rt_info, 'attribute')
+                        attribute.set('name', name)
+                        attribute.set('version', str(version))
+                        params = info_elem.serialize(node) if not isinstance(info_elem, dict) else info_elem
+                        for key, value in params.items():
+                            attribute.set(key, value)
 
 def xml_consts(graph: Graph, node: Node, element: Element):
     blobs = None  # sub-element that will be created on-demand
@@ -258,10 +285,7 @@ def serialize_runtime_info(node, parent_element: Element):
         attribute = SubElement(rt_info, 'attribute')
         attribute.set('name', name)
         attribute.set('version', str(version))
-        params = info_elem.serialize(node)
-        if len(params) == 0:
-            rt_info.remove(attribute)
-            continue
+        params = info_elem.serialize(node) if not isinstance(info_elem, dict) else info_elem
         for key, value in params.items():
             attribute.set(key, value)
     if len(rt_info.attrib) == 0 and len(list(rt_info)) == 0:
