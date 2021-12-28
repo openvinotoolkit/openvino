@@ -12,7 +12,8 @@ class AtomicGuard {
 public:
     AtomicGuard(std::atomic_bool& b) : m_atomic(b) {
         bool exp = false;
-        while (!m_atomic.compare_exchange_strong(exp, true)) {
+        while (m_atomic.load(std::memory_order::relaxed) ||
+               !m_atomic.compare_exchange_strong(exp, true)) {
             exp = false;
         }
     }
