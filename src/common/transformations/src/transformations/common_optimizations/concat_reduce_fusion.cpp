@@ -71,7 +71,7 @@ ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
             eltwise_inputs.push_back(new_input_node);
         }
 
-        const auto new_eltwise = ngraph::op::util::clone_try_fold(eltwise,eltwise_inputs);
+        const auto new_eltwise = ngraph::op::util::clone_try_fold(eltwise, eltwise_inputs);
         new_eltwise->set_friendly_name(squeeze->get_friendly_name());
         ngraph::copy_runtime_info({eltwise, squeeze}, new_eltwise);
         ngraph::replace_node(squeeze, new_eltwise);
