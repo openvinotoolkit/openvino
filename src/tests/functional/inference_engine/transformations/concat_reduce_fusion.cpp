@@ -191,7 +191,7 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseStaticShape) {
         auto squeeze = std::make_shared<opset8::Squeeze>(add, opset8::Constant::create(element::i64, Shape{}, {0}));
 
         function = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{left_input, right_input});
-        manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ngraph::pass::PullSqueezeThroughEltwise>();
     }
     {
         auto left_input = std::make_shared<opset8::Parameter>(element::f32, shape);
