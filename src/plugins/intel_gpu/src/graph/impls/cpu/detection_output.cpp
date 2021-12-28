@@ -797,11 +797,12 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, detection_output_inst& instance) override {
+        auto& stream = instance.get_network().get_stream();
+        stream.flush();
         for (auto& a : events) {
+            std::cout << "a->wait()" << std::endl;
             a->wait();
         }
-
-        auto& stream = instance.get_network().get_stream();
 
         auto ev = stream.create_user_event(false);
         const int num_of_images = instance.location_memory()->get_layout().size.batch[0];  // batch size
@@ -818,7 +819,6 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
             prepare_data<data_type_to_type<data_types::f16>::type>(stream, instance, bboxes, confidences, scoreIndexPairs);
             generate_detections<data_type_to_type<data_types::f16>::type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
         }
-        //std::cout << "ev->set();" << std::endl; 
         ev->set();
         return ev;
     }

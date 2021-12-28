@@ -361,6 +361,17 @@ ze_stream::ze_stream(const ze_engine &engine, void *handle)
 
 queue_types ze_stream::detect_queue_type(void *queue_handle) {
     std::cout << "detect_queue_type" << std::endl;
+    // cl_command_queue queue = static_cast<cl_command_queue>(queue_handle);
+    // cl_command_queue_properties properties;
+    // auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
+    // if (status != CL_SUCCESS) {
+    //     throw std::runtime_error("Can't get queue properties for user handle\n");
+    // }
+
+    // return (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) ? queue_types::out_of_order : queue_types::in_order;
+
+
+    //ze_command_queue_handle_t queue = static_cast<ze_command_queue_handle_t>(queue_handle);
     return queue_types::out_of_order;//queue_types::out_of_order;
 }
 
@@ -406,18 +417,19 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     ZE_CHECK(zeCommandListAppendLaunchKernel(_command_list,
                                     kern,
                                     &launchArgs,
-                                    std::dynamic_pointer_cast<ze_base_event>(ev)->get(),
-                                    //set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
+                                    //std::dynamic_pointer_cast<ze_base_event>(ev)->get(),
+                                    set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
                                     dep_events_ptr == nullptr ? 0 : dep_events_ptr->size(),
                                     dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
     std::cout << "enqueue_kernel " << std::dynamic_pointer_cast<ze_base_event>(ev)->get() << " " << set_output_event << std::endl;
-    if (set_output_event) {
+    if (!set_output_event) {
         std::dynamic_pointer_cast<ze_base_event>(ev)->set();
     }
     return ev;
 }
 
 void ze_stream::enqueue_barrier() {
+    std::cout << "enqueue_barrier " << std::endl;
     ZE_CHECK(zeCommandListAppendBarrier(_command_list, nullptr, 0, nullptr));
 }
 
@@ -499,6 +511,7 @@ ze_event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, 
 }
 
 ze_event::ptr ze_stream::group_events(std::vector<ze_events::ptr> const& deps) {
+    //finish();
     return std::make_shared<ze_events>(deps);
 }
 
