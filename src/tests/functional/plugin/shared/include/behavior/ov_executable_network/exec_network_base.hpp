@@ -80,7 +80,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
 TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
     std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeConvPoolRelu();
-    EXPECT_NO_THROW(auto execNet = core->compile_model(function));
+    EXPECT_NO_THROW(auto execNet = core->compile_model(function, {{"LOG_LEVEL", "LOG_DEBUG"}}));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
