@@ -1003,7 +1003,6 @@ openvino/tools/mo/ops/TensorArrayWrite.py
 openvino/tools/mo/ops/TensorIterator_ops.py
 openvino/tools/mo/ops/TFFFT.py
 openvino/tools/mo/ops/TFResize.py
-openvino/tools/mo/ops/TFScatterND.py
 openvino/tools/mo/ops/tile.py
 openvino/tools/mo/ops/timeheightconvolution.py
 openvino/tools/mo/ops/topk.py
