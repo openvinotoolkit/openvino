@@ -9,10 +9,10 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, StridedSlice1) {
-    auto data = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
-    auto begin = op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {100});
-    auto end = op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-100});
-    auto stride = op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-1});
+    auto data = std::make_shared<op::v1::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
+    auto begin = op::v1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {100});
+    auto end = op::v1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-100});
+    auto stride = op::v1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-1});
 
     std::vector<int64_t> begin_mask = {0, 0, 0, 0};
     std::vector<int64_t> end_mask = {0, 0, 0, 0};
@@ -25,10 +25,10 @@ TEST(StaticShapeInferenceTest, StridedSlice1) {
 }
 
 TEST(StaticShapeInferenceTest, StridedSlice2) {
-    auto data = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
-    auto begin = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
-    auto end = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
-    auto stride = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto data = std::make_shared<op::v1::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
+    auto begin = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto end = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto stride = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
 
     std::vector<int64_t> begin_mask(3, 0);
     std::vector<int64_t> end_mask(3, 0);
@@ -49,10 +49,10 @@ TEST(StaticShapeInferenceTest, StridedSlice2) {
 }
 
 TEST(StaticShapeInferenceTest, StridedSlice3) {
-    auto data = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
-    auto begin = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
-    auto end = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
-    auto stride = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto data = std::make_shared<op::v1::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
+    auto begin = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto end = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto stride = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
 
     std::vector<int64_t> begin_mask{0, 1, 1};
     std::vector<int64_t> end_mask{1, 1, 1};
@@ -65,10 +65,10 @@ TEST(StaticShapeInferenceTest, StridedSlice3) {
 }
 
 TEST(StaticShapeInferenceTest, StridedSlice4) {
-    auto data = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
-    auto begin = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
-    auto end = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
-    auto stride = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto data = std::make_shared<op::v1::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
+    auto begin = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto end = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto stride = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
 
     std::vector<int64_t> begin_mask{1, 0, 1};
     std::vector<int64_t> end_mask{0, 1, 1};
@@ -81,10 +81,10 @@ TEST(StaticShapeInferenceTest, StridedSlice4) {
 }
 
 TEST(StaticShapeInferenceTest, StridedSlice5) {
-    auto data = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
-    auto begin = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
-    auto end = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
-    auto stride = std::make_shared<op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto data = std::make_shared<op::v1::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
+    auto begin = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto end = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+    auto stride = std::make_shared<op::v1::Parameter>(ngraph::element::i64, ngraph::Shape{3});
 
     std::vector<int64_t> begin_mask{0, 1, 1};
     std::vector<int64_t> end_mask{0, 1, 1};

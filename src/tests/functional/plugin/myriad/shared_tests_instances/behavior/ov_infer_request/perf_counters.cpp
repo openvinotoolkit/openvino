@@ -15,7 +15,7 @@ TEST_P(OVInferRequestPerfCountersTest, CheckOperationInProfilingInfo) {
     std::vector<ov::runtime::ProfilingInfo> profiling_info;
     ASSERT_NO_THROW(profiling_info = req.get_profiling_info());
     for (const auto& op : function->get_ops()) {
-        if (ov::is_type<ov::op::v0::Result>(op) || ov::is_type<ov::op::v0::Constant>(op))
+        if (ov::is_type<ov::op::v1::Result>(op) || ov::is_type<ov::op::v1::Constant>(op))
             continue;
         auto op_is_in_profiling_info = std::any_of(std::begin(profiling_info), std::end(profiling_info),
             [&] (const ov::runtime::ProfilingInfo& info) {

@@ -17,12 +17,12 @@ TEST(StaticShapeInferenceTest, LstmCellTest) {
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
 
-    const auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto W = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto R = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto H_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto C_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto Bias = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
+    const auto X = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto W = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto R = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto H_t = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto C_t = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto Bias = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1});
     const auto lstm_cell = std::make_shared<op::v4::LSTMCell>(X, H_t, C_t, W, R, Bias, hidden_size);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{batch_size, input_size},
@@ -43,14 +43,14 @@ TEST(StaticShapeInferenceTest, LstmCellV1Test) {
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
 
-    const auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto W = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto R = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto H_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto C_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto Bias = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
-    const auto Peelhole = op::v0::Constant::create(element::f32, Shape{3 * hidden_size}, std::vector<float>{0.f});
-    const auto lstm_cell = std::make_shared<op::v0::LSTMCell>(X, H_t, C_t, W, R, Bias, Peelhole, hidden_size);
+    const auto X = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto W = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto R = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto H_t = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto C_t = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto Bias = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1});
+    const auto Peelhole = op::v1::Constant::create(element::f32, Shape{3 * hidden_size}, std::vector<float>{0.f});
+    const auto lstm_cell = std::make_shared<op::v1::LSTMCell>(X, H_t, C_t, W, R, Bias, Peelhole, hidden_size);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{batch_size, input_size},
                                                     StaticShape{batch_size, hidden_size},

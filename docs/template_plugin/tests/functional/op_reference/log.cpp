@@ -52,8 +52,8 @@ private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto log = std::make_shared<op::v0::Log>(in);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        const auto log = std::make_shared<op::v1::Log>(in);
         return std::make_shared<Model>(NodeVector{log}, ParameterVector{in});
     }
 };

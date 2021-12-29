@@ -59,13 +59,13 @@ TEST_P(ReferencePreprocessTest, CompareWithHardcodedRefs) {
 } // namespace
 
 static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
-    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+    auto data1 = std::make_shared<op::v1::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
-    auto c = op::v0::Constant::create(type, {1}, {0});
+    auto c = op::v1::Constant::create(type, {1}, {0});
     auto op = std::make_shared<op::v1::Add>(data1, c);
     op->set_friendly_name("Add0");
-    auto res = std::make_shared<op::v0::Result>(op);
+    auto res = std::make_shared<op::v1::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
@@ -76,13 +76,13 @@ static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialS
     auto params = ParameterVector();
     auto results = ResultVector();
     for (int i = 1; i <= N; i++) {
-        auto param = std::make_shared<op::v0::Parameter>(type, shape);
+        auto param = std::make_shared<op::v1::Parameter>(type, shape);
         param->set_friendly_name("input" + std::to_string(i));
         param->get_output_tensor(0).set_names({"tensor_input" + std::to_string(i)});
-        auto c1 = op::v0::Constant::create(type, {1}, {0});
+        auto c1 = op::v1::Constant::create(type, {1}, {0});
         auto op1 = std::make_shared<op::v1::Add>(param, c1);
         op1->set_friendly_name("Add" + std::to_string(i));
-        auto res1 = std::make_shared<op::v0::Result>(op1);
+        auto res1 = std::make_shared<op::v1::Result>(op1);
         res1->set_friendly_name("Result" + std::to_string(i));
         res1->get_output_tensor(0).set_names({"tensor_output" + std::to_string(i)});
         results.push_back(res1);
@@ -183,7 +183,7 @@ static RefPreprocessParams custom_preprocessing() {
         auto f = create_simple_function(element::i32, Shape{1, 3, 1, 1});
         auto p = PrePostProcessor(f);
         p.input().preprocess().custom([](const Output<Node>& node) {
-            auto abs = std::make_shared<op::v0::Abs>(node);
+            auto abs = std::make_shared<op::v1::Abs>(node);
             abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
             return abs;
         });
@@ -208,7 +208,7 @@ static RefPreprocessParams test_multiple() {
         p1.input().preprocess().mean({1.f, 2.f, 3.f});
         p1.input().preprocess().scale({2.f, 3.f, 4.f});
         p1.input().preprocess().custom([](const Output<Node> &node) {
-            auto abs = std::make_shared<op::v0::Abs>(node);
+            auto abs = std::make_shared<op::v1::Abs>(node);
             abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
             return abs;
         });

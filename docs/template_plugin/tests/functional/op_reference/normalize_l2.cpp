@@ -109,9 +109,9 @@ private:
                                                     const std::vector<int32_t>& axes,
                                                     const op::EpsMode& eps_mode,
                                                     const float& eps) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto axes_data = std::make_shared<op::v0::Constant>(element::Type_t::i32, Shape{axes.size()}, axes);
-        auto normalize = std::make_shared<op::v0::NormalizeL2>(in, axes_data, eps, eps_mode);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        const auto axes_data = std::make_shared<op::v1::Constant>(element::Type_t::i32, Shape{axes.size()}, axes);
+        auto normalize = std::make_shared<op::v1::NormalizeL2>(in, axes_data, eps, eps_mode);
         return std::make_shared<ov::Model>(normalize, ParameterVector{in});
     }
 };

@@ -13,8 +13,8 @@ using namespace ov;
 
 TEST(StaticShapeInferenceTest, GatherElementsTest) {
     int64_t axis = -1;
-    auto D = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto I = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
+    auto D = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto I = std::make_shared<op::v1::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
     auto GE = std::make_shared<op::v6::GatherElements>(D, I, axis);
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{300, 3, 10, 1}, StaticShape{300, 3, 10, 33333}},

@@ -40,8 +40,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const Shape& shape, const element::Type& type) {
-        const auto in = std::make_shared<op::v0::Parameter>(type, shape);
-        const auto acos = std::make_shared<op::v0::Acos>(in);
+        const auto in = std::make_shared<op::v1::Parameter>(type, shape);
+        const auto acos = std::make_shared<op::v1::Acos>(in);
         return std::make_shared<Model>(NodeVector {acos}, ParameterVector {in});
     }
 };

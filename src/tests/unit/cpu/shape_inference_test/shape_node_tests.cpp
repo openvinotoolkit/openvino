@@ -36,7 +36,7 @@ TEST(StaticShapeInferenceTest, SqueezeTest) {
     auto pattern = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{-3, 0});
 
     auto reduce =
-            std::make_shared<op::v0::Squeeze>(data, pattern);
+            std::make_shared<op::v1::Squeeze>(data, pattern);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 6, 1, 7, 1}, StaticShape{2}},
             static_output_shapes = {StaticShape{}};
@@ -50,7 +50,7 @@ TEST(StaticShapeInferenceTest, UnsqueezeTest) {
     auto pattern = std::make_shared<ov::op::v1::Constant>(element::i32, Shape{2}, std::vector<int32_t>{-3, 0});
 
     auto reduce =
-            std::make_shared<op::v0::Unsqueeze>(data, pattern);
+            std::make_shared<op::v1::Unsqueeze>(data, pattern);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 4, 5, 6}, StaticShape{2}},
             static_output_shapes = {StaticShape{}};
@@ -63,7 +63,7 @@ TEST(StaticShapeInferenceTest, ShapeOf5DTest) {
     auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
     auto shapeof =
-            std::make_shared<op::v0::ShapeOf>(data);
+            std::make_shared<op::v1::ShapeOf>(data);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 4, 5, 6}},
             static_output_shapes = {StaticShape{}};

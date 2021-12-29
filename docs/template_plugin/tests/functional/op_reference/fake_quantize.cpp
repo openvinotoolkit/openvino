@@ -21,10 +21,10 @@ struct FakeQuantizeParams {
                 const element::Type& expected_type,
                 const std::vector<IT>& input_data,
                 const std::vector<IT>& expected_data,
-                const std::shared_ptr<op::v0::Constant>& input_low,
-                const std::shared_ptr<op::v0::Constant>& input_high,
-                const std::shared_ptr<op::v0::Constant>& output_low,
-                const std::shared_ptr<op::v0::Constant>& output_high,
+                const std::shared_ptr<op::v1::Constant>& input_low,
+                const std::shared_ptr<op::v1::Constant>& input_high,
+                const std::shared_ptr<op::v1::Constant>& output_low,
+                const std::shared_ptr<op::v1::Constant>& output_high,
                 const std::size_t& levels,
                 const op::AutoBroadcastSpec& broadcast = op::AutoBroadcastType::NONE)
         : m_input_shape(input_shape),
@@ -46,10 +46,10 @@ struct FakeQuantizeParams {
     element::Type m_expected_type;
     runtime::Tensor m_input_data;
     runtime::Tensor m_expected_data;
-    std::shared_ptr<op::v0::Constant> m_input_low;
-    std::shared_ptr<op::v0::Constant> m_input_high;
-    std::shared_ptr<op::v0::Constant> m_output_low;
-    std::shared_ptr<op::v0::Constant> m_output_high;
+    std::shared_ptr<op::v1::Constant> m_input_low;
+    std::shared_ptr<op::v1::Constant> m_input_high;
+    std::shared_ptr<op::v1::Constant> m_output_low;
+    std::shared_ptr<op::v1::Constant> m_output_high;
     std::size_t m_levels;
     op::AutoBroadcastSpec m_broadcast;
 };
@@ -93,21 +93,21 @@ private:
                                                     const Shape& expected_shape,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_type,
-                                                    const std::shared_ptr<op::v0::Constant>& input_low,
-                                                    const std::shared_ptr<op::v0::Constant>& input_high,
-                                                    const std::shared_ptr<op::v0::Constant>& output_low,
-                                                    const std::shared_ptr<op::v0::Constant>& output_high,
+                                                    const std::shared_ptr<op::v1::Constant>& input_low,
+                                                    const std::shared_ptr<op::v1::Constant>& input_high,
+                                                    const std::shared_ptr<op::v1::Constant>& output_low,
+                                                    const std::shared_ptr<op::v1::Constant>& output_high,
                                                     const std::size_t& levels,
                                                     const op::AutoBroadcastSpec& broadcast) {
-        auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
         if (broadcast == op::AutoBroadcastType::NONE) {
             return std::make_shared<Model>(
-                NodeVector{std::make_shared<op::v0::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels)},
+                NodeVector{std::make_shared<op::v1::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels)},
                 ParameterVector{in});
 
         } else {
             return std::make_shared<Model>(
-                NodeVector{std::make_shared<op::v0::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels, broadcast)},
+                NodeVector{std::make_shared<op::v1::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels, broadcast)},
                 ParameterVector{in});
         }
     }
@@ -138,10 +138,10 @@ std::vector<FakeQuantizeParams> generateParamsForFakeQuantize() {
                                           6.6666669f,   6.6666669f,   6.6666669f,   6.6666669f,   6.6666669f,   6.6666669f,
                                           11.33333301f, 11.33333301f, 11.33333301f, 11.33333301f, 11.33333301f, 11.33333301f,
                                           11.33333301f, 11.33333301f, 16.f,         16.f,         16.f,         16.f},
-                           op::v0::Constant::create(IN_ET, Shape{}, {0.f}),
-                           op::v0::Constant::create(IN_ET, Shape{}, {23.f}),
-                           op::v0::Constant::create(IN_ET, Shape{}, {2.f}),
-                           op::v0::Constant::create(IN_ET, Shape{}, {16.f}),
+                           op::v1::Constant::create(IN_ET, Shape{}, {0.f}),
+                           op::v1::Constant::create(IN_ET, Shape{}, {23.f}),
+                           op::v1::Constant::create(IN_ET, Shape{}, {2.f}),
+                           op::v1::Constant::create(IN_ET, Shape{}, {16.f}),
                            4),
         FakeQuantizeParams(ov::Shape{1, 2, 3, 4},
                            ov::Shape{1, 2, 3, 4},
@@ -150,10 +150,10 @@ std::vector<FakeQuantizeParams> generateParamsForFakeQuantize() {
                            iota_vector<T>(shape_size(Shape{1, 2, 3, 4})),
                            std::vector<T>{2.f,   2.f,   2.f,   2.f,   2.f,  5.5f, 5.5f, 5.5f, 5.5f, 9.f,  9.f,  9.f,
                                           12.5f, 12.5f, 12.5f, 12.5f, 16.f, 16.f, 16.f, 16.f, 16.f, 16.f, 16.f, 16.f},
-                           op::v0::Constant::create(IN_ET, Shape{}, {3.f}),
-                           op::v0::Constant::create(IN_ET, Shape{}, {17.f}),
-                           op::v0::Constant::create(IN_ET, Shape{}, {2.f}),
-                           op::v0::Constant::create(IN_ET, Shape{}, {16.f}),
+                           op::v1::Constant::create(IN_ET, Shape{}, {3.f}),
+                           op::v1::Constant::create(IN_ET, Shape{}, {17.f}),
+                           op::v1::Constant::create(IN_ET, Shape{}, {2.f}),
+                           op::v1::Constant::create(IN_ET, Shape{}, {16.f}),
                            5),
         FakeQuantizeParams(ov::Shape{1, 2, 5, 5},
                            ov::Shape{1, 2, 5, 5},
@@ -164,10 +164,10 @@ std::vector<FakeQuantizeParams> generateParamsForFakeQuantize() {
                                           20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 50.0f,
                                           50.0f, 50.0f, 50.0f, 50.0f, 50.0f, 50.0f, 55.0f, 55.0f, 60.0f, 60.0f, 60.0f, 65.0f, 65.0f,
                                           70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f},
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {5.f, 30.f}),
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {10.f, 40.f}),
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {0.f, 50.f}),
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {20.f, 70.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {5.f, 30.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {10.f, 40.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {0.f, 50.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {20.f, 70.f}),
                            5),
         FakeQuantizeParams(ov::Shape{1, 2, 5, 5},
                            ov::Shape{1, 2, 5, 5},
@@ -178,10 +178,10 @@ std::vector<FakeQuantizeParams> generateParamsForFakeQuantize() {
                                           20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 50.0f,
                                           50.0f, 50.0f, 50.0f, 50.0f, 50.0f, 50.0f, 55.0f, 55.0f, 60.0f, 60.0f, 60.0f, 65.0f, 65.0f,
                                           70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f},
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {5.f, 30.f}),
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {10.f, 40.f}),
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {0.f, 50.f}),
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {20.f, 70.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {5.f, 30.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {10.f, 40.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {0.f, 50.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {20.f, 70.f}),
                            5,
                            op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1)),
         FakeQuantizeParams(ov::Shape{1, 2, 5, 5},
@@ -193,10 +193,10 @@ std::vector<FakeQuantizeParams> generateParamsForFakeQuantize() {
                                           20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 20.0f, 50.0f,
                                           50.0f, 50.0f, 50.0f, 50.0f, 50.0f, 50.0f, 55.0f, 55.0f, 60.0f, 60.0f, 60.0f, 65.0f, 65.0f,
                                           70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f, 70.0f},
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {5.f, 30.f}),
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {10.f, 40.f}),
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {0.f, 50.f}),
-                           op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {20.f, 70.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {5.f, 30.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {10.f, 40.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {0.f, 50.f}),
+                           op::v1::Constant::create(IN_ET, Shape{2, 1, 1}, {20.f, 70.f}),
                            5,
                            op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, -1))
     };

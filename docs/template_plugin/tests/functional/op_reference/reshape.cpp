@@ -134,10 +134,10 @@ private:
                                                     const Shape& input_shape,
                                                     const Shape& expected_shape,
                                                     const bool zero_flag) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
         const auto reshape = std::make_shared<op::v1::Reshape>(
             in,
-            op::v0::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
+            op::v1::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
             zero_flag);
         return std::make_shared<Model>(NodeVector{reshape}, ParameterVector{in});
     }
@@ -178,18 +178,18 @@ private:
                                                     const Shape& input_shape3,
                                                     const Shape& expected_shape,
                                                     const bool zero_flag) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape1);
         const auto reshape1 = std::make_shared<op::v1::Reshape>(
             in,
-            op::v0::Constant::create(element::Type_t::u64, {input_shape2.size()}, input_shape2),
+            op::v1::Constant::create(element::Type_t::u64, {input_shape2.size()}, input_shape2),
             zero_flag);
         const auto reshape2 = std::make_shared<op::v1::Reshape>(
             reshape1,
-            op::v0::Constant::create(element::Type_t::u64, {input_shape3.size()}, input_shape3),
+            op::v1::Constant::create(element::Type_t::u64, {input_shape3.size()}, input_shape3),
             zero_flag);
         const auto reshape3 = std::make_shared<op::v1::Reshape>(
             reshape2,
-            op::v0::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
+            op::v1::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
             zero_flag);
         return std::make_shared<Model>(NodeVector{reshape3}, ParameterVector{in});
     }

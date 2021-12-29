@@ -12,11 +12,11 @@ static std::shared_ptr<op::v3::TopK> build_topk(PartialShape data_shape = Partia
                                                 int64_t axis = 1,
                                                 int k_value = -1) {
     std::shared_ptr<ov::Node> k;
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto data = std::make_shared<op::v1::Parameter>(element::f32, data_shape);
     if (k_value >= 0)
-        k = op::v0::Constant::create(element::i64, ov::Shape{}, {2});
+        k = op::v1::Constant::create(element::i64, ov::Shape{}, {2});
     else
-        k = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
+        k = std::make_shared<op::v1::Parameter>(element::i64, ov::PartialShape{});
     return std::make_shared<op::v3::TopK>(data, k, axis, "max", "value");
 }
 

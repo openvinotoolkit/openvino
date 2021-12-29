@@ -62,11 +62,11 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const CTCLossParams& params) {
-        const auto A = std::make_shared<op::v0::Parameter>(params.logits.type, params.logits.shape);        // logits
-        const auto B = std::make_shared<op::v0::Parameter>(params.logitsLen.type, params.logitsLen.shape);  // logitsLen
-        const auto C = std::make_shared<op::v0::Parameter>(params.labels.type, params.labels.shape);        // labels
-        const auto D = std::make_shared<op::v0::Parameter>(params.labelsLen.type, params.labelsLen.shape);  // labelsLen
-        const auto E = std::make_shared<op::v0::Parameter>(params.blankIdx.type, params.blankIdx.shape);    // blankIdx
+        const auto A = std::make_shared<op::v1::Parameter>(params.logits.type, params.logits.shape);        // logits
+        const auto B = std::make_shared<op::v1::Parameter>(params.logitsLen.type, params.logitsLen.shape);  // logitsLen
+        const auto C = std::make_shared<op::v1::Parameter>(params.labels.type, params.labels.shape);        // labels
+        const auto D = std::make_shared<op::v1::Parameter>(params.labelsLen.type, params.labelsLen.shape);  // labelsLen
+        const auto E = std::make_shared<op::v1::Parameter>(params.blankIdx.type, params.blankIdx.shape);    // blankIdx
 
         const auto ctcLoss = std::make_shared<op::v4::CTCLoss>(A, B, C, D, E, params.preprocessCollapseRepeated, params.ctcMergeRepeated, params.unique);
         return std::make_shared<ov::Model>(NodeVector {ctcLoss}, ParameterVector {A, B, C, D, E});

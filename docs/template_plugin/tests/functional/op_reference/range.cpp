@@ -45,38 +45,38 @@ struct RangeParams {
     float step;
 };
 
-static std::shared_ptr<op::v0::Constant> CreateConstant(Shape& ishape, element::Type ntype, float input) {
+static std::shared_ptr<op::v1::Constant> CreateConstant(Shape& ishape, element::Type ntype, float input) {
     switch (ntype) {
     case element::Type_t::f64:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<double>{input});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<double>{input});
     case element::Type_t::f32:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<float>{input});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<float>{input});
     case element::Type_t::f16:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<float16>{input});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<float16>{input});
     case element::Type_t::bf16:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<bfloat16>{input});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<bfloat16>{input});
     case element::Type_t::i64:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<int64_t>{static_cast<int64_t>(input)});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<int64_t>{static_cast<int64_t>(input)});
     case element::Type_t::i32:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<int32_t>{static_cast<int16_t>(input)});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<int32_t>{static_cast<int16_t>(input)});
     case element::Type_t::i16:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<int16_t>{static_cast<int16_t>(input)});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<int16_t>{static_cast<int16_t>(input)});
     case element::Type_t::i8:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<int8_t>{static_cast<int8_t>(input)});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<int8_t>{static_cast<int8_t>(input)});
     case element::Type_t::u64:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<uint64_t>{static_cast<uint64_t>(input)});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<uint64_t>{static_cast<uint64_t>(input)});
     case element::Type_t::u32:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<uint32_t>{static_cast<uint32_t>(input)});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<uint32_t>{static_cast<uint32_t>(input)});
     case element::Type_t::u16:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<uint16_t>{static_cast<uint16_t>(input)});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<uint16_t>{static_cast<uint16_t>(input)});
     case element::Type_t::u8:
-        return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<uint8_t>{static_cast<uint8_t>(input)});
+        return std::make_shared<op::v1::Constant>(ntype, ishape, std::vector<uint8_t>{static_cast<uint8_t>(input)});
     default:
         return NULL;
     }
 }
 
-class ReferenceRangeV0LayerTest : public testing::TestWithParam<RangeParams>, public CommonReferenceTest {
+class ReferenceRangeV1LayerTest : public testing::TestWithParam<RangeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -114,7 +114,7 @@ private:
         auto start = CreateConstant(ishape, ntype, fstart);
         auto stop = CreateConstant(ishape, ntype, fstop);
         auto step = CreateConstant(ishape, ntype, fstep);
-        auto range = std::make_shared<op::v0::Range>(start, stop, step);
+        auto range = std::make_shared<op::v1::Range>(start, stop, step);
         return std::make_shared<Model>(NodeVector{range}, ParameterVector{});
     }
 };
@@ -162,7 +162,7 @@ private:
     }
 };
 
-TEST_P(ReferenceRangeV0LayerTest, RangeWithHardcodedRefs) {
+TEST_P(ReferenceRangeV1LayerTest, RangeWithHardcodedRefs) {
     Exec();
 }
 
@@ -171,7 +171,7 @@ TEST_P(ReferenceRangeV4LayerTest, RangeWithHardcodedRefs) {
 }
 
 template <element::Type_t IN_ET>
-std::vector<RangeParams> generateParamsForRangeV0Int() {
+std::vector<RangeParams> generateParamsForRangeV1Int() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RangeParams> params{
@@ -199,7 +199,7 @@ std::vector<RangeParams> generateParamsForRangeV0Int() {
 }
 
 template <element::Type_t IN_ET>
-std::vector<RangeParams> generateParamsForRangeV0UnsignedInt() {
+std::vector<RangeParams> generateParamsForRangeV1UnsignedInt() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RangeParams> params{
@@ -218,7 +218,7 @@ std::vector<RangeParams> generateParamsForRangeV0UnsignedInt() {
 }
 
 template <element::Type_t IN_ET>
-std::vector<RangeParams> generateParamsForRangeV0Float() {
+std::vector<RangeParams> generateParamsForRangeV1Float() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RangeParams> params{
@@ -349,19 +349,19 @@ std::vector<RangeParams> generateParamsForRangeV4Float() {
     return params;
 }
 
-std::vector<RangeParams> generateCombinedParamsForRangeV0() {
+std::vector<RangeParams> generateCombinedParamsForRangeV1() {
     const std::vector<std::vector<RangeParams>> allTypeParams{
-        generateParamsForRangeV0Float<element::Type_t::f32>(),
-        generateParamsForRangeV0Float<element::Type_t::f16>(),
-        generateParamsForRangeV0Float<element::Type_t::bf16>(),
-        generateParamsForRangeV0Int<element::Type_t::i64>(),
-        generateParamsForRangeV0Int<element::Type_t::i32>(),
-        generateParamsForRangeV0Int<element::Type_t::i16>(),
-        generateParamsForRangeV0Int<element::Type_t::i8>(),
-        generateParamsForRangeV0UnsignedInt<element::Type_t::u64>(),
-        generateParamsForRangeV0UnsignedInt<element::Type_t::u32>(),
-        generateParamsForRangeV0UnsignedInt<element::Type_t::u16>(),
-        generateParamsForRangeV0UnsignedInt<element::Type_t::u8>(),
+        generateParamsForRangeV1Float<element::Type_t::f32>(),
+        generateParamsForRangeV1Float<element::Type_t::f16>(),
+        generateParamsForRangeV1Float<element::Type_t::bf16>(),
+        generateParamsForRangeV1Int<element::Type_t::i64>(),
+        generateParamsForRangeV1Int<element::Type_t::i32>(),
+        generateParamsForRangeV1Int<element::Type_t::i16>(),
+        generateParamsForRangeV1Int<element::Type_t::i8>(),
+        generateParamsForRangeV1UnsignedInt<element::Type_t::u64>(),
+        generateParamsForRangeV1UnsignedInt<element::Type_t::u32>(),
+        generateParamsForRangeV1UnsignedInt<element::Type_t::u16>(),
+        generateParamsForRangeV1UnsignedInt<element::Type_t::u8>(),
     };
 
     std::vector<RangeParams> combinedParams;
@@ -396,10 +396,10 @@ std::vector<RangeParams> generateCombinedParamsForRangeV4() {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Range_V0_With_Hardcoded_Refs,
-    ReferenceRangeV0LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForRangeV0()),
-    ReferenceRangeV0LayerTest::getTestCaseName);
+    smoke_Range_V1_With_Hardcoded_Refs,
+    ReferenceRangeV1LayerTest,
+    ::testing::ValuesIn(generateCombinedParamsForRangeV1()),
+    ReferenceRangeV1LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Range_V4_With_Hardcoded_Refs,

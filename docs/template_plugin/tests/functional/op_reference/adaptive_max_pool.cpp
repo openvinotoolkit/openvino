@@ -71,8 +71,8 @@ private:
                                                     const element::Type& input_type,
                                                     const Shape& adaptive_shape,
                                                     const std::vector<int64_t> adaptive_values) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto out = op::v0::Constant::create<int64_t>(element::Type_t::i64, adaptive_shape, adaptive_values);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        const auto out = op::v1::Constant::create<int64_t>(element::Type_t::i64, adaptive_shape, adaptive_values);
         const auto adaptive_max_pool = std::make_shared<op::v8::AdaptiveMaxPool>(in, out);
         return std::make_shared<Model>(adaptive_max_pool->outputs(), ParameterVector{in});
     }

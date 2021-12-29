@@ -72,11 +72,11 @@ private:
     static std::shared_ptr<Model> CreateFunction(const GRUCellParams& params) {
         float clip = 2.88f;
 
-        const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
-        const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
-        const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
-        const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
-        const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
+        const auto X = std::make_shared<op::v1::Parameter>(params.X.type, params.X.shape);
+        const auto H_t = std::make_shared<op::v1::Parameter>(params.H_t.type, params.H_t.shape);
+        const auto W = std::make_shared<op::v1::Parameter>(params.W.type, params.W.shape);
+        const auto R = std::make_shared<op::v1::Parameter>(params.R.type, params.R.shape);
+        const auto B = std::make_shared<op::v1::Parameter>(params.B.type, params.B.shape);
 
         const auto gru_cell = std::make_shared<op::v3::GRUCell>(X,
                                                                 H_t,
@@ -110,11 +110,11 @@ private:
     static std::shared_ptr<Model> CreateFunction(const GRUCellParams& params) {
         float clip = 2.88f;
 
-        const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
-        const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
-        const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
-        const auto R = std::make_shared<op::v0::Parameter>(params.R.type, params.R.shape);
-        const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
+        const auto X = std::make_shared<op::v1::Parameter>(params.X.type, params.X.shape);
+        const auto H_t = std::make_shared<op::v1::Parameter>(params.H_t.type, params.H_t.shape);
+        const auto W = std::make_shared<op::v1::Parameter>(params.W.type, params.W.shape);
+        const auto R = std::make_shared<op::v1::Parameter>(params.R.type, params.R.shape);
+        const auto B = std::make_shared<op::v1::Parameter>(params.B.type, params.B.shape);
 
         const auto gru_cell = std::make_shared<op::v3::GRUCell>(X,
                                                                 H_t,

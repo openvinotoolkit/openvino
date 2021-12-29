@@ -5,6 +5,11 @@
 #pragma once
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace builder {
@@ -31,16 +36,16 @@ inline std::vector<preprocess_func> generic_preprocess_functions();
 
 inline std::shared_ptr<Model> create_preprocess_1input(element::Type type,
                                                           const PartialShape& shape) {
-    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+    auto data1 = std::make_shared<op::v1::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->output(0).get_tensor().set_names({"input1"});
-    std::shared_ptr<op::v0::Result> res;
-    auto op1 = std::make_shared<op::v0::Abs>(data1);
+    std::shared_ptr<op::v1::Result> res;
+    auto op1 = std::make_shared<op::v1::Abs>(data1);
     if (type == element::f32) {
-        res = std::make_shared<op::v0::Result>(op1);
+        res = std::make_shared<op::v1::Result>(op1);
     } else {
-        auto convert = std::make_shared<op::v0::Convert>(data1, element::f32);
-        res = std::make_shared<op::v0::Result>(op1);
+        auto convert = std::make_shared<op::v1::Convert>(data1, element::f32);
+        res = std::make_shared<op::v1::Result>(op1);
     }
     res->set_friendly_name("Result1");
     res->output(0).get_tensor().set_names({"Result1"});
@@ -49,23 +54,23 @@ inline std::shared_ptr<Model> create_preprocess_1input(element::Type type,
 
 inline std::shared_ptr<Model> create_preprocess_2inputs(element::Type type,
                                                            const PartialShape& shape) {
-    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+    auto data1 = std::make_shared<op::v1::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->output(0).get_tensor().set_names({"input1"});
-    auto data2 = std::make_shared<op::v0::Parameter>(type, shape);
+    auto data2 = std::make_shared<op::v1::Parameter>(type, shape);
     data2->set_friendly_name("input2");
     data2->output(0).get_tensor().set_names({"input2"});
-    std::shared_ptr<op::v0::Result> res1, res2;
-    auto op1 = std::make_shared<op::v0::Abs>(data1);
-    auto op2 = std::make_shared<op::v0::Abs>(data2);
+    std::shared_ptr<op::v1::Result> res1, res2;
+    auto op1 = std::make_shared<op::v1::Abs>(data1);
+    auto op2 = std::make_shared<op::v1::Abs>(data2);
     if (type == element::f32) {
-        res1 = std::make_shared<op::v0::Result>(op1);
-        res2 = std::make_shared<op::v0::Result>(op2);
+        res1 = std::make_shared<op::v1::Result>(op1);
+        res2 = std::make_shared<op::v1::Result>(op2);
     } else {
-        auto convert1 = std::make_shared<op::v0::Convert>(op1, element::f32);
-        res1 = std::make_shared<op::v0::Result>(convert1);
-        auto convert2 = std::make_shared<op::v0::Convert>(op2, element::f32);
-        res2 = std::make_shared<op::v0::Result>(convert2);
+        auto convert1 = std::make_shared<op::v1::Convert>(op1, element::f32);
+        res1 = std::make_shared<op::v1::Result>(convert1);
+        auto convert2 = std::make_shared<op::v1::Convert>(op2, element::f32);
+        res2 = std::make_shared<op::v1::Result>(convert2);
     }
     res1->set_friendly_name("Result1");
     res1->output(0).get_tensor().set_names({"Result1"});
@@ -75,8 +80,8 @@ inline std::shared_ptr<Model> create_preprocess_2inputs(element::Type type,
 }
 
 inline std::shared_ptr<Model> create_preprocess_2inputs_trivial() {
-    auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 1, 1});
-    auto data2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 1, 1});
+    auto data1 = std::make_shared<op::v1::Parameter>(element::f32, Shape{1, 3, 1, 1});
+    auto data2 = std::make_shared<op::v1::Parameter>(element::f32, Shape{1, 3, 1, 1});
 
     data1->set_friendly_name("input1");
     data1->output(0).get_tensor().set_names({"input1"});
@@ -84,8 +89,8 @@ inline std::shared_ptr<Model> create_preprocess_2inputs_trivial() {
     data2->set_friendly_name("input2");
     data2->output(0).get_tensor().set_names({"input2"});
 
-    auto res1 = std::make_shared<op::v0::Result>(data1);
-    auto res2 = std::make_shared<op::v0::Result>(data2);
+    auto res1 = std::make_shared<op::v1::Result>(data1);
+    auto res2 = std::make_shared<op::v1::Result>(data2);
 
     return std::make_shared<Model>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
@@ -170,7 +175,7 @@ inline std::shared_ptr<Model> custom_preprocessing() {
     auto function = create_preprocess_1input(element::i32, Shape{3, 4, 10, 20});
     auto p = PrePostProcessor(function);
     p.input().preprocess().custom([](const Output<Node>& node) {
-        auto abs = std::make_shared<op::v0::Abs>(node);
+        auto abs = std::make_shared<op::v1::Abs>(node);
         abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
         return abs;
     });
@@ -190,7 +195,7 @@ inline std::shared_ptr<Model> multiple_ops() {
             .mean({1.1f, 2.2f, 3.3f})
             .scale({2.f, 3.f, 4.f})
             .custom([](const Output<Node>& node) {
-                auto abs = std::make_shared<op::v0::Abs>(node);
+                auto abs = std::make_shared<op::v1::Abs>(node);
                 abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
                 return abs;
             });

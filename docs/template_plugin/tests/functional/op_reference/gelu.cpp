@@ -31,7 +31,7 @@ struct GeluParams {
     ov::runtime::Tensor refData;
 };
 
-class ReferenceGeluV0LayerTest : public testing::TestWithParam<GeluParams>, public CommonReferenceTest {
+class ReferenceGeluV1LayerTest : public testing::TestWithParam<GeluParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -51,8 +51,8 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type, const op::GeluApproximationMode mode) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto Gelu = std::make_shared<op::v0::Gelu>(in);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        const auto Gelu = std::make_shared<op::v2::Gelu>(in);
         return std::make_shared<ov::Model>(NodeVector {Gelu}, ParameterVector {in});
     }
 };
@@ -78,13 +78,13 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type, const op::GeluApproximationMode mode) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
         const auto Gelu = std::make_shared<op::v7::Gelu>(in, mode);
         return std::make_shared<ov::Model>(NodeVector {Gelu}, ParameterVector {in});
     }
 };
 
-TEST_P(ReferenceGeluV0LayerTest, CompareWithRefs) {
+TEST_P(ReferenceGeluV1LayerTest, CompareWithRefs) {
     Exec();
 }
 TEST_P(ReferenceGeluV7LayerTest, CompareWithRefs) {
@@ -92,7 +92,7 @@ TEST_P(ReferenceGeluV7LayerTest, CompareWithRefs) {
 }
 
 template <element::Type_t IN_ET>
-std::vector<GeluParams> generateGeluV0FloatParams() {
+std::vector<GeluParams> generateGeluV1FloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<GeluParams> geluParams {
@@ -139,10 +139,10 @@ std::vector<GeluParams> generateGeluV7FloatParams() {
     return geluParams;
 }
 
-std::vector<GeluParams> generateGeluV0CombinedParams() {
+std::vector<GeluParams> generateGeluV1CombinedParams() {
     const std::vector<std::vector<GeluParams>> geluTypeParams {
-        generateGeluV0FloatParams<element::Type_t::f32>(),
-        generateGeluV0FloatParams<element::Type_t::f16>()
+        generateGeluV1FloatParams<element::Type_t::f32>(),
+        generateGeluV1FloatParams<element::Type_t::f16>()
         };
     std::vector<GeluParams> combinedParams;
 
@@ -165,8 +165,8 @@ std::vector<GeluParams> generateGeluV7CombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Gelu_v2_With_Hardcoded_Refs, ReferenceGeluV0LayerTest,
-    testing::ValuesIn(generateGeluV0CombinedParams()), ReferenceGeluV0LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Gelu_v2_With_Hardcoded_Refs, ReferenceGeluV1LayerTest,
+    testing::ValuesIn(generateGeluV1CombinedParams()), ReferenceGeluV1LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Gelu_v7_With_Hardcoded_Refs, ReferenceGeluV7LayerTest,
     testing::ValuesIn(generateGeluV7CombinedParams()), ReferenceGeluV7LayerTest::getTestCaseName);

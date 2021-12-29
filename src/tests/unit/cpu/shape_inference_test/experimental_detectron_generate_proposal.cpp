@@ -20,10 +20,10 @@ TEST(StaticShapeInferenceTest, ExperimentalProposalsTest) {
     attrs.pre_nms_count = 1000;
     size_t post_nms_count = 1000;
 
-    auto im_info = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
-    auto anchors = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto im_info = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1});
+    auto anchors = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    auto deltas = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto scores = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
 
     auto proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
 

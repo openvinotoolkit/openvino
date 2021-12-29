@@ -16,7 +16,7 @@ using namespace ov;
 
 TEST(StaticShapeInferenceTest, UnaryEltwiseTest) {
     auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto node = std::make_shared<op::v0::Relu>(data);
+    auto node = std::make_shared<op::v1::Relu>(data);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 5, 5}},
         static_output_shapes = {StaticShape{}};
@@ -45,7 +45,7 @@ TEST(StaticShapeInferenceTest, FakeQuantizeTest) {
     auto ol = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
     auto oh = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
 
-    auto node = std::make_shared<op::v0::FakeQuantize>(data, il, ih, ol, oh, 256);
+    auto node = std::make_shared<op::v1::FakeQuantize>(data, il, ih, ol, oh, 256);
 
     std::vector<StaticShape> static_input_shapes = {
                 StaticShape{3, 6, 3, 5},

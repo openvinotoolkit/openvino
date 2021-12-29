@@ -60,8 +60,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ReorgYoloParams& params) {
-        const auto p = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
-        const auto ReorgYolo = std::make_shared<op::v0::ReorgYolo>(p, params.stride);
+        const auto p = std::make_shared<op::v1::Parameter>(params.inType, params.inputShape);
+        const auto ReorgYolo = std::make_shared<op::v2::ReorgYolo>(p, params.stride);
         return std::make_shared<ov::Model>(NodeVector {ReorgYolo}, ParameterVector {p});
     }
 };

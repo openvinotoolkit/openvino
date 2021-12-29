@@ -12,9 +12,9 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, ROIAlignTest) {
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    const auto rois = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    const auto batch_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+    const auto data = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    const auto rois = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto batch_indices = std::make_shared<op::v1::Parameter>(element::i32, PartialShape{-1});
     const auto op = std::make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 2, 2, 1, 1.0f, "avg");
     const std::vector<ov::StaticShape> input_shapes = {ov::StaticShape{2, 3, 5, 5},
                                                        ov::StaticShape{7, 4},

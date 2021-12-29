@@ -91,7 +91,7 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const BinaryConvolutionParams& params, const std::vector<uint8_t>& filterData) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
-        const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
+        const auto in = std::make_shared<op::v1::Parameter>(params.inType, params.inputShape);
         auto filter = std::make_shared<opset8::Constant>(ov::element::u1, params.filterShape, &filterData[0]);
         const auto BinaryConvolution = std::make_shared<op::v1::BinaryConvolution>(in,
                                                                        filter,

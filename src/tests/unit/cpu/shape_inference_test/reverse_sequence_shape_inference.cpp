@@ -12,9 +12,9 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, ReverseSequenceTest) {
-    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto seq_lengths = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{4});
-    auto reverse_seq = std::make_shared<op::v0::ReverseSequence>(data, seq_lengths);
+    auto data = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto seq_lengths = std::make_shared<op::v1::Parameter>(element::i32, PartialShape{4});
+    auto reverse_seq = std::make_shared<op::v1::ReverseSequence>(data, seq_lengths);
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{4, 3, 2}, StaticShape{4}},
                              static_output_shapes = {StaticShape{}};

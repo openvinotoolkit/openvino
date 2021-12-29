@@ -59,7 +59,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
         const auto Mish = std::make_shared<op::v4::Mish>(in);
         return std::make_shared<ov::Model>(NodeVector {Mish}, ParameterVector {in});
     }

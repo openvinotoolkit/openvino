@@ -11,17 +11,17 @@
 
 using namespace ov;
 
-TEST(StaticShapeInferenceTest, ProposalV0Test) {
-    op::v0::Proposal::Attributes attrs;
+TEST(StaticShapeInferenceTest, ProposalV1Test) {
+    op::v1::Proposal::Attributes attrs;
     attrs.base_size = 1;
     attrs.pre_nms_topn = 20;
     attrs.post_nms_topn = 200;
     const size_t batch_size = 7;
 
-    auto class_probs = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto class_bbox_deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto image_shape = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
-    auto op = std::make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    auto class_probs = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto class_bbox_deltas = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto image_shape = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1});
+    auto op = std::make_shared<op::v1::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
     const std::vector<ov::StaticShape> input_shapes = {ov::StaticShape{batch_size, 12, 34, 62},
                                                        ov::StaticShape{batch_size, 24, 34, 62},
                                                        ov::StaticShape{3}};
@@ -32,15 +32,15 @@ TEST(StaticShapeInferenceTest, ProposalV0Test) {
 }
 
 TEST(StaticShapeInferenceTest, ProposalV4Test) {
-    op::v0::Proposal::Attributes attrs;
+    op::v1::Proposal::Attributes attrs;
     attrs.base_size = 1;
     attrs.pre_nms_topn = 20;
     attrs.post_nms_topn = 200;
     const size_t batch_size = 7;
 
-    auto class_probs = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto class_bbox_deltas = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto image_shape = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
+    auto class_probs = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto class_bbox_deltas = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto image_shape = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1});
     auto op = std::make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
     const std::vector<ov::StaticShape> input_shapes = {ov::StaticShape{batch_size, 12, 34, 62},
                                                        ov::StaticShape{batch_size, 24, 34, 62},

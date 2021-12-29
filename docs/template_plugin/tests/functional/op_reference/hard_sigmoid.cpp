@@ -59,10 +59,10 @@ private:
         std::vector<float> betaArray;
         alphaArray.push_back(alphaData);
         betaArray.push_back(betaData);
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
         const auto alpha = ngraph::op::Constant::create(input_type, Shape{}, {alphaData});
         const auto beta = ngraph::op::Constant::create(input_type, Shape{}, {betaData});
-        const auto HardSigmoid = std::make_shared<op::v0::HardSigmoid>(in, alpha, beta);
+        const auto HardSigmoid = std::make_shared<op::v1::HardSigmoid>(in, alpha, beta);
         return std::make_shared<ov::Model>(NodeVector {HardSigmoid}, ParameterVector {in});
     }
 };

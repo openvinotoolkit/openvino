@@ -15,13 +15,13 @@ std::shared_ptr<T> constructGraph();
 
 template <>
 std::shared_ptr<op::v3::ReadValue> constructGraph() {
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto input = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     return std::make_shared<op::v3::ReadValue>(input, "variable_id");
 }
 
 template <>
 std::shared_ptr<op::v6::ReadValue> constructGraph() {
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto input = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto variable = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "ID"});
     return std::make_shared<op::v6::ReadValue>(input, variable);

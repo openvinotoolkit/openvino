@@ -97,8 +97,8 @@ private:
     static std::shared_ptr<Model> CreateFunction(const ConvolutionParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
-        const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
-        const auto filter = std::make_shared<op::v0::Parameter>(params.inType, params.filterShape);
+        const auto in = std::make_shared<op::v1::Parameter>(params.inType, params.inputShape);
+        const auto filter = std::make_shared<op::v1::Parameter>(params.inType, params.filterShape);
         const auto Convolution = std::make_shared<op::v1::Convolution>(in,
                                                                        filter,
                                                                        params.strides,

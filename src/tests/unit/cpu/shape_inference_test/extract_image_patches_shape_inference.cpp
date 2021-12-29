@@ -13,7 +13,7 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, ExtractImagePatchesTest) {
-    auto data = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
+    auto data = std::make_shared<op::v1::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};

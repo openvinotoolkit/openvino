@@ -105,8 +105,8 @@ private:
         attrs.output_type = params.output_type;
         attrs.sort_result_across_batch = params.sort_result_across_batch;
         attrs.normalized = params.normalized;
-        const auto boxes = std::make_shared<op::v0::Parameter>(params.boxes.type, PartialShape::dynamic());
-        const auto scores = std::make_shared<op::v0::Parameter>(params.scores.type, PartialShape::dynamic());
+        const auto boxes = std::make_shared<op::v1::Parameter>(params.boxes.type, PartialShape::dynamic());
+        const auto scores = std::make_shared<op::v1::Parameter>(params.scores.type, PartialShape::dynamic());
         const auto nms = std::make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
         const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;

@@ -55,9 +55,9 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const GatherNDParams& params) {
         std::shared_ptr<Model> function;
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type,
+        const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type,
                                                               PartialShape{params.dataTensor.shape});
-        const auto indices = std::make_shared<op::v0::Parameter>(params.indicesTensor.type,
+        const auto indices = std::make_shared<op::v1::Parameter>(params.indicesTensor.type,
                                                                  PartialShape{params.indicesTensor.shape});
         std::shared_ptr<op::v5::GatherND> gatherND;
         if (params.batchDims == 0) {
@@ -237,9 +237,9 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const GatherNDParams& params) {
         std::shared_ptr<Model> function;
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type,
+        const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type,
                                                               PartialShape{params.dataTensor.shape});
-        const auto indices = std::make_shared<op::v0::Parameter>(params.indicesTensor.type,
+        const auto indices = std::make_shared<op::v1::Parameter>(params.indicesTensor.type,
                                                                  PartialShape{params.indicesTensor.shape});
         std::shared_ptr<op::v8::GatherND> gatherND;
         if (params.batchDims == 0) {

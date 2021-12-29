@@ -88,8 +88,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const element::Type& input_type, const Shape& input_shape) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto shapeof = std::make_shared<op::v0::ShapeOf>(in);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        const auto shapeof = std::make_shared<op::v1::ShapeOf>(in);
         return std::make_shared<Model>(NodeVector{shapeof}, ParameterVector{in});
     }
 };
@@ -118,7 +118,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const element::Type& input_type, const Shape& input_shape) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
         const auto shapeof1 = std::make_shared<op::v3::ShapeOf>(in);
         const auto shapeof2 = std::make_shared<op::v3::ShapeOf>(in, element::Type_t::i32);
         return std::make_shared<Model>(OutputVector{shapeof1, shapeof2}, ParameterVector{in});

@@ -80,10 +80,10 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ExperimentalDOParams& params) {
-        const auto rois = std::make_shared<op::v0::Parameter>(params.inType, params.roisShape);
-        const auto deltas = std::make_shared<op::v0::Parameter>(params.inType, params.deltasShape);
-        const auto scores = std::make_shared<op::v0::Parameter>(params.inType, params.scoresShape);
-        const auto im_info = std::make_shared<op::v0::Parameter>(params.inType, params.imageSizeInfoShape);
+        const auto rois = std::make_shared<op::v1::Parameter>(params.inType, params.roisShape);
+        const auto deltas = std::make_shared<op::v1::Parameter>(params.inType, params.deltasShape);
+        const auto scores = std::make_shared<op::v1::Parameter>(params.inType, params.scoresShape);
+        const auto im_info = std::make_shared<op::v1::Parameter>(params.inType, params.imageSizeInfoShape);
         const auto ExperimentalDO = std::make_shared<op::v6::ExperimentalDetectronDetectionOutput>(rois,
                                                                     deltas,
                                                                     scores,

@@ -14,10 +14,10 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, GatherTreeTest) {
-    auto step_ids = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto parent_idx = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto max_seq_len = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
-    auto end_token = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{Shape{}});
+    auto step_ids = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto parent_idx = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto max_seq_len = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{-1});
+    auto end_token = std::make_shared<op::v1::Parameter>(element::f32, PartialShape{Shape{}});
     auto gather_tree = std::make_shared<op::v1::GatherTree>(step_ids, parent_idx, max_seq_len, end_token);
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 2, 3},

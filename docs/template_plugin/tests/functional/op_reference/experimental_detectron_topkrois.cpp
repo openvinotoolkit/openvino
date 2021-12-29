@@ -55,8 +55,8 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const ExperimentalDetectronTopKROIsParams& params) {
         std::shared_ptr<Model> function;
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto probs = std::make_shared<op::v0::Parameter>(params.probsTensor.type, params.probsTensor.shape);
+        const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto probs = std::make_shared<op::v1::Parameter>(params.probsTensor.type, params.probsTensor.shape);
         const auto topkRois = std::make_shared<op::v6::ExperimentalDetectronTopKROIs>(data, probs, params.numRois);
         function = std::make_shared<ov::Model>(topkRois, ParameterVector{data, probs});
         return function;

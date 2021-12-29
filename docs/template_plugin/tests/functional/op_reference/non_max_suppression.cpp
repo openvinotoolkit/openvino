@@ -72,15 +72,15 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const NonMaxSuppressionParams& params) {
-        const auto boxes = std::make_shared<op::v0::Parameter>(params.boxes.type, params.boxes.shape);
-        const auto scores = std::make_shared<op::v0::Parameter>(params.scores.type, params.scores.shape);
-        const auto max_output_boxes_per_class = std::make_shared<op::v0::Constant>(
+        const auto boxes = std::make_shared<op::v1::Parameter>(params.boxes.type, params.boxes.shape);
+        const auto scores = std::make_shared<op::v1::Parameter>(params.scores.type, params.scores.shape);
+        const auto max_output_boxes_per_class = std::make_shared<op::v1::Constant>(
             params.maxOutputBoxesPerClass.type, params.maxOutputBoxesPerClass.shape, params.maxOutputBoxesPerClass.data.data());
-        const auto iou_threshold = std::make_shared<op::v0::Constant>(
+        const auto iou_threshold = std::make_shared<op::v1::Constant>(
             params.iouThreshold.type, params.iouThreshold.shape, params.iouThreshold.data.data());
-        const auto score_threshold = std::make_shared<op::v0::Constant>(
+        const auto score_threshold = std::make_shared<op::v1::Constant>(
             params.scoreThreshold.type, params.scoreThreshold.shape, params.scoreThreshold.data.data());
-        const auto soft_nms_sigma = std::make_shared<op::v0::Constant>(
+        const auto soft_nms_sigma = std::make_shared<op::v1::Constant>(
             params.softNmsSigma.type, params.softNmsSigma.shape, params.softNmsSigma.data.data());
         const auto nms = std::make_shared<op::v5::NonMaxSuppression>(boxes,
                                                                      scores,
@@ -130,15 +130,15 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const NonMaxSuppressionParams& params) {
-        const auto boxes = std::make_shared<op::v0::Parameter>(params.boxes.type, params.boxes.shape);
-        const auto scores = std::make_shared<op::v0::Parameter>(params.scores.type, params.scores.shape);
-        const auto max_output_boxes_per_class = std::make_shared<op::v0::Parameter>(
+        const auto boxes = std::make_shared<op::v1::Parameter>(params.boxes.type, params.boxes.shape);
+        const auto scores = std::make_shared<op::v1::Parameter>(params.scores.type, params.scores.shape);
+        const auto max_output_boxes_per_class = std::make_shared<op::v1::Parameter>(
             params.maxOutputBoxesPerClass.type, params.maxOutputBoxesPerClass.shape);
-        const auto iou_threshold = std::make_shared<op::v0::Parameter>(
+        const auto iou_threshold = std::make_shared<op::v1::Parameter>(
             params.iouThreshold.type, params.iouThreshold.shape);
-        const auto score_threshold = std::make_shared<op::v0::Parameter>(
+        const auto score_threshold = std::make_shared<op::v1::Parameter>(
             params.scoreThreshold.type, params.scoreThreshold.shape);
-        const auto soft_nms_sigma = std::make_shared<op::v0::Parameter>(
+        const auto soft_nms_sigma = std::make_shared<op::v1::Parameter>(
             params.softNmsSigma.type, params.softNmsSigma.shape);
         const auto nms = std::make_shared<op::v5::NonMaxSuppression>(boxes,
                                                                      scores,

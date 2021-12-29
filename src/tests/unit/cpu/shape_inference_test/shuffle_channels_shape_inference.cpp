@@ -13,10 +13,10 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, ShuffleChannelsTest) {
-    const auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    const auto data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
     const auto axis = -1;
     const auto group = 3;
-    const auto shuffle_channels = std::make_shared<ov::op::v0::ShuffleChannels>(data, axis, group);
+    const auto shuffle_channels = std::make_shared<ov::op::v1::ShuffleChannels>(data, axis, group);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{5, 4, 9}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};

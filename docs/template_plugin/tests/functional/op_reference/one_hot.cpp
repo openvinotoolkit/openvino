@@ -64,12 +64,12 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const OneHotParams& params) {
         std::shared_ptr<Model> function;
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto depth = std::make_shared<op::v0::Constant>(params.depthTensor.type, params.depthTensor.shape,
+        const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto depth = std::make_shared<op::v1::Constant>(params.depthTensor.type, params.depthTensor.shape,
                                                               params.depthTensor.data.data());
-        const auto onValue = std::make_shared<op::v0::Constant>(params.onValueTensor.type, params.onValueTensor.shape,
+        const auto onValue = std::make_shared<op::v1::Constant>(params.onValueTensor.type, params.onValueTensor.shape,
                                                               params.onValueTensor.data.data());
-        const auto offValue = std::make_shared<op::v0::Constant>(params.offValueTensor.type, params.offValueTensor.shape,
+        const auto offValue = std::make_shared<op::v1::Constant>(params.offValueTensor.type, params.offValueTensor.shape,
                                                               params.offValueTensor.data.data());
         const auto oneHot = std::make_shared<op::v1::OneHot>(data, depth, onValue, offValue, params.axis);
         function = std::make_shared<ov::Model>(oneHot, ParameterVector{data});

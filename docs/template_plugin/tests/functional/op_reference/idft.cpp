@@ -21,8 +21,8 @@ struct IDFTParams {
               const element::Type_t& expected_type,
               const std::vector<T>& input_value,
               const std::vector<T>& expected_value,
-              const std::shared_ptr<op::v0::Constant>& axes,
-              const std::shared_ptr<op::v0::Constant>& signal) {
+              const std::shared_ptr<op::v1::Constant>& axes,
+              const std::shared_ptr<op::v1::Constant>& signal) {
         m_input_shape = input_shape;
         m_expected_shape = expected_shape;
         m_input_type = input_type;
@@ -39,8 +39,8 @@ struct IDFTParams {
     element::Type_t m_expected_type;
     runtime::Tensor m_input_value;
     runtime::Tensor m_expected_value;
-    std::shared_ptr<op::v0::Constant> m_axes;
-    std::shared_ptr<op::v0::Constant> m_signal;
+    std::shared_ptr<op::v1::Constant> m_axes;
+    std::shared_ptr<op::v1::Constant> m_signal;
 };
 
 class ReferenceIDFTLayerTest : public testing::TestWithParam<IDFTParams>, public CommonReferenceTest {
@@ -72,14 +72,14 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(IDFTParams& p) {
-        auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
+        auto in = std::make_shared<op::v1::Parameter>(p.m_input_type, p.m_input_shape);
         auto idft = std::make_shared<op::v7::IDFT>(in, p.m_axes);
 
         return std::make_shared<ov::Model>(idft, ParameterVector{in});
     }
 
     static std::shared_ptr<Model> CreateFunctionWithSignal(IDFTParams& p) {
-        auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
+        auto in = std::make_shared<op::v1::Parameter>(p.m_input_type, p.m_input_shape);
         auto idft = std::make_shared<op::v7::IDFT>(in, p.m_axes, p.m_signal);
 
         return std::make_shared<ov::Model>(idft, ParameterVector{in});
@@ -1161,7 +1161,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                   ET,
                   idft1d_input_data_1,
                   data_1,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
                   NULL),
         // idft1d_eval
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1170,7 +1170,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    idft1d_input_data,
                    expected_result,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
                    NULL),
         // idft1d_eval_i32
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1179,7 +1179,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    idft1d_input_data,
                    expected_result,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{1}, {2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i32, Shape{1}, {2}),
                    NULL),
         // idft2d_eval_1
         IDFTParams(Shape{4, 6, 8, 2},
@@ -1188,7 +1188,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    idft2d_input_data_1,
                    data_1,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
                    NULL),
         // idft2d_eval
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1197,7 +1197,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    idft2d_input_data,
                    expected_result,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
                    NULL),
         // idft2d_eval_i32
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1206,7 +1206,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    idft2d_input_data,
                    expected_result,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{2}, {1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i32, Shape{2}, {1, 2}),
                    NULL),
         // idft3d_eval_1
         IDFTParams(Shape{4, 6, 8, 2},
@@ -1215,7 +1215,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    idft3d_input_data_1,
                    data_1,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
                    NULL),
         // idft3d_eval
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1224,7 +1224,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    idft3d_input_data,
                    expected_result,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
                    NULL),
         // idft3d_eval_i32
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1233,7 +1233,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    idft3d_input_data,
                    expected_result,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{3}, {0, 1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i32, Shape{3}, {0, 1, 2}),
                    NULL),
         // idft2d_signal_size_eval_1
         IDFTParams(Shape{4, 6, 8, 2},
@@ -1242,8 +1242,8 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    data_1,
                    expected_idft2d_signal_size_results_1,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 9})),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 9})),
         // idft2d_signal_size_eval_2
         IDFTParams(Shape{4, 6, 8, 2},
                    Shape{4, 6, 8, 2},
@@ -1251,8 +1251,8 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    data_1,
                    expected_idft2d_signal_size_results_2,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 1}),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 1}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
         // idft2d_signal_size_eval_3
         IDFTParams(Shape{4, 6, 8, 2},
                    Shape{4, 6, 8, 2},
@@ -1260,8 +1260,8 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    data_1,
                    expected_idft2d_signal_size_results_3,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {3, 4})),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {3, 4})),
         // idft2d_signal_size_eval_4
         IDFTParams(Shape{4, 6, 8, 2},
                    Shape{4, 6, 8, 2},
@@ -1269,8 +1269,8 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    data_1,
                    expected_idft2d_signal_size_results_4,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
         // idft2d_signal_size_eval_5
         IDFTParams(Shape{4, 6, 8, 2},
                    Shape{4, 6, 8, 2},
@@ -1278,8 +1278,8 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    data_1,
                    expected_idft2d_signal_size_results_5,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
         // idft3d_signal_size_eval
         IDFTParams(Shape{4, 6, 8, 2},
                    Shape{4, 6, 8, 2},
@@ -1287,8 +1287,8 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    data_1,
                    expected_idft3d_signal_size_results,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 7, 5})),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 7, 5})),
         // idft1d_signal_size_eval
         IDFTParams(Shape{4, 6, 8, 2},
                    Shape{4, 6, 8, 2},
@@ -1296,8 +1296,8 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    ET,
                    data_1,
                    expected_idft1d_signal_size_results,
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {-2}),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {7})),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {-2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {7})),
     };
 
     return params;
@@ -1315,7 +1315,7 @@ std::vector<IDFTParams> generateParamsForIDFT_float16() {
                    ET,
                    convert<T>(idft1d_input_data),
                    convert<T>(expected_float16_idft1d_result),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
                    NULL),
         // idft2d_eval_float16
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1324,7 +1324,7 @@ std::vector<IDFTParams> generateParamsForIDFT_float16() {
                    ET,
                    convert<T>(idft2d_input_data),
                    convert<T>(expected_float16_idft2d_result),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
                    NULL),
         // idft3d_eval_float16
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1333,7 +1333,7 @@ std::vector<IDFTParams> generateParamsForIDFT_float16() {
                    ET,
                    convert<T>(idft3d_input_data),
                    convert<T>(expected_float16_idft3d_result),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
                    NULL),
     };
 
@@ -1352,7 +1352,7 @@ std::vector<IDFTParams> generateParamsForIDFT_bfloat16() {
                    ET,
                    convert<T>(idft1d_input_data),
                    convert<T>(expected_bfloat_idft1d_result),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
                    NULL),
         // idft2d_eval_bfloat16
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1361,7 +1361,7 @@ std::vector<IDFTParams> generateParamsForIDFT_bfloat16() {
                    ET,
                    convert<T>(idft2d_input_data),
                    convert<T>(expected_bfloat_idft2d_result),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
                    NULL),
         // idft3d_eval_bfloat16
         IDFTParams(Shape{2, 10, 10, 2},
@@ -1370,7 +1370,7 @@ std::vector<IDFTParams> generateParamsForIDFT_bfloat16() {
                    ET,
                    convert<T>(idft3d_input_data),
                    convert<T>(expected_bfloat_idft3d_result),
-                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                   op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
                    NULL),
     };
 

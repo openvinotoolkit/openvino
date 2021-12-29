@@ -80,7 +80,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const MaxPoolParams& params) {
-        const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(params.m_input_type, params.m_input_shape);
         const auto max_pool = std::make_shared<op::v8::MaxPool>(in,
                                                                 params.m_strides,
                                                                 params.m_dilations,

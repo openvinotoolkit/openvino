@@ -30,9 +30,9 @@ static std::shared_ptr<op::v4::Interpolate> build_InterpolateV4() {
     attrs.cube_coeff = -0.75;
 
     auto input_data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto sizes = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
-    auto scales = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto sizes = std::make_shared<op::v1::Parameter>(element::i32, PartialShape::dynamic());
+    auto scales = std::make_shared<op::v1::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = std::make_shared<op::v1::Parameter>(element::i32, PartialShape::dynamic());
 
     auto interpolate = std::make_shared<op::v4::Interpolate>(input_data, sizes, scales, axes, attrs);
     return interpolate;
@@ -58,7 +58,7 @@ static std::shared_ptr<op::v4::Interpolate> build_InterpolateV4ConstantInput() {
     return interpolate;
 }
 
-static std::shared_ptr<op::v0::Interpolate> build_InterpolateV0() {
+static std::shared_ptr<op::v1::Interpolate> build_InterpolateV1() {
     ov::op::v1::Interpolate::Attributes attrs;
     attrs.axes = {2, 3};
     attrs.mode = "nearest";
@@ -68,10 +68,10 @@ static std::shared_ptr<op::v0::Interpolate> build_InterpolateV0() {
     attrs.pads_end = {0, 0, 0, 0};
 
     auto input_data = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto sizes = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto sizes = std::make_shared<op::v1::Parameter>(element::i32, PartialShape::dynamic());
 
-    auto interpolate_v0 = std::make_shared<op::v0::Interpolate>(input_data, sizes, attrs);
-    return interpolate_v0;
+    auto interpolate_v1 = std::make_shared<op::v1::Interpolate>(input_data, sizes, attrs);
+    return interpolate_v1;
 }
 
 TEST(StaticShapeInferenceTest, InterpolateV4Test) {
@@ -127,8 +127,8 @@ TEST(StaticShapeInferenceTest, InterpolateV4MissingConstantTest) {
                  NodeValidationFailure);
 }
 
-TEST(StaticShapeInferenceTest, InterpolateV0Test) {
-    auto interpolate = build_InterpolateV0();
+TEST(StaticShapeInferenceTest, InterpolateV1Test) {
+    auto interpolate = build_InterpolateV1();
 
     int32_t sizes_val[] = {15, 30};
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
@@ -140,8 +140,8 @@ TEST(StaticShapeInferenceTest, InterpolateV0Test) {
     ASSERT_EQ(static_output_shapes[0], StaticShape({2, 2, 15, 30}));
 }
 
-TEST(StaticShapeInferenceTest, InterpolateV0MissingConstantTest) {
-    auto interpolate = build_InterpolateV0();
+TEST(StaticShapeInferenceTest, InterpolateV1MissingConstantTest) {
+    auto interpolate = build_InterpolateV1();
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 2, 33, 65}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};

@@ -11,7 +11,7 @@
 using namespace ov;
 using namespace reference_tests;
 
-// ------------------------------ V0 ------------------------------
+// ------------------------------ V1 ------------------------------
 
 struct MVN1Params {
     MVN1Params(const Tensor& paramInput, const ngraph::AxisSet& paramReductionAxes, const bool paramAcrossChannels, const bool paramNormalizeVariance,
@@ -56,10 +56,10 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const Tensor& input, const ngraph::AxisSet& reductionAxes, const bool acrossChannels,
                                                     const bool normalizeVariance, const double eps) {
-        const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
-        auto mvn = std::make_shared<op::v0::MVN>(in, acrossChannels, normalizeVariance, eps);
+        const auto in = std::make_shared<op::v1::Parameter>(input.type, input.shape);
+        auto mvn = std::make_shared<op::v2::MVN>(in, acrossChannels, normalizeVariance, eps);
         if (!reductionAxes.empty()) {
-            mvn = std::make_shared<op::v0::MVN>(in, reductionAxes, normalizeVariance, eps);
+            mvn = std::make_shared<op::v2::MVN>(in, reductionAxes, normalizeVariance, eps);
         }
         return std::make_shared<ov::Model>(NodeVector {mvn}, ParameterVector {in});
     }
@@ -180,12 +180,12 @@ private:
     static std::shared_ptr<Model> CreateFunction(const Tensor& input, const Tensor& reductionAxes, const bool normalizeVariance, const double eps,
                                                     const op::MVNEpsMode epsMode) {
         std::vector<int64_t> dataVector(reductionAxes.shape[0]);
-        const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input.type, input.shape);
         const auto refBuffer = reductionAxes.data.data<const std::int64_t>();
         for (size_t i = 0; i < dataVector.size(); ++i) {
             dataVector[i] = refBuffer[i];
         }
-        const auto axes = std::make_shared<op::v0::Constant>(reductionAxes.type, reductionAxes.shape, dataVector);
+        const auto axes = std::make_shared<op::v1::Constant>(reductionAxes.type, reductionAxes.shape, dataVector);
         auto mvn = std::make_shared<op::v6::MVN>(in, axes, normalizeVariance, eps, epsMode);
         return std::make_shared<ov::Model>(NodeVector {mvn}, ParameterVector {in});
     }

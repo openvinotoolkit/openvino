@@ -49,8 +49,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& shape, const element::Type& data_type) {
-        auto A = std::make_shared<op::v0::Parameter>(data_type, shape);
-        auto B = std::make_shared<op::v0::Parameter>(data_type, shape);
+        auto A = std::make_shared<op::v1::Parameter>(data_type, shape);
+        auto B = std::make_shared<op::v1::Parameter>(data_type, shape);
         return std::make_shared<ov::Model>(std::make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
     }
 };

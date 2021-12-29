@@ -96,7 +96,7 @@ private:
                                                     const bool exclude_pad,
                                                     const op::RoundingType rounding_type,
                                                     const op::PadType pad_type) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
         const auto avgPool = std::make_shared<op::v1::AvgPool>(in,
                                                                strides,
                                                                pads_begin,

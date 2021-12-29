@@ -94,9 +94,9 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ExperimentalPGGParams& params) {
-        const auto priors = std::make_shared<op::v0::Parameter>(params.inType, params.priorsShape);
-        const auto featureMap = std::make_shared<op::v0::Parameter>(params.inType, params.featureMapShape);
-        const auto im_info = std::make_shared<op::v0::Parameter>(params.inType, params.imageSizeInfoShape);
+        const auto priors = std::make_shared<op::v1::Parameter>(params.inType, params.priorsShape);
+        const auto featureMap = std::make_shared<op::v1::Parameter>(params.inType, params.featureMapShape);
+        const auto im_info = std::make_shared<op::v1::Parameter>(params.inType, params.imageSizeInfoShape);
         const auto ExperimentalPGG = std::make_shared<op::v6::ExperimentalDetectronPriorGridGenerator>(priors,
                                                                     featureMap,
                                                                     im_info,

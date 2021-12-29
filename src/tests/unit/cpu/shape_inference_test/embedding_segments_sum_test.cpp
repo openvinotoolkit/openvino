@@ -10,12 +10,12 @@ using namespace ov;
 using namespace std;
 
 TEST(StaticShapeInferenceTest, EmbeddingSegmentsSum) {
-    auto emb_table = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1});
-    auto indices = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
-    auto segment_ids = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
-    auto num_segments = op::v0::Constant::create(element::i64, ov::Shape{}, {3});
-    auto default_index = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
-    auto per_sample_weights = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1});
+    auto emb_table = make_shared<op::v1::Parameter>(element::f32, ov::PartialShape{-1, -1});
+    auto indices = make_shared<op::v1::Parameter>(element::i64, ov::PartialShape{-1});
+    auto segment_ids = make_shared<op::v1::Parameter>(element::i64, ov::PartialShape{-1});
+    auto num_segments = op::v1::Constant::create(element::i64, ov::Shape{}, {3});
+    auto default_index = make_shared<op::v1::Parameter>(element::i64, ov::PartialShape{});
+    auto per_sample_weights = make_shared<op::v1::Parameter>(element::f32, ov::PartialShape{-1});
 
     auto ess = make_shared<op::v3::EmbeddingSegmentsSum>(emb_table,
                                                          indices,

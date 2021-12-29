@@ -67,7 +67,7 @@ TEST(StaticShapeInferenceTest, ConvolutionBackPropDataTest) {
     const CoordinateDiff output_padding{1, 1};
     const op::PadType auto_pad = op::PadType::SAME_LOWER;
 
-    auto output_shape = std::make_shared<op::v0::Constant>(
+    auto output_shape = std::make_shared<op::v1::Constant>(
             ov::element::i64, ov::Shape{2}, std::vector<int64_t>({3, 3}));
     auto conv = std::make_shared<op::v1::ConvolutionBackpropData>(data,
                                                                   filters,
@@ -97,7 +97,7 @@ TEST(StaticShapeInferenceTest, GroupConvolutionBackPropDataTest) {
     const CoordinateDiff output_padding{1, 1};
     const op::PadType auto_pad = op::PadType::SAME_LOWER;
 
-    auto output_shape = std::make_shared<op::v0::Constant>(
+    auto output_shape = std::make_shared<op::v1::Constant>(
             ov::element::i64, ov::Shape{2}, std::vector<int64_t>({3, 3}));
     auto conv = std::make_shared<op::v1::GroupConvolutionBackpropData>(data,
                                                                   filters,
@@ -145,7 +145,7 @@ TEST(StaticShapeInferenceTest, ConvolutionTimeTest) {
     }
 
     // other operation creation and time measurements: ReLU is an example
-    auto relu = std::make_shared<op::v0::Relu>(data);
+    auto relu = std::make_shared<op::v1::Relu>(data);
     std::cout << relu << std::endl;
     auto other_op_time_sum = 0;
     for (size_t i = 0; i < 10; ++i) {

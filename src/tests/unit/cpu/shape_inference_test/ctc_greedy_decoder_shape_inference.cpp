@@ -15,7 +15,7 @@ using namespace ov;
 TEST(StaticShapeInferenceTest, CtcGreedyDecoderTest) {
     auto P = std::make_shared<ov::op::v1::Parameter>(element::f32, PartialShape{-1, -1, -1});
     auto I = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1, -1});
-    auto G = std::make_shared<op::v0::CTCGreedyDecoder>(P, I, false);
+    auto G = std::make_shared<op::v1::CTCGreedyDecoder>(P, I, false);
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{100, 3, 1200}, StaticShape{100, 3}},
                              static_output_shapes = {StaticShape{}};

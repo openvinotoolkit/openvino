@@ -78,10 +78,10 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ExperimentalGPParams& params) {
-        const auto im_info = std::make_shared<op::v0::Parameter>(params.inType, params.imageSizeInfoShape);
-        const auto anchors = std::make_shared<op::v0::Parameter>(params.inType, params.anchorsShape);
-        const auto deltas = std::make_shared<op::v0::Parameter>(params.inType, params.deltasShape);
-        const auto scores = std::make_shared<op::v0::Parameter>(params.inType, params.scoresShape);
+        const auto im_info = std::make_shared<op::v1::Parameter>(params.inType, params.imageSizeInfoShape);
+        const auto anchors = std::make_shared<op::v1::Parameter>(params.inType, params.anchorsShape);
+        const auto deltas = std::make_shared<op::v1::Parameter>(params.inType, params.deltasShape);
+        const auto scores = std::make_shared<op::v1::Parameter>(params.inType, params.scoresShape);
         const auto ExperimentalGP = std::make_shared<op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(im_info,
                                                                     anchors,
                                                                     deltas,

@@ -55,9 +55,9 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const CTCGreedyDecoderParams& params) {
         std::shared_ptr<Model> function;
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto indices = std::make_shared<op::v0::Parameter>(params.masksTensor.type, params.masksTensor.shape);
-        const auto decoder = std::make_shared<op::v0::CTCGreedyDecoder>(data, indices, params.ctcMergedRepeat);
+        const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto indices = std::make_shared<op::v1::Parameter>(params.masksTensor.type, params.masksTensor.shape);
+        const auto decoder = std::make_shared<op::v1::CTCGreedyDecoder>(data, indices, params.ctcMergedRepeat);
         function = std::make_shared<ov::Model>(NodeVector{decoder}, ParameterVector{data, indices});
         return function;
     }

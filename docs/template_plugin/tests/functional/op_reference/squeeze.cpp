@@ -90,14 +90,14 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const SqueezeParams& params) {
-        const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
-        std::shared_ptr<op::v0::Constant> axes_node = NULL;
-        std::shared_ptr<op::v0::Squeeze> squeeze = NULL;
+        const auto in = std::make_shared<op::v1::Parameter>(params.m_input_type, params.m_input_shape);
+        std::shared_ptr<op::v1::Constant> axes_node = NULL;
+        std::shared_ptr<op::v1::Squeeze> squeeze = NULL;
         if (params.m_axes_node) {
-            axes_node = std::make_shared<op::v0::Constant>(params.m_axes_type, params.m_axes_shape, params.m_axes_value.data());
-            squeeze = std::make_shared<op::v0::Squeeze>(in, axes_node);
+            axes_node = std::make_shared<op::v1::Constant>(params.m_axes_type, params.m_axes_shape, params.m_axes_value.data());
+            squeeze = std::make_shared<op::v1::Squeeze>(in, axes_node);
         } else {
-            squeeze = std::make_shared<op::v0::Squeeze>(in);
+            squeeze = std::make_shared<op::v1::Squeeze>(in);
         }
 
         return std::make_shared<ov::Model>(squeeze, ParameterVector{in});

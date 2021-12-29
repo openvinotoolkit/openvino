@@ -75,9 +75,9 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const CTCGreedyDecoderSeqLenParams& params) {
         std::shared_ptr<Model> function;
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto seq_len = std::make_shared<op::v0::Parameter>(params.seqLenTensor.type, params.seqLenTensor.shape);
-        auto blank_index = std::make_shared<op::v0::Constant>(params.blankIndexTensor.type, params.blankIndexTensor.shape,
+        const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto seq_len = std::make_shared<op::v1::Parameter>(params.seqLenTensor.type, params.seqLenTensor.shape);
+        auto blank_index = std::make_shared<op::v1::Constant>(params.blankIndexTensor.type, params.blankIndexTensor.shape,
                                                               params.blankIndexTensor.data.data());
         const auto decoder = std::make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, blank_index, params.mergeRepeated);
         function = std::make_shared<ov::Model>(decoder->outputs(), ParameterVector{data, seq_len});
@@ -116,8 +116,8 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const CTCGreedyDecoderSeqLenParamsNoOptionalInput& params) {
         std::shared_ptr<Model> function;
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto seq_len = std::make_shared<op::v0::Parameter>(params.seqLenTensor.type, params.seqLenTensor.shape);
+        const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto seq_len = std::make_shared<op::v1::Parameter>(params.seqLenTensor.type, params.seqLenTensor.shape);
         const auto decoder = std::make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, params.mergeRepeated);
         function = std::make_shared<ov::Model>(decoder->outputs(), ParameterVector{data, seq_len});
         return function;

@@ -56,7 +56,7 @@ private:
         ParameterVector parameter_vector(num_of_inputs);
         for (size_t i = 0; i < num_of_inputs; ++i) {
             const auto& current_input = inputs[i];
-            auto current_parameter = std::make_shared<op::v0::Parameter>(current_input.type, current_input.shape);
+            auto current_parameter = std::make_shared<op::v1::Parameter>(current_input.type, current_input.shape);
             node_vector[i] = current_parameter;
             parameter_vector[i] = current_parameter;
         }

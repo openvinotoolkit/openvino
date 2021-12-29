@@ -21,8 +21,8 @@ struct DFTParams {
                  const element::Type_t& expected_type,
                  const std::vector<T>& input_value,
                  const std::vector<T>& expected_value,
-                 const std::shared_ptr<op::v0::Constant>& axes,
-                 const std::shared_ptr<op::v0::Constant>& signal) {
+                 const std::shared_ptr<op::v1::Constant>& axes,
+                 const std::shared_ptr<op::v1::Constant>& signal) {
         m_input_shape = input_shape;
         m_expected_shape = expected_shape;
         m_input_type = input_type;
@@ -39,8 +39,8 @@ struct DFTParams {
     element::Type_t m_expected_type;
     runtime::Tensor m_input_value;
     runtime::Tensor m_expected_value;
-    std::shared_ptr<op::v0::Constant> m_axes;
-    std::shared_ptr<op::v0::Constant> m_signal;
+    std::shared_ptr<op::v1::Constant> m_axes;
+    std::shared_ptr<op::v1::Constant> m_signal;
 };
 
 class ReferenceDFTLayerTest : public testing::TestWithParam<DFTParams>, public CommonReferenceTest {
@@ -72,14 +72,14 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(DFTParams& p) {
-        auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
+        auto in = std::make_shared<op::v1::Parameter>(p.m_input_type, p.m_input_shape);
         auto dft = std::make_shared<op::v7::DFT>(in, p.m_axes);
 
         return std::make_shared<ov::Model>(dft, ParameterVector{in});
     }
 
     static std::shared_ptr<Model> CreateFunctionWithSignal(DFTParams& p) {
-        auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
+        auto in = std::make_shared<op::v1::Parameter>(p.m_input_type, p.m_input_shape);
         auto dft = std::make_shared<op::v7::DFT>(in, p.m_axes, p.m_signal);
 
         return std::make_shared<ov::Model>(dft, ParameterVector{in});
@@ -1170,7 +1170,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data,
                   expected_dft1d_results,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
                   NULL),
         // dft1d_eval_1
         DFTParams(Shape{4, 6, 8, 2},
@@ -1179,7 +1179,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data_1,
                   expected_dft1d_results_1,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
                   NULL),
         // dft1d_eval_i32
         DFTParams(Shape{2, 10, 10, 2},
@@ -1188,7 +1188,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data,
                   expected_dft1d_results,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{1}, {2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i32, Shape{1}, {2}),
                   NULL),
         // dft2d_eval_1
         DFTParams(Shape{4, 6, 8, 2},
@@ -1197,7 +1197,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data_1,
                   expected_dft2d_results_1,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
                   NULL),
         // dft2d_eval
         DFTParams(Shape{2, 10, 10, 2},
@@ -1206,7 +1206,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data,
                   expected_dft2d_results,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
                   NULL),
         // dft2d_eval_i32
         DFTParams(Shape{2, 10, 10, 2},
@@ -1215,7 +1215,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data,
                   expected_dft2d_results,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{2}, {1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i32, Shape{2}, {1, 2}),
                   NULL),
         // dft3d_eval_1
         DFTParams(Shape{4, 6, 8, 2},
@@ -1224,7 +1224,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data_1,
                   expected_dft3d_results_1,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
                   NULL),
         // dft3d_eval
         DFTParams(Shape{2, 10, 10, 2},
@@ -1233,7 +1233,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data,
                   expected_dft3d_results,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
                   NULL),
         // dft3d_eval_i32
         DFTParams(Shape{2, 10, 10, 2},
@@ -1242,7 +1242,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data,
                   expected_dft3d_results,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{3}, {0, 1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i32, Shape{3}, {0, 1, 2}),
                   NULL),
         // dft1d_signal_size_eval
         DFTParams(Shape{2, 10, 10, 2},
@@ -1251,8 +1251,8 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data,
                   expected_dft1d_signal_size_results,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {-2}),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20})),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {-2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20})),
         // dft2d_signal_size_eval_1
         DFTParams(Shape{4, 6, 8, 2},
                   Shape{4, 6, 8, 2},
@@ -1260,8 +1260,8 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data_1,
                   expected_dft2d_signal_size_results_1,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 9})),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 9})),
         // dft2d_signal_size_eval_2
         DFTParams(Shape{4, 6, 8, 2},
                   Shape{4, 6, 8, 2},
@@ -1269,8 +1269,8 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data_1,
                   expected_dft2d_signal_size_results_2,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 1}),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 1}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
         // dft2d_signal_size_eval_3
         DFTParams(Shape{4, 6, 8, 2},
                   Shape{4, 6, 8, 2},
@@ -1278,8 +1278,8 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data_1,
                   expected_dft2d_signal_size_results_3,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {3, 4})),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {3, 4})),
         // dft2d_signal_size_eval_4
         DFTParams(Shape{4, 6, 8, 2},
                   Shape{4, 6, 8, 2},
@@ -1287,8 +1287,8 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data_1,
                   expected_dft2d_signal_size_results_4,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
         // dft2d_signal_size_eval_5
         DFTParams(Shape{4, 6, 8, 2},
                   Shape{4, 6, 8, 2},
@@ -1296,8 +1296,8 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data_1,
                   expected_dft2d_signal_size_results_5,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
         // dft3d_signal_size_eval
         DFTParams(Shape{4, 6, 8, 2},
                   Shape{4, 6, 8, 2},
@@ -1305,8 +1305,8 @@ std::vector<DFTParams> generateParamsForDFT() {
                   ET,
                   input_data_1,
                   expected_dft3d_signal_size_results,
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 7, 5})),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 7, 5})),
     };
 
     return params;
@@ -1324,7 +1324,7 @@ std::vector<DFTParams> generateParamsForDFT_float16() {
                   ET,
                   convert<T>(input_data),
                   convert<T>(expected_dft1d_float16_results),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
                   NULL),
         // dft2d_eval_float16
         DFTParams(Shape{2, 10, 10, 2},
@@ -1333,7 +1333,7 @@ std::vector<DFTParams> generateParamsForDFT_float16() {
                   ET,
                   convert<T>(input_data),
                   convert<T>(expected_dft2d_float16_results),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
                   NULL),
         // dft3d_eval_float16
         DFTParams(Shape{2, 10, 10, 2},
@@ -1342,7 +1342,7 @@ std::vector<DFTParams> generateParamsForDFT_float16() {
                   ET,
                   convert<T>(input_data),
                   convert<T>(expected_dft3d_float16_results),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
                   NULL),
     };
 
@@ -1361,7 +1361,7 @@ std::vector<DFTParams> generateParamsForDFT_bfloat16() {
                   ET,
                   convert<T>(input_data),
                   convert<T>(expected_dft1d_bfloat16_results),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
                   NULL),
         // dft2d_eval_bfloat16
         DFTParams(Shape{2, 10, 10, 2},
@@ -1370,7 +1370,7 @@ std::vector<DFTParams> generateParamsForDFT_bfloat16() {
                   ET,
                   convert<T>(input_data),
                   convert<T>(expected_dft2d_bfloat16_results),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
                   NULL),
         // dft3d_eval_bfloat16
         DFTParams(Shape{2, 10, 10, 2},
@@ -1379,7 +1379,7 @@ std::vector<DFTParams> generateParamsForDFT_bfloat16() {
                   ET,
                   convert<T>(input_data),
                   convert<T>(expected_dft3d_bfloat16_results),
-                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  op::v1::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
                   NULL),
     };
 

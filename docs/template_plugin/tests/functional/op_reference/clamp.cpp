@@ -55,8 +55,8 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const ov::PartialShape& input_shape, const ov::element::Type& input_type,
                                                     const ov::element::Type& expected_output_type, const double min, const double max) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto Clamp = std::make_shared<op::v0::Clamp>(in, min, max);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        const auto Clamp = std::make_shared<op::v1::Clamp>(in, min, max);
         return std::make_shared<ov::Model>(NodeVector {Clamp}, ParameterVector {in});
     }
 };

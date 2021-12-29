@@ -60,8 +60,8 @@ private:
                                                     const PartialShape& input_shape2,
                                                     const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
-        const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
-        const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
+        const auto in1 = std::make_shared<op::v1::Parameter>(input_type, input_shape1);
+        const auto in2 = std::make_shared<op::v1::Parameter>(input_type, input_shape2);
         const auto floormod = std::make_shared<op::v1::FloorMod>(in1, in2);
 
         return std::make_shared<Model>(NodeVector{floormod}, ParameterVector{in1, in2});

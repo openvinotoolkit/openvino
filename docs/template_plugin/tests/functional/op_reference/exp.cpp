@@ -51,8 +51,8 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto Exp = std::make_shared<op::v0::Exp>(in);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        const auto Exp = std::make_shared<op::v1::Exp>(in);
         return std::make_shared<ov::Model>(NodeVector {Exp}, ParameterVector {in});
     }
 };
@@ -77,9 +77,9 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto Exp = std::make_shared<op::v0::Exp>(in);
-        const auto ExpInPlace = std::make_shared<op::v0::Exp>(Exp);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        const auto Exp = std::make_shared<op::v1::Exp>(in);
+        const auto ExpInPlace = std::make_shared<op::v1::Exp>(Exp);
         return std::make_shared<ov::Model>(NodeVector {ExpInPlace}, ParameterVector {in});
     }
 };

@@ -10,9 +10,9 @@ using namespace ov;
 using namespace std;
 
 TEST(StaticShapeInferenceTest, Rangev4_i32) {
-    auto start = make_shared<op::v0::Parameter>(element::i32, ov::PartialShape{});
-    auto stop = make_shared<op::v0::Parameter>(element::i32, ov::PartialShape{});
-    auto step = make_shared<op::v0::Parameter>(element::i32, ov::PartialShape{});
+    auto start = make_shared<op::v1::Parameter>(element::i32, ov::PartialShape{});
+    auto stop = make_shared<op::v1::Parameter>(element::i32, ov::PartialShape{});
+    auto step = make_shared<op::v1::Parameter>(element::i32, ov::PartialShape{});
 
     auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
 
@@ -24,9 +24,9 @@ TEST(StaticShapeInferenceTest, Rangev4_i32) {
 }
 
 TEST(StaticShapeInferenceTest, Rangev4_f32) {
-    auto start = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{});
-    auto stop = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{});
-    auto step = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{});
+    auto start = make_shared<op::v1::Parameter>(element::f32, ov::PartialShape{});
+    auto stop = make_shared<op::v1::Parameter>(element::f32, ov::PartialShape{});
+    auto step = make_shared<op::v1::Parameter>(element::f32, ov::PartialShape{});
 
     auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
 

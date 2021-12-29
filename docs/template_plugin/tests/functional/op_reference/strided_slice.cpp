@@ -115,22 +115,22 @@ private:
     static std::shared_ptr<Model> CreateFunction(const StridedSliceParams& params) {
         std::shared_ptr<Model> function;
         if (params.dynamicDataShape.is_static()) {
-            const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-            const auto beginOp = std::make_shared<op::v0::Constant>(params.beginTensor.type, params.beginTensor.shape,
+            const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+            const auto beginOp = std::make_shared<op::v1::Constant>(params.beginTensor.type, params.beginTensor.shape,
                                                                     params.beginTensor.data.data());
-            const auto endOp = std::make_shared<op::v0::Constant>(params.endTensor.type, params.endTensor.shape,
+            const auto endOp = std::make_shared<op::v1::Constant>(params.endTensor.type, params.endTensor.shape,
                                                                   params.endTensor.data.data());
-            const auto stridesOp = std::make_shared<op::v0::Constant>(params.stridesTensor.type, params.stridesTensor.shape,
+            const auto stridesOp = std::make_shared<op::v1::Constant>(params.stridesTensor.type, params.stridesTensor.shape,
                                                                       params.stridesTensor.data.data());
             const auto StridedSlice = std::make_shared<op::v1::StridedSlice>(data, beginOp, endOp, stridesOp,
                                                                              params.beginMask, params.endMask, params.newAxisMask,
                                                                              params.shrinkAxisMask, params.ellipsisMask);
             function = std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data});
         } else {
-            const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, PartialShape::dynamic());
-            const auto beginOp = std::make_shared<op::v0::Parameter>(params.beginTensor.type, params.beginTensor.shape);
-            const auto endOp = std::make_shared<op::v0::Parameter>(params.endTensor.type, params.endTensor.shape);
-            const auto stridesOp = std::make_shared<op::v0::Parameter>(params.stridesTensor.type, params.stridesTensor.shape);
+            const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, PartialShape::dynamic());
+            const auto beginOp = std::make_shared<op::v1::Parameter>(params.beginTensor.type, params.beginTensor.shape);
+            const auto endOp = std::make_shared<op::v1::Parameter>(params.endTensor.type, params.endTensor.shape);
+            const auto stridesOp = std::make_shared<op::v1::Parameter>(params.stridesTensor.type, params.stridesTensor.shape);
             const auto StridedSlice = std::make_shared<op::v1::StridedSlice>(data, beginOp, endOp, stridesOp,
                                                                              params.beginMask, params.endMask, params.newAxisMask,
                                                                              params.shrinkAxisMask, params.ellipsisMask);
@@ -177,19 +177,19 @@ private:
     static std::shared_ptr<Model> CreateFunction(const StridedSliceStrideOptionalParams& params) {
         std::shared_ptr<Model> function;
         if (params.dynamicDataShape.is_static()) {
-            const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-            const auto beginOp = std::make_shared<op::v0::Constant>(params.beginTensor.type, params.beginTensor.shape,
+            const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+            const auto beginOp = std::make_shared<op::v1::Constant>(params.beginTensor.type, params.beginTensor.shape,
                                                                     params.beginTensor.data.data());
-            const auto endOp = std::make_shared<op::v0::Constant>(params.endTensor.type, params.endTensor.shape,
+            const auto endOp = std::make_shared<op::v1::Constant>(params.endTensor.type, params.endTensor.shape,
                                                                   params.endTensor.data.data());
             const auto StridedSlice = std::make_shared<op::v1::StridedSlice>(data, beginOp, endOp,
                                                                              params.beginMask, params.endMask, params.newAxisMask,
                                                                              params.shrinkAxisMask, params.ellipsisMask);
             function = std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data});
         } else {
-            const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, PartialShape::dynamic());
-            const auto beginOp = std::make_shared<op::v0::Parameter>(params.beginTensor.type, params.beginTensor.shape);
-            const auto endOp = std::make_shared<op::v0::Parameter>(params.endTensor.type, params.endTensor.shape);
+            const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, PartialShape::dynamic());
+            const auto beginOp = std::make_shared<op::v1::Parameter>(params.beginTensor.type, params.beginTensor.shape);
+            const auto endOp = std::make_shared<op::v1::Parameter>(params.endTensor.type, params.endTensor.shape);
             const auto StridedSlice = std::make_shared<op::v1::StridedSlice>(data, beginOp, endOp,
                                                                              params.beginMask, params.endMask, params.newAxisMask,
                                                                              params.shrinkAxisMask, params.ellipsisMask);

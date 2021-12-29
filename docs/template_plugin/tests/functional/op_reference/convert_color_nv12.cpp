@@ -27,20 +27,20 @@ public:
 public:
     template <typename T>
     static std::shared_ptr<Model> CreateFunction(const Tensor& input) {
-        const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input.type, input.shape);
         std::shared_ptr<Node> conv;
         conv = std::make_shared<T>(in);
-        auto res = std::make_shared<op::v0::Result>(conv);
+        auto res = std::make_shared<op::v1::Result>(conv);
         return std::make_shared<Model>(ResultVector{res}, ParameterVector {in});
     }
 
     template <typename T>
     static std::shared_ptr<Model> CreateFunction2(const Tensor& input1, const Tensor& input2) {
-        const auto in1 = std::make_shared<op::v0::Parameter>(input1.type, input1.shape);
-        const auto in2 = std::make_shared<op::v0::Parameter>(input2.type, input2.shape);
+        const auto in1 = std::make_shared<op::v1::Parameter>(input1.type, input1.shape);
+        const auto in2 = std::make_shared<op::v1::Parameter>(input2.type, input2.shape);
         std::shared_ptr<Node> conv;
         conv = std::make_shared<T>(in1, in2);
-        auto res = std::make_shared<op::v0::Result>(conv);
+        auto res = std::make_shared<op::v1::Result>(conv);
         return std::make_shared<Model>(ResultVector{res}, ParameterVector {in1, in2});
     }
 };

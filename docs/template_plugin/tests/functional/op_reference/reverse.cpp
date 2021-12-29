@@ -55,8 +55,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ReverseParams& params) {
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto constant = std::make_shared<op::v0::Constant>(params.constantTensor.type,
+        const auto data = std::make_shared<op::v1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto constant = std::make_shared<op::v1::Constant>(params.constantTensor.type,
                                                                  params.constantTensor.shape,
                                                                  params.constantTensor.data.data());
         const auto reverse = std::make_shared<op::v1::Reverse>(data, constant, params.reverseMode);
@@ -81,30 +81,30 @@ TEST_P(ReferenceReverseTest, CompareWithRefs) {
 }
 
 TEST_P(ReferenceReverseTestAxesRankIndexMode, CompareWithRefs) {
-    const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 1});   // correct: 1D
+    const auto Data = std::make_shared<op::v1::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = std::make_shared<op::v1::Parameter>(element::i64, Shape{1, 1});   // correct: 1D
     EXPECT_THROW(std::make_shared<ov::Model>(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                                                 ParameterVector{Data, Rev_Axes}),
                  ngraph::NodeValidationFailure);
 }
 
 TEST_P(ReferenceReverseTestAxesElemsMaskMode, CompareWithRefs) {
-    const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = std::make_shared<op::v0::Parameter>(element::boolean, Shape{2});  // correct: 3
+    const auto Data = std::make_shared<op::v1::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = std::make_shared<op::v1::Parameter>(element::boolean, Shape{2});  // correct: 3
     EXPECT_THROW(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::MASK),
                  ngraph::NodeValidationFailure);
 }
 
 TEST_P(ReferenceReverseTestAxesOutOfBounds, CompareWithRefs) {
-    const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 10});
+    const auto Data = std::make_shared<op::v1::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = op::v1::Constant::create(element::i64, Shape{2}, {1, 10});
     EXPECT_THROW(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                  ngraph::NodeValidationFailure);
 }
 
 TEST_P(ReferenceReverseTestAxesOutOfBounds4, CompareWithRefs) {
-    const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
+    const auto Data = std::make_shared<op::v1::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = op::v1::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
     EXPECT_THROW(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                  ngraph::NodeValidationFailure);
 }

@@ -54,7 +54,7 @@ private:
     static std::shared_ptr<ov::Model> CreateFunction(const ov::PartialShape& input_shape, const ov::element::Type& input_type,
                                                         const ov::element::Type& expected_output_type,
                                                         const ngraph::helpers::ConversionTypes& conversion_type) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
         const auto convert = ngraph::builder::makeConversion(in, expected_output_type, conversion_type);
         return std::make_shared<ov::Model>(ov::NodeVector {convert}, ov::ParameterVector {in});
     }

@@ -51,7 +51,7 @@ private:
     static std::shared_ptr<ov::Model> CreateFunction(ngraph::helpers::LogicalTypes op_type, const std::vector<Tensor>& inputs) {
         ov::ParameterVector params_vec;
         for (auto& input : inputs) {
-            params_vec.push_back(std::make_shared<op::v0::Parameter>(input.type, input.shape));
+            params_vec.push_back(std::make_shared<op::v1::Parameter>(input.type, input.shape));
         }
 
         const auto logical_op = ngraph::builder::makeLogical(params_vec, op_type);

@@ -12,11 +12,11 @@ static std::shared_ptr<op::v1::Split> build_split(PartialShape data_shape,
                                                   std::initializer_list<int64_t> axis_value,
                                                   size_t num_splits) {
     std::shared_ptr<ov::Node> axis;
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto data = std::make_shared<op::v1::Parameter>(element::f32, data_shape);
     if (axis_value.size())
-        axis = op::v0::Constant::create(element::i64, ov::Shape{}, {*axis_value.begin()});
+        axis = op::v1::Constant::create(element::i64, ov::Shape{}, {*axis_value.begin()});
     else
-        axis = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
+        axis = std::make_shared<op::v1::Parameter>(element::i64, ov::PartialShape{});
 
     return std::make_shared<op::v1::Split>(data, axis, num_splits);
 }

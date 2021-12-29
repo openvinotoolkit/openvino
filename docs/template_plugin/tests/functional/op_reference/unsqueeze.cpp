@@ -78,9 +78,9 @@ private:
                                                     const element::Type& axes_type,
                                                     const Shape& axes_shape,
                                                     const runtime::Tensor& axes_value) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto axes = std::make_shared<op::v0::Constant>(axes_type, axes_shape, axes_value.data());
-        const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(in, axes);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        const auto axes = std::make_shared<op::v1::Constant>(axes_type, axes_shape, axes_value.data());
+        const auto unsqueeze = std::make_shared<op::v1::Unsqueeze>(in, axes);
         return std::make_shared<ov::Model>(unsqueeze, ParameterVector{in});
     }
 };

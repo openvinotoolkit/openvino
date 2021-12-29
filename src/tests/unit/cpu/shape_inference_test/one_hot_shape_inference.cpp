@@ -13,10 +13,10 @@
 using namespace ov;
 
 TEST(StaticShapeInferenceTest, OneHotTest) {
-    auto indices = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1});
-    auto depth = op::v0::Constant::create(element::i64, Shape{}, {2});
-    auto on_value = op::v0::Constant::create(element::u32, Shape{}, {5});
-    auto off_value = op::v0::Constant::create(element::u32, Shape{}, {10});
+    auto indices = std::make_shared<op::v1::Parameter>(element::i64, PartialShape{-1});
+    auto depth = op::v1::Constant::create(element::i64, Shape{}, {2});
+    auto on_value = op::v1::Constant::create(element::u32, Shape{}, {5});
+    auto off_value = op::v1::Constant::create(element::u32, Shape{}, {10});
     int64_t axis = -1;
     auto ont_hot = std::make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
     // Test StaticShape

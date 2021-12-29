@@ -136,9 +136,9 @@ private:
     static std::shared_ptr<Model> CreateFunction(const DeformableConvolutionParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
-        const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
-        const auto offset = std::make_shared<op::v0::Parameter>(params.offsetType, params.offsetShape);
-        const auto filter = std::make_shared<op::v0::Parameter>(params.filterType, params.filterShape);
+        const auto in = std::make_shared<op::v1::Parameter>(params.inType, params.inputShape);
+        const auto offset = std::make_shared<op::v1::Parameter>(params.offsetType, params.offsetShape);
+        const auto filter = std::make_shared<op::v1::Parameter>(params.filterType, params.filterShape);
         const auto DeformableConvolution = std::make_shared<op::v1::DeformableConvolution>(in,
                                                                        offset,
                                                                        filter,
@@ -194,11 +194,11 @@ private:
     static std::shared_ptr<Model> CreateFunction(const DeformableConvolutionParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
-        const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
-        const auto offset = std::make_shared<op::v0::Parameter>(params.offsetType, params.offsetShape);
-        const auto filter = std::make_shared<op::v0::Parameter>(params.filterType, params.filterShape);
+        const auto in = std::make_shared<op::v1::Parameter>(params.inType, params.inputShape);
+        const auto offset = std::make_shared<op::v1::Parameter>(params.offsetType, params.offsetShape);
+        const auto filter = std::make_shared<op::v1::Parameter>(params.filterType, params.filterShape);
         if (params.maskShape.size() != 0) {
-            const auto mask = std::make_shared<op::v0::Parameter>(params.maskType, params.maskShape);
+            const auto mask = std::make_shared<op::v1::Parameter>(params.maskType, params.maskShape);
             const auto DeformableConvolutionV8 = std::make_shared<op::v8::DeformableConvolution>(in,
                                                                         offset,
                                                                         filter,

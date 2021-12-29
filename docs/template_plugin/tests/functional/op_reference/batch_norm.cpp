@@ -51,7 +51,7 @@ struct BatchNormParams {
     float m_epsilon;
 };
 
-class ReferenceBatchNormV0LayerTest : public testing::TestWithParam<BatchNormParams>, public CommonReferenceTest {
+class ReferenceBatchNormV1LayerTest : public testing::TestWithParam<BatchNormParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         const auto params = GetParam();
@@ -81,18 +81,18 @@ private:
                                                     const element::Type_t& input_type,
                                                     const float epsilon) {
         Shape channel_shape{input_shape.at(1)};
-        auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        auto gamma = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
-        auto beta = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
-        auto mean = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
-        auto variance = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
-        auto batch_norm = std::make_shared<op::v0::BatchNormInference>(in, gamma, beta, mean, variance, epsilon);
+        auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        auto gamma = std::make_shared<op::v1::Parameter>(input_type, channel_shape);
+        auto beta = std::make_shared<op::v1::Parameter>(input_type, channel_shape);
+        auto mean = std::make_shared<op::v1::Parameter>(input_type, channel_shape);
+        auto variance = std::make_shared<op::v1::Parameter>(input_type, channel_shape);
+        auto batch_norm = std::make_shared<op::v1::BatchNormInference>(in, gamma, beta, mean, variance, epsilon);
 
         return std::make_shared<ov::Model>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
     }
 };
 
-class ReferenceBatchNormV5LayerTest : public ReferenceBatchNormV0LayerTest {
+class ReferenceBatchNormV5LayerTest : public ReferenceBatchNormV1LayerTest {
 public:
     void SetUp() override {
         const auto params = GetParam();
@@ -106,18 +106,18 @@ private:
                                                     const element::Type_t& input_type,
                                                     const float epsilon) {
         Shape channel_shape{input_shape.at(1)};
-        auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        auto gamma = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
-        auto beta = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
-        auto mean = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
-        auto variance = std::make_shared<op::v0::Parameter>(input_type, channel_shape);
+        auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
+        auto gamma = std::make_shared<op::v1::Parameter>(input_type, channel_shape);
+        auto beta = std::make_shared<op::v1::Parameter>(input_type, channel_shape);
+        auto mean = std::make_shared<op::v1::Parameter>(input_type, channel_shape);
+        auto variance = std::make_shared<op::v1::Parameter>(input_type, channel_shape);
         auto batch_norm = std::make_shared<op::v5::BatchNormInference>(in, gamma, beta, mean, variance, epsilon);
 
         return std::make_shared<ov::Model>(batch_norm, ParameterVector{in, gamma, beta, mean, variance});
     }
 };
 
-TEST_P(ReferenceBatchNormV0LayerTest, CompareWithHardcodedRefs) {
+TEST_P(ReferenceBatchNormV1LayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
 
@@ -248,9 +248,9 @@ std::vector<BatchNormParams> generateCombinedParamsForBatchNorm() {
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_BatchNorm_With_Hardcoded_Refs,
-    ReferenceBatchNormV0LayerTest,
+    ReferenceBatchNormV1LayerTest,
     ::testing::ValuesIn(generateCombinedParamsForBatchNorm()),
-    ReferenceBatchNormV0LayerTest::getTestCaseName);
+    ReferenceBatchNormV1LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_BatchNorm_With_Hardcoded_Refs,

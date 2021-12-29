@@ -87,7 +87,7 @@ private:
         const std::shared_ptr<ngraph::opset1::Constant> num_segments,
         const std::shared_ptr<ngraph::opset1::Constant> default_index,
         const std::shared_ptr<ngraph::opset1::Constant> per_sample_weights) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
 
         if (default_index) {
             if (per_sample_weights) {

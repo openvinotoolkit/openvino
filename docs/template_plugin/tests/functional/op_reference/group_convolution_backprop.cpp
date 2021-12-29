@@ -115,8 +115,8 @@ private:
     static std::shared_ptr<Model> CreateFunction(const GroupConvolutionBackpropDataParams& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
-        const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
-        const auto filter = std::make_shared<op::v0::Parameter>(params.inType, params.filterShape);
+        const auto in = std::make_shared<op::v1::Parameter>(params.inType, params.inputShape);
+        const auto filter = std::make_shared<op::v1::Parameter>(params.inType, params.filterShape);
         if (params.outPadding.size() != 0) {
             const auto GroupConvolutionBackpropData = std::make_shared<op::v1::GroupConvolutionBackpropData>(in,
                                                                         filter,
@@ -167,8 +167,8 @@ private:
     static std::shared_ptr<Model> CreateFunction(const GroupConvolutionBackpropDataOutShapeParams& params) {
         const op::PadType auto_pad{op::PadType::SAME_UPPER};
 
-        const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
-        const auto filter = std::make_shared<op::v0::Parameter>(params.inType, params.filterShape);
+        const auto in = std::make_shared<op::v1::Parameter>(params.inType, params.inputShape);
+        const auto filter = std::make_shared<op::v1::Parameter>(params.inType, params.filterShape);
         auto output_shape = std::make_shared<opset8::Constant>(element::i64, params.constantOutputShape, params.constantOutputShapeData);
         const auto GroupConvolutionBackpropData = std::make_shared<op::v1::GroupConvolutionBackpropData>(in,
                                                                     filter,

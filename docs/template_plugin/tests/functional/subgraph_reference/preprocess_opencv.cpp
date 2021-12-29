@@ -46,13 +46,13 @@ public:
 } // namespace
 
 static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
-    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+    auto data1 = std::make_shared<op::v1::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1", "input1"});
-    auto c = op::v0::Constant::create(type, {1}, {0});
+    auto c = op::v1::Constant::create(type, {1}, {0});
     auto op = std::make_shared<op::v1::Add>(data1, c);
     op->set_friendly_name("Add0");
-    auto res = std::make_shared<op::v0::Result>(op);
+    auto res = std::make_shared<op::v1::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1", "Result1"});
     return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});

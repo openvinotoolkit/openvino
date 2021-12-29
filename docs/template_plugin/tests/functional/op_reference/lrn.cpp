@@ -25,7 +25,7 @@ struct LRNParams {
               const float& beta,
               const float& bias,
               const size_t& size,
-              const std::shared_ptr<op::v0::Constant>& axes) {
+              const std::shared_ptr<op::v1::Constant>& axes) {
         m_input_shape = input_shape;
         m_expected_shape = expected_shape;
         m_input_type = input_type;
@@ -50,7 +50,7 @@ struct LRNParams {
               const float& beta,
               const float& bias,
               const size_t& size,
-              const std::shared_ptr<op::v0::Constant>& axes) {
+              const std::shared_ptr<op::v1::Constant>& axes) {
         m_input_shape = input_shape;
         m_expected_shape = expected_shape;
         m_input_type = input_type;
@@ -76,7 +76,7 @@ struct LRNParams {
     float m_beta;
     float m_bias;
     size_t m_size;
-    std::shared_ptr<op::v0::Constant> m_axes;
+    std::shared_ptr<op::v1::Constant> m_axes;
 };
 
 class ReferenceLRNLayerTest : public testing::TestWithParam<LRNParams>, public CommonReferenceTest {
@@ -120,14 +120,14 @@ private:
                                                     const float& beta,
                                                     const float& bias,
                                                     const size_t& size,
-                                                    const std::shared_ptr<op::v0::Constant>& axes) {
-        auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+                                                    const std::shared_ptr<op::v1::Constant>& axes) {
+        auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
 
-        std::shared_ptr<op::v0::LRN> lrn;
+        std::shared_ptr<op::v1::LRN> lrn;
         if (axes != NULL) {
-            lrn = std::make_shared<op::v0::LRN>(in, axes, alpah, beta, bias, size);
+            lrn = std::make_shared<op::v1::LRN>(in, axes, alpah, beta, bias, size);
         } else {
-            lrn = std::make_shared<op::v0::LRN>(in, alpah, beta, bias, size);
+            lrn = std::make_shared<op::v1::LRN>(in, alpah, beta, bias, size);
         }
 
         return std::make_shared<ov::Model>(lrn, ParameterVector{in});
@@ -182,7 +182,7 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.6711560f,
                                  0.7382717f},
                   3, 0.5, 1, 3,
-                  std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{1}, std::vector<int64_t>{2})),
+                  std::make_shared<op::v1::Constant>(element::Type_t::i64, Shape{1}, std::vector<int64_t>{2})),
         // lrn_across_hw
         LRNParams(Shape{2, 3, 2, 1},
                   Shape{2, 3, 2, 1},
@@ -202,7 +202,7 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  1.1572751f,
                                  1.2730026f},
                   3, 0.5, 1, 3,
-                  std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{2}, std::vector<int64_t>{2, 3})),
+                  std::make_shared<op::v1::Constant>(element::Type_t::i64, Shape{2}, std::vector<int64_t>{2, 3})),
         // lrn_across_all_dims
         LRNParams(Shape{2, 3, 2, 1},
                   Shape{2, 3, 2, 1},
@@ -222,7 +222,7 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  2.4576957f,
                                  2.7034652f},
                   3, 0.5, 1, 3,
-                  std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3})),
+                  std::make_shared<op::v1::Constant>(element::Type_t::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3})),
         // lrn_across_nw
         LRNParams(Shape{2, 3, 2, 1},
                   Shape{2, 3, 2, 1},
@@ -242,7 +242,7 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  1.5877683f,
                                  1.5608464f},
                   3, 0.5, 1, 3,
-                  std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{2}, std::vector<int64_t>{0, 3})),
+                  std::make_shared<op::v1::Constant>(element::Type_t::i64, Shape{2}, std::vector<int64_t>{0, 3})),
         // lrn_across_empty
         LRNParams(Shape{2, 3, 2, 1},
                   Shape{2, 3, 2, 1},
@@ -262,7 +262,7 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.5763904f,
                                  0.5765567f},
                   3, 0.5, 1, 3,
-                  std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{0}, std::vector<int64_t>{})),
+                  std::make_shared<op::v1::Constant>(element::Type_t::i64, Shape{0}, std::vector<int64_t>{})),
         // lrn_6D_across_2_axes
         LRNParams(Shape{2, 3, 2, 2, 1, 1},
                   Shape{2, 3, 2, 2, 1, 1},
@@ -274,7 +274,7 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.7656109f, 0.8294119f, 0.8932127f, 0.9570137f, 0.7892218f, 0.8385482f,
                                  0.8878745f, 0.9372009f, 0.8038679f, 0.8440613f, 0.8842546f, 0.9244481f},
                   3, 0.5, 1, 3,
-                  std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{2}, std::vector<int64_t>{2, 3})),
+                  std::make_shared<op::v1::Constant>(element::Type_t::i64, Shape{2}, std::vector<int64_t>{2, 3})),
         // lrn_2d_across_empty
         LRNParams(Shape{12},
                   Shape{12},
@@ -294,7 +294,7 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.5763904f,
                                  0.5765566f},
                   3, 0.5, 1, 3,
-                  std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{0}, std::vector<int64_t>{})),
+                  std::make_shared<op::v1::Constant>(element::Type_t::i64, Shape{0}, std::vector<int64_t>{})),
                                      // lrn_2d_across_empty
         LRNParams(Shape{6, 2},
                   Shape{6, 2},
@@ -325,7 +325,7 @@ std::vector<LRNParams> generateParamsForLRN() {
                                  0.3559732f,
                                  -0.7039225f},
                   0.0002, 0.5, 2.0, 3,
-                  std::make_shared<op::v0::Constant>(element::Type_t::i64, Shape{1}, std::vector<int64_t>{0})),
+                  std::make_shared<op::v1::Constant>(element::Type_t::i64, Shape{1}, std::vector<int64_t>{0})),
     };
 
     return params;

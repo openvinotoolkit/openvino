@@ -62,8 +62,8 @@ private:
     static std::shared_ptr<Model> CreateFunction(const element::Type& input_type, const PartialShape& input_pshape,
                                                     const element::Type& bucket_type, const PartialShape& bucket_pshape,
                                                     const bool with_right_bound, const element::Type& output_type) {
-        auto data = std::make_shared<op::v0::Parameter>(input_type, input_pshape);
-        auto buckets = std::make_shared<op::v0::Parameter>(bucket_type, bucket_pshape);
+        auto data = std::make_shared<op::v1::Parameter>(input_type, input_pshape);
+        auto buckets = std::make_shared<op::v1::Parameter>(bucket_type, bucket_pshape);
         return std::make_shared<Model>(std::make_shared<op::v3::Bucketize>(data, buckets, output_type, with_right_bound),
                                               ParameterVector {data, buckets});
     }

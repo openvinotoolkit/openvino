@@ -68,7 +68,7 @@ private:
         const element::Type& input_type,
         const std::shared_ptr<ngraph::opset1::Constant> indices,
         const std::shared_ptr<ngraph::opset1::Constant> per_sample_weights) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v1::Parameter>(input_type, input_shape);
 
         if (per_sample_weights) {
             const auto ess = std::make_shared<op::v3::EmbeddingBagPackedSum>(in, indices, per_sample_weights);

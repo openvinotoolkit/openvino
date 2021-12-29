@@ -60,7 +60,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto A = op::v1::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
         return std::make_shared<Model>(A, ParameterVector{});
     }
 };
@@ -75,8 +75,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto A = op::v1::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto B = op::v1::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
         return std::make_shared<Model>(NodeVector{A, B}, ParameterVector{});
     }
 };
@@ -91,8 +91,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        return std::make_shared<Model>(std::make_shared<op::v0::Abs>(A), ParameterVector{});
+        auto A = op::v1::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        return std::make_shared<Model>(std::make_shared<op::v1::Abs>(A), ParameterVector{});
     }
 };
 
@@ -106,7 +106,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        const auto A = std::make_shared<op::v0::Constant>(
+        const auto A = std::make_shared<op::v1::Constant>(
             params.inType,
             params.inputShape.to_shape(),
             std::vector<std::string>{std::to_string(*reinterpret_cast<int*>(params.inputData.data()))});
@@ -124,8 +124,8 @@ public:
 
 protected:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), {true, true, true, true});
+        auto A = op::v1::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto B = op::v1::Constant::create(params.inType, params.inputShape.to_shape(), {true, true, true, true});
         return std::make_shared<Model>(std::make_shared<op::v1::Equal>(A, B), ParameterVector{});
     }
 };
