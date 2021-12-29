@@ -103,4 +103,11 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTestWithThrow,
         ::testing::Values(""));
+
+TEST_P(IEClassNetworkTestP, LoadNetworkToDeviceGPUNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    ie.UnregisterPlugin("GPU");
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, {{"LOG_LEVEL", "LOG_DEBUG"}}));
+}
 } // namespace

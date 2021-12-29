@@ -430,6 +430,12 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("GPU")
 );
 
+TEST_P(IEClassNetworkTestP, LoadNetworkToDefaultDeviceNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, {{"LOG_LEVEL", "LOG_DEBUG"}}));
+}
+
 // GetConfig / SetConfig for specific device
 
 INSTANTIATE_TEST_SUITE_P(
