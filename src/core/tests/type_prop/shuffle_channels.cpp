@@ -128,6 +128,32 @@ TEST(type_prop, shuffle_channels_negative_axis_calculation) {
     EXPECT_EQ(shuffle_channels->get_zero_based_axis(), 1);
 }
 
+TEST(type_prop, shuffle_channels_infer_shape_with_negative_axis_calculation) {
+    // Only when the length of `axis` dimension is even, the shuffle_channels OP can work correctly.
+    const auto group = 2;
+    {
+        const auto data_input_shape = Shape{1, 3, 5, 8};
+        const auto data = make_shared<op::Parameter>(element::f64, data_input_shape);
+
+        const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, -1, group);
+        EXPECT_EQ(shuffle_channels->get_output_partial_shape(0), data_input_shape);
+    }
+    {
+        const auto data_input_shape = Shape{1, 3, 8, 5};
+        const auto data = make_shared<op::Parameter>(element::f64, data_input_shape);
+
+        const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, -2, group);
+        EXPECT_EQ(shuffle_channels->get_output_partial_shape(0), data_input_shape);
+    }
+    {
+        const auto data_input_shape = Shape{8, 3, 5, 7};
+        const auto data = make_shared<op::Parameter>(element::f64, data_input_shape);
+
+        const auto shuffle_channels = make_shared<op::v0::ShuffleChannels>(data, -4, group);
+        EXPECT_EQ(shuffle_channels->get_output_partial_shape(0), data_input_shape);
+    }
+}
+
 TEST(type_prop, shuffle_channels_invalid_input_shape) {
     try {
         const auto data = make_shared<op::Parameter>(element::f64, Shape{});
