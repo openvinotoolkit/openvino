@@ -167,7 +167,10 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
                   CommonTestUtils::DEVICE_CPU + std::string(",") + CommonTestUtils::DEVICE_GPU});
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(cnnNet, config));
+    if (cpuSuccess || accSuccess)
+        ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(cnnNet, config));
+    else
+        ASSERT_THROW(exeNetwork = plugin->LoadExeNetworkImpl(cnnNet, config), InferenceEngine::Exception);
     auto sharedcount = mockExeNetwork._ptr.use_count();
     auto requestsharedcount = inferReqInternal.use_count();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -177,8 +180,9 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
 
 //
 const std::vector<ConfigParams> testConfigs = {ConfigParams {true, true},
+                                               ConfigParams {true, false},
                                                ConfigParams {false, true},
-                                               ConfigParams {true, false}
+                                               ConfigParams {false, false}
                                               };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, AutoReleaseHelperTest,
