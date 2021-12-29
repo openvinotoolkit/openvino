@@ -155,7 +155,6 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims
 
     for (const auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
-            // TODO [DS]: change to shape from memory
             if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
                 eltwiseNode->appendPostOps(ops, dims);
             } else {
