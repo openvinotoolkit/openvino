@@ -6,7 +6,7 @@
 #include "vpu/configuration/options/disable_mx_boot.hpp"
 #include "vpu/configuration/switch_converters.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
-#include "vpu/myriad_config.hpp"
+#include "vpu/private_plugin_config.hpp"
 
 namespace vpu {
 

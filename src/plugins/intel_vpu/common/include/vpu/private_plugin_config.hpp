@@ -128,6 +128,15 @@ DECLARE_VPU_CONFIG(MYRIAD_FORCE_PURE_TENSOR_ITERATOR);
 // Myriad plugin options
 //
 
+/**
+ * @brief Used to prevent IE from booting MX VPU.
+ * This is a plugin scope option and must be used with the plugin's SetConfig method
+ * The only possible values are:
+ *     CONFIG_VALUE(YES)
+ *     CONFIG_VALUE(NO) (default value)
+ */
+DECLARE_VPU_CONFIG(MYRIAD_DISABLE_MX_BOOT);
+
 DECLARE_VPU_CONFIG(MYRIAD_POWER_MANAGEMENT);
 DECLARE_VPU_CONFIG(MYRIAD_POWER_FULL);
 DECLARE_VPU_CONFIG(MYRIAD_POWER_INFER);
