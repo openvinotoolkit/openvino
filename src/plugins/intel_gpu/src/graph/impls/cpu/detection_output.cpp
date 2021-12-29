@@ -800,7 +800,6 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         auto& stream = instance.get_network().get_stream();
         stream.flush();
         for (auto& a : events) {
-            std::cout << "a->wait()" << std::endl;
             a->wait();
         }
 

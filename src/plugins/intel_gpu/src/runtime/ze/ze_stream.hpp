@@ -9,7 +9,7 @@
 #include "ze_common.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"
-//#define SINGLE_EVENT_POOL
+#define SINGLE_EVENT_POOL
 
 #include <memory>
 #include <chrono>

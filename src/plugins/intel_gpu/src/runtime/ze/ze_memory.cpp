@@ -341,7 +341,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
                                                ev_ze,
                                                0,
                                                nullptr));
-    ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
+    //2ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
     _ze_stream.finish();
     return ev;
 }
@@ -362,7 +362,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr) {
                                                ev_ze,
                                                0,
                                                nullptr));
-    ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
+    //ZE_CHECK(zeCommandListAppendWaitOnEvents(_ze_stream.get_queue(), 1, &ev_ze));
     _ze_stream.finish();
     return ev;
 }

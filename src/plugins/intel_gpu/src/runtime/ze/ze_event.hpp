@@ -58,7 +58,6 @@ private:
     bool is_set_impl() override;
 
     void process_events(const std::vector<event::ptr>& ev) {
-        std::cout << "process_events" << std::endl;
         for (size_t i = 0; i < ev.size(); i++) {
             auto multiple_events = dynamic_cast<ze_events*>(ev[i].get());
             if (multiple_events) {
@@ -67,7 +66,6 @@ private:
                         auto current_ev_queue_stamp = base_ev->get_queue_stamp();
                         if ((_queue_stamp == 0) || (current_ev_queue_stamp > _queue_stamp)) {
                             _queue_stamp = current_ev_queue_stamp;
-                            std::cout << "process_events1 " << _queue_stamp << std::endl;
                             _last_ze_event = base_ev->get();
                             _last_ze_pool = base_ev->get_pool();
                         }
@@ -79,7 +77,6 @@ private:
                     auto current_ev_queue_stamp = base_ev->get_queue_stamp();
                     if ((_queue_stamp == 0) || (current_ev_queue_stamp > _queue_stamp)) {
                         _queue_stamp = current_ev_queue_stamp;
-                        std::cout << "process_events2 " << _queue_stamp << std::endl;
                         _last_ze_event = base_ev->get();
                         _last_ze_pool = base_ev->get_pool();
                     }
