@@ -18,8 +18,8 @@ using namespace InferenceEngine;
 namespace MKLDNNPlugin {
 
 // IEB file format routine
-static unsigned char IEB_MAGIC[4] = {'I', 'E', 'B', '0'};
-static unsigned char NO_SCALES = 0xFF;
+static const unsigned char IEB_MAGIC[4] = {'I', 'E', 'B', '0'};
+static const unsigned char NO_SCALES = 0xFF;
 
 struct IEB_HEADER {
     unsigned char magic[4];

@@ -763,7 +763,9 @@ template <typename Vmm>
                 if (is_signed) {
                     h->vpmovsdb(addr(0), vmm);
                 } else {
-                    h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
+                    Vmm zero(aux_vec_idxs[0]);
+                    h->uni_vpxor(zero, zero, zero);
+                    h->vpmaxsd(vmm, vmm, zero);
                     h->vpmovusdb(addr(0), vmm);
                 }
             } else {
@@ -774,7 +776,9 @@ template <typename Vmm>
                 if (is_signed) {
                     h->vpmovsdb(addr(0), vmm | k_mask);
                 } else {
-                    h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
+                    Vmm zero(aux_vec_idxs[0]);
+                    h->uni_vpxor(zero, zero, zero);
+                    h->vpmaxsd(vmm, vmm, zero);
                     h->vpmovusdb(addr(0), vmm | k_mask);
                 }
             }
@@ -845,7 +849,9 @@ template <typename Vmm>
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], vmm);  // singed int32 saturate to signed int16.
                     } else {
-                        h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);        // if singed bit is 1, set value as 0.
+                        Vmm zero(aux_vec_idxs[0]);
+                        h->uni_vpxor(zero, zero, zero);
+                        h->vmaxsd(vmm, zero, vmm);        // if singed bit is 1, set value as 0.
                         h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
                     }
                 } else {
@@ -856,7 +862,9 @@ template <typename Vmm>
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
                     } else {
-                        h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);
+                        Vmm zero(aux_vec_idxs[0]);
+                        h->uni_vpxor(zero, zero, zero);
+                        h->vmaxsd(vmm, zero, vmm);
                         h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
                     }
                 }
