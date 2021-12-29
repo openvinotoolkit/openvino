@@ -6,9 +6,9 @@ Hello Reshape SSD C++ sample application demonstrates how to use the following I
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-|Network Operations| `ov::runtime::Core::read_model`, `ov::runtime::Core::compile_model` |  Managing of network.
-|Input Reshape|`ov::Function::reshape`| Resize network to match image sizes and given batch
-|nGraph Functions|`ov::Function::get_ops`, `ov::Node::get_type_info`| Go thru network nGraph
+| Model Operations | `ov::runtime::Core::read_model`, `ov::runtime::Core::compile_model` |  Managing of model
+| Model Input Reshape | `ov::Model::reshape`| Resize model to match image sizes and given batch
+| Tensor Operations | `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
