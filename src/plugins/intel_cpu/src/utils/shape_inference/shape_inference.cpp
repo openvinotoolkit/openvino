@@ -60,6 +60,9 @@
 #include "roi_align_shape_inference.hpp"
 #include "roll_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
+#include "detection_output_shape_inference.hpp"
+#include "select_shape_inference.hpp"
+#include "shuffle_channels_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "tile_shape_inference.hpp"
 #include "utils.hpp"
@@ -222,6 +225,14 @@ void shape_inference(ov::Node* op,
       shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset3::ROIAlign>(op)) {
       shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::DetectionOutput>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset8::DetectionOutput>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::Select>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::ShuffleChannels>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset2::BatchToSpace>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::opset2::SpaceToBatch>(op)) {

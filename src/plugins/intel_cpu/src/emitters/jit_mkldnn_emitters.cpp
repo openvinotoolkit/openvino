@@ -22,15 +22,10 @@ jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa, 
     set_injector();
 }
 
-jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, InferenceEngine::Precision exec_prc)
-    : jit_emitter(host, host_isa, node, exec_prc) {
-    auto eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode*>(node);
-    if (!eltwiseNode) {
-        IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNEltwiseNode";
-    }
-    kind = static_cast<mkldnn_alg_kind_t>(eltwiseNode->getMKLDNNAlgorithm());
-    alpha = eltwiseNode->getAlpha();
-    beta = eltwiseNode->getBeta();
+jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa,
+                                       mkldnn_alg_kind_t algKind, float alpha, float beta,
+                                       InferenceEngine::Precision exec_prc)
+    : jit_emitter(host, host_isa, exec_prc), kind(algKind), alpha(alpha), beta(beta) {
 
     set_injector();
 }
@@ -83,8 +78,10 @@ void jit_mkldnn_emitter::emit_data() const {
     }
 }
 
-jit_mkldnn_aux_emitter::jit_mkldnn_aux_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, InferenceEngine::Precision exec_prc)
-    : jit_mkldnn_emitter(host, host_isa, node, exec_prc) {
+jit_mkldnn_aux_emitter::jit_mkldnn_aux_emitter(jit_generator *host, cpu_isa_t host_isa,
+                                               mkldnn_alg_kind_t algKind, float inpAlpha, float inpBeta,
+                                               InferenceEngine::Precision exec_prc)
+    : jit_mkldnn_emitter(host, host_isa, algKind, inpAlpha, inpBeta, exec_prc) {
 }
 
 } // namespace MKLDNNPlugin

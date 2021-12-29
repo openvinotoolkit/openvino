@@ -782,7 +782,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image) {
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
                       .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                      .set_memory_type(std::string(GPU_CONFIG_KEY(SURFACE)) + GPU_CONFIG_KEY(BATCHED));
+                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
     p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
