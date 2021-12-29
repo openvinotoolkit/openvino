@@ -118,6 +118,8 @@ int64_t get_offset(dnnl::memory::desc desc) {
         }
     }
     if (padded_idx > -1) {
+        if (padded_idx != 1)
+            throw std::runtime_error(std::string("onednn only support feature padding. Unsupported padded_idx: ") + std::to_string(padded_idx));
         offset = desc.data.padded_offsets[padded_idx];
         for (int32_t i = padded_idx + 1; i < desc.data.ndims; ++i) {
             offset *= desc.data.padded_dims[i];
