@@ -1994,8 +1994,6 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
             dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
         }
 
-        std::vector<const void*> vecPostOpData(fqDataPtrs.size());
-
         args_ptrs.post_op_data = fqDataPtrs.data();
 
         execPtr->exec(args_ptrs, dims_out);
