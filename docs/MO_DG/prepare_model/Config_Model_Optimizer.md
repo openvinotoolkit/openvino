@@ -375,21 +375,13 @@ install_prerequisites_caffe.sh
 ```
 install_prerequisites_caffe.bat
 ```
-*   For TensorFlow\* 1.x on Linux:
+*   For TensorFlow\* on Linux:
 ```
 install_prerequisites_tf.sh
 ```
-*   For TensorFlow 1.x on Windows:
+*   For TensorFlow on Windows:
 ```
 install_prerequisites_tf.bat
-```
-*   For TensorFlow\* 2.x on Linux:
-```
-install_prerequisites_tf2.sh
-```
-*   For TensorFlow 2.x on Windows:
-```
-install_prerequisites_tf2.bat
 ```
 *   For MXNet\* on Linux:
 ```
@@ -453,19 +445,15 @@ virtualenv -p /usr/bin/python3.6 .env3/bin/activate
 ```shell
 pip3 install -r requirements.txt
 ```
-> **NOTE**: TensorFlow 1.x and 2.x are incompatible. Use separate virtual environments if you want to install multiple TensorFlow versions.
+> **NOTE**: Support of MO in TensorFlow 1.x environment is deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models. Use separate virtual environments if you want to install multiple TensorFlow versions.
 
     *   To install dependencies only for Caffe:
 ```shell
 pip3 install -r requirements_caffe.txt
 ```
-    *   To install dependencies only for TensorFlow 1.x:
+    *   To install dependencies only for TensorFlow:
 ```shell
 pip3 install -r requirements_tf.txt
-```
-    *   To install dependencies only for TensorFlow 2.x:
-```shell
-pip3 install -r requirements_tf2.txt
 ```
     *   To install dependencies only for MXNet:
 ```shell

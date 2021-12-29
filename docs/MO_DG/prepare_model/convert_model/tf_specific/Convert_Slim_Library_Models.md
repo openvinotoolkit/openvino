@@ -72,6 +72,7 @@ The [inception_preprocessing.py](https://github.com/tensorflow/models/blob/maste
 
 ```python3
     ...
+    import tensorflow as tf
     if image.dtype != tf.float32:
       image = tf.image.convert_image_dtype(image, dtype=tf.float32)
     ...

@@ -256,7 +256,7 @@ The graph is frozen and dumped to a file with the following code:
 ```python
 import tensorflow as tf
 from tensorflow.python.framework import graph_io
-frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["name_of_the_output_node"])
+frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["name_of_the_output_node"])
 graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
 ```
 
@@ -360,7 +360,7 @@ TensorFlow*-specific parameters:
 
 ## Convert TensorFlow* 2 Models <a name="Convert_From_TF2X"></a>
 
-In order to convert TensorFlow* 2 models, installation of dependencies from `requirements_tf2.txt` is required.
+In order to convert TensorFlow* 2 models, installation of dependencies from `requirements_tf.txt` is required.
 TensorFlow* 2.X officially supports two model formats: SavedModel and Keras H5 (or HDF5).    
 Below are the instructions on how to convert each of them.
 
