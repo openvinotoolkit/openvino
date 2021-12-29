@@ -45,7 +45,7 @@ DEFINE_string(d, "CPU", target_device_message);
 /**
  * @brief This function show a help message
  */
-static void showUsage() {
+static void show_usage() {
     std::cout << std::endl;
     std::cout << "classification_sample_async [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
