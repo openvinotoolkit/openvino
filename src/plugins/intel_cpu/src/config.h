@@ -26,6 +26,7 @@ struct Config {
     bool enableDynamicBatch = false;
     std::string dumpToDot = "";
     int batchLimit = 0;
+    size_t rtCacheCapacity = 100ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
 #if defined(__arm__) || defined(__aarch64__)
