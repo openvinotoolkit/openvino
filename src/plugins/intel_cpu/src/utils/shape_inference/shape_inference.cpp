@@ -19,6 +19,7 @@
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "ctc_loss_shape_inference.hpp"
+#include "detection_output_shape_inference.hpp"
 #include "einsum_shape_inference.hpp"
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "embeddingbag_offsets_shape_inference.hpp"
@@ -48,8 +49,10 @@
 #include "roll_shape_inference.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
+#include "select_shape_inference.hpp"
 #include "shape_inference.hpp"
 #include "shape_nodes.hpp"
+#include "shuffle_channels_shape_inference.hpp"
 #include "split_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "strided_slice_shape_inference.hpp"
@@ -461,6 +464,14 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::opset1::Proposal>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset3::ROIAlign>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::DetectionOutput>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset8::DetectionOutput>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::Select>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::ShuffleChannels>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v8::MaxPool>(op)) {
         return std::make_shared<entryPooling<ov::op::v8::MaxPool>>(node);
