@@ -16,13 +16,12 @@
 #include "samples/slog.hpp"
 // clang-format on
 
-namespace {
 /**
  * @brief Print IE Parameters
  * @param reference on IE Parameter
  * @return void
  */
-void printAnyValue(const ov::Any& value) {
+void print_any_value(const ov::Any& value) {
     if (value.empty()) {
         slog::info << "EMPTY VALUE" << slog::endl;
     } else if (value.is<bool>()) {
@@ -84,8 +83,6 @@ void printAnyValue(const ov::Any& value) {
     }
 }
 
-}  // namespace
-
 int main(int argc, char* argv[]) {
     try {
         // -------- Get OpenVINO runtime version --------
@@ -114,7 +111,7 @@ int main(int argc, char* argv[]) {
             for (auto&& metricName : supportedMetrics) {
                 if (metricName != METRIC_KEY(SUPPORTED_METRICS) && metricName != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
                     slog::info << "\t\t" << metricName << " : " << slog::flush;
-                    printAnyValue(core.get_metric(device, metricName));
+                    print_any_value(core.get_metric(device, metricName));
                 }
             }
 
@@ -126,7 +123,7 @@ int main(int argc, char* argv[]) {
                     core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 for (auto&& configKey : supportedConfigKeys) {
                     slog::info << "\t\t" << configKey << " : " << slog::flush;
-                    printAnyValue(core.get_config(device, configKey));
+                    print_any_value(core.get_config(device, configKey));
                 }
             }
 

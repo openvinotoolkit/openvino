@@ -40,22 +40,22 @@ using namespace ov::preprocess;
  * @param argv list of input arguments
  * @return bool status true(Success) or false(Fail)
  */
-bool ParseAndCheckCommandLine(int argc, char* argv[]) {
+bool parse_and_check_command_line(int argc, char* argv[]) {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
-        showUsage();
+        show_usage();
         showAvailableDevices();
         return false;
     }
     slog::info << "Parsing input parameters" << slog::endl;
 
     if (FLAGS_m.empty()) {
-        showUsage();
+        show_usage();
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
     if (FLAGS_i.empty()) {
-        showUsage();
+        show_usage();
         throw std::logic_error("Input is required but not set. Please set -i option.");
     }
 
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
         slog::info << ov::get_openvino_version() << slog::endl;
 
         // -------- Parsing and validation of input arguments --------
-        if (!ParseAndCheckCommandLine(argc, argv)) {
+        if (!parse_and_check_command_line(argc, argv)) {
             return EXIT_SUCCESS;
         }
 
