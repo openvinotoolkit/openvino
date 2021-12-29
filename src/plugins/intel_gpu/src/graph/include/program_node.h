@@ -47,7 +47,10 @@ enum class onednn_post_op_type : uint32_t {
     scale,
     sum,
     optimized,
-    optimized_eltwise,
+    optimized_eltwise_act,
+    optimized_eltwise_clip,
+    optimized_eltwise_linear,
+    optimized_eltwise_round,
     optimized_sum
 };
 
