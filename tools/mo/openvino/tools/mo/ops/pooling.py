@@ -82,7 +82,7 @@ class Pooling(Op):
         }, attrs)
 
     def backend_attrs(self):
-        return [
+        backend_attrs_list = [
             ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
             ('kernel', lambda node: ','.join(map(str, node['window'][node.spatial_dims]))),
 
@@ -92,13 +92,17 @@ class Pooling(Op):
             ('exclude-pad', lambda node: bool_to_str(node, 'exclude_pad')),
 
             'rounding_type',
-            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
-
-            ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-            'axis',
-
-            ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))
+            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit')
         ]
+
+        if self.attrs.get('pool_method') == 'avg':
+            return backend_attrs_list
+        else:
+            return backend_attrs_list + [
+                ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
+                'axis',
+                ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))
+            ]
 
     @staticmethod
     def infer(node: Node):
