@@ -5,6 +5,7 @@
 #include "int_executable.hpp"
 
 #include <cstring>
+#include <openvino/op/util/variable_context.hpp>
 
 #include "evaluates_map.hpp"
 #include "ngraph/except.hpp"
@@ -87,6 +88,10 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         results_map[output] = output_count;
     }
 
+    EvaluationContext eval_context;
+    ov::op::util::VariableContext variable_context;
+    eval_context.emplace("VariableContext", variable_context);
+
     // for each ordered op in the graph
     for (const auto& op : m_nodes) {
         if (dynamic_pointer_cast<op::Parameter>(op) != nullptr) {
@@ -143,8 +148,20 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         if (m_performance_counters_enabled) {
             m_timer_map[op].start();
         }
+
+        if (auto var_extension = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(cloned_node)) {
+            auto variable = var_extension->get_variable();
+            if (!variable_context.get_variable_value(variable)) {
+                auto h_tensor = std::make_shared<ngraph::HostTensor>(cloned_node->get_input_element_type(0),
+                                                                     cloned_node->get_input_shape(0));
+                std::vector<float> data(ov::shape_size(cloned_node->get_input_shape(0)), 0);
+                h_tensor->write(data.data(), data.size() * sizeof(float));
+                variable_context.set_variable_value(variable, std::make_shared<VariableValue>(h_tensor));
+            }
+        }
+
         // Call evaluate for cloned_node with static shapes
-        if (!cloned_node->evaluate(op_outputs, op_inputs)) {
+        if (!cloned_node->evaluate(op_outputs, op_inputs, eval_context)) {
             evaluate_node(cloned_node, op_outputs, op_inputs);
         }
         if (m_performance_counters_enabled) {
