@@ -227,10 +227,14 @@ std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
     std::string selectedType;
     std::tie(inFmts, outFmts, priority, selectedType) = params;
     if (!inFmts.empty()) {
-        result << "_inFmts=" << fmts2str(inFmts, "");
+        auto str = fmts2str(inFmts, "");
+        std::replace(str.begin(), str.end(), ',', '.');
+        result << "_inFmts=" << str;
     }
     if (!outFmts.empty()) {
-        result << "_outFmts=" << fmts2str(outFmts, "");
+        auto str = fmts2str(outFmts, "");
+        std::replace(str.begin(), str.end(), ',', '.');
+        result << "_outFmts=" << str;
     }
     if (!selectedType.empty()) {
         result << "_primitive=" << selectedType;

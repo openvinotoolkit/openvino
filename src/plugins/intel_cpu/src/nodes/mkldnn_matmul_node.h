@@ -59,7 +59,6 @@ private:
 
     std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
     DnnlBlockedMemoryDescPtr outDataDesc;
-    AttrPtr pAttr;
 };
 
 }  // namespace MKLDNNPlugin
