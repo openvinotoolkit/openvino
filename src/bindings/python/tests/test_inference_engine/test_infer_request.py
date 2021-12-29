@@ -3,9 +3,11 @@
 
 import numpy as np
 import os
+from numpy.core.fromnumeric import size
 import pytest
 import datetime
 import time
+from openvino.runtime.opset1.ops import parameter
 
 import openvino.runtime.opset8 as ops
 from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, Type
@@ -173,6 +175,36 @@ def test_start_async(device):
         request.wait()
         assert request.latency > 0
     assert callbacks_info["finished"] == jobs
+
+
+def test_infer_list_as_inputs(device):
+    num_inputs = 4
+    input_shape = [2, 1]
+    dtype = np.float32
+    params = [ops.parameter(input_shape, dtype) for _ in range(num_inputs)]
+    model = Model(ops.relu(ops.concat(params, 1)), params)
+    core = Core()
+    compiled_model = core.compile_model(model, device)
+
+    def check_fill_inputs(request, inputs):
+        for input_idx in range(len(inputs)):
+            assert np.array_equal(request.get_input_tensor(input_idx).data, inputs[input_idx])
+
+    inputs = [np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)]
+
+    request = compiled_model.create_infer_request()
+    request.infer(inputs)
+    check_fill_inputs(request, inputs)
+
+    request = compiled_model.create_infer_request()
+    request.start_async(inputs)
+    request.wait()
+    check_fill_inputs(request, inputs)
+
+    queue = AsyncInferQueue(compiled_model, 1)
+    queue.start_async(inputs)
+    queue.wait_all()
+    check_fill_inputs(queue[0], inputs)
 
 
 def test_infer_mixed_keys(device):
