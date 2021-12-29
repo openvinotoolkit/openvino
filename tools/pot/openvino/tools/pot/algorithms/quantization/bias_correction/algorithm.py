@@ -282,8 +282,8 @@ class BiasCorrection(Algorithm):
     def _create_results_after_nodes(self, output_nodes):
         outputs_data = []
         for output_node in output_nodes:
-            output_name = nu.create_node_name(output_node, str)
-            result_name = output_name + '/sink_port_0'
+            output_name = output_node.name
+            result_name = output_name + '/result'
             result_node = ge.create_node(output_node.graph, result_name, 'Result', {})
             for out_node in output_node.out_nodes().values():
                 if 'fw_tensor_debug_info' in out_node:
