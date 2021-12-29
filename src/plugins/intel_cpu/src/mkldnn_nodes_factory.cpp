@@ -81,6 +81,7 @@
 #include "nodes/mkldnn_if_node.h"
 #include "nodes/mkldnn_ctc_greedy_decoder_node.h"
 #include "nodes/mkldnn_non_zero.h"
+#include "nodes/mkldnn_color_convert_node.h"
 #include "nodes/subgraph.h"
 
 #define MKLDNN_NODE(__prim, __type) \
@@ -172,4 +173,5 @@ MKLDNNPlugin::MKLDNNNode::NodesFactory::NodesFactory()
     MKLDNN_NODE(MKLDNNGRNNode, GRN);
     MKLDNN_NODE(MKLDNNNonZeroNode, NonZero);
     MKLDNN_NODE(MKLDNNSnippetNode, Subgraph);
+    MKLDNN_NODE(MKLDNNColorConvertNode, ColorConvert);
 }
