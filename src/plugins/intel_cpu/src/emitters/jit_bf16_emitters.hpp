@@ -10,8 +10,8 @@ namespace MKLDNNPlugin {
 
 class jit_emu_vcvtneps2bf16 : public jit_emitter {
 public:
-    jit_emu_vcvtneps2bf16(mkldnn::impl::cpu::x64::jit_generator* host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
-        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::BF16) : jit_emitter(host, host_isa, node, exec_prc) {
+    jit_emu_vcvtneps2bf16(mkldnn::impl::cpu::x64::jit_generator* host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
+        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::BF16) : jit_emitter(host, host_isa, exec_prc) {
         prepare_table();
     }
 

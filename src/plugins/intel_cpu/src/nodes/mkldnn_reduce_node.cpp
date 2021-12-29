@@ -93,7 +93,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         }
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16 = std::make_shared<jit_emu_vcvtneps2bf16>(this, isa, nullptr);
+            emu_vcvtneps2bf16 = std::make_shared<jit_emu_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 
@@ -1075,7 +1075,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         }
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16 = std::make_shared<jit_emu_vcvtneps2bf16>(this, isa, nullptr);
+            emu_vcvtneps2bf16 = std::make_shared<jit_emu_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 

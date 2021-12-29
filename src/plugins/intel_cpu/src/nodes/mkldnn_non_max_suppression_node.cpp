@@ -41,8 +41,8 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
     }
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa, nullptr));
-        store_emitter.reset(new jit_store_emitter(this, isa, nullptr));
+        load_emitter.reset(new jit_load_emitter(this, isa));
+        store_emitter.reset(new jit_store_emitter(this, isa));
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         this->preamble();

@@ -604,8 +604,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic, MatMulLayerCPUTest, testParamsDynamic
 const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing = {
     {
         { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1}, {{16, 12}, {33, 7}}}, // input 0
-            {{-1, 33}, {{12, 33}, {7, 33}}}  // input 1
+            {{-1, -1}, {{16, 12}, {33, 7}, {16, 12}}}, // input 0
+            {{-1, 33}, {{12, 33}, {7, 33}, {12, 33}}}  // input 1
         },
         {false, false}
     },
@@ -625,8 +625,8 @@ const std::vector<ShapeRelatedParams> IS_Dynamic_Fusing = {
     },
     {
         { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{-1, -1, 5}, {{10, 10, 5}, {5, 5, 5}}}  // input 1
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}, {10, 10, 10}}}, // input 0
+            {{-1, -1, 5}, {{10, 10, 5}, {5, 5, 5}, {10, 10, 5}}}  // input 1
         },
         {false, false}
     },

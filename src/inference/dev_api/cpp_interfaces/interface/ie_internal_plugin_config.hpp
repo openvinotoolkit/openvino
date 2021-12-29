@@ -46,6 +46,13 @@ DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
 DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 
 /**
+ * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
+ * stream
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(CPU_RUNTIME_CACHE_CAPACITY);
+
+/**
  * @brief This key should be used to force disable export while loading network even if global cache dir is defined
  *        Used by HETERO plugin to disable automatic caching of subnetworks (set value to YES)
  * @ingroup ie_dev_api_plugin_api

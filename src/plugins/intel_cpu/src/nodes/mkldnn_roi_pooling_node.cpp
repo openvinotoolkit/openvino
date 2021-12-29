@@ -44,8 +44,8 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
     };
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa, nullptr));
-        store_emitter.reset(new jit_store_emitter(this, isa, nullptr));
+        load_emitter.reset(new jit_load_emitter(this, isa));
+        store_emitter.reset(new jit_store_emitter(this, isa));
 
         this->preamble();
 

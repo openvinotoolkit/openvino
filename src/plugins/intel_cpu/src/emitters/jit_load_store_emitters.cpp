@@ -18,9 +18,9 @@ using namespace Xbyak::util;
 namespace MKLDNNPlugin {
 
 /// LOAD ///
-jit_load_emitter::jit_load_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node,
+jit_load_emitter::jit_load_emitter(jit_generator *host, cpu_isa_t host_isa,
     Precision exec_prc, emitter_in_out_map in_out_type)
-: jit_emitter(host, host_isa, node, exec_prc, in_out_type), name(node ? node->getName() : "unknown") {
+: jit_emitter(host, host_isa, exec_prc, in_out_type), name("unknown") {
     prepare_table();
     v_len_elt = get_vec_length() / exec_prc.size();
 }
@@ -486,12 +486,12 @@ void jit_load_emitter::register_table_entries() {
 }
 
 /// STORE ///
-jit_store_emitter::jit_store_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node,
+jit_store_emitter::jit_store_emitter(jit_generator *host, cpu_isa_t host_isa,
     Precision exec_prc, emitter_in_out_map in_out_type)
-: jit_emitter(host, host_isa, node, exec_prc, in_out_type), name(node ? node->getName() : "unknown") {
+: jit_emitter(host, host_isa, exec_prc, in_out_type), name("unknown") {
     v_len_elt = get_vec_length() / exec_prc.size();
     if (!mayiuse(cpu::x64::avx512_core_bf16) && mayiuse(cpu::x64::avx512_core)) {
-        emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(host, host_isa, nullptr));
+        emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(host, host_isa));
     }
 }
 

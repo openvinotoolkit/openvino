@@ -13,7 +13,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <mkldnn_types.h>
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -21,11 +20,62 @@
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "mkldnn_extension_utils.h"
-#include "utils/cpu_utils.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+
+namespace {
+struct MatMulKey {
+    DnnlMemoryDescCPtr inp0;
+    DnnlMemoryDescCPtr inp1;
+    DnnlMemoryDescCPtr bias;
+    DnnlMemoryDescCPtr out;
+    mkldnn::primitive_attr attr;
+    impl_desc_type implType;
+
+    size_t hash() const;
+    bool operator==(const MatMulKey& rhs) const;
+};
+
+size_t MatMulKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+
+    for (const auto& ptr : {inp0, inp1, bias, out}) {
+        if (ptr) {
+            seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
+        }
+    }
+
+    seed = hash_combine(seed, get_attr_hash(*attr.get()));
+    seed = hash_combine(seed, implType);
+    return seed;
+}
+
+bool MatMulKey::operator==(const MatMulKey &rhs) const {
+    bool retVal = true;
+    if (inp0 != rhs.inp0) {
+        retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
+    }
+    if (inp1 != rhs.inp1) {
+        retVal = retVal && inp1 && rhs.inp1 && inp1->getDnnlDesc() == rhs.inp1->getDnnlDesc();
+    }
+    if (bias != rhs.bias) {
+        retVal = retVal && bias && rhs.bias && bias->getDnnlDesc() == rhs.bias->getDnnlDesc();
+    }
+    if (out != rhs.out) {
+        retVal = retVal && out && rhs.out && out->getDnnlDesc() == rhs.out->getDnnlDesc();
+    }
+    retVal = retVal && *attr.get() == *rhs.attr.get() &&
+             implType == rhs.implType;
+    return retVal;
+}
+
+} // namespace
 
 bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -377,35 +427,58 @@ void MKLDNNMatMulNode::prepareParams() {
 
     auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
 
-    std::shared_ptr<mkldnn::matmul::desc> matmul_desc;
-
+    DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
-        matmul_desc.reset(new mkldnn::matmul::desc{src0TransposedDesc->getDnnlDesc(),
-                                            src1TransposedDesc->getDnnlDesc(),
-                                            getBiasDescFrom(dstDnnlDesc),
-                                            dstDnnlDesc->getDnnlDesc()});
-    } else {
-        matmul_desc.reset(new mkldnn::matmul::desc(src0TransposedDesc->getDnnlDesc(),
-                                            src1TransposedDesc->getDnnlDesc(),
-                                            dstDnnlDesc->getDnnlDesc()));
+        auto& biasMemory = getParentEdgeAt(2)->getMemoryPtr();
+        if (!biasMemory || !biasMemory->GetPrimitivePtr())
+            IE_THROW()  << errorPrefix << " did not allocate bias memory";
+        dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();
     }
 
-    MKLDNNDescriptor desc(matmul_desc);
-    primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
-    matmul::primitive_desc prim_desc;
+    MatMulKey key = {src0TransposedDesc, src1TransposedDesc, dnnlBiasMemDesc,
+                     dstDnnlDesc, *attr, selected_pd->getImplementationType()};
 
-    while (static_cast<bool>(itpd))  {
-        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+    auto engine = getEngine();
 
-        if (impl_type == selected_pd->getImplementationType()) {
-            prim_desc = itpd.get();
-            break;
+    auto builder = [&engine](const MatMulKey& key) -> std::shared_ptr<mkldnn::primitive> {
+        std::shared_ptr<mkldnn::matmul::desc> matmul_desc;
+
+        if (key.bias) {
+            matmul_desc.reset(new mkldnn::matmul::desc{key.inp0->getDnnlDesc(),
+                                                       key.inp1->getDnnlDesc(),
+                                                       key.bias->getDnnlDesc(),
+                                                       key.out->getDnnlDesc()});
+        } else {
+            matmul_desc.reset(new mkldnn::matmul::desc(key.inp0->getDnnlDesc(),
+                                                       key.inp1->getDnnlDesc(),
+                                                       key.out->getDnnlDesc()));
         }
-        if (!itpd.next_impl())
-            IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+
+        MKLDNNDescriptor desc(matmul_desc);
+        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
+        matmul::primitive_desc prim_desc;
+
+        while (static_cast<bool>(itpd))  {
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+            if (impl_type == key.implType) {
+                prim_desc = itpd.get();
+                break;
+            }
+            if (!itpd.next_impl())
+                return nullptr;
+        }
+        return std::make_shared<matmul>(prim_desc);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+
+    if (!result.first) {
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim.reset(new matmul(prim_desc));
+    prim = result.first;
 
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();

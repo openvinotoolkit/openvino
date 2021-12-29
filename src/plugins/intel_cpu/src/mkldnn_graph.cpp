@@ -67,8 +67,10 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     if (IsReady())
         ForgetGraphData();
-    // disable caching if graph was created only once
+    // disable weights caching if graph was created only once
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
+
+    rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
 
     Replicate(net, extMgr);
     InitGraph();
@@ -113,6 +115,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
+        node->setRuntimeCache(rtParamsCache);
 
         graphNodes.push_back(node);
 
@@ -209,6 +212,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
+        node->setRuntimeCache(rtParamsCache);
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
@@ -1191,6 +1195,7 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
     if (isQuantized()) {
         node->setQuantizedGraphFlag(true);
     }
+    node->setRuntimeCache(rtParamsCache);
 
     if (initNode) {
         node->getSupportedDescriptors();

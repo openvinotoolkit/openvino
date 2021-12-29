@@ -28,7 +28,7 @@ struct emitter_context {
 
 class jit_emitter : public ngraph::snippets::Emitter {
 public:
-    jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
+    jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                 InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
         : Emitter(nullptr), h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type), l_table (new Xbyak::Label()) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
