@@ -59,7 +59,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
     }
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa, nullptr));
+        load_emitter.reset(new jit_load_emitter(this, isa));
 
         this->preamble();
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -384,8 +384,8 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
             }
         }
 
-        load_emitter.reset(new jit_load_emitter(this, isa, nullptr));
-        store_emitter.reset(new jit_store_emitter(this, isa, nullptr));
+        load_emitter.reset(new jit_load_emitter(this, isa));
+        store_emitter.reset(new jit_store_emitter(this, isa));
 
         this->preamble();
 

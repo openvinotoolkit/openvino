@@ -29,6 +29,7 @@
 #include "cpu_types.h"
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "cache/multi_cache.h"
 
 namespace MKLDNNPlugin {
 
@@ -582,6 +583,19 @@ public:
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const MKLDNNNode *parentNode) const;
 
+    /**
+     * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
+     * Seed node should call this routine and pass its post operations list as parameter.
+     * @param ops List of fused post operations
+     */
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
+
+    virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
+
+    void setRuntimeCache(MultiCachePtr cache) {
+        rtParamsCache = cache;
+    }
+
 protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
 
@@ -597,15 +611,7 @@ protected:
     virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
     virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
-    /**
-     * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
-     * Seed node should call this routine and pass its post operations list as parameter.
-     * @param ops List of fused post operations
-     */
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
-    virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
-
-    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() { return nullptr; }
+    virtual AttrPtr initPrimitiveAttr() { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
@@ -755,6 +761,10 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
+    MultiCachePtr getRuntimeCache() const {
+        return rtParamsCache;
+    }
+
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<ngraph::Node> opToShapeInfer;
@@ -779,6 +789,8 @@ private:
 
     PerfCount perfCounter;
     PerfCounters profiling;
+
+    MultiCachePtr rtParamsCache;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 

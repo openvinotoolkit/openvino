@@ -264,8 +264,8 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
 
         for (size_t i = 0; i < work_size.size(); i++) {
             if (work_size[i] != shape[i]) {
-                if (work_size[i] == 1) {
-                    work_size[i] = shape[i];
+                if (work_size[i] == 1 || shape[i] == 1) {
+                    work_size[i] = max(work_size[i], shape[i]);
                 } else {
                     throw ngraph_error("incompatible shapes for output graphs");
                 }
