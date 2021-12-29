@@ -189,7 +189,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         }
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
 
         this->preamble();
 
@@ -1356,10 +1356,16 @@ private:
 
                 auto quant = post_op.quantization;
 
-                float crop_low = quant.crop_low_data->shifts_[quant.crop_low_data->count_ == 1 ? 0 : index_c];
-                float crop_high = quant.crop_high_data->shifts_[quant.crop_high_data->count_ == 1 ? 0 : index_c];
-                float input_scale = quant.input_scale_data->scales_[quant.input_scale_data->count_ == 1 ? 0 : index_c];
-                float input_shift = quant.input_shift_data->shifts_[quant.input_shift_data->count_ == 1 ? 0 : index_c];
+                using quantization_fields = post_ops_t::entry_t::quantization_t::quantization_fields;
+                auto dataVal = [&](const quantization_fields& field) {
+                    const int channelIdx = quant.per_channel[field] ? index_c : 0;
+                    return quant.data[field][channelIdx];
+                };
+
+                float crop_low = dataVal(quant.crop_low);
+                float crop_high = dataVal(quant.crop_high);
+                float input_scale = dataVal(quant.inp_scale);
+                float input_shift = dataVal(quant.inp_shift);
 
                 dst_value = nstl::min(crop_high, nstl::max(crop_low, dst_value));
                 dst_value = dst_value * input_scale + input_shift;
@@ -1369,8 +1375,8 @@ private:
                 }
 
                 if (do_dequantization) {
-                    float output_scale = quant.output_scale_data->scales_[quant.output_scale_data->count_ == 1 ? 0 : index_c];
-                    float output_shift = quant.output_shift_data->shifts_[quant.output_shift_data->count_ == 1 ? 0 : index_c];
+                    float output_scale = dataVal(quant.output_scale);
+                    float output_shift = dataVal(quant.output_shift);
                     dst_value = dst_value * output_scale + output_shift;
                 }
             }
