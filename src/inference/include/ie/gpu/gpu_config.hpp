@@ -156,11 +156,10 @@ DECLARE_GPU_CONFIG_KEY(MAX_NUM_THREADS);
 DECLARE_GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
 
 /**
- * @brief This keys instructs the GPU plugin to use surface/buffer and batched memory type.
+ * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
  */
 DECLARE_GPU_CONFIG_KEY(SURFACE);
 DECLARE_GPU_CONFIG_KEY(BUFFER);
-DECLARE_GPU_CONFIG_KEY(BATCHED);
 
 }  // namespace GPUConfigParams
 
