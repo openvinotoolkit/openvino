@@ -68,8 +68,6 @@ inline bool IsReshapeFrom3dTo4d(InferenceEngine::CNNLayerPtr layer) {
  * so the possible patterns will be:
  * Permute(NWC->NCW) -> ... -> Reshape(NCW ->NCHW) -> Convolution -> Reshape(NCHW->NCW) ... -> Permute(NCW->NWC) or
  * Reshape(NWC->NCW) -> ... -> Reshape(NCW ->NCHW) -> Convolution -> Reshape(NCHW->NCW) ... -> Reshape(NCW->NWC)
- * Transpose can be optimized to reshape and possible pattern in this case:
- * Reshape(NW->NCHW) -> Convolution -> Permute (NCHW->NHWC)
  * if Convolution has only one input/output dimension not equal to 1.
  * @param layer convolution layer
  * @return the found permutations before and after convolution
