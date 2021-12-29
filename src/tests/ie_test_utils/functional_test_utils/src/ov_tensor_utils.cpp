@@ -108,7 +108,11 @@ void compare(const ov::runtime::Tensor& expected,
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
     ASSERT_EQ(expected_shape, actual_shape);
-    ASSERT_NE(shape_size(actual_shape), 0);
+
+    if (shape_size(actual_shape) == 0) {
+        return;
+    }
+
     auto expected_data = expected.data<ExpectedT>();
     auto actual_data = actual.data<ActualT>();
     double abs_threshold = abs_threshold_;

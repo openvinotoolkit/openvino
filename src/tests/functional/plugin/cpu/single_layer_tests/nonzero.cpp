@@ -64,14 +64,6 @@ public:
         }
     }
 
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
-        const auto dims = targetStaticShapes[inferNum].front();
-        if (!((startFrom == 0 && range == 1) || std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } ))) {
-            SubgraphBaseTest::compare(expected, actual);
-        }
-        inferNum++;
-    }
-
 protected:
     size_t startFrom = 0, range = 10;
     size_t inferNum = 0;
