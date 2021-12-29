@@ -183,6 +183,10 @@ def float32_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.n
     return np.array(value, dtype=np.float32)
 
 
+def int8_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.int8)
+
+
 def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
     return float32_array(value)
 
