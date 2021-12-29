@@ -7,7 +7,7 @@ from time import time
 
 import copy
 import numpy as np
-from openvino.runtime import Core   # pylint: disable=E0611,E0401
+from openvino.runtime import Core, AsyncInferQueue   # pylint: disable=E0611,E0401
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
@@ -218,47 +218,6 @@ class IEEngine(Engine):
                                                          'metric_name': metric_name,
                                                          'result': metric_value[i]})
 
-    def _populate_free_requests(self, model, free_irs, queued_irs, data_iterator):
-        """Fills free inference requests with new data batch and start inference
-        :param free_irs: list of completed infer requests
-        :param queued_irs: list of running infer requests with corresponding image ids
-        :param data_iterator: dataset iterator
-        """
-        for ir in free_irs:
-            data_batch = next(data_iterator, None)
-            if not data_batch:
-                break
-            batch_id, batch = data_batch
-            image_ids, images, batch_meta = self._process_batch(batch)
-            ir.start_async(inputs=self._fill_input(model, images))
-            queued_irs.append((batch_id, image_ids, batch_meta, ir))
-
-        free_irs.clear()
-
-    def _wait_for_any(self, irs):
-        """Waits for any queued infer requests to finish inference.
-        :param irs: list of queued infer requests
-        :return list of results of completed infer requests [(batch_id, annotations, layer_outputs, infer_request)]
-                list of queued infer requests
-        """
-        if not irs:
-            return [], []
-
-        result = []
-        free_indexes = []
-        for ir_id, (batch_id, image_annotations, batch_meta, ir) in enumerate(irs):
-            infer_status = ir.wait()
-
-            if infer_status:
-                logger.debug('Infer request %d returned %s message', ir_id, infer_status)
-                return [], []
-            outputs = ir.results
-
-            result.append((batch_id, image_annotations, batch_meta, outputs, ir))
-            free_indexes.append(ir_id)
-        irs = [ir for ir_id, ir in enumerate(irs) if ir_id not in free_indexes]
-        return result, irs
-
     def _fill_input(self, model, image_batch):
         """Matches network input name with corresponding input batch
         :param model: IENetwork instance
@@ -327,43 +286,39 @@ class IEEngine(Engine):
         :param requests_num: number of infer requests
         """
 
+        def completion_callback(request, start_time):
+            predictions = request.results
+            self._process_infer_output(stats_layout, predictions,
+                                       batch_annotations, batch_meta,
+                                       need_metrics_per_sample)
+
+            # Print progress
+            if self._print_inference_progress(progress_log_fn,
+                                              batch_id, len(sampler),
+                                              start_time, time()):
+                start_time = time()
+
         progress_log_fn = logger.info if print_progress else logger.debug
         self._ie.set_config({'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO', 'CPU_BIND_THREAD': 'YES'}, self._device)
 
         # Load model to the plugin
         compiled_model = self._ie.compile_model(model=self._model, device_name=self._device)
-        free_irs = []
+
         optimal_requests_num = compiled_model.get_metric('OPTIMAL_NUMBER_OF_INFER_REQUESTS')
         requests_num = optimal_requests_num if requests_num == 0 else requests_num
         logger.debug('Async mode requests number: %d', requests_num)
-        for _ in range(requests_num):
-            infer_request = compiled_model.create_infer_request()
-            free_irs.append(infer_request)
-        queued_irs = []
+        infer_queue = AsyncInferQueue(compiled_model, requests_num)
 
         progress_log_fn('Start inference of %d images', len(sampler))
 
         sampler_iter = iter(enumerate(sampler))
         # Start inference
         start_time = time()
-        while free_irs or queued_irs:
-            self._populate_free_requests(compiled_model, free_irs, queued_irs, sampler_iter)
-
-            ready_irs, queued_irs = self._wait_for_any(queued_irs)
-            if ready_irs:
-                batch_id, batch_annotations, batch_meta, predictions, ir = ready_irs.pop(0)
-                free_irs.append(ir)
-
-                self._process_infer_output(stats_layout, predictions,
-                                           batch_annotations, batch_meta,
-                                           need_metrics_per_sample)
-
-                # Print progress
-                if self._print_inference_progress(progress_log_fn,
-                                                  batch_id, len(sampler),
-                                                  start_time, time()):
-                    start_time = time()
-
+        infer_queue.set_callback(completion_callback)
+        for batch_id, data_batch in sampler_iter:
+            batch_annotations, image_batch, batch_meta = self._process_batch(data_batch)
+            infer_queue.start_async(self._fill_input(compiled_model, image_batch), start_time)
+        infer_queue.wait_all()
         progress_log_fn('Inference finished')
 
     def _process_dataset(self, stats_layout, sampler, print_progress=False,
