@@ -3,7 +3,6 @@
 
 import numpy as np
 import os
-from numpy.core.fromnumeric import size
 import pytest
 import datetime
 import time
