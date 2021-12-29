@@ -32,10 +32,12 @@ std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<ngraph::
                     output_shape.size());
 
     bool do_broadcast = output_shape.size() > value.get_shape().size();
-    for (size_t index = 0; index < output_shape.size(); ++index) {
-        if (source_shape.at(index) == 1 && output_shape.at(index) != 1) {
-            do_broadcast = true;
-            break;
+    if (!do_broadcast) {
+        for (size_t index = 0; index < output_shape.size(); ++index) {
+            if (source_shape.at(index) == 1 && output_shape.at(index) != 1) {
+                do_broadcast = true;
+                break;
+            }
         }
     }
 
