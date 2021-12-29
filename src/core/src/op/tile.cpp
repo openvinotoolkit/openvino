@@ -13,21 +13,20 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
-using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v1::Tile);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Tile);
 
-op::v1::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
+ov::op::v1::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
     ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
-bool op::v1::Tile::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v1::Tile::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v1_Tile_visit_attributes);
     return true;
 }
 
-void op::v1::Tile::validate_and_infer_types() {
+void ov::op::v1::Tile::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Tile_validate_and_infer_types);
     auto arg_et = get_input_element_type(0);
 
@@ -47,13 +46,13 @@ void op::v1::Tile::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
 }
 
-shared_ptr<Node> op::v1::Tile::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v1::Tile::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_Tile_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
 
-bool op::v1::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v1::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
     auto& output = outputs[0];
@@ -78,12 +77,12 @@ bool op::v1::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     return true;
 }
 
-bool op::v1::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v1::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Tile_evaluate);
     return evaluate_tile(outputs, inputs);
 }
 
-bool op::v1::Tile::has_evaluate() const {
+bool ov::op::v1::Tile::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Tile_has_evaluate);
     return true;
 }

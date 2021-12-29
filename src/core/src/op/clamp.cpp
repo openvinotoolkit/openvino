@@ -11,17 +11,16 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ov;
 
 namespace clamp {
 namespace {
-template <element::Type_t ET, typename T>
-bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, T min, T max, size_t count) {
+template <ov::element::Type_t ET, typename T>
+bool evaluate(const ov::HostTensorPtr& arg, const ov::HostTensorPtr& out, T min, T max, size_t count) {
     ngraph::runtime::reference::clamp<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), min, max, count);
     return true;
 }
 
-bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double min, double max) {
+bool evaluate_clamp(const ov::HostTensorPtr& arg, const ov::HostTensorPtr& out, double min, double max) {
     size_t count = shape_size(arg->get_shape());
     auto ceil_func = [](double x) {
         return ceil(x);
@@ -88,10 +87,10 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
          ngraph::double_to_int<uint64_t>(max, floor_func),
          count);
         break;
-        TYPE_CASE(f16)(arg, out, static_cast<float16>(min), static_cast<float16>(max), count);
+        TYPE_CASE(f16)(arg, out, static_cast<ov::float16>(min), static_cast<ov::float16>(max), count);
         break;
         TYPE_CASE(bf16)
-        (arg, out, static_cast<bfloat16>(min), static_cast<bfloat16>(max), count);
+        (arg, out, static_cast<ov::bfloat16>(min), static_cast<ov::bfloat16>(max), count);
         break;
         TYPE_CASE(f32)(arg, out, static_cast<float>(min), static_cast<float>(max), count);
         break;
@@ -104,13 +103,13 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
 }  // namespace
 }  // namespace clamp
 
-bool op::v1::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v1::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Clamp_evaluate);
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 1));
     return clamp::evaluate_clamp(inputs[0], outputs[0], get_min(), get_max());
 }
 
-bool op::v1::Clamp::has_evaluate() const {
+bool ov::op::v1::Clamp::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Clamp_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
@@ -131,18 +130,18 @@ bool op::v1::Clamp::has_evaluate() const {
     return false;
 }
 
-BWDCMP_RTTI_DEFINITION(op::v1::Clamp);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Clamp);
 
-op::v1::Clamp::Clamp() : Op(), m_min(), m_max() {}
+ov::op::v1::Clamp::Clamp() : Op(), m_min(), m_max() {}
 
-op::v1::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
+ov::op::v1::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
     : Op({data}),
       m_min{min},
       m_max{max} {
     constructor_validate_and_infer_types();
 }
 
-void op::v1::Clamp::validate_and_infer_types() {
+void ov::op::v1::Clamp::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Clamp_validate_and_infer_types);
     const element::Type& input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
@@ -158,7 +157,7 @@ void op::v1::Clamp::validate_and_infer_types() {
     set_output_type(0, input_et, get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v1::Clamp::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v1::Clamp::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_Clamp_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 1,
@@ -168,7 +167,7 @@ shared_ptr<Node> op::v1::Clamp::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Clamp>(new_args.at(0), m_min, m_max);
 }
 
-bool op::v1::Clamp::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v1::Clamp::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v1_Clamp_visit_attributes);
     visitor.on_attribute("min", m_min);
     visitor.on_attribute("max", m_max);

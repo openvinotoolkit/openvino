@@ -318,14 +318,14 @@ void shape_infer_base(const DetectionOutputBase* op,
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 template <class T>
 void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     const auto& attrs = op->get_attrs();
     ov::op::util::shape_infer_base(op, attrs, input_shapes, output_shapes, attrs.num_classes);
 }
 
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov
 

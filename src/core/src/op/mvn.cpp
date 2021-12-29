@@ -9,13 +9,12 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ov;
 
 // ------------------------------ V2 ------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v2::MVN);
+BWDCMP_RTTI_DEFINITION(ov::op::v2::MVN);
 
-op::v2::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
+ov::op::v2::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
     : Op({data}),
       m_eps{eps},
       m_across_channels{across_channels},
@@ -23,7 +22,7 @@ op::v2::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_
     constructor_validate_and_infer_types();
 }
 
-op::v2::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_variance, double eps)
+ov::op::v2::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_variance, double eps)
     : Op({data}),
       m_eps{eps},
       m_across_channels{false},
@@ -34,7 +33,7 @@ op::v2::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normaliz
     m_across_channels = (m_reduction_axes.count(chanelAxis) > 0);
 }
 
-void op::v2::MVN::validate_and_infer_types() {
+void ov::op::v2::MVN::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v2_MVN_validate_and_infer_types);
     // if m_across_channels is true we should calculate mean and variance per batch
     // else we calculate these per channel
@@ -50,7 +49,7 @@ void op::v2::MVN::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v2::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v2::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v2_MVN_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 1,
@@ -59,7 +58,7 @@ shared_ptr<Node> op::v2::MVN::clone_with_new_inputs(const OutputVector& new_args
     return std::make_shared<op::v2::MVN>(new_args.at(0), m_reduction_axes, m_normalize_variance, m_eps);
 }
 
-bool op::v2::MVN::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v2::MVN::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v2_MVN_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("across_channels", m_across_channels);
@@ -87,13 +86,13 @@ std::ostream& ov::op::operator<<(std::ostream& s, const ngraph::op::MVNEpsMode& 
     return s << as_string(type);
 }
 
-BWDCMP_RTTI_DEFINITION(op::v6::MVN);
+BWDCMP_RTTI_DEFINITION(ov::op::v6::MVN);
 
-op::v6::MVN::MVN(const Output<Node>& data,
-                 const Output<Node>& reduction_axes,
-                 bool normalize_variance,
-                 float eps,
-                 MVNEpsMode eps_mode)
+ov::op::v6::MVN::MVN(const Output<Node>& data,
+                     const Output<Node>& reduction_axes,
+                     bool normalize_variance,
+                     float eps,
+                     MVNEpsMode eps_mode)
     : Op({data, reduction_axes}),
       m_normalize_variance{normalize_variance},
       m_eps{eps},
@@ -101,7 +100,7 @@ op::v6::MVN::MVN(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-void op::v6::MVN::validate_and_infer_types() {
+void ov::op::v6::MVN::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_MVN_validate_and_infer_types);
     const auto data = get_input_partial_shape(0);
     const auto axes = get_input_partial_shape(1);
@@ -119,7 +118,7 @@ void op::v6::MVN::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v6_MVN_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 2,
@@ -128,7 +127,7 @@ shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<op::v6::MVN>(new_args.at(0), new_args.at(1), m_normalize_variance, m_eps, m_eps_mode);
 }
 
-bool op::v6::MVN::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v6::MVN::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v6_MVN_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("normalize_variance", m_normalize_variance);

@@ -13,15 +13,14 @@
 #include "ngraph/type/element_type.hpp"
 
 using namespace std;
-using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(ov::op::v4::Atanh);
 
-op::v4::Atanh::Atanh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+ov::op::v4::Atanh::Atanh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v4::Atanh::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v4::Atanh::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v4_Atanh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Atanh>(new_args.at(0));
@@ -29,13 +28,13 @@ shared_ptr<Node> op::v4::Atanh::clone_with_new_inputs(const OutputVector& new_ar
 
 namespace atanhop {
 namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
+template <ov::element::Type_t ET>
+bool evaluate(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out) {
     ngraph::runtime::reference::atanh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
     return true;
 }
 
-bool evaluate_atanh(const HostTensorPtr& arg0, const HostTensorPtr& out) {
+bool evaluate_atanh(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out) {
     bool rc = true;
     out->set_unary(arg0);
     switch (arg0->get_element_type()) {
@@ -54,12 +53,12 @@ bool evaluate_atanh(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 }  // namespace
 }  // namespace atanhop
 
-bool op::v4::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v4::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v4_Atanh_evaluate);
     return atanhop::evaluate_atanh(inputs[0], outputs[0]);
 }
 
-bool op::v4::Atanh::has_evaluate() const {
+bool ov::op::v4::Atanh::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Atanh_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:

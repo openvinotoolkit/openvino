@@ -11,28 +11,27 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v1::BatchNormInference);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::BatchNormInference);
 
-op::v1::BatchNormInference::BatchNormInference(const Output<Node>& input,
-                                               const Output<Node>& gamma,
-                                               const Output<Node>& beta,
-                                               const Output<Node>& mean,
-                                               const Output<Node>& variance,
-                                               double epsilon)
+ov::op::v1::BatchNormInference::BatchNormInference(const Output<Node>& input,
+                                                   const Output<Node>& gamma,
+                                                   const Output<Node>& beta,
+                                                   const Output<Node>& mean,
+                                                   const Output<Node>& variance,
+                                                   double epsilon)
     : Op({gamma, beta, input, mean, variance}),
       m_epsilon(epsilon) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v1::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v1::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v1_BatchNormInference_visit_attributes);
     visitor.on_attribute("epsilon", m_epsilon);
     return true;
 }
 
-void op::v1::BatchNormInference::validate_and_infer_types() {
+void ov::op::v1::BatchNormInference::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_BatchNormInference_validate_and_infer_types);
     element::Type result_et;
     ov::PartialShape result_batch_shape;
@@ -60,7 +59,7 @@ void op::v1::BatchNormInference::validate_and_infer_types() {
     set_output_type(0, result_et, result_batch_shape);
 }
 
-std::shared_ptr<Node> op::v1::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v1::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_BatchNormInference_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<BatchNormInference>(new_args.at(2),
@@ -71,26 +70,26 @@ std::shared_ptr<Node> op::v1::BatchNormInference::clone_with_new_inputs(const Ou
                                                 m_epsilon);
 }
 
-BWDCMP_RTTI_DEFINITION(op::v5::BatchNormInference);
+BWDCMP_RTTI_DEFINITION(ov::op::v5::BatchNormInference);
 
-op::v5::BatchNormInference::BatchNormInference(const Output<Node>& input,
-                                               const Output<Node>& gamma,
-                                               const Output<Node>& beta,
-                                               const Output<Node>& mean,
-                                               const Output<Node>& variance,
-                                               double epsilon)
+ov::op::v5::BatchNormInference::BatchNormInference(const Output<Node>& input,
+                                                   const Output<Node>& gamma,
+                                                   const Output<Node>& beta,
+                                                   const Output<Node>& mean,
+                                                   const Output<Node>& variance,
+                                                   double epsilon)
     : Op({input, gamma, beta, mean, variance}),
       m_epsilon(epsilon) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v5::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v5::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v5_BatchNormInference_visit_attributes);
     visitor.on_attribute("epsilon", m_epsilon);
     return true;
 }
 
-void op::v5::BatchNormInference::validate_and_infer_types() {
+void ov::op::v5::BatchNormInference::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_BatchNormInference_validate_and_infer_types);
     element::Type result_et;
     ov::PartialShape result_batch_shape;
@@ -118,7 +117,7 @@ void op::v5::BatchNormInference::validate_and_infer_types() {
     set_output_type(0, result_et, result_batch_shape);
 }
 
-std::shared_ptr<Node> op::v5::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v5::BatchNormInference::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v5_BatchNormInference_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<BatchNormInference>(new_args.at(0),

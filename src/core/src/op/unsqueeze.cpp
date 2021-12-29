@@ -17,15 +17,14 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v1::Unsqueeze);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Unsqueeze);
 
-op::v1::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
+ov::op::v1::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
     constructor_validate_and_infer_types();
 }
 
-void op::v1::Unsqueeze::validate_and_infer_types() {
+void ov::op::v1::Unsqueeze::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Unsqueeze_validate_and_infer_types);
     const auto data = input_value(0);
     auto data_partial_shape = data.get_partial_shape();
@@ -61,12 +60,12 @@ void op::v1::Unsqueeze::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), ov::PartialShape{output_shape});
 }
 
-bool op::v1::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v1::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v1_Unsqueeze_visit_attributes);
     return true;
 }
 
-shared_ptr<Node> op::v1::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v1::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_Unsqueeze_clone_with_new_inputs);
     if (new_args.size() != 2) {
         throw ov::Exception("Incorrect number of new arguments");
@@ -76,13 +75,13 @@ shared_ptr<Node> op::v1::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
 
 namespace unsqueeze {
 namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
+template <ov::element::Type_t ET>
+bool evaluate(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out) {
     ngraph::runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
     return true;
 }
 
-bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out) {
+bool evaluate_unsqueeze(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& arg1, const ov::HostTensorPtr& out) {
     auto element_type = arg0->get_element_type();
     out->set_element_type(element_type);
 
@@ -126,14 +125,14 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
 }  // namespace
 }  // namespace unsqueeze
 
-bool op::v1::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v1::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Unsqueeze_evaluate);
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
     return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }
 
-bool op::v1::Unsqueeze::has_evaluate() const {
+bool ov::op::v1::Unsqueeze::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Unsqueeze_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
@@ -149,19 +148,19 @@ bool op::v1::Unsqueeze::has_evaluate() const {
     return false;
 }
 
-bool op::v1::Unsqueeze::evaluate_lower(const HostTensorVector& output_values) const {
+bool ov::op::v1::Unsqueeze::evaluate_lower(const HostTensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
     return ngraph::default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Unsqueeze::evaluate_upper(const HostTensorVector& output_values) const {
+bool ov::op::v1::Unsqueeze::evaluate_upper(const HostTensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
     return ngraph::default_upper_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+bool ov::op::v1::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     if (get_output_partial_shape(0).is_dynamic()) {
         return false;
     }

@@ -11,32 +11,31 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v3::CumSum);
+BWDCMP_RTTI_DEFINITION(ov::op::v3::CumSum);
 
-op::v3::CumSum::CumSum(const Output<Node>& arg, const Output<Node>& axis, const bool exclusive, const bool reverse)
+ov::op::v3::CumSum::CumSum(const Output<Node>& arg, const Output<Node>& axis, const bool exclusive, const bool reverse)
     : Op({arg, axis}),
       m_exclusive(exclusive),
       m_reverse(reverse) {
     constructor_validate_and_infer_types();
 }
 
-op::v3::CumSum::CumSum(const Output<Node>& arg, const bool exclusive, const bool reverse)
+ov::op::v3::CumSum::CumSum(const Output<Node>& arg, const bool exclusive, const bool reverse)
     : Op({arg, op::v1::Constant::create(element::i32, ov::Shape{}, {0})}),
       m_exclusive(exclusive),
       m_reverse(reverse) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v3::CumSum::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v3::CumSum::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v3_CumSum_visit_attributes);
     visitor.on_attribute("exclusive", m_exclusive);
     visitor.on_attribute("reverse", m_reverse);
     return true;
 }
 
-void op::v3::CumSum::validate_and_infer_types() {
+void ov::op::v3::CumSum::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_CumSum_validate_and_infer_types);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 
@@ -50,7 +49,7 @@ void op::v3::CumSum::validate_and_infer_types() {
     // No axis input shape check for backward compatibility
 }
 
-shared_ptr<Node> op::v3::CumSum::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v3::CumSum::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v3_CumSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2)
@@ -61,7 +60,7 @@ shared_ptr<Node> op::v3::CumSum::clone_with_new_inputs(const OutputVector& new_a
 }
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v3::CumSum::get_default_value() const {
+shared_ptr<ov::Node> ov::op::v3::CumSum::get_default_value() const {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
 }
 NGRAPH_SUPPRESS_DEPRECATED_END

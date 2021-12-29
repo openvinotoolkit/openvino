@@ -13,19 +13,18 @@
 #include "openvino/runtime/tensor.hpp"
 
 using namespace std;
-using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v1::PriorBox);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::PriorBox);
 
-op::v1::PriorBox::PriorBox(const Output<Node>& layer_shape,
-                           const Output<Node>& image_shape,
-                           const PriorBox::Attributes& attrs)
+ov::op::v1::PriorBox::PriorBox(const Output<Node>& layer_shape,
+                               const Output<Node>& image_shape,
+                               const PriorBox::Attributes& attrs)
     : Op({layer_shape, image_shape}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-void op::v1::PriorBox::validate_and_infer_types() {
+void ov::op::v1::PriorBox::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_PriorBox_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
@@ -68,13 +67,13 @@ void op::v1::PriorBox::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> op::v1::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v1::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_PriorBox_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-int64_t op::v1::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
+int64_t ov::op::v1::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
     // Starting with 0 number of prior and then various conditions on attributes will contribute
     // real number of prior boxes as PriorBox is a fat thing with several modes of
     // operation that will be checked in order in the next statements.
@@ -103,7 +102,7 @@ int64_t op::v1::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
     return num_priors;
 }
 
-std::vector<float> op::v1::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
+std::vector<float> ov::op::v1::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
         unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
@@ -114,7 +113,7 @@ std::vector<float> op::v1::PriorBox::normalized_aspect_ratio(const std::vector<f
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
 }
 
-bool op::v1::PriorBox::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v1::PriorBox::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v1_PriorBox_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("max_size", m_attrs.max_size);
@@ -133,12 +132,12 @@ bool op::v1::PriorBox::visit_attributes(AttributeVisitor& visitor) {
 
 namespace prior_box {
 namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& out,
-              op::v1::PriorBox::Attributes attrs) {
-    op::v8::PriorBox::Attributes attrs_v8;
+template <ov::element::Type_t ET>
+bool evaluate(const ov::HostTensorPtr& arg0,
+              const ov::HostTensorPtr& arg1,
+              const ov::HostTensorPtr& out,
+              ov::op::v1::PriorBox::Attributes attrs) {
+    ov::op::v8::PriorBox::Attributes attrs_v8;
     attrs_v8.min_size = attrs.min_size;
     attrs_v8.max_size = attrs.max_size;
     attrs_v8.aspect_ratio = attrs.aspect_ratio;
@@ -159,10 +158,10 @@ bool evaluate(const HostTensorPtr& arg0,
     return true;
 }
 
-bool evaluate_prior_box(const HostTensorPtr& arg0,
-                        const HostTensorPtr& arg1,
-                        const HostTensorPtr& out,
-                        const op::v1::PriorBox::Attributes& attrs) {
+bool evaluate_prior_box(const ov::HostTensorPtr& arg0,
+                        const ov::HostTensorPtr& arg1,
+                        const ov::HostTensorPtr& out,
+                        const ov::op::v1::PriorBox::Attributes& attrs) {
     bool rc = true;
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
@@ -182,12 +181,12 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
 }  // namespace
 }  // namespace prior_box
 
-bool op::v1::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v1::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_PriorBox_evaluate);
     return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
 
-bool op::v1::PriorBox::has_evaluate() const {
+bool ov::op::v1::PriorBox::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_PriorBox_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
@@ -207,17 +206,17 @@ bool op::v1::PriorBox::has_evaluate() const {
 
 // ------------------------------ V8 ------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v8::PriorBox);
+BWDCMP_RTTI_DEFINITION(ov::op::v8::PriorBox);
 
-op::v8::PriorBox::PriorBox(const Output<Node>& layer_shape,
-                           const Output<Node>& image_shape,
-                           const PriorBox::Attributes& attrs)
+ov::op::v8::PriorBox::PriorBox(const Output<Node>& layer_shape,
+                               const Output<Node>& image_shape,
+                               const PriorBox::Attributes& attrs)
     : Op({layer_shape, image_shape}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-void op::v8::PriorBox::validate_and_infer_types() {
+void ov::op::v8::PriorBox::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_PriorBox_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
@@ -260,13 +259,13 @@ void op::v8::PriorBox::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> op::v8::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v8::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v8_PriorBox_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-int64_t op::v8::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
+int64_t ov::op::v8::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
     // Starting with 0 number of prior and then various conditions on attributes will contribute
     // real number of prior boxes as PriorBox is a fat thing with several modes of
     // operation that will be checked in order in the next statements.
@@ -295,7 +294,7 @@ int64_t op::v8::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
     return num_priors;
 }
 
-std::vector<float> op::v8::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
+std::vector<float> ov::op::v8::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
         unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
@@ -306,7 +305,7 @@ std::vector<float> op::v8::PriorBox::normalized_aspect_ratio(const std::vector<f
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
 }
 
-bool op::v8::PriorBox::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v8::PriorBox::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_PriorBox_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("max_size", m_attrs.max_size);
@@ -326,11 +325,11 @@ bool op::v8::PriorBox::visit_attributes(AttributeVisitor& visitor) {
 
 namespace prior_box_v8 {
 namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& out,
-              op::v8::PriorBox::Attributes attrs) {
+template <ov::element::Type_t ET>
+bool evaluate(const ov::HostTensorPtr& arg0,
+              const ov::HostTensorPtr& arg1,
+              const ov::HostTensorPtr& out,
+              ov::op::v8::PriorBox::Attributes attrs) {
     ngraph::runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
                                           arg1->get_data_ptr<ET>(),
                                           out->get_data_ptr<float>(),
@@ -339,10 +338,10 @@ bool evaluate(const HostTensorPtr& arg0,
     return true;
 }
 
-bool evaluate_prior_box(const HostTensorPtr& arg0,
-                        const HostTensorPtr& arg1,
-                        const HostTensorPtr& out,
-                        const op::v8::PriorBox::Attributes& attrs) {
+bool evaluate_prior_box(const ov::HostTensorPtr& arg0,
+                        const ov::HostTensorPtr& arg1,
+                        const ov::HostTensorPtr& out,
+                        const ov::op::v8::PriorBox::Attributes& attrs) {
     bool rc = true;
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
@@ -362,12 +361,12 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
 }  // namespace
 }  // namespace prior_box_v8
 
-bool op::v8::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v8::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v8_PriorBox_evaluate);
     return prior_box_v8::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
 
-bool op::v8::PriorBox::has_evaluate() const {
+bool ov::op::v8::PriorBox::has_evaluate() const {
     NGRAPH_OP_SCOPE(v8_PriorBox_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:

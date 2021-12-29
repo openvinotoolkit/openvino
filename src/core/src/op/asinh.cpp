@@ -14,15 +14,14 @@
 #include "ngraph/type/element_type.hpp"
 
 using namespace std;
-using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(ov::op::v4::Asinh);
 
-op::v4::Asinh::Asinh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+ov::op::v4::Asinh::Asinh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v4::Asinh::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v4::Asinh::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v4_Asinh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Asinh>(new_args.at(0));
@@ -30,13 +29,13 @@ shared_ptr<Node> op::v4::Asinh::clone_with_new_inputs(const OutputVector& new_ar
 
 namespace asinhop {
 namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
+template <ov::element::Type_t ET>
+inline bool evaluate(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, const size_t count) {
     ngraph::runtime::reference::asinh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 
-bool evaluate_asinh(const HostTensorPtr& arg0, const HostTensorPtr& out) {
+bool evaluate_asinh(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out) {
     bool rc = true;
     size_t count = shape_size(arg0->get_shape());
     out->set_unary(arg0);
@@ -57,12 +56,12 @@ bool evaluate_asinh(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 }  // namespace
 }  // namespace asinhop
 
-bool op::v4::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v4::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v4_Asinh_evaluate);
     return asinhop::evaluate_asinh(inputs[0], outputs[0]);
 }
 
-bool op::v4::Asinh::has_evaluate() const {
+bool ov::op::v4::Asinh::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_Asinh_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:

@@ -22,9 +22,8 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
-using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v2::BatchToSpace);
+BWDCMP_RTTI_DEFINITION(ov::op::v2::BatchToSpace);
 
 ov::op::v2::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
                                        const ngraph::Output<ngraph::Node>& block_shape,
@@ -37,7 +36,7 @@ ov::op::v2::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
     constructor_validate_and_infer_types();
 }
 
-void op::v2::BatchToSpace::validate_and_infer_types() {
+void ov::op::v2::BatchToSpace::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v2_BatchToSpace_validate_and_infer_types);
 
     const auto& data_et = get_input_element_type(0);
@@ -172,7 +171,7 @@ bool ov::op::v2::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& visito
 }
 
 namespace {
-bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) {
+bool batch_to_space_evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
     auto data = inputs[0];
     size_t elem_size = data->get_element_type().size();
 
@@ -298,9 +297,9 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                                                    default_strides,
                                                    begin_mask,
                                                    end_mask,
-                                                   AxisSet(),
-                                                   AxisSet(),
-                                                   AxisSet());
+                                                   ov::AxisSet(),
+                                                   ov::AxisSet(),
+                                                   ov::AxisSet());
     ngraph::runtime::reference::strided_slice(flat_data,
                                               outputs[0]->get_data_ptr<char>(),
                                               data_shape,

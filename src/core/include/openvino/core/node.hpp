@@ -100,9 +100,9 @@ std::string node_validation_failure_loc_string(const Node* node);
 /// \note Don't forget to put a break after each statement or it will fall through and generate
 /// a runtime error.
 
-#define TYPE_CASE(a)         \
-    case element::Type_t::a: \
-        rc = evaluate<element::Type_t::a>
+#define TYPE_CASE(a)               \
+    case ::ov::element::Type_t::a: \
+        rc = evaluate<::ov::element::Type_t::a>
 
 class NodeAccessor;
 

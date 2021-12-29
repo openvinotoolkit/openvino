@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
+namespace v1 {
 
 template <class T>
 void shape_infer(const ShuffleChannels* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
@@ -41,6 +41,6 @@ void shape_infer(const ShuffleChannels* op, const std::vector<T>& input_shapes, 
     output_shapes[0] = input_shape;
 }
 
-}  // namespace v0
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

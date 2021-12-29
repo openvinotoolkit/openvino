@@ -13,29 +13,28 @@
 #include "ngraph/runtime/reference/convert.hpp"
 
 using namespace std;
-using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::v1::Convert);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::Convert);
 
-op::v1::Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
+ov::op::v1::Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
     : Op({arg}),
       m_destination_type(destination_type) {
     constructor_validate_and_infer_types();
 }
 
-void op::v1::Convert::validate_and_infer_types() {
+void ov::op::v1::Convert::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Convert_validate_and_infer_types);
 
     set_output_type(0, m_destination_type, get_input_partial_shape(0));
 }
 
-bool op::v1::Convert::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v1::Convert::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v1_Convert_visit_attributes);
     visitor.on_attribute("destination_type", m_destination_type);
     return true;
 }
 
-shared_ptr<Node> op::v1::Convert::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v1::Convert::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_Convert_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Convert>(new_args.at(0), m_destination_type);
@@ -43,8 +42,8 @@ shared_ptr<Node> op::v1::Convert::clone_with_new_inputs(const OutputVector& new_
 
 namespace convert {
 namespace {
-template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>
-bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
+template <ov::element::Type_t INPUT_ET, ov::element::Type_t OUTPUT_ET>
+bool evaluate(const ov::HostTensorPtr& arg, const ov::HostTensorPtr& out)
 
 {
     out->set_shape(arg->get_shape());
@@ -53,9 +52,9 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
     if ((INPUT_ET != arg->get_element_type()) || OUTPUT_ET != out->get_element_type()) {
         return false;
     }
-    if (((INPUT_ET == element::u1) || (OUTPUT_ET == element::u1)) ||
-        ((INPUT_ET == element::u4) || (OUTPUT_ET == element::u4)) ||
-        ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4))) {
+    if (((INPUT_ET == ov::element::u1) || (OUTPUT_ET == ov::element::u1)) ||
+        ((INPUT_ET == ov::element::u4) || (OUTPUT_ET == ov::element::u4)) ||
+        ((INPUT_ET == ov::element::i4) || (OUTPUT_ET == ov::element::i4))) {
         ngraph::runtime::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
                                                        out->get_data_ptr<OUTPUT_ET>(),
                                                        element_count,
@@ -69,14 +68,14 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
     return true;
 }
 
-#define TYPE_OUT_CASE(a, ...)                                     \
-    case element::Type_t::a: {                                    \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_covert_out, _, a));   \
-        rc = evaluate<INPUT_ET, element::Type_t::a>(__VA_ARGS__); \
+#define TYPE_OUT_CASE(a, ...)                                         \
+    case ov::element::Type_t::a: {                                    \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_covert_out, _, a));       \
+        rc = evaluate<INPUT_ET, ov::element::Type_t::a>(__VA_ARGS__); \
     } break
 
-template <element::Type_t INPUT_ET>
-bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
+template <ov::element::Type_t INPUT_ET>
+bool evaluate(const ov::HostTensorPtr& arg, const ov::HostTensorPtr& out) {
     bool rc = true;
 
     switch (out->get_element_type()) {
@@ -103,7 +102,7 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
     return rc;
 }
 
-bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
+bool evaluate_convert(const ov::HostTensorPtr& arg, const ov::HostTensorPtr& out) {
     bool rc = true;
     switch (arg->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_convert, u1, arg, out);
@@ -129,7 +128,7 @@ bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
     return rc;
 }
 
-bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper) {
+bool evaluate_bound(const ov::Node* node, const ov::HostTensorVector& output_values, bool is_upper) {
     NGRAPH_CHECK(node, ngraph::validate_host_tensor_vector(output_values, 1));
     const auto& input = node->input_value(0);
     if (const auto& value = is_upper ? input.get_tensor().get_upper_value() : input.get_tensor().get_lower_value()) {
@@ -147,28 +146,28 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
             return status;
 
         // dynamic values translation
-        auto input_dynamic_mask = std::make_shared<HostTensor>(element::boolean, input.get_shape());
-        status =
-            op::v1::Equal().evaluate({input_dynamic_mask}, {value, std::make_shared<HostTensor>(input_maximum_value)});
+        auto input_dynamic_mask = std::make_shared<ov::HostTensor>(ov::element::boolean, input.get_shape());
+        status = ov::op::v1::Equal().evaluate({input_dynamic_mask},
+                                              {value, std::make_shared<ov::HostTensor>(input_maximum_value)});
         if (!status)
             return status;
-        status = op::v1::Select().evaluate(
+        status = ov::op::v1::Select().evaluate(
             output_values,
-            {input_dynamic_mask, std::make_shared<HostTensor>(output_maximum_value), output_values[0]});
+            {input_dynamic_mask, std::make_shared<ov::HostTensor>(output_maximum_value), output_values[0]});
         return status;
     } else
         return false;
 }
 }  // namespace
 }  // namespace convert
-bool op::v1::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
+bool ov::op::v1::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v1_Convert_evaluate);
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(output_values, 1));
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }
 
-bool op::v1::Convert::has_evaluate() const {
+bool ov::op::v1::Convert::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Convert_has_evaluate);
 
     switch (get_input_element_type(0)) {
@@ -216,10 +215,10 @@ bool op::v1::Convert::has_evaluate() const {
     return true;
 }
 
-bool op::v1::Convert::evaluate_lower(const HostTensorVector& output_values) const {
+bool ov::op::v1::Convert::evaluate_lower(const HostTensorVector& output_values) const {
     return convert::evaluate_bound(this, output_values, false);
 }
 
-bool op::v1::Convert::evaluate_upper(const HostTensorVector& output_values) const {
+bool ov::op::v1::Convert::evaluate_upper(const HostTensorVector& output_values) const {
     return convert::evaluate_bound(this, output_values, true);
 }
