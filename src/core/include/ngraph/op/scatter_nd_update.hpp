@@ -11,7 +11,7 @@
 namespace ngraph {
 namespace op {
 namespace v3 {
-using ov::op::v3::ScatterNDUpdate;
+using ov::op::v4::ScatterNDUpdate;
 }  // namespace v3
 using v3::ScatterNDUpdate;
 }  // namespace op

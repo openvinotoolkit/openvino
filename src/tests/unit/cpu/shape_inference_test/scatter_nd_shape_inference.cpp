@@ -16,7 +16,7 @@ TEST(StaticShapeInferenceTest, ScatterNDUpdateTest) {
     auto data_shape = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
     auto indices_shape = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1, -1, -1});
     auto updates_shape = std::make_shared<ov::op::v1::Parameter>(element::i32, PartialShape{-1, -1, -1});
-    auto scatter_nd_update = std::make_shared<op::v3::ScatterNDUpdate>(data_shape, indices_shape, updates_shape);
+    auto scatter_nd_update = std::make_shared<op::v4::ScatterNDUpdate>(data_shape, indices_shape, updates_shape);
 
     std::vector<StaticShape> input_shapes = {StaticShape{1000, 256, 10, 15},
                                              StaticShape{25, 125, 3},

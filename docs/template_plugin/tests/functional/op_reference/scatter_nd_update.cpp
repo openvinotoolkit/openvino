@@ -62,7 +62,7 @@ private:
         const auto updates = std::make_shared<op::v1::Constant>(params.updateTensor.type,
                                                                 params.updateTensor.shape,
                                                                 params.updateTensor.data.data());
-        const auto scatter = std::make_shared<op::v3::ScatterNDUpdate>(data, indices, updates);
+        const auto scatter = std::make_shared<op::v4::ScatterNDUpdate>(data, indices, updates);
         return std::make_shared<ov::Model>(NodeVector{scatter}, ParameterVector{data});
     }
 };
