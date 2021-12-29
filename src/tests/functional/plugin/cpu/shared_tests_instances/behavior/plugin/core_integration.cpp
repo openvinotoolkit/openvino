@@ -107,7 +107,13 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(IEClassNetworkTestP, LoadNetworkToDeviceGPUNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ie.UnregisterPlugin("GPU");
+    auto devices = ie.GetAvailableDevices();
+    if (std::find(devices.begin(), devices.end(), "GPU") != devices.end()) {
+        // make the first call to IE which created device instance
+        ie.GetVersions("GPU");
+        // now, we can unregister GPU device
+        ASSERT_NO_THROW(ie.UnregisterPlugin("GPU"));
+    }
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, {{"LOG_LEVEL", "LOG_DEBUG"}}));
 }
 } // namespace
