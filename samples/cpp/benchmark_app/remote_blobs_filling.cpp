@@ -124,6 +124,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteInputBlo
         }
 
         auto blob = InferenceEngine::gpu::make_shared_blob(desc, context, clBuffer.back());
+        blob->allocate();
         remoteBlobs[name].push_back(blob);
     };
 

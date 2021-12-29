@@ -47,7 +47,7 @@ DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
 
 /**
  * @brief Metric to get statistics of GPU memory allocated by engine for each allocation type
- * It contains information about both current and peak memory usage
+ * It contains information about current memory usage
  */
 DECLARE_GPU_METRIC_KEY(MEMORY_STATISTICS, std::map<std::string, uint64_t>);
 

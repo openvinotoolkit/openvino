@@ -1,4 +1,4 @@
-## Atan <a name="Atan"></a> {#openvino_docs_ops_arithmetic_Atan_1}
+# Atan  {#openvino_docs_ops_arithmetic_Atan_1}
 
 **Versioned name**: *Atan-1*
 

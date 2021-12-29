@@ -13,6 +13,9 @@
 #include <string>
 #include <utility>
 
+/** @ingroup ie_dev_profiling
+  * @brief openvino namespace
+  */
 namespace openvino
 {
     namespace itt
