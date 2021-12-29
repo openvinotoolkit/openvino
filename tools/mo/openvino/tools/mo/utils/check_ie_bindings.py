@@ -70,7 +70,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         print("{}: \t{}".format("Model Optimizer version", mo_version))
 
         versions_mismatch = False
-        if mo_version == ie_version:
+        if mo_version != ie_version:
             versions_mismatch = True
             extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)
