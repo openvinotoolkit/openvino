@@ -271,7 +271,7 @@ void lstm_cell_v1(const T* X,
 
     // Split P on gates f, i, o
     std::vector<std::vector<T>> P_fio(3, std::vector<T>(P_gate_size));
-    
+
     std::vector<char*> P_pointers = {reinterpret_cast<char*>(P_fio[0].data()),
                                      reinterpret_cast<char*>(P_fio[1].data()),
                                      reinterpret_cast<char*>(P_fio[2].data())};
@@ -337,7 +337,7 @@ void lstm_cell_v1(const T* X,
     reference::add(mul1.data(), mul2.data(), Ct.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
     std::memcpy(out_Ct, Ct.data(), Ct.size() * sizeof(T));
 
-    // Po (.) Ct 
+    // Po (.) Ct
     std::vector<T> PoCt(gate_shape_size);
     reference::multiply(P_fio[2].data(),
                         Ct.data(),
