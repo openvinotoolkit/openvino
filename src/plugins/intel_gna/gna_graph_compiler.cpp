@@ -306,10 +306,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         // OpenVino Default layout is   NCHW
         // GNA Convolution input is     NHCW
         // When layer layout is in NHWC it means that is was created by PassManager
-#if GNA_LIB_VER == 2
         return finalizeConvolution2DPrimitive(layer, in_batch, in_channels, in_height, in_width,
                                               out_batch, out_channels, out_height, out_width);
-#endif
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution 2D is not supported on GNA 1.0 library";
     }
     finalizeConvolution1DPrimitive(layer, in_batch, in_channels, in_width,
@@ -519,8 +517,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
 }
 
-#if GNA_LIB_VER == 2
-
 void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerPtr layer,
     uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,
     uint32_t out_batch, uint32_t out_channels, uint32_t out_height, uint32_t out_width) {
@@ -661,7 +657,6 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         gnamem->readonly().push_value(layer, ptr_biases, 0.0f, out_channels, 64);
     }
 }
-#endif
 
 void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& power = dynamic_cast<PowerLayer&>(*layer.get());
@@ -882,6 +877,18 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     // TODO: Is this really needed?, find out why
     uint32_t num_padding = ALIGN(hw_in, 8) - hw_in;
     size_t num_data_bytes_in = c_dim_in * (hw_in + num_padding) * inputs->getPrecision().size();
+
+    if (dnn->new_num_conv_columns) {
+        uint32_t num_rows = 1;
+        uint32_t num_columns = c_dim_in * w_dim_in + (ALIGN(c_dim_in * w_dim_in, 8) - c_dim_in * w_dim_in);
+        if (dnn->new_num_conv_columns % num_columns == 0) {
+            num_rows = dnn->new_num_conv_columns / num_columns;
+        } else {
+            num_columns = dnn->new_num_conv_columns;
+        }
+        dnn->new_num_conv_columns = 0;
+        num_data_bytes_in = num_rows * num_columns * inputs->getPrecision().size();
+    }
 
     connectInput(layer, ptr_inputs, num_data_bytes_in);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
@@ -2459,7 +2466,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     // check for generic prev layer
     if (prevDnnLayer != nullptr) {
-        gnamem->bind_ptr(layer, ptr, &prevDnnLayer->ptr_outputs, offset);
+        gnamem->bind_ptr(layer, ptr, &prevDnnLayer->ptr_outputs, offset, num_data_bytes_in);
         return prevLayer;
     }
 

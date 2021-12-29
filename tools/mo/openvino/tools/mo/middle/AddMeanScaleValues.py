@@ -52,6 +52,11 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         name = input_node.soft_get('name', input_node.id) + '/' + preprocessing_name
         preprocessing = create_op_with_const_inputs(graph, op=op, port_value_dict={1: value}, op_attrs={'name': name})
 
+        if input_node.op == 'Parameter' and input_node.has_and_set('data_type'):
+            dtype = input_node.data_type
+            if np.issubdtype(dtype, np.floating):
+                value = value.astype(dtype)
+
         if input_node.is_out_port_connected(0) and len(input_node.out_port(0).get_destinations()) == 1:
             # There are models with pattern Parameter(uint8) -> Convert(float).
             # Adding mean/scale leads to the following:
