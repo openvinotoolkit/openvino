@@ -374,7 +374,7 @@ TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
     ASSERT_THROW((execNet = ie->compile_model(function, targetDevice, configuration)), ov::Exception);
 }
 
-// Issue:
+// Issue: 75003
 // this test necessary only as reproducer
 // need to refactor test to support arbitrary shapes
 // TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensorBlocked) {
