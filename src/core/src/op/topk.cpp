@@ -19,21 +19,20 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
-using namespace ngraph;
 
 namespace topk {
 namespace {
-template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
-inline bool evaluate_execute(const HostTensorPtr& arg0,
-                             const HostTensorPtr& out_indices,
-                             const HostTensorPtr& out_values,
+template <ov::element::Type_t INPUT_ET, ov::element::Type_t INDEX_ET>
+inline bool evaluate_execute(const ov::HostTensorPtr& arg0,
+                             const ov::HostTensorPtr& out_indices,
+                             const ov::HostTensorPtr& out_values,
                              const ov::Shape out_shape,
                              const size_t axis,
                              const size_t k,
                              const bool compute_max,
-                             const op::v1::TopK::SortType sort) {
-    using T = typename element_type_traits<INPUT_ET>::value_type;
-    using U = typename element_type_traits<INDEX_ET>::value_type;
+                             const ov::op::v1::TopK::SortType sort) {
+    using T = typename ov::element_type_traits<INPUT_ET>::value_type;
+    using U = typename ov::element_type_traits<INDEX_ET>::value_type;
     const ov::Shape in_shape = arg0->get_shape();
     out_indices->set_shape(out_shape);
     out_indices->set_element_type(INDEX_ET);
@@ -41,7 +40,7 @@ inline bool evaluate_execute(const HostTensorPtr& arg0,
     out_values->set_shape(out_shape);
     out_values->set_element_type(arg0->get_element_type());
 
-    runtime::reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
+    ngraph::runtime::reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
                                    out_indices->get_data_ptr<INDEX_ET>(),
                                    out_values->get_data_ptr<INPUT_ET>(),
                                    in_shape,
@@ -54,21 +53,21 @@ inline bool evaluate_execute(const HostTensorPtr& arg0,
 }
 
 #define EXECUTE_EVALUATE_TOPK(a, ...)                                     \
-    case element::Type_t::a: {                                            \
+    case ov::element::Type_t::a: {                                            \
         NGRAPH_OP_SCOPE(OV_PP_CAT3(exec_topk_eval, _, a));                \
-        rc = evaluate_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__); \
+        rc = evaluate_execute<INPUT_ET, ov::element::Type_t::a>(__VA_ARGS__); \
     } break
 
-template <element::Type_t INPUT_ET>
-bool evaluate(const HostTensorPtr& arg,
-              const HostTensorPtr& out_indices,
-              const HostTensorPtr& out_values,
+template <ov::element::Type_t INPUT_ET>
+bool evaluate(const ov::HostTensorPtr& arg,
+              const ov::HostTensorPtr& out_indices,
+              const ov::HostTensorPtr& out_values,
               const ov::Shape out_shape,
               const size_t axis,
               const size_t k,
               const bool max,
-              const op::v1::TopK::SortType sort,
-              const element::Type index_et) {
+              const ov::op::v1::TopK::SortType sort,
+              const ov::element::Type index_et) {
     bool rc = true;
     switch (index_et) {
         EXECUTE_EVALUATE_TOPK(i32, arg, out_indices, out_values, out_shape, axis, k, max, sort);
@@ -80,15 +79,15 @@ bool evaluate(const HostTensorPtr& arg,
     return rc;
 }
 
-bool evaluate_topk(const HostTensorPtr& arg,
-                   const HostTensorPtr& out_indices,
-                   const HostTensorPtr& out_values,
+bool evaluate_topk(const ov::HostTensorPtr& arg,
+                   const ov::HostTensorPtr& out_indices,
+                   const ov::HostTensorPtr& out_values,
                    const ov::Shape out_shape,
                    const size_t axis,
                    const size_t k,
                    const bool max,
-                   const op::v1::TopK::SortType sort,
-                   const element::Type index_et) {
+                   const ov::op::v1::TopK::SortType sort,
+                   const ov::element::Type index_et) {
     bool rc = true;
     switch (arg->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_topk, i32, arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
@@ -104,21 +103,21 @@ bool evaluate_topk(const HostTensorPtr& arg,
     return rc;
 }
 
-template <element::Type_t K_ET>
-size_t get_k_from_hosttensor(const HostTensorPtr& arg) {
-    using T = typename element_type_traits<K_ET>::value_type;
+template <ov::element::Type_t K_ET>
+size_t get_k_from_hosttensor(const ov::HostTensorPtr& arg) {
+    using T = typename ov::element_type_traits<K_ET>::value_type;
     auto p = arg->get_data_ptr<T>();
     size_t k = p[0];
     return k;
 }
 
 #define CASE_GET_K(a, ...)                                          \
-    case element::Type_t::a: {                                      \
+    case ov::element::Type_t::a: {                                      \
         NGRAPH_OP_SCOPE(OV_PP_CAT3(topk_get_k, _, a));              \
-        k = get_k_from_hosttensor<element::Type_t::a>(__VA_ARGS__); \
+        k = get_k_from_hosttensor<ov::element::Type_t::a>(__VA_ARGS__); \
     } break
 
-size_t read_k_from_host_tensor(const HostTensorPtr& arg_k) {
+size_t read_k_from_host_tensor(const ov::HostTensorPtr& arg_k) {
     size_t k = 0;
     switch (arg_k->get_element_type()) {
         CASE_GET_K(i8, arg_k);
@@ -131,7 +130,7 @@ size_t read_k_from_host_tensor(const HostTensorPtr& arg_k) {
         CASE_GET_K(u64, arg_k);
     default:
         // other types are not supported and would have thrown in ctor
-        ngraph_error("read_k_from_host_tensor: type is not integral\n");
+        ov::Exception("read_k_from_host_tensor: type is not integral\n");
         break;
     }
     return k;
@@ -140,11 +139,11 @@ size_t read_k_from_host_tensor(const HostTensorPtr& arg_k) {
 }  // namespace topk
 
 // v1 version starts
-BWDCMP_RTTI_DEFINITION(op::v1::TopK);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::TopK);
 
 static const std::uint64_t UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 
-op::v1::TopK::TopK(const Output<Node>& data,
+ov::op::v1::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,
                    const int64_t axis,
                    const std::string& mode,
@@ -160,7 +159,7 @@ op::v1::TopK::TopK(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-op::v1::TopK::TopK(const Output<Node>& data,
+ov::op::v1::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,
                    const int64_t axis,
                    const Mode mode,
@@ -185,7 +184,7 @@ bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v1::TopK::validate_and_infer_types() {
+void ov::op::v1::TopK::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_TopK_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
@@ -209,7 +208,7 @@ void op::v1::TopK::validate_and_infer_types() {
     set_output_type(1, m_index_element_type, output_shapes[1]);
 }
 
-ov::Shape op::v1::TopK::compute_output_shape(const std::string& node_description,
+ov::Shape ov::op::v1::TopK::compute_output_shape(const std::string& node_description,
                                              const ov::PartialShape input_partial_shape,
                                              const int64_t k) const {
     ov::PartialShape output_shape{input_partial_shape};
@@ -224,7 +223,7 @@ ov::Shape op::v1::TopK::compute_output_shape(const std::string& node_description
     return output_shape.get_shape();
 }
 
-void op::v1::TopK::set_axis(const int64_t axis) {
+void ov::op::v1::TopK::set_axis(const int64_t axis) {
     const auto input_rank = get_input_partial_shape(0).rank();
     if (input_rank.is_static()) {
         m_normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
@@ -234,7 +233,7 @@ void op::v1::TopK::set_axis(const int64_t axis) {
     m_axis = axis;
 }
 
-void op::v1::TopK::set_axis(const Rank input_rank, const int64_t axis) {
+void ov::op::v1::TopK::set_axis(const Rank input_rank, const int64_t axis) {
     if (input_rank.is_static()) {
         m_normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
     } else {
@@ -243,13 +242,13 @@ void op::v1::TopK::set_axis(const Rank input_rank, const int64_t axis) {
     m_axis = axis;
 }
 
-uint64_t op::v1::TopK::get_axis() const {
+uint64_t ov::op::v1::TopK::get_axis() const {
     NODE_VALIDATION_CHECK(this, m_normalized_axis != UNKNOWN_NORMALIZED_AXIS, "Normalized axis of TopK is unknown");
 
     return m_normalized_axis;
 }
 
-size_t op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
+size_t ov::op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
                                                const element::Type& k_element_type) const {
     NODE_VALIDATION_CHECK(
         this,
@@ -280,7 +279,7 @@ size_t op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
 }
 
 template <typename T>
-size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::v1::Constant>& k_constant) const {
+size_t ov::op::v1::TopK::validate_and_get_k(const shared_ptr<ov::op::v1::Constant>& k_constant) const {
     const auto k_const_contents = k_constant->get_vector<T>();
 
     NODE_VALIDATION_CHECK(this,
@@ -300,7 +299,7 @@ size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::v1::Constant>& k_co
     return static_cast<size_t>(k_const_contents[0]);
 }
 
-shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v1::TopK::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_TopK_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_v1_topk =
@@ -309,7 +308,7 @@ shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_arg
     return std::move(new_v1_topk);
 }
 
-size_t op::v1::TopK::get_k() const {
+size_t ov::op::v1::TopK::get_k() const {
     size_t k = 0;
     if (op::util::is_constant(input_value(1).get_node())) {
         k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
@@ -321,11 +320,11 @@ size_t op::v1::TopK::get_k() const {
     return k;
 }
 
-void op::v1::TopK::set_k(size_t k) {
+void ov::op::v1::TopK::set_k(size_t k) {
     this->input(1).replace_source_output(op::v1::Constant::create(element::i64, ov::Shape{}, {k})->output(0));
 }
 
-bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_TopK_evaluate);
     ov::Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
@@ -362,7 +361,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
                                get_index_element_type());
 }
 
-bool op::v1::TopK::has_evaluate() const {
+bool ov::op::v1::TopK::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_TopK_has_evaluate);
 
     switch (get_input_element_type(0)) {
@@ -406,9 +405,9 @@ bool op::v1::TopK::has_evaluate() const {
 }
 
 // v3 version starts
-BWDCMP_RTTI_DEFINITION(op::v3::TopK);
+BWDCMP_RTTI_DEFINITION(ov::op::v3::TopK);
 
-op::v3::TopK::TopK(const Output<Node>& data,
+ov::op::v3::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,
                    const int64_t axis,
                    const std::string& mode,
@@ -418,7 +417,7 @@ op::v3::TopK::TopK(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-op::v3::TopK::TopK(const Output<Node>& data,
+ov::op::v3::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,
                    const int64_t axis,
                    const Mode mode,
@@ -437,7 +436,7 @@ bool ngraph::op::v3::TopK::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v3::TopK::validate_and_infer_types() {
+void ov::op::v3::TopK::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_TopK_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_integral_number(),
@@ -446,7 +445,7 @@ void op::v3::TopK::validate_and_infer_types() {
     op::v1::TopK::validate_and_infer_types();
 }
 
-size_t op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
+size_t ov::op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
                                                const element::Type& k_element_type) const {
     const auto k_constant = ov::as_type_ptr<op::v1::Constant>(node);
 
@@ -484,7 +483,7 @@ size_t op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
     return k;
 }
 
-shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v3::TopK::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v3_TopK_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_v3_topk =
@@ -493,12 +492,12 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
     return std::move(new_v3_topk);
 }
 
-bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v3_TopK_evaluate);
     return op::v1::TopK::evaluate(outputs, inputs);
 }
 
-bool op::v3::TopK::has_evaluate() const {
+bool ov::op::v3::TopK::has_evaluate() const {
     NGRAPH_OP_SCOPE(v3_TopK_has_evaluate);
 
     switch (get_input_element_type(0)) {
