@@ -37,8 +37,6 @@ struct jit_topk_config_params {
     int top_k;               // number of the output elements in the sorting dimension
     int work_amount;         // how many elements are processed when call jit kernel once
     int axis_dim;            // size of topk axis
-    int bitonic_size;        // only used for bitonic sort, the smallest power of 2 number bigger than axis_dim
-    int bitonic_k_size;      // only used for bitonic sort, the smallest power of 2 number bigger than top_k
     int sort_stride;         // memory stride of adjacent elements in sorting
     int blk_stride;          // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
     int bitonic_idx_cnt;     // the repeatedly counted total number of elements in sorting, which equal the total number of comparison x 2
@@ -83,7 +81,6 @@ public:
     std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;
-    void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
     void executeDynamicImpl(mkldnn::stream strm) override;
@@ -101,7 +98,7 @@ private:
     inline static int count(InferenceEngine::SizeVector dims, size_t start_ind, size_t end_ind);
     inline static int count(InferenceEngine::SizeVector dims, size_t start_ind = 0);
     inline void bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val = true);
-    void calc_bitonic_idx(size_t n, int &p, int &cnt, bool cmp_val);
+    void calc_bitonic_idx(size_t n, int &cnt, bool cmp_val);
     void calc_dims_size(const InferenceEngine::SizeVector &layout_dims);
     void topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx,
                    const InferenceEngine::SizeVector &in_dims, std::function<float(float, float)> compare) const;
@@ -117,15 +114,12 @@ private:
     size_t O, A, I;
     size_t blk_size;
     size_t count_xmm;
-    size_t in_dims_size;
-    size_t out_dims_size;
     size_t data_size;
     int top_k;
     int dim, before_num;
     bool is_last_dim = false;
     bool bubble_inplace = false;
 
-    ov::PartialShape in_dims, out_dims, out_idx_dims;
     InferenceEngine::SizeVector src_dims, dst_dims;
     TopKLayoutType layout;
     TopKAlgorithm algorithm;

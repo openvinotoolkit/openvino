@@ -54,6 +54,9 @@ void TopKLayerTest::SetUp() {
 }
 
 InferenceEngine::Blob::Ptr TopKLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    IE_ASSERT(InferenceEngine::Precision::FP32 == info.getTensorDesc().getPrecision()
+           || InferenceEngine::Precision::BF16 == info.getTensorDesc().getPrecision());
+
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
     blob->allocate();
 

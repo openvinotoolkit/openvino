@@ -1205,49 +1205,44 @@ MKLDNNTopKNode::MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mk
 
         auto topKOp = ngraph::as_type_ptr<ngraph::op::v1::TopK>(op);
 
-        in_dims = topKOp->get_input_partial_shape(TOPK_DATA);
-        out_dims = topKOp->get_output_partial_shape(TOPK_DATA);
-        out_idx_dims = topKOp->get_output_partial_shape(TOPK_INDEX);
-        in_dims_size = in_dims.size();
-        out_dims_size = out_dims.size();
+        auto in_dims = topKOp->get_input_partial_shape(TOPK_DATA);
+        auto out_dims = topKOp->get_output_partial_shape(TOPK_DATA);
+        auto out_idx_dims = topKOp->get_output_partial_shape(TOPK_INDEX);
+        auto in_dims_size = in_dims.size();
 
         if (!isDynamicNgraphNode(op)) {
             auto topKConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
             if (!topKConst) {
                 IE_THROW() << errorPrefix <<  "gets non-constant second tensor in static shape mode!";
             }
-            top_k = topKConst->cast_vector<int>()[0];
         }
 
         axis = topKOp->get_axis();
         mode_max = topKOp->get_mode() == ngraph::op::TopKMode::MAX;
         sort_index = topKOp->get_sort_type() == ngraph::op::TopKSortType::SORT_INDICES;
+
+        if (inputShapes.size() != 2 || outputShapes.size() < 2)
+            IE_THROW() << errorPrefix << " gets incorrect number of input/output edges!";
+
+        if (getInputShapeAtPort(TOPK_DATA).getRank() != getOutputShapeAtPort(TOPK_DATA).getRank())
+            IE_THROW() << errorPrefix << " gets incorrect number of input/output dimensions!";
+
+        if (getInputShapeAtPort(TOPK_K).getRank() != 1)
+            IE_THROW() << errorPrefix << " gets incorrect index vector dimension! Index vector should be 1 dimension.";
+
+        if (out_dims != out_idx_dims)
+            IE_THROW() << errorPrefix << " gets incorrect output tensor dimension sizes!";
+
+        if (axis < 0)
+            axis += in_dims_size;
+        if (axis < 0 || axis >= static_cast<int>(in_dims_size))
+            IE_THROW() << errorPrefix << " gets incorrect input parameters dimensions and axis number!";
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
 }
 
-void MKLDNNTopKNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
-    if (getParentEdges().size() != 2 || getChildEdges().size() < 2)
-        IE_THROW() << errorPrefix << " gets incorrect number of input/output edges!";
-
-    if (getInputShapeAtPort(TOPK_DATA).getRank() != getOutputShapeAtPort(TOPK_DATA).getRank())
-        IE_THROW() << errorPrefix << " gets incorrect number of input/output dimensions!";
-
-    if (getInputShapeAtPort(TOPK_K).getRank() != 1)
-        IE_THROW() << errorPrefix << " gets incorrect index vector dimension! Index vector should be 1 dimension.";
-
-    if (out_dims != out_idx_dims)
-        IE_THROW() << errorPrefix << " gets incorrect output tensor dimension sizes!";
-
-    if (axis < 0)
-        axis += in_dims_size;
-    if (axis < 0 || axis >= static_cast<int>(in_dims_size))
-        IE_THROW() << errorPrefix << " gets incorrect input parameters dimensions and axis number!";
-}
+void MKLDNNTopKNode::getSupportedDescriptors() {}
 
 void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
@@ -1302,7 +1297,7 @@ void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
 }
 
 bool MKLDNNTopKNode::needShapeInfer() const {
-    const int src_k = reinterpret_cast<int*>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
     return inputShapesModified() || src_k != top_k;
 }
 
@@ -1311,22 +1306,31 @@ std::vector<VectorDims> MKLDNNTopKNode::shapeInfer() const {
 }
 
 bool MKLDNNTopKNode::needPrepareParams() const {
-    const int src_k = reinterpret_cast<int*>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
     return inputShapesModified() || top_k != src_k;
 }
 
 void MKLDNNTopKNode::prepareParams() {
     auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " has not allocated destination memory.";
+    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " has not allocate input memory.";
+    if (getSelectedPrimitiveDescriptor() == nullptr)
+        IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
+
     src_dims = srcMemPtr->getDesc().getShape().getDims();
     dst_dims = dstMemPtr->getDesc().getShape().getDims();
 
     if (isDynamicNode()) {
-        const int src_k = reinterpret_cast<int*>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+        const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
         if (src_k > src_dims[axis])
             IE_THROW() << errorPrefix << " gets top_k out of range!";
         if (top_k != src_k)
             top_k = src_k;
+    } else {
+        top_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
     }
 
     if (jit_mode) {
@@ -1409,9 +1413,9 @@ void MKLDNNTopKNode::prepareParams() {
             vec_process_ptr.resize(src_count * data_size);
             vec_process_idx_ptr.resize(src_count * sizeof(int32_t));
 
-            calc_bitonic_idx(axis_dim, jcp.bitonic_size, jcp.bitonic_idx_cnt, true);
+            calc_bitonic_idx(axis_dim, jcp.bitonic_idx_cnt, true);
             if (sort_index) {
-                calc_bitonic_idx(top_k, jcp.bitonic_k_size, jcp.bitonic_k_idx_cnt, false);
+                calc_bitonic_idx(top_k, jcp.bitonic_k_idx_cnt, false);
             }
         }
 
@@ -1435,23 +1439,6 @@ void MKLDNNTopKNode::prepareParams() {
             is_last_dim = true;
         dim = static_cast<int>(src_dims[axis]);
         before_num = count(src_dims, 0, axis);
-    }
-}
-
-void MKLDNNTopKNode::createPrimitive() {
-    auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " has not allocated destination memory.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << " has not allocate input memory.";
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
-
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
     }
 }
 
@@ -1602,10 +1589,10 @@ inline void MKLDNNTopKNode::bitonic_push_idx(int p, int n, std::vector<int> &vec
     }
 }
 
-void MKLDNNTopKNode::calc_bitonic_idx(size_t n, int &p, int &cnt, bool cmp_val) {
+void MKLDNNTopKNode::calc_bitonic_idx(size_t n, int &cnt, bool cmp_val) {
     int m = n - 1;
     int log_p = 0;
-    p = 1;
+    int p = 1;
     while (m) {
         p <<= 1;
         m >>= 1;

@@ -210,11 +210,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Model
                 if (should_be_skipped(shape, outFmts[i]))
                     continue;
 
-                if (i < actualOutputMemoryFormats.size()) {
-                    ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
-                } else {
-                    ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[actualOutputMemoryFormats.size() - 1].c_str()));
-                }
+                ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
 
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);

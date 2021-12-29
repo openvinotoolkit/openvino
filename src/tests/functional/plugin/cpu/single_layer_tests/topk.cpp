@@ -100,43 +100,38 @@ protected:
         selectedType = getPrimitiveType() + "_" + InferenceEngine::details::convertPrecision(netPrecision).name();
 
         staticShape = inputShape.first.rank() == 0;
-
-        // static shape need specific const k to test different sorting algorithms, dynamic shape tests random param k
         if (staticShape) {
             init_input_shapes({inputShape});
-
-            auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
-            auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
-            auto topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
-                    std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
-            topk->get_rt_info() = getCPUInfo();
-
-            ngraph::ResultVector results;
-            for (size_t i = 0; i < topk->get_output_size(); i++) {
-                results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
-            }
-
-            function = std::make_shared<ngraph::Function>(results, params, "TopK");
         } else {
             inputDynamicShapes = {inputShape.first, {}};
             for (size_t i = 0; i < inputShape.second.size(); ++i) {
                 targetStaticShapes.push_back({inputShape.second[i], {}});
             }
+        }
 
-            auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+
+        // static shape need specific const k to test different sorting algorithms, dynamic shape tests random param k
+        std::shared_ptr<ngraph::opset4::TopK> topk;
+        if (staticShape) {
+            auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
+            topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
+                    std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
+        } else {
             auto k = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::i64, inputDynamicShapes[1]);
             params.push_back(k);
-            auto topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
+            topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
                     std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
-            topk->get_rt_info() = getCPUInfo();
-
-            ngraph::ResultVector results;
-            for (size_t i = 0; i < topk->get_output_size(); i++) {
-                results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
-            }
-
-            function = std::make_shared<ngraph::Function>(results, params, "TopK");
         }
+
+        topk->get_rt_info() = getCPUInfo();
+
+        ngraph::ResultVector results;
+        for (size_t i = 0; i < topk->get_output_size(); i++) {
+            results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
+        }
+
+        function = std::make_shared<ngraph::Function>(results, params, "TopK");
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
@@ -186,6 +181,8 @@ protected:
                     }
                 }
             }
+        } else {
+            FAIL() << "generate_inputs for " << netPrecision << " precision isn't supported";
         }
         inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});
 
@@ -220,7 +217,6 @@ namespace {
 
 const std::vector<ElementType> netPrecisions = {
     ElementType::f32,
-    ElementType::bf16
 };
 
 std::vector<std::map<std::string, std::string>> additionalConfig = {
