@@ -24,6 +24,8 @@ public:
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
     virtual const ov::CoordinateDiff& get_pads_begin() = 0;
     virtual const ov::CoordinateDiff& get_pads_end() = 0;
+
+    virtual const std::vector<ssize_t>& get_input_ranks() = 0;
 };
 
 std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::Node>& op);

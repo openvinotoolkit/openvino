@@ -68,7 +68,16 @@ void shape_inference(ov::Node* op,
 
 class entryBase : public IShapeInfer {
 public:
-    entryBase(std::shared_ptr<ov::Node> node) : node(node) {}
+    entryBase(std::shared_ptr<ov::Node> node) : node(node) {
+        for (size_t i = 0; i < node->get_input_size(); i++) {
+            const auto& shape = node->get_input_partial_shape(i);
+            if (shape.rank().is_static()) {
+                input_ranks.push_back(shape.rank().get_length());
+            } else {
+                input_ranks.push_back(-1);
+            }
+        }
+    }
 
     const ov::CoordinateDiff& get_pads_begin() override {
         OPENVINO_ASSERT(false, "entryBase do not support get_pads_begin() by default.");
@@ -78,7 +87,12 @@ public:
         OPENVINO_ASSERT(false, "entryBase do not support get_pads_end() by default.");
     }
 
+    const std::vector<ssize_t>& get_input_ranks() override {
+        return input_ranks;
+    }
+
 protected:
+    std::vector<ssize_t> input_ranks;
     std::shared_ptr<ov::Node> node;
 };
 

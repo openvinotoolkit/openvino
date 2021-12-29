@@ -615,7 +615,6 @@ protected:
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
     std::vector<Shape> inputShapes;
-    std::vector<bool> inputIsScalar;
     std::vector<Shape> outputShapes;
 
     std::vector <MKLDNNNodePtr> fusedWith;
@@ -786,8 +785,6 @@ private:
     PerfCounters profiling;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
-
-    void createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op);
 
     template <class PD, class D, typename FPD>
     typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
