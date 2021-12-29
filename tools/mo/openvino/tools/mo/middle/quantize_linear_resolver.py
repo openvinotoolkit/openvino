@@ -96,7 +96,8 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
         quantize_node.out_port(0).get_connection().set_source(cast.out_port(0))
         rename_nodes([(quantize_node, node_name + '/TBD'), (cast, node_name)])
 
-        assert scale_y_shape is not None
+        assert scale_y_shape is not None, "{0} contains scale(input with port 1) with shape None".\
+            format(quantize_node.soft_get('name', soft_get('id')))
         if axis is not None and len(scale_y_shape) > 0 and scale_y_shape[0] > 1:
             input_shape = fake_quantize.in_port(0).data.get_shape()
             target_shape = np.ones(len(input_shape), np.int)

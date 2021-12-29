@@ -50,7 +50,7 @@ nodes_attributes = {
 
 
 class QuantizeDequantizeLinearResolverTest(unittest.TestCase):
-    def test_group_norm_1(self):
+    def test_quantize_dequantize_linear_resolver(self):
         graph = build_graph(nodes_attrs=nodes_attributes,
                             edges=[
                                 *connect('input', '0:non_const_quantize'),
