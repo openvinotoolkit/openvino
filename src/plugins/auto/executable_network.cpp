@@ -240,22 +240,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                       std::call_once(_firstLoadOC, [this] () {
                               _firstLoadPromise.set_value();
                               });
-                      {
-                          std::lock_guard<std::mutex> lock(_recycleMutex);
-                          if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-                              _switchReady = true;
-                              _recycleCond.notify_one();
-                          }
-                          // if CPU/accelerator , any of them fail to load
-                          // notify release thread to exit directly
-                          // no need to recycle
-                          if (_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isEnabled
-                                && !contextPtr->isLoadSuccess) {
-                              _exitFlag = true;
-                              _switchReady = true;
-                              _recycleCond.notify_one();
-                          }
-                      }
              };
          }
     }
@@ -283,12 +267,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
         auto recycleTask = [this]() mutable {
-            {
-                std::unique_lock<std::mutex> lock(_recycleMutex);
-                while (!_exitFlag && !_loadContext[ACTUALDEVICE].isAlready)
-                    _recycleCond.wait(lock, [this]{ return _switchReady; });
-            }
-            while (!_exitFlag) {
+            WaitActualNetworkReady();
+            while (!_exitFlag && _loadContext[ACTUALDEVICE].isAlready) {
                 // clean up helper infer requests
                 // first, wait for all the remaining requests to finish
                 for (auto& iter : _workerRequests["CPU_HELP"]) {
@@ -439,12 +419,6 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                if (_loadContext[ACTUALDEVICE].future.valid()) {
                    _loadContext[ACTUALDEVICE].future.wait();
                }
-               // if _loadContext[ACTUALDEVICE] load failed,  fall back to _loadContext[CPU]
-               if (!_loadContext[ACTUALDEVICE].isAlready) {
-                   _loadContext[ACTUALDEVICE].executableNetwork = _loadContext[CPU].executableNetwork;
-                   _loadContext[ACTUALDEVICE].deviceInfo = _loadContext[CPU].deviceInfo;
-                   _loadContext[ACTUALDEVICE].isAlready = true;
-               }
                });
 }
 
@@ -518,12 +492,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     if (_workModeIsAUTO) {
         // this is necessary to guarantee member destroyed after getting future
         if (_loadContext[CPU].isEnabled) {
-            {
-                std::lock_guard<std::mutex> lock(_recycleMutex);
-                _exitFlag = true;
-                _switchReady = true;
-                _recycleCond.notify_one();
-            }
+            _exitFlag = true;
             _loadContext[CPU].future.wait();
             WaitActualNetworkReady();
             // it's necessary to wait the loading network threads to stop here.

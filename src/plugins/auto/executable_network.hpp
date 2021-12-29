@@ -154,8 +154,6 @@ private:
     mutable std::mutex                                                  _confMutex;
     bool                                                                _exitFlag = {false};
     std::mutex                                                          _recycleMutex;
-    std::condition_variable                                             _recycleCond;
-    bool                                                                _switchReady = {false};
     const InferenceEngine::CNNNetwork                                   _network;
 };
 
