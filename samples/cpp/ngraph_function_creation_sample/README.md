@@ -10,10 +10,10 @@ nGraph Function Creation C++ Sample demonstrates the following Inference Engine 
 
 | Feature    | API  | Description |
 |:---        |:---  |:---
-|Inference Engine Version| `InferenceEngine::GetInferenceEngineVersion` | Get Inference Engine API version
-|Available Devices|`InferenceEngine::Core::GetAvailableDevices`| Get version information of the devices for inference
-| Network Operations | `InferenceEngine::CNNNetwork::setBatchSize`, `InferenceEngine::CNNNetwork::getBatchSize` |  Managing of network, operate with its batch size. Setting batch size using input image count.
-|nGraph Functions| `ngraph::Function`, `ngraph::op`, `ngraph::Node`, `ngraph::Shape::Shape`, `ngraph::Strides::Strides`, `ngraph::CoordinateDiff::CoordinateDiff`, `ngraph::Node::set_friendly_name`, `ngraph::shape_size`, `ngraph::ParameterVector::vector`  |  Illustrates how to construct an nGraph function
+|OpenVINO Runtime Version| `ov::get_openvino_versio` | Get Openvino API version
+|Available Devices|`ov::runtime::Core::get_available_devices`| Get version information of the devices for inference
+| Model Operations | `ov::set_batch`, `ov::get_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count.
+|nGraph Functions| `ov::op`, `ov::Node`, `ov::Shape::Shape`, `ov::Strides::Strides`, `ov::CoordinateDiff::CoordinateDiff`, `ov::Node::set_friendly_name`, `ov::shape_size`, `ov::ParameterVector::vector`  |  Illustrates how to construct an nGraph function
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
