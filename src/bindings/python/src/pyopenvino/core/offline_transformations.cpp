@@ -44,9 +44,6 @@ void regmodule_offline_transformations(py::module m) {
         "apply_moc_transformations",
         [](std::shared_ptr<ov::Model> function, bool cf) {
             ov::pass::Manager manager;
-            auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-            gr->add_matcher<ngraph::pass::CompressQuantizeWeights>();
-            gr->add_matcher<ngraph::pass::ZeroPointOptimizer>();
             manager.register_pass<ngraph::pass::MOCTransformations>(cf);
             manager.run_passes(function);
         },
@@ -109,6 +106,16 @@ void regmodule_offline_transformations(py::module m) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
             manager.register_pass<ov::pass::CompressFloatConstants>();
+            manager.run_passes(function);
+        },
+        py::arg("function"));
+
+    m_offline_transformations.def(
+        "compress_quantize_weights_transformation",
+        [](std::shared_ptr<ov::Model> function) {
+            ov::pass::Manager manager;
+            manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
+            manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
             manager.run_passes(function);
         },
         py::arg("function"));

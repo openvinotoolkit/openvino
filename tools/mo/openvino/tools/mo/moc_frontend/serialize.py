@@ -21,6 +21,8 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     from openvino.tools.mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations
     apply_user_transformations(ngraph_function, parse_transform(argv.transform))
     apply_moc_transformations(ngraph_function)
+    from openvino.offline_transformations_pybind import compress_quantize_weights_transformation
+    compress_quantize_weights_transformation(ngraph_function)
 
     if argv.compress_fp16:
         from openvino.tools.mo.back.offline_transformations import compress_model

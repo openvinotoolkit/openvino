@@ -4,7 +4,6 @@
 
 #include "offline_transformations_api_impl.hpp"
 
-#include <compress_quantize_weights.hpp>
 #include <generate_mapping_file.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -22,9 +21,6 @@
 
 void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf) {
     ngraph::pass::Manager manager;
-    auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-    gr->add_matcher<ngraph::pass::CompressQuantizeWeights>();
-    gr->add_matcher<ngraph::pass::ZeroPointOptimizer>();
     manager.register_pass<ngraph::pass::MOCTransformations>(cf);
     manager.run_passes(network.actual->getFunction());
 }

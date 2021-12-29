@@ -405,7 +405,6 @@ set(SRC
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp
-    validation_util.cpp
 )
 
 # For type relaxed types

@@ -1562,34 +1562,6 @@ shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source
     return std::make_shared<op::v0::Constant>(source.get_tensor().get_upper_value());
 }
 
-shared_ptr<op::v0::Constant> ov::evaluate_subgraph(const Output<Node>& subgraph_sink) {
-    if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
-        return c;
-    const auto sink_node = subgraph_sink.get_node();
-    OutputVector inputs = sink_node->input_values();
-    if (inputs.size() == 0)
-        return nullptr;
-    HostTensorVector input_tensors;
-    input_tensors.reserve(inputs.size());
-    for (const auto& input : inputs) {
-        auto constant = evaluate_subgraph(input);
-        if (constant == nullptr)
-            return nullptr;
-        auto host_tensor = make_shared<HostTensor>(constant);
-        input_tensors.push_back(host_tensor);
-    }
-    HostTensorVector output_tensors;
-    output_tensors.reserve(sink_node->get_output_size());
-    for (const auto& output : sink_node->outputs()) {
-        auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
-        output_tensors.push_back(tensor);
-    }
-    bool eval_status = sink_node->evaluate(output_tensors, input_tensors);
-    if (eval_status == false)
-        return nullptr;
-    return make_shared<op::v0::Constant>(output_tensors[subgraph_sink.get_index()]);
-}
-
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
     if (tensor_vector.size() != size)
         return false;

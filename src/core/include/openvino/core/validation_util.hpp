@@ -125,10 +125,4 @@ OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialS
 /// \brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
 /// they are the same returns Constant operation from the resulting bound, otherwise nullptr.
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
-
-/// \brief Tries to evaluate whole subgraph which sink is 'subgraph_sink'.
-/// Returns a non-null std::shared_ptr<op::v0::Constant> if operation succeed and nullptr otherwise.
-/// The difference between evaluate_subgraph and get_constant_from_source is that the latter evaluates
-/// lower and upper bound, while the former uses just Node's evaluate
-OPENVINO_API std::shared_ptr<op::v0::Constant> evaluate_subgraph(const Output<Node>& subgraph_sink);
 }  // namespace ov
