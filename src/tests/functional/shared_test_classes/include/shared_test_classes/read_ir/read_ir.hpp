@@ -19,6 +19,7 @@ class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
+    void QueryNetwork() override;
 
 protected:
     void SetUp() override;

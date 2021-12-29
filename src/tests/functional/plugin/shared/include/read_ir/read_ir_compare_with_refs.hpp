@@ -10,8 +10,4 @@ TEST_P(ReadIRTest, ReadIR) {
     Run();
 }
 
-TEST_P(ReadIRTest, QueryNetwork) {
-    QueryNetwork();
-}
-
 } // namespace LayerTestsDefinitions
