@@ -71,11 +71,8 @@ public:
     entryBase(std::shared_ptr<ov::Node> node) : node(node) {
         for (size_t i = 0; i < node->get_input_size(); i++) {
             const auto& shape = node->get_input_partial_shape(i);
-            if (shape.rank().is_static()) {
-                input_ranks.push_back(shape.rank().get_length());
-            } else {
-                input_ranks.push_back(-1);
-            }
+            OPENVINO_ASSERT(shape.rank().is_static());
+            input_ranks.push_back(shape.rank().get_length());
         }
     }
 
@@ -87,12 +84,12 @@ public:
         OPENVINO_ASSERT(false, "entryBase do not support get_pads_end() by default.");
     }
 
-    const std::vector<ssize_t>& get_input_ranks() override {
+    const std::vector<size_t>& get_input_ranks() override {
         return input_ranks;
     }
 
 protected:
-    std::vector<ssize_t> input_ranks;
+    std::vector<size_t> input_ranks;
     std::shared_ptr<ov::Node> node;
 };
 
