@@ -12,11 +12,9 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
-    py::class_<ngraph::DiscreteTypeInfo, std::shared_ptr<ngraph::DiscreteTypeInfo>> discrete_type_info(
-        m,
-        "DiscreteTypeInfo");
-    discrete_type_info.doc() = "ngraph.impl.DiscreteTypeInfo wraps ngraph::DiscreteTypeInfo";
+void regclass_graph_DiscreteTypeInfo(py::module m) {
+    py::class_<ov::DiscreteTypeInfo, std::shared_ptr<ov::DiscreteTypeInfo>> discrete_type_info(m, "DiscreteTypeInfo");
+    discrete_type_info.doc() = "openvino.runtime.DiscreteTypeInfo wraps ov::DiscreteTypeInfo";
 
     // operator overloading
     discrete_type_info.def(py::self < py::self);
