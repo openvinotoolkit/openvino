@@ -26,7 +26,11 @@ Unfuse2dto4dReshapeAndTranspose::Unfuse2dto4dReshapeAndTranspose() {
                 ((output_shape.at(1) == 1) || (output_shape.at(2)*output_shape.at(3) == 1)));
     };
     const auto reshape = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>(is_required_reshape);
-    const auto conv = ngraph::pattern::wrap_type<ngraph::opset8::Convolution>({reshape, ngraph::pattern::any_input()});
+    auto fq = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({reshape,
+        ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
+        consumers_and_rank(1, 4));
+    const auto conv = ngraph::pattern::wrap_type<ngraph::opset8::Convolution>({std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{reshape, fq}),
+        ngraph::pattern::any_input()});
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
@@ -70,39 +74,41 @@ Unfuse4dto2dReshapeAndTranspose::Unfuse4dto2dReshapeAndTranspose() {
         return ((input_shape.size() == 4) && (output_shape.size() == 2) &&
                 ((input_shape.at(1) == 1) || (input_shape.at(2)*input_shape.at(3) == 1)));
     };
+    // Convolution
     auto conv = ngraph::pattern::wrap_type<ngraph::opset8::Convolution>({ngraph::pattern::any_input(), ngraph::pattern::any_input()},
         consumers_and_rank(1, 4));
     auto fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({conv,
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
         consumers_and_rank(1, 4));
+    // Bias
     auto bias = ngraph::pattern::wrap_type<ngraph::opset8::Add>({conv, ngraph::pattern::any_input()},
         consumers_and_rank(1, 4));
+    auto fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({bias,
+        ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
+        consumers_and_rank(1, 4));
+    // Max Pooling
     auto max_pool_conv = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({conv},
         consumers_and_rank(1, 4));
     auto max_pool_fq_conv = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({fq_conv},
         consumers_and_rank(1, 4));
     auto max_pool_bias = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({bias},
         consumers_and_rank(1, 4));
-    auto fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({bias,
+    auto max_pool_fq_bias = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({fq_bias},
+        consumers_and_rank(1, 4));
+    // Activation
+    auto fq_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({fq_conv,
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
         consumers_and_rank(1, 4));
-    auto max_pool_fq_bias = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({fq_bias},
+    auto fq_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({fq_bias,
+        ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
         consumers_and_rank(1, 4));
     auto act_conv = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
         ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
         ngraph::opset8::Sign, ngraph::opset8::Clamp>({conv},
         consumers_and_rank(1, 4));
-    auto act_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
-        ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
-        ngraph::opset8::Sign, ngraph::opset8::Clamp>({fq_conv},
-        consumers_and_rank(1, 4));
     auto act_bias = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
         ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
         ngraph::opset8::Sign, ngraph::opset8::Clamp>({bias},
-        consumers_and_rank(1, 4));
-    auto act_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
-        ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
-        ngraph::opset8::Sign, ngraph::opset8::Clamp>({fq_bias},
         consumers_and_rank(1, 4));
     auto act_max_pool_conv = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
         ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
@@ -112,30 +118,44 @@ Unfuse4dto2dReshapeAndTranspose::Unfuse4dto2dReshapeAndTranspose() {
         ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
         ngraph::opset8::Sign, ngraph::opset8::Clamp>({max_pool_bias},
         consumers_and_rank(1, 4));
-    auto act_max_pool_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
+    auto act_fq_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
         ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
-        ngraph::opset8::Sign, ngraph::opset8::Clamp>({max_pool_fq_conv},
+        ngraph::opset8::Sign, ngraph::opset8::Clamp>({fq_fq_conv},
         consumers_and_rank(1, 4));
-    auto act_max_pool_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
+    auto act_fq_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
         ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
-        ngraph::opset8::Sign, ngraph::opset8::Clamp>({max_pool_fq_bias},
+        ngraph::opset8::Sign, ngraph::opset8::Clamp>({fq_fq_bias},
         consumers_and_rank(1, 4));
-    auto fq_act_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({act_fq_conv,
+    auto fq_max_pool_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({max_pool_fq_conv,
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
         consumers_and_rank(1, 4));
-    auto fq_act_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({act_fq_bias,
+    auto act_fq_max_pool_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
+        ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
+        ngraph::opset8::Sign, ngraph::opset8::Clamp>({fq_max_pool_fq_conv},
+        consumers_and_rank(1, 4));
+    auto fq_max_pool_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({max_pool_fq_bias,
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
         consumers_and_rank(1, 4));
-    auto fq_act_max_pool_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({act_max_pool_fq_conv,
+    auto act_fq_max_pool_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::Relu, ngraph::opset8::Sigmoid,
+        ngraph::opset8::Tanh, ngraph::opset8::Abs, ngraph::opset8::Log, ngraph::opset8::Exp,
+        ngraph::opset8::Sign, ngraph::opset8::Clamp>({fq_max_pool_fq_bias},
+        consumers_and_rank(1, 4));
+    auto fq_act_fq_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({act_fq_fq_conv,
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
         consumers_and_rank(1, 4));
-    auto fq_act_max_pool_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({act_max_pool_fq_bias,
+    auto fq_act_fq_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({act_fq_fq_bias,
+        ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
+        consumers_and_rank(1, 4));
+    auto fq_act_fq_max_pool_fq_conv = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({act_fq_max_pool_fq_conv,
+        ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
+        consumers_and_rank(1, 4));
+    auto fq_act_fq_max_pool_fq_bias = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({act_fq_max_pool_fq_bias,
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()},
         consumers_and_rank(1, 4));
     auto root_reshape =
         std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool_conv, max_pool_fq_conv, max_pool_bias, max_pool_fq_bias,
-            fq_conv, fq_bias, act_conv, act_fq_conv, act_bias, act_fq_bias, act_max_pool_conv, act_max_pool_bias, act_max_pool_fq_conv, act_max_pool_fq_bias,
-            fq_act_fq_conv, act_fq_bias, fq_act_max_pool_fq_conv, fq_act_max_pool_fq_bias});
+            fq_conv, fq_bias, act_conv, act_bias, act_max_pool_conv, act_max_pool_bias,
+            fq_act_fq_fq_conv, fq_act_fq_fq_bias, fq_act_fq_max_pool_fq_conv, fq_act_fq_max_pool_fq_bias});
     const auto reshape = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>({root_reshape, ngraph::pattern::any_input()}, is_required_reshape);
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();
