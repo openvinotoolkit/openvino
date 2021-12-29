@@ -54,7 +54,7 @@
 	path = cmake/developer_package/ncc_naming_style/ncc
 	url = https://github.com/nithinn/ncc.git
 [submodule "thirdparty/onednn_gpu"]
-	path = thirdparty/onednn_gpu
+	path = src/plugins/intel_gpu/thirdparty/onednn_gpu
 	url = https://github.com/oneapi-src/oneDNN.git
 [submodule "tools/pot/thirdparty/open_model_zoo"]
 	path = thirdparty/open_model_zoo

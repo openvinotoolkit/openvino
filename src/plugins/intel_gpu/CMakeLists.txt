@@ -19,10 +19,10 @@ endif()
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+add_subdirectory(thirdparty)
 add_subdirectory(src/runtime)
 add_subdirectory(src/kernel_selector)
 add_subdirectory(src/graph)
-add_subdirectory(thirdparty)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
