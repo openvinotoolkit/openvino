@@ -214,7 +214,7 @@ private:
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id);
     void check_names();
     void add_default_output_chains();
-    bool set_mutable_input(program_node const& node);
+    bool should_use_mutable_input(program_node const& node);
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
 };
 }  // namespace cldnn

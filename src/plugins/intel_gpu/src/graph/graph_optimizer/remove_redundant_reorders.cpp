@@ -543,5 +543,10 @@ void remove_redundant_reorders::run(program& p) {
             auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_dependency(0).get_output_layout().format);
             n->set_preferred_impl_type(preferred_impl);
         }
+
+        // Validate fused layout when onednn is enable in post_optimize_graph
+        if (!enable_reorder_fusing && n->get_preferred_impl_type() == impl_types::onednn && !lo.are_layouts_suitable_for_onednn(*n)) {
+            throw std::runtime_error("Onednn doesnot support padded input or output");
+        }
     }
 }

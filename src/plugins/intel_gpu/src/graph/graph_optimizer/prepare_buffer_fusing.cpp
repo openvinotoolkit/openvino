@@ -96,7 +96,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         }
     }
 
-    // oneDNN support paddings and such concat optimizations Only use_usm and batch 1.
+    // Implicit concat for onednn only when use_usm and batch 1.
     if (is_onednn_impl) {
         bool use_usm = node.get_program().get_engine().use_unified_shared_memory();
         layout out_l = node.get_output_layout();
