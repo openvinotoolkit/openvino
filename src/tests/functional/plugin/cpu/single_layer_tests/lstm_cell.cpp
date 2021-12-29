@@ -86,14 +86,12 @@ protected:
         const size_t hiddenSize = targetStaticShapes.front()[1][1];
         const size_t inputSize = targetStaticShapes.front()[0][1];
 
-        // TODO: does not work properly with new tests API
-//        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
-//            inType = outType = ElementType::bf16;
-//        } else {
-//            inType = outType = netPrecision;
-//        }
-//        selectedType = makeSelectedTypeStr(selectedType, outType);
-        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+        if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
+            inType = outType = ElementType::bf16;
+        } else {
+            inType = outType = netPrecision;
+        }
+        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));

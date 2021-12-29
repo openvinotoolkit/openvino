@@ -13,41 +13,6 @@
 
 namespace MKLDNNPlugin {
 
-class Interval {
-public:
-    Interval(Dim val) {
-        minValue = val;
-        maxValue = val;
-    }
-
-    Interval(Dim minVal, Dim maxVal) {
-        if (minVal > maxVal)
-            IE_THROW() << "Invalid interval initialization. Min value is greater than Max value.";
-        minValue = minVal;
-        maxValue = maxVal;
-    }
-
-    bool isStatic() const {
-        return minValue == maxValue;
-    }
-
-    Dim getMinValue() const {
-        return minValue;
-    }
-
-    Dim getMaxValue() const {
-        return maxValue;
-    }
-
-    Dim getDummyValue(Dim dummyVal) const {
-        return isStatic() ? maxValue : std::min(maxValue, std::max(minValue, dummyVal));
-    }
-
-private:
-    Dim minValue = 0;
-    Dim maxValue = 0;
-};
-
 class Shape {
 public:
     Shape() = default;
@@ -64,7 +29,7 @@ public:
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
-    explicit Shape(const InferenceEngine::SizeVector& shape) {
+    explicit Shape(const VectorDims& shape) {
         minDims = shape;
         maxDims = shape;
         type = ShapeType::Static;
@@ -74,32 +39,28 @@ public:
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
-    explicit Shape(const std::vector<Interval>& shape) {
-        minDims.reserve(shape.size());
-        maxDims.reserve(shape.size());
-        type = ShapeType::Static;
-        for (auto dim : shape) {
-            minDims.emplace_back(dim.getMinValue());
-            maxDims.emplace_back(dim.getMaxValue());
-            if (!dim.isStatic())
-                type = ShapeType::Dynamic;
-        }
+    Shape(const VectorDims& minVals, const VectorDims& maxVals) {
+        minDims = minVals;
+        maxDims = maxVals;
+        type = minVals == maxVals ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();
+
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
-    explicit Shape(const std::initializer_list<Interval>& shape) {
+    Shape(const std::initializer_list<Dim>& shape) {
         minDims.reserve(shape.size());
         maxDims.reserve(shape.size());
         type = ShapeType::Static;
         for (auto dim : shape) {
-            minDims.push_back(dim.getMinValue());
-            maxDims.push_back(dim.getMaxValue());
-            if (!dim.isStatic())
-                type = ShapeType::Dynamic;
+            minDims.push_back(dim);
+            maxDims.push_back(dim);
         }
 
         initDims();
+
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     /**
@@ -163,13 +124,6 @@ public:
      */
     const VectorDims& getDims() const {
         return dims;
-    }
-
-    const Interval getInterval(size_t i) const {
-        if (i >= minDims.size()) {
-            IE_THROW() << "Can't get interval. Shape index " << i << " is out of bound " << minDims.size();
-        }
-        return Interval(minDims[i], maxDims[i]);
     }
 
     bool isStatic() const {

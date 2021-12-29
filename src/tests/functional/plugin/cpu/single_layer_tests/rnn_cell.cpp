@@ -87,9 +87,7 @@ protected:
         } else {
             inType = outType = netPrecision;
         }
-        // TODO: does not work properly with new tests API
-//        selectedType = makeSelectedTypeStr(selectedType, outType);
-        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));

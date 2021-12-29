@@ -72,9 +72,24 @@ private:
     /** Weights data and state memory format: ldigo or any */
     mkldnn::memory::format_tag wFormat = mkldnn::memory::format_tag::any;
 
+    struct Interval {
+        Interval() = default;
+
+        Interval(Dim min, Dim max) {
+            minVal = min;
+            maxVal = max;
+        }
+
+        bool isStatic() {
+            return minVal == maxVal;
+        }
+
+        Dim minVal = 0;
+        Dim maxVal = 0;
+    };
     // Internal attributes
-    Interval N = 1;   /**< Batch value */
-    Interval T = 1;   /**< Sequence value */
+    Interval N;     /**< Batch value */
+    Interval T;     /**< Sequence value */
     size_t DC = 0;  /**< Input data channel size */
     size_t SC = 0;  /**< State channel size value */
     size_t G = 0;   /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */

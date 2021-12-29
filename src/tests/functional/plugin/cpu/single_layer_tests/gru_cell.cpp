@@ -92,9 +92,7 @@ protected:
         } else {
             inType = outType = netPrecision;
         }
-        // TODO: does not work properly with new tests API
-//        selectedType = makeSelectedTypeStr(selectedType, outType);
-        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         std::vector<ngraph::Shape> WRB = {{3 * hiddenSize, inputSize}, {3 * hiddenSize, hiddenSize}, {(linearBeforeReset ? 4 : 3) * hiddenSize}};

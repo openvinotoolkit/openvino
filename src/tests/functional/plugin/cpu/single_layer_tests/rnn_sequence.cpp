@@ -297,7 +297,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, RNNSequenceCPUTest,
                                ::testing::Values(std::map<std::string, std::string>{})),
             RNNSequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nighly_dynamic, RNNSequenceCPUTest,
+INSTANTIATE_TEST_SUITE_P(nightly_dynamic, RNNSequenceCPUTest,
             ::testing::Combine(::testing::Values(dynamicShapes[5]),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
@@ -308,7 +308,7 @@ INSTANTIATE_TEST_SUITE_P(nighly_dynamic, RNNSequenceCPUTest,
                                ::testing::Values(std::map<std::string, std::string>{})),
             RNNSequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nighly_dynamic_bf16, RNNSequenceCPUTest,
+INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, RNNSequenceCPUTest,
             ::testing::Combine(::testing::ValuesIn({dynamicShapes[6], dynamicShapes[7]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),

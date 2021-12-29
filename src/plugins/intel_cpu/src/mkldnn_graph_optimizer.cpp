@@ -2022,8 +2022,11 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         }
 
         auto childrenEdges = parentNode->getChildEdgesAtPort(0);
-        auto& origShape = parentNode->getOutputShapeAtPort(0);
-        parentNode->outputShapes[0] = Shape{origShape.getInterval(0), origShape.getInterval(2), origShape.getInterval(3)};
+        auto minDims = parentNode->getOutputShapeAtPort(0).getMinDims();
+        auto maxDims = parentNode->getOutputShapeAtPort(0).getMaxDims();
+        minDims.erase(minDims.begin() + 1);
+        maxDims.erase(maxDims.begin() + 1);
+        parentNode->outputShapes[0] = {minDims, maxDims};
 
         for (size_t j = 0; j < childrenEdges.size(); j++) {
             auto edge = childrenEdges[j];
