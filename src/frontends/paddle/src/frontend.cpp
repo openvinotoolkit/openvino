@@ -19,31 +19,6 @@
 #include "paddle_utils.hpp"
 #include "place.hpp"
 
-#if defined(_WIN32)
-#    include <windows.h>
-BOOL WINAPI DllMain(HINSTANCE hinstDLL,  // handle to DLL module
-                    DWORD fdwReason,     // reason for calling function
-                    LPVOID lpReserved)   // reserved
-{
-    // Perform actions based on the reason for calling.
-    switch (fdwReason) {
-    case DLL_PROCESS_ATTACH:
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-        break;
-
-    case DLL_PROCESS_DETACH:
-        google::protobuf::ShutdownProtobufLibrary();
-        break;
-    }
-    return TRUE;  // Successful DLL_PROCESS_ATTACH.
-}
-#elif defined(__linux__)
-extern "C" __attribute__((destructor)) void library_unload() {
-    google::protobuf::ShutdownProtobufLibrary();
-}
-#endif
-
 using namespace ov::opset7;
 using namespace ov;
 using namespace ov::frontend;

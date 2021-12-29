@@ -89,7 +89,7 @@ unset(protobuf_installed CACHE)
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
-    set(options LINKABLE_FRONTEND PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
+    set(options LINKABLE_FRONTEND SHUTDOWN_PROTOBUF PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
     set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -141,8 +141,13 @@ macro(ov_add_frontend)
     # Disable all warnings for generated code
     set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED TRUE)
 
+    # Shutdown protobuf when unloading the front dynamic library
+    if(OV_FRONTEND_SHUTDOWN_PROTOBUF AND BUILD_SHARED_LIBS)
+        set(SHUTDOWN_PROTOBUF ${PROJECT_SOURCE_DIR}/src/frontends/common/shutdown_protobuf/shutdown_protobuf.cpp)
+    endif()
+
     # Create library
-    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS} ${SHUTDOWN_PROTOBUF})
 
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
