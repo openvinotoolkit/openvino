@@ -40,7 +40,7 @@ class Benchmark:
             logger.info(f'CPU extensions is loaded {path_to_extension}')
 
     def get_version_info(self) -> str:
-        logger.info(f"InferenceEngine:\n{'': <9}{'API version':.<24} {get_version()}")
+        logger.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
         version_string = 'Device info\n'
         for device, version in self.core.get_versions(self.device).items():
             version_string += f"{'': <9}{device}\n"

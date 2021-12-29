@@ -60,7 +60,7 @@ def run(args):
             is_network_compiled = True
             print("Model is compiled")
 
-        # ------------------------------ 2. Loading Inference Engine ---------------------------------------------------
+        # ------------------------------ 2. Loading OpenVINO ---------------------------------------------------
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
@@ -432,7 +432,7 @@ def run(args):
 
         if args.dump_config:
             dump_config(args.dump_config, config)
-            logger.info(f"Inference Engine configuration settings were dumped to {args.dump_config}")
+            logger.info(f"OpenVINO configuration settings were dumped to {args.dump_config}")
 
         if args.exec_graph_path:
             dump_exec_graph(compiled_model, args.exec_graph_path)
