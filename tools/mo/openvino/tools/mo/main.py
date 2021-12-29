@@ -338,20 +338,21 @@ def prepare_ir(argv : argparse.Namespace):
     graph = None
     ngraph_function = None
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
-    fallback_reasons = check_fallback(argv)
-    if moc_front_end and len(fallback_reasons) == 0:
-        t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
-        moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
-        ngraph_function = moc_pipeline(argv, moc_front_end)
-        return graph, ngraph_function
-    if len(fallback_reasons) > 0:
-        reasons_message = ", ".join(fallback_reasons)
-        argv.use_legacy_frontend = True
-        load_extensions(argv)
-        log.warning("The IR preparation was executed by the legacy MO path. "
-                    "This is a fallback scenario applicable only for some specific cases. "
-                   f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
-                    "You can specify --use_legacy_frontend flag to force using the legacy MO path to avoid additional checks.")
+    if moc_front_end:
+        fallback_reasons = check_fallback(argv)
+        if len(fallback_reasons) == 0:
+            t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
+            moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
+            ngraph_function = moc_pipeline(argv, moc_front_end)
+            return graph, ngraph_function
+        else: # apply fallback
+            reasons_message = ", ".join(fallback_reasons)
+            argv.use_legacy_frontend = True
+            load_extensions(argv)
+            log.warning("The IR preparation was executed by the legacy MO path. "
+                        "This is a fallback scenario applicable only for some specific cases. "
+                       f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
+                        "You can specify --use_legacy_frontend flag to force using the legacy MO path to avoid additional checks.")
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
