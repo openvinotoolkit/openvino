@@ -15,21 +15,20 @@ import paddle
 import numpy as np
 import shutil
 from generator import generator, generate
-from openvino.tools.mo.ops.op import Op
-from openvino.tools.mo.utils.class_registration import _update
-from openvino.tools.mo.ops.activation_ops import Elu
 
 try:
     import openvino_telemetry as tm
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
-def base_args_config():
+def base_args_config(use_legacy_fe:bool=None, use_new_fe:bool=None):
     args = argparse.Namespace()
     args.feManager = FrontEndManager()
     args.extensions = None
-    args.use_legacy_frontend = False
-    args.use_new_frontend = True
+    if use_legacy_fe is not None:
+        args.use_legacy_frontend = use_legacy_fe
+    if use_new_fe is not None:
+        args.use_new_frontend = use_new_fe
     args.framework = 'onnx'
     args.model_name = None
     args.input_model = None
@@ -58,6 +57,10 @@ def base_args_config():
     args.layout = None
     args.source_layout = None
     args.target_layout = None
+    args.frontend_defaults = {
+        'onnx': 'new', # default path for ONNX is new frontend!
+        'tf': 'legacy'
+    }
     return args
 
 
@@ -90,23 +93,6 @@ class TestMoFallback(unittest.TestCase):
                                                 opset_imports=[onnx.helper.make_opsetid("", 13)])
         self.models["test_model.onnx"] = model
 
-        fake_squeeze = onnx.helper.make_node(
-            'FakeElu',
-            inputs=['x'],
-            outputs=['y'],
-            axes=[0],
-        )
-        input_tensors = [
-            make_tensor_value_info("x", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
-        output_tensors = [
-            make_tensor_value_info("y", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
-        graph = make_graph([fake_squeeze], "test_graph", input_tensors, output_tensors)
-        model = make_model(graph, producer_name="MO tests",
-                                                opset_imports=[onnx.helper.make_opsetid("", 13)])
-        self.models["fake_elu.onnx"] = model
-
         for name, model in self.models.items():
             onnx.save(model, name)
 
@@ -137,35 +123,31 @@ class TestMoFallback(unittest.TestCase):
         shutil.rmtree(self.paddle_dir)
 
 
-    @generate(*[('dir_to_extension', False, True, 'mo_legacy'),
-                ('dir_to_extension', True, False, 'mo_legacy'),
-                ('', True, False, 'mo_legacy'),
-                ('', False, True, 'onnx_frontend'),
-                (None, False, True, 'onnx_frontend'),
+    @generate(*[('dir_to_extension', None, None, 'mo_legacy'), # fallback
+                ('dir_to_extension', False, True, 'onnx_frontend'),
+                ('dir_to_extension', False, None, 'onnx_frontend'),
+                ('dir_to_extension', True, None, 'mo_legacy'),
+                ('', True, None, 'mo_legacy'),
+                ('', None, True, 'onnx_frontend'),
+                (None, None, None, 'onnx_frontend'),
     ])
     def test_fallback_if_extension_specified(self, extension, use_legacy, use_new_fe, conversion_method):
-        # fix problem with incorrect extractors loaded from UT
-        with patch('openvino.tools.mo.utils.class_registration._update') as update_mock:
-            update_mock.return_value=None
-            args = base_args_config()
-            args.extensions = extension
-            args.use_legacy_frontend = use_legacy
-            args.use_new_frontend = use_new_fe
-            args.input_model = "test_model.onnx"
+        args = base_args_config(use_legacy, use_new_fe)
+        args.extensions = extension
+        args.input_model = "test_model.onnx"
 
-            prepare_ir(args)
+        prepare_ir(args)
 
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+        tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
 
 
-    @generate(*[(True, False, True, 'mo_legacy'),
-                (True, True, False, 'mo_legacy'),
-                (False, False, True, 'onnx_frontend'),
+    @generate(*[(True, None, None, 'mo_legacy'), # fallback
+                (True, True, None, 'mo_legacy'),
+                (False, None, True, 'onnx_frontend'),
+                (False, None, None, 'onnx_frontend'),
     ])
     def test_fallback_if_tranformation_config_specified(self, trans_config_used, use_legacy, use_new_fe, expected_path):
-        args = base_args_config()
-        args.use_legacy_frontend = use_legacy
-        args.use_new_frontend = use_new_fe
+        args = base_args_config(use_legacy, use_new_fe)
         args.input_model = "test_model.onnx"
         args.transformations_config = self.trans_config_file if trans_config_used else None
 
@@ -174,14 +156,13 @@ class TestMoFallback(unittest.TestCase):
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
 
 
-    @generate(*[('dir_to_extension', True, True, 'mo_legacy'),
-                (None, True, True, 'mo_legacy'),
-                ('dir_to_extension', False, True, 'mo_legacy'),
+    @generate(*[('dir_to_extension', True, None, 'mo_legacy'), # fallback
+                (None, True, None, 'mo_legacy'), # fallback
+                ('dir_to_extension', False, None, 'mo_legacy'), # fallback
                 (None, False, True, 'onnx_frontend'),
     ])
     def test_fallback_if_both_extension_and_trans_config_specified(self, extension, trans_config_used, use_new_fe, expected_path):
-        args = base_args_config()
-        args.use_new_frontend = use_new_fe
+        args = base_args_config(use_new_fe=use_new_fe)
         args.extensions = extension
         args.input_model = "test_model.onnx"
         args.transformations_config = self.trans_config_file if trans_config_used else None
@@ -191,40 +172,32 @@ class TestMoFallback(unittest.TestCase):
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
 
 
-    @generate(*[(True, False, 'mo_legacy'),
-                (False, False, 'mo_legacy'),
+    @generate(*[(True, None, None, 'mo_legacy'),
+                (True, True, None, 'mo_legacy'),
+                (False, None, True, 'onnx_frontend'),
     ])
-    def test_fallback_if_frontend_path_failed(self, use_new_fe, use_legacy, expected_path):
-        args = base_args_config()
-        args.use_legacy_frontend = use_legacy
-        args.use_new_frontend = use_new_fe
-        args.input_model = "fake_elu.onnx"
-        # FakeElu is supported only by legacy path
-        Op.registered_ops['FakeElu'] = Elu
+    def test_fallback_if_legacy_set_as_default(self, trans_config_used, use_legacy, use_new_fe, expected_path):
+        args = base_args_config(use_legacy, use_new_fe)
+        args.input_model = "test_model.onnx"
+        args.transformations_config = self.trans_config_file if trans_config_used else None
+        args.frontend_defaults['onnx'] = 'legacy'
 
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
 
 
-    @generate(*[(True, False, 'dir_to_extension', 'paddle_frontend', True),
-                (True, False, None, 'paddle_frontend', False),
-                (False, False, 'dir_to_extension', 'paddle_frontend', True),
-                (False, False, None, 'paddle_frontend', False),
+    @generate(*[(None, None, 'dir_to_extension', 'paddle_frontend'),
+                (True, None, None, 'paddle_frontend'),
+                (False, False, 'dir_to_extension', 'paddle_frontend'),
+                (False, False, None, 'paddle_frontend'),
     ])
-    def test_no_fallback_if_pdpd(self, use_new_fe, use_legacy, extension, expected_path, expected_exception):
-        args = base_args_config()
+    def test_no_fallback_if_pdpd(self, use_new_fe, use_legacy, extension, expected_path):
+        args = base_args_config(use_legacy, use_new_fe)
         args.framework = 'paddle'
-        args.use_legacy_frontend = use_legacy
-        args.use_new_frontend = use_new_fe
         args.extensions = extension
         args.input_model = 'paddle_dir/relu/relu.pdmodel'
 
-        try:
-            prepare_ir(args)
-            assert not expected_exception
-        except:
-            assert expected_exception
-            return
+        prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
