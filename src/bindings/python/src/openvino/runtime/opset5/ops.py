@@ -366,4 +366,3 @@ def rnn_sequence(
     }
 
     return _get_node_factory_opset5().create("RNNSequence", inputs, attributes)
-
