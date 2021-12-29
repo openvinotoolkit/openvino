@@ -40,7 +40,9 @@ void shape_infer(const ov::op::v0::DepthToSpace* op,
         output_shape.resize(data_shape.size());
 
         output_shape[0] = data_shape[0];
-        output_shape[1] = data_shape[1] / static_cast<ValType>(divider);
+        const auto divisor = static_cast<ValType>(divider);
+        output_shape[1] = data_shape[1] / divisor;
+        check_divided_result(op, output_shape[1], data_shape[1], divisor);
         for (size_t i = 2; i < output_shape.size(); i++) {
             output_shape[i] = data_shape[i] * static_cast<ValType>(block_size);
         }

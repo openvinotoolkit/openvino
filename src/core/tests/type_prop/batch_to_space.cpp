@@ -10,6 +10,7 @@
 
 using namespace std;
 using namespace ngraph;
+#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
 
 namespace {
 constexpr size_t data_input_idx = 0;
@@ -362,7 +363,7 @@ TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_dynamic) {
     auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
     ASSERT_EQ(batch_to_space->get_output_partial_shape(0),
-              (PartialShape{{959 / (6 * 5 * 16), 962 / (6 * 5 * 16)},
+              (PartialShape{{DIV_ROUND_UP(959, (6 * 5 * 16)), 962 / (6 * 5 * 16)},
                             {2 * 6 - 2 - 2, 34 * 6 - 2 - 2},
                             {9 * 5 - 1, 21 * 5 - 1},
                             {100, 162},

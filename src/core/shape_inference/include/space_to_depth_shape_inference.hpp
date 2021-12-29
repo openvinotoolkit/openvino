@@ -40,8 +40,10 @@ void shape_infer(const ov::op::v0::SpaceToDepth* op,
 
         out_shape[0] = data_shape[0];
         out_shape[1] = data_shape[1] * multiplier;
+        const auto divisor = static_cast<ValType>(block_size);
         for (size_t i = 2; i < out_shape.size(); i++) {
-            out_shape[i] = data_shape[i] / static_cast<ValType>(block_size);
+            out_shape[i] = data_shape[i] / divisor;
+            check_divided_result(op, out_shape[i], data_shape[i], divisor);
         }
     } else {
         // For PartialShape, Set the output to be dynamic;

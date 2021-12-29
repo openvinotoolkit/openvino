@@ -9,6 +9,8 @@
 using namespace std;
 using namespace ngraph;
 
+#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
+
 TEST(type_prop, space_to_depth_output_shape_block_first_4D) {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 64, 64});
     const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
@@ -61,8 +63,9 @@ TEST(type_prop, space_to_depth_output_shape_when_space_is_dynamic) {
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
 
     ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
-    ASSERT_EQ(space_to_depth->get_output_partial_shape(0),
-              (PartialShape{{1, 4}, {12 * 4, 36 * 4}, {100 / 2, 1081 / 2}, {99 / 2, 1616 / 2}}));
+    ASSERT_EQ(
+        space_to_depth->get_output_partial_shape(0),
+        (PartialShape{{1, 4}, {12 * 4, 36 * 4}, {DIV_ROUND_UP(100, 2), 1081 / 2}, {DIV_ROUND_UP(99, 2), 1616 / 2}}));
 }
 
 TEST(type_prop, space_to_depth_dynamic_shape_static_rank) {

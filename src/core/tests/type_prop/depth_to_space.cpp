@@ -9,6 +9,8 @@
 using namespace std;
 using namespace ngraph;
 
+#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
+
 TEST(type_prop, depth_to_space_output_dynamicshape_block_first_5D_when_depth_is_static) {
     auto A = make_shared<op::Parameter>(element::f32, PartialShape{{2, 10}, 24, {3, 7}, {423, 3000}, {235, 1345}});
     auto space_to_depth = make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
@@ -23,7 +25,11 @@ TEST(type_prop, depth_to_space_output_dynamicshape_block_first_5D_when_depth_is_
     auto space_to_depth = make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 3);
 
     ASSERT_EQ(space_to_depth->get_output_partial_shape(0),
-              (PartialShape{{2, 10}, {81 / 27, 82 / 27}, {3 * 3, 7 * 3}, {423 * 3, 3000 * 3}, {235 * 3, 1345 * 3}}));
+              (PartialShape{{2, 10},
+                            {DIV_ROUND_UP(81, 27), 82 / 27},
+                            {3 * 3, 7 * 3},
+                            {423 * 3, 3000 * 3},
+                            {235 * 3, 1345 * 3}}));
 }
 
 TEST(type_prop, depth_to_space_output_shape_block_first_4D) {

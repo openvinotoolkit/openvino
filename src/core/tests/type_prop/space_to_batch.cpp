@@ -9,6 +9,8 @@
 using namespace std;
 using namespace ngraph;
 
+#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
+
 TEST(type_prop, space_to_batch_output_shape_2D) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
     auto block_shape = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 5});
@@ -85,9 +87,9 @@ TEST(type_prop, space_to_batch_when_space_is_dynamic) {
 
     ASSERT_EQ(space_to_batch->get_output_partial_shape(0),
               (PartialShape{{2 * 12 * 100 * 2, 5 * 12 * 100 * 2},
-                            {(5 + 5 + 3) / 12, (100 + 5 + 3) / 12},
-                            {(100 + 38 + 38) / 100, (1024 + 38 + 38) / 100},
-                            {(3 + 1) / 2, (10 + 1) / 2}}));
+                            {DIV_ROUND_UP((5 + 5 + 3), 12), (100 + 5 + 3) / 12},
+                            {DIV_ROUND_UP((100 + 38 + 38), 100), (1024 + 38 + 38) / 100},
+                            {DIV_ROUND_UP((3 + 1), 2), (10 + 1) / 2}}));
 }
 
 TEST(type_prop, space_to_batch_dynamic_shape_static_rank) {

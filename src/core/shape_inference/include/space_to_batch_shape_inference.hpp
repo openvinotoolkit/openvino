@@ -66,12 +66,15 @@ void shape_infer(const ov::op::v1::SpaceToBatch* op,
 
             for (size_t idx = 1; idx < output_shape.size(); ++idx) {
                 NODE_VALIDATION_CHECK(op, block_val[idx] > 0, "block_shape values must be greater than 0");
-                if (data_shape[idx].is_dynamic() && data_shape[idx] == ov::Dimension::dynamic())
+                if (data_shape[idx].is_dynamic() && data_shape[idx] == ov::Dimension::dynamic()) {
                     output_shape[idx] = ov::Dimension::dynamic();
-                else
-                    output_shape[idx] =
-                        (data_shape[idx] + static_cast<ValType>((pads_begin_val[idx] + pads_end_val[idx]))) /
-                        static_cast<ValType>(block_val[idx]);
+                } else {
+                    const auto divided =
+                        data_shape[idx] + static_cast<ValType>((pads_begin_val[idx] + pads_end_val[idx]));
+                    const auto divisor = static_cast<ValType>(block_val[idx]);
+                    output_shape[idx] = divided / divisor;
+                    check_divided_result(op, output_shape[idx], divided, divisor);
+                }
             }
         }
     }
