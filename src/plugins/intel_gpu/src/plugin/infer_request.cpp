@@ -242,8 +242,14 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
     size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
+    bool preProcResize = false;
+    if (is_input) {
+        preProcResize = foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE;
+        const auto inputColorFormat = foundInput->getPreProcess().getColorFormat();
+        preProcResize |= (inputColorFormat != ColorFormat::RAW) && (inputColorFormat != ColorFormat::BGR);
+    }
 
-    if (dataBinSize != netReqBinSize && !compoundBlobPassed) {
+    if (dataBinSize != netReqBinSize && !compoundBlobPassed && !preProcResize) {
         IE_THROW() << "Incorrect binary data size for " << (is_input ? "input" : "output") <<
                       " blob with name: \'" << name <<  "\' " <<
                       "Current: " << dataBinSize << " Required: " << netReqBinSize;
@@ -417,7 +423,13 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
     size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
-    if (dataBinSize != netReqBinSize) {
+    bool preProcResize = false;
+    if (is_input) {
+        preProcResize = foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE;
+        const auto inputColorFormat = foundInput->getPreProcess().getColorFormat();
+        preProcResize |= (inputColorFormat != ColorFormat::RAW) && (inputColorFormat != ColorFormat::BGR);
+    }
+    if (dataBinSize != netReqBinSize && !preProcResize) {
         IE_THROW() << "Incorrect binary data size for input blobs with name: \'" << name <<  "\' " <<
                       "Current: " << dataBinSize << " Required: " << netReqBinSize;
     }
