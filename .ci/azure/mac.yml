@@ -119,7 +119,7 @@ jobs:
 
   - script: |
       set -e
-      mkdir $(INSTALL_DIR)/opencv/
+      mkdir -p $(INSTALL_DIR)/opencv/
       cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
       cp -R $(REPO_DIR)/temp/opencv_4.5.2_osx/opencv/* $(INSTALL_DIR)/opencv/
     workingDirectory: $(BUILD_DIR)
