@@ -1,11 +1,10 @@
 import numpy as np
 import openvino.runtime.opset8 as ov
-import pytest
 from openvino.runtime import Model
 
 from tests.runtime import get_runtime
 
-from openvino.runtime.op.util import MergedInputDescription, InvariantInputDescription, SliceInputDescription, ConcatOutputDescription, BodyOutputDescription
+from openvino.runtime.op.util import InvariantInputDescription, BodyOutputDescription
 
 
 def create_simple_if_with_two_outputs(condition_val):

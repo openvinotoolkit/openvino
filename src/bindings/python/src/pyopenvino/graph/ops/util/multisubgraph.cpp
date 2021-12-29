@@ -5,15 +5,51 @@
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-
-#include <string>
 
 #include "openvino/core/node.hpp"
-//#include "openvino/op/util/sub_graph_base.hpp"
-#include "ngraph/log.hpp"
 
 namespace py = pybind11;
+
+MultiSubgraphInputDescriptionVector MultiSubgraphOp::list_to_input_descriptor(const py::list& inputs) {
+    std::vector<ov::op::util::MultiSubGraphOp::InputDescription::Ptr> result;
+
+    for (auto& in_desc : inputs) {
+        if (py::isinstance<ov::op::util::MultiSubGraphOp::SliceInputDescription>(in_desc)) {
+            auto casted = in_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::SliceInputDescription>>();
+            result.emplace_back(casted);
+        } else if (py::isinstance<ov::op::util::MultiSubGraphOp::MergedInputDescription>(in_desc)) {
+            auto casted = in_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>>();
+            result.emplace_back(casted);
+        } else if (py::isinstance<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(in_desc)) {
+            auto casted = in_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::InvariantInputDescription>>();
+            result.emplace_back(casted);
+        } else {
+            throw py::type_error("Incompatible InputDescription type, following are supported: SliceInputDescription, "
+                                 "MergedInputDescription and InvariantInputDescription.");
+        }
+    }
+
+    return result;
+}
+
+MultiSubgraphOutputDescriptionVector MultiSubgraphOp::list_to_output_descriptor(py::list& outputs) {
+    std::vector<ov::op::util::MultiSubGraphOp::OutputDescription::Ptr> result;
+
+    for (auto& out_desc : outputs) {
+        if (py::isinstance<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(out_desc)) {
+            auto casted = out_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>>();
+            result.emplace_back(casted);
+        } else if (py::isinstance<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(out_desc)) {
+            auto casted = out_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>>();
+            result.emplace_back(casted);
+        } else {
+            throw py::type_error("Incompatible OutputDescription type, following are supported: "
+                                 "ConcatOutputDescription and BodyOutputDescription.");
+        }
+    }
+
+    return result;
+}
 
 class PyInputDescription : public ov::op::util::MultiSubGraphOp::InputDescription {
 public:
@@ -46,35 +82,34 @@ public:
 void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
     py::class_<ov::op::util::MultiSubGraphOp::InputDescription,
                std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>,
-               PyInputDescription>
-        input(m, "InputDescription");
-    input.doc() =
-        "ov::op::util::MultiSubGraphOp::InputDescription wraps ov::op::util::MultiSubGraphOp::InputDescription";
-    input.def(py::init<>());
-    input.def("copy", &ov::op::util::MultiSubGraphOp::InputDescription::copy);
+               PyInputDescription>(m, "InputDescription")
+        .def(py::init<>())
+        .def("copy", &ov::op::util::MultiSubGraphOp::InputDescription::copy);
 
     py::class_<ov::op::util::MultiSubGraphOp::SliceInputDescription,
                std::shared_ptr<ov::op::util::MultiSubGraphOp::SliceInputDescription>,
-               ov::op::util::MultiSubGraphOp::InputDescription>(m, "SliceInputDescription")
-        .def(py::init<>())
-        .def(py::init<uint64_t&, uint64_t&, int64_t&, int64_t&, int64_t&, int64_t&, int64_t&>(),
-             py::arg("input_index"),
-             py::arg("body_parameter_index"),
-             py::arg("start"),
-             py::arg("stride"),
-             py::arg("part_size"),
-             py::arg("end"),
-             py::arg("axis"))
-        .def("copy", &ov::op::util::MultiSubGraphOp::SliceInputDescription::copy)
-        .def("get_type_info", &ov::op::util::MultiSubGraphOp::SliceInputDescription::get_type_info)
-        .def_readonly("input_index", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_input_index)
-        .def_readonly("body_parameter_index",
-                      &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_body_parameter_index)
-        .def_readonly("start", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_start)
-        .def_readonly("stride", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_stride)
-        .def_readonly("part_size", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_part_size)
-        .def_readonly("end", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_end)
-        .def_readonly("axis", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_axis);
+               ov::op::util::MultiSubGraphOp::InputDescription>
+        slice(m, "SliceInputDescription");
+    slice.doc() = "openvino.impl.op.util.SliceInputDescription wraps ov::op::util::SliceInputDescription";
+    slice.def(py::init<>());
+    slice.def(py::init<uint64_t&, uint64_t&, int64_t&, int64_t&, int64_t&, int64_t&, int64_t&>(),
+              py::arg("input_index"),
+              py::arg("body_parameter_index"),
+              py::arg("start"),
+              py::arg("stride"),
+              py::arg("part_size"),
+              py::arg("end"),
+              py::arg("axis"));
+    slice.def("copy", &ov::op::util::MultiSubGraphOp::SliceInputDescription::copy);
+    slice.def("get_type_info", &ov::op::util::MultiSubGraphOp::SliceInputDescription::get_type_info);
+    slice.def_readonly("input_index", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_input_index);
+    slice.def_readonly("body_parameter_index",
+                       &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_body_parameter_index);
+    slice.def_readonly("start", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_start);
+    slice.def_readonly("stride", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_stride);
+    slice.def_readonly("part_size", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_part_size);
+    slice.def_readonly("end", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_end);
+    slice.def_readonly("axis", &ov::op::util::MultiSubGraphOp::SliceInputDescription::m_axis);
 
     py::class_<ov::op::util::MultiSubGraphOp::MergedInputDescription,
                std::shared_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>,
@@ -95,57 +130,61 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
 
     py::class_<ov::op::util::MultiSubGraphOp::InvariantInputDescription,
                std::shared_ptr<ov::op::util::MultiSubGraphOp::InvariantInputDescription>,
-               ov::op::util::MultiSubGraphOp::InputDescription>(m, "InvariantInputDescription")
-        .def(py::init<>())
-        .def(py::init<uint64_t&, uint64_t&>(), py::arg("input_index"), py::arg("body_parameter_index"))
-        .def("copy", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::copy)
-        .def("get_type_info", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::get_type_info)
-        .def_readonly("input_index", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::m_input_index)
-        .def_readonly("body_parameter_index",
-                      &ov::op::util::MultiSubGraphOp::InvariantInputDescription::m_body_parameter_index);
+               ov::op::util::MultiSubGraphOp::InputDescription>
+        invariant(m, "InvariantInputDescription");
+    invariant.doc() = "openvino.impl.op.util.InvariantInputDescription wraps ov::op::util::InvariantInputDescription";
+    invariant.def(py::init<>());
+    invariant.def(py::init<uint64_t&, uint64_t&>(), py::arg("input_index"), py::arg("body_parameter_index"));
+    invariant.def("copy", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::copy);
+    invariant.def("get_type_info", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::get_type_info);
+    invariant.def_readonly("input_index", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::m_input_index);
+    invariant.def_readonly("body_parameter_index",
+                           &ov::op::util::MultiSubGraphOp::InvariantInputDescription::m_body_parameter_index);
 
     py::class_<ov::op::util::MultiSubGraphOp::OutputDescription,
                std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>,
-               PyOutputDescription>
-        output(m, "OutputDescription");
-    output.doc() =
-        "ov::op::util::MultiSubGraphOp::OutputDescription wraps ov::op::util::MultiSubGraphOp::OutputDescription";
-    output.def(py::init<>());
-    output.def("copy", &ov::op::util::MultiSubGraphOp::OutputDescription::copy);
+               PyOutputDescription>(m, "OutputDescription")
+        .def(py::init<>())
+        .def("copy", &ov::op::util::MultiSubGraphOp::OutputDescription::copy);
 
     py::class_<ov::op::util::MultiSubGraphOp::ConcatOutputDescription,
                std::shared_ptr<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>,
-               ov::op::util::MultiSubGraphOp::OutputDescription>(m, "ConcatOutputDescription")
-        .def(py::init<>())
-        .def(py::init<uint64_t&, uint64_t&, int64_t&, int64_t&, int64_t&, int64_t&, int64_t&>(),
-             py::arg("body_value_index"),
-             py::arg("output_index"),
-             py::arg("start"),
-             py::arg("stride"),
-             py::arg("part_size"),
-             py::arg("end"),
-             py::arg("axis"))
-        .def("copy", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::copy)
-        .def("get_type_info", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::get_type_info)
-        .def_readonly("output_index", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_output_index)
-        .def_readonly("body_value_index", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_body_value_index)
-        .def_readonly("start", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_start)
-        .def_readonly("stride", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_stride)
-        .def_readonly("part_size", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_part_size)
-        .def_readonly("end", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_end)
-        .def_readonly("axis", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_axis);
+               ov::op::util::MultiSubGraphOp::OutputDescription>
+        concat(m, "ConcatOutputDescription");
+    concat.doc() = "openvino.impl.op.util.ConcatOutputDescription wraps ov::op::util::ConcatOutputDescription";
+    concat.def(py::init<>());
+    concat.def(py::init<uint64_t&, uint64_t&, int64_t&, int64_t&, int64_t&, int64_t&, int64_t&>(),
+               py::arg("body_value_index"),
+               py::arg("output_index"),
+               py::arg("start"),
+               py::arg("stride"),
+               py::arg("part_size"),
+               py::arg("end"),
+               py::arg("axis"));
+    concat.def("copy", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::copy);
+    concat.def("get_type_info", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::get_type_info);
+    concat.def_readonly("output_index", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_output_index);
+    concat.def_readonly("body_value_index",
+                        &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_body_value_index);
+    concat.def_readonly("start", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_start);
+    concat.def_readonly("stride", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_stride);
+    concat.def_readonly("part_size", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_part_size);
+    concat.def_readonly("end", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_end);
+    concat.def_readonly("axis", &ov::op::util::MultiSubGraphOp::ConcatOutputDescription::m_axis);
 
     py::class_<ov::op::util::MultiSubGraphOp::BodyOutputDescription,
                std::shared_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>,
-               ov::op::util::MultiSubGraphOp::OutputDescription>(m, "BodyOutputDescription")
-        .def(py::init<>())
-        .def(py::init<uint64_t&, uint64_t&, int64_t&>(),
+               ov::op::util::MultiSubGraphOp::OutputDescription>
+        body(m, "BodyOutputDescription");
+    body.doc() = "openvino.impl.op.util.BodyOutputDescription wraps ov::op::util::BodyOutputDescription";
+    body.def(py::init<>());
+    body.def(py::init<uint64_t&, uint64_t&, int64_t&>(),
              py::arg("body_value_index"),
              py::arg("output_index"),
-             py::arg("iteration") = -1)
-        .def("copy", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::copy)
-        .def("get_type_info", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::get_type_info)
-        .def_readonly("output_index", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::m_output_index)
-        .def_readonly("body_value_index", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::m_body_value_index)
-        .def_readonly("iteration", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::m_iteration);
+             py::arg("iteration") = -1);
+    body.def("copy", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::copy);
+    body.def("get_type_info", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::get_type_info);
+    body.def_readonly("output_index", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::m_output_index);
+    body.def_readonly("body_value_index", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::m_body_value_index);
+    body.def_readonly("iteration", &ov::op::util::MultiSubGraphOp::BodyOutputDescription::m_iteration);
 }
