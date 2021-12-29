@@ -158,26 +158,26 @@ void lstm_cell(const T* X,
 
 template <typename T>
 void lstm_cell_v1(const T* X,
-               const Shape& X_shape,
-               const T* H,
-               const Shape& H_shape,
-               const T* C,
-               const Shape& C_shape,
-               const T* W,
-               const Shape& W_shape,
-               const T* R,
-               const Shape& R_shape,
-               const T* B,
-               const Shape& B_shape,
-               const T* P,
-               const Shape& P_shape,
-               T* out_Ht,
-               T* out_Ct,
-               const std::string& activation_f,
-               const std::string& activation_g,
-               const std::string& activation_h,
-               float clip,
-               bool input_forget) {
+                  const Shape& X_shape,
+                  const T* H,
+                  const Shape& H_shape,
+                  const T* C,
+                  const Shape& C_shape,
+                  const T* W,
+                  const Shape& W_shape,
+                  const T* R,
+                  const Shape& R_shape,
+                  const T* B,
+                  const Shape& B_shape,
+                  const T* P,
+                  const Shape& P_shape,
+                  T* out_Ht,
+                  T* out_Ct,
+                  const std::string& activation_f,
+                  const std::string& activation_g,
+                  const std::string& activation_h,
+                  float clip,
+                  bool input_forget) {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
     //
@@ -273,8 +273,8 @@ void lstm_cell_v1(const T* X,
     std::vector<std::vector<T>> P_fio(3, std::vector<T>(P_gate_size));
     
     std::vector<char*> P_pointers = {reinterpret_cast<char*>(P_fio[0].data()),
-                                   reinterpret_cast<char*>(P_fio[1].data()),
-                                   reinterpret_cast<char*>(P_fio[2].data())};
+                                     reinterpret_cast<char*>(P_fio[1].data()),
+                                     reinterpret_cast<char*>(P_fio[2].data())};
 
     reference::split(reinterpret_cast<const char*>(P), P_shape, sizeof(T), 0, 3, P_pointers.data());
 
@@ -284,12 +284,7 @@ void lstm_cell_v1(const T* X,
 
     // Xt*(Wf^T) + Ht-1*(Rf^T) + Wbf + Rbf + Pf (.) Ct-1
     std::vector<T> XHBPf(gate_shape_size);
-    reference::add(X_W_fico[0].data(),
-                   PfCt_1.data(),
-                   XHBPf.data(),
-                   gate_shape,
-                   C_shape,
-                   op::AutoBroadcastType::NUMPY);
+    reference::add(X_W_fico[0].data(), PfCt_1.data(), XHBPf.data(), gate_shape, C_shape, op::AutoBroadcastType::NUMPY);
 
     // Pi (.) Ct-1
     std::vector<T> PiCt_1(gate_shape_size);
@@ -304,19 +299,19 @@ void lstm_cell_v1(const T* X,
         // it = (1 - ft)
         std::vector<T> ones(gate_shape_size, 1.f);
         reference::subtract(ones.data(),
-                    XHBPf.data(),
-                    XHBPi.data(),
-                    gate_shape,
-                    gate_shape,
-                    op::AutoBroadcastType::NUMPY);
+                            XHBPf.data(),
+                            XHBPi.data(),
+                            gate_shape,
+                            gate_shape,
+                            op::AutoBroadcastType::NUMPY);
     } else {
         // Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi + Pi (.) Ct-1
         reference::add(X_W_fico[1].data(),
-                    PiCt_1.data(),
-                    XHBPi.data(),
-                    gate_shape,
-                    C_shape,
-                    op::AutoBroadcastType::NUMPY);
+                       PiCt_1.data(),
+                       XHBPi.data(),
+                       gate_shape,
+                       C_shape,
+                       op::AutoBroadcastType::NUMPY);
         // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Pi (.) Ct-1 + Wbi + Rbi)
         clip_activation(XHBPi, activation_f);
     }
@@ -344,16 +339,16 @@ void lstm_cell_v1(const T* X,
 
     // Po (.) Ct 
     std::vector<T> PoCt(gate_shape_size);
-    reference::multiply(P_fio[2].data(), Ct.data(), PoCt.data(), P_gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
+    reference::multiply(P_fio[2].data(),
+                        Ct.data(),
+                        PoCt.data(),
+                        P_gate_shape,
+                        gate_shape,
+                        op::AutoBroadcastType::NUMPY);
 
     // Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo + Po (.) Ct
     std::vector<T> XHBPo(gate_shape_size);
-    reference::add(X_W_fico[3].data(),
-                   PoCt.data(),
-                   XHBPo.data(),
-                   gate_shape,
-                   gate_shape,
-                   op::AutoBroadcastType::NUMPY);
+    reference::add(X_W_fico[3].data(), PoCt.data(), XHBPo.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
 
     // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Po (.) Ct + Wbo + Rbo)
     clip_activation(XHBPo, activation_f);
