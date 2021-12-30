@@ -130,6 +130,9 @@ private:
 
 class MKLDNNNode {
 public:
+    MKLDNNNode(const MKLDNNNode &) = delete;
+    MKLDNNNode & operator = (const MKLDNNNode &) = delete;
+
     using AttrPtr = std::shared_ptr<mkldnn::primitive_attr>;
 
 public:
@@ -447,7 +450,7 @@ public:
         return execIndex;
     }
 
-    std::string getTypeStr() const {
+    const std::string & getTypeStr() const {
         return typeStr;
     }
 

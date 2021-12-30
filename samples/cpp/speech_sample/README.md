@@ -8,14 +8,14 @@ Automatic Speech Recognition C++ sample application demonstrates how to use the 
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-|Inference Engine Version| `InferenceEngine::GetInferenceEngineVersion` | Get Inference Engine API version
-|Available Devices|`InferenceEngine::Core::GetAvailableDevices`| Get version information of the devices for inference
-| Network Operations | `InferenceEngine::CNNNetwork::setBatchSize`, `InferenceEngine::CNNNetwork::getBatchSize` |  Managing of network, operate with its batch size.
-|Network Operations|`InferenceEngine::CNNNetwork::addOutput`| Change names of output layers in the network
-|Import Network|`InferenceEngine::ExecutableNetwork::Export`,`InferenceEngine::Core::ImportNetwork`| Creates an executable network from a previously exported network
-|Asynchronous Infer| `InferenceEngine::InferRequest::StartAsync`, `InferenceEngine::InferRequest::Wait`| Do asynchronous inference and waits until inference result becomes available
-|InferRequest Operations|`InferenceEngine::InferRequest::QueryState`, `InferenceEngine::VariableState::Reset`| Gets and resets state control interface for given executable network
-|InferRequest Operations|`InferenceEngine::InferRequest::GetPerformanceCounts`| Get performance counters for infer request
+|OpenVINO Runtime Version| `ov::get_openvino_versio` | Get Openvino API version
+|Available Devices|`ov::runtime::Core::get_available_devices`| Get version information of the devices for inference
+| Model Operations | `ov::set_batch`, `ov::get_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count.
+|Model Operations|`ov::Model::add_output`| Change names of output layers in the model
+|Import Model|`ov::runtime::CompiledModel::export_model`,`ov::runtime::Core::import_model`| Creates a CompiledModel from a previously exported model
+|Asynchronous Infer| `ov::runtime::InferRequest::start_async`, `ov::runtime::InferRequest::wait`| Do asynchronous inference and waits until inference result becomes available
+|InferRequest Operations|`ov::runtime::InferRequest::query_state`, `ov::runtime::VariableState::reset`| Gets and resets state control interface for given CompiledModel
+|InferRequest Operations|`ov::runtime::InferRequest::get_profiling_info`| Get profiling info for infer request
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
