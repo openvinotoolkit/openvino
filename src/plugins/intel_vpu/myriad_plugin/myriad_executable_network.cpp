@@ -146,7 +146,8 @@ ExecutableNetwork::ExecutableNetwork(
         return;
     }
     openDevice(devicePool);
-    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors, _config);
+    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages,
+                             networkName, _actualNumExecutors, _config);
 }
 
 void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration) {
