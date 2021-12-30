@@ -54,3 +54,8 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& function,
                                 const std::string& iml,
                                 const std::string& oml,
                                 const std::string& ioml);
+
+//--- API 2.0 -------------------------------------------------------------------------
+void printInputAndOutputsInfo(const ov::Model& network);
+void printInputAndOutputsInfoShort(const ov::Model& network);
+void processPrecision(const ov::Model& network, const std::string& ip, const std::string& op, const std::string& iop);
