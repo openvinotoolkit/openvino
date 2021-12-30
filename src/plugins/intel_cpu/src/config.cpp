@@ -117,6 +117,17 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             }
         } else if (key == PluginConfigParams::KEY_CACHE_DIR) {
             cache_dir = val;
+        } else if (PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY == key) {
+            int val_i = -1;
+            try {
+                val_i = std::stoi(val);
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY
+                           << ". Expected only integer numbers";
+            }
+            // any negative value will be treated
+            // as zero that means disabling the cache
+            rtCacheCapacity = std::max(val_i, 0);
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
