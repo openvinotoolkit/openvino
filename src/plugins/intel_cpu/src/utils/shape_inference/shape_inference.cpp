@@ -175,6 +175,8 @@ class entryFallback : public entryBase {
 public:
     using entryBase::entryBase;
 
+    virtual void post_validate_and_infer_types(const std::shared_ptr<ov::Node>& local_op) {}
+
     std::vector<ov::StaticShape> infer(
         const std::vector<ov::StaticShape>& input_shapes,
         const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
@@ -197,20 +199,48 @@ public:
         output_shapes.resize(local_op->get_output_size());
         for (size_t i = 0; i < output_shapes.size(); ++i) {
             const auto& partial_shape = local_op->get_output_partial_shape(i);
-            OPENVINO_ASSERT(
-                partial_shape.is_static(),
-                "On device shape infer shouldn't support default shape infer for nodes with internal dynamism");
+
+            if (partial_shape.is_dynamic()) {
+                std::ostringstream errorMessage;
+                errorMessage << "Can't compute static output shape on " << i
+                             << " port for node with name: " << op->get_name();
+                errorMessage << ". Input shapes = ( ";
+                for (size_t in = 0; in < op->get_input_size(); in++) {
+                    errorMessage << in << " port = " << op->get_input_partial_shape(in) << ", ";
+                }
+                errorMessage << "). Output shapes = ( ";
+                for (size_t out = 0; out < op->get_output_size(); out++) {
+                    errorMessage << out << " port = " << op->get_output_partial_shape(out) << ", ";
+                }
+                errorMessage << ")";
+                OPENVINO_ASSERT(false, errorMessage.str());
+            }
+
             output_shapes[i] = ov::StaticShape(partial_shape.to_shape());
         }
+
+        post_validate_and_infer_types(local_op);
 
         return output_shapes;
     }
 };
 
+static inline ov::CoordinateDiff convertPadding(const ov::CoordinateDiff& newPads) {
+    return newPads;
+}
+
+static inline ov::CoordinateDiff convertPadding(const ov::Shape& newPads) {
+    std::vector<ptrdiff_t> pads(newPads.size());
+    for (int i = 0; i < newPads.size(); i++) {
+        pads[i] = static_cast<ptrdiff_t>(newPads[i]);
+    }
+    return pads;
+}
+
 template <typename OP>
-class entryPooling : public entryBase {
+class entryFallbackWithPadding : public entryFallback {
 public:
-    using entryBase::entryBase;
+    using entryFallback::entryFallback;
 
     ov::CoordinateDiff pads_begin, pads_end;
 
@@ -220,48 +250,12 @@ public:
     const ov::CoordinateDiff& get_pads_end() override {
         return pads_end;
     }
-    std::vector<ov::StaticShape> infer(
-        const std::vector<ov::StaticShape>& input_shapes,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
-        // no shape infer routine, fallback to validate_and_infer_types + get_pads_begin/get_pads_end
-        auto op = static_cast<OP*>(this->node.get());
-        ngraph::OutputVector new_inputs;
-        std::vector<ov::StaticShape> output_shapes;
-        for (size_t i = 0; i < op->get_input_size(); ++i) {
-            if (constant_data.count(i)) {
-                new_inputs.push_back(std::make_shared<ov::opset1::Constant>(constant_data.at(i)));
-            } else if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
-                new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
-            } else {
-                new_inputs.push_back(std::make_shared<ov::opset1::Parameter>(op->get_input_element_type(i),
-                                                                             input_shapes[i].to_partial_shape()));
-            }
-        }
-        const auto local_op = op->clone_with_new_inputs(new_inputs);
-        local_op->validate_and_infer_types();
 
+    void post_validate_and_infer_types(const std::shared_ptr<ov::Node>& local_op) override {
         auto node = dynamic_cast<OP*>(local_op.get());
         OPENVINO_ASSERT(node);
-
-        const auto convertPadding = [](const ov::Shape& newPads) {
-            std::vector<ptrdiff_t> pads(newPads.size());
-            for (int i = 0; i < newPads.size(); i++) {
-                pads[i] = static_cast<ptrdiff_t>(newPads[i]);
-            }
-            return pads;
-        };
         pads_begin = convertPadding(node->get_pads_begin());
         pads_end = convertPadding(node->get_pads_end());
-
-        output_shapes.resize(local_op->get_output_size());
-        for (size_t i = 0; i < output_shapes.size(); ++i) {
-            const auto& partial_shape = local_op->get_output_partial_shape(i);
-            OPENVINO_ASSERT(
-                partial_shape.is_static(),
-                "On device shape infer shouldn't support default shape infer for nodes with internal dynamism");
-            output_shapes[i] = ov::StaticShape(partial_shape.to_shape());
-        }
-        return output_shapes;
     }
 };
 
@@ -492,11 +486,11 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::opset1::ShuffleChannels>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v8::MaxPool>(op)) {
-        return std::make_shared<entryPooling<ov::op::v8::MaxPool>>(node);
+        return std::make_shared<entryFallbackWithPadding<ov::op::v8::MaxPool>>(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v1::MaxPool>(op)) {
-        return std::make_shared<entryPooling<ov::op::v1::MaxPool>>(node);
+        return std::make_shared<entryFallbackWithPadding<ov::op::v1::MaxPool>>(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v1::AvgPool>(op)) {
-        return std::make_shared<entryPooling<ov::op::v1::AvgPool>>(node);
+        return std::make_shared<entryFallbackWithPadding<ov::op::v1::AvgPool>>(node);
     } else {
         return std::make_shared<entryFallback>(op);
     }
