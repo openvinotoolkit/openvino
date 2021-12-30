@@ -486,12 +486,13 @@ int main(int argc, char* argv[]) {
 
             topology_name = model->get_friendly_name();
             // use batch size according to provided layout and shapes (static case)
-            if (batchSize == 0 || !isDynamicNetwork) {
+            if (!isDynamicNetwork) {
                 batchSize = getModelInputBatchSize(*model);
-            }
 
-            slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
-                       << slog::endl;
+                slog::info << "Network batch size: " << batchSize << slog::endl;
+            } else if (batchSize == 0) {
+                batchSize = 1;
+            }
 
             printInputAndOutputsInfoShort(*model);
             // ----------------- 7. Loading the model to the device
@@ -839,6 +840,16 @@ int main(int argc, char* argv[]) {
 
                 if (isDynamicNetwork) {
                     batchSize = getBatchSize(inputs);
+                    if (!std::any_of(inputs.begin(),
+                                     inputs.end(),
+                                     [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
+                                         return ov::layout::has_batch(info.second.layout);
+                                     })) {
+                        slog::warn
+                            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect "
+                               "FPS calculation."
+                            << slog::endl;
+                    }
                 }
 
                 for (auto& item : inputs) {

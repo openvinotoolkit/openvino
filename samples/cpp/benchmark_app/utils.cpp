@@ -157,8 +157,9 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
                                        "different for different inputs!");
         }
     }
-    if (batch_size == 0)
+    if (batch_size == 0) {
         batch_size = 1;
+    }
     return batch_size;
 }
 
@@ -168,7 +169,10 @@ size_t getModelInputBatchSize(const ov::Model& model) {
         auto layout = param->get_layout();
         return param->get_shape().at(ov::layout::batch_idx(layout));
     } catch (...) {
-        return 1;  // Defualt batch value
+        slog::warn
+            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
+            << slog::endl;
+        return 1;  // Default batch value
     }
 }
 
@@ -493,7 +497,6 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             info.type = item.get_element_type();
             // Partial Shape
             if (shape_map.count(name)) {
-                std::vector<ngraph::Dimension> parsed_shape;
                 if (shape_map.at(name).size() > 1) {
                     throw std::logic_error(
                         "shape command line parameter doesn't support multiple shapes for one input.");
@@ -600,6 +603,10 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                         info.dataShape[batch_index] = batch_size;
                         reshape_required = true;
                     }
+                } else {
+                    slog::warn << "Input '" << item.get_node()->get_friendly_name()
+                               << "' doesn't have batch dimension in layout. -b option will be ignored for this input."
+                               << slog::endl;
                 }
             }
             info_map[name] = info;
