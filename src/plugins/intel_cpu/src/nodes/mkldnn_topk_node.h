@@ -51,6 +51,8 @@ struct jit_topk_call_args {
     void *index;
     const int *bitonic_idx_buf;
     const int *bitonic_k_idx_buf;
+    const int *axis_dim_buf; // point to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
+    const int *idx_seq_buf;  // original idx sequence, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
     size_t work_amount;
 };
 
@@ -100,6 +102,7 @@ private:
     inline void bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val = true);
     void calc_bitonic_idx(size_t n, int &cnt, bool cmp_val);
     void calc_dims_size(const InferenceEngine::SizeVector &layout_dims);
+    bool check_axis_dim(const InferenceEngine::SizeVector &new_dims);
     void topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx,
                    const InferenceEngine::SizeVector &in_dims, std::function<float(float, float)> compare) const;
 
@@ -116,9 +119,11 @@ private:
     size_t count_xmm;
     size_t data_size;
     int top_k;
+    int axis_size;
     int dim, before_num;
     bool is_last_dim = false;
     bool bubble_inplace = false;
+    bool only_axis_dim_changed = false;
 
     InferenceEngine::SizeVector src_dims, dst_dims;
     TopKLayoutType layout;
@@ -126,6 +131,8 @@ private:
 
     std::vector<int> vec_bitonic_idx;
     std::vector<int> vec_bitonic_k_idx;
+
+    std::vector<int> vec_idx_seq;
 
     std::vector<uint8_t> vec_process_ptr;
     std::vector<uint8_t> vec_process_idx_ptr;

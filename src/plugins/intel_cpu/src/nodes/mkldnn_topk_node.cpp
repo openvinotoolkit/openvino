@@ -80,8 +80,8 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
     }
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa, nullptr));
-        store_emitter.reset(new jit_store_emitter(this, isa, nullptr));
+        load_emitter.reset(new jit_load_emitter(this, isa));
+        store_emitter.reset(new jit_store_emitter(this, isa));
 
         this->preamble();
 
@@ -92,7 +92,8 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
         mov(reg_prc_idx, ptr[reg_params + GET_OFF(process_index)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        mov(reg_table, l_table);
+        if (jcp_.algorithm != TopKAlgorithm::topk_heap_sort)
+            mov(reg_table, l_table);
 
         data_type = MKLDNNExtensionUtils::IEPrecisionToDataType(jcp_.precision);
 
@@ -118,7 +119,8 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
         load_emitter->emit_data();
         store_emitter->emit_data();
 
-        prepare_idx_table();
+        if (jcp_.algorithm != TopKAlgorithm::topk_heap_sort)
+            prepare_idx_table();
     }
 
 private:
@@ -128,7 +130,8 @@ private:
     mkldnn::memory::data_type data_type;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
-    Xbyak::Address table_seq_val(int index) { return ptr[reg_table + jcp_.axis_dim * vlen + index * sizeof(float)]; }
+    Xbyak::Address table_seq_val(int index) { return ptr[reg_table + jcp_.axis_dim * vlen + index * sizeof(int)]; }
+    Xbyak::Address table_heap_seq_idx(int index) { return ptr[reg_seq_idx + index * sizeof(int)]; }
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
@@ -138,7 +141,7 @@ private:
     Xbyak::Reg64 reg_work_amount = r13;
     Xbyak::Reg64 reg_table = r14;
     Xbyak::Reg64 reg_params = abi_param1;
-    Xbyak::Reg64 reg_j = rax;
+    Xbyak::Reg64 reg_i = rax;
     Xbyak::Reg64 reg_aux = rdx;
     Xbyak::Reg64 reg_aux_idx = rbx;
 
@@ -149,10 +152,12 @@ private:
     Xbyak::Reg64 reg_load_table = rbp;
     Xbyak::Reg64 reg_load_store_mask = rsi;
 
-    Xbyak::Reg64 reg_i = reg_work_amount;              // only for heap sort
+    Xbyak::Reg64 reg_j = reg_i;                        // only for heap sort, save reg_i by rsp before using reg_j
     Xbyak::Reg64 reg_offset = reg_load_table;          // only for heap sort, reuse reg_load_table after finish using load/store_emiter
     Xbyak::Reg64 reg_offset_idx = reg_load_store_mask; // only for heap sort, reuse reg_load_store_mask after finish using load/store_emiter
     Xbyak::Reg64 reg_k = reg_aux_idx;                  // only for bubble sort
+    Xbyak::Reg64 reg_axis_dim = reg_work_amount;       // only for heap sort
+    Xbyak::Reg64 reg_seq_idx = reg_table;              // only for heap sort
 
     Vmm vmm_zero = Vmm(0); // vmm_zero represents Vmm(0) when isa is avx512_common, otherwise vmm_mask represents Vmm(0)
 
@@ -324,10 +329,10 @@ private:
 
     inline void bitonic_sort_vector(int elt_num, bool cmp_val = true) {
         if (cmp_val) {
-            mov(reg_j, jcp_.bitonic_idx_cnt);
+            mov(reg_i, jcp_.bitonic_idx_cnt);
             mov(reg_aux, ptr[reg_params + GET_OFF(bitonic_idx_buf)]);
         } else {
-            mov(reg_j, jcp_.bitonic_k_idx_cnt);
+            mov(reg_i, jcp_.bitonic_k_idx_cnt);
             mov(reg_aux, ptr[reg_params + GET_OFF(bitonic_k_idx_buf)]);
         }
 
@@ -335,13 +340,13 @@ private:
         Xbyak::Label topk_main_loop_end_label;
         L(topk_main_loop_label);
         {
-            cmp(reg_j, 0);
+            cmp(reg_i, 0);
             jle(topk_main_loop_end_label, T_NEAR);
 
             bitonic_swap_vector(elt_num, cmp_val);
 
             add(reg_aux, 2 * sizeof(int));
-            sub(reg_j, 2);
+            sub(reg_i, 2);
 
             jmp(topk_main_loop_label, T_NEAR);
         }
@@ -421,6 +426,10 @@ private:
     }
 
     inline void topk_heap_scalar() {
+        mov(reg_seq_idx, ptr[reg_params + GET_OFF(idx_seq_buf)]);
+        mov(reg_tmp_64, ptr[reg_params + GET_OFF(axis_dim_buf)]);
+        mov(reg_axis_dim.cvt32(), ptr[reg_tmp_64]);
+
         // init dst
         for (int i = 0; i + step <= jcp_.top_k; i += step) {
             load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
@@ -430,7 +439,7 @@ private:
                            std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, step, i * jcp_.data_size),
                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
 
-            uni_vmovdqu(vmm_tmp, table_seq_val(i));
+            uni_vmovdqu(vmm_tmp, table_heap_seq_idx(i));
             store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_dst_idx.getIdx())},
                            std::make_shared<store_emitter_context>(Precision::I32, Precision::I32, step, i * sizeof(int)),
                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
@@ -444,8 +453,8 @@ private:
                            std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, topk_tail, tail_start * jcp_.data_size),
                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
 
-            load_emitter->emit_code({static_cast<size_t>(reg_table.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                          std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, topk_tail, jcp_.axis_dim * vlen + tail_start * sizeof(float)),
+            load_emitter->emit_code({static_cast<size_t>(reg_seq_idx.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
+                          std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, topk_tail, tail_start * sizeof(int)),
                           {}, {load_pool_gpr_idxs});
             store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_dst_idx.getIdx())},
                            std::make_shared<store_emitter_context>(Precision::I32, Precision::I32, topk_tail, tail_start * sizeof(int)),
@@ -464,7 +473,7 @@ private:
         mov(reg_i, jcp_.top_k);
         L(topk_main_loop_label);
         {
-            cmp(reg_i, jcp_.axis_dim);
+            cmp(reg_i, reg_axis_dim);
             jge(topk_main_loop_end_label, T_NEAR);
 
             Xbyak::Label topk_update_loop_end_label;
@@ -474,10 +483,9 @@ private:
             load_scalar(xmm_val_p, ptr[reg_aux], data_type);
 
             mov(reg_aux, reg_i);
-            mul_by_const(reg_aux, reg_tmp_64, vlen);
-            add(reg_aux, reg_table);
-            uni_vmovdqu(xmm_idx_p, ptr[reg_aux]);
-            uni_vcvtdq2ps(xmm_idx_p, xmm_idx_p);
+            mul_by_const(reg_aux, reg_tmp_64, sizeof(int));
+            add(reg_aux, reg_seq_idx);
+            load_scalar(xmm_idx_p, ptr[reg_aux], memory::data_type::s32);
             load_scalar(xmm_val_l, ptr[reg_dst], data_type);
             load_scalar(xmm_idx_l, ptr[reg_dst_idx], memory::data_type::s32);
 
@@ -522,6 +530,8 @@ private:
         Xbyak::Label topk_lchild_loop_label;
         Xbyak::Label topk_rchild_loop_label;
 
+        sub(rsp, sizeof(int));
+        mov(ptr[rsp], reg_i.cvt32());
         if (valid > 0) {
             int end = (valid - 1) / 2;
             mov(reg_j, i);
@@ -609,6 +619,8 @@ private:
             }
             L(topk_heapify_loop_end_label);
         }
+        mov(reg_i.cvt32(), ptr[rsp]);
+        add(rsp, sizeof(int));
     }
 
     inline void heap_cmp_node(Xmm xmm_val_a, Xmm xmm_idx_a, Xmm xmm_val_b, Xmm xmm_idx_b, bool cmp_val = true) {
@@ -1320,6 +1332,10 @@ void MKLDNNTopKNode::prepareParams() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
 
+    if (isDynamicNode()) {
+        only_axis_dim_changed = check_axis_dim(srcMemPtr->getDesc().getShape().getDims());
+    }
+
     src_dims = srcMemPtr->getDesc().getShape().getDims();
     dst_dims = dstMemPtr->getDesc().getShape().getDims();
 
@@ -1327,8 +1343,10 @@ void MKLDNNTopKNode::prepareParams() {
         const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
         if (src_k > src_dims[axis])
             IE_THROW() << errorPrefix << " gets top_k out of range!";
-        if (top_k != src_k)
+        if (top_k != src_k) {
             top_k = src_k;
+            only_axis_dim_changed = false;
+        }
     } else {
         top_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
     }
@@ -1367,6 +1385,7 @@ void MKLDNNTopKNode::prepareParams() {
         //           the above two alg_costs are not the exact implementation costs, yet it's proper to use them to decide
         //           which algorithm should be used for specific N and K.
         size_t axis_dim = src_dims[axis];
+        axis_size = static_cast<int>(axis_dim);
         if (top_k <= count_xmm / 2 - 2) {
             algorithm = TopKAlgorithm::topk_bubble_sort;
             bubble_inplace = true;
@@ -1386,6 +1405,24 @@ void MKLDNNTopKNode::prepareParams() {
 
         auto layout_dims = dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
         calc_dims_size(layout_dims);
+
+        if (algorithm == TopKAlgorithm::topk_heap_sort) {
+            if (vec_idx_seq.empty()) {
+                vec_idx_seq.resize(axis_dim);
+                std::iota(vec_idx_seq.begin(), vec_idx_seq.end(), 0);
+            } else {
+                size_t pre_size = vec_idx_seq.size();
+                if (pre_size != axis_dim) {
+                    vec_idx_seq.resize(axis_dim);
+                    for (size_t i = pre_size; i < axis_dim; i++) {
+                        vec_idx_seq[i] = i;
+                    }
+                }
+            }
+            if (only_axis_dim_changed) {
+                return;
+            }
+        }
 
         auto jcp = jit_topk_config_params();
         jcp.precision = selectedPD->getConfig().inConfs[TOPK_DATA].desc->getPrecision();
@@ -1533,6 +1570,8 @@ inline void MKLDNNTopKNode::topk_kernel_process(const uint8_t *in_p, uint8_t *ou
     arg.work_amount = work_amount;
     arg.bitonic_idx_buf = vec_bitonic_idx.data();
     arg.bitonic_k_idx_buf = vec_bitonic_k_idx.data();
+    arg.axis_dim_buf = &axis_size;
+    arg.idx_seq_buf = vec_idx_seq.data();
     (*topk_kernel)(&arg);
 }
 
@@ -1629,6 +1668,23 @@ void MKLDNNTopKNode::calc_dims_size(const SizeVector &layout_dims) {
     if (layout == TopKLayoutType::topk_blocked && topk_innermost) {
         I /= blk_size;
     }
+}
+
+// if axis_dim is changed, and other dim size in src_dims remain the same, return true
+bool MKLDNNTopKNode::check_axis_dim(const SizeVector &new_dims) {
+    if (src_dims.empty())
+        return false;
+    if (new_dims[axis] == src_dims[axis])
+        return false;
+    for (int i = 0; i < axis; i++) {
+        if (new_dims[i] != src_dims[i])
+            return false;
+    }
+    for (int i = axis + 1; i < static_cast<int>(src_dims.size()); i++) {
+        if (new_dims[i] != src_dims[i])
+            return false;
+    }
+    return true;
 }
 
 void MKLDNNTopKNode::topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx) {
