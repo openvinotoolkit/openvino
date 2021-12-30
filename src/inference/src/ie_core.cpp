@@ -1577,11 +1577,6 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const ConfigMap& config) {
     std::string name = deviceName;
     auto new_config = config;
-    auto it = config.find("MYRIAD_DISABLE_MX_BOOT");
-    if (it != config.end() && it->second == "YES") {
-        name = "CPU";
-        new_config.erase("MYRIAD_DISABLE_MX_BOOT");
-    }
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model), name, new_config);
         return {exec._ptr, exec._so};

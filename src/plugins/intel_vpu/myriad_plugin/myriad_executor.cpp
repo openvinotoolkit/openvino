@@ -83,6 +83,10 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
+    auto st = config.get<DisableMXBootOption>() == true;
+    if (st) {
+        return ncStatus_t(st);
+    }
 // #-17972, #-16790
 #if defined(NO_BOOT)
     if (!devicePool.empty()) {
@@ -307,8 +311,12 @@ void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool, std::share
 void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                                    const std::vector<char> &graphFileContent,
                                    const std::pair<const char*, size_t> &graphHeaderDesc,
-                                   size_t numStages, const std::string & networkName, int executors) {
+                                   size_t numStages, const std::string & networkName, int executors,
+                                   const PluginConfiguration& config) {
     VPU_PROFILE(allocateGraph);
+    if (config.get<DisableMXBootOption>() == true) {
+        return;
+    }
     _numStages = static_cast<int>(numStages);
     graphDesc._name = networkName;
     if (device->_deviceHandle == nullptr) {
