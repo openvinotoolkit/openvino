@@ -1578,7 +1578,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
     std::string name = deviceName;
     auto new_config = config;
     auto it = config.find("MYRIAD_DISABLE_MX_BOOT");
-    if (it != config.end()) {
+    if (it != config.end() && it->second == "YES") {
         name = "CPU";
         new_config.erase("MYRIAD_DISABLE_MX_BOOT");
     }
