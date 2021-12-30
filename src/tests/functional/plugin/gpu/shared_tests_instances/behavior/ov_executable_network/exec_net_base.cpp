@@ -15,4 +15,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVExecutableNetworkBaseTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                 ::testing::ValuesIn(configs)),
                         OVExecutableNetworkBaseTest::getTestCaseName);
+
+TEST_P(OVExecutableNetworkBaseTest, LoadNetworkToDefaultDeviceNoThrow) {
+    EXPECT_NO_THROW(auto execNet = core->compile_model(function));
+}
 }  // namespace

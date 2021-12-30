@@ -51,9 +51,7 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> configSetPrc = {
             {},
-            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
-    };
-
+            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}} };
     const std::vector<std::map<std::string, std::string>> AutoConfigsSetPrc = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}},
     };
@@ -63,4 +61,8 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
              {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
     };
+
+    TEST_P(OVExecutableNetworkBaseTest, LoadNetworkToDefaultDeviceNoThrow) {
+        EXPECT_NO_THROW(auto execNet = core->compile_model(function, {{"MULTI_DEVICE_PRIORITIES", "CPU"}, {"LOG_LEVEL", "LOG_DEBUG"}}));
+    }
 }  // namespace

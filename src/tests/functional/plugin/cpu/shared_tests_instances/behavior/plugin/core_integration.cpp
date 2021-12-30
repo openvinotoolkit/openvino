@@ -104,16 +104,9 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTestWithThrow,
         ::testing::Values(""));
 
-TEST_P(IEClassNetworkTestP, LoadNetworkToDeviceGPUNoThrow) {
+TEST_P(IEClassNetworkTestP, LoadNetworkToDefaultDeviceNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    auto devices = ie.GetAvailableDevices();
-    if (std::find(devices.begin(), devices.end(), "GPU") != devices.end()) {
-        // make the first call to IE which created device instance
-        ie.GetVersions("GPU");
-        // now, we can unregister GPU device
-        ASSERT_NO_THROW(ie.UnregisterPlugin("GPU"));
-    }
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, {{"LOG_LEVEL", "LOG_DEBUG"}}));
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, {{"MULTI_DEVICE_PRIORITIES", "CPU"}, {"LOG_LEVEL", "LOG_DEBUG"}}));
 }
 } // namespace
