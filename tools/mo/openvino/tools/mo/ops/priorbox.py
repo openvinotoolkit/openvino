@@ -4,7 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.layout import get_width_dim, get_height_dim
-from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, undefined_shape_of_rank
 from openvino.tools.mo.front.extractor import attr_getter, bool_to_str
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
@@ -21,12 +21,12 @@ class PriorBoxOp(Op):
             'flip': True,
             'clip': True,
             'scale_all_sizes': True,
-            'max_size': np.array([]),
-            'min_size': np.array([]),
-            'aspect_ratio': np.array([]),
-            'density': np.array([]),
-            'fixed_size': np.array([]),
-            'fixed_ratio': np.array([]),
+            'max_size': mo_array([]),
+            'min_size': mo_array([]),
+            'aspect_ratio': mo_array([]),
+            'density': mo_array([]),
+            'fixed_size': mo_array([]),
+            'fixed_ratio': mo_array([]),
             'in_ports_count': 2,
             'out_ports_count': 1,
             'type_infer': self.type_infer,
@@ -90,7 +90,7 @@ class PriorBoxOp(Op):
             for s in node.aspect_ratio:
                 ar_seen.append(1.0 / s)
 
-        ar_seen = np.unique(np.array(ar_seen).round(decimals=6))
+        ar_seen = np.unique(mo_array(ar_seen).round(decimals=6))
 
         num_ratios = 0
         if len(node.min_size) > 0:

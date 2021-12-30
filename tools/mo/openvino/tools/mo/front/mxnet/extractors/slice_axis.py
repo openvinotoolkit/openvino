@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
-import numpy as np
 from openvino.tools.mo.utils.error import Error
 
 

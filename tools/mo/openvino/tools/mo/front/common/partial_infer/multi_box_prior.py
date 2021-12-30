@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
-from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array
+from openvino.tools.mo.graph.graph import Node
+
 
 def multi_box_prior_infer_mxnet(node: Node):
     v10 = node.has_and_set('V10_infer')

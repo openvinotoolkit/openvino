@@ -193,6 +193,10 @@ macro(ie_add_compiler_flags)
     endforeach()
 endmacro()
 
+function(ov_add_compiler_flags)
+    ie_add_compiler_flags(${ARGN})
+endfunction()
+
 #
 # Forced includes certain header file to all target source files
 #
