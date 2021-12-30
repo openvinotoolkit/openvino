@@ -211,23 +211,69 @@ bool TileBroadcastCommon::prepareOptimizedParams(const MKLDNNNode *node, VectorD
     return true;
 }
 
+// Broadcast 1 element to N continuous elements based on cpu_memcpy
+// Step 1: Get the binary format of the number N
+// Step 2: Use cpu_memcpy to form fragments containing pow(2, k) (ie. 2, 4, 8, ...) elements, based on the given 1 element
+// Step 3: Form N continuous elements, who's a combination of those fragments, demonstrated by its binary format
+void TileBroadcastCommon::broadcastScalar(const char *srcData, char *dstData, size_t elt_cnt, size_t data_size) {
+    std::vector<size_t> binary_digits;
+
+    binary_digits.clear();
+    for (size_t tmp_cnt = elt_cnt; tmp_cnt > 0; tmp_cnt >>= 1) {
+        binary_digits.emplace_back(tmp_cnt & 0x1);
+    }
+
+    size_t min_cnt = 1;
+    size_t max_cnt = 1;
+    auto curDstData = dstData;
+    for (auto b : binary_digits) {
+        if (b) {
+            if (curDstData == dstData) {
+                cpu_memcpy(curDstData, srcData, min_cnt * data_size);
+            } else {
+                cpu_memcpy(curDstData, dstData, min_cnt * data_size);
+            }
+            curDstData += min_cnt * data_size;
+            for (size_t cur_cnt = min_cnt; cur_cnt < max_cnt; cur_cnt <<= 1) {
+                cpu_memcpy(curDstData, dstData, cur_cnt * data_size);
+                curDstData += cur_cnt * data_size;
+            }
+            min_cnt = max_cnt;
+        }
+        max_cnt <<= 1;
+    }
+}
+
 void TileBroadcastCommon::optimizedExecute(const MKLDNNMemoryPtr& srcMemory, const MKLDNNMemoryPtr& dstMemory) {
     auto srcData = reinterpret_cast<const char *>(srcMemory->GetPtr());
     auto dstData = reinterpret_cast<char *>(dstMemory->GetPtr());
 
     if (optimizedParams.srcStrides[5] == 0) {
-        parallel_for5d(optimizedParams.dims[0], optimizedParams.dims[1], optimizedParams.dims[2], optimizedParams.dims[3], optimizedParams.dims[4],
-                [&](int i0, int i1, int i2, int i3, int i4) {
-            auto srcData2 = srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
-                                                 i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +
-                                                 i4 * optimizedParams.srcStrides[4]);
-            auto dstData2 = dstData + (i0 * optimizedParams.dstStrides[0] + i1 * optimizedParams.dstStrides[1] +
-                                           i2 * optimizedParams.dstStrides[2] + i3 * optimizedParams.dstStrides[3] +
-                                           i4 * optimizedParams.dstStrides[4]);
-            for (int i = 0; i < optimizedParams.dims[5]; i++) {
-                cpu_memcpy(dstData2 + i * optimizedParams.dstStrides[5], srcData2, optimizedParams.dstStrides[5]);
+        if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
+            size_t data_size = optimizedParams.dstStrides[5];
+            size_t elt_cnt = optimizedParams.dims[5];
+            auto srcData_i32 = reinterpret_cast<const int *>(srcMemory->GetPtr());
+            if (data_size == 1) {
+                memset(dstData, srcData[0], elt_cnt);
+            } else if (data_size == 4 && srcData_i32[0] == 0) {
+                memset(dstData, 0, elt_cnt * data_size);
+            } else {
+                broadcastScalar(srcData, dstData, elt_cnt, data_size);
             }
-        });
+        } else {
+            parallel_for5d(optimizedParams.dims[0], optimizedParams.dims[1], optimizedParams.dims[2], optimizedParams.dims[3], optimizedParams.dims[4],
+                    [&](int i0, int i1, int i2, int i3, int i4) {
+                auto srcData2 = srcData + (i0 * optimizedParams.srcStrides[0] + i1 * optimizedParams.srcStrides[1] +
+                        i2 * optimizedParams.srcStrides[2] + i3 * optimizedParams.srcStrides[3] +
+                        i4 * optimizedParams.srcStrides[4]);
+                auto dstData2 = dstData + (i0 * optimizedParams.dstStrides[0] + i1 * optimizedParams.dstStrides[1] +
+                        i2 * optimizedParams.dstStrides[2] + i3 * optimizedParams.dstStrides[3] +
+                        i4 * optimizedParams.dstStrides[4]);
+                for (int i = 0; i < optimizedParams.dims[5]; i++) {
+                    cpu_memcpy(dstData2 + i * optimizedParams.dstStrides[5], srcData2, optimizedParams.dstStrides[5]);
+                }
+            });
+        }
     } else {
         parallel_for5d(optimizedParams.dims[0], optimizedParams.dims[1], optimizedParams.dims[2], optimizedParams.dims[3], optimizedParams.dims[4],
                 [&](int i0, int i1, int i2, int i3, int i4) {
