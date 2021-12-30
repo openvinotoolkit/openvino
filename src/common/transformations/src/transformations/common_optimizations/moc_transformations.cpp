@@ -57,6 +57,7 @@
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 #include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
+#include <transformations/common_optimizations/matmul_multiply_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -164,16 +165,17 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
 
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
-    auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
-    conv_fusions->set_name("ngraph::pass::ConvFusions");
+    auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    multiply_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MatMulMultiplyFusion>();
+    multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
 
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
 
