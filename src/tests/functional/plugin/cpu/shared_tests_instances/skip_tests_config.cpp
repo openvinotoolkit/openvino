@@ -138,7 +138,8 @@ std::vector<std::string> disabledTestPatterns() {
         // bad accuracy
         R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
-
+        // Issue: 69222
+        R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
         // Issue: 71121
         R"(.*smoke_Proposal*.*TS=\(2.*)",
         // TODO : CVS-69533
