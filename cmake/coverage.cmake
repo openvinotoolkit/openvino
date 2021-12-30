@@ -58,10 +58,10 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "template_plugin"
 ie_coverage_genhtml(INFO_FILE "template_plugin"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-if(ENABLE_MKL_DNN)
-    ie_coverage_extract(INPUT "openvino" OUTPUT "mkldnn_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/mkldnn_plugin/*")
-    ie_coverage_genhtml(INFO_FILE "mkldnn_plugin"
+if(ENABLE_INTEL_CPU)
+    ie_coverage_extract(INPUT "openvino" OUTPUT "intel_cpu_plugin"
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_cpu/*")
+    ie_coverage_genhtml(INFO_FILE "intel_cpu_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
@@ -84,7 +84,7 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "core"
 ie_coverage_genhtml(INFO_FILE "core"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(ENABLE_OV_ONNX_FRONTEND)
     ie_coverage_extract(INPUT "openvino" OUTPUT "onnx"
         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*"
         "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*")

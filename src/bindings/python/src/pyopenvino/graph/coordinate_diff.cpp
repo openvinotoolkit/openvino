@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 void regclass_graph_CoordinateDiff(py::module m) {
     py::class_<ov::CoordinateDiff, std::shared_ptr<ov::CoordinateDiff>> coordinate_diff(m, "CoordinateDiff");
-    coordinate_diff.doc() = "openvino.impl.CoordinateDiff wraps ov::CoordinateDiff";
+    coordinate_diff.doc() = "openvino.runtime.CoordinateDiff wraps ov::CoordinateDiff";
     coordinate_diff.def(py::init<const std::initializer_list<ptrdiff_t>&>());
     coordinate_diff.def(py::init<const std::vector<ptrdiff_t>&>());
     coordinate_diff.def(py::init<const ov::CoordinateDiff&>());
@@ -34,4 +34,23 @@ void regclass_graph_CoordinateDiff(py::module m) {
         std::string shape_str = py::cast(self).attr("__str__")().cast<std::string>();
         return "<" + class_name + ": (" + shape_str + ")>";
     });
+
+    coordinate_diff.def("__setitem__", [](ov::CoordinateDiff& self, size_t key, std::ptrdiff_t& value) {
+        self[key] = value;
+    });
+
+    coordinate_diff.def("__getitem__", [](const ov::CoordinateDiff& self, size_t key) {
+        return self[key];
+    });
+
+    coordinate_diff.def("__len__", [](const ov::CoordinateDiff& self) {
+        return self.size();
+    });
+
+    coordinate_diff.def(
+        "__iter__",
+        [](const ov::CoordinateDiff& self) {
+            return py::make_iterator(self.begin(), self.end());
+        },
+        py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
 }

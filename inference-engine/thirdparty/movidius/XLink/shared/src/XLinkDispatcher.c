@@ -894,7 +894,7 @@ static xLinkEventPriv_t* searchForReadyEvent(xLinkSchedulerState_t* curr)
     return ev;
 }
 
-static xLinkEventPriv_t* getNextQueueElemToProc(eventQueueHandler_t *q ){
+static xLinkEventPriv_t* getNextQueueElemToProc(eventQueueHandler_t *q) {
     xLinkEventPriv_t* event = NULL;
     if (q->cur != q->curProc) {
         event = getNextElementWithState(q->base, q->end, q->curProc, EVENT_ALLOCATED);
@@ -977,7 +977,7 @@ static int dispatcherClean(xLinkSchedulerState_t* curr)
     XLINK_RET_ERR_IF(pthread_mutex_lock(&clean_mutex), 1);
     if (curr->schedulerId == -1) {
         mvLog(MVLOG_WARN,"Scheduler has already been reset or cleaned");
-        if(pthread_mutex_unlock(&clean_mutex) != 0) {
+        if (pthread_mutex_unlock(&clean_mutex) != 0) {
             mvLog(MVLOG_ERROR, "Failed to unlock clean_mutex");
         }
 
@@ -996,11 +996,23 @@ static int dispatcherClean(xLinkSchedulerState_t* curr)
 
         XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, 1);
         postAndMarkEventServed(event);
-        XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
+        if (pthread_mutex_unlock(&(curr->queueMutex)) != 0) {
+            if (pthread_mutex_unlock(&clean_mutex) != 0) {
+                mvLog(MVLOG_ERROR, "Failed to unlock clean_mutex after failing to unlock curr->queueMutex");
+            }
+            mvLog(MVLOG_ERROR, "Failed to unlock curr->queueMutex");
+            return 1;
+        }
         event = dispatcherGetNextEvent(curr);
     }
 
-    XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, 1);
+    if (pthread_mutex_lock(&(curr->queueMutex)) != 0) {
+        if (pthread_mutex_unlock(&clean_mutex) != 0) {
+            mvLog(MVLOG_ERROR, "Failed to unlock clean_mutex after failing to lock curr->queueMutex");
+        }
+        mvLog(MVLOG_ERROR, "Failed to lock curr->queueMutex");
+        return 1;
+    }
 
     dispatcherFreeEvents(&curr->lQueue, EVENT_PENDING);
     dispatcherFreeEvents(&curr->lQueue, EVENT_BLOCKED);
@@ -1018,10 +1030,16 @@ static int dispatcherClean(xLinkSchedulerState_t* curr)
     }
     numSchedulers--;
 
-    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
+    if (pthread_mutex_unlock(&(curr->queueMutex)) != 0) {
+        if (pthread_mutex_unlock(&clean_mutex) != 0) {
+            mvLog(MVLOG_ERROR, "Failed to unlock clean_mutex after failing to unlock curr->queueMutex");
+        }
+        mvLog(MVLOG_ERROR, "Failed to unlock curr->queueMutex");
+        return 1;
+    }
 
     mvLog(MVLOG_INFO, "Clean Dispatcher Successfully...");
-    if(pthread_mutex_unlock(&clean_mutex) != 0) {
+    if (pthread_mutex_unlock(&clean_mutex) != 0) {
         mvLog(MVLOG_ERROR, "Failed to unlock clean_mutex after clearing dispatcher");
     }
     XLINK_RET_ERR_IF(pthread_mutex_destroy(&(curr->queueMutex)) != 0, 1);

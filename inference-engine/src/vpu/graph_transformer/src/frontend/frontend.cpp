@@ -34,6 +34,7 @@
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
+#include <vpu/ngraph/transformations/convert_gatherND8.hpp>
 #include <transformations/convert_precision.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -181,6 +182,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<vpu::ConvertGatherND8ToGatherND5>();
     manager.register_pass<vpu::MergeGatherGatherElements>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
@@ -490,7 +492,14 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
     model->attrs().set<int>("index", g_counter.fetch_add(1));
     model->attrs().set<Resources>("resources", env.resources);
-
+    // Transmitting Information about the parameters/results of the network for
+    // the possibility of importing it
+    if (network.getFunction() != nullptr) {
+        model->attrs().set<ov::ParameterVector>(
+            "networkParameters", network.getFunction()->get_parameters());
+        model->attrs().set<ov::ResultVector>(
+            "networkResults", network.getFunction()->get_results());
+    }
     //
     // Update IE Network
     //

@@ -6,8 +6,9 @@
 
 #include "color_utils.hpp"
 #include "function_guard.hpp"
+#include "layout_utils.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "preprocess_steps_impl.hpp"
 
 namespace ov {
@@ -69,12 +70,14 @@ public:
     }
 
     void set_spatial_dynamic_shape() {
+        OPENVINO_ASSERT(!m_shape_set, "'set_spatial_dynamic_shape' and 'set_shape' shall not be used together");
         m_spatial_shape_set = true;
         m_spatial_width = -1;
         m_spatial_height = -1;
     }
 
     void set_spatial_static_shape(size_t height, size_t width) & {
+        OPENVINO_ASSERT(!m_shape_set, "'set_spatial_static_shape' and 'set_shape' shall not be used together");
         m_spatial_shape_set = true;
         m_spatial_height = static_cast<int>(height);
         m_spatial_width = static_cast<int>(width);
@@ -122,6 +125,22 @@ public:
         return m_memory_type_set;
     }
 
+    void set_shape(const PartialShape& shape) {
+        OPENVINO_ASSERT(
+            !m_spatial_shape_set,
+            "'set_spatial_static_shape', 'set_spatial_dynamic_shape', 'set_shape' shall not be used together");
+        m_shape = shape;
+        m_shape_set = true;
+    }
+
+    bool is_shape_set() const {
+        return m_shape_set;
+    }
+
+    const PartialShape& get_shape() const {
+        return m_shape;
+    }
+
 private:
     ColorFormat m_color_format = ColorFormat::UNDEFINED;
     std::vector<std::string> m_planes_sub_names;
@@ -138,14 +157,17 @@ private:
 
     std::string m_memory_type = {};
     bool m_memory_type_set = false;
+
+    PartialShape m_shape = {};
+    bool m_shape_set = false;
 };
 
 class OutputTensorInfo::OutputTensorInfoImpl : public TensorInfoImplBase {};
 
-/// \brief InputNetworkInfoImpl - internal data structure
-class NetworkInfoImpl {
+/// \brief ModelInfoImpl - internal data structure
+class ModelInfoImpl {
 public:
-    NetworkInfoImpl() = default;
+    ModelInfoImpl() = default;
 
     void set_layout(const Layout& layout) {
         m_layout = layout;
@@ -163,9 +185,9 @@ private:
     bool m_layout_set = false;
 };
 
-class InputNetworkInfo::InputNetworkInfoImpl : public NetworkInfoImpl {};
+class InputModelInfo::InputModelInfoImpl : public ModelInfoImpl {};
 
-class OutputNetworkInfo::OutputNetworkInfoImpl : public NetworkInfoImpl {};
+class OutputModelInfo::OutputModelInfoImpl : public ModelInfoImpl {};
 
 /// \brief InputInfoImpl - internal data structure
 struct InputInfo::InputInfoImpl {
@@ -179,13 +201,13 @@ struct InputInfo::InputInfoImpl {
         return m_preprocess.m_impl;
     }
 
-    std::unique_ptr<InputNetworkInfo::InputNetworkInfoImpl>& get_network() {
-        return m_network_data.m_impl;
+    std::unique_ptr<InputModelInfo::InputModelInfoImpl>& get_model() {
+        return m_model_data.m_impl;
     }
 
     InputTensorInfo m_tensor_info;
     PreProcessSteps m_preprocess;
-    InputNetworkInfo m_network_data;
+    InputModelInfo m_model_data;
     std::shared_ptr<op::v0::Parameter> m_resolved_param;
 };
 
@@ -201,13 +223,13 @@ struct OutputInfo::OutputInfoImpl {
         return m_postprocess.m_impl;
     }
 
-    std::unique_ptr<OutputNetworkInfo::OutputNetworkInfoImpl>& get_network_data() {
-        return m_network_info.m_impl;
+    std::unique_ptr<OutputModelInfo::OutputModelInfoImpl>& get_model_data() {
+        return m_model_info.m_impl;
     }
 
     OutputTensorInfo m_tensor_info;
     PostProcessSteps m_postprocess;
-    OutputNetworkInfo m_network_info;
+    OutputModelInfo m_model_info;
     ov::Output<ov::Node> m_output_node;
 };
 
@@ -226,8 +248,8 @@ PreProcessSteps& InputInfo::preprocess() {
     return m_impl->m_preprocess;
 }
 
-InputNetworkInfo& InputInfo::network() {
-    return m_impl->m_network_data;
+InputModelInfo& InputInfo::model() {
+    return m_impl->m_model_data;
 }
 
 //-------------- OutputInfo ------------------
@@ -236,8 +258,8 @@ OutputInfo::OutputInfo(OutputInfo&& other) noexcept = default;
 OutputInfo& OutputInfo::operator=(OutputInfo&& other) noexcept = default;
 OutputInfo::~OutputInfo() = default;
 
-OutputNetworkInfo& OutputInfo::network() {
-    return m_impl->m_network_info;
+OutputModelInfo& OutputInfo::model() {
+    return m_impl->m_model_info;
 }
 
 PostProcessSteps& OutputInfo::postprocess() {
@@ -252,7 +274,7 @@ OutputTensorInfo& OutputInfo::tensor() {
 struct PrePostProcessor::PrePostProcessorImpl {
 public:
     PrePostProcessorImpl() = default;
-    explicit PrePostProcessorImpl(const std::shared_ptr<ov::Function>& f) : m_function(f) {
+    explicit PrePostProcessorImpl(const std::shared_ptr<ov::Model>& f) : m_function(f) {
         OPENVINO_ASSERT(f, "Function can't be nullptr for PrePostProcessor");
         for (size_t i = 0; i < m_function->inputs().size(); ++i) {
             auto info = InputInfo();
@@ -288,10 +310,10 @@ public:
 
     std::vector<InputInfo> m_inputs;
     std::vector<OutputInfo> m_outputs;
-    std::shared_ptr<Function> m_function = nullptr;
+    std::shared_ptr<Model> m_function = nullptr;
 };
 
-PrePostProcessor::PrePostProcessor(const std::shared_ptr<Function>& function)
+PrePostProcessor::PrePostProcessor(const std::shared_ptr<Model>& function)
     : m_impl(std::unique_ptr<PrePostProcessorImpl>(new PrePostProcessorImpl(function))) {}
 PrePostProcessor::PrePostProcessor(PrePostProcessor&&) noexcept = default;
 PrePostProcessor& PrePostProcessor::operator=(PrePostProcessor&&) noexcept = default;
@@ -337,16 +359,17 @@ OutputInfo& PrePostProcessor::output(const std::string& tensor_name) {
     return m_impl->find_output(tensor_name);
 }
 
-std::shared_ptr<Function> PrePostProcessor::build() {
+std::shared_ptr<Model> PrePostProcessor::build() {
     auto function = m_impl->m_function;
     FunctionGuard guard(function);
     std::tuple<std::unordered_set<std::string>, bool> existing_names{std::unordered_set<std::string>{}, false};
     bool tensor_data_updated = false;
     for (const auto& input_info : m_impl->m_inputs) {
         auto& input = input_info.m_impl;
-        // Set parameter layout from 'network' information
-        if (input->get_network()->is_layout_set() && input->m_resolved_param->get_layout().empty()) {
-            input->m_resolved_param->set_layout(input->get_network()->get_layout());
+        // Set parameter layout from 'model' information
+        if (input->get_model()->is_layout_set()) {
+            // Overwrite existing model's layout here (fix 74065)
+            input->m_resolved_param->set_layout(input->get_model()->get_layout());
         }
     }
     auto results = function->get_results();
@@ -364,18 +387,19 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         if (!input->get_tensor_data()->is_layout_set()) {
             if (!color_info->default_layout().empty()) {
                 input->get_tensor_data()->set_layout(color_info->default_layout());
-            } else if (!param->get_layout().empty()) {
-                input->get_tensor_data()->set_layout(param->get_layout());
             }
         }
 
         auto net_shape = param->get_partial_shape();
         auto new_param_shape = net_shape;
+        if (input->get_tensor_data()->is_shape_set()) {
+            new_param_shape = input->get_tensor_data()->get_shape();
+        }
         if (input->get_tensor_data()->is_layout_set() && !param->get_layout().empty() &&
             param->get_layout() != input->get_tensor_data()->get_layout()) {
-            // Find transpose between network and tensor layouts and update tensor shape
+            // Find transpose between model and tensor layouts and update tensor shape
             auto net_to_tensor =
-                layout::find_permutation(param->get_layout(), net_shape.rank(), input->get_tensor_data()->get_layout());
+                layout::utils::find_permutation(param->get_layout(), net_shape, input->get_tensor_data()->get_layout());
             if (!net_to_tensor.empty()) {
                 std::vector<ov::Dimension> dims(new_param_shape.size());
                 std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
@@ -384,8 +408,15 @@ std::shared_ptr<Function> PrePostProcessor::build() {
                 new_param_shape = PartialShape(dims);
             }
         } else {
-            new_param_shape = input->get_preprocess()->calculate_param_shape(new_param_shape);
+            Layout new_layout;
+            std::tie(new_param_shape, new_layout) =
+                input->get_preprocess()->calculate_param_shape(new_param_shape, param->get_layout());
+            if (!input->get_tensor_data()->is_layout_set()) {
+                // Reusing param's layout according to converted calculated layout
+                input->get_tensor_data()->set_layout(new_layout);
+            }
         }
+
         if (input->get_tensor_data()->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->get_tensor_data()->get_layout(), new_param_shape);
             auto width_idx = get_and_check_width_idx(input->get_tensor_data()->get_layout(), new_param_shape);
@@ -421,7 +452,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
                         std::get<0>(existing_names).count(new_name) == 0,
                         "Error while trying to create plane input with name '",
                         new_name,
-                        "' - name already exists in network. Please specify another sub-name for set_color_format");
+                        "' - name already exists in model. Please specify another sub-name for set_color_format");
                     plane_tensor_names.insert(new_name);
                 }
                 plane_param->get_default_output().get_tensor().set_names(plane_tensor_names);
@@ -452,7 +483,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         PreprocessingContext context(input->get_tensor_data()->get_layout());
         context.color_format() = input->get_tensor_data()->get_color_format();
         context.target_layout() = param->get_layout();
-        context.network_shape() = param->get_partial_shape();
+        context.model_shape() = param->get_partial_shape();
         context.target_element_type() = param->get_element_type();
 
         // 2. Apply preprocessing
@@ -463,12 +494,12 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         }
 
         OPENVINO_ASSERT(nodes.size() == 1,
-                        "Multiple plane input is not allowed as network input. Consider using of convert_color "
+                        "Multiple plane input is not allowed as model input. Consider using of convert_color "
                         "preprocessing operation. Current format is '",
                         color_format_name(context.color_format()),
                         "'");
         OPENVINO_ASSERT(is_rgb_family(context.color_format()) || context.color_format() == ColorFormat::UNDEFINED,
-                        "Network shall have RGB/BGR color format. Consider add 'convert_color' preprocessing operation "
+                        "model shall have RGB/BGR color format. Consider add 'convert_color' preprocessing operation "
                         "to convert current color format '",
                         color_format_name(context.color_format()),
                         "'to RGB/BGR");
@@ -486,9 +517,11 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         }
 
         auto node = nodes[0];
-
+        if (node.get_partial_shape() != param->get_partial_shape()) {
+            tensor_data_updated = true;  // Trigger revalidation if input parameter shape is changed
+        }
         // Check final shape
-        OPENVINO_ASSERT(node.get_partial_shape().refines(param->get_partial_shape()),
+        OPENVINO_ASSERT(node.get_partial_shape().compatible(param->get_partial_shape()),
                         "Resulting shape '",
                         node.get_partial_shape(),
                         "' after preprocessing is not aligned with original parameter's shape: ",
@@ -530,9 +563,10 @@ std::shared_ptr<Function> PrePostProcessor::build() {
         auto start_out_node_names = node.get_tensor().get_names();
         node.get_tensor().set_names({});
         result = std::dynamic_pointer_cast<op::v0::Result>(node.get_node_shared_ptr());
-        // Set result layout from 'network' information
-        if (output->get_network_data()->is_layout_set() && result->get_layout().empty()) {
-            result->set_layout(output->get_network_data()->get_layout());
+        // Set result layout from 'model' information
+        if (output->get_model_data()->is_layout_set()) {
+            // Overwrite existing model's layout here (fix 74065)
+            result->set_layout(output->get_model_data()->get_layout());
         }
         auto parent = result->get_input_source_output(0);
         PostprocessingContext context(result->get_layout());
@@ -630,11 +664,11 @@ InputTensorInfo& InputTensorInfo::set_spatial_static_shape(size_t height, size_t
     return *this;
 }
 
-// --------------------- InputNetworkInfo ------------------
-InputNetworkInfo::InputNetworkInfo() : m_impl(std::unique_ptr<InputNetworkInfoImpl>(new InputNetworkInfoImpl())) {}
-InputNetworkInfo::~InputNetworkInfo() = default;
+// --------------------- InputModelInfo ------------------
+InputModelInfo::InputModelInfo() : m_impl(std::unique_ptr<InputModelInfoImpl>(new InputModelInfoImpl())) {}
+InputModelInfo::~InputModelInfo() = default;
 
-InputNetworkInfo& InputNetworkInfo::set_layout(const Layout& layout) {
+InputModelInfo& InputModelInfo::set_layout(const Layout& layout) {
     m_impl->set_layout(layout);
     return *this;
 }
@@ -647,6 +681,11 @@ InputTensorInfo& InputTensorInfo::set_color_format(const ov::preprocess::ColorFo
 
 InputTensorInfo& InputTensorInfo::set_memory_type(const std::string& memory_type) {
     m_impl->set_memory_type(memory_type);
+    return *this;
+}
+
+InputTensorInfo& InputTensorInfo::set_shape(const PartialShape& shape) {
+    m_impl->set_shape(shape);
     return *this;
 }
 
@@ -711,7 +750,7 @@ PreProcessSteps& PreProcessSteps::convert_color(const ov::preprocess::ColorForma
 PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) {
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back([preprocess_cb](const std::vector<Output<Node>>& nodes,
-                                                   const std::shared_ptr<ov::Function>&,
+                                                   const std::shared_ptr<ov::Model>&,
                                                    PreprocessingContext&) {
         OPENVINO_ASSERT(nodes.size() == 1,
                         "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
@@ -740,11 +779,11 @@ OutputTensorInfo& OutputTensorInfo::set_layout(const Layout& layout) {
     return *this;
 }
 
-// --------------------- OutputNetworkInfo ------------------
-OutputNetworkInfo::OutputNetworkInfo() : m_impl(std::unique_ptr<OutputNetworkInfoImpl>(new OutputNetworkInfoImpl())) {}
-OutputNetworkInfo::~OutputNetworkInfo() = default;
+// --------------------- OutputModelInfo ------------------
+OutputModelInfo::OutputModelInfo() : m_impl(std::unique_ptr<OutputModelInfoImpl>(new OutputModelInfoImpl())) {}
+OutputModelInfo::~OutputModelInfo() = default;
 
-OutputNetworkInfo& OutputNetworkInfo::set_layout(const Layout& layout) {
+OutputModelInfo& OutputModelInfo::set_layout(const Layout& layout) {
     m_impl->set_layout(layout);
     return *this;
 }

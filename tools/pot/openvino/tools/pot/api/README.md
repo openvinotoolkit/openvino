@@ -51,7 +51,7 @@ pipeline.
 ### DataLoader
 
 ```
-class compression.api.DataLoader(config)
+class openvino.tools.pot.api.DataLoader(config)
 ```
 The base class for all DataLoaders.
 
@@ -64,7 +64,7 @@ which supports integer indexing in range of 0 to `len(self)`
 ### Metric
 
 ```
-class compression.api.Metric()
+class openvino.tools.pot.api.Metric()
 ```
 An abstract class representing an accuracy metric.
 
@@ -87,7 +87,7 @@ All subclasses should override the following methods:
 ### Engine
 
 ```
-class compression.api.Engine(config, data_loader=None, metric=None)
+class openvino.tools.pot.api.Engine(config, data_loader=None, metric=None)
 ```
 Base class for all Engines.
 
@@ -153,7 +153,7 @@ describe internal representation of the DL model and how to work with it.
 ### IEEngine
 
 ```
-class compression.engines.IEEngine(config, data_loader=None, metric=None)
+class openvino.tools.pot.engines.ie_engine.IEEngine(config, data_loader=None, metric=None)
 ```
 IEEngine is a helper which implements Engine class based on [OpenVINO&trade; Inference Engine Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview).
 This class support inference in synchronous and asynchronous modes and can be reused as-is in the custom pipeline or 
@@ -196,7 +196,7 @@ The Python* POT API provides the `NXModel` class as one interface for working wi
 It is used to load, save and access the model, in case of the cascaded model, access each model of the cascaded model.
 
 ```
-class compression.graph.nx_wrapper.NXModel(**kwargs)
+class openvino.tools.pot.graph.nx_model.NXModel(**kwargs)
 ```
 The NXModel class provides a representation of the DL model. A single model and cascaded model can be 
 represented as an instance of this class. The cascaded model is stored as a list of models.
@@ -209,7 +209,7 @@ represented as an instance of this class. The cascaded model is stored as a list
 
 The Python* POT API provides the utility function to load model from the OpenVINO&trade; Intermediate Representation (IR):
 ```
-compression.graph.model_utils.load_model(model_config)
+openvino.tools.pot.graph.model_utils.load_model(model_config)
 ```
 *Parameters*
 - `model_config` - dictionary describing a model that includes the following attributes:
@@ -255,7 +255,7 @@ compression.graph.model_utils.load_model(model_config)
 #### Saving model to IR
 The Python* POT API provides the utility function to save model in the OpenVINO&trade; Intermediate Representation (IR):
 ```
-compression.graph.model_utils.save_model(model, save_path, model_name=None, for_stat_collection=False)
+openvino.tools.pot.graph.model_utils.save_model(model, save_path, model_name=None, for_stat_collection=False)
 ```
 *Parameters*
 - `model` - `NXModel` instance.
@@ -280,7 +280,7 @@ compression.graph.model_utils.save_model(model, save_path, model_name=None, for_
 ### Sampler
 
 ```
-class compression.samplers.Sampler(data_loader=None, batch_size=1, subset_indices=None)
+class openvino.tools.pot.samplers.Sampler(data_loader=None, batch_size=1, subset_indices=None)
 ```
 Base class for all Samplers.
 
@@ -298,7 +298,7 @@ that returns the length of the returned iterators.
 ### BatchSampler
 
 ```
-class  compression.samplers.batch_sampler.BatchSampler(data_loader, batch_size=1, subset_indices=None):
+class openvino.tools.pot.samplers.batch_sampler.BatchSampler(data_loader, batch_size=1, subset_indices=None):
 ```
 Sampler provides an iterable over the dataset subset if `subset_indices` is specified or over the whole dataset with 
 given `batch_size`. Returns a list of data items.
@@ -306,7 +306,7 @@ given `batch_size`. Returns a list of data items.
 ## Pipeline
 
 ```
-class compression.pipline.pipeline.Pipeline(engine)
+class openvino.tools.pot.pipeline.pipeline.Pipeline(engine)
 ```
 Pipeline class represents the optimization pipeline.
 
@@ -319,7 +319,7 @@ The pipeline can be applied to the DL model by calling `run(model)` method where
 
 The POT Python* API provides the utility function to create and configure the pipeline:
 ```
-compression.pipline.initializer.create_pipeline(algo_config, engine)
+openvino.tools.pot.pipeline.initializer.create_pipeline(algo_config, engine)
 ```
 *Parameters* 
 - `algo_config` - a list defining optimization algorithms and their parameters included in the optimization pipeline. 

@@ -28,7 +28,7 @@
 #include "ie_parameter.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -133,20 +133,20 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     // if IR `version` is not set, suppose it's IR v10 for old API
     // it allows to use operation names in set_ / get_tensor instead of tensor_names
     auto orig_function = orig_network.getFunction();
-    std::shared_ptr<ov::Function> function;
+    std::shared_ptr<ov::Model> function;
     InferenceEngine::CNNNetwork network = orig_network;
     if (orig_function) {
-        function = std::make_shared<ov::Function>(orig_function->get_results(),
-                                                  orig_function->get_sinks(),
-                                                  orig_function->get_parameters(),
-                                                  orig_function->get_variables(),
-                                                  orig_function->get_friendly_name());
+        function = std::make_shared<ov::Model>(orig_function->get_results(),
+                                               orig_function->get_sinks(),
+                                               orig_function->get_parameters(),
+                                               orig_function->get_variables(),
+                                               orig_function->get_friendly_name());
         function->get_rt_info() = orig_function->get_rt_info();
     }
     if (function && GetCore() && !GetCore()->isNewAPI()) {
         auto& rt_info = function->get_rt_info();
         if (rt_info.find("version") == rt_info.end()) {
-            rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
+            rt_info["version"] = int64_t(10);
 
             // re-create `network` with new patched `function`
             using namespace InferenceEngine;
@@ -285,7 +285,13 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 }
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                                         const std::shared_ptr<ov::Function>& function) {
+                                         const std::shared_ptr<const ov::Model>& function) {
+    InferenceEngine::SetExeNetworkInfo(exeNetwork, function);
+    exeNetwork->SetPointerToPlugin(shared_from_this());
+}
+
+void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                       const std::shared_ptr<const ov::Model>& function) {
     OPENVINO_ASSERT(exeNetwork != nullptr);
     OPENVINO_ASSERT(function != nullptr);
 
@@ -296,9 +302,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     const auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
     if (it != rt_info.end()) {
-        auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(it->second);
-        OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
-        const int64_t ir_version = ir_version_impl->get();
+        const int64_t ir_version = it->second.as<int64_t>();
         // here we decide whether we need to add operation_names as tensor names for
         // getInputs / getOutputs. Since these functions are designed to be used in new API only
         // always need to add operation names for IR v10
@@ -311,16 +315,17 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
 
     for (const auto& param : function->get_parameters()) {
-        auto new_param = param->copy_with_new_inputs({});
+        auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
         new_param->set_friendly_name(param->get_friendly_name());
         if (add_operation_names)
             new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
         // WA: use CNNNetwork's precisions since plugins sometimes override their precisions
         // after transformation pipeline is run
-        new_param->set_output_type(
-            0,
-            InferenceEngine::details::convertPrecision(inputsInfo.at(new_param->get_friendly_name())->getPrecision()),
-            new_param->get_output_partial_shape(0));
+        new_param->set_element_type(
+            InferenceEngine::details::convertPrecision(inputsInfo.at(new_param->get_friendly_name())->getPrecision()));
+        new_param->set_layout(param->get_layout());
+        new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
+        new_param->validate_and_infer_types();
         const_params.emplace_back(new_param);
     }
     for (const auto& result : function->get_results()) {
@@ -328,21 +333,22 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
                                                                   result->get_output_partial_shape(0));
         const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(param_name);
-        fake_param->set_output_type(
-            0,
-            InferenceEngine::details::convertPrecision(outputsInfo.at(param_name)->getPrecision()),
-            fake_param->get_output_partial_shape(0));
+        fake_param->set_element_type(
+            InferenceEngine::details::convertPrecision(outputsInfo.at(param_name)->getPrecision()));
+        fake_param->validate_and_infer_types();
         auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
         if (add_operation_names) {
             new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
         }
+        auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
+        OPENVINO_ASSERT(r, "Internal error. SetNetworkInfo failure casting output copy to Result");
+        r->set_layout(result->get_layout());
         const_results.emplace_back(new_result);
     }
 
     exeNetwork->setInputs(const_params);
     exeNetwork->setOutputs(const_results);
-    exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
 }  //  namespace InferenceEngine

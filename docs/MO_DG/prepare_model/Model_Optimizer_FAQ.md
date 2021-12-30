@@ -28,7 +28,7 @@ For example, to add the description of the `CustomReshape` layer, which is an ar
     
 2.  Generate a new parser:
 ```shell
-cd <INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto
+cd <SITE_PACKAGES_WITH_INSTALLED_OPENVINO>/openvino/tools/mo/front/caffe/proto
 python3 generate_caffe_pb2.py --input_proto <PATH_TO_CUSTOM_CAFFE>/src/caffe/proto/caffe.proto
 ```
 where `PATH_TO_CUSTOM_CAFFE` is the path to the root directory of custom Caffe\*.
@@ -66,7 +66,7 @@ The mean file that you provide for the Model Optimizer must be in a `.binaryprot
 
 #### 7. What does the message "Invalid proto file: there is neither 'layer' nor 'layers' top-level messages" mean? <a name="question-7"></a>
 
-The structure of any Caffe\* topology is described in the `caffe.proto` file of any Caffe version. For example, in the Model Optimizer, you can find the following proto file, used by default: `<INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
+The structure of any Caffe\* topology is described in the `caffe.proto` file of any Caffe version. For example, in the Model Optimizer, you can find the following proto file, used by default: `mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
 ```
 message NetParameter {
   // ... some other parameters
@@ -81,7 +81,7 @@ This means that any topology should contain layers as top-level structures in `p
 
 #### 8. What does the message "Old-style inputs (via 'input_dims') are not supported. Please specify inputs via 'input_shape'" mean? <a name="question-8"></a>
 
-The structure of any Caffe\* topology is described in the `caffe.proto` file for any Caffe version. For example, in the Model Optimizer you can find the following `.proto` file, used by default: `<INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
+The structure of any Caffe\* topology is described in the `caffe.proto` file for any Caffe version. For example, in the Model Optimizer you can find the following `.proto` file, used by default: `mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
 ```sh
 message NetParameter {
 
@@ -350,15 +350,15 @@ The specified input shape cannot be parsed. Please, define it in one of the foll
 
 *   
 ```shell
-python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
+ mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
 ```
 *
 ```shell
-python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
+ mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
 ```
 *   In case of multi input topology you should also specify inputs:
 ```shell
-python3 mo.py --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
+ mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
 ```
 
 Keep in mind that there is no space between and inside the brackets for input shapes.
@@ -615,19 +615,6 @@ You need to specify values for each input of the model. For more information, re
 #### 102. What does the message "Operation _contrib_box_nms is not supported ..." mean? <a name="question-102"></a>
 
 It means that you trying to convert the topology which contains '_contrib_box_nms' operation which is not supported directly. However the sub-graph of operations including the '_contrib_box_nms' could be replaced with DetectionOutput layer if your topology is one of the gluoncv topologies. Specify '--enable_ssd_gluoncv' command line parameter for the Model Optimizer to enable this transformation.
-
-\htmlonly
-
-<script>
-  window.addEventListener('load', function(){
-    var questionID = getURLParameter('question'); /* this function is defined in openvino-layout.js */
-    if (questionID) {
-      window.location = window.location.pathname + '#' + encodeURI(questionID);
-    }
-  });
-</script>
-
-\endhtmlonly
 
 #### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-103"></a>
 
