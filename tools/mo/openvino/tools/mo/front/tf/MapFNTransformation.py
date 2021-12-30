@@ -246,6 +246,11 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
                 const_true = Const(body_graph, {'value': mo_array(True, dtype=np.bool)}).create_node()
                 exec_cond_node.in_port(0).get_connection().set_source(const_true.out_port(0))
 
+        # remove back edge
+        for record in loop_node.back_edges:
+            if 'from_layer' in record and record['from_layer'] == list_result_node_layer_id:
+                loop_node.back_edges.remove(record)
+
     def find_and_replace_pattern(self, graph: Graph):
         for loop_node in graph.get_op_nodes(op='Loop'):
             loop_name = loop_node.soft_get('name', loop_node.id)
@@ -339,7 +344,8 @@ class TensorListOutputConcatenation(FrontReplacementSubgraph):
         # replace TensorListPushBack with Unsqueeze and use axis attribute for corresponding Result node
         # to concatenate results from different iterations
         unsqueeze_list_element = create_op_with_const_inputs(body_graph, Unsqueeze, {1: int64_array(0)},
-                                                             {'name': 'TensorListPushBackUnsqueeze'})
+                                                             {'name': tensor_list_push_back_node_name +
+                                                                      '/TensorListPushBackUnsqueeze'})
         tensor_list_push_back_node.in_port(1).get_connection().set_destination(unsqueeze_list_element.in_port(0))
         tensor_list_push_back_node.out_port(0).get_connection().set_source(unsqueeze_list_element.out_port(0))
         rename_nodes([(tensor_list_push_back_node, tensor_list_push_back_node_name + '/AbandonedName'),
@@ -354,6 +360,10 @@ class TensorListOutputConcatenation(FrontReplacementSubgraph):
         loop_node.in_port(1).disconnect()
         empty_tensor_list_node.in_port(1).get_source().connect(loop_node.in_port(1))
 
+        # remove back edge
+        for record in loop_node.back_edges:
+            if 'from_layer' in record and record['from_layer'] == list_result_node_layer_id:
+                loop_node.back_edges.remove(record)
 
     def find_and_replace_pattern(self, graph: Graph):
         for loop_node in graph.get_op_nodes(op='Loop'):
@@ -382,4 +392,5 @@ class TensorListOutputConcatenation(FrontReplacementSubgraph):
                 # and concatenation result produced by TensorListPushBach node
                 if Loop.back_edge_exists(loop_node.back_edges, internal_match['concatenation_result'].internal_layer_id,
                                          internal_match['container'].internal_layer_id):
-                    TensorListOutputConcatenation.transform_tensor_list_output_concatenation(external_match, internal_match)
+                    TensorListOutputConcatenation.transform_tensor_list_output_concatenation(external_match,
+                                                                                             internal_match)
