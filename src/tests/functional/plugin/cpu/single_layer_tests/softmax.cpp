@@ -71,8 +71,10 @@ protected:
             selectedType = getPrimitiveType();
         }
 
+        if (inType == ElementType::bf16) {
+            rel_threshold = 1e-2f;
+        }
         selectedType = makeSelectedTypeStr(selectedType, inType);
-
         targetStaticShapes = config.inputShapes.second;
         inputDynamicShapes = config.inputShapes.first;
 
