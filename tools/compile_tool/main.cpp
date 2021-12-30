@@ -618,10 +618,14 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
 
 static std::map<std::string, std::string> configure() {
     const bool isMYRIAD = FLAGS_d.find("MYRIAD") != std::string::npos;
-
     auto config = parseConfigFile();
 
     if (isMYRIAD) {
+        if (config[InferenceEngine::MYRIAD_DISABLE_MX_BOOT] == "YES") {
+            // the second "YES" is used to make sure we are working with compile_tool
+            // and not affecting other applications.
+            config[InferenceEngine::MYRIAD_DISABLE_MX_BOOT] = "YES,YES";
+        }
         if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
             config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
         }
@@ -755,13 +759,7 @@ int main(int argc, char* argv[]) {
             configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml, FLAGS_oml, FLAGS_ioml);
             printInputAndOutputsInfoShort(*model);
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
-            auto config = configure();
-            if (config[InferenceEngine::MYRIAD_DISABLE_MX_BOOT] == "YES") {
-                // the second "YES" is used to make sure we are working with compile_tool
-                // and not affecting other applications.
-                config[InferenceEngine::MYRIAD_DISABLE_MX_BOOT] = "YES,YES";
-            }
-            auto compiledModel = core.compile_model(model, FLAGS_d, config);
+            auto compiledModel = core.compile_model(model, FLAGS_d, configure());
             loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
             std::string outputName = FLAGS_o;
             if (outputName.empty()) {
