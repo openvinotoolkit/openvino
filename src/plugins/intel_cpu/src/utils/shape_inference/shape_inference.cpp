@@ -129,7 +129,7 @@ public:
     }
 };
 
-class entryCOPY : public entryBase {
+class entryCopy : public entryBase {
 public:
     using entryBase::entryBase;
 
@@ -139,6 +139,20 @@ public:
         auto op = node.get();
         std::vector<ov::StaticShape> output_shapes(op->get_output_size());
         copy_shape_infer(op, input_shapes, output_shapes);
+        return output_shapes;
+    }
+};
+
+class entryFistPassthrough : public entryBase {
+public:
+    using entryBase::entryBase;
+
+    std::vector<ov::StaticShape> infer(
+        const std::vector<ov::StaticShape>& input_shapes,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+        auto op = node.get();
+        std::vector<ov::StaticShape> output_shapes(op->get_output_size());
+        first_input_passthrough_infer(op, input_shapes, output_shapes);
         return output_shapes;
     }
 };
@@ -357,13 +371,14 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return make_shared_entryIOC(node);
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op) || ov::is_type<ov::opset1::Convert>(op) ||
                ov::is_type<ov::opset1::Clamp>(op) || ov::is_type<ov::opset1::GRN>(op) ||
-               ov::is_type<ov::opset1::LRN>(op) || ov::is_type<ov::opset1::LogicalNot>(op) ||
-               ov::is_type<ov::opset4::Mish>(op) || ov::is_type<ov::opset2::MVN>(op) ||
-               ov::is_type<ov::opset6::MVN>(op) || ov::is_type<ov::opset1::PRelu>(op) ||
-               ov::is_type<ov::opset1::Relu>(op) || ov::is_type<ov::opset4::Swish>(op) ||
+               ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset4::Mish>(op) ||
+               ov::is_type<ov::opset2::MVN>(op) || ov::is_type<ov::opset1::Relu>(op) ||
                ov::is_type<ov::opset1::Elu>(op) || ov::is_type<ov::opset1::Softmax>(op) ||
                ov::is_type<ov::opset8::Softmax>(op) || ov::is_type<ov::opset5::Round>(op)) {
-        return std::make_shared<entryCOPY>(op);
+        return std::make_shared<entryCopy>(op);
+    } else if (ov::is_type<ov::opset6::MVN>(op) || ov::is_type<ov::opset1::LRN>(op) ||
+               ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset4::Swish>(op)) {
+        return std::make_shared<entryFistPassthrough>(op);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseLogical>(op)) {
