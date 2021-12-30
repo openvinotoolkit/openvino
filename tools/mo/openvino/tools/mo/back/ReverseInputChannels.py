@@ -78,7 +78,7 @@ class InsertReverseChannels(BackReplacementPattern):
         for name, p, shape in all_params:
             if len(shape) == 4:
                 idx = self.get_channel_index(p)
-                if idx and shape[idx] == 3:
+                if idx is not None and shape[idx] == 3:
                     suitable_params.append((name, p, shape, idx))
 
 

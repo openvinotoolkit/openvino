@@ -44,7 +44,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         assert input_node.has_valid('shape')
         in_name = input_node.soft_get('name', input_node.id)
         features_dim_idx, has_layout = get_dim_from_layout(input_node, 'C')
-        if not features_dim_idx:
+        if features_dim_idx is None:
             if has_layout:
                 log.warning('Layout for input {} doesn\'t have channel ("C") dimension to apply {} preprocessing. '
                             'Skipping this input.'.format(in_name, preprocessing_name))

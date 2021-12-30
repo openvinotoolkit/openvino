@@ -227,7 +227,7 @@ def override_batch(graph: Graph, batch: int):
                 name = node.soft_get('name', node.id)
                 idx, has_layout = get_dim_from_layout(node, 'N')
                 if has_layout:
-                    if idx:
+                    if idx is not None:
                         node['shape'][idx] = batch
                     else:
                         log.warning(
