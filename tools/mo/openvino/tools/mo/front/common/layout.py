@@ -5,6 +5,7 @@ import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
+from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error
 
 nchw_to_nhwc_permute = int64_array([0, 2, 3, 1])
@@ -112,3 +113,41 @@ def shape_for_layout(layout: str, **kwargs):
     if depth is not None:
         output_shape[get_depth_dim(layout, shape_len)] = depth
     return output_shape
+
+
+def get_dim_from_layout(node: Node, dim: str):
+    """
+    Gets index of dimension from layout specified for node.
+    :param node: node to get dim for.
+    :param dim: name of dimension to get index for.
+    :return: tuple with index of the dimension and bool flag if the node has layout specified or no.
+    """
+    layout = None
+    graph = node.graph
+    if 'layout_values' in graph.graph['cmd_params'] and graph.graph['cmd_params'].layout_values:
+        layout_values = graph.graph['cmd_params'].layout_values.copy()
+        if '' in layout_values:
+            in_nodes = graph.get_op_nodes(op='Parameter')
+            if len(in_nodes) == 1:
+                in_node = in_nodes[0]
+                layout_values[in_node.soft_get('name', in_node.id)] = layout_values['']
+                del layout_values['']
+        name = node.soft_get('name', node.id)
+        if name in layout_values:
+            if layout_values[name]['source_layout']:
+                layout = layout_values[name]['source_layout']
+
+    if layout:
+        from openvino.runtime import Layout  # pylint: disable=no-name-in-module,import-error
+
+        layout_parsed = Layout(layout)
+        has_dim = layout_parsed.has_name(dim)
+        if has_dim:
+            idx = layout_parsed.get_index_by_name(dim)
+            if idx < 0:
+                idx = len(node.shape) + idx
+            return idx, True
+        else:
+            return None, True
+    else:
+        return None, False

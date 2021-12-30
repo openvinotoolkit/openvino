@@ -6,6 +6,7 @@ from typing import List
 
 import networkx as nx
 
+from openvino.tools.mo.front.common.layout import get_dim_from_layout
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 from openvino.tools.mo.graph.graph import Node, Graph, dict_includes
 from openvino.tools.mo.utils.error import Error
@@ -220,10 +221,20 @@ def override_batch(graph: Graph, batch: int):
     batch: user defined integer value to override batch
     """
     if batch is not None:
-        for node_id, data in graph.nodes(data=True):
-            if 'op' in data and data['op'] == 'Parameter' and not data.get('fixed_batch', False):
-                validate_batch_in_shape(data['shape'], data['name'])
-                data['shape'][0] = batch
+        in_nodes = graph.get_op_nodes(op='Parameter')
+        for node in in_nodes:
+            if not node.soft_get('fixed_batch', False):
+                name = node.soft_get('name', node.id)
+                idx, has_layout = get_dim_from_layout(node, 'N')
+                if has_layout:
+                    if idx is not None:
+                        node['shape'][idx] = batch
+                    else:
+                        log.warning(
+                            'Layout for input {} doesn\'t have batch dimension. Skipping this input.'.format(name))
+                else:
+                    validate_batch_in_shape(node['shape'], name)
+                    node['shape'][0] = batch
 
 
 def validate_batch_in_shape(shape, layer_name: str):
@@ -242,6 +253,7 @@ def validate_batch_in_shape(shape, layer_name: str):
                      'dimension or not.\n\n For example, you want to set batch dimension equals 100 ' +
                      'for the input layer "data" with shape (10,34). Although you can not use --batch, ' +
                      'you should pass --input_shape (100,34) instead of --batch 100. \n\n' +
+                     'You can also tell Model Optimizer where batch dimension is located by specifying --layout. \n\n' +
                      refer_to_faq_msg(39))
                     .format(layer_name, shape))
 
@@ -328,4 +340,3 @@ def reverse_infer(graph: Graph, nodes: list):
         if node.has_valid('reverse_infer'):
             log.debug("Executed reverse infer for node '{}'".format(node.soft_get('name', node.id)))
             node.reverse_infer(node)
-
