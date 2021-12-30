@@ -18,8 +18,7 @@ ONNX_FRONTEND_NAME = "onnx"
 TENSORFLOW_FRONTEND_NAME = "tf"
 PADDLE_FRONTEND_NAME = "paddle"
 
-mock_needed = pytest.mark.skipif(not mock_available,
-                                 reason="mock fe is not available")
+mock_needed = pytest.mark.skipif(not mock_available, reason="mock fe is not available")
 
 
 def skip_if_frontend_is_disabled(frontend_name):
@@ -60,22 +59,6 @@ def test_paddle_conversion_extension_fe_wrapper():
 
     fe.add_extension(ConversionExtension("CustomConverter", custom_converter))
     assert fe.check_conversion_extension_registered("CustomConverter")
-
-
-def test_onnx_conversion_extension():
-    skip_if_frontend_is_disabled(ONNX_FRONTEND_NAME)
-
-    from openvino.frontend.onnx import FrontEnd
-    from openvino.frontend.onnx import ConversionExtension
-    from openvino.frontend import NodeContext
-
-    fe = FrontEnd()
-
-    def custom_converter(node: NodeContext):
-        node.get_input(0)
-        node.get_attribute("alpha")
-
-    fe.add_extension(ConversionExtension("CustomConverter", custom_converter))
 
 
 def test_paddle_conversion_extension():

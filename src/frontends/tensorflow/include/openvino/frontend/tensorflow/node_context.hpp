@@ -25,7 +25,7 @@ public:
 
     /// Detects if there is at least one input attached with a given name
     bool has_input(const size_t& port_index) const {
-        return m_inputs.size() >= port_index + 1;
+        return port_index < m_inputs.size();
     }
 
     Output<Node> get_input(int port_index) const override {

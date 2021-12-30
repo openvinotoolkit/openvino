@@ -15,15 +15,27 @@ class ONNX_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
     ConversionExtension() = delete;
+
     ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter)
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
+
     const ov::frontend::CreatorFunction& get_converter() {
         return m_converter;
     }
 
+    ConversionExtension(const std::string& op_type,
+                        const ov::frontend::ConversionExtension::PyCreatorFunction& py_converter)
+        : ConversionExtensionBase(op_type),
+          m_py_converter(py_converter) {
+        m_converter = [&](const ov::frontend::NodeContext& node) -> OutputVector {
+            return m_py_converter((NodeContext*)&node);
+        };
+    }
+
 private:
     ov::frontend::CreatorFunction m_converter;
+    std::function<OutputVector(NodeContext*)> m_py_converter;
 };
 }  // namespace onnx
 }  // namespace frontend

@@ -51,7 +51,29 @@ public:
 
     ~ConversionExtension() override = default;
 
+    using PyCreatorFunction = std::function<OutputVector(const NodeContext*)>;
+    ;
+    using PyCreatorFunctionNamed = std::function<std::map<std::string, OutputVector>(const NodeContext*)>;
+    ConversionExtension(const std::string& op_type, const PyCreatorFunction& py_converter)
+        : ConversionExtensionBase(op_type),
+          m_py_converter(py_converter) {
+        m_converter = [&](const ov::frontend::NodeContext& node) -> OutputVector {
+            return m_py_converter(static_cast<const NodeContext*>(&node));
+        };
+    }
+
+    ConversionExtension(const std::string& op_type, const PyCreatorFunctionNamed& py_converter)
+        : ConversionExtensionBase(op_type),
+          m_py_converter_named(py_converter) {
+        m_converter_named = [&](const ov::frontend::NodeContext& node) -> std::map<std::string, OutputVector> {
+            return m_py_converter_named(static_cast<const NodeContext*>(&node));
+        };
+    }
+
 private:
+    PyCreatorFunction m_py_converter;
+    PyCreatorFunctionNamed m_py_converter_named;
+
     CreatorFunction m_converter;
     CreatorFunctionNamed m_converter_named;
 };

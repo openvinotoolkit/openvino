@@ -32,15 +32,15 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
-#include "pyopenvino/frontend/extensions.hpp"
+#include "pyopenvino/frontend/extension.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
 #include "pyopenvino/frontend/inputmodel.hpp"
 #include "pyopenvino/frontend/manager.hpp"
 #include "pyopenvino/frontend/node_context.hpp"
-#include "pyopenvino/frontend/onnx/frontend.hpp"
-#include "pyopenvino/frontend/paddle/frontend.hpp"
+#include "pyopenvino/frontend/onnx/extension.hpp"
+#include "pyopenvino/frontend/paddle/extension.hpp"
 #include "pyopenvino/frontend/place.hpp"
-#include "pyopenvino/frontend/tensorflow/frontend.hpp"
+#include "pyopenvino/frontend/tensorflow/extension.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
@@ -142,19 +142,16 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_FrontEnd(m);
     regclass_frontend_InputModel(m);
     regclass_frontend_NodeContext(m);
+
+    // frontend extensions
     regclass_frontend_TelemetryExtension(m);
     regclass_frontend_DecoderTransformationExtension(m);
     regclass_frontend_JsonConfigExtension(m);
     regclass_frontend_ConversionExtensionBase(m);
     regclass_frontend_ConversionExtension(m);
-
-    regclass_frontend_onnx_FrontEnd(m);
+    // specific frontend extensions
     regclass_frontend_onnx_ConversionExtension(m);
-
-    regclass_frontend_tensorflow_FrontEnd(m);
     regclass_frontend_tensorflow_ConversionExtension(m);
-
-    regclass_frontend_paddle_FrontEnd(m);
     regclass_frontend_paddle_ConversionExtension(m);
 
     regmodule_offline_transformations(m);

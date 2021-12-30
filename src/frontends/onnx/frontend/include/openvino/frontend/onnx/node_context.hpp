@@ -25,6 +25,9 @@ public:
 protected:
     const Node& m_context;
     OutputVector m_inputs;
+
+private:
+    ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
 };
 using CreatorFunction = std::function<OutputVector(const ov::frontend::onnx::NodeContext&)>;
 }  // namespace onnx

@@ -15,10 +15,37 @@ namespace py = pybind11;
 
 using namespace ov::frontend;
 
-#define CHECK_RET(any, T)                   \
-    {                                       \
-        if ((any).is<T>())                  \
-            return py::cast((any).as<T>()); \
+template <typename>
+struct is_std_vector : std::false_type {};
+
+template <typename T, typename A>
+struct is_std_vector<std::vector<T, A>> : std::true_type {};
+
+#define CAST_VEC_TO_PY(any, py_type, c_type)                                       \
+    {                                                                              \
+        static_assert(is_std_vector<c_type>(), "The type should be std::vector."); \
+        if ((any).is<c_type>()) {                                                  \
+            auto casted = (any).as<c_type>();                                      \
+            if (!(py_type).is_none()) {                                            \
+                py::list py_list;                                                  \
+                for (const auto& el : casted) {                                    \
+                    py_list.append(py_type(el));                                   \
+                }                                                                  \
+                return py_list;                                                    \
+            }                                                                      \
+            return py::cast(casted);                                               \
+        }                                                                          \
+    }
+
+#define CAST_TO_PY(any, py_type, c_type)      \
+    {                                         \
+        if ((any).is<c_type>()) {             \
+            auto casted = (any).as<c_type>(); \
+            if (!(py_type).is_none()) {       \
+                return py_type(casted);       \
+            }                                 \
+            return py::cast(casted);          \
+        }                                     \
     }
 
 void regclass_frontend_NodeContext(py::module m) {
@@ -26,49 +53,43 @@ void regclass_frontend_NodeContext(py::module m) {
                                                                                           "NodeContext",
                                                                                           py::dynamic_attr());
 
-    ext.def("get_attribute", [](NodeContext& self, const std::string& name) -> py::object {
-        auto any = self.get_attribute_as_any(name);
+    ext.def(
+        "get_attribute",
+        [=](NodeContext& self, const std::string& name, const py::object& default_value, const py::object& dtype)
+            -> py::object {
+            // std::cout << "XXXXXXXXXXXXX " << dtype << std::endl;
+            auto any = self.get_attribute_as_any(name);
+            auto module = py::module_::import("openvino.runtime");
 
-        CHECK_RET(any, int32_t);
-        CHECK_RET(any, int64_t);
-        CHECK_RET(any, bool);
-        CHECK_RET(any, std::string);
-        CHECK_RET(any, float);
-        CHECK_RET(any, ov::element::Type);
-        CHECK_RET(any, ov::PartialShape);
+            auto type = m.attr("Type");
+            if (dtype == type && (any.is<int32_t>() || any.is<int64_t>())) {
+                return py::cast(self.get_attribute<ov::element::Type>(name));
+            }
 
-        CHECK_RET(any, std::vector<int32_t>);
-        CHECK_RET(any, std::vector<int64_t>);
-        CHECK_RET(any, std::vector<bool>);
-        CHECK_RET(any, std::vector<std::string>);
-        CHECK_RET(any, std::vector<float>);
-        CHECK_RET(any, std::vector<ov::element::Type>);
-        CHECK_RET(any, std::vector<ov::PartialShape>);
+            CAST_TO_PY(any, dtype, int32_t);
+            CAST_TO_PY(any, dtype, int64_t);
+            CAST_TO_PY(any, dtype, bool);
+            CAST_TO_PY(any, dtype, std::string);
+            CAST_TO_PY(any, dtype, float);
+            CAST_TO_PY(any, dtype, ov::element::Type);
+            CAST_TO_PY(any, dtype, ov::PartialShape);
 
-        FRONT_END_GENERAL_CHECK(false, "Attribute type can't be converted.");
-    });
+            CAST_VEC_TO_PY(any, dtype, std::vector<int32_t>);
+            CAST_VEC_TO_PY(any, dtype, std::vector<int64_t>);
+            CAST_VEC_TO_PY(any, dtype, std::vector<bool>);
+            CAST_VEC_TO_PY(any, dtype, std::vector<std::string>);
+            CAST_VEC_TO_PY(any, dtype, std::vector<float>);
+            CAST_VEC_TO_PY(any, dtype, std::vector<ov::element::Type>);
+            CAST_VEC_TO_PY(any, dtype, std::vector<ov::PartialShape>);
 
-    ext.def("get_attribute", [](NodeContext& self, const std::string& name, const py::object& def) -> py::object {
-        auto any = self.get_attribute_as_any(name);
-
-        CHECK_RET(any, int32_t);
-        CHECK_RET(any, int64_t);
-        CHECK_RET(any, bool);
-        CHECK_RET(any, std::string);
-        CHECK_RET(any, float);
-        CHECK_RET(any, ov::element::Type);
-        CHECK_RET(any, ov::PartialShape);
-
-        CHECK_RET(any, std::vector<int32_t>);
-        CHECK_RET(any, std::vector<int64_t>);
-        CHECK_RET(any, std::vector<bool>);
-        CHECK_RET(any, std::vector<std::string>);
-        CHECK_RET(any, std::vector<float>);
-        CHECK_RET(any, std::vector<ov::element::Type>);
-        CHECK_RET(any, std::vector<ov::PartialShape>);
-
-        return def;
-    });
+            if (default_value.is_none())
+                FRONT_END_GENERAL_CHECK(false, "Attribute ", name, " can't be converted to defined types.");
+            else
+                return default_value;
+        },
+        py::arg("name"),
+        py::arg("default_value") = py::none(),
+        py::arg("dtype") = py::none());
 
     ext.def("get_input", [](NodeContext& self, int idx) {
         return self.get_input(idx);

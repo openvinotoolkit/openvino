@@ -27,7 +27,17 @@ public:
         return m_converter;
     }
 
+    ConversionExtension(const std::string& op_type,
+                        const ov::frontend::ConversionExtension::PyCreatorFunctionNamed& py_converter)
+        : ConversionExtensionBase(op_type),
+          m_py_converter(py_converter) {
+        m_converter = [&](const ov::frontend::NodeContext& node) -> NamedOutputs {
+            return m_py_converter(static_cast<const ov::frontend::NodeContext*>(&node));
+        };
+    }
+
 private:
+    ov::frontend::ConversionExtension::PyCreatorFunctionNamed m_py_converter;
     ov::frontend::CreatorFunctionNamed m_converter;
 };
 

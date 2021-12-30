@@ -8,6 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_frontend_paddle_FrontEnd(py::module m);
-void regclass_frontend_paddle_NodeContext(py::module m);
 void regclass_frontend_paddle_ConversionExtension(py::module m);

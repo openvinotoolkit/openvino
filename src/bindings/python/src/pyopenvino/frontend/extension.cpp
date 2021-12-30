@@ -67,11 +67,12 @@ void regclass_frontend_ConversionExtension(py::module m) {
                                                                                            "ConversionExtension",
                                                                                            py::dynamic_attr());
 
-    ext.def(py::init([](const std::string& op_type, const ov::frontend::CreatorFunction& f) {
+    ext.def(py::init([](const std::string& op_type, const ov::frontend::ConversionExtension::PyCreatorFunction& f) {
         return std::make_shared<ov::frontend::ConversionExtension>(op_type, f);
     }));
 
-    ext.def(py::init([](const std::string& op_type, const ov::frontend::CreatorFunctionNamed& f) {
-        return std::make_shared<ov::frontend::ConversionExtension>(op_type, f);
-    }));
+    ext.def(
+        py::init([](const std::string& op_type, const ov::frontend::ConversionExtension::PyCreatorFunctionNamed& f) {
+            return std::make_shared<ov::frontend::ConversionExtension>(op_type, f);
+        }));
 }

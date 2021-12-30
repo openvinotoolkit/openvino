@@ -35,5 +35,4 @@ if sys.platform == "win32":
                 os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
 
 
-from openvino.pyopenvino import FrontEndTensorflow as FrontEnd
 from openvino.pyopenvino import ConversionExtensionTensorflow as ConversionExtension

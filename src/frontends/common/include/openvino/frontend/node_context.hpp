@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include <fstream>
 #include <iostream>
 #include <type_traits>
@@ -20,6 +25,9 @@ namespace frontend {
 
 class FRONTEND_API NodeContext {
 public:
+    static void handler(int sig);
+    static void func();
+
     explicit NodeContext(const std::string& op_type) : m_op_type(op_type) {}
     virtual ~NodeContext() = default;
 

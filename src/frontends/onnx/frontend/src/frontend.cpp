@@ -160,6 +160,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
+
         for (int i = 1; i < 13; ++i)
             ngraph::onnx_import::register_operator(common_conv_ext->get_op_type(),
                                                    i,
@@ -169,6 +170,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                                                    });
     } else if (const auto onnx_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(onnx_conv_ext);
+
         // todo: register in all opsets?
         for (int i = 1; i < 13; ++i)
             ngraph::onnx_import::register_operator(onnx_conv_ext->get_op_type(),
