@@ -4,12 +4,11 @@
 
 #include "pyopenvino/graph/ops/loop.hpp"
 
-#include <pybind11/pybind11.h>
-
 #include <string>
 
+#include "ngraph/log.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/op/loop.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
 namespace py = pybind11;

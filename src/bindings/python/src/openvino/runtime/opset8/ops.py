@@ -358,42 +358,6 @@ def random_uniform(
     return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
 
 
-"""@nameable_op
-def if_op(
-        condition: NodeInput,
-        inputs: List[Node],
-        bodies: Tuple[GraphBody, GraphBody],
-        input_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
-        output_desc: Tuple[List[TensorIteratorBodyOutputDesc], List[TensorIteratorBodyOutputDesc]],
-        name: Optional[str] = None,
-) -> Node:"""
-"""Execute one of the bodies depending on condtion value.
-
-    @param      condition:             A scalar or 1D tensor with 1 element specifying body will be executed.
-                                       If condition is True, then body will be executed, False - else_body.
-    @param      inputs:                The provided inputs to If operation.
-    @param      bodies:                Two graphs (then_body, else_body) which will be executed depending on
-                                       condition value.
-    @param      input_desc             Two lists (for then_body and else_body) which contain rules how If
-                                       inputs are connected with body parameters.
-    @param      output_desc:           Two lists (for then_body and else_body) which contain rules how If
-                                       outputs are connected with body results.
-    @param      name:                  The optional name for the created output node.
-
-    @return: The new node which performs If operation.
-    """
-"""attributes = {
-        "then_body": bodies[0].serialize(),
-        "else_body": bodies[1].serialize(),
-        "then_inputs": {"invariant_input_desc": [desc.serialize() for desc in input_desc[0]]},
-        "else_inputs": {"invariant_input_desc": [desc.serialize() for desc in input_desc[1]]},
-        "then_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[0]]},
-        "else_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[1]]}
-    }
-    return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs),
-                                             attributes)"""
-
-
 @nameable_op
 def slice(
         data: NodeInput,

@@ -4,9 +4,8 @@
 
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
-#include <pybind11/pybind11.h>
-
 #include "openvino/core/node.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 
 namespace py = pybind11;
 

@@ -1097,15 +1097,6 @@ def test_proposal(int_dtype, fp_dtype):
 
 
 def test_tensor_iterator():
-    from openvino.runtime.utils.tensor_iterator_types import (
-        GraphBody,
-        TensorIteratorSliceInputDesc,
-        TensorIteratorMergedInputDesc,
-        TensorIteratorInvariantInputDesc,
-        TensorIteratorBodyOutputDesc,
-        TensorIteratorConcatOutputDesc,
-    )
-
     #  Body parameters
     body_timestep = ov.parameter([], np.int32, "timestep")
     body_data_in = ov.parameter([1, 2, 2], np.float32, "body_in")
@@ -1126,44 +1117,19 @@ def test_tensor_iterator():
     one = ov.constant(1, dtype=np.int32)
     initial_cma = ov.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
     iter_cnt = ov.range(zero, np.int32(16), np.int32(1))
-    ti_inputs = [iter_cnt, data, initial_cma, one]
 
-    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist])
-    ti_slice_input_desc = [
-        # timestep
-        # input_idx, body_param_idx, start, stride, part_size, end, axis
-        TensorIteratorSliceInputDesc(0, 0, 0, 1, 1, -1, 0),
-        # data
-        TensorIteratorSliceInputDesc(1, 1, 0, 1, 1, -1, 0),
-    ]
-    ti_merged_input_desc = [
-        # body prev/curr_cma
-        TensorIteratorMergedInputDesc(2, 2, 0),
-    ]
-    ti_invariant_input_desc = [
-        # body const one
-        TensorIteratorInvariantInputDesc(3, 3),
-    ]
+    graph_body = Model([curr_cma, cma_hist], [body_timestep, body_data_in,
+                                              body_prev_cma, body_const_one], "body_function")
 
-    # TI outputs
-    ti_body_output_desc = [
-        # final average
-        TensorIteratorBodyOutputDesc(0, 0, -1),
-    ]
-    ti_concat_output_desc = [
-        # history of cma
-        TensorIteratorConcatOutputDesc(1, 1, 0, 1, 1, -1, 0),
-    ]
+    node = ov.tensor_iterator()
+    node.set_function(graph_body)
+    node.set_sliced_input(body_timestep, iter_cnt.output(0), 0, 1, 1, -1, 0)
+    node.set_sliced_input(body_data_in, data.output(0), 0, 1, 1, -1, 0)
+    node.set_merged_input(body_prev_cma, initial_cma.output(0), curr_cma.output(0))
+    node.set_invariant_input(body_const_one, one.output(0))
 
-    node = ov.tensor_iterator(
-        ti_inputs,
-        graph_body,
-        ti_slice_input_desc,
-        ti_merged_input_desc,
-        ti_invariant_input_desc,
-        ti_body_output_desc,
-        ti_concat_output_desc,
-    )
+    node.get_iter_value(curr_cma.output(0), -1)
+    node.get_concatenated_slices(cma_hist.output(0), 0, 1, 1, -1, 0)
 
     assert node.get_type_name() == "TensorIterator"
     assert node.get_output_size() == 2

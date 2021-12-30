@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_graph_op_If(py::module m);
+void regclass_graph_op_TensorIterator(py::module m);

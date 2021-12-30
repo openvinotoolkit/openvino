@@ -35,9 +35,6 @@ def test_simple_loop():
     loop.set_merged_input(M_body, M.output(0), Zo.output(0))
     loop.set_special_body_ports([-1, 0])
 
-    print(sum.get_output_shape(0))
-    print(Zo.get_output_shape(0))
-
     out0 = loop.get_iter_value(body_condition.output(0), -1)
     out1 = loop.get_iter_value(Zo.output(0), -1)
     out2 = loop.get_concatenated_slices(Zo.output(0), 0, 1, 1, -1, 1)

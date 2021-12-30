@@ -53,6 +53,7 @@ from openvino.pyopenvino import PartialShape
 from openvino.pyopenvino import Shape
 from openvino.pyopenvino import Strides
 from openvino.pyopenvino import CoordinateDiff
+from openvino.pyopenvino import DiscreteTypeInfo
 from openvino.pyopenvino import AxisSet
 from openvino.pyopenvino import AxisVector
 from openvino.pyopenvino import Coordinate
@@ -60,7 +61,6 @@ from openvino.pyopenvino import Layout
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import util
 from openvino.pyopenvino import layout_helpers
-from openvino.pyopenvino import DiscreteTypeInfo
 from openvino.pyopenvino import RTMap
 
 from openvino.runtime.ie_api import Core
