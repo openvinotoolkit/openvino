@@ -479,7 +479,7 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
         # Set which frontend to use by default, values should be 'new' or 'legacy'
         argv.frontend_defaults = {
-            'onnx': 'new',
+            'onnx': 'legacy',
             'tf': 'legacy'
         }
 
