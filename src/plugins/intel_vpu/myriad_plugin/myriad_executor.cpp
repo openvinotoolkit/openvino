@@ -83,7 +83,7 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
-    auto st = config.get<DisableMXBootOption>() == true;
+    auto st = config.get<DisableMXBootOption>() == "YES,YES";
     if (st) {
         return ncStatus_t(st);
     }
@@ -314,11 +314,11 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                                    size_t numStages, const std::string & networkName, int executors,
                                    const PluginConfiguration& config) {
     VPU_PROFILE(allocateGraph);
-    if (config.get<DisableMXBootOption>() == true) {
-        return;
-    }
     _numStages = static_cast<int>(numStages);
     graphDesc._name = networkName;
+    if (config.get<DisableMXBootOption>() == "YES,YES") {
+        return;
+    }
     if (device->_deviceHandle == nullptr) {
         IE_THROW() << "Failed to allocate graph: MYRIAD device is not opened.";
     }

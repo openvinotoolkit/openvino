@@ -7,13 +7,12 @@
 #include "vpu/configuration/switch_converters.hpp"
 #include "vpu/configuration/plugin_configuration.hpp"
 #include "vpu/private_plugin_config.hpp"
+#include <vpu/utils/string.hpp>
 
 namespace vpu {
 
 void DisableMXBootOption::validate(const std::string& value) {
-    const auto& converters = string2switch();
-    VPU_THROW_UNLESS(converters.count(value) != 0, R"(unexpected {} option value "{}", only {} are supported)",
-        key(), value, getKeys(converters));
+    VPU_THROW_UNLESS(value.size() < 15, R"(unexpected {} option value "{})");
 }
 
 void DisableMXBootOption::validate(const PluginConfiguration& configuration) {
@@ -33,14 +32,11 @@ details::Category DisableMXBootOption::category() {
 }
 
 std::string DisableMXBootOption::defaultValue() {
-    return InferenceEngine::PluginConfigParams::NO;
+    return std::string("NO");
 }
 
-DisableMXBootOption::value_type DisableMXBootOption::parse(const std::string& value) {
-    const auto& converters = string2switch();
-    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(converters.count(value) != 0, R"(unexpected {} option value "{}", only {} are supported)",
-        key(), value, getKeys(converters));
-    return converters.at(value);
+std::string DisableMXBootOption::parse(const std::string& value) {
+    return value;
 }
 
 }  // namespace vpu
