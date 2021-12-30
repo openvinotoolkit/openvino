@@ -25,10 +25,8 @@ def base_args_config(use_legacy_fe:bool=None, use_new_fe:bool=None):
     args = argparse.Namespace()
     args.feManager = FrontEndManager()
     args.extensions = None
-    if use_legacy_fe is not None:
-        args.use_legacy_frontend = use_legacy_fe
-    if use_new_fe is not None:
-        args.use_new_frontend = use_new_fe
+    args.use_legacy_frontend = use_legacy_fe
+    args.use_new_frontend = use_new_fe
     args.framework = 'onnx'
     args.model_name = None
     args.input_model = None

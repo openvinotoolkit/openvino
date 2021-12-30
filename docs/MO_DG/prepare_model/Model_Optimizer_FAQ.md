@@ -627,3 +627,11 @@ The following workarounds are suggested to resolve this issue:
 1. Use Python 3.6/3.7 to convert MXNet\* models on Windows
 2. Update MXNet: pip install mxnet=1.7.0.post2
 Note that you might have conflicts between previously installed PyPI dependencies.
+
+#### 105. What does the message "The IR preparation was executed by the legacy MO path. ..." mean? <a name="question-105"></a>
+
+For some model formats (in current state for ONNX and TensorFlow) are available two paths of IR conversion. 
+The old one is handled by old python implementation while the new one is realized via new c++ frontends. 
+Since version 2022.1 the default path of IR conversion for ONNX models is handled via new ONNX frontend. 
+Some features like `--extensions` and `--transformations_config` are not supported yet on the new frontends. 
+If a user doesn't choose expected path of conversion explicitly (by `--use_new_frontend` or `--use_legacy_frontend` MO arguments) and some not supported pre-defined scenario is detected on the new frontend path, the IR conversion falls back to the old path.

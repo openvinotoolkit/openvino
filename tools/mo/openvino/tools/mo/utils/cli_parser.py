@@ -435,10 +435,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     common_group.add_argument("--use_new_frontend",
                               help="Use new frontend API for model processing",
-                              action='store_true', default=argparse.SUPPRESS)
+                              action='store_true', default=None)
     common_group.add_argument("--use_legacy_frontend",
                               help="Use legacy API for model processing",
-                              action='store_true', default=argparse.SUPPRESS)
+                              action='store_true', default=None)
     return parser
 
 

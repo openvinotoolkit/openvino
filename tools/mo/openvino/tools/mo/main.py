@@ -99,8 +99,8 @@ def get_moc_frontends(argv: argparse.Namespace):
     fem = argv.feManager
 
     # Read user flags:
-    use_legacy_frontend = argv.use_legacy_frontend if hasattr(argv, 'use_legacy_frontend') else False
-    use_new_frontend = argv.use_new_frontend if hasattr(argv, 'use_new_frontend') else False
+    use_legacy_frontend = argv.use_legacy_frontend if argv.use_legacy_frontend else False
+    use_new_frontend = argv.use_new_frontend if argv.use_new_frontend else False
 
     if not fem or use_legacy_frontend:
         return None, []
@@ -134,7 +134,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
         frameworks = list(set(frameworks + available_moc_front_ends))
         if argv.framework not in frameworks:
-            if hasattr(argv, 'use_legacy_frontend') and argv.use_legacy_frontend:
+            if argv.use_legacy_frontend and argv.use_legacy_frontend:
                 raise Error('Framework {} is not a valid target when using the --use_legacy_frontend flag. '
                             'The following legacy frameworks are available: {}' +
                             refer_to_faq_msg(15), argv.framework, frameworks)
@@ -319,7 +319,7 @@ def check_fallback(argv : argparse.Namespace):
     if not any(deduce_framework_by_namespace(argv)): # no legacy path
         return fallback_reasons
 
-    if hasattr(argv, 'use_new_frontend') or hasattr(argv, 'use_legacy_frontend'): # frontend chosen explicitly
+    if argv.use_new_frontend is not None or argv.use_legacy_frontend is not None: # frontend chosen explicitly
         return fallback_reasons
 
     fallback_reasons['extensions'] = \
@@ -352,7 +352,8 @@ def prepare_ir(argv : argparse.Namespace):
             log.warning("The IR preparation was executed by the legacy MO path. "
                         "This is a fallback scenario applicable only for some specific cases. "
                        f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
-                        "You can specify --use_legacy_frontend flag to force using the legacy MO path to avoid additional checks.")
+                        "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
+                        refer_to_faq_msg(105))
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
@@ -478,7 +479,7 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
         # Set which frontend to use by default, values should be 'new' or 'legacy'
         argv.frontend_defaults = {
-            'onnx': 'legacy',
+            'onnx': 'new',
             'tf': 'legacy'
         }
 
