@@ -3,12 +3,16 @@
 
 import os
 import re
-import sys
 import subprocess
+import sys
+
+from openvino.tools.mo.utils.utils import get_mo_root_dir
+
+mo_major_and_minor_version = 2022.1
 
 
 def get_version_file_path():
-    return os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "version.txt")
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, "version.txt")
 
 
 def generate_mo_version():
@@ -17,9 +21,10 @@ def generate_mo_version():
     custom_{branch_name}_{commit_hash}
     """
     try:
-        branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
-        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode()
-        return "custom_{}_{}".format(branch_name, commit_hash)
+        mo_dir = get_mo_root_dir()
+        branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=mo_dir).strip().decode()
+        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=mo_dir).strip().decode()
+        return "{}.custom_{}_{}".format(mo_major_and_minor_version, branch_name, commit_hash)
     except Exception as e:
         return "unknown version"
 
@@ -29,8 +34,7 @@ def get_version():
     if not os.path.isfile(version_txt):
         return generate_mo_version()
     with open(version_txt) as f:
-        version = f.readline().replace('\n', '')
-    return version
+        return f.readline().replace('\n', '')
 
 
 def extract_release_version(version: str):
