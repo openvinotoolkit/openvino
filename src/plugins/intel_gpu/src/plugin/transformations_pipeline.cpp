@@ -337,10 +337,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
         // With this key users can work-around such issues
-        if (!config.enable_fp16_for_quantized_models || use_onednn) {
-            // ngraph::pass::Manager manager;
-            // manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
-            // manager.run_passes(func);
+        if (!config.enable_fp16_for_quantized_models) {
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
+            manager.run_passes(func);
         }
 
         auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
