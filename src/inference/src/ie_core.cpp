@@ -1575,10 +1575,8 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const ConfigMap& config) {
-    std::string name = deviceName;
-    auto new_config = config;
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model), name, new_config);
+        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, config);
         return {exec._ptr, exec._so};
     });
 }
