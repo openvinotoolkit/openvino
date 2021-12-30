@@ -27,6 +27,7 @@
 #include "ie_api.h"
 
 /**
+ * @ingroup ie_cpp_api
  * @brief Inference Engine C++ API
  */
 namespace InferenceEngine {

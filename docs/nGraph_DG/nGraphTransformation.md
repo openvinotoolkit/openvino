@@ -378,7 +378,7 @@ Another example shows how multiple matcher passes can be united into single Grap
 
 @snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager2
 
-> **Note:** nGraph used to have the `pass::PassConfig` class for transformation pipeline manipulation.
+> **NOTE**: nGraph used to have the `pass::PassConfig` class for transformation pipeline manipulation.
 This mechanism is now obsolete and the `pass::PassConfig` class will be removed in future release.
 
 ## How to debug transformations <a name="how_to_debug_transformations"></a>
