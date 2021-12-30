@@ -289,7 +289,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 }
             }
         };
-        _executor->run(recycleTask);
+        _executor->run(std::move(recycleTask));
     } else {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
