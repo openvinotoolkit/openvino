@@ -656,6 +656,31 @@ def test_override_all_outputs_3():
     print(expected_func)
     assert res
 
+def test_override_all_outputs_invalid_place():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model_3.onnx")
+    assert model
+
+    model2 = fe.load("input_model.onnx")
+    assert model2
+    invalid_place = model2.get_place_by_tensor_name(tensor_name="out3")
+
+    place1 = model.get_place_by_tensor_name(tensor_name="out1")
+    place2 = model.get_place_by_tensor_name(tensor_name="out1")
+    model.override_all_outputs(outputs=[place1, place2, invalid_place])
+    result_func = fe.convert(model)
+
+    expected_model = fe.load("test_override_all_outputs_3.onnx")
+    expected_func = fe.convert(expected_model)
+
+    res = compare_functions(result_func, expected_func)
+    print(result_func)
+    print(expected_func)
+    assert res
+
 
 def test_override_all_inputs():
     skip_if_onnx_frontend_is_disabled()
