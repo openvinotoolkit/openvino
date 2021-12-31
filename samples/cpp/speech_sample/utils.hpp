@@ -17,7 +17,7 @@ typedef std::chrono::duration<float> fsec;
 /**
  * @brief struct to store score error
  */
-typedef struct {
+struct ScoreErrorT {
     uint32_t numScores;
     uint32_t numErrors;
     float threshold;
@@ -29,7 +29,7 @@ typedef struct {
     float maxRelError;
     float sumRelError;
     float sumSquaredRelError;
-} score_error_t;
+};
 
 /**
  * @brief struct to store infer request data per frame
@@ -46,7 +46,7 @@ struct InferRequestStruct {
  * @param numInputFiles number of input files
  * @return none.
  */
-void CheckNumberOfInputs(size_t numInputs, size_t numInputFiles) {
+void check_number_of_inputs(size_t numInputs, size_t numInputFiles) {
     if (numInputs != numInputFiles) {
         throw std::logic_error("Number of network inputs (" + std::to_string(numInputs) +
                                ")"
@@ -62,7 +62,7 @@ void CheckNumberOfInputs(size_t numInputs, size_t numInputFiles) {
  * @param numElements number of elements in speech feature vector
  * @return scale factor
  */
-float ScaleFactorForQuantization(void* ptrFloatMemory, float targetMax, uint32_t numElements) {
+float scale_factor_for_quantization(void* ptrFloatMemory, float targetMax, uint32_t numElements) {
     float* ptrFloatFeat = reinterpret_cast<float*>(ptrFloatMemory);
     float max = 0.0;
     float scaleFactor;
@@ -87,7 +87,7 @@ float ScaleFactorForQuantization(void* ptrFloatMemory, float targetMax, uint32_t
  * @param error pointer to score error struct
  * @return none.
  */
-void ClearScoreError(score_error_t* error) {
+void clear_score_error(ScoreErrorT* error) {
     error->numScores = 0;
     error->numErrors = 0;
     error->maxError = 0.0;
@@ -106,7 +106,7 @@ void ClearScoreError(score_error_t* error) {
  * @param totalError pointer to total score error struct
  * @return none.
  */
-void UpdateScoreError(score_error_t* error, score_error_t* totalError) {
+void update_score_error(ScoreErrorT* error, ScoreErrorT* totalError) {
     totalError->numErrors += error->numErrors;
     totalError->numScores += error->numScores;
     totalError->sumRmsError += error->rmsError;
@@ -131,14 +131,14 @@ void UpdateScoreError(score_error_t* error, score_error_t* totalError) {
  * @param numColumns - number columns in score error arrays
  * @return none.
  */
-void CompareScores(float* ptrScoreArray,
-                   void* ptrRefScoreArray,
-                   score_error_t* scoreError,
-                   uint32_t numRows,
-                   uint32_t numColumns) {
+void compare_scores(float* ptrScoreArray,
+                    void* ptrRefScoreArray,
+                    ScoreErrorT* scoreError,
+                    uint32_t numRows,
+                    uint32_t numColumns) {
     uint32_t numErrors = 0;
 
-    ClearScoreError(scoreError);
+    clear_score_error(scoreError);
 
     float* A = ptrScoreArray;
     float* B = reinterpret_cast<float*>(ptrRefScoreArray);
@@ -178,7 +178,7 @@ void CompareScores(float* ptrScoreArray,
  * @param error pointer to score error struct
  * @return error
  */
-float StdDevError(score_error_t error) {
+float std_dev_error(ScoreErrorT error) {
     return (sqrt(error.sumSquaredError / error.numScores -
                  (error.sumError / error.numScores) * (error.sumError / error.numScores)));
 }
@@ -211,7 +211,7 @@ inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx
  * @brief Get GNA module frequency
  * @return GNA module frequency in MHz
  */
-float getGnaFrequencyMHz() {
+float get_gna_frequency_mHz() {
     uint32_t eax = 1;
     uint32_t ebx = 0;
     uint32_t ecx = 0;
@@ -264,11 +264,11 @@ float getGnaFrequencyMHz() {
  * @param stream output stream
  * @return none.
  */
-void printReferenceCompareResults(score_error_t const& totalError, size_t framesNum, std::ostream& stream) {
+void print_reference_compare_results(ScoreErrorT const& totalError, size_t framesNum, std::ostream& stream) {
     stream << "         max error: " << totalError.maxError << std::endl;
     stream << "         avg error: " << totalError.sumError / totalError.numScores << std::endl;
     stream << "     avg rms error: " << totalError.sumRmsError / framesNum << std::endl;
-    stream << "       stdev error: " << StdDevError(totalError) << std::endl << std::endl;
+    stream << "       stdev error: " << std_dev_error(totalError) << std::endl << std::endl;
     stream << std::endl;
 }
 
@@ -282,12 +282,12 @@ void printReferenceCompareResults(score_error_t const& totalError, size_t frames
  * @param FLAGS_d flag of device
  * @return none.
  */
-void printPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> const& utterancePerfMap,
-                              size_t numberOfFrames,
-                              std::ostream& stream,
-                              std::string fullDeviceName,
-                              const uint64_t numberOfFramesOnHw,
-                              std::string FLAGS_d) {
+void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo> const& utterancePerfMap,
+                                size_t numberOfFrames,
+                                std::ostream& stream,
+                                std::string fullDeviceName,
+                                const uint64_t numberOfFramesOnHw,
+                                std::string FLAGS_d) {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << ""
@@ -301,7 +301,7 @@ void printPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> 
     stream << std::endl;
     // if GNA HW counters
     // get frequency of GNA module
-    float freq = getGnaFrequencyMHz();
+    float freq = get_gna_frequency_mHz();
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
         float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
@@ -331,8 +331,8 @@ void printPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> 
  * @param perfCounters reference to a map to save performance counters
  * @return none.
  */
-void getPerformanceCounters(ov::runtime::InferRequest& request,
-                            std::map<std::string, ov::runtime::ProfilingInfo>& perfCounters) {
+void get_performance_counters(ov::runtime::InferRequest& request,
+                              std::map<std::string, ov::runtime::ProfilingInfo>& perfCounters) {
     auto retPerfCounters = request.get_profiling_info();
 
     for (const auto& element : retPerfCounters) {
@@ -347,9 +347,9 @@ void getPerformanceCounters(ov::runtime::InferRequest& request,
  * @param totalRunsOnHw reference to a total number of frames computed on GNA HW
  * @return none.
  */
-void sumPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> const& perfCounters,
-                            std::map<std::string, ov::runtime::ProfilingInfo>& totalPerfCounters,
-                            uint64_t& totalRunsOnHw) {
+void sum_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo> const& perfCounters,
+                              std::map<std::string, ov::runtime::ProfilingInfo>& totalPerfCounters,
+                              uint64_t& totalRunsOnHw) {
     auto runOnHw = false;
     for (const auto& pair : perfCounters) {
         totalPerfCounters[pair.first].real_time += pair.second.real_time;
@@ -364,7 +364,7 @@ void sumPerformanceCounters(std::map<std::string, ov::runtime::ProfilingInfo> co
  * @param str reference to user-specified input scale factor for quantization, can be separated by comma
  * @return vector scale factors
  */
-std::vector<std::string> ParseScaleFactors(const std::string& str) {
+std::vector<std::string> parse_scale_factors(const std::string& str) {
     std::vector<std::string> scaleFactorInput;
 
     if (!str.empty()) {
@@ -391,7 +391,7 @@ std::vector<std::string> ParseScaleFactors(const std::string& str) {
  * @param str file names separated by comma
  * @return vector of file names
  */
-std::vector<std::string> ConvertStrToVector(std::string str) {
+std::vector<std::string> convert_str_to_vector(std::string str) {
     std::vector<std::string> blobName;
     if (!str.empty()) {
         size_t pos_last = 0;
