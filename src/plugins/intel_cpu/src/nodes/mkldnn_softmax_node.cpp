@@ -34,6 +34,7 @@ size_t SoftmaxKey::hash() const {
 
     seed = hash_combine(seed, get_md_hash(inp0->getDnnlDesc().data));
     seed = hash_combine(seed, implType);
+    seed = hash_combine(seed, axis);
     return seed;
 }
 
@@ -43,7 +44,7 @@ bool SoftmaxKey::operator==(const SoftmaxKey& rhs) const {
         retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
     }
 
-    retVal = retVal && implType == rhs.implType;
+    retVal = retVal && implType == rhs.implType && axis == rhs.axis;
     return retVal;
 }
 }  // namespace

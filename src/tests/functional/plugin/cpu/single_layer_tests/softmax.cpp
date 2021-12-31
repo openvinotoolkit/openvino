@@ -12,10 +12,9 @@ using namespace CPUTestUtils;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
-using ShapesDefenition = std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>;
 
 struct SoftMaxConfig {
-    ShapesDefenition inputShapes;
+    ov::test::InputShape inputShape;
     size_t axis;
 };
 
@@ -38,18 +37,11 @@ public:
 
         std::ostringstream result;
         result << "netPRC=" << inType << "_";
-        if (!config.inputShapes.first.empty()) {
-            result << "IS=" << CommonTestUtils::partialShape2str(config.inputShapes.first) << "_";
-        }
+        result << "IS=" << CommonTestUtils::partialShape2str({config.inputShapes.first}) << "_";
         result << "TS=";
-        for (const auto& shape : config.inputShapes.second) {
+        for (const auto& shape : config.inputShape.second) {
             result << "(";
-            if (!shape.empty()) {
-                auto itr = shape.begin();
-                do {
-                    result << CommonTestUtils::vec2str(*itr);
-                } while (++itr != shape.end() && result << "_");
-            }
+            result << CommonTestUtils::vec2str(shape);
             result << ")_";
         }
         result << "axis=" << config.axis << "_";
@@ -75,11 +67,7 @@ protected:
             rel_threshold = 1e-2f;
         }
         selectedType = makeSelectedTypeStr(selectedType, inType);
-        targetStaticShapes = config.inputShapes.second;
-        inputDynamicShapes = config.inputShapes.first;
-
-        auto inputShape = targetStaticShapes.front().front();
-
+        init_input_shapes({config.inputShape});
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
 
         const auto paramOuts =
@@ -103,87 +91,85 @@ const auto notOptimizedCPUSpec = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any
 
 const std::vector<SoftMaxConfig> optimizedConfigsFP32 = {
     // Static shapes
-    {ShapesDefenition{{ov::PartialShape{1, 100}}, {{ov::Shape{1, 100}, ov::Shape{1, 100}}}}, 1},
-    {ShapesDefenition{{ov::PartialShape{10, 10}}, {{ov::Shape{10, 10}}}}, 1},
-    {ShapesDefenition{{ov::PartialShape{100, 1}}, {{ov::Shape{100, 1}}}}, 0},
-    {ShapesDefenition{{ov::PartialShape{100, 1}}, {{ov::Shape{100, 1}}}}, 1},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 1}}, {{ov::Shape{5, 5, 1}}}}, 1},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5}}, {{ov::Shape{5, 5, 5}}}}, 2},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5}}}}, 0},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 1, 1}}, {{ov::Shape{5, 5, 1, 1}}}}, 1},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5}}}}, 1},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 1}}, {{ov::Shape{5, 5, 5, 1}}}}, 2},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5}}}}, 2},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5}}}}, 3},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5}}}}, 0},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 1, 1, 1}}, {{ov::Shape{5, 5, 1, 1, 1}}}}, 1},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5}}}}, 1},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 1, 1}}, {{ov::Shape{5, 5, 5, 1, 1}}}}, 2},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5}}}}, 2},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 1, 1}}, {{ov::Shape{5, 5, 5, 1, 1}}}}, 3},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5}}}}, 3},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 1}}, {{ov::Shape{5, 5, 5, 5, 1}}}}, 4},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5}}}}, 4},
+    {ov::test::InputShape{ov::PartialShape{1, 100}, {ov::Shape{1, 100}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{10, 10}, {ov::Shape{10, 10}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{100, 1}, {ov::Shape{100, 1}}}, 0},
+    {ov::test::InputShape{ov::PartialShape{100, 1}, {ov::Shape{100, 1}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 1}, {ov::Shape{5, 5, 1}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5}, {ov::Shape{5, 5, 5}}}, 2},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5}}}, 0},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 1, 1}, {ov::Shape{5, 5, 1, 1}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 1}, {ov::Shape{5, 5, 5, 1}}}, 2},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5}}}, 2},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5}}}, 3},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5}}}, 0},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 1, 1, 1}, {ov::Shape{5, 5, 1, 1, 1}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 1, 1}, {ov::Shape{5, 5, 5, 1, 1}}}, 2},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5}}}, 2},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 1, 1}, {ov::Shape{5, 5, 5, 1, 1}}}, 3},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5}}}, 3},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 1}, {ov::Shape{5, 5, 5, 5, 1}}}, 4},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5}}}, 4},
     // Dynamic shapes
-    {ShapesDefenition{{// dynamic shape
-                       {-1, -1}},
-                      {// target static shapes
-                       {{10, 10}},
-                       {{15, 15}},
-                       {{10, 5}}}},
+    {ov::test::InputShape{// dynamic shape
+                          ov::PartialShape{-1, -1},
+                          {// target static shapes
+                           ov::Shape{10, 10},
+                           ov::Shape{15, 15},
+                           ov::Shape{10, 10},
+                           ov::Shape{10, 5}}},
      1},
-    {ShapesDefenition{{// dynamic shape
-                       {{1, 100}, {1, 100}}},
-                      {// target static shapes
-                       {{10, 10}},
-                       {{15, 15}},
-                       {{10, 5}}}},
-     1},
-    {ShapesDefenition{{// dynamic shape
-                       {-1, -1, 1, 1, 1}},
-                      {// target static shapes
-                       {{5, 5, 1, 1, 1}},
-                       {{10, 7, 1, 1, 1}}}},
+    {ov::test::InputShape{// dynamic shape
+                          ov::PartialShape{-1, -1, 1, 1, 1},
+                          {// target static shapes
+                           ov::Shape{5, 5, 1, 1, 1},
+                           ov::Shape{10, 7, 1, 1, 1},
+                           ov::Shape{5, 5, 1, 1, 1}}},
      1},
 };
 
 const std::vector<SoftMaxConfig> notOptimizedConfigsFP32{
     // Static shapes
-    {ShapesDefenition{{ov::PartialShape{1, 100}}, {{ov::Shape{1, 100}}}}, 0},
-    {ShapesDefenition{{ov::PartialShape{10, 10}}, {{ov::Shape{10, 10}}}}, 0},
-    {ShapesDefenition{{ov::PartialShape{10, 10, 10}}, {{ov::Shape{10, 10, 10}}}}, 0},
-    {ShapesDefenition{{ov::PartialShape{10, 10, 10}}, {{ov::Shape{10, 10, 10}}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{1, 100}, {ov::Shape{1, 100}}}, 0},
+    {ov::test::InputShape{ov::PartialShape{10, 10}, {ov::Shape{10, 10}}}, 0},
+    {ov::test::InputShape{ov::PartialShape{10, 10, 10}, {ov::Shape{10, 10, 10}}}, 0},
+    {ov::test::InputShape{ov::PartialShape{10, 10, 10}, {ov::Shape{10, 10, 10}}}, 1},
     // Dynamic shapes
-    {ShapesDefenition{{// dynamic shape
-                       ov::PartialShape{-1, -1}},
-                      {// target static shapes
-                       {ov::Shape{10, 1}},
-                       {ov::Shape{15, 15}},
-                       {ov::Shape{10, 5}}}},
+    {ov::test::InputShape{// dynamic shape
+                          ov::PartialShape{-1, -1},
+                          {// target static shapes
+                           ov::Shape{10, 1},
+                           ov::Shape{15, 15},
+                           ov::Shape{10, 5},
+                           ov::Shape{15, 15}}},
      0},
-    {ShapesDefenition{{// dynamic shape
-                       {ov::Dimension{1, 100}, ov::Dimension{1, 100}, -1}},
-                      {// target static shapes
-                       {ov::Shape{10, 10, 10}},
-                       {ov::Shape{10, 10, 1}},
-                       {ov::Shape{10, 5, 10}}}},
+    {ov::test::InputShape{// dynamic shape
+                          ov::PartialShape{ov::Dimension{1, 100}, ov::Dimension{1, 100}, -1},
+                          {// target static shapes
+                           ov::Shape{10, 10, 10},
+                           ov::Shape{10, 10, 1},
+                           ov::Shape{10, 5, 10},
+                           ov::Shape{10, 10, 1}}},
      1},
 };
 
 const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
     // Static shapes
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5, 5}}}}, 0},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5, 5}}}}, 1},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5, 5}}}}, 2},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5, 5}}}}, 3},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5, 5}}}}, 4},
-    {ShapesDefenition{{ov::PartialShape{5, 5, 5, 5, 5, 5}}, {{ov::Shape{5, 5, 5, 5, 5, 5}}}}, 5},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5, 5}}}, 0},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5, 5}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5, 5}}}, 2},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5, 5}}}, 3},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5, 5}}}, 4},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5, 5, 5}}}, 5},
     // Dynamic shapes
-    {ShapesDefenition{{// dynamic shape
-                       ov::PartialShape{-1, -1, -1, -1, -1, -1}},
-                      {// target static shapes
-                       {ov::Shape{5, 5, 5, 5, 5, 5}},
-                       {ov::Shape{7, 7, 7, 7, 7, 7}}}},
+    {ov::test::InputShape{// dynamic shape
+                          ov::PartialShape{-1, -1, -1, -1, -1, -1},
+                          {// target static shapes
+                           ov::Shape{5, 5, 5, 5, 5, 5},
+                           ov::Shape{7, 7, 7, 7, 7, 7},
+                           ov::Shape{5, 5, 5, 5, 5, 5}}},
      4},
 };
 
