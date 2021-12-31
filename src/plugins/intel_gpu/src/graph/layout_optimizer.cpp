@@ -925,7 +925,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         }
     }
 
-    if (use_onednn_impls) {
+    if (use_onednn_impls && onednn_valid_post_ops) {
         std::function<bool(const program_node&)> has_any_convolutions_below;
         has_any_convolutions_below = [&](const program_node& node) -> bool {
             for (auto& usr : node.get_users()) {
@@ -993,7 +993,11 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         //}
     } else {
         /* *************************** Native impls format selection part ************************** */
-        if (i8_u8_input) {
+        if (use_onednn_impls && i8_u8_input) {
+            // It is here because of post operation condition for onednn.
+            // Use fsv32 for onednn friendliness.
+            expected_format = cldnn::format::b_fs_yx_fsv32;
+        } else if (i8_u8_input) {
             if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                 convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
                 expected_format = cldnn::format::b_fs_yx_fsv16;
