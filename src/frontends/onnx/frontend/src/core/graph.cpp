@@ -31,6 +31,12 @@ static std::string to_string(
     return result;
 }
 
+inline std::string generate_result_name(const std::string& onnx_output_name,
+                                        const std::shared_ptr<ov::Node>& result_node) {
+    auto output_index = result_node->input(0).get_source_output().get_index();
+    return onnx_output_name + "/sink_port_" + std::to_string(output_index);
+}
+
 /// \brief      Gets the operator represented by provided node unique identificator.
 ///
 /// \param[in]  node_proto  The node protobuf representation object.
@@ -199,9 +205,10 @@ void Graph::decode_to_framework_nodes() {
         if (node.has_subgraphs()) {
             const auto& subgraphs = node.get_subgraphs();
             auto inputs = node.get_ng_inputs();
+            std::vector<std::shared_ptr<Function>> functions;
             for (const auto& kv : subgraphs) {
                 auto& subgraph = kv.second;
-                subgraph->decode();
+                functions.push_back(subgraph->decode());
                 for (const auto& input : subgraph->get_inputs_from_parent()) {
                     const auto& name = input.get_node()->get_friendly_name();
                     if (std::find_if(inputs.begin(), inputs.end(), [&name](const Output<ngraph::Node>& n) -> bool {
@@ -211,10 +218,9 @@ void Graph::decode_to_framework_nodes() {
                     }
                 }
             }
-            framework_node =
-                std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(shared_from_this(), node, inputs);
+            framework_node = std::make_shared<frontend::ONNXSubgraphFrameworkNode>(node, functions, inputs);
         } else {
-            framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(shared_from_this(), node);
+            framework_node = std::make_shared<frontend::ONNXFrameworkNode>(node);
         }
         OutputVector ng_nodes{framework_node->outputs()};
         set_friendly_names(node, ng_nodes);
@@ -232,15 +238,18 @@ std::shared_ptr<Function> Graph::create_function() {
     const auto& onnx_outputs = m_model->get_graph().output();
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
         // the suffix makes the Result's name unique in case the nodes in the model don't have a name
-        const auto suffix = "/sink_port_" + std::to_string(i);
-        function->get_output_op(i)->set_friendly_name(onnx_outputs.Get(i).name() + suffix);
+        auto ov_result = function->get_output_op(i);
+        ov_result->set_friendly_name(detail::generate_result_name(onnx_outputs.Get(i).name(), ov_result));
     }
     return function;
 }
 
 std::shared_ptr<Function> Graph::decode() {
     decode_to_framework_nodes();
-    return create_function();
+    auto function = create_function();
+    auto& rt_info = function->get_rt_info();
+    rt_info[ONNX_GRAPH_RT_ATTRIBUTE] = shared_from_this();
+    return function;
 }
 
 bool Graph::is_ng_node_in_cache(const std::string& name) const {
@@ -399,7 +408,8 @@ void Subgraph::find_inputs_from_parent() {
         for (const auto& out_name : node_proto.output()) {
             if (m_cache->contains(out_name)) {
                 auto node_to_replace_input = m_cache->get_node(out_name).get_node();
-                if (!dynamic_cast<op::util::MultiSubGraphOp*>(node_to_replace_input))
+                if (!ov::is_type<op::util::MultiSubGraphOp>(node_to_replace_input) &&
+                    !ov::is_type<frontend::ONNXSubgraphFrameworkNode>(node_to_replace_input))
                     continue;
                 auto inputs = node_to_replace_input->input_values();
                 for (size_t i = 0; i < inputs.size(); i++) {

@@ -26,6 +26,7 @@ class Parameter(Op):
             'type_infer': self.type_infer,
 
             'out_ports_count': 1,
+            'user_shape': None,
         }
         if 'data_type' not in attrs:
             mandatory_props['data_type'] = np.float32
@@ -35,9 +36,27 @@ class Parameter(Op):
     def type_infer(node):
         node.out_port(0).set_data_type(node.data_type)
 
+    @staticmethod
+    def shape_serialize(node):
+        def serialize_dimension(dim: [tuple, np.int64]):
+            if type(dim) == tuple:
+                assert len(dim) == 2, "Unable to serialize shape {} in node {}".format(node.soft_get('user_shape'),
+                                                                                       node.soft_get('name', node.id))
+                min_str = str(dim[0]) if dim[0] > 0 else ""
+                max_str = str(dim[1]) if dim[1] < np.iinfo(np.int64).max else ""
+                return min_str + ".." + max_str
+            return str(dim)
+
+        if not node.has_valid('user_shape'):
+            return ','.join([str(i) for i in unmask_shape(node.shape)])
+        shape = node.soft_get('user_shape')
+        if isinstance(shape, np.ma.masked_array):
+            shape = unmask_shape(shape)
+        return ','.join(map(serialize_dimension, shape))
+
     def supported_attrs(self):
         return [
-            ('shape', lambda node: ','.join([str(i) for i in unmask_shape(node.shape)])),
+            ('shape', lambda node: self.shape_serialize(node)),
             ('element_type', lambda node: np_data_type_to_destination_type(node.data_type)),
         ]
 

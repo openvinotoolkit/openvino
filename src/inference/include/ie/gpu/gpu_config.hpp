@@ -47,7 +47,7 @@ DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
 
 /**
  * @brief Metric to get statistics of GPU memory allocated by engine for each allocation type
- * It contains information about both current and peak memory usage
+ * It contains information about current memory usage
  */
 DECLARE_GPU_METRIC_KEY(MEMORY_STATISTICS, std::map<std::string, uint64_t>);
 
@@ -154,6 +154,12 @@ DECLARE_GPU_CONFIG_KEY(MAX_NUM_THREADS);
  * turning this key on will increase the graph loading time in proportion to the iteration counts.
  * Thus, this key should be turned off if graph loading time is considered to be most important target to optimize.*/
 DECLARE_GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
+
+/**
+ * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
+ */
+DECLARE_GPU_CONFIG_KEY(SURFACE);
+DECLARE_GPU_CONFIG_KEY(BUFFER);
 
 }  // namespace GPUConfigParams
 

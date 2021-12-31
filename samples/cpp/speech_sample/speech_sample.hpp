@@ -1,7 +1,3 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
-
 #pragma once
 
 #include <gflags/gflags.h>
@@ -166,9 +162,6 @@ DEFINE_string(wg, "", write_gna_model_message);
 /// @brief Write GNA embedded model to file (model.bin)
 DEFINE_string(we, "", write_embedded_model_message);
 
-/// @brief Optional GNA embedded device generation (default GNA1 aka Sue Creek) - hide option
-DEFINE_string(we_gen, "GNA1", write_embedded_model_generation_message);
-
 /// @brief Input quantization mode (default static)
 DEFINE_string(q, "static", quantization_message);
 
@@ -207,24 +200,118 @@ static void showUsage() {
     std::cout << "speech_sample [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
-    std::cout << "    -h                      " << help_message << std::endl;
-    std::cout << "    -i \"<path>\"             " << input_message << std::endl;
-    std::cout << "    -m \"<path>\"             " << model_message << std::endl;
-    std::cout << "    -o \"<path>\"             " << output_message << std::endl;
-    std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
-    std::cout << "    -pc                     " << performance_counter_message << std::endl;
-    std::cout << "    -q \"<mode>\"             " << quantization_message << std::endl;
-    std::cout << "    -qb \"<integer>\"         " << quantization_bits_message << std::endl;
-    std::cout << "    -sf \"<double>\"          " << scale_factor_message << std::endl;
-    std::cout << "    -bs \"<integer>\"         " << batch_size_message << std::endl;
-    std::cout << "    -r \"<path>\"             " << reference_score_message << std::endl;
-    std::cout << "    -rg \"<path>\"            " << read_gna_model_message << std::endl;
-    std::cout << "    -wg \"<path>\"            " << write_gna_model_message << std::endl;
-    std::cout << "    -we \"<path>\"            " << write_embedded_model_message << std::endl;
-    std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
-    std::cout << "    -cw_l \"<integer>\"       " << context_window_message_l << std::endl;
-    std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;
-    std::cout << "    -oname \"<string>\"       " << output_layer_names_message << std::endl;
-    std::cout << "    -iname \"<string>\"       " << input_layer_names_message << std::endl;
-    std::cout << "    -pwl_me \"<double>\"      " << pwl_max_error_percent_message << std::endl;
+    std::cout << "    -h                         " << help_message << std::endl;
+    std::cout << "    -i \"<path>\"                " << input_message << std::endl;
+    std::cout << "    -m \"<path>\"                " << model_message << std::endl;
+    std::cout << "    -o \"<path>\"                " << output_message << std::endl;
+    std::cout << "    -d \"<device>\"              " << target_device_message << std::endl;
+    std::cout << "    -pc                        " << performance_counter_message << std::endl;
+    std::cout << "    -q \"<mode>\"                " << quantization_message << std::endl;
+    std::cout << "    -qb \"<integer>\"            " << quantization_bits_message << std::endl;
+    std::cout << "    -sf \"<double>\"             " << scale_factor_message << std::endl;
+    std::cout << "    -bs \"<integer>\"            " << batch_size_message << std::endl;
+    std::cout << "    -r \"<path>\"                " << reference_score_message << std::endl;
+    std::cout << "    -rg \"<path>\"               " << read_gna_model_message << std::endl;
+    std::cout << "    -wg \"<path>\"               " << write_gna_model_message << std::endl;
+    std::cout << "    -we \"<path>\"               " << write_embedded_model_message << std::endl;
+    std::cout << "    -nthreads \"<integer>\"      " << infer_num_threads_message << std::endl;
+    std::cout << "    -cw_l \"<integer>\"          " << context_window_message_l << std::endl;
+    std::cout << "    -cw_r \"<integer>\"          " << context_window_message_r << std::endl;
+    std::cout << "    -oname \"<string>\"          " << output_layer_names_message << std::endl;
+    std::cout << "    -iname \"<string>\"          " << input_layer_names_message << std::endl;
+    std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
+    std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
+    std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
+}
+
+/**
+ * @brief Checks input arguments
+ * @param argc number of args
+ * @param argv list of input arguments
+ * @return bool status true(Success) or false(Fail)
+ */
+bool ParseAndCheckCommandLine(int argc, char* argv[]) {
+    slog::info << "Parsing input parameters" << slog::endl;
+
+    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+    if (FLAGS_h) {
+        showUsage();
+        showAvailableDevices();
+        return false;
+    }
+    bool isDumpMode = !FLAGS_wg.empty() || !FLAGS_we.empty();
+
+    // input not required only in dump mode and if external scale factor provided
+    if (FLAGS_i.empty() && (!isDumpMode || FLAGS_q.compare("user") != 0)) {
+        showUsage();
+        if (isDumpMode) {
+            throw std::logic_error("In model dump mode either static quantization is used (-i) or user scale"
+                                   " factor need to be provided. See -q user option");
+        }
+        throw std::logic_error("Input file not set. Please use -i.");
+    }
+
+    if (FLAGS_m.empty() && FLAGS_rg.empty()) {
+        showUsage();
+        throw std::logic_error("Either IR file (-m) or GNAModel file (-rg) need to be set.");
+    }
+
+    if ((!FLAGS_m.empty() && !FLAGS_rg.empty())) {
+        throw std::logic_error("Only one of -m and -rg is allowed.");
+    }
+
+    std::vector<std::string> supportedDevices = {"CPU",
+                                                 "GPU",
+                                                 "GNA_AUTO",
+                                                 "GNA_HW",
+                                                 "GNA_HW_WITH_SW_FBACK",
+                                                 "GNA_SW_EXACT",
+                                                 "GNA_SW",
+                                                 "GNA_SW_FP32",
+                                                 "HETERO:GNA,CPU",
+                                                 "HETERO:GNA_HW,CPU",
+                                                 "HETERO:GNA_SW_EXACT,CPU",
+                                                 "HETERO:GNA_SW,CPU",
+                                                 "HETERO:GNA_SW_FP32,CPU",
+                                                 "MYRIAD"};
+
+    if (std::find(supportedDevices.begin(), supportedDevices.end(), FLAGS_d) == supportedDevices.end()) {
+        throw std::logic_error("Specified device is not supported.");
+    }
+
+    uint32_t batchSize = (uint32_t)FLAGS_bs;
+    if ((batchSize < 1) || (batchSize > 8)) {
+        throw std::logic_error("Batch size out of range (1..8).");
+    }
+
+    /** default is a static quantization **/
+    if ((FLAGS_q.compare("static") != 0) && (FLAGS_q.compare("dynamic") != 0) && (FLAGS_q.compare("user") != 0)) {
+        throw std::logic_error("Quantization mode not supported (static, dynamic, user).");
+    }
+
+    if (FLAGS_q.compare("dynamic") == 0) {
+        throw std::logic_error("Dynamic quantization not yet supported.");
+    }
+
+    if (FLAGS_qb != 16 && FLAGS_qb != 8) {
+        throw std::logic_error("Only 8 or 16 bits supported.");
+    }
+
+    if (FLAGS_nthreads <= 0) {
+        throw std::logic_error("Invalid value for 'nthreads' argument. It must be greater that or equal to 0");
+    }
+
+    if (FLAGS_cw_r < 0) {
+        throw std::logic_error("Invalid value for 'cw_r' argument. It must be greater than or equal to 0");
+    }
+
+    if (FLAGS_cw_l < 0) {
+        throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
+    }
+
+    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 100.0) {
+        throw std::logic_error("Invalid value for 'pwl_me' argument. It must be greater than 0.0 and less than 100.0");
+    }
+
+    return true;
 }
