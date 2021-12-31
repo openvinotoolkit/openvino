@@ -37,7 +37,7 @@ public:
 
         std::ostringstream result;
         result << "netPRC=" << inType << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({config.inputShapes.first}) << "_";
+        result << "IS=" << CommonTestUtils::partialShape2str({config.inputShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : config.inputShape.second) {
             result << "(";
