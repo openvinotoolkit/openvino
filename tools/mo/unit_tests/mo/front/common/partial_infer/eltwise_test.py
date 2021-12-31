@@ -116,7 +116,7 @@ dyn = dynamic_dimension_value
 
 class TestElementwiseReverseInfer(unittest.TestCase):
     @staticmethod
-    def build_and_test_reverse_inference(inp_shape_1, inp_shape_2, out_shape, ref_shape):
+    def build_and_test_reverse_inference(inp_shape_1, inp_shape_2, out_shape, ref_shape, auto_broadcast='numpy'):
         in_port_with_defined_shape = 0 if inp_shape_1 is not None else 1
         defined_shape = shape_array(inp_shape_1 if inp_shape_1 is not None else inp_shape_2)
 
@@ -125,7 +125,8 @@ class TestElementwiseReverseInfer(unittest.TestCase):
             **shaped_parameter('data', shape_array(defined_shape), {'reverse_infer': Parameter.reverse_infer}),
             **regular_op_with_empty_data('elementwise', {'op': 'Add', 'type': 'Add',
                                                          'infer': eltwise_infer,
-                                                         'reverse_infer': eltwise_reverse_infer}),
+                                                         'reverse_infer': eltwise_reverse_infer,
+                                                         'auto_broadcast': auto_broadcast}),
             **result('res'),
         }
 
@@ -142,8 +143,10 @@ class TestElementwiseReverseInfer(unittest.TestCase):
 
         partial_infer(graph)
         actual_shape = Node(graph, 'undefined_shape_data').out_port(0).data.get_shape()
-        assert strict_compare_tensors(actual_shape, shape_array(ref_shape))
-
+        if ref_shape is None:
+            assert actual_shape == ref_shape
+        else:
+            assert strict_compare_tensors(actual_shape, shape_array(ref_shape))
 
     def test_reverse_infer_1(self):
         self.build_and_test_reverse_inference(inp_shape_1=[dyn, dyn],
@@ -173,4 +176,33 @@ class TestElementwiseReverseInfer(unittest.TestCase):
         self.build_and_test_reverse_inference(inp_shape_1=[4, 1],
                                               inp_shape_2=None,
                                               out_shape=[dyn, dyn, 4, 1],
-                                              ref_shape=[dyn, dyn, dyn, dyn])
+                                              ref_shape=[dyn, dyn, dyn, 1])
+
+    def test_reverse_infer_6(self):
+        # both output and input has the same rank, cannot deduce other inputs rank
+        with self.assertRaisesRegex(Error, 'Stopped shape/value propagation'):
+            self.build_and_test_reverse_inference(inp_shape_1=[dyn, dyn, dyn, dyn],
+                                                  inp_shape_2=None,
+                                                  out_shape=[dyn, dyn, 4, 1],
+                                                  ref_shape=None)
+
+    def test_reverse_infer_7(self):
+        with self.assertRaisesRegex(AssertionError, "Shapes of Elementwise node '.*' are not compatible"):
+            self.build_and_test_reverse_inference(inp_shape_1=[4, dyn],
+                                                  inp_shape_2=None,
+                                                  out_shape=[1, dyn, dyn, 1],
+                                                  ref_shape=None)
+
+    def test_reverse_infer_8(self):
+        with self.assertRaisesRegex(AssertionError, "Shapes of Elementwise node '.*' are not compatible"):
+            self.build_and_test_reverse_inference(inp_shape_1=[4, dyn],
+                                                  inp_shape_2=None,
+                                                  out_shape=[1, dyn, 7, 1],
+                                                  ref_shape=None)
+
+    def test_reverse_infer_no_broadcast(self):
+        self.build_and_test_reverse_inference(inp_shape_1=[1, 4, dyn, dyn],
+                                              inp_shape_2=None,
+                                              out_shape=[1, dyn, dyn, 1],
+                                              ref_shape=[1, 4, dyn, 1],
+                                              auto_broadcast='none')

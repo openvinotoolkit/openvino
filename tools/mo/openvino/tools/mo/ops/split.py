@@ -229,7 +229,7 @@ class Split(SplitBase):
             'version': 'opset1',
 
             'infer': self.infer,
-            'reverse_infer': reverse_bypass_infer,
+            'reverse_infer': lambda x: reverse_bypass_infer(x, in_ports=[0]),
 
             'in_ports_count': 2,
         }, attrs)

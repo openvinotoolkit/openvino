@@ -316,10 +316,11 @@ def is_dynamic_slice(s: [slice, int, None]):
                                      s.step is dynamic_dimension)
 
 
-def reverse_bypass_infer(node, ports: List[int] = None):
+def reverse_bypass_infer(node, in_ports: List[int] = None):
     output_shape = node.out_port(0).data.get_shape()
     if output_shape is not None:
-        ports = node.in_ports().keys() if ports is None else []
-        for port in ports:
+        if in_ports is None:
+            in_ports = node.in_ports().keys()
+        for port in in_ports:
             if node.in_port(port).data.get_shape() is None:
                 node.in_port(port).data.set_shape(output_shape)
