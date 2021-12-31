@@ -886,12 +886,14 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 // LoadNetwork
 //
 
-TEST(IEClassBasicTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
-  InferenceEngine::CNNNetwork actualCnnNetwork;
-  std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
-  ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
-  InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-  ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));
+TEST_P(IEClassNetworkTestP, LoadNetworkToDefaultDeviceNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    if (deviceName == "CPU") {
+        ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, {{"MULTI_DEVICE_PRIORITIES", "CPU"}}));
+    } else {
+        ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));
+    }
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
