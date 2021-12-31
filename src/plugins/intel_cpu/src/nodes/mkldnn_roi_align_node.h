@@ -15,7 +15,7 @@ namespace MKLDNNPlugin {
 
 enum ROIAlignLayoutType {
     ncsp,
-    nCspc,
+    blk,
     nspc
 };
 
