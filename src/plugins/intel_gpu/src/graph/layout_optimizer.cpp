@@ -1555,11 +1555,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         } else if (layout.format.spatial_num() == 2 &&
             (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
             layout.size.batch[0] % 16 == 0) {
-            if (use_onednn_impls && layout.size.batch[0] >= 16) {
+            if (use_onednn_impls && layout.size.batch[0] % 32 == 0) {
                 if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>()) {
                     auto& conv = node.get_users().front()->as<convolution>();
-                    auto ws = conv.get_dependency(1).get_output_layout().size;
-                    if (ws.spatial[0] != 7 || conv.get_primitive()->groups > 1)
+                    if (conv.get_primitive()->groups > 1)
                         expected = format::bfyx;
                     else
                         expected = format::bs_fs_yx_bsv8_fsv4;
