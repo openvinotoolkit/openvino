@@ -1201,7 +1201,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         if (in_dt == data_types::f32 && wei_dt == data_types::f32)
             return true;
         if ((in_dt == data_types::i8 || in_dt == data_types::u8) && (wei_dt == data_types::i8) &&
-            (out_dt == data_types::i8 || out_dt == data_types::u8 || out_dt == data_types::i32 || out_dt == data_types::f32))
+            (out_dt == data_types::i8 || out_dt == data_types::u8 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::f32))
             return true;
     }
 
