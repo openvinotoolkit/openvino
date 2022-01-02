@@ -14,37 +14,50 @@ Start working with the OpenVINO™ toolkit right from your browser: import a mod
 * Analyze the quality of your model and visualize output.
 * Use preconfigured JupyterLab\* environment to learn OpenVINO™ workflow. 
 
+
 ## Run DL Workbench 
 
 You can [run DL Workbench](@ref workbench_docs_Workbench_DG_Install) on your local system or in the Intel® DevCloud for the Edge. Ensure that you have met the [prerequisites](@ref workbench_docs_Workbench_DG_Prerequisites).
 
 Run DL Workbench on your local system by using the installation form. Select your options and run the commands on the local machine:
 
-<iframe style="width: 100%; height: 620px;" src="https://openvinotoolkit.github.io/workbench_aux/"  frameborder="0" allow="clipboard-write;"></iframe>
+@sphinxdirective
+.. raw:: html
+
+   <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen style="width: 100%; height: 620px;" src="https://openvinotoolkit.github.io/workbench_aux/"  frameborder="0" allow="clipboard-write;"></iframe>
+
+@endsphinxdirective
 
 Once DL Workbench is set up, open the http://127.0.0.1:5665 link.
 
 ![](./dl_workbench_img/active_projects_page.png)
 
+Watch the video to learn more detailed information on how to run DL Workbench:
+
+@sphinxdirective
+.. list-table::
+
+   * - .. raw:: html
+          
+          <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="100%" src="https://www.youtube.com/embed/JBDG2g5hsoM" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+   * - **Inference Engine Concept**. Duration: 3:43
+     
+@endsphinxdirective
+
+@sphinxdirective
+.. list-table::
+
+   * - .. raw:: html
+          
+          <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="100%" src="https://www.youtube.com/embed/on8xSSTKCt8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+   * - **Inference Engine Concept**. Duration: 3:43
+     
+@endsphinxdirective
+
 
 Congratulations, you have installed DL Workbench. Your next step is to [Get Started with DL Workbench](@ref workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets) and create your first project. 
-
-## Videos
-
-<table>
-  <tr>
-    <td>
-<iframe width="320" src="https://www.youtube.com/embed/on8xSSTKCt8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</td>
-<td>
-    <iframe width="320" src="https://www.youtube.com/embed/JBDG2g5hsoM" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</td>
-  </tr>
-  <tr>
-    <td><strong>What is the OpenVINO™ toolkit DL Workbench</strong>. <br>Duration: 1:31</td>
-    <td><strong>How to Install the OpenVINO™ toolkit DL Workbench</strong>. <br>Duration: 8:20</td>
-  </tr>
-</table>
 
 ## See Also
 * [Get Started with DL Workbench](@ref workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets)

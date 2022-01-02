@@ -73,7 +73,7 @@ protected:
 
         VectorDims zeroStrides(descDnnl.getBlockDims().size(), 0);
         validate(descDnnl, zeroStrides, offset, offsetPadding, 0);
-        validate(descCpu, zeroStrides, offset, offsetPadding, precision.size());
+        validate(descCpu, zeroStrides, offset, offsetPadding, 0);
 
         ASSERT_TRUE(descDnnl.isCompatible(descCpu));
         ASSERT_TRUE(descCpu.isCompatible(descDnnl));
@@ -94,7 +94,7 @@ protected:
         validate(*definedDnnl->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0);
 
         const auto definedCpu = descCpu.cloneWithDefaultStridesAndOffset();
-        validate(*definedCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, precision.size());
+        validate(*definedCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0);
     }
 };
 
@@ -243,7 +243,7 @@ TEST_P(MemDescWithZeroDimsCloneNewDimsTest, CloneWithNewDims) {
     const auto& dims = shape.getDims();
     bool skipOrderCheck = std::all_of(dims.begin() + 1, dims.end(), [](const size_t& dim) { return dim == 0; });
     validate(*clonedDescDnnl->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0, skipOrderCheck);
-    validate(*clonedDescCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, precision.size());
+    validate(*clonedDescCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0);
 }
 
 const std::vector<Shape> srcDynShapes = {
