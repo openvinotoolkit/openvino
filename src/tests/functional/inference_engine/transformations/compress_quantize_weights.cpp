@@ -69,7 +69,7 @@ class CompressQuantizeWeightsTests
 TEST_P(CompressQuantizeWeightsTests, FusionTest) {
 }
 
-std::vector<CompressQuantizeWeightsParams> params = {
+static std::vector<CompressQuantizeWeightsParams> params = {
     {Shape{2, 3, 1, 1}, {-1, 2, 3, 4, 5, 11}, 0, 10, -1, 5, 3, element::i4, {-1, -1, 0, 0, 0, 1}, 3, -0.666667},
     {Shape{2, 3, 1, 1}, {-1, 2, 3, 4, 5, 11}, 0, 10, -1, 4, 16, element::i4, {-8, -5, -4, -2, 0, 7}, 0.333333, -5},
     {Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11}, 1, 9, -2, 6, 17, element::i8, {-8, -8, -8, -6, -4, -2, 0, 8}, 0.5, -4},
