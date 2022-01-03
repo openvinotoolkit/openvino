@@ -214,7 +214,8 @@ int main(int argc, char* argv[]) {
             }
             if (!FLAGS_m.empty()) {
                 for (size_t i = 0; i < outputs.size(); i++) {
-                    model->add_output(outputs[i], ports[i]);
+                    auto newOutput = model->add_output(outputs[i], ports[i]);
+                    newOutput.get_tensor().set_element_type(ov::element::f32);
                 }
             }
         }
