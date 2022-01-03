@@ -51,8 +51,8 @@ from openvino.frontend import FrontEndManager
 #
 #
 # ------Test input model 3------
-#        in1           in2
-#      /      \         |
+#    in1         in2
+#     |         /   \
 #     +--------+     +------+
 #     |  Add   |     | Relu |
 #     +--------+     +------+
@@ -102,11 +102,10 @@ def create_test_onnx_models():
                                               opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Input model 3
-    add_2 = onnx.helper.make_node("Add", inputs=["in1", "in1"], outputs=["out1"], name="onnx_add_op")
+    add_2 = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["out1"], name="onnx_add_op")
     relu_2 = onnx.helper.make_node("Relu", inputs=["in2"], outputs=["out2"])
 
     input_tensors = [
-        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
     ]
@@ -219,7 +218,7 @@ def create_test_onnx_models():
     # Expected for test_override_all_outputs 3
     input_tensors = [
         make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
-        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     output_tensors = [
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
@@ -387,6 +386,7 @@ def compare_functions(current, expected):  # noqa: C901 the function is too comp
         result = False
         msg += "Not equal number of ops. "
         msg += f"Current: {len(current_ops)}, expected: {len(expected_ops)}. "
+        return result
 
     for i in range(len(current_ops)):
         if (current_ops[i].get_friendly_name() != expected_ops[i].get_friendly_name()
@@ -652,8 +652,6 @@ def test_override_all_outputs_3():
     expected_func = fe.convert(expected_model)
 
     res = compare_functions(result_func, expected_func)
-    print(result_func)
-    print(expected_func)
     assert res
 
 def test_override_all_outputs_invalid_place():
@@ -677,8 +675,6 @@ def test_override_all_outputs_invalid_place():
     expected_func = fe.convert(expected_model)
 
     res = compare_functions(result_func, expected_func)
-    print(result_func)
-    print(expected_func)
     assert res
 
 
@@ -700,6 +696,32 @@ def test_override_all_inputs():
     result_func = fe.convert(model)
 
     expected_model = fe.load("test_override_all_inputs.onnx")
+    expected_func = fe.convert(expected_model)
+
+    res = compare_functions(result_func, expected_func)
+    assert res
+
+def test_override_all_inputs_invalid_place():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model_3.onnx")
+    assert model
+
+    model2 = fe.load("input_model.onnx")
+    assert model2
+
+    out3_tensor =  model2.get_place_by_tensor_name(tensor_name="out3")
+    invalid_place = out3_tensor.get_producing_operation().get_input_port(input_port_index=0)
+
+    out1_tensor = model.get_place_by_tensor_name(tensor_name="out1")
+    place1 = out1_tensor.get_producing_operation().get_input_port(input_port_index=0)
+    place2 = out1_tensor.get_producing_operation().get_input_port(input_port_index=1)
+    model.override_all_inputs(inputs=[place1, place2, invalid_place])
+    result_func = fe.convert(model)
+
+    expected_model = fe.load("input_model_3.onnx")
     expected_func = fe.convert(expected_model)
 
     res = compare_functions(result_func, expected_func)

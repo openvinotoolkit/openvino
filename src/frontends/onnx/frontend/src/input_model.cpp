@@ -210,14 +210,14 @@ std::shared_ptr<Model> InputModel::convert() {
 bool InputModel::is_coorect_place(const ov::frontend::Place::Ptr& place) const {
     if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(place)) {
         return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
-    } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(place)) {
+    } if (const auto op = std::dynamic_pointer_cast<PlaceOp>(place)) {
         return m_editor->is_correct_and_unambiguous_node(op->get_editor_node());
-    } else if (const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place)) {
-        if (auto tensor = std::dynamic_pointer_cast<PlaceInputEdge>(input_edge->get_source_tensor())) {
+    } if (const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place)) {
+        if (auto tensor = std::dynamic_pointer_cast<PlaceTensor>(input_edge->get_source_tensor())) {
             return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
         }
-    } else if (const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place)) {
-        if (auto tensor = std::dynamic_pointer_cast<PlaceInputEdge>(output_edge->get_target_tensor())) {
+    } if (const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place)) {
+        if (auto tensor = std::dynamic_pointer_cast<PlaceTensor>(output_edge->get_target_tensor())) {
             return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
         }
     }
@@ -263,13 +263,13 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
         bool is_correct = is_coorect_place(input);
         if (!is_correct)
             NGRAPH_WARN << "Name  " << input->get_names().at(0)
-                        << " of input node is not a correct node name. Ignoring this parameter.";
+                        << " of input node is not a correct node. Ignoring this parameter.";
         else
             expected_valid_inputs.push_back(input);
     }
 
     const auto outputs_before_extraction = m_editor->model_outputs();
-    extract_subgraph({inputs}, {});
+    extract_subgraph({expected_valid_inputs}, {});
 
     NGRAPH_CHECK(std::equal(std::begin(outputs_before_extraction),
                             std::end(outputs_before_extraction),
