@@ -245,7 +245,9 @@ namespace {
         if (cell_state_defined)
             tensor_iterator->get_iter_value(C_out);
         tensor_iterator->set_friendly_name(sequence->get_friendly_name());
-        ngraph::NodeVector new_nodes{tensor_iterator};
+        ngraph::NodeVector new_nodes{squeezed_h, tensor_iterator};
+        if (cell_state_defined)
+            new_nodes.push_back(squeezed_c);
         ngraph::OutputVector nodes_to_replace;
         if (enable_mask && is_reverse) {
             auto reverse_seq_after = std::make_shared<ngraph::opset5::ReverseSequence>(tensor_iterator->output(0), seq_lengths, 0, 1);
