@@ -1558,7 +1558,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             if (use_onednn_impls && layout.size.batch[0] % 32 == 0) {
                 if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>()) {
                     auto& conv = node.get_users().front()->as<convolution>();
-                    if (conv.get_primitive()->groups > 1 || layout.size.feature[0] == 1)
+                    auto ws = conv.get_dependency(1).get_output_layout().size;
+                    if (ws.spatial[0] != 7 || conv.get_primitive()->groups > 1 || layout.size.feature[0] == 1)
                         expected = format::bfyx;
                     else
                         expected = format::bs_fs_yx_bsv8_fsv4;
