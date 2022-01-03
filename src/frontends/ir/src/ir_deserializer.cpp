@@ -717,8 +717,12 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
 
     ngraphNode->set_friendly_name(params.name);
     for (size_t i = 0; i < params.outputPorts.size() && i < ngraphNode->get_output_size(); ++i) {
-        if (!params.outputPorts[i].names.empty())
+        if (!params.outputPorts[i].names.empty()) {
             ngraphNode->get_output_tensor(i).set_names(params.outputPorts[i].names);
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            ngraphNode->get_output_tensor(i).set_name(*params.outputPorts[i].names.begin());
+            NGRAPH_SUPPRESS_DEPRECATED_END
+        }
     }
 
     ov::pass::Attributes attrs_factory;
