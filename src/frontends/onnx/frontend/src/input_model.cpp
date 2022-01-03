@@ -210,13 +210,16 @@ std::shared_ptr<Model> InputModel::convert() {
 bool InputModel::is_coorect_place(const ov::frontend::Place::Ptr& place) const {
     if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(place)) {
         return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
-    } if (const auto op = std::dynamic_pointer_cast<PlaceOp>(place)) {
+    }
+    if (const auto op = std::dynamic_pointer_cast<PlaceOp>(place)) {
         return m_editor->is_correct_and_unambiguous_node(op->get_editor_node());
-    } if (const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place)) {
+    }
+    if (const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place)) {
         if (auto tensor = std::dynamic_pointer_cast<PlaceTensor>(input_edge->get_source_tensor())) {
             return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
         }
-    } if (const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place)) {
+    }
+    if (const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place)) {
         if (auto tensor = std::dynamic_pointer_cast<PlaceTensor>(output_edge->get_target_tensor())) {
             return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
         }

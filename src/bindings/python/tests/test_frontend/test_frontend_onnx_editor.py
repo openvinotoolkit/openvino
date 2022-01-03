@@ -654,6 +654,7 @@ def test_override_all_outputs_3():
     res = compare_functions(result_func, expected_func)
     assert res
 
+
 def test_override_all_outputs_invalid_place():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
@@ -701,6 +702,7 @@ def test_override_all_inputs():
     res = compare_functions(result_func, expected_func)
     assert res
 
+
 def test_override_all_inputs_invalid_place():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
@@ -726,6 +728,7 @@ def test_override_all_inputs_invalid_place():
 
     res = compare_functions(result_func, expected_func)
     assert res
+
 
 def test_is_input_output():
     skip_if_onnx_frontend_is_disabled()
