@@ -226,7 +226,7 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add_2], "test_graph_3", input_tensors, output_tensors)
     models["test_override_all_outputs_3.onnx"] = make_model(graph, producer_name="ONNX Importer",
-                                              opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_inputs
     input_tensors = [
@@ -714,7 +714,7 @@ def test_override_all_inputs_invalid_place():
     model2 = fe.load("input_model.onnx")
     assert model2
 
-    out3_tensor =  model2.get_place_by_tensor_name(tensor_name="out3")
+    out3_tensor = model2.get_place_by_tensor_name(tensor_name="out3")
     invalid_place = out3_tensor.get_producing_operation().get_input_port(input_port_index=0)
 
     out1_tensor = model.get_place_by_tensor_name(tensor_name="out1")
