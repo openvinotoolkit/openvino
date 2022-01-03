@@ -11,3 +11,4 @@ namespace py = pybind11;
 void regclass_frontend_TelemetryExtension(py::module m);
 void regclass_frontend_DecoderTransformationExtension(py::module m);
 void regclass_frontend_JsonConfigExtension(py::module m);
+void regclass_frontend_ProgressReporterExtension(py::module m);
