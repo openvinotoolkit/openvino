@@ -17,6 +17,7 @@
 #include "pooling_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
+#include "gemm_inst.h"
 #include "quantize_inst.h"
 #include "mvn_inst.h"
 #include "depth_to_space_inst.h"
@@ -1470,7 +1471,25 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             layout{ data_types::f32, format::bfyx, tensor{} }).format;
     } else if (node.is_type<quantize>()) {
         auto layout = node.get_output_layout();
-        if (layout.format.spatial_num() == 2 &&
+
+        std::function<bool(const program_node& node)> only_gemm_users = [&](const program_node& node) {
+            bool all_users_gemm = true;
+
+            for (auto user : node.get_users()) {
+                if (user->is_type<reorder>() || user->is_type<reshape>())
+                    all_users_gemm &= only_gemm_users(*user);
+                else if (user->is_type<gemm>())
+                    all_users_gemm &= true;
+                else
+                    return false;
+            }
+
+            return all_users_gemm;
+        };
+        if (only_gemm_users(node)) {
+            // TODO: Gemm is not supporting fsv layouts
+            expected = format::bfyx;
+        } else if (layout.format.spatial_num() == 2 &&
             (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
             layout.size.batch[0] % 16 == 0) {
             if (use_onednn_impls && layout.size.batch[0] % 32 == 0) {
