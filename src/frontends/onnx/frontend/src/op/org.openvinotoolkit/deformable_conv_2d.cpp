@@ -17,7 +17,7 @@
 #include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "ngraph/op/deformable_convolution.hpp"
 #include "utils/convpool.hpp"
 

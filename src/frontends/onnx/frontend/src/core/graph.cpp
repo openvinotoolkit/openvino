@@ -13,7 +13,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"

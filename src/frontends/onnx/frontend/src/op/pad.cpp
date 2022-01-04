@@ -50,8 +50,8 @@ OutputVector pad(const Node& node) {
     ngraph::op::PadMode pad_mode = get_pad_mode(mode);
 
     const auto paddings = convpool::get_pads(node, data_rank_value);
-    ngraph::CoordinateDiff padding_below = paddings.first;
-    ngraph::CoordinateDiff padding_above = paddings.second;
+    CoordinateDiff padding_below = paddings.first;
+    CoordinateDiff padding_above = paddings.second;
 
     return {std::make_shared<default_opset::Pad>(
         data,

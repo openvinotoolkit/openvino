@@ -6,7 +6,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
 

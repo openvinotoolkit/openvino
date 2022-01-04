@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "onnx_import/core/node.hpp"

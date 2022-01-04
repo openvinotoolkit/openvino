@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ov {

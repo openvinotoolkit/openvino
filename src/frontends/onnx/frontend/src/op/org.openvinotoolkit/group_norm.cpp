@@ -7,7 +7,7 @@
 #include "default_opset.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/builder/split.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "onnx_import/core/node.hpp"
 #include "utils/common.hpp"

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "ngraph/op/experimental_detectron_generate_proposals.hpp"
 #include "onnx_import/core/node.hpp"
 

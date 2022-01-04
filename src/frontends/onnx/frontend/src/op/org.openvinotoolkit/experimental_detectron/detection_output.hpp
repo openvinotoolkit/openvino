@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "ngraph/op/experimental_detectron_detection_output.hpp"
 #include "onnx_import/core/node.hpp"
 
