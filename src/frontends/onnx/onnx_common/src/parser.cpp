@@ -8,9 +8,8 @@
 #include <google/protobuf/text_format.h>
 #include <onnx/onnx_pb.h>
 
-#include <ngraph/file_util.hpp>
-
 #include "openvino/core/except.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace onnx_common {
@@ -32,7 +31,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
 
     if (!file_stream.is_open()) {
         NGRAPH_SUPPRESS_DEPRECATED_START
-        throw ov::Exception("Could not open the file: " + file_util::wstring_to_string(file_path));
+        throw ov::Exception("Could not open the file: " + ov::file_util::wstring_to_string(file_path));
         NGRAPH_SUPPRESS_DEPRECATED_END
     };
 
