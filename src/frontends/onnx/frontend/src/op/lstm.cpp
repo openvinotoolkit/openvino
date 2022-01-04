@@ -157,12 +157,11 @@ struct LSTMNgInputMap {
         // ONNX Shape: [num_directions, 3*hidden_size]
         // OpenVino Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 7 && !ngraph::op::is_null(ng_inputs.at(7))) {
-            //NGRAPH_WARN << (node) << " Input `P` (peepholes) is not supported and will be ignored ";
             m_input_map[LSTMInput::LSTM_INPUT_P] =
-            ov::op::util::convert_lstm_peepholes_format(ng_inputs.at(7),
-                                                       ov::op::util::LSTMPeepholesFormat::IOF,
-                                                       ov::op::util::LSTMPeepholesFormat::FIO,
-                                                       1);
+                ov::op::util::convert_lstm_peepholes_format(ng_inputs.at(7),
+                                                        ov::op::util::LSTMPeepholesFormat::IOF,
+                                                        ov::op::util::LSTMPeepholesFormat::FIO,
+                                                        1);
         } else {
             auto p_shape = std::make_shared<default_opset::Concat>(
                 OutputVector{num_directions_node,

@@ -46,9 +46,9 @@ std::shared_ptr<ov::Node> ov::op::util::convert_lstm_node_format(const Output<No
 }
 
 std::shared_ptr<ov::Node> ov::op::util::convert_lstm_peepholes_format(const Output<Node>& node,
-                                                                 LSTMPeepholesFormat from_format,
-                                                                 LSTMPeepholesFormat to_format,
-                                                                 int64_t axis) {
+                                                                      LSTMPeepholesFormat from_format,
+                                                                      LSTMPeepholesFormat to_format,
+                                                                      int64_t axis) {
     static const std::map<op::util::LSTMPeepholesFormat, std::vector<size_t>> gate_order_map{
         {op::util::LSTMPeepholesFormat::FIO, {0, 1, 2}},
         {op::util::LSTMPeepholesFormat::IFO, {1, 0, 2}},

@@ -24,13 +24,13 @@ enum class CellType {
 };
 
 struct CellArgs {
-    std::string activation_f;          // RNN
-    std::string activation_g;          // RNN/GRU
-    std::string activation_h;          // RNN/GRU/LSTM
-    float clip;                        // RNN/GRU/LSTM
-    bool linear_before_reset = false;  // GRU
-    ov::op::LSTMWeightsFormat weight_format = ov::op::LSTMWeightsFormat::FICO; //LSTM_v1
-    bool input_forget = false;         // LSTM_v1
+    std::string activation_f;                                                   // RNN
+    std::string activation_g;                                                   // RNN/GRU
+    std::string activation_h;                                                   // RNN/GRU/LSTM
+    float clip;                                                                 // RNN/GRU/LSTM
+    bool linear_before_reset = false;                                           // GRU
+    ov::op::LSTMWeightsFormat weight_format = ov::op::LSTMWeightsFormat::FICO;  //LSTM_v1
+    bool input_forget = false;                                                  // LSTM_v1
 };
 
 template <typename T, typename U>

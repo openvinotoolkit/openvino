@@ -49,10 +49,11 @@ std::shared_ptr<Node> OPENVINO_API convert_lstm_node_format(const Output<Node>& 
                                                             LSTMWeightsFormat to_format = LSTMWeightsFormat::FICO,
                                                             int64_t axis = 0);
 
-std::shared_ptr<Node> OPENVINO_API convert_lstm_peepholes_format(const Output<Node>& node,
-                                                            LSTMPeepholesFormat from_format,
-                                                            LSTMPeepholesFormat to_format = LSTMPeepholesFormat::FIO,
-                                                            int64_t axis = 0);
+std::shared_ptr<Node> OPENVINO_API
+convert_lstm_peepholes_format(const Output<Node>& node,
+                              LSTMPeepholesFormat from_format,
+                              LSTMPeepholesFormat to_format = LSTMPeepholesFormat::FIO,
+                              int64_t axis = 0);
 
 /// \brief      Base class for all recurrent network cells.
 ///
