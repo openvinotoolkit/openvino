@@ -110,7 +110,7 @@ def create_test_onnx_models():
         make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     output_tensors = [
-        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (2, 2)),
     ]
@@ -386,7 +386,6 @@ def compare_functions(current, expected):  # noqa: C901 the function is too comp
         result = False
         msg += "Not equal number of ops. "
         msg += f"Current: {len(current_ops)}, expected: {len(expected_ops)}. "
-        return result
 
     for i in range(len(current_ops)):
         if (current_ops[i].get_friendly_name() != expected_ops[i].get_friendly_name()

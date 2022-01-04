@@ -207,7 +207,7 @@ std::shared_ptr<Model> InputModel::convert() {
 }
 
 // Editor features
-bool InputModel::is_coorect_place(const ov::frontend::Place::Ptr& place) const {
+bool InputModel::is_correct_place(const ov::frontend::Place::Ptr& place) const {
     if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(place)) {
         return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
     }
@@ -230,7 +230,7 @@ bool InputModel::is_coorect_place(const ov::frontend::Place::Ptr& place) const {
 void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
     std::vector<Place::Ptr> expected_valid_outputs;
     for (const auto& output : outputs) {
-        bool is_correct = is_coorect_place(output);
+        bool is_correct = is_correct_place(output);
         if (!is_correct)
             NGRAPH_WARN << "Name  " << output->get_names().at(0)
                         << " of output node is not a correct node name. Ignoring this parameter.";
@@ -263,7 +263,7 @@ void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr
 void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
     std::vector<Place::Ptr> expected_valid_inputs;
     for (const auto& input : inputs) {
-        bool is_correct = is_coorect_place(input);
+        bool is_correct = is_correct_place(input);
         if (!is_correct)
             NGRAPH_WARN << "Name  " << input->get_names().at(0)
                         << " of input node is not a correct node. Ignoring this parameter.";
