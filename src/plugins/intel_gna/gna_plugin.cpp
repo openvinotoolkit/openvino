@@ -1365,8 +1365,8 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 
         const auto& outputBlobPrecision = outputBlob->getTensorDesc().getPrecision();
         if (supportedOutputPrecission.count(outputBlobPrecision) == 0) {
-            THROW_GNA_EXCEPTION << "Unsupported target precision: " << outputBlob->getTensorDesc().getPrecision()
-                                << " detected for output blob: " << outputBlobIt.first
+            THROW_GNA_EXCEPTION << "Unsupported target precision: " << outputBlobPrecision
+                                << ", detected for output blob: " << outputBlobIt.first
                                 << std::endl;
         }
 
@@ -1411,8 +1411,10 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                                outputDesc.scale_factor);
             } else {
                 UnscaleAndCast(outputBlob->buffer().as<int32_t*>(),
-                              outputBlob->buffer().as<int32_t*>(),
-                              elementsPerBatch, batchSize, outputDesc.scale_factor);
+                               outputBlob->buffer().as<int32_t*>(),
+                               elementsPerBatch,
+                               batchSize,
+                               outputDesc.scale_factor);
             }
 
 #ifdef PLOT
