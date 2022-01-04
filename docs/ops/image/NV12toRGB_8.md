@@ -1,4 +1,4 @@
-## NV12toRGB <a name="NV12toRGB"></a> {#openvino_docs_ops_image_NV12toRGB_8}
+# NV12toRGB {#openvino_docs_ops_image_NV12toRGB_8}
 
 **Versioned name**: *NV12toRGB-8*
 

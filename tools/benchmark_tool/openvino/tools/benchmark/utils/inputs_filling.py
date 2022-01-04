@@ -204,7 +204,7 @@ def get_dtype(precision):
       'f32' : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
       'i32'  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
       'i64'  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
-      'fp16' : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
+      'f16' : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
       'i16'  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
       'u16'  : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
       'i8'   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),

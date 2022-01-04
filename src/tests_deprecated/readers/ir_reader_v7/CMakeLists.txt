@@ -34,7 +34,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLU
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/")
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev
                                              inference_engine_legacy pugixml::static openvino::itt)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
@@ -49,7 +49,7 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 else()
     # for static linkage the dependencies are in opposite order
-    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+    target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
 endif()
 
 # code style
@@ -63,10 +63,11 @@ install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 
 # for InferenceEngineUnitTest
-if(WIN32)
-    install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-else()
+# For public CI
+install(TARGETS ${TARGET_NAME}
+    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+if(NOT WIN32)
+    # For private CI
     install(TARGETS ${TARGET_NAME}
             LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
