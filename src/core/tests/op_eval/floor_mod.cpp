@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "engines_util/test_case.hpp"
-
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/test_control.hpp"
