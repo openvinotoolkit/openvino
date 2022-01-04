@@ -572,8 +572,7 @@ int main(int argc, char* argv[]) {
         next_step();
         // output of the actual settings that the device selected
         for (const auto& device : devices) {
-            std::vector<std::string> supported_config_keys =
-                core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            std::vector<std::string> supported_config_keys = core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
             slog::info << "Device: " << device << slog::endl;
             for (const auto& cfg : supported_config_keys) {
                 try {
