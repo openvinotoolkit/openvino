@@ -95,7 +95,6 @@ public:
 
     bool isExecutable() const override;
 
-private:
     enum class NormEpsMode {
         ADD,
         MAX
@@ -115,7 +114,10 @@ private:
         InferenceEngine::Precision output_prec = Precision::UNSPECIFIED;
         size_t src_data_size = 0lu;
         size_t dst_data_size = 0lu;
-    } attrs;
+    };
+
+private:
+    NormalizeL2Attrs attrs;
 
     class NormalizeL2Executor {
     public:

@@ -23,6 +23,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -35,6 +36,50 @@ using namespace Xbyak;
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
 
 #define THROW_ERROR IE_THROW() << "NormalizeL2 layer with name '" << getName() << "' "
+
+namespace {
+struct NormalizeKey {
+    MKLDNNNormalizeL2Node::NormalizeL2Attrs attrs;
+    mkldnn::primitive_attr kernel_attrs;
+    VectorDims dims;
+
+    size_t hash() const;
+    bool operator==(const NormalizeKey& rhs) const;
+};
+
+size_t NormalizeKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, attrs.epsMode);
+    seed = hash_combine(seed, attrs.across_spatial);
+    seed = hash_combine(seed, attrs.cornerCase);
+    seed = hash_combine(seed, attrs.eps);
+    seed = hash_combine(seed, attrs.is_nchw);
+    seed = hash_combine(seed, attrs.is_nhwc);
+    seed = hash_combine(seed, attrs.is_blk);
+    seed = hash_combine(seed, attrs.input_prec.getPrecVal());
+    seed = hash_combine(seed, attrs.output_prec.getPrecVal());
+    seed = hash_combine(seed, attrs.src_data_size);
+    seed = hash_combine(seed, attrs.dst_data_size);
+
+    seed = hash_combine(seed, get_attr_hash(*kernel_attrs.get()));
+    seed = get_vector_hash(seed, dims);
+    return seed;
+}
+
+bool NormalizeKey::operator==(const NormalizeKey& rhs) const {
+    return (attrs.epsMode == rhs.attrs.epsMode) && (attrs.across_spatial == rhs.attrs.across_spatial) &&
+           (attrs.cornerCase == rhs.attrs.cornerCase) && (attrs.eps == rhs.attrs.eps) &&
+           (attrs.is_nchw == rhs.attrs.is_nchw) && (attrs.is_nhwc == rhs.attrs.is_nhwc) &&
+           (attrs.is_blk == rhs.attrs.is_blk) && (attrs.input_prec == rhs.attrs.input_prec) &&
+           (attrs.output_prec == rhs.attrs.output_prec) && (attrs.src_data_size == rhs.attrs.src_data_size) &&
+           (attrs.dst_data_size == rhs.attrs.dst_data_size) && (*kernel_attrs.get() == *(rhs.kernel_attrs.get())) &&
+           (dims == rhs.dims);
+}
+
+}  // namespace
 
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type;
@@ -860,7 +905,22 @@ bool MKLDNNNormalizeL2Node::isExecutable() const {
 void MKLDNNNormalizeL2Node::prepareParams() {
     const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
     setPostOps(kernel_attrs, dims, true);
-    execPtr = NormalizeL2Executor::getNormalizeL2Executor(attrs, kernel_attrs, dims);
+
+    NormalizeKey key = {attrs, kernel_attrs, dims};
+
+    auto engine = getEngine();
+    auto builder = [&engine](const NormalizeKey& key) -> std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> {
+        return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+
+    if (!result.first) {
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    execPtr = result.first;
 }
 
 void MKLDNNNormalizeL2Node::executeDynamicImpl(mkldnn::stream strm) {
