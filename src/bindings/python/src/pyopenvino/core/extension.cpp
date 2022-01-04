@@ -13,4 +13,5 @@ namespace py = pybind11;
 
 void regclass_Extension(py::module m) {
     py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext(m, "Extension", py::dynamic_attr());
+    ext.def(py::init<>());
 }
