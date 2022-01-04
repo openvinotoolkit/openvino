@@ -184,91 +184,68 @@ void GNAPlugin::copyInputData(T *dst,
     }
 }
 
-void GNAPlugin::ExportScores(void *ptr_dst,
-                  const void *ptr_src,
-                  intel_dnn_orientation_t orientation,
-                  uint32_t num_frames,
-                  uint32_t num_group,
-                  uint32_t num_vector_elements,
-                  uint32_t num_active_elements,
-                  uint32_t num_vector_stride,
-                  uint32_t num_bytes_per_element_input,
-                  uint32_t num_bytes_per_element) {
+// ptr_dst should work for both int and float
+void GNAPlugin::ExportScores(void* ptr_dst,
+                              const void* ptr_src,
+                              intel_dnn_orientation_t orientation,
+                              uint32_t num_frames,
+                              uint32_t num_group,
+                              uint32_t num_vector_elements,
+                              uint32_t num_active_elements,
+                              uint32_t num_vector_stride,
+                              uint32_t num_bytes_per_element_input) {
     // source scores are possibly padded to multiple of 8 and possibly interleaved
     // rotate if necessary and only copy actual scores (not padding)
     if (orientation == kDnnInterleavedOrientation) {
-        if (num_bytes_per_element == 2) {
-            int16_t *dst = reinterpret_cast<int16_t *>(ptr_dst);
-            const int16_t *src = reinterpret_cast<const int16_t *>(ptr_src);
-            for (uint32_t i = 0; i < num_frames; i++) {
-                for (uint32_t j = 0; j < num_active_elements; j++) {
-                    dst[i * num_vector_elements + j] = src[j * num_group + i];
-                }
-                for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
-                    dst[i * num_vector_elements + j] = 0;
-                }
-            }
-        } else if (num_bytes_per_element == 4) {  // should work for both int and float
-            int32_t *dst = reinterpret_cast<int32_t *>(ptr_dst);
-            const int8_t *src = reinterpret_cast<const int8_t*>(ptr_src);
-            for (uint32_t i = 0; i < num_frames; i++) {
-                for (uint32_t j = 0; j < num_active_elements; j++) {
-                    auto input_ptr = src + (j * num_group + i) * num_bytes_per_element_input;
-                    auto dst_ptr = dst + (i * num_vector_elements + j);
+        int32_t* dst = reinterpret_cast<int32_t*>(ptr_dst);
+        const int8_t* src = reinterpret_cast<const int8_t*>(ptr_src);
+        for (uint32_t i = 0; i < num_frames; i++) {
+            for (uint32_t j = 0; j < num_active_elements; j++) {
+                auto input_ptr = src + (j * num_group + i) * num_bytes_per_element_input;
+                auto dst_ptr = dst + (i * num_vector_elements + j);
 
-                    switch (num_bytes_per_element_input) {
-                        case 1: {
-                            *dst_ptr = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(input_ptr));
-                            break;
-                        }
-                        case 2 : {
-                            *dst_ptr  = static_cast<int32_t>(*reinterpret_cast<const int16_t*>(input_ptr));
-                            break;
-                        }
-                        case 4 : {
-                            *dst_ptr = *reinterpret_cast<const int32_t *>(input_ptr);
-                            break;
-                        }
-                        default:
-                            THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << num_bytes_per_element_input << "bytes";
-                    }
+                switch (num_bytes_per_element_input) {
+                case 1: {
+                    *dst_ptr = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(input_ptr));
+                    break;
                 }
-                for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
-                    dst[i * num_vector_elements + j] = 0;
+                case 2: {
+                    *dst_ptr = static_cast<int32_t>(*reinterpret_cast<const int16_t*>(input_ptr));
+                    break;
+                }
+                case 4: {
+                    *dst_ptr = *reinterpret_cast<const int32_t*>(input_ptr);
+                    break;
+                }
+                default:
+                    THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << num_bytes_per_element_input
+                                        << "bytes";
                 }
             }
-        } else {
-            THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << num_bytes_per_element << "bytes";
+            for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
+                dst[i * num_vector_elements + j] = 0;
+            }
         }
     } else {
-        if (num_bytes_per_element == 2) {
+        if (num_bytes_per_element_input == 2) {
             for (uint32_t i = 0; i < num_frames; i++) {
-                auto ptr_dst_vec = reinterpret_cast<uint8_t *>(ptr_dst) + i * num_vector_elements * sizeof(int16_t);
-                auto ptr_src_vec = reinterpret_cast<const uint8_t *>(ptr_src) + i * num_vector_stride * sizeof(int16_t);
-                memset(ptr_dst_vec, 0, num_vector_elements * sizeof(int16_t));
-                ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(int16_t),
-                    ptr_src_vec, num_active_elements * sizeof(int16_t));
-            }
-        } else if (num_bytes_per_element == 4) {  // should work for both int and float
-            if (num_bytes_per_element_input == 2) {
-                for (uint32_t i = 0; i < num_frames; i++) {
-                    auto ptr_dst_vec = reinterpret_cast<int32_t*>(ptr_dst) + i * num_vector_elements;
-                    auto ptr_src_vec = reinterpret_cast<const int16_t*>(ptr_src) + i * num_vector_stride;
-                    for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = ptr_src_vec[j];
-                    }
-                }
-            } else {
-                for (uint32_t i = 0; i < num_frames; i++) {
-                    void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * sizeof(float);
-                    const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * sizeof(float);
-                    memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
-                    ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
-                        ptr_src_vec, num_active_elements * sizeof(float));
+                auto ptr_dst_vec = reinterpret_cast<int32_t*>(ptr_dst) + i * num_vector_elements;
+                auto ptr_src_vec = reinterpret_cast<const int16_t*>(ptr_src) + i * num_vector_stride;
+                for (uint32_t j = 0; j < num_vector_elements; j++) {
+                    ptr_dst_vec[j] = ptr_src_vec[j];
                 }
             }
         } else {
-            THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << num_bytes_per_element << "bytes";
+            for (uint32_t i = 0; i < num_frames; i++) {
+                void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * sizeof(float);
+                const void* ptr_src_vec =
+                    reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * sizeof(float);
+                memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
+                ie_memcpy(ptr_dst_vec,
+                          num_active_elements * sizeof(float),
+                          ptr_src_vec,
+                          num_active_elements * sizeof(float));
+            }
         }
     }
 }
@@ -1358,8 +1335,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                         elementsPerBatch,
                         elementsPerBatch,
                         elementsPerBatch,
-                        outputDesc.num_bytes_per_element,
-                        sizeof(float));
+                        outputDesc.num_bytes_per_element);
 
         if (gnadevice) {
 #ifdef PLOT
