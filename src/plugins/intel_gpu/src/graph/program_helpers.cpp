@@ -153,6 +153,7 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         check_format(format::b_fs_zyx_fsv16) ||
         check_format(format::bs_fs_yx_bsv4_fsv4) ||
         check_format(format::bs_fs_yx_bsv8_fsv4) ||
+        check_format(format::bs_fs_yx_bsv8_fsv2) ||
         check_format(format::bs_fs_yx_bsv4_fsv2) ||
         check_format(format::bs_fs_yx_bsv32_fsv16) ||
         check_format(format::bs_fs_yx_bsv32_fsv32) ||
