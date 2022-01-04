@@ -10,7 +10,7 @@
 #include "default_opset.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/constant.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "op/topk.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"

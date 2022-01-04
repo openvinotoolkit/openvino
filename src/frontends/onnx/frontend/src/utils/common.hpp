@@ -14,15 +14,15 @@
 #include <vector>
 
 #include "default_opset.hpp"
+#include "onnx_import/core/node.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "onnx_import/core/node.hpp"
 
 namespace ov {
 namespace onnx_import {
 namespace common {
-const element::Type& get_ngraph_element_type(std::int64_t onnx_type);
+const element::Type& get_ov_element_type(std::int64_t onnx_type);
 
 /// \brief      Return a monotonic sequence.
 ///
@@ -60,8 +60,8 @@ std::vector<T> get_monotonic_range(T end_value, T start_value = T{0}, T step = T
 ///
 /// \return     The node which represents monotonic sequence.
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const Output<ov::Node>& value,
-                                                                  int64_t start_value = 0,
-                                                                  int64_t step = 1);
+                                                              int64_t start_value = 0,
+                                                              int64_t step = 1);
 
 /// \brief Creates a shifted square identity matrix.
 /// \note Shifting in the context of this operator means that

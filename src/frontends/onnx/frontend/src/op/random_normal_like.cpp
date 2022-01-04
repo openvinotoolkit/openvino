@@ -18,7 +18,7 @@ OutputVector random_normal_like(const Node& node) {
     element::Type target_type;
     if (node.has_attribute("dtype")) {
         const auto dtype = node.get_attribute_value<int64_t>("dtype");
-        target_type = common::get_ngraph_element_type(dtype);
+        target_type = common::get_ov_element_type(dtype);
     } else {
         target_type = input.get_element_type();
     }

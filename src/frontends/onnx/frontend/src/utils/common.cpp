@@ -7,12 +7,11 @@
 #include <onnx/onnx_pb.h>  // onnx types
 
 #include "default_opset.hpp"
-#include "ngraph/graph_util.hpp"
 
 namespace ov {
 namespace onnx_import {
 namespace common {
-const element::Type& get_ngraph_element_type(int64_t onnx_type) {
+const element::Type& get_ov_element_type(int64_t onnx_type) {
     switch (onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BOOL:
         return element::boolean;

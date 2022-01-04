@@ -9,7 +9,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/shape.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace onnx_import {

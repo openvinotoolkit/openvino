@@ -15,7 +15,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "utils/reshape.hpp"
 
 namespace ov {

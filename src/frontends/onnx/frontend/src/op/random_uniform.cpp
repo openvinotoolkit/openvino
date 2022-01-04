@@ -30,7 +30,7 @@ OutputVector random_uniform(const Node& node) {
     const auto high_const = default_opset::Constant::create(element::f32, Shape{1}, {high});
     const auto low_const = default_opset::Constant::create(element::f32, Shape{1}, {low});
 
-    const auto target_type = common::get_ngraph_element_type(dtype);
+    const auto target_type = common::get_ov_element_type(dtype);
     const uint64_t global_seed = 0;
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 

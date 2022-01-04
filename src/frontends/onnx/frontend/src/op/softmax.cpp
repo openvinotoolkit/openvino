@@ -8,7 +8,7 @@
 
 #include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace onnx_import {

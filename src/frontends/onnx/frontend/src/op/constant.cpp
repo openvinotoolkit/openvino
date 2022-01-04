@@ -11,7 +11,7 @@
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace onnx_import {

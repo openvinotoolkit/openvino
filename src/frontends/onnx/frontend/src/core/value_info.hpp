@@ -45,7 +45,7 @@ public:
     }
     const element::Type& get_element_type() const {
         if (m_value_info_proto->type().tensor_type().has_elem_type()) {
-            return common::get_ngraph_element_type(m_value_info_proto->type().tensor_type().elem_type());
+            return common::get_ov_element_type(m_value_info_proto->type().tensor_type().elem_type());
         }
         return element::dynamic;
     }

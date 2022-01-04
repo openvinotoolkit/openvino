@@ -8,7 +8,7 @@
 
 #include "openvino/core/node_vector.hpp"
 #include "ngraph/opsets/opset8.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ov {

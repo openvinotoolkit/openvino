@@ -288,7 +288,7 @@ element::Type_t onnx_editor::ONNXModelEditor::get_input_type(const std::string& 
         }
         auto& tensor_type = type_proto.tensor_type();
         auto type = tensor_type.elem_type();
-        return onnx_import::common::get_ngraph_element_type(type);
+        return onnx_import::common::get_ov_element_type(type);
     } else {
         throw ov::Exception("The tensor: " + tensor_name + " was not found in the input graph.");
     }

@@ -20,7 +20,7 @@
 #include "ngraph/output_vector.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "utils/convpool.hpp"
 
 namespace ov {
