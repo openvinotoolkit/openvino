@@ -10,9 +10,8 @@
 #include <numeric>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/make_constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
 
 namespace ov {
@@ -74,16 +73,16 @@ Output<ov::Node> interpret_as_scalar(const Output<ov::Node>& node) {
     NGRAPH_CHECK((shape_size(node_shape) == 1), "Scalar value can't be derived from a node with ", node_shape);
 
     // If node is a Constant, recreate as Constant with Shape{}
-    if (ngraph::op::is_constant(node.get_node())) {
-        const auto value = ngraph::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())->get_data_ptr();
-        return std::make_shared<default_opset::Constant>(node.get_element_type(), ngraph::Shape{}, value);
+    if (op::util::is_constant(node.get_node())) {
+        const auto value = as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())->get_data_ptr();
+        return std::make_shared<default_opset::Constant>(node.get_element_type(), Shape{}, value);
     }
 
     return ngraph::builder::opset1::reshape(node, Shape{});
 }
 
 Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
-                                                         const Output<ov::Node>& expected_rank) {
+                                                     const Output<ov::Node>& expected_rank) {
     // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
     const auto one_const = default_opset::Constant::create(element::i64, Shape{1}, {1});
     const auto two_const = default_opset::Constant::create(element::i64, Shape{1}, {2});

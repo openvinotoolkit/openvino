@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "ngraph/coordinate_diff.hpp"
-#include "openvino/core/shape.hpp"
-#include "ngraph/strides.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -42,8 +42,8 @@ Strides get_dilations(const Node& node, const std::size_t kernel_rank = 0UL);
 ///
 /// \param[in]  node  The ONNX node we query for attribute.
 ///
-/// \return     The nGraph RoundingType object representing 'ceil_mode' attribute value.
-ngraph::op::RoundingType get_rounding_type(const Node& node);
+/// \return     The OV RoundingType object representing 'ceil_mode' attribute value.
+ov::op::RoundingType get_rounding_type(const Node& node);
 
 /// \brief Get padding values for the operation described by an ONNX node.
 /// \details Values are taken from the `pads` attribute.
@@ -92,7 +92,7 @@ void calculate_auto_pads(const Shape& data_shape,
 ///
 /// \param[in]  node  The ONNX node we query for attribute.
 ///
-/// \return     The nGraph PadType object representing 'auto_pad' attribute value.
+/// \return     The OV PadType object representing 'auto_pad' attribute value.
 ///
 ov::op::PadType get_auto_pad(const Node& node);
 
@@ -109,4 +109,4 @@ Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t g
 
 }  // namespace  onnx_import
 
-}  // namespace  ngraph
+}  // namespace ov

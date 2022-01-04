@@ -7,7 +7,7 @@
 #include <random>
 
 #include "default_opset.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/op/random_uniform.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -36,9 +36,9 @@ OutputVector make_random_normal(const Output<ov::Node>& shape,
     const auto max_val = default_opset::Constant::create(target_type, Shape{1}, {1});
 
     const auto uniform_1 =
-        std::make_shared<ngraph::opset8::RandomUniform>(shape, min_val, max_val, target_type, global_seed, seed_1);
+        std::make_shared<op::v8::RandomUniform>(shape, min_val, max_val, target_type, global_seed, seed_1);
     const auto uniform_2 =
-        std::make_shared<ngraph::opset8::RandomUniform>(shape, min_val, max_val, target_type, global_seed, seed_2);
+        std::make_shared<op::v8::RandomUniform>(shape, min_val, max_val, target_type, global_seed, seed_2);
 
     // Compute Box–Muller transform
     // random_normal = scale * ng.sqrt(-2.0 * ng.log(uniform_1)) * ng.cos(2.0 * np.pi * uniform_2) + mean

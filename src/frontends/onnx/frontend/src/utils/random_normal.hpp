@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ngraph/op/reshape.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace onnx_import {

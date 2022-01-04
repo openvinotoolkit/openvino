@@ -8,9 +8,9 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/strides.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -69,8 +69,8 @@ Strides get_dilations(const Node& node, const std::size_t kernel_rank) {
     return get_attribute_value(node, "dilations", kernel_rank);
 }
 
-ngraph::op::RoundingType get_rounding_type(const Node& node) {
-    return static_cast<ngraph::op::RoundingType>(node.get_attribute_value<std::int64_t>("ceil_mode", 0));
+op::RoundingType get_rounding_type(const Node& node) {
+    return static_cast<op::RoundingType>(node.get_attribute_value<std::int64_t>("ceil_mode", 0));
 }
 
 ov::op::PadType get_auto_pad(const Node& node) {
@@ -136,13 +136,7 @@ void calculate_auto_pads(const Shape& data_shape,
         padding_above.clear();
         // Extract kernel shape - remove (N,C) channels
         Shape kernel_shape(std::next(std::begin(filter_shape), 2), std::end(filter_shape));
-        ngraph::infer_auto_padding(data_shape,
-                                   kernel_shape,
-                                   strides,
-                                   dilations,
-                                   pad_type,
-                                   padding_above,
-                                   padding_below);
+        ov::infer_auto_padding(data_shape, kernel_shape, strides, dilations, pad_type, padding_above, padding_below);
     }
 }
 

@@ -8,9 +8,9 @@
 #include <map>
 #include <memory>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -59,7 +59,7 @@ struct OpAttributes {
     explicit OpAttributes(const Node& node);
     virtual ~OpAttributes() = default;
 
-    ngraph::op::RecurrentSequenceDirection m_direction;
+    ov::op::RecurrentSequenceDirection m_direction;
     std::int64_t m_hidden_size;
     float m_clip_threshold;
     std::vector<std::string> m_activations;

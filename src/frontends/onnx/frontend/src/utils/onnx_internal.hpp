@@ -18,7 +18,7 @@ namespace ov {
 namespace onnx_import {
 namespace detail {
 /// \brief      Imports and converts an serialized ONNX model from a ModelProto
-///             to an nGraph Function representation.
+///             to an OV Model representation.
 ///
 /// \note       The function can be used only internally by OV components!
 ///             Passing ModelProto between componets which use different protobuf
@@ -30,28 +30,25 @@ namespace detail {
 ///                         It is required if the imported model uses data saved in external files.
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
 ///
-/// \return     An nGraph function that represents a single output from the created
-/// graph.
+/// \return     An OV Model that represents a single output from the created graph.
 std::shared_ptr<Model> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                          const std::string& model_path,
                                          ov::frontend::ExtensionHolder extensions = {});
 
-/// \brief      Decode ONNX model to nGraph function with ONNXFrameworkNode(s)
+/// \brief      Decode ONNX model to OV Model with ONNXFrameworkNode(s)
 ///
 /// \param      model_proto Reference to a GraphProto object.
 /// \param      model_path  The path to the imported onnx model.
 ///                         It is required if the imported model uses data saved in external files.
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
 ///
-/// \return     A nGraph function with ONNXFrameworkNodes
+/// \return     A OV Model with ONNXFrameworkNodes
 std::shared_ptr<Model> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                                  const std::string& model_path,
                                                  ov::frontend::ExtensionHolder extensions = {});
 
-/// \brief     Converts a nGraph function (onnx model decoded to function with ONNXFrameworkNode(s))
+/// \brief     Converts a OV Model (onnx model decoded to function with ONNXFrameworkNode(s))
 ///            to a complete function with actual compute operations
-///
-/// \return    A nGraph function.
 void convert_decoded_function(std::shared_ptr<Model> function);
 }  // namespace detail
 }  // namespace onnx_import

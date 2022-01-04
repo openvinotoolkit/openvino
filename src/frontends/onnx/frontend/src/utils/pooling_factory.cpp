@@ -8,7 +8,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/coordinate_diff.hpp"
+#include "openvino/core/coordinate_diff.hpp"
 #include "utils/convpool.hpp"
 
 namespace ov {

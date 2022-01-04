@@ -8,7 +8,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "op/non_max_suppression.hpp"
 #include "utils/reshape.hpp"

@@ -20,7 +20,7 @@
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/core/shape.hpp"

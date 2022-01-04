@@ -17,22 +17,22 @@ namespace onnx_common {
 ///
 size_t get_onnx_data_size(int32_t onnx_type);
 
-/// \brief Retuns a nGraph data type corresponding to an ONNX type.
+/// \brief Retuns a OV data type corresponding to an ONNX type.
 ///
 /// \param onnx_type An element of TensorProto_DataType enum which determines an ONNX type.
 ///
 element::Type_t onnx_to_ng_data_type(const ONNX_NAMESPACE::TensorProto_DataType& onnx_type);
 
-/// \brief Retuns an ONNX data type corresponding to a nGraph data type.
+/// \brief Retuns an ONNX data type corresponding to a OV data type.
 ///
-/// \param ng_type An element of element::Type_t enum class which determines a nGraph data
+/// \param ng_type An element of element::Type_t enum class which determines a OV data
 /// type.
 ///
 ONNX_NAMESPACE::TensorProto_DataType ng_to_onnx_data_type(const element::Type_t& ng_type);
 
-/// \brief Retuns true if a nGraph data type is mapped to an ONNX data type.
+/// \brief Retuns true if a OV data type is mapped to an ONNX data type.
 ///
-/// \param ng_type An element of element::Type_t enum class which determines a nGraph data
+/// \param ng_type An element of element::Type_t enum class which determines a OV data
 /// type.
 ///
 bool is_supported_ng_type(const element::Type_t& ng_type);

@@ -111,7 +111,7 @@ OpAttributes::OpAttributes(const Node& node)
       m_activations_beta{node.get_attribute_value<std::vector<float>>("activation_beta", std::vector<float>{})} {
     m_clip_threshold = std::abs(m_clip_threshold);
     std::string direction = ngraph::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
-    m_direction = ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
+    m_direction = as_enum<ov::op::RecurrentSequenceDirection>(direction);
 }
 
 }  // namespace recurrent

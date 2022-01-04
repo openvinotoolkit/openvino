@@ -9,8 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -59,7 +58,7 @@ Output<ov::Node> interpret_as_scalar(const Output<ov::Node>& node);
 /// \return     Original node or a node representing a reshape of the original.
 ///
 Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
-                                                         const Output<ov::Node>& expected_rank);
+                                                     const Output<ov::Node>& expected_rank);
 
 }  // namespace  reshape
 }  // namespace onnx_import
