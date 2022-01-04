@@ -29,6 +29,8 @@ struct jit_roi_pooling_params {
     int dst_data_size = 0;
 
     Algorithm alg;
+
+    bool operator==(const jit_roi_pooling_params& rhs) const noexcept;
 };
 
 struct jit_roi_pooling_call_args {

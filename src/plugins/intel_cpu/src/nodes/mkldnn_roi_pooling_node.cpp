@@ -15,6 +15,7 @@
 #include "emitters/jit_load_store_emitters.hpp"
 
 #include <cpu/x64/jit_generator.hpp>
+#include <common/primitive_hashing_utils.hpp>
 
 #include <string>
 #include <vector>
@@ -306,6 +307,62 @@ private:
     }
 };
 
+namespace {
+struct RoiPoolingKey {
+    jit_roi_pooling_params refParams;
+
+    size_t hash() const;
+    bool operator==(const RoiPoolingKey& rhs) const;
+};
+
+size_t RoiPoolingKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+
+    seed = hash_combine(seed, refParams.mb);
+    seed = hash_combine(seed, refParams.c);
+    seed = hash_combine(seed, refParams.nb_c);
+    seed = hash_combine(seed, refParams.ih);
+    seed = hash_combine(seed, refParams.iw);
+    seed = hash_combine(seed, refParams.oh);
+    seed = hash_combine(seed, refParams.ow);
+    seed = hash_combine(seed, refParams.alg);
+    seed = hash_combine(seed, refParams.src_prc.getPrecVal());
+    seed = hash_combine(seed, refParams.dst_prc.getPrecVal());
+    seed = hash_combine(seed, refParams.spatial_scale);
+    seed = hash_combine(seed, refParams.pooled_h);
+    seed = hash_combine(seed, refParams.pooled_w);
+
+    return seed;
+}
+
+bool RoiPoolingKey::operator==(const RoiPoolingKey &rhs) const {
+    return refParams == rhs.refParams;
+}
+} // namespace
+
+bool MKLDNNPlugin::jit_roi_pooling_params::operator==(const MKLDNNPlugin::jit_roi_pooling_params &rhs) const noexcept {
+    return mb == rhs.mb &&
+           c == rhs.c &&
+           ih == rhs.ih &&
+           iw == rhs.iw &&
+           oh == rhs.oh &&
+           ow == rhs.ow &&
+           c_block == rhs.c_block &&
+           nb_c == rhs.nb_c &&
+           nb_c_blocking == rhs.nb_c_blocking &&
+           spatial_scale == rhs.spatial_scale &&
+           pooled_h == rhs.pooled_h &&
+           pooled_w == rhs.pooled_w &&
+           src_prc == rhs.src_prc &&
+           dst_prc == rhs.dst_prc &&
+           src_data_size == rhs.src_data_size &&
+           dst_data_size == rhs.dst_data_size &&
+           alg == rhs.alg;
+}
+
 bool MKLDNNROIPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
@@ -464,7 +521,13 @@ void MKLDNNROIPoolingNode::prepareParams() {
     refParams.oh = outDims[2];
     refParams.ow = outDims[3];
 
-    execPtr = ROIPoolingExecutor::createROIPoolingNewExecutor(refParams);
+    RoiPoolingKey key = {refParams};
+    auto builder = [](const RoiPoolingKey& key) {
+        return ROIPoolingExecutor::createROIPoolingNewExecutor(key.refParams);
+    };
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+    execPtr = result.first;
 }
 
 template <typename T>
