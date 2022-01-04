@@ -55,9 +55,9 @@ OutputVector pad(const Node& node) {
 
     return {std::make_shared<default_opset::Pad>(
         data,
-        std::make_shared<default_opset::Constant>(element::i64, ngraph::Shape{padding_below.size()}, padding_below),
-        std::make_shared<default_opset::Constant>(element::i64, ngraph::Shape{padding_above.size()}, padding_above),
-        std::make_shared<default_opset::Constant>(data.get_element_type(), ngraph::Shape{}, std::vector<double>{value}),
+        std::make_shared<default_opset::Constant>(element::i64, Shape{padding_below.size()}, padding_below),
+        std::make_shared<default_opset::Constant>(element::i64, Shape{padding_above.size()}, padding_above),
+        std::make_shared<default_opset::Constant>(data.get_element_type(), Shape{}, std::vector<double>{value}),
         pad_mode)};
 }
 
@@ -73,19 +73,19 @@ OutputVector pad(const Node& node) {
     if (node.get_ng_inputs().size() == 3) {
         values = node.get_ng_inputs().at(2);
     } else {
-        values = default_opset::Constant::create(data.get_element_type(), ngraph::Shape{}, {0});
+        values = default_opset::Constant::create(data.get_element_type(), Shape{}, {0});
     }
 
     if (ov::op::util::is_constant(pads.get_node())) {
         std::vector<std::int64_t> pads_vector =
-            ngraph::as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())->get_vector<std::int64_t>();
+            as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())->get_vector<std::int64_t>();
 
         std::size_t const half_size = pads_vector.size() / 2;
         std::vector<std::int64_t> padding_begin_values(pads_vector.begin(), pads_vector.begin() + half_size);
         std::vector<std::int64_t> padding_end_values(pads_vector.begin() + half_size, pads_vector.end());
 
-        padding_begin = default_opset::Constant::create(element::i64, ngraph::Shape{half_size}, padding_begin_values);
-        padding_end = default_opset::Constant::create(element::i64, ngraph::Shape{half_size}, padding_end_values);
+        padding_begin = default_opset::Constant::create(element::i64, Shape{half_size}, padding_begin_values);
+        padding_end = default_opset::Constant::create(element::i64, Shape{half_size}, padding_end_values);
     } else {
         OutputVector padding = ngraph::builder::opset1::split(pads, 2, 0);
 

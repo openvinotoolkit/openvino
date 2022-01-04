@@ -14,7 +14,7 @@ namespace set_1 {
 /// \brief Performs ONNX TopK operation.
 ///
 /// \param node The ONNX node object representing this operation.
-/// \return The vector containing Ngraph nodes producing output of ONNX TopK
+/// \return The vector containing OV nodes producing output of ONNX TopK
 ///         operation (both values and indices).
 OutputVector topk(const Node& node);
 }  // namespace set_1

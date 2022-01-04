@@ -34,4 +34,4 @@ OutputVector flatten(const Node& node) {
 
 }  // namespace  onnx_import
 
-}  // namespace  ngraph
+}  // namespace ov

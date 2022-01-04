@@ -15,7 +15,7 @@ namespace set_1 {
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX If
+/// \return The vector containing OV nodes producing output of ONNX If
 ///        operation.
 OutputVector if_op(const Node& node);
 

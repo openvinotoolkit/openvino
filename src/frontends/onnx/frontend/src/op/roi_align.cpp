@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "ngraph/opsets/opset3.hpp"
+#include "default_opset.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -28,7 +28,7 @@ OutputVector roi_align(const Node& node) {
     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
 
     return {std::make_shared<
-        ngraph::opset3::ROIAlign>(data, rois, num_rois, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode)};
+        default_opset::ROIAlign>(data, rois, num_rois, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode)};
 }
 }  // namespace set_1
 

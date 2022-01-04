@@ -13,14 +13,12 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/builder/reshape.hpp"
 #include "openvino/core/coordinate_diff.hpp"
-#include "openvino/op/util/attr_types.hpp"
-#include "ngraph/output_vector.hpp"
-#include "ngraph/partial_shape.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "utils/convpool.hpp"
 
 namespace ov {
@@ -29,14 +27,14 @@ namespace op {
 namespace set_1 {
 namespace {
 Output<ov::Node> make_group_conv_backprop(const Output<ov::Node>& data,
-                                              const Output<ov::Node>& filters,
-                                              const Strides& strides,
-                                              const Strides& dilations,
-                                              const CoordinateDiff& pads_begin,
-                                              const CoordinateDiff& pads_end,
-                                              const ov::op::PadType& auto_pad_type,
-                                              const std::vector<std::int64_t>& output_shape,
-                                              const std::vector<std::int64_t>& output_padding) {
+                                          const Output<ov::Node>& filters,
+                                          const Strides& strides,
+                                          const Strides& dilations,
+                                          const CoordinateDiff& pads_begin,
+                                          const CoordinateDiff& pads_end,
+                                          const ov::op::PadType& auto_pad_type,
+                                          const std::vector<std::int64_t>& output_shape,
+                                          const std::vector<std::int64_t>& output_padding) {
     if (output_shape.empty()) {
         return std::make_shared<default_opset::GroupConvolutionBackpropData>(
             data,
@@ -60,14 +58,14 @@ Output<ov::Node> make_group_conv_backprop(const Output<ov::Node>& data,
 }
 
 Output<ov::Node> make_conv_backprop(const Output<ov::Node>& data,
-                                        const Output<ov::Node>& filters,
-                                        const Strides& strides,
-                                        const Strides& dilations,
-                                        const CoordinateDiff& pads_begin,
-                                        const CoordinateDiff& pads_end,
-                                        const ov::op::PadType& auto_pad_type,
-                                        const std::vector<std::int64_t>& output_shape,
-                                        const std::vector<std::int64_t>& output_padding) {
+                                    const Output<ov::Node>& filters,
+                                    const Strides& strides,
+                                    const Strides& dilations,
+                                    const CoordinateDiff& pads_begin,
+                                    const CoordinateDiff& pads_end,
+                                    const ov::op::PadType& auto_pad_type,
+                                    const std::vector<std::int64_t>& output_shape,
+                                    const std::vector<std::int64_t>& output_padding) {
     if (output_shape.empty()) {
         return std::make_shared<default_opset::ConvolutionBackpropData>(
             data,

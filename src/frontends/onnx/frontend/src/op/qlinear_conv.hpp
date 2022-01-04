@@ -18,7 +18,7 @@ namespace set_1 {
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX quantizied
+/// \return The vector containing OV nodes producing output of ONNX quantizied
 ///         convolution operation.
 OutputVector qlinear_conv(const Node& node);
 

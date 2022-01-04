@@ -9,15 +9,12 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/axis_set.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/builder/reduce_ops.hpp"
+#include "openvino/core/axis_set.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
-#include "ngraph/partial_shape.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 

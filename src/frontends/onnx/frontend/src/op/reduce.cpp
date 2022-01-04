@@ -9,7 +9,6 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/norm.hpp"
 #include "openvino/core/node.hpp"
 #include "op/identity.hpp"
 #include "utils/common.hpp"

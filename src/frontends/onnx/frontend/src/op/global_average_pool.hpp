@@ -15,7 +15,7 @@ namespace set_1 {
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX
+/// \return The vector containing OV nodes producing output of ONNX
 ///         GlobalAveragePool operation.
 OutputVector global_average_pool(const Node& node);
 

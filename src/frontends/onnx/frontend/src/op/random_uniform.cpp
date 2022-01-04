@@ -6,9 +6,9 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "openvino/op/constant.hpp"
-#include "ngraph/opsets/opset8.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "utils/common.hpp"
 
 namespace ov {
@@ -34,12 +34,12 @@ OutputVector random_uniform(const Node& node) {
     const uint64_t global_seed = 0;
     const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    return {std::make_shared<ngraph::opset8::RandomUniform>(target_shape_const,
-                                                            low_const,
-                                                            high_const,
-                                                            target_type,
-                                                            global_seed,
-                                                            seed_uint64)};
+    return {std::make_shared<ov::op::v8::RandomUniform>(target_shape_const,
+                                                        low_const,
+                                                        high_const,
+                                                        target_type,
+                                                        global_seed,
+                                                        seed_uint64)};
 }
 
 }  // namespace set_1

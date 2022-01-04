@@ -10,7 +10,6 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/axis_vector.hpp"
 #include "openvino/core/shape.hpp"
 #include "utils/reshape.hpp"
 

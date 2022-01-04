@@ -7,9 +7,8 @@
 #include "default_opset.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/builder/split.hpp"
-#include "openvino/core/node.hpp"
-#include "ngraph/opsets/opset5.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/node.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
@@ -34,8 +33,8 @@ std::shared_ptr<ov::Node> create_group_norm_shape(const Output<ov::Node>& data, 
     // The 4D shape: [N * num_groups, C // num_groups, H, W] is created
     // instead of 5D shape: [N, num_groups, C // num_groups, H, W].
     // The reason is the lack of support for 5D MVN input by some plugins.
-    ngraph::OutputVector new_shape{std::make_shared<default_opset::Multiply>(splits[0], num_groups_const),
-                                   std::make_shared<default_opset::Divide>(splits[1], num_groups_const)};
+    OutputVector new_shape{std::make_shared<default_opset::Multiply>(splits[0], num_groups_const),
+                           std::make_shared<default_opset::Divide>(splits[1], num_groups_const)};
 
     for (size_t i = 2; i < rank_size; i++) {
         new_shape.push_back(splits[i]);
@@ -48,7 +47,8 @@ std::shared_ptr<ov::Node> create_group_norm_shape(const Output<ov::Node>& data, 
 namespace set_1 {
 OutputVector group_norm(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    OPENVINO_ASSERT(inputs.size() == 3, "Invalid number of inputs. Expected 3, actual " + std::to_string(inputs.size()));
+    OPENVINO_ASSERT(inputs.size() == 3,
+                    "Invalid number of inputs. Expected 3, actual " + std::to_string(inputs.size()));
 
     auto data = inputs[0];
     auto scale = inputs[1];
@@ -62,11 +62,8 @@ OutputVector group_norm(const Node& node) {
         std::make_shared<default_opset::Reshape>(data, detail::create_group_norm_shape(data, num_groups), true);
     const auto reduction_axes = common::get_monotonic_range_along_node_rank(data_reshaped, 1);
 
-    auto mvn = std::make_shared<default_opset::MVN>(data_reshaped,
-                                                    reduction_axes,
-                                                    true,
-                                                    eps,
-                                                    ov::op::MVNEpsMode::INSIDE_SQRT);
+    auto mvn =
+        std::make_shared<default_opset::MVN>(data_reshaped, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT);
     std::shared_ptr<ov::Node> result = std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 
     const auto& scale_shape = scale.get_partial_shape();

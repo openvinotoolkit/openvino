@@ -10,10 +10,9 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/reshape.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
@@ -32,15 +31,13 @@ std::shared_ptr<ov::Node> add_bias(const Output<ov::Node>& ng_conv, const Output
         std::make_shared<default_opset::Add>(ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
 }
 
-OutputVector conv(const Node& node,
-                  Output<ov::Node> data,
-                  Output<ov::Node> filters,
-                  Output<ov::Node> bias) {
+OutputVector conv(const Node& node, Output<ov::Node> data, Output<ov::Node> filters, Output<ov::Node> bias) {
     // in the current implementation we assume that the data input rank is static
     // and only the 'batch' dimension can be dynamic
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
 
-    OPENVINO_ASSERT(data.get_partial_shape().rank().is_static(), "The input data tensor's rank has to be known (static)");
+    OPENVINO_ASSERT(data.get_partial_shape().rank().is_static(),
+                    "The input data tensor's rank has to be known (static)");
 
     const auto strides = convpool::get_strides(node);
     const auto dilations = convpool::get_dilations(node);
@@ -65,7 +62,7 @@ OutputVector conv(const Node& node,
         const auto& bias_ps = bias.get_partial_shape();
 
         OPENVINO_ASSERT(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
-                     "The bias input needs to be 1D vector");
+                        "The bias input needs to be 1D vector");
 
         return {add_bias(conv_node, bias)};
     }

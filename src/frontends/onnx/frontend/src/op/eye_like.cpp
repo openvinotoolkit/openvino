@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "exceptions.hpp"
-#include "ngraph/output_vector.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "utils/common.hpp"
 
 namespace ov {
@@ -20,13 +20,9 @@ namespace {
 OutputVector get_shape_width_and_height(const Output<ov::Node>& shape) {
     const auto axis = default_opset::Constant::create(element::i64, {1}, {0});
     const auto height =
-        std::make_shared<default_opset::Gather>(shape,
-                                                default_opset::Constant::create(element::i64, {1}, {0}),
-                                                axis);
+        std::make_shared<default_opset::Gather>(shape, default_opset::Constant::create(element::i64, {1}, {0}), axis);
     const auto width =
-        std::make_shared<default_opset::Gather>(shape,
-                                                default_opset::Constant::create(element::i64, {1}, {1}),
-                                                axis);
+        std::make_shared<default_opset::Gather>(shape, default_opset::Constant::create(element::i64, {1}, {1}), axis);
 
     return {width, height};
 }

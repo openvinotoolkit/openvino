@@ -11,7 +11,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/axis_set.hpp"
+#include "openvino/core/axis_set.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"

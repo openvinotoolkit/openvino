@@ -15,7 +15,7 @@ namespace set_1 {
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX quantizied
+/// \return The vector containing OV nodes producing output of ONNX quantizied
 ///         matrix multiplication integer operation.
 OutputVector matmul_integer(const Node& node);
 }  // namespace set_1

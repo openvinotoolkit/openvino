@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/core/node_vector.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -24,4 +24,4 @@ OutputVector gemm(const Node& node);
 
 }  // namespace  onnx_import
 
-}  // namespace  ngraph
+}  // namespace ov

@@ -16,7 +16,7 @@ namespace set_1 {
 ///
 /// \param[in]  node  The ONNX node representing this operation.
 ///
-/// \return     Ngraph node representing this operation.
+/// \return     OV node representing this operation.
 ///
 OutputVector reshape(const Node& node);
 

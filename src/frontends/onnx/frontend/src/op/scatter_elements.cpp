@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/opsets/opset3.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -21,7 +20,7 @@ OutputVector scatter_elements(const Node& node) {
     const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
     const auto axis_node = default_opset::Constant::create(element::i64, Shape{}, {axis});
 
-    return {std::make_shared<ngraph::opset3::ScatterElementsUpdate>(data, indices, updates, axis_node)};
+    return {std::make_shared<default_opset::ScatterElementsUpdate>(data, indices, updates, axis_node)};
 }
 }  // namespace set_1
 

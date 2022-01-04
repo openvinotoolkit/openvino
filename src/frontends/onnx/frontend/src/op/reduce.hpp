@@ -20,7 +20,7 @@ namespace set_13 {
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_sum(const Node& node);
 }  // namespace set_13
@@ -35,7 +35,7 @@ namespace set_1 {
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_log_sum(const Node& node);
 
@@ -49,7 +49,7 @@ OutputVector reduce_log_sum(const Node& node);
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_log_sum_exp(const Node& node);
 
@@ -63,7 +63,7 @@ OutputVector reduce_log_sum_exp(const Node& node);
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_l1(const Node& node);
 
@@ -77,7 +77,7 @@ OutputVector reduce_l1(const Node& node);
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_l2(const Node& node);
 
@@ -91,7 +91,7 @@ OutputVector reduce_l2(const Node& node);
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_max(const Node& node);
 
@@ -105,7 +105,7 @@ OutputVector reduce_max(const Node& node);
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_mean(const Node& node);
 
@@ -119,7 +119,7 @@ OutputVector reduce_mean(const Node& node);
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_min(const Node& node);
 
@@ -133,7 +133,7 @@ OutputVector reduce_min(const Node& node);
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_prod(const Node& node);
 
@@ -147,7 +147,7 @@ OutputVector reduce_prod(const Node& node);
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_sum(const Node& node);
 
@@ -161,7 +161,7 @@ OutputVector reduce_sum(const Node& node);
 ///
 /// \param[in]  node  The ONNX node representing operation.
 ///
-/// \return     The nGraph node equivalent of the ONNX operation.
+/// \return     The OV node equivalent of the ONNX operation.
 ///
 OutputVector reduce_sum_square(const Node& node);
 

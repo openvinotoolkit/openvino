@@ -14,7 +14,7 @@ namespace set_1 {
 /// \brief Performs ONNX Tile operation.
 ///
 /// \param node The ONNX node object representing this operation.
-/// \return The vector containing nGraph a node producing the output of the Tile op.
+/// \return The vector containing OV a node producing the output of the Tile op.
 OutputVector tile(const Node& node);
 
 }  // namespace set_1

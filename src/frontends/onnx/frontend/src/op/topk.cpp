@@ -79,7 +79,7 @@ OutputVector topk(const Node& node) {
     const auto largest = node.get_attribute_value<std::int64_t>("largest", 1);
     const auto sorted = node.get_attribute_value<std::int64_t>("sorted", 1);
 
-    // Map attribute values to nGraph enums
+    // Map attribute values to OV enums
     const auto sort_type = sorted ? default_opset::TopK::SortType::SORT_VALUES : default_opset::TopK::SortType::NONE;
 
     const auto compute_max = static_cast<bool>(largest);

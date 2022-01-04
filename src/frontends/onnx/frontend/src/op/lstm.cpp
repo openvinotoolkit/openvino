@@ -15,16 +15,16 @@
 #include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
-#include "ngraph/enum_names.hpp"
 #include "ngraph/log.hpp"
+#include "onnx_import/core/null_node.hpp"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "openvino/core/shape.hpp"
-#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -58,18 +58,18 @@ struct LSTMNgInputMap {
         // Weight tensor for the gates.
         // Shape: [num_directions, 4*hidden_size, input_size]
         m_input_map[LSTMInput::LSTM_INPUT_W] =
-            ngraph::op::util::convert_lstm_node_format(ng_inputs.at(1),
-                                                       ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                                       ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                       1);
+            ov::op::util::convert_lstm_node_format(ng_inputs.at(1),
+                                                   ov::op::util::LSTMWeightsFormat::IOFC,
+                                                   ov::op::util::LSTMWeightsFormat::FICO,
+                                                   1);
 
         // The recurrence weight tensor.
         // Shape: [num_directions, 4*hidden_size, hidden_size]
         m_input_map[LSTMInput::LSTM_INPUT_R] =
-            ngraph::op::util::convert_lstm_node_format(ng_inputs.at(2),
-                                                       ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                                       ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                       1);
+            ov::op::util::convert_lstm_node_format(ng_inputs.at(2),
+                                                   ov::op::util::LSTMWeightsFormat::IOFC,
+                                                   ov::op::util::LSTMWeightsFormat::FICO,
+                                                   1);
 
         // Get dimensions needed for default inputs creation
         auto shape_of_x = std::make_shared<default_opset::ShapeOf>(m_input_map[LSTMInput::LSTM_INPUT_X]);
@@ -103,10 +103,10 @@ struct LSTMNgInputMap {
             m_input_map[LSTMInput::LSTM_INPUT_B] =
                 std::make_shared<default_opset::Add>(split_bias.at(0), split_bias.at(1));
             m_input_map[LSTMInput::LSTM_INPUT_B] =
-                ngraph::op::util::convert_lstm_node_format(m_input_map[LSTMInput::LSTM_INPUT_B],
-                                                           ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                                           ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                           1);
+                ov::op::util::convert_lstm_node_format(m_input_map[LSTMInput::LSTM_INPUT_B],
+                                                       ov::op::util::LSTMWeightsFormat::IOFC,
+                                                       ov::op::util::LSTMWeightsFormat::FICO,
+                                                       1);
         } else {
             auto b_shape = std::make_shared<default_opset::Concat>(
                 OutputVector{num_directions_node,
@@ -182,7 +182,7 @@ struct LSTMAttributes {
         m_clip_threshold = std::abs(m_clip_threshold);
         std::string direction = ngraph::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
 
-        m_direction = ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
+        m_direction = as_enum<ov::op::RecurrentSequenceDirection>(direction);
 
         if (m_input_forget != 0) {
             NGRAPH_WARN << (node)
@@ -191,7 +191,7 @@ struct LSTMAttributes {
         }
     }
 
-    ngraph::op::RecurrentSequenceDirection m_direction;
+    ov::op::RecurrentSequenceDirection m_direction;
     std::int64_t m_hidden_size;
     float m_clip_threshold;
     std::vector<std::string> m_activations;

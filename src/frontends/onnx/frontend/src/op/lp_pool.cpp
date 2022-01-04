@@ -10,10 +10,9 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/axis_set.hpp"
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/builder/split.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/core/axis_set.hpp"
 #include "utils/common.hpp"
 
 namespace ov {

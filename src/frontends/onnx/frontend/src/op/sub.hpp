@@ -5,7 +5,6 @@
 #pragma once
 
 #include "default_opset.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "onnx_import/core/node.hpp"
 

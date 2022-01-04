@@ -8,8 +8,7 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/axis_set.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/mvn.hpp"
 
@@ -22,7 +21,7 @@ OutputVector mean_variance_normalization(const Node& node) {
     bool across_channels = node.get_attribute_value<std::int64_t>("across_channels", 0);
     bool normalize_variance = node.get_attribute_value<std::int64_t>("normalize_variance", 1);
 
-    return {std::make_shared<ngraph::opset5::MVN>(data, across_channels, normalize_variance)};
+    return {std::make_shared<ov::op::v0::MVN>(data, across_channels, normalize_variance)};
 }
 
 }  // namespace set_1

@@ -10,7 +10,6 @@
 #include "core/graph.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/log.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -25,7 +24,7 @@ namespace {
 ///             iterations.
 ///             It allows to replace termination condition body output with
 ///             Constant.
-///             As a result ngraph Loop shape inference is able to handle more
+///             As a result OV Loop shape inference is able to handle more
 ///             cases.
 ///
 /// \param[in]  cond_in    boolean input to the loop body depicting loop termination condition

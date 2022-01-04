@@ -20,7 +20,7 @@ OutputVector reverse_sequence(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
 
     const auto sequence_lengths = node.get_ng_inputs().at(1);
-    // nGraph supports only int32 type of sequence_lengths
+    // OV supports only int32 type of sequence_lengths
     const auto sequence_lengths_i32 =
         std::make_shared<default_opset::Convert>(node.get_ng_inputs().at(1), element::i32);
     const auto data_rank = data.get_partial_shape().rank();

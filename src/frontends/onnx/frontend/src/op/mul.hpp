@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/multiply.hpp"

@@ -16,7 +16,7 @@ namespace set_1 {
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX MaxPool
+/// \return The vector containing OV nodes producing output of ONNX MaxPool
 ///         operation.
 ///
 OutputVector max_pool(const Node& node);
@@ -29,7 +29,7 @@ namespace set_8 {
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX MaxPool
+/// \return The vector containing OV nodes producing output of ONNX MaxPool
 ///         operation.
 ///
 OutputVector max_pool(const Node& node);

@@ -3,7 +3,7 @@
 //
 
 #include <core/graph_cache.hpp>
-#include <ngraph/except.hpp>
+#include <openvino/core/except.hpp>
 
 namespace ov {
 namespace onnx_import {

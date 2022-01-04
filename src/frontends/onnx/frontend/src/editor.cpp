@@ -11,7 +11,6 @@
 
 #include "detail/subgraph_extraction.hpp"
 #include "edge_mapper.hpp"
-#include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"

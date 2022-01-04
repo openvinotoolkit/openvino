@@ -17,9 +17,9 @@
 #pragma once
 
 #include <core/graph.hpp>
-#include <openvino/core/model.hpp>
-#include <ngraph/graph_util.hpp>
 #include <onnx_import/core/node.hpp>
+#include <openvino/core/graph_util.hpp>
+#include <openvino/core/model.hpp>
 #include <openvino/op/util/framework_node.hpp>
 
 namespace ONNX_NAMESPACE {

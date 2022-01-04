@@ -6,7 +6,6 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
 #include "openvino/core/shape.hpp"
 
 namespace ov {

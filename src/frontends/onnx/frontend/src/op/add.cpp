@@ -5,7 +5,6 @@
 #include "op/add.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
 #include "openvino/core/shape.hpp"
 #include "utils/common.hpp"
 

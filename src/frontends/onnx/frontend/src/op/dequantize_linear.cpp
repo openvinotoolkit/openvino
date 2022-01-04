@@ -8,12 +8,11 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/axis_set.hpp"
-#include "ngraph/builder/make_constant.hpp"
-#include "openvino/op/convert.hpp"
+#include "onnx_import/core/null_node.hpp"
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "onnx_import/core/null_node.hpp"
+#include "openvino/op/convert.hpp"
 #include "utils/common.hpp"
 
 namespace ov {
@@ -39,8 +38,8 @@ OutputVector dequantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
 
     OPENVINO_ASSERT(2 <= inputs.size() && inputs.size() <= 3,
-                 "The DequantizeLinear op expects 2 required and one optional input. Got: ",
-                 inputs.size());
+                    "The DequantizeLinear op expects 2 required and one optional input. Got: ",
+                    inputs.size());
 
     const auto x = inputs[0];
     const auto scale = inputs[1];
@@ -62,7 +61,7 @@ namespace detail {
 void validate_scale(const Output<ov::Node> scale, const Output<ov::Node> x, const int64_t axis) {
     const auto& scale_shape = scale.get_partial_shape();
     OPENVINO_ASSERT(scale_shape.rank().get_length() == 0 || scale_shape.rank().get_length() == 1,
-                 "Dequantization scale needs to be a scalar or a vector.");
+                    "Dequantization scale needs to be a scalar or a vector.");
 
     if (scale_shape.rank().get_length() == 1) {
         const auto& scale_dim = scale_shape[0];
@@ -70,19 +69,19 @@ void validate_scale(const Output<ov::Node> scale, const Output<ov::Node> x, cons
         const auto& x_dim_at_axis = x_shape[axis];
 
         OPENVINO_ASSERT(scale_dim.same_scheme(x_dim_at_axis),
-                     "The number of dequantization scale elements '",
-                     scale_dim,
-                     "' must match the input shape dimension '",
-                     x_dim_at_axis,
-                     " pointed to by the axis attribute: ",
-                     axis);
+                        "The number of dequantization scale elements '",
+                        scale_dim,
+                        "' must match the input shape dimension '",
+                        x_dim_at_axis,
+                        " pointed to by the axis attribute: ",
+                        axis);
     }
 }
 
 void validate_zero_point(const Output<ov::Node> zero_point, const Output<ov::Node> x, const int64_t axis) {
     const auto& zero_point_shape = zero_point.get_partial_shape();
     OPENVINO_ASSERT(zero_point_shape.rank().get_length() == 0 || zero_point_shape.rank().get_length() == 1,
-                 "Zero point needs to be a scalar or a vector.");
+                    "Zero point needs to be a scalar or a vector.");
 
     if (zero_point_shape.rank().get_length() == 1) {
         const auto& zero_point_dim = zero_point_shape[0];
@@ -90,18 +89,16 @@ void validate_zero_point(const Output<ov::Node> zero_point, const Output<ov::Nod
         const auto& x_dim_at_axis = x_shape[axis];
 
         OPENVINO_ASSERT(zero_point_dim.same_scheme(x_dim_at_axis),
-                     "The number of zero point elements '",
-                     zero_point_dim,
-                     "' must match the input shape dimension '",
-                     x_dim_at_axis,
-                     " pointed to by the axis attribute: ",
-                     axis);
+                        "The number of zero point elements '",
+                        zero_point_dim,
+                        "' must match the input shape dimension '",
+                        x_dim_at_axis,
+                        " pointed to by the axis attribute: ",
+                        axis);
     }
 }
 
-std::shared_ptr<ov::Node> reshape_input(const Output<ov::Node> input,
-                                            const int64_t axis,
-                                            const PartialShape& x_shape) {
+std::shared_ptr<ov::Node> reshape_input(const Output<ov::Node> input, const int64_t axis, const PartialShape& x_shape) {
     auto input_rank = input.get_partial_shape().rank();
 
     // Do not reshape input, if it contains a scalar value
@@ -160,9 +157,9 @@ OutputVector dequantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
 
     OPENVINO_ASSERT(2 <= inputs.size() && inputs.size() <= 3,
-                 "The DequantizeLinear op expects 2 required and one optional "
-                 "input. Got: ",
-                 inputs.size());
+                    "The DequantizeLinear op expects 2 required and one optional "
+                    "input. Got: ",
+                    inputs.size());
     const auto x = inputs[0];
     auto scale = inputs[1];
     auto zero_point = op::detail::get_zero_point(inputs);
