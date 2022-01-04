@@ -349,6 +349,7 @@ def prepare_ir(argv : argparse.Namespace):
             reasons_message = ", ".join(fallback_reasons)
             argv.use_legacy_frontend = True
             load_extensions(argv)
+            t.send_event("mo", "fallback_reason", reasons_message)
             log.warning("The IR preparation was executed by the legacy MO path. "
                         "This is a fallback scenario applicable only for some specific cases. "
                        f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "

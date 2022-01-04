@@ -14,6 +14,7 @@ import onnx
 import paddle
 import numpy as np
 import shutil
+import pytest
 from generator import generator, generate
 
 try:
@@ -121,15 +122,15 @@ class TestMoFallback(unittest.TestCase):
         shutil.rmtree(self.paddle_dir)
 
 
-    @generate(*[('dir_to_extension', None, None, 'mo_legacy'), # fallback
-                ('dir_to_extension', False, True, 'onnx_frontend'),
-                ('dir_to_extension', False, None, 'onnx_frontend'),
-                ('dir_to_extension', True, None, 'mo_legacy'),
-                ('', True, None, 'mo_legacy'),
-                ('', None, True, 'onnx_frontend'),
-                (None, None, None, 'onnx_frontend'),
+    @generate(*[('dir_to_extension', None, None, 'mo_legacy', 'extensions'), # fallback
+                ('dir_to_extension', False, True, 'onnx_frontend', None),
+                ('dir_to_extension', False, None, 'onnx_frontend', None),
+                ('dir_to_extension', True, None, 'mo_legacy', None),
+                ('', True, None, 'mo_legacy', None),
+                ('', None, True, 'onnx_frontend', None),
+                (None, None, None, 'onnx_frontend', None),
     ])
-    def test_fallback_if_extension_specified(self, extension, use_legacy, use_new_fe, conversion_method):
+    def test_fallback_if_extension_specified(self, extension, use_legacy, use_new_fe, conversion_method, fallback_reason):
         args = base_args_config(use_legacy, use_new_fe)
         args.extensions = extension
         args.input_model = "test_model.onnx"
@@ -137,14 +138,19 @@ class TestMoFallback(unittest.TestCase):
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+        if fallback_reason:
+            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+        else:
+            with pytest.raises(AssertionError): # not called
+                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
 
 
-    @generate(*[(True, None, None, 'mo_legacy'), # fallback
-                (True, True, None, 'mo_legacy'),
-                (False, None, True, 'onnx_frontend'),
-                (False, None, None, 'onnx_frontend'),
+    @generate(*[(True, None, None, 'mo_legacy', 'transformations_config'), # fallback
+                (True, True, None, 'mo_legacy', None),
+                (False, None, True, 'onnx_frontend', None),
+                (False, None, None, 'onnx_frontend', None),
     ])
-    def test_fallback_if_tranformation_config_specified(self, trans_config_used, use_legacy, use_new_fe, expected_path):
+    def test_fallback_if_tranformations_config_specified(self, trans_config_used, use_legacy, use_new_fe, expected_path, fallback_reason):
         args = base_args_config(use_legacy, use_new_fe)
         args.input_model = "test_model.onnx"
         args.transformations_config = self.trans_config_file if trans_config_used else None
@@ -152,14 +158,19 @@ class TestMoFallback(unittest.TestCase):
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+        if fallback_reason:
+            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+        else:
+            with pytest.raises(AssertionError): # not called
+                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
 
 
-    @generate(*[('dir_to_extension', True, None, 'mo_legacy'), # fallback
-                (None, True, None, 'mo_legacy'), # fallback
-                ('dir_to_extension', False, None, 'mo_legacy'), # fallback
-                (None, False, True, 'onnx_frontend'),
+    @generate(*[('dir_to_extension', True, None, 'mo_legacy', 'extensions, transformations_config'), # fallback
+                (None, True, None, 'mo_legacy', 'transformations_config'), # fallback
+                ('dir_to_extension', False, None, 'mo_legacy', 'extensions'), # fallback
+                (None, False, True, 'onnx_frontend', None),
     ])
-    def test_fallback_if_both_extension_and_trans_config_specified(self, extension, trans_config_used, use_new_fe, expected_path):
+    def test_fallback_if_both_extension_and_trans_config_specified(self, extension, trans_config_used, use_new_fe, expected_path, fallback_reason):
         args = base_args_config(use_new_fe=use_new_fe)
         args.extensions = extension
         args.input_model = "test_model.onnx"
@@ -168,6 +179,11 @@ class TestMoFallback(unittest.TestCase):
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+        if fallback_reason:
+            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+        else:
+            with pytest.raises(AssertionError): # not called
+                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
 
 
     @generate(*[(True, None, None, 'mo_legacy'),
@@ -183,6 +199,8 @@ class TestMoFallback(unittest.TestCase):
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+        with pytest.raises(AssertionError): # not called
+            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason')
 
 
     @generate(*[(None, None, 'dir_to_extension', 'paddle_frontend'),
@@ -199,3 +217,5 @@ class TestMoFallback(unittest.TestCase):
         prepare_ir(args)
 
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
+        with pytest.raises(AssertionError): # not called
+            tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason')
