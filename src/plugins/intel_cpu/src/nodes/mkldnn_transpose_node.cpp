@@ -7,11 +7,45 @@
 
 #include <algorithm>
 #include <string>
+#include "mkldnn_extension_utils.h"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+namespace {
+struct TransposeKey {
+    PermuteParams params;
+
+    size_t hash() const;
+    bool operator==(const TransposeKey& rhs) const;
+};
+
+size_t TransposeKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+
+    seed = get_vector_hash(seed, params.src_block_dims);
+    seed = get_vector_hash(seed, params.dst_block_dims);
+    seed = get_vector_hash(seed, params.src_block_order);
+    seed = get_vector_hash(seed, params.dst_block_order);
+    seed = get_vector_hash(seed, params.order);
+    seed = hash_combine(seed, params.data_size);
+    return seed;
+}
+
+bool TransposeKey::operator==(const TransposeKey& rhs) const {
+    return (params.src_block_dims == rhs.params.src_block_dims) &&
+           (params.dst_block_dims == rhs.params.dst_block_dims) &&
+           (params.src_block_order == rhs.params.src_block_order) &&
+           (params.dst_block_order == rhs.params.dst_block_order) && (params.order == rhs.params.order) &&
+           (params.data_size == rhs.params.data_size);
+}
+
+}  // namespace
 
 bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -127,7 +161,21 @@ void MKLDNNTransposeNode::prepareParams() {
         params.order.assign(orderPtr, orderPtr + orderLen);
     }
 
-    execPtr = std::make_shared<TransposeJitExecutor>(params);
+    TransposeKey key = {params};
+
+    auto engine = getEngine();
+    auto builder = [&engine](const TransposeKey& key) -> std::shared_ptr<TransposeJitExecutor> {
+        return std::make_shared<TransposeJitExecutor>(key.params);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+
+    if (!result.first) {
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    execPtr = result.first;
 }
 
 void MKLDNNTransposeNode::createPrimitive() {
