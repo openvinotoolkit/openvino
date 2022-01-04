@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/topk.hpp"
+#include "openvino/op/topk.hpp"
 
 #include <cstdint>
 #include <memory>
 
 #include "default_opset.hpp"
 #include "openvino/core/node.hpp"
-#include "ngraph/op/constant.hpp"
+#include "openvino/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 #include "op/topk.hpp"
 #include "openvino/core/shape.hpp"

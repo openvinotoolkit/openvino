@@ -10,7 +10,7 @@
 #include "default_opset.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/make_constant.hpp"
-#include "ngraph/op/convert.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "onnx_import/core/null_node.hpp"

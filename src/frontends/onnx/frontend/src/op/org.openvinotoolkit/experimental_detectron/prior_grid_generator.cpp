@@ -13,7 +13,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector experimental_detectron_prior_grid_generator(const Node& node) {
-    using PriorGridGenerator = ngraph::op::v6::ExperimentalDetectronPriorGridGenerator;
+    using PriorGridGenerator = ov::op::v6::ExperimentalDetectronPriorGridGenerator;
 
     auto inputs = node.get_ng_inputs();
     auto priors = inputs[0];

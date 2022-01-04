@@ -8,10 +8,10 @@
 
 #include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/matmul.hpp"
-#include "ngraph/op/multiply.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace onnx_import {

@@ -14,7 +14,7 @@
 #include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/norm.hpp"
-#include "ngraph/op/divide.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/core/validation_util.hpp"
 
 namespace ov {

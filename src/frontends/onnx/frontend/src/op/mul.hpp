@@ -9,8 +9,8 @@
 #include "default_opset.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/multiply.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/multiply.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ov {

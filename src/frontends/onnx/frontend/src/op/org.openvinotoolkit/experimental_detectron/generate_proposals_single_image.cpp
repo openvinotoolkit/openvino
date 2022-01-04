@@ -13,7 +13,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector experimental_detectron_generate_proposals(const Node& node) {
-    using GenerateProposalsSingleImage = ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
+    using GenerateProposalsSingleImage = ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
     const auto inputs = node.get_ng_inputs();
     NGRAPH_CHECK(inputs.size() == 4,

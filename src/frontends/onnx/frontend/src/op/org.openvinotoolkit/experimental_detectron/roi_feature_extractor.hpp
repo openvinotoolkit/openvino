@@ -5,7 +5,7 @@
 #pragma once
 
 #include "openvino/core/node.hpp"
-#include "ngraph/op/experimental_detectron_roi_feature.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ov {

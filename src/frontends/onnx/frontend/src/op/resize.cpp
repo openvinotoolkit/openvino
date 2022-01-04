@@ -8,7 +8,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/util/op_types.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 
 namespace ov {

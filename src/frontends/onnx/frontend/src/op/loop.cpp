@@ -12,8 +12,8 @@
 #include "exceptions.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
 
 namespace ov {
@@ -63,7 +63,7 @@ OutputVector loop(const Node& node) {
     Output<ov::Node> trip_count;
     // trip count skipped or has value max(int64_t) means infinitive loop
     if (ov::op::is_null(ng_inputs.at(0)) ||
-        (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
+        (ov::op::util::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
          ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
              std::numeric_limits<int64_t>::max())) {
         // -1 means infinite Loop
@@ -76,7 +76,7 @@ OutputVector loop(const Node& node) {
     if (ov::op::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
     {
         termination_cond = default_opset::Constant::create(element::boolean, {1}, {true});
-    } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
+    } else if (ov::op::util::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
                ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())
                        ->cast_vector<bool>()[0] == false) {
         // no iteration is performed so initial values are returned

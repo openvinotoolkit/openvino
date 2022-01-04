@@ -8,7 +8,7 @@
 
 #include "default_opset.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "ngraph/op/floor.hpp"
+#include "openvino/op/floor.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ov {

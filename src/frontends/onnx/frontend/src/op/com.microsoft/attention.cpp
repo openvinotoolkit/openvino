@@ -525,9 +525,9 @@ std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
     const auto pads_begin =
         std::make_shared<default_opset::Broadcast>(zero, std::make_shared<default_opset::ShapeOf>(K_shape));
     const auto K_padded =
-        std::make_shared<default_opset::Pad>(K_unsqueezed, pads_begin, K_pads_end, ngraph::op::PadMode::CONSTANT);
+        std::make_shared<default_opset::Pad>(K_unsqueezed, pads_begin, K_pads_end, ov::op::PadMode::CONSTANT);
     const auto V_padded =
-        std::make_shared<default_opset::Pad>(V_unsqueezed, pads_begin, V_pads_end, ngraph::op::PadMode::CONSTANT);
+        std::make_shared<default_opset::Pad>(V_unsqueezed, pads_begin, V_pads_end, ov::op::PadMode::CONSTANT);
 
     // concat key and value tensors along first axis to make 'present' state
     // after that operation, 'present' has shape (2, batch_size, num_heads, sequence_length, head_size)

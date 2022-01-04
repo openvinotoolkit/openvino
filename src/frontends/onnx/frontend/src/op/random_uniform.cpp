@@ -6,7 +6,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/constant.hpp"
+#include "openvino/op/constant.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "openvino/core/shape.hpp"
 #include "utils/common.hpp"

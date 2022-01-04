@@ -18,7 +18,7 @@
 
 #include "default_opset.hpp"
 #include "openvino/core/node.hpp"
-#include "ngraph/op/deformable_convolution.hpp"
+#include "openvino/op/deformable_convolution.hpp"
 #include "utils/convpool.hpp"
 
 namespace ov {

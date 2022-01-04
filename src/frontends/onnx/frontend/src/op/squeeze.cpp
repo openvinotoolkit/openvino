@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/squeeze.hpp"
+#include "openvino/op/squeeze.hpp"
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/constant.hpp"
+#include "openvino/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 #include "op/squeeze.hpp"
 

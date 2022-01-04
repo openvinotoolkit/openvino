@@ -6,8 +6,8 @@
 
 #include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/op/one_hot.hpp"
-#include "ngraph/op/topk.hpp"
+#include "openvino/op/one_hot.hpp"
+#include "openvino/op/topk.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"

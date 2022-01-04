@@ -9,7 +9,7 @@
 
 #include "default_opset.hpp"
 #include "ngraph/axis_set.hpp"
-#include "ngraph/op/mvn.hpp"
+#include "openvino/op/mvn.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -34,7 +34,7 @@ OutputVector mean_variance_normalization(const Node& node) {
     const std::vector<std::size_t> normalized_axes =
         ngraph::normalize_axes(node.get_description(), axes, data.get_partial_shape().rank());
     auto const_axes = default_opset::Constant::create(element::i64, Shape{normalized_axes.size()}, normalized_axes);
-    return {std::make_shared<ngraph::op::v6::MVN>(data, const_axes, true, 1e-09, ov::op::MVNEpsMode::OUTSIDE_SQRT)};
+    return {std::make_shared<ov::op::v6::MVN>(data, const_axes, true, 1e-09, ov::op::MVNEpsMode::OUTSIDE_SQRT)};
 }
 
 }  // namespace set_9

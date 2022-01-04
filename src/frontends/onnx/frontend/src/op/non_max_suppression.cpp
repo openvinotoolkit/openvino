@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/non_max_suppression.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 
 #include <memory>
 

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/selu.hpp"
+#include "openvino/op/selu.hpp"
 
 #include <memory>
 #include <vector>
 
 #include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
+#include "openvino/op/constant.hpp"
 #include "op/selu.hpp"
 
 namespace ov {

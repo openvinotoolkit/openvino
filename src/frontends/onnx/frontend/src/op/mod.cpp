@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/mod.hpp"
+#include "openvino/op/mod.hpp"
 
 #include <memory>
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/op/abs.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "op/mod.hpp"
 

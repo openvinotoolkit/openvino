@@ -13,7 +13,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector experimental_detectron_detection_output(const Node& node) {
-    using DetectionOutput = ngraph::op::v6::ExperimentalDetectronDetectionOutput;
+    using DetectionOutput = ov::op::v6::ExperimentalDetectronDetectionOutput;
 
     auto inputs = node.get_ng_inputs();
     auto rois = inputs[0];

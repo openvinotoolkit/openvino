@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/pad.hpp"
+#include "openvino/op/pad.hpp"
 
 #include <memory>
 
@@ -10,23 +10,23 @@
 #include "exceptions.hpp"
 #include "ngraph/builder/split.hpp"
 #include "openvino/core/coordinate_diff.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/convert.hpp"
-#include "ngraph/op/util/op_types.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/core/shape.hpp"
 #include "op/pad.hpp"
 #include "utils/convpool.hpp"
 
 namespace {
-ngraph::op::PadMode get_pad_mode(std::string mode) {
-    ngraph::op::PadMode pad_mode;
+ov::op::PadMode get_pad_mode(std::string mode) {
+    ov::op::PadMode pad_mode;
 
     if (mode == "constant") {
-        pad_mode = ngraph::op::PadMode::CONSTANT;
+        pad_mode = ov::op::PadMode::CONSTANT;
     } else if (mode == "reflect") {
-        pad_mode = ngraph::op::PadMode::REFLECT;
+        pad_mode = ov::op::PadMode::REFLECT;
     } else if (mode == "edge") {
-        pad_mode = ngraph::op::PadMode::EDGE;
+        pad_mode = ov::op::PadMode::EDGE;
     } else {
         throw ngraph::ngraph_error("Unsupported padding mode: [" + mode + "]");
     }
@@ -47,7 +47,7 @@ OutputVector pad(const Node& node) {
 
     double value = node.get_attribute_value<double>("value", 0);
     const std::string mode = node.get_attribute_value<std::string>("mode", "constant");
-    ngraph::op::PadMode pad_mode = get_pad_mode(mode);
+    ov::op::PadMode pad_mode = get_pad_mode(mode);
 
     const auto paddings = convpool::get_pads(node, data_rank_value);
     CoordinateDiff padding_below = paddings.first;
@@ -76,7 +76,7 @@ OutputVector pad(const Node& node) {
         values = default_opset::Constant::create(data.get_element_type(), ngraph::Shape{}, {0});
     }
 
-    if (ngraph::op::is_constant(pads.get_node())) {
+    if (ov::op::util::is_constant(pads.get_node())) {
         std::vector<std::int64_t> pads_vector =
             ngraph::as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())->get_vector<std::int64_t>();
 
@@ -94,7 +94,7 @@ OutputVector pad(const Node& node) {
     }
 
     const std::string mode = node.get_attribute_value<std::string>("mode", "constant");
-    ngraph::op::PadMode pad_mode = get_pad_mode(mode);
+    ov::op::PadMode pad_mode = get_pad_mode(mode);
 
     return {std::make_shared<default_opset::Pad>(data, padding_begin, padding_end, values, pad_mode)};
 }

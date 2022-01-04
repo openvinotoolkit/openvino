@@ -5,7 +5,7 @@
 #include "op/org.openvinotoolkit/normalize.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/op/normalize_l2.hpp"
+#include "openvino/op/normalize_l2.hpp"
 #include "utils/common.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -54,7 +54,7 @@ OutputVector normalize(const Node& node) {
     }
 
     return {std::make_shared<default_opset::Multiply>(
-        std::make_shared<default_opset::NormalizeL2>(data, axes, eps, ngraph::op::EpsMode::ADD),
+        std::make_shared<default_opset::NormalizeL2>(data, axes, eps, ov::op::EpsMode::ADD),
         weights)};
 }
 
