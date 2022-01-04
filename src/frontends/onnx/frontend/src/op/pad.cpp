@@ -9,12 +9,12 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/builder/split.hpp"
+#include "op/pad.hpp"
 #include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/core/shape.hpp"
-#include "op/pad.hpp"
 #include "utils/convpool.hpp"
 
 namespace {

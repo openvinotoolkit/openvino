@@ -12,9 +12,9 @@
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
-#include "openvino/core/except.hpp"
 #include "ngraph/enum_names.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace onnx_import {

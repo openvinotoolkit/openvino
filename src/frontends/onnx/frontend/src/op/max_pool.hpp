@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/core/node_vector.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 
 namespace ov {
 namespace onnx_import {

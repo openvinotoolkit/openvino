@@ -16,7 +16,7 @@ OutputVector embed_layer_normalization(const Node& node) {
     auto num_nodes = nodes.size();
 
     OPENVINO_ASSERT(num_nodes >= 7 && num_nodes <= 8,
-                 "EmbedLayerNormalization takes 7 or 8 inputs. Provided " + std::to_string(num_nodes));
+                    "EmbedLayerNormalization takes 7 or 8 inputs. Provided " + std::to_string(num_nodes));
     OPENVINO_ASSERT(nodes[0].get_element_type() == element::i32, "input_ids must have int32 type");
 
     const auto& input_ids = nodes[0];
@@ -34,7 +34,7 @@ OutputVector embed_layer_normalization(const Node& node) {
     // add segment embeddings if available
     if (!ov::op::is_null(segment_ids)) {
         OPENVINO_ASSERT(!ov::op::is_null(segment_embeddings),
-                     "segment_ids provided, but segment_embedding input is missing");
+                        "segment_ids provided, but segment_embedding input is missing");
         OPENVINO_ASSERT(nodes[1].get_element_type() == element::i32, "segment_ids must have int32 type");
         auto gathered_segment_embeddings =
             std::make_shared<default_opset::Gather>(segment_embeddings, segment_ids, zero, 0);

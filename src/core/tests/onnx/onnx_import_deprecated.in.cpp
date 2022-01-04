@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
+
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
@@ -48,9 +48,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop) {
 
     // input shape (1, 1, 4, 4)
     auto input = ngraph::test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},
-                                            {23.f, 24.f, 25.f, 26.f},
-                                            {27.f, 28.f, 29.f, 30.f},
-                                            {31.f, 32.f, 33.f, 34.f}}}})
+                                                    {23.f, 24.f, 25.f, 26.f},
+                                                    {27.f, 28.f, 29.f, 30.f},
+                                                    {31.f, 32.f, 33.f, 34.f}}}})
                      .get_vector();
 
     // output shape (1, 1, 2, 2)
@@ -68,9 +68,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop_with_scale) {
 
     // input shape (1, 1, 4, 4)
     auto input = ngraph::test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},
-                                            {23.f, 24.f, 25.f, 26.f},
-                                            {27.f, 28.f, 29.f, 30.f},
-                                            {31.f, 32.f, 33.f, 34.f}}}})
+                                                    {23.f, 24.f, 25.f, 26.f},
+                                                    {27.f, 28.f, 29.f, 30.f},
+                                                    {31.f, 32.f, 33.f, 34.f}}}})
                      .get_vector();
 
     // output shape (1, 1, 2, 3)

@@ -31,11 +31,9 @@ OutputVector aten(const Node& node) {
                      mode);
     CHECK_VALID_NODE(node, inputs.size() >= 2, "Minimum 2 inputs are required. Got: ", inputs.size());
 
-    const bool is_packed_two_inputs =
-        inputs.size() == 2 || (inputs.size() == 3 && ov::op::is_null(inputs[2])) ||
-        (inputs.size() == 4 && ov::op::is_null(inputs[2]) && ov::op::is_null(inputs[3]));
-    const bool is_packed_three_inputs =
-        inputs.size() == 4 && ov::op::is_null(inputs[2]) && !ov::op::is_null(inputs[3]);
+    const bool is_packed_two_inputs = inputs.size() == 2 || (inputs.size() == 3 && ov::op::is_null(inputs[2])) ||
+                                      (inputs.size() == 4 && ov::op::is_null(inputs[2]) && ov::op::is_null(inputs[3]));
+    const bool is_packed_three_inputs = inputs.size() == 4 && ov::op::is_null(inputs[2]) && !ov::op::is_null(inputs[3]);
     const bool is_offsets_three_inputs = inputs.size() == 3 && !ov::op::is_null(inputs[2]);
 
     Output<ov::Node> embedding_bag;

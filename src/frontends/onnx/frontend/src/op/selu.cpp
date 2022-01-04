@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "default_opset.hpp"
-#include "openvino/op/constant.hpp"
 #include "op/selu.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace onnx_import {

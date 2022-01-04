@@ -9,8 +9,8 @@
 #include <fstream>
 #include <memory>
 
-#include "openvino/core/except.hpp"
 #include "onnx_common/parser.hpp"
+#include "openvino/core/except.hpp"
 #include "ops_bridge.hpp"
 #include "utils/onnx_internal.hpp"
 
@@ -26,7 +26,7 @@ std::shared_ptr<Model> import_onnx_model(const std::string& file_path) {
 
     if (!model_stream.is_open()) {
         throw ov::Exception("Error during import of ONNX model expected to be in file: " + file_path +
-                           ". Could not open the file.");
+                            ". Could not open the file.");
     };
 
     return import_onnx_model(model_stream, file_path);

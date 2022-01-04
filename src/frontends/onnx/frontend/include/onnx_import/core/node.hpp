@@ -7,9 +7,9 @@
 #include <cstddef>
 #include <string>
 
+#include "onnx_import/onnx_importer_visibility.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "onnx_import/onnx_importer_visibility.hpp"
 
 namespace ONNX_NAMESPACE {
 // forward declaration

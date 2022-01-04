@@ -4,7 +4,7 @@
 
 #include "default_opset.hpp"
 #include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
+
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/type.hpp"

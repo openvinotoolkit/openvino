@@ -27,10 +27,10 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
     for (std::size_t idx = 0; idx < inferred_dims.size(); ++idx) {
         if (inferred_dims.at(idx) == 0) {
             OPENVINO_ASSERT(idx < input_shape.size(),
-                         "Node ",
-                         node_name,
-                         " cannot copy dimension from the input data shape because "
-                         "requested index is out of range.");
+                            "Node ",
+                            node_name,
+                            " cannot copy dimension from the input data shape because "
+                            "requested index is out of range.");
 
             inferred_dims.at(idx) = input_shape.at(idx);
         }
@@ -43,10 +43,10 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
     if (neg_value_it != std::end(inferred_dims)) {
         // only single '-1' value is allowed
         OPENVINO_ASSERT(std::find(std::next(neg_value_it), std::end(inferred_dims), -1) == std::end(inferred_dims),
-                     "Node ",
-                     node_name,
-                     " more than one dimension is set to (-1). ",
-                     "Only one dimension value can be inferred.");
+                        "Node ",
+                        node_name,
+                        " more than one dimension is set to (-1). ",
+                        "Only one dimension value can be inferred.");
 
         // Set dimension value to 1 temporarily to be able to calculate its value.
         *neg_value_it = 1;

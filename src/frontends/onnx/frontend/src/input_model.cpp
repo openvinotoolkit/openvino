@@ -205,25 +205,25 @@ std::shared_ptr<Model> InputModel::convert() {
 void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
     extract_subgraph({}, outputs);
     OPENVINO_ASSERT(m_editor->model_outputs().size() == outputs.size(),
-                 "Unexpected number of outputs after override_all_outputs");
+                    "Unexpected number of outputs after override_all_outputs");
     OPENVINO_ASSERT(std::all_of(std::begin(outputs),
-                             std::end(outputs),
-                             [](const ov::frontend::Place::Ptr& place) {
-                                 return place->is_output();
-                             }),
-                 "Not all provided arguments of override_all_outputs are new outputs of the model");
+                                std::end(outputs),
+                                [](const ov::frontend::Place::Ptr& place) {
+                                    return place->is_output();
+                                }),
+                    "Not all provided arguments of override_all_outputs are new outputs of the model");
 }
 
 void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
     const auto outputs_before_extraction = m_editor->model_outputs();
     extract_subgraph({inputs}, {});
     OPENVINO_ASSERT(std::equal(std::begin(outputs_before_extraction),
-                            std::end(outputs_before_extraction),
-                            std::begin(m_editor->model_outputs())),
-                 "All outputs should be preserved after override_all_inputs. Provided inputs does "
-                 "not satisfy all outputs");
+                               std::end(outputs_before_extraction),
+                               std::begin(m_editor->model_outputs())),
+                    "All outputs should be preserved after override_all_inputs. Provided inputs does "
+                    "not satisfy all outputs");
     OPENVINO_ASSERT(m_editor->model_inputs().size() == inputs.size(),
-                 "Unexpected number of inputs after override_all_inputs");
+                    "Unexpected number of inputs after override_all_inputs");
 }
 
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,

@@ -8,10 +8,8 @@
 
 #include "all_close.hpp"
 #include "all_close_f.hpp"
-#include "engine_factory.hpp"
 #include "ngraph/file_util.hpp"
 #include "openvino/core/model.hpp"
-#include "ngraph/ngraph.hpp"
 #include "openvino/runtime/core.hpp"
 #include "test_tools.hpp"
 
@@ -163,7 +161,7 @@ public:
     }
 
     template <typename T>
-    void add_expected_output_from_file(const ngraph::Shape& expected_shape,
+    void add_expected_output_from_file(const Shape& expected_shape,
                                        const std::string& basepath,
                                        const std::string& filename) {
         NGRAPH_SUPPRESS_DEPRECATED_START
@@ -173,7 +171,7 @@ public:
     }
 
     template <typename T>
-    void add_expected_output_from_file(const ngraph::Shape& expected_shape, const std::string& filepath) {
+    void add_expected_output_from_file(const Shape& expected_shape, const std::string& filepath) {
         const auto values = read_binary_file<T>(filepath);
         add_expected_output<T>(expected_shape, values);
     }
@@ -217,4 +215,4 @@ private:
     testing::AssertionResult compare_results_with_tolerance_as_fp(float tolerance_bits);
 };
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

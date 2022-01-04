@@ -5,8 +5,8 @@
 #include "op/org.openvinotoolkit/swish.hpp"
 
 #include "default_opset.hpp"
-#include "openvino/op/normalize_l2.hpp"
 #include "op/org.openvinotoolkit/normalize.hpp"
+#include "openvino/op/normalize_l2.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 

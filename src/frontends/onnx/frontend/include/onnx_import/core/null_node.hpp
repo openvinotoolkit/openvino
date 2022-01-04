@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "openvino/core/node.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace op {

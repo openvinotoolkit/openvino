@@ -35,7 +35,7 @@
 #include "util/ndarray.hpp"
 #include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "engines_util/test_engines.hpp"
+
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
 
@@ -50,7 +50,8 @@ using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box) {
-    const auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/prior_box.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/prior_box.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> A(3 * 2 * 2);
     std::vector<float> B(3 * 6 * 6);
@@ -175,7 +176,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm) {
-    const auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
     int size = shape_size(shape);
@@ -218,7 +220,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize) {
-    const auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> data(12);
     std::iota(data.begin(), data.end(), 1);
@@ -242,7 +245,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/swish_with_beta.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/swish_with_beta.onnx"));
 
     const Shape expected_output_shape{3};
     auto test_case = ov::test::TestCase(function, s_device);
@@ -268,7 +272,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output) {
     auto function = onnx_import::import_onnx_model(
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/detection_output.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/org.openvinotoolkit/experimental_detectron/detection_output.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     // rois
@@ -327,8 +332,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_most_attrs_default) {
     auto function =
         onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                            "onnx/org.openvinotoolkit/experimental_detectron/"
-                                                            "detection_output_most_attrs_default.onnx"));
+                                                                    "onnx/org.openvinotoolkit/experimental_detectron/"
+                                                                    "detection_output_most_attrs_default.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     // rois
@@ -369,8 +374,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposals_single_image) {
     auto function =
         onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                            "onnx/org.openvinotoolkit/experimental_detectron/"
-                                                            "generate_proposals_single_image.onnx"));
+                                                                    "onnx/org.openvinotoolkit/experimental_detectron/"
+                                                                    "generate_proposals_single_image.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     // im_info
@@ -417,7 +422,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
     auto function = onnx_import::import_onnx_model(
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/group_norm.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/org.openvinotoolkit/experimental_detectron/group_norm.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
@@ -443,7 +449,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_generator) {
     auto function = onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
-                             "onnx/org.openvinotoolkit/experimental_detectron/prior_grid_generator.onnx"));
+                                     "onnx/org.openvinotoolkit/experimental_detectron/prior_grid_generator.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -469,7 +475,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_genera
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extractor) {
     auto function = onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
-                             "onnx/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.onnx"));
+                                     "onnx/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 

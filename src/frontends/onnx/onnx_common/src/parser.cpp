@@ -54,7 +54,7 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
     ONNX_NAMESPACE::ModelProto model_proto;
     if (!model_proto.ParseFromIstream(&model_stream)) {
         throw ov::Exception("Error during import of ONNX model provided as input stream "
-                           " with binary protobuf message.");
+                            " with binary protobuf message.");
     }
 
     return model_proto;

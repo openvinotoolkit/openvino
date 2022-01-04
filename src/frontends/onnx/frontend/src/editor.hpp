@@ -10,10 +10,10 @@
 
 #include "common/extension_holder.hpp"
 #include "editor_types.hpp"
+#include "onnx_import/onnx_importer_visibility.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "onnx_import/onnx_importer_visibility.hpp"
 #include "openvino/frontend/extension/progress_reporter_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 

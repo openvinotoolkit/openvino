@@ -8,7 +8,6 @@
 
 #include <fstream>
 
-#include "engines_util/test_engines.hpp"
 #include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
 #include "util/test_control.hpp"

@@ -60,8 +60,8 @@ OutputVector create_upsample_subgraph(const Output<ov::Node>& data,
     const auto shape_of_data =
         std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data), element::f32);
     const auto multiply = std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-    const auto output_shape = std::make_shared<default_opset::Convert>(std::make_shared<default_opset::Floor>(multiply),
-                                                                       element::i64);
+    const auto output_shape =
+        std::make_shared<default_opset::Convert>(std::make_shared<default_opset::Floor>(multiply), element::i64);
 
     return {std::make_shared<default_opset::Interpolate>(data, output_shape, scales, get_attributes(mode))};
 }

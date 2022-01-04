@@ -9,8 +9,8 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/log.hpp"
-#include "openvino/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace onnx_import {

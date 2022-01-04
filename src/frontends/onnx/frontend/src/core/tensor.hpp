@@ -10,10 +10,10 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/op/constant.hpp"
+#include "onnx_common/utils.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "onnx_common/utils.hpp"
+#include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 #include "utils/tensor_external_data.hpp"
 

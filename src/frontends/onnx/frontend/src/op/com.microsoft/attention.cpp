@@ -22,17 +22,17 @@ using NodeTuple = std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node
 NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional);
 
 std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
-                                                const std::shared_ptr<ov::Node>& Q,
-                                                std::shared_ptr<ov::Node> K,
-                                                std::shared_ptr<ov::Node> V,
-                                                const std::shared_ptr<ov::Node>& attention_mask,
-                                                const std::shared_ptr<ov::Node>& bin_mask,
-                                                const std::shared_ptr<ov::Node>& head_size,
-                                                bool unidirectional);
+                                            const std::shared_ptr<ov::Node>& Q,
+                                            std::shared_ptr<ov::Node> K,
+                                            std::shared_ptr<ov::Node> V,
+                                            const std::shared_ptr<ov::Node>& attention_mask,
+                                            const std::shared_ptr<ov::Node>& bin_mask,
+                                            const std::shared_ptr<ov::Node>& head_size,
+                                            bool unidirectional);
 
 std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
-                                                const std::shared_ptr<ov::Node>& V,
-                                                const OutputVector& op_inputs);
+                                            const std::shared_ptr<ov::Node>& V,
+                                            const OutputVector& op_inputs);
 }  // namespace
 }  // namespace detail
 
@@ -87,7 +87,7 @@ namespace detail {
 namespace {
 
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<default_opset::ShapeOf>& shape,
-                                             const std::vector<int>& dims) {
+                                         const std::vector<int>& dims) {
     static const auto zero = default_opset::Constant::create(element::i32, Shape{}, {0});
     const auto dims_const = default_opset::Constant::create(element::i32, Shape{dims.size()}, dims);
     return std::make_shared<default_opset::Gather>(shape, dims_const, zero);
@@ -136,7 +136,7 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
         // so user specified hidden_sizes for Q, K and V
         OPENVINO_ASSERT(qkv_hidden_sizes.size() == 3, "qkv_hidden_sizes attribute needs to have 3 values");
         OPENVINO_ASSERT(qkv_hidden_sizes[0] == qkv_hidden_sizes[1],
-                     "qkv_hidden_sizes first element should be same as the second");
+                        "qkv_hidden_sizes first element should be same as the second");
         // split the node into 3 parts Q, K, V with shapes
         // Q: (batch_size, sequence_len, qkv_hidden_sizes[0])
         // K: (batch_size, sequence_len, qkv_hidden_sizes[1])
@@ -236,9 +236,9 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
 // know its dimensions upfront. So we compute both variants and use Select operator to select
 // the right one in the runtime (unless it gets constantfolded before).
 std::shared_ptr<ov::Node> attention_mask_from_indices(const Output<ov::Node>& mask_index,
-                                                          const element::Type_t& type,
-                                                          const std::shared_ptr<ov::Node>& batch_size,
-                                                          const std::shared_ptr<ov::Node>& all_seq_len) {
+                                                      const element::Type_t& type,
+                                                      const std::shared_ptr<ov::Node>& batch_size,
+                                                      const std::shared_ptr<ov::Node>& all_seq_len) {
     const auto zero = default_opset::Constant::create(element::i64, Shape{}, {0});
     const auto one = default_opset::Constant::create(element::i64, Shape{}, {1});
     const auto stop = std::make_shared<default_opset::Squeeze>(all_seq_len, zero);
@@ -269,8 +269,7 @@ std::shared_ptr<ov::Node> attention_mask_from_indices(const Output<ov::Node>& ma
         std::make_shared<default_opset::FloorMod>(default_opset::Constant::create(element::i64, Shape{}, {1}),
                                                   get_dimensions(indices, {0}));
     // fetch indices from the second row (or first if not available)
-    std::shared_ptr<ov::Node> head_range_indices =
-        std::make_shared<default_opset::Gather>(indices, gather_index, zero);
+    std::shared_ptr<ov::Node> head_range_indices = std::make_shared<default_opset::Gather>(indices, gather_index, zero);
     head_range_indices =
         std::make_shared<default_opset::Reshape>(head_range_indices,
                                                  default_opset::Constant::create(element::i32, Shape{2}, {-1, 1}),
@@ -355,8 +354,8 @@ NodeTuple unidirectional_mask(const element::Type_t& type,
 // Shape (batch_size, 1, max_sequence_length, max_sequence_length) is not supported in onnxruntime:
 // https://github.com/microsoft/onnxruntime/blob/851554536ca8185b3413ee57449ea5ac93370193/onnxruntime/contrib_ops/cpu/bert/attention_helper.h#L78
 std::shared_ptr<ov::Node> raw_mask(const Output<ov::Node>& mask_index,
-                                       Dimension::value_type mask_rank,
-                                       const element::Type_t& type) {
+                                   Dimension::value_type mask_rank,
+                                   const element::Type_t& type) {
     std::shared_ptr<ov::Node> mask = std::make_shared<default_opset::Convert>(mask_index, type);
     mask = std::make_shared<default_opset::Convert>(mask, type);
     mask = std::make_shared<default_opset::Subtract>(default_opset::Constant::create(type, Shape{}, {1}), mask);
@@ -439,13 +438,13 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
 
 // Compute softmax(Q x K' / sqrt(head_size)) x V
 std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
-                                                const std::shared_ptr<ov::Node>& Q,
-                                                std::shared_ptr<ov::Node> K,
-                                                std::shared_ptr<ov::Node> V,
-                                                const std::shared_ptr<ov::Node>& attention_mask,
-                                                const std::shared_ptr<ov::Node>& bin_mask,
-                                                const std::shared_ptr<ov::Node>& head_size,
-                                                bool unidirectional) {
+                                            const std::shared_ptr<ov::Node>& Q,
+                                            std::shared_ptr<ov::Node> K,
+                                            std::shared_ptr<ov::Node> V,
+                                            const std::shared_ptr<ov::Node>& attention_mask,
+                                            const std::shared_ptr<ov::Node>& bin_mask,
+                                            const std::shared_ptr<ov::Node>& head_size,
+                                            bool unidirectional) {
     auto zero = default_opset::Constant::create(element::i64, Shape{}, {0});
     if (is_past_input_available(op_inputs)) {
         // concat past K and V with present ones
@@ -479,7 +478,7 @@ std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
     // handle 'extra_add' input
     if (op_inputs.size() > 5 && !ov::op::is_null(op_inputs[5])) {
         OPENVINO_ASSERT(!is_past_input_available(op_inputs),
-                     "Cannot use both 'past' and 'extra_add' inputs in the same node");
+                        "Cannot use both 'past' and 'extra_add' inputs in the same node");
         const auto& extra_add = op_inputs[5];
         softmax_input = std::make_shared<default_opset::Add>(softmax_input, extra_add);
     }
@@ -505,8 +504,8 @@ std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
 // and concatenating them along first axis to make 'present' output.
 // If fifth input ('past') is available, it gets concatenated with 'present' output along fourth axis.
 std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
-                                                const std::shared_ptr<ov::Node>& V,
-                                                const OutputVector& op_inputs) {
+                                            const std::shared_ptr<ov::Node>& V,
+                                            const OutputVector& op_inputs) {
     auto zero = default_opset::Constant::create(element::i64, Shape{1}, {0});
     // expand K shape (batch_size, num_heads, sequence_length, head_size) to
     // (1, batch_size, num_heads, sequence_length, head_size)

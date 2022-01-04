@@ -9,7 +9,6 @@
 #include <algorithm>
 
 #include "openvino/core/except.hpp"
-#include "openvino/core/except.hpp"
 
 using namespace ov;
 using namespace ov::onnx_editor;
@@ -59,9 +58,9 @@ std::vector<int> onnx_editor::EdgeMapper::find_node_indexes(const std::string& n
 
 int onnx_editor::EdgeMapper::get_node_output_idx(int node_index, const std::string& output_name) const {
     OPENVINO_ASSERT(node_index >= 0 && node_index < static_cast<int>(m_node_outputs.size()),
-                 "Node with index: ",
-                 std::to_string(node_index),
-                 "is out of scope outputs list");
+                    "Node with index: ",
+                    std::to_string(node_index),
+                    "is out of scope outputs list");
 
     const auto& node_outputs = m_node_outputs[node_index];
     const auto out_port_idx = std::find(std::begin(node_outputs), std::end(node_outputs), output_name);
@@ -74,9 +73,9 @@ int onnx_editor::EdgeMapper::get_node_output_idx(int node_index, const std::stri
 
 std::vector<int> onnx_editor::EdgeMapper::get_node_input_indexes(int node_index, const std::string& input_name) const {
     OPENVINO_ASSERT(node_index >= 0 && node_index < static_cast<int>(m_node_inputs.size()),
-                 "Node with index: ",
-                 std::to_string(node_index),
-                 "is out of scope outputs list");
+                    "Node with index: ",
+                    std::to_string(node_index),
+                    "is out of scope outputs list");
 
     const auto& node_inputs = m_node_inputs[node_index];
     std::vector<int> node_inputs_indexes;
@@ -228,10 +227,10 @@ bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& 
 namespace {
 void check_node(bool condition, const EditorNode& node) {
     OPENVINO_ASSERT(condition,
-                 "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
-                     ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
-                     ", node_index: " + (node.m_node_index == -1 ? "not_given" : std::to_string(node.m_node_index)) +
-                     " is ambiguous");
+                    "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+                        ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
+                        ", node_index: " + (node.m_node_index == -1 ? "not_given" : std::to_string(node.m_node_index)) +
+                        " is ambiguous");
 }
 }  // namespace
 
@@ -296,5 +295,5 @@ std::string onnx_editor::EdgeMapper::get_target_tensor_name(const OutputEdge& ed
 
 void onnx_editor::EdgeMapper::check_node_index(int node_index) const {
     OPENVINO_ASSERT(node_index >= 0 && node_index < static_cast<int>(m_node_inputs.size()),
-                 "Provided node index: " + std::to_string(node_index) + " is out of scope");
+                    "Provided node index: " + std::to_string(node_index) + " is out of scope");
 }

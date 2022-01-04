@@ -113,7 +113,7 @@ InterpolateV4Attrs get_resize_attrs(const onnx_import::Node& node) {
 }
 
 std::shared_ptr<ov::Node> calculate_output_shape_based_on_scales(const Output<ov::Node>& data,
-                                                                     const Output<ov::Node>& scales) {
+                                                                 const Output<ov::Node>& scales) {
     const auto shape_of_data = std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data),
                                                                         scales.get_element_type());
     const auto multiply = std::make_shared<default_opset::Multiply>(shape_of_data, scales);
@@ -122,8 +122,7 @@ std::shared_ptr<ov::Node> calculate_output_shape_based_on_scales(const Output<ov
     return output_shape;
 }
 
-std::shared_ptr<ov::Node> calculate_scales_based_on_sizes(const Output<ov::Node>& data,
-                                                              const Output<ov::Node>& sizes) {
+std::shared_ptr<ov::Node> calculate_scales_based_on_sizes(const Output<ov::Node>& data, const Output<ov::Node>& sizes) {
     const float epsilon = 1.0e-5;
     const auto shape_of_data =
         std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data), element::f32);

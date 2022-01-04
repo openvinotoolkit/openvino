@@ -6,9 +6,9 @@
 
 #include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/one_hot.hpp"
 #include "openvino/op/topk.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
@@ -36,12 +36,11 @@ OutputVector hardmax(const Node& node) {
     row_size = reshape::interpret_as_scalar(row_size);
 
     const auto indices_axis = 1;
-    const auto topk =
-        std::make_shared<default_opset::TopK>(coerced_tensor,
-                                              default_opset::Constant::create(element::i64, Shape{}, {1}),
-                                              indices_axis,
-                                              default_opset::TopK::Mode::MAX,
-                                              default_opset::TopK::SortType::NONE);
+    const auto topk = std::make_shared<default_opset::TopK>(coerced_tensor,
+                                                            default_opset::Constant::create(element::i64, Shape{}, {1}),
+                                                            indices_axis,
+                                                            default_opset::TopK::Mode::MAX,
+                                                            default_opset::TopK::SortType::NONE);
 
     const auto on_value = default_opset::Constant::create(element::i64, Shape{}, {1});
     const auto off_value = default_opset::Constant::create(element::i64, Shape{}, {0});
@@ -70,12 +69,11 @@ OutputVector hardmax(const Node& node) {
                                                 default_opset::Constant::create(element::i64, {}, {0}));
     row_size = reshape::interpret_as_scalar(row_size);
 
-    const auto topk =
-        std::make_shared<default_opset::TopK>(input,
-                                              default_opset::Constant::create(element::i64, Shape{}, {1}),
-                                              axis,
-                                              default_opset::TopK::Mode::MAX,
-                                              default_opset::TopK::SortType::NONE);
+    const auto topk = std::make_shared<default_opset::TopK>(input,
+                                                            default_opset::Constant::create(element::i64, Shape{}, {1}),
+                                                            axis,
+                                                            default_opset::TopK::Mode::MAX,
+                                                            default_opset::TopK::SortType::NONE);
 
     const auto on_value = default_opset::Constant::create(element::i64, Shape{}, {1});
     const auto off_value = default_opset::Constant::create(element::i64, Shape{}, {0});

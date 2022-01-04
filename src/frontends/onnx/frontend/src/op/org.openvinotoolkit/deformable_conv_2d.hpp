@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include "openvino/core/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace onnx_import {

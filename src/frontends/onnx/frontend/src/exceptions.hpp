@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "openvino/core/except.hpp"
 #include "onnx_import/core/node.hpp"
 #include "openvino/core/except.hpp"
 #include "utils/tensor_external_data.hpp"

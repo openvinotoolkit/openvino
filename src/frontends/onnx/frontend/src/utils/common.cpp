@@ -46,8 +46,8 @@ const element::Type& get_ov_element_type(int64_t onnx_type) {
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const Output<ov::Node>& value,
-                                                                  int64_t start_value,
-                                                                  int64_t step) {
+                                                              int64_t start_value,
+                                                              int64_t step) {
     if (value.get_partial_shape().rank().is_static()) {
         const auto range_value =
             get_monotonic_range<int64_t>(value.get_partial_shape().rank().get_length(), start_value, step);
@@ -68,9 +68,9 @@ void validate_scalar_input(const char* input_name,
     const auto validated_input_rank = validated_input_shape.rank();
 
     OPENVINO_ASSERT(validated_input_rank.same_scheme({0}) ||
-                     (validated_input_rank.same_scheme({1}) && validated_input_shape[0].get_length() == 1),
-                 input_name,
-                 " needs to be a scalar or 1D, single-element tensor.");
+                        (validated_input_rank.same_scheme({1}) && validated_input_shape[0].get_length() == 1),
+                    input_name,
+                    " needs to be a scalar or 1D, single-element tensor.");
 
     if (!allowed_types.empty()) {
         const bool data_type_ok = allowed_types.count(input->get_element_type());

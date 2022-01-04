@@ -11,8 +11,8 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "openvino/core/axis_set.hpp"
 #include "ngraph/builder/reshape.hpp"
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -58,9 +58,8 @@ Output<ov::Node> validate_data(const Node& onnx_node, const Output<ov::Node>& da
     return data;
 }
 
-std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_bands(
-    const element::Type& destination_type,
-    const element::Type& data_type) {
+std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_bands(const element::Type& destination_type,
+                                                                                  const element::Type& data_type) {
     std::shared_ptr<ov::Node> output_low;
     std::shared_ptr<ov::Node> output_high;
 
@@ -100,8 +99,8 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_input_bands
 }
 }  // namespace
 std::shared_ptr<ov::Node> make_fake_quantize(const Output<ov::Node>& y_scale,
-                                                 const Output<ov::Node>& y_zero_point,
-                                                 const Output<ov::Node>& data) {
+                                             const Output<ov::Node>& y_zero_point,
+                                             const Output<ov::Node>& data) {
     const element::Type& destination_type = y_zero_point.get_element_type();
     const element::Type& data_type = data.get_element_type();
 
@@ -195,9 +194,9 @@ OutputVector quantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
 
     OPENVINO_ASSERT(2 <= inputs.size() && inputs.size() <= 3,
-                 "The QuantizeLinear op expects 2 required and one optional "
-                 "input. Got: ",
-                 inputs.size());
+                    "The QuantizeLinear op expects 2 required and one optional "
+                    "input. Got: ",
+                    inputs.size());
 
     const auto x = inputs[0];
     auto scale = inputs[1];

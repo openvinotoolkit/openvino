@@ -8,12 +8,12 @@
 
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/core/partial_shape.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "onnx_common/utils.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "utils/common.hpp"
 
 namespace ov {
@@ -51,7 +51,7 @@ public:
     }
 
     std::shared_ptr<ov::Node> get_ng_node(ParameterVector& parameters,
-                                              const std::map<std::string, Tensor>& initializers) const {
+                                          const std::map<std::string, Tensor>& initializers) const {
         const auto it = initializers.find(get_name());
         if (it != std::end(initializers)) {
             return get_ng_constant(it->second);

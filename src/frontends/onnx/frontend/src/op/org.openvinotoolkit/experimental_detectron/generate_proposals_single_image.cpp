@@ -5,8 +5,8 @@
 #include "op/org.openvinotoolkit/experimental_detectron/generate_proposals_single_image.hpp"
 
 #include "default_opset.hpp"
-#include "openvino/core/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -17,9 +17,9 @@ OutputVector experimental_detectron_generate_proposals(const Node& node) {
 
     const auto inputs = node.get_ng_inputs();
     OPENVINO_ASSERT(inputs.size() == 4,
-                 "ExperimentalDetectronGenerateProposalsSingleImage expects 4 "
-                 "inputs, received: ",
-                 inputs.size());
+                    "ExperimentalDetectronGenerateProposalsSingleImage expects 4 "
+                    "inputs, received: ",
+                    inputs.size());
 
     auto im_info = inputs[0];
     auto anchors = inputs[1];

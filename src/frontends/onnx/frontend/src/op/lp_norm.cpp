@@ -12,10 +12,10 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "openvino/core/axis_set.hpp"
 #include "ngraph/builder/norm.hpp"
-#include "openvino/op/divide.hpp"
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/divide.hpp"
 
 namespace ov {
 namespace onnx_import {

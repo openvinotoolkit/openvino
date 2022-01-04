@@ -132,11 +132,11 @@ inline std::shared_ptr<default_opset::Constant> make_constant(const Tensor& tens
 template <typename T>
 std::vector<T> get_dense_vector(const std::vector<T>& values, const std::vector<int64_t>& indices, const size_t size) {
     OPENVINO_ASSERT(values.size() == indices.size(),
-                 "The number of values and indices is not equal."
-                 " Indices number: ",
-                 indices.size(),
-                 " Values number: ",
-                 values.size());
+                    "The number of values and indices is not equal."
+                    " Indices number: ",
+                    indices.size(),
+                    " Values number: ",
+                    values.size());
 
     std::vector<T> dense_values(size);
     for (size_t i = 0; i < values.size(); ++i) {
@@ -226,9 +226,9 @@ namespace set_13 {
 OutputVector constant(const onnx_import::Node& node) {
     auto attributes_names = node.get_attribute_names();
     OPENVINO_ASSERT(attributes_names.size() == 1,
-                 "The Constant op expects exactly one attribute."
-                 "Got: ",
-                 attributes_names.size());
+                    "The Constant op expects exactly one attribute."
+                    "Got: ",
+                    attributes_names.size());
 
     auto& attribute = node.get_attribute(attributes_names[0]);
 
@@ -257,19 +257,19 @@ OutputVector constant(const onnx_import::Node& node) {
         // values tensor)
         if (indices_tensor.get_shape().size() == 2) {
             OPENVINO_ASSERT(indices_tensor.get_shape().at(0) == nnz,
-                         "The number of values and indices is not equal."
-                         " Indices number: ",
-                         indices_tensor.get_shape().at(0),
-                         " Values number: ",
-                         nnz);
+                            "The number of values and indices is not equal."
+                            " Indices number: ",
+                            indices_tensor.get_shape().at(0),
+                            " Values number: ",
+                            nnz);
 
             OPENVINO_ASSERT(indices_tensor.get_shape().at(1) == rank,
-                         "The indices are incorrect. The second dimension of "
-                         "indices is not equal to the rank of output."
-                         " Second dimension of indices: ",
-                         indices_tensor.get_shape().at(0),
-                         " Rank of output: ",
-                         rank);
+                            "The indices are incorrect. The second dimension of "
+                            "indices is not equal to the rank of output."
+                            " Second dimension of indices: ",
+                            indices_tensor.get_shape().at(0),
+                            " Rank of output: ",
+                            rank);
 
             absolute_indices = get_absolute_indices(indices_tensor, shape, nnz);
         }
@@ -278,11 +278,11 @@ OutputVector constant(const onnx_import::Node& node) {
         // tensor)
         else {
             OPENVINO_ASSERT(indices_tensor.get_shape().at(0) == nnz,
-                         "The number of values and indices is not equal."
-                         " Indices number: ",
-                         indices_tensor.get_shape().at(0),
-                         " Values number: ",
-                         nnz);
+                            "The number of values and indices is not equal."
+                            " Indices number: ",
+                            indices_tensor.get_shape().at(0),
+                            " Values number: ",
+                            nnz);
 
             absolute_indices = indices_tensor.get_data<int64_t>();
         }

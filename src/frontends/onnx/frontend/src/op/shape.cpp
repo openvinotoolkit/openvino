@@ -7,8 +7,8 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "openvino/core/node.hpp"
 #include "op/shape.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace onnx_import {

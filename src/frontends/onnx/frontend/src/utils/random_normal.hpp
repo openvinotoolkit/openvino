@@ -18,11 +18,7 @@ namespace detail {
 /// \param mean Mean of the distribution
 /// \param scale Standard deviation of the distribution
 /// \param seed Seed for the random number generator
-OutputVector make_random_normal(const Output<ov::Node>& shape,
-                                element::Type type,
-                                float mean,
-                                float scale,
-                                float seed);
+OutputVector make_random_normal(const Output<ov::Node>& shape, element::Type type, float mean, float scale, float seed);
 
 }  // namespace detail
 }  // namespace onnx_import

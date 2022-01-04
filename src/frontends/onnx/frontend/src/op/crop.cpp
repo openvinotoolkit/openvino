@@ -25,9 +25,8 @@ OutputVector crop(const Node& node) {
     std::shared_ptr<ov::Node> end;
 
     // Set slice begin values to border values (note order of indexes)
-    const auto begin = default_opset::Constant::create(element::i64,
-                                                       Shape{4},
-                                                       std::vector<std::int64_t>{0, 0, border[1], border[0]});
+    const auto begin =
+        default_opset::Constant::create(element::i64, Shape{4}, std::vector<std::int64_t>{0, 0, border[1], border[0]});
 
     // If scale is given, then start crop at left/top `border`
     // and end on left/top `border` + `scale`.

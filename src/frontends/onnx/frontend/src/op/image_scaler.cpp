@@ -17,17 +17,17 @@ OutputVector image_scaler(const Node& node) {
     const auto data = inputs[0];
     const auto& data_shape = data.get_partial_shape();
     OPENVINO_ASSERT(data_shape.rank().same_scheme({4}),
-                 "ImageScaler expects a 4D tensor with NCHW format. Got: ",
-                 data_shape);
+                    "ImageScaler expects a 4D tensor with NCHW format. Got: ",
+                    data_shape);
 
     const auto scale = node.get_attribute_value<float>("scale", 1.0);
     const auto bias = node.get_attribute_value<std::vector<float>>("bias");
 
     OPENVINO_ASSERT(data_shape[1].same_scheme(bias.size()),
-                 "Number of bias attribute elements: ",
-                 bias.size(),
-                 " does not match the channel dimension: ",
-                 data_shape[1].get_length());
+                    "Number of bias attribute elements: ",
+                    bias.size(),
+                    " does not match the channel dimension: ",
+                    data_shape[1].get_length());
 
     const auto scale_const = default_opset::Constant::create(data.get_element_type(), Shape{}, {scale});
 

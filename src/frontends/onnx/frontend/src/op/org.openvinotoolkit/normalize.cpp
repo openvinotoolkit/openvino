@@ -6,8 +6,8 @@
 
 #include "default_opset.hpp"
 #include "openvino/op/normalize_l2.hpp"
-#include "utils/common.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "utils/common.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -25,10 +25,10 @@ OutputVector normalize(const Node& node) {
     std::shared_ptr<ov::Node> weights;
     if (channel_shared) {
         OPENVINO_ASSERT(ov::op::util::is_constant(inputs[1].get_node()),
-                     "Weights input must be a constant if channel_shared is set to 1");
+                        "Weights input must be a constant if channel_shared is set to 1");
         const auto& shape = inputs[1].get_partial_shape();
         OPENVINO_ASSERT(shape.is_static() && shape.rank().get_length() == 1,
-                     "Weights rank must be equal to 1 if channel_shared is set to 1");
+                        "Weights rank must be equal to 1 if channel_shared is set to 1");
         weights = inputs[1].get_node_shared_ptr();
     } else {
         std::vector<int64_t> weights_shape{1};

@@ -97,7 +97,8 @@ OutputVector gru(const Node& node) {
     const auto Y = gru_sequence->output(0);
     const auto Y_h = gru_sequence->output(1);
 
-    return {ngraph::builder::opset1::reorder_axes(Y, {2, 1, 0, 3}), ngraph::builder::opset1::reorder_axes(Y_h, {1, 0, 2})};
+    return {ngraph::builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
+            ngraph::builder::opset1::reorder_axes(Y_h, {1, 0, 2})};
 }
 
 }  // namespace set_1

@@ -10,8 +10,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "openvino/core/except.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -28,7 +28,7 @@ struct UnknownDomain : ov::Exception {
 struct UnsupportedVersion : ov::Exception {
     UnsupportedVersion(const std::string& name, std::int64_t version, const std::string& domain)
         : ov::Exception{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
-                       std::to_string(version)} {}
+                        std::to_string(version)} {}
 };
 
 }  // namespace error

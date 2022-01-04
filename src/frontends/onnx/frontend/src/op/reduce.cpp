@@ -9,8 +9,8 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "openvino/core/node.hpp"
 #include "op/identity.hpp"
+#include "openvino/core/node.hpp"
 #include "utils/common.hpp"
 
 namespace ov {
@@ -35,8 +35,8 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_input(const Node& node) {
         const auto reduction_axes = node.get_ng_inputs().at(1);
         const auto reduction_axes_rank = reduction_axes.get_partial_shape().rank();
         OPENVINO_ASSERT(reduction_axes.get_partial_shape().is_static(),
-                     "The axes tensor's shape needs to be known(static). Node: ",
-                     node.get_description());
+                        "The axes tensor's shape needs to be known(static). Node: ",
+                        node.get_description());
 
         if (reduction_axes_rank.get_length() != 0 && reduction_axes.get_shape() != Shape{0}) {
             return reduction_axes.get_node_shared_ptr();
@@ -78,8 +78,8 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_attr(const Node& node) {
 
 template <typename OpType>
 std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
-                                                   const Output<ov::Node>& ng_input,
-                                                   bool axes_as_attr = true) {
+                                               const Output<ov::Node>& ng_input,
+                                               bool axes_as_attr = true) {
     const std::int64_t keepdims = node.get_attribute_value<std::int64_t>("keepdims", 1);
 
     const auto reduction_axes = axes_as_attr ? get_reduction_axes_from_attr(node) : get_reduction_axes_from_input(node);
@@ -99,8 +99,7 @@ OutputVector reduce_sum(const Node& node) {
 
 namespace set_1 {
 OutputVector reduce_log_sum(const Node& node) {
-    const Output<ov::Node> sum_node =
-        make_ng_reduction_op<default_opset::ReduceSum>(node, node.get_ng_inputs().at(0));
+    const Output<ov::Node> sum_node = make_ng_reduction_op<default_opset::ReduceSum>(node, node.get_ng_inputs().at(0));
     return {std::make_shared<default_opset::Log>(sum_node)};
 }
 

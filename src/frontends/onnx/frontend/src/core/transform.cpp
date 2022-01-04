@@ -11,8 +11,8 @@
 #include <algorithm>
 
 #include "core/model.hpp"
-#include "openvino/util/file_util.hpp"
 #include "ngraph/log.hpp"
+#include "openvino/util/file_util.hpp"
 #include "ops_bridge.hpp"
 
 namespace ov {
@@ -107,7 +107,7 @@ void ov::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProt
 }
 
 void ov::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
-                                                                const std::string& model_path) {
+                                                            const std::string& model_path) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     if (model_path.empty()) {
         return;

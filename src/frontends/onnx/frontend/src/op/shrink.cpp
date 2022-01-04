@@ -38,8 +38,7 @@ OutputVector shrink(const Node& node) {
     // by adding and subtracting bias
     // All other values indicated by 'false' in the masks need to be zeroed out
     std::shared_ptr<ov::Node> values_below_neg_lambd = std::make_shared<default_opset::Less>(input, negative_lambd);
-    std::shared_ptr<ov::Node> values_above_pos_lambd =
-        std::make_shared<default_opset::Greater>(input, positive_lambd);
+    std::shared_ptr<ov::Node> values_above_pos_lambd = std::make_shared<default_opset::Greater>(input, positive_lambd);
 
     // Convert from bool to the input type to be able to multiply adjusted inputs
     // by the created masks

@@ -8,12 +8,12 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "op/topk.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "utils/reshape.hpp"
 
 using namespace ov;
@@ -23,8 +23,8 @@ namespace {
 Output<ov::Node> get_k(const onnx_import::Node& node) {
     auto k_node = node.get_ng_inputs().at(1);
     OPENVINO_ASSERT(shape_size(k_node.get_shape()) == 1,
-                 "ONNX TopK operator: 'K' parameter must contain a single positive value.",
-                 node);
+                    "ONNX TopK operator: 'K' parameter must contain a single positive value.",
+                    node);
 
     return reshape::interpret_as_scalar(k_node);
 }

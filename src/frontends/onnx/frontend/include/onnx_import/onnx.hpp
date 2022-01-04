@@ -10,8 +10,8 @@
 #include <set>
 #include <string>
 
-#include "openvino/core/model.hpp"
 #include "onnx_importer_visibility.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 /// \brief          ONNX importer features namespace.
