@@ -33,7 +33,7 @@ from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
 from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message
 from openvino.tools.mo.utils.guess_framework import deduce_framework_by_namespace
-from openvino.tools.mo.utils.logger import init_logger
+from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
@@ -43,7 +43,7 @@ from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, TelemetryExtension
+from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -343,6 +343,7 @@ def prepare_ir(argv : argparse.Namespace):
         if len(fallback_reasons) == 0:
             t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
             moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
+            moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
             ngraph_function = moc_pipeline(argv, moc_front_end)
             return graph, ngraph_function
         else: # apply fallback
