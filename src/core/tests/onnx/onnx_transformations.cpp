@@ -12,9 +12,9 @@ static std::string s_manifest = "${MANIFEST}";
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-using namespace ngraph;
+using namespace ov;
 using namespace ov::onnx_editor;
-using namespace ngraph::test;
+using namespace ov::test;
 
 namespace {
 // Names of input and output names of nodes after a function expanding have names based on a node address.
@@ -62,12 +62,12 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
 }  // namespace
 
 NGRAPH_TEST(onnx_transformations, expand_function_greater_or_equal) {
-    ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/greater_or_equal.onnx")};
+    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/greater_or_equal.onnx")};
     editor.decode();  // onnx transformations are applied
 
-    const auto ref_model = file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/transformations/reference/"
-                                                "greater_or_equal_expanded.onnx");
+    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                                        "onnx/transformations/reference/"
+                                                        "greater_or_equal_expanded.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model, after_func_expand_name_comp);
     EXPECT_TRUE(result.is_ok) << result.error_message;
@@ -75,24 +75,25 @@ NGRAPH_TEST(onnx_transformations, expand_function_greater_or_equal) {
 
 NGRAPH_TEST(onnx_transformations, expand_function_softmax_crossentropy) {
     ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/softmax_crossentropy_consumed.onnx")};
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/softmax_crossentropy_consumed.onnx")};
     editor.decode();  // onnx transformations are applied
 
-    const auto ref_model = file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/transformations/reference/"
-                                                "softmax_crossentropy_consumed_expanded.onnx");
+    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                                        "onnx/transformations/reference/"
+                                                        "softmax_crossentropy_consumed_expanded.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model, after_func_expand_name_comp);
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
 
 NGRAPH_TEST(onnx_transformations, expand_function_dynamic_quantize_linear) {
-    ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/dynamic_quantize_linear.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/dynamic_quantize_linear.onnx")};
     editor.decode();  // onnx transformations are applied
 
-    const auto ref_model = file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/transformations/reference/"
-                                                "dynamic_quantize_linear_expanded.onnx");
+    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                                        "onnx/transformations/reference/"
+                                                        "dynamic_quantize_linear_expanded.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model, after_func_expand_name_comp);
     EXPECT_TRUE(result.is_ok) << result.error_message;

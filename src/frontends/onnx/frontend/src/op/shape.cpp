@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 #include <memory>
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "op/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -24,4 +23,4 @@ OutputVector shape(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

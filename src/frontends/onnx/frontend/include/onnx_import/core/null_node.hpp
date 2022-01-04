@@ -6,17 +6,17 @@
 
 #include <memory>
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 ONNX_IMPORTER_API
-bool is_null(const ngraph::Node* node);
+bool is_null(const ov::Node* node);
 ONNX_IMPORTER_API
-bool is_null(const std::shared_ptr<ngraph::Node>& node);
+bool is_null(const std::shared_ptr<ov::Node>& node);
 ONNX_IMPORTER_API
-bool is_null(const Output<ngraph::Node>& output);
+bool is_null(const Output<ov::Node>& output);
 }  // namespace op
 namespace onnx_import {
 /// \brief Represents a missing optional input or output of an ONNX node
@@ -28,7 +28,7 @@ namespace onnx_import {
 ///
 /// More:
 /// https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
-class ONNX_IMPORTER_API NullNode : public ngraph::Node {
+class ONNX_IMPORTER_API NullNode : public ov::Node {
 public:
     static constexpr NodeTypeInfo type_info{"NullNode", 0};
     const NodeTypeInfo& get_type_info() const override {
@@ -39,4 +39,4 @@ public:
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

@@ -10,16 +10,16 @@
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector swish(const Node& node) {
     OutputVector ng_inputs{node.get_ng_inputs()};
 
-    Output<ngraph::Node> beta;
+    Output<ov::Node> beta;
     if (ng_inputs.size() > 1) {
-        beta = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(1));
+        beta = reshape::interpret_as_scalar(ng_inputs.at(1));
     } else {
         beta = default_opset::Constant::create(element::f32, Shape{}, {1.0});
     }
@@ -32,4 +32,4 @@ OutputVector swish(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

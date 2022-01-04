@@ -25,23 +25,23 @@ using namespace TemplateExtension;
 //! [extension:ctor]
 Extension::Extension() {
 #ifdef OPENVINO_ONNX_FRONTEND_ENABLED
-    ngraph::onnx_import::register_operator(Operation::get_type_info_static().name,
-                                           1,
-                                           "custom_domain",
-                                           [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
-                                               ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
-                                               int64_t add = node.get_attribute_value<int64_t>("add");
-                                               return {std::make_shared<Operation>(ng_inputs.at(0), add)};
-                                           });
+    ov::onnx_import::register_operator(Operation::get_type_info_static().name,
+                                       1,
+                                       "custom_domain",
+                                       [](const ov::onnx_import::Node& node) -> ov::OutputVector {
+                                           ov::OutputVector ng_inputs{node.get_ng_inputs()};
+                                           int64_t add = node.get_attribute_value<int64_t>("add");
+                                           return {std::make_shared<Operation>(ng_inputs.at(0), add)};
+                                       });
 #    ifdef OPENCV_IMPORT_ENABLED
-    ngraph::onnx_import::register_operator(FFTOp::get_type_info_static().name,
-                                           1,
-                                           "custom_domain",
-                                           [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
-                                               ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
-                                               bool inverse = node.get_attribute_value<int64_t>("inverse");
-                                               return {std::make_shared<FFTOp>(ng_inputs.at(0), inverse)};
-                                           });
+    ov::onnx_import::register_operator(FFTOp::get_type_info_static().name,
+                                       1,
+                                       "custom_domain",
+                                       [](const ov::onnx_import::Node& node) -> ov::OutputVector {
+                                           ov::OutputVector ng_inputs{node.get_ng_inputs()};
+                                           bool inverse = node.get_attribute_value<int64_t>("inverse");
+                                           return {std::make_shared<FFTOp>(ng_inputs.at(0), inverse)};
+                                       });
 #    endif
 #endif
 }
@@ -50,9 +50,9 @@ Extension::Extension() {
 //! [extension:dtor]
 Extension::~Extension() {
 #ifdef OPENVINO_ONNX_FRONTEND_ENABLED
-    ngraph::onnx_import::unregister_operator(Operation::get_type_info_static().name, 1, "custom_domain");
+    ov::onnx_import::unregister_operator(Operation::get_type_info_static().name, 1, "custom_domain");
 #    ifdef OPENCV_IMPORT_ENABLED
-    ngraph::onnx_import::unregister_operator(FFTOp::get_type_info_static().name, 1, "custom_domain");
+    ov::onnx_import::unregister_operator(FFTOp::get_type_info_static().name, 1, "custom_domain");
 #    endif  // OPENCV_IMPORT_ENABLED
 #endif      // OPENVINO_ONNX_FRONTEND_ENABLED
 }

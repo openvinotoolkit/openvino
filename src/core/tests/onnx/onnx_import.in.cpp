@@ -42,7 +42,7 @@
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-using namespace ngraph;
+using namespace ov;
 
 static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
@@ -52,9 +52,9 @@ using Outputs = std::vector<std::vector<float>>;
 
 // ############################################################################ CORE TESTS
 NGRAPH_TEST(${BACKEND_NAME}, onnx_test_test_case) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1});
     test_case.add_input<float>({2});
     test_case.add_input<float>({3});
@@ -63,17 +63,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_test_test_case) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_test_test_case_mutliple_inputs) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(Inputs{{1}, {2}, {3}});
     test_case.add_expected_output(Shape{1}, std::vector<float>{6});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_output_names_check) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_default.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_default.onnx"));
 
     std::size_t size = function->get_output_size();
     for (std::size_t i{0}; i < size; ++i) {
@@ -83,7 +83,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_output_names_check) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
 
     // Filter out Add nodes from the function graph
     std::vector<std::shared_ptr<Node>> additions;
@@ -100,34 +100,37 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_binary_add_abc) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(Inputs{{1}, {2}, {3}});
     test_case.add_expected_output(Shape{1}, std::vector<float>{6});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_bool_const_op) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/bool_const_op.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/bool_const_op.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output(std::vector<bool>{1, 0, 0, 1});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_bool_init_and) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/bool_init_and.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/bool_init_and.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output(std::vector<bool>{1});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_bool_input_or) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/bool_input_or.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/bool_input_or.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<bool>{true, false, true, false});
     test_case.add_input(std::vector<bool>{false, false, true, true});
     test_case.add_expected_output(std::vector<bool>{1, 0, 1, 1});
@@ -135,18 +138,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_bool_input_or) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_bool_init_raw) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/bool_init_raw.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/bool_init_raw.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output(std::vector<bool>{true, false, true});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_abc_initializers) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc_initializers.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc_initializers.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1, 2, 3, 4});
     test_case.add_expected_output<float>({3, 6, 9, 12});
     test_case.run();
@@ -163,13 +167,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_override_op) {
         return {std::make_shared<ngraph::op::v1::Subtract>(ng_inputs.at(0), ng_inputs.at(1))};
     });
 
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/override_op.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/override_op.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(std::vector<float>{0.f, 1.f, 2.f, 3.f});
     inputs.emplace_back(std::vector<float>{3.f, 2.f, 1.f, 0.f});
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output<float>({-3.f, -1.f, 1.f, 3.f});
     test_case.run();
@@ -177,7 +182,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_override_op) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_import_non_existing_file) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/i.dont.exist"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/i.dont.exist"));
     } catch (const std::runtime_error& exc) {
         // asserts that an exception was thrown and that the error message contains the file name
         std::string msg{exc.what()};
@@ -187,7 +192,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_import_non_existing_file) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsupported_op) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/unsupported_op.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/unsupported_op.onnx"));
         FAIL() << "Expected ngraph::ngraph_error";
     } catch (ngraph::ngraph_error const& err) {
         std::string what{err.what()};
@@ -205,9 +210,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op) {
         return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
     });
 
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>({3.f, 6.f, 9.f, 12.f});
     test_case.run();
@@ -219,9 +225,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op_register_unregister) {
         return {std::make_shared<ngraph::op::v1::Add>(ng_inputs.at(0), ng_inputs.at(1))};
     });
 
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>({3.f, 6.f, 9.f, 12.f});
     test_case.run();
@@ -229,7 +236,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op_register_unregister) {
     onnx_import::unregister_operator("AddQ", 1, "com.intel.ai");
     try {
         auto function =
-            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator.onnx"));
+            onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator.onnx"));
         FAIL() << "Expected ngraph::ngraph_error";
     } catch (ngraph::ngraph_error const& err) {
         std::string what{err.what()};
@@ -246,9 +253,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op_default_domain) {
     });
 
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator_default_domain.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator_default_domain.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>({3.f, 6.f, 9.f, 12.f});
     test_case.run();
@@ -291,13 +298,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_op_domain) {
 
     EXPECT_TRUE(onnx_import::is_operator_supported("CustomAdd", 1, "custom.op"));
 
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/missing_op_domain.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/missing_op_domain.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(std::vector<float>{0.f, 1.f, 2.f, 3.f});
     inputs.emplace_back(std::vector<float>{0.f, 1.f, 2.f, 3.f});
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output<float>({0.f, 2.f, 4.f, 6.f});
     test_case.run();
@@ -305,12 +313,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_op_domain) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unknown_domain) {
     // the importer should not throw when it encounters an unknown domain in the model
-    EXPECT_NO_THROW(onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/unknown_domain.onnx")));
+    EXPECT_NO_THROW(
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/unknown_domain.onnx")));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_op_in_unknown_domain) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/unknown_domain_add.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/unknown_domain_add.onnx"));
 
         FAIL() << "The onnx_importer did not throw for unknown domain and op";
     } catch (const ngraph::ngraph_error& e) {
@@ -332,7 +341,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input) {
                                        Output<ngraph::Node> C = ng_inputs.at(2);
 
                                        A = std::make_shared<op::v1::Multiply>(A, C);
-                                       if (!ngraph::op::is_null(B)) {
+                                       if (!ov::op::is_null(B)) {
                                            B = std::make_shared<op::v1::Divide>(B, C);
                                        }
 
@@ -351,7 +360,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input) {
                                                                                   std::vector<float>{1, 1, 1, 1});
 
                                        for (const auto& ng_input : ng_inputs) {
-                                           if (!ngraph::op::is_null(ng_input)) {
+                                           if (!ov::op::is_null(ng_input)) {
                                                result = std::make_shared<op::v1::Multiply>(ng_input, result);
                                            }
                                        }
@@ -359,11 +368,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input) {
                                        return {result};
                                    });
 
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/missing_input.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/missing_input.onnx"));
 
     Inputs inputs{{1, 2, 3, 4}, {5, 6, 7, 8}};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output<float>({50, 144, 294, 512});
     test_case.run();
@@ -372,9 +382,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_initializer_wo_input) {
     // This test checks a model which has an initializer, but no input with the same name
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/initializer_wo_input.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/initializer_wo_input.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5});
     test_case.add_expected_output<float>({0, 2, 6, 12, 20, 30});
     test_case.run();
@@ -382,9 +392,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_initializer_wo_input) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamicquantizelinear.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamicquantizelinear.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({-1.f, -2.1f, -1.3f, -2.5f, -3.34f, -4.f});
     test_case.add_expected_output<uint8_t>(Shape{6}, {191, 121, 172, 96, 42, 0});
     test_case.add_expected_output<float>(Shape{}, {0.0156862754f});
@@ -394,9 +404,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_dependency_to_created_subgraph) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/greater_or_equal.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/greater_or_equal.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{5}, {3.f, 5.f, 3.f, 3.f, 6.f});
     test_case.add_input<float>(Shape{5}, {1.f, 4.f, 3.f, 7.f, 8.f});
     test_case.add_expected_output<int32_t>(Shape{5}, {1, 1, 1, 0, 0});
@@ -405,9 +415,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_function_dependency_to_created_subgraph
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_context_dependent_function) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/softmax_crossentropy_consumed.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/softmax_crossentropy_consumed.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5},
                                {0.54881352186203,
                                 0.7151893377304077,
@@ -431,9 +441,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_expand_context_dependent_function) {
 
 // ############################################################################ OPERATOR TESTS
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_addmul_abc) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/addmul_abc.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/addmul_abc.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({9, 10, 11, 12});
     test_case.add_input<float>({5, 6, 7, 8});
     test_case.add_input<float>({1, 2, 3, 4});
@@ -443,9 +454,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_addmul_abc) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_no_keepdims) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_no_keepdims.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_no_keepdims.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({2, 1, 3, 10});
     test_case.add_expected_output<int64_t>(Shape{2}, {1, 0});
     test_case.run();
@@ -453,9 +464,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_no_keepdims) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_batch_norm_default) {
     // Batch Normalization with default parameters
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/batchnorm_default.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/batchnorm_default.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
     test_case.add_input<float>({1.f, 1.5f});                      // scale
     test_case.add_input<float>({0.f, 1.f});                       // bias
@@ -468,9 +480,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_batch_norm_default) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_relu) {
     // Simple ReLU test
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/relu.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/relu.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({-1, -2, 0, 1, 2, 3});
     test_case.add_expected_output<float>({0, 0, 0, 1, 2, 3});
     test_case.run();
@@ -478,9 +490,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_relu) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum_opset1) {
     // Simple Sum test for opset1.
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sum_opset1.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sum_opset1.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({3.f, 0.f, 2.f});
     test_case.add_input<float>({1.f, 3.f, 4.f});
     test_case.add_input<float>({2.f, 6.f, 6.f});
@@ -490,9 +503,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum_opset1) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum) {
     // Simple Sum test for opset8.
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sum.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sum.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({3.f});
     test_case.add_input<float>({1.f, 3.f, 4.f});
     test_case.add_input<float>({2.f, 6.f, 6.f});
@@ -501,19 +514,21 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum_one_input) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sum_one_input.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sum_one_input.onnx"));
 
     // input data shape (3, )
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({3.f, 0.f, 2.f});
     test_case.add_expected_output<float>({3.f, 0.f, 2.f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_1d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/cum_sum_1d.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/cum_sum_1d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f});
     test_case.add_expected_output<float>(Shape{3}, {1.f, 3.f, 6.f});
     test_case.run();
@@ -521,19 +536,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_1d) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_2d_axis_input) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/cum_sum_2d_axis_input.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/cum_sum_2d_axis_input.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
     test_case.add_expected_output<float>(Shape{2, 3}, {1.f, 3.f, 6.f, 4.f, 9.f, 15.f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_2d_dynamic_axis_input) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/cum_sum_2d_dynamic_axis_input.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/cum_sum_2d_dynamic_axis_input.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
     test_case.add_input<std::int32_t>({1});
     test_case.add_expected_output<float>(Shape{2, 3}, {1.f, 3.f, 6.f, 4.f, 9.f, 15.f});
@@ -541,10 +556,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_2d_dynamic_axis_input) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_3d_exclusive_reverse) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/cum_sum_3d_exclusive_reverse.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/cum_sum_3d_exclusive_reverse.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f, 12.f,
                                 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f});
     test_case.add_expected_output<float>(Shape{2, 3, 4},
@@ -555,10 +570,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_3d_exclusive_reverse) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_min_two_inputs_opset1) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/min_two_inputs_opset1.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/min_two_inputs_opset1.onnx"));
 
     // input data shape (3, )
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 1.f});
     test_case.add_input<float>({1.f, 4.f, 4.f});
     test_case.add_expected_output<float>({1.f, 2.f, 1.f});
@@ -566,10 +581,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_min_two_inputs_opset1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_min_two_inputs) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/min_two_inputs.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/min_two_inputs.onnx"));
 
     // input data shape (3, )
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({2.f});
     test_case.add_input<float>({1.f, 4.f, 4.f});
     test_case.add_expected_output<float>({1.f, 2.f, 2.f});
@@ -577,10 +593,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_min_two_inputs) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_opset1) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_opset1.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/max_opset1.onnx"));
 
     // input data shape (3, )
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({3.f, 2.f, 1.f});
     test_case.add_input<float>({1.f, 4.f, 4.f});
     test_case.add_input<float>({2.f, 5.f, 3.f});
@@ -590,10 +607,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_opset1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/max.onnx"));
 
     // input data shape (3, )
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 4.f, 4.f});
     test_case.add_input<float>({3.f});
     test_case.add_input<float>({2.f, 5.f, 3.f});
@@ -603,10 +620,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mean_opset1) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mean_opset1.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mean_opset1.onnx"));
 
     // input data shape (3, )
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({3.f, 0.f, 2.f});
     test_case.add_input<float>({1.f, 3.f, 4.f});
     test_case.add_input<float>({2.f, 6.f, 6.f});
@@ -616,10 +634,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mean_opset1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mean) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mean.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mean.onnx"));
 
     // input data shape (3, )
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({3.f});
     test_case.add_input<float>({1.f, 2.f, 5.f});
     test_case.add_input<float>({2.f, 7.f, 7.f});
@@ -629,61 +647,66 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mean) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gemm_abc) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gemm_abc.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gemm_abc.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 2>({{1, 2, 3, 4, 5, 6}, {7, 8, 9, 10, 11, 12}, {13, 14, 15, 16, 17, 18}}).get_vector());
+        ngraph::test::NDArray<float, 2>({{1, 2, 3, 4, 5, 6}, {7, 8, 9, 10, 11, 12}, {13, 14, 15, 16, 17, 18}})
+            .get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 2>({{19, 20, 21, 22},
-                                                 {23, 24, 25, 26},
-                                                 {27, 28, 29, 30},
-                                                 {31, 32, 33, 34},
-                                                 {35, 36, 37, 38},
-                                                 {39, 40, 41, 42}})
+    inputs.emplace_back(ngraph::test::NDArray<float, 2>({{19, 20, 21, 22},
+                                                         {23, 24, 25, 26},
+                                                         {27, 28, 29, 30},
+                                                         {31, 32, 33, 34},
+                                                         {35, 36, 37, 38},
+                                                         {39, 40, 41, 42}})
                             .get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 2>({{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}).get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 2>({{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}).get_vector());
 
-    auto expected_output =
-        test::NDArray<float, 2>({{340, 350.5, 361, 371.5}, {862, 890.5, 919, 947.5}, {1384, 1430.5, 1477, 1523.5}})
-            .get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 2>(
+                               {{340, 350.5, 361, 371.5}, {862, 890.5, 919, 947.5}, {1384, 1430.5, 1477, 1523.5}})
+                               .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/matmul.onnx"));
 
     std::vector<std::vector<float>> inputs;
 
-    inputs.emplace_back(test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 2>({{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}).get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 2>({{13, 14, 15}, {16, 17, 18}, {19, 20, 21}, {22, 23, 24}}).get_vector());
+    inputs.emplace_back(
+        ngraph::test::NDArray<float, 2>({{13, 14, 15}, {16, 17, 18}, {19, 20, 21}, {22, 23, 24}}).get_vector());
 
-    auto expected_output = test::NDArray<float, 2>({{190, 200, 210}, {470, 496, 522}, {750, 792, 834}}).get_vector();
+    auto expected_output =
+        ngraph::test::NDArray<float, 2>({{190, 200, 210}, {470, 496, 522}, {750, 792, 834}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_0D) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_0D.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_0D.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>({1.0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_1D) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_1D.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_1D.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({-1.0, 0.0, 1.0});
     test_case.add_expected_output<float>({0.09003058, 0.24472848, 0.66524094});
     test_case.run();
@@ -710,9 +733,10 @@ const std::vector<float> SOFTMAX_INPUT = {
 // clang-format on
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_0) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_0.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_0.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(SOFTMAX_INPUT);
 
     // clang-format off
@@ -738,9 +762,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_0) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_1.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_1.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(SOFTMAX_INPUT);
 
     // clang-format off
@@ -766,10 +791,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1_opset11) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_1_opset11.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_1_opset11.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(SOFTMAX_INPUT);
 
     // clang-format off
@@ -796,9 +821,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1_opset11) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset11) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_negative_1_opset11.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_negative_1_opset11.onnx"));
 
-    auto test_case = test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.add_input<float>(SOFTMAX_INPUT);
 
     // clang-format off
@@ -825,9 +850,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset11) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset13) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_negative_1_opset13.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_negative_1_opset13.onnx"));
 
-    auto test_case = test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.add_input<float>(SOFTMAX_INPUT);
 
     // clang-format off
@@ -853,54 +878,55 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_negative_1_opset13) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sub.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sub.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 2, 3}}}).get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 3>({{{1, 2, 3}}}).get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 3>({{{4, 5, 7}}}).get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 3>({{{4, 5, 7}}}).get_vector());
 
-    auto expected_output = test::NDArray<float, 3>({{{-3, -3, -4}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 3>({{{-3, -3, -4}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/div.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/div.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 2, 3}}}).get_vector());
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 4, 12}}}).get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 3>({{{1, 2, 3}}}).get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 3>({{{1, 4, 12}}}).get_vector());
 
-    auto expected_output = test::NDArray<float, 3>({{{1, 0.5, 0.25}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 3>({{{1, 0.5, 0.25}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_bcast) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_bcast.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_bcast.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                                 {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                                 {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
-                            .get_vector());
+    inputs.emplace_back(
+        ngraph::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                         {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                         {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 1>({1, 2, 3, 4, 5}).get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 1>({1, 2, 3, 4, 5}).get_vector());
 
     auto expected_output =
-        test::NDArray<float, 4>({{{{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}},
-                                  {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}},
-                                  {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}}}})
+        ngraph::test::NDArray<float, 4>({{{{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}},
+                                          {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}},
+                                          {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -908,9 +934,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_bcast) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_center_point_box_format) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/nonmaxsuppression_center_point_box_format.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/nonmaxsuppression_center_point_box_format.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input(
         std::vector<float>({0.5f, 0.5f,  1.0f, 1.0f, 0.5f, 0.6f,  1.0f, 1.0f, 0.5f, 0.4f,   1.0f, 1.0f,
@@ -925,10 +951,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_center_point_box_forma
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_single_box) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/nonmaxsuppression_single_box.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/nonmaxsuppression_single_box.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input(std::vector<float>({0.0f, 0.0f, 1.0f, 1.0f}));  // boxes
     test_case.add_input(std::vector<float>({0.9f}));                    // scores
@@ -941,15 +967,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_single_box) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_log_sum.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_log_sum.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ngraph::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{2.77258872f}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{2.77258872f}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -957,137 +985,148 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_log_sum_exp.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_log_sum_exp.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ngraph::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{3.77258872f}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{3.77258872f}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_l1) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_l1.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_l1.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ngraph::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{16}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_l2) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_l2.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_l2.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ngraph::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{4}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{4}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_max.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_max.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}}).get_vector()};
+    Inputs inputs{ngraph::test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
+                      .get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{16}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max_invalid_axes) {
-    EXPECT_THROW(
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_max_invalid_axes.onnx")),
-        ngraph::ngraph_error);
+    EXPECT_THROW(onnx_import::import_onnx_model(
+                     ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_max_invalid_axes.onnx")),
+                 ngraph::ngraph_error);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_mean) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_mean.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_mean.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ngraph::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{1}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(Shape{}, expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_min) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_min.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_min.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}}).get_vector()};
+    Inputs inputs{ngraph::test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
+                      .get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{1}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_prod) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_prod.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_prod.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ngraph::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{1}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ngraph::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{16}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_dynamic_rank_input) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_dynamic_rank_input.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_dynamic_rank_input.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
         Shape{1, 1, 4, 4},
         {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
@@ -1097,15 +1136,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_dynamic_rank_input) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_square.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_square.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    Inputs inputs{
+        ngraph::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
 
     // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 4>({{{{16}}}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -1113,15 +1154,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant.onnx"));
 
-    Inputs inputs{test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f}}}})
+    Inputs inputs{ngraph::test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
+                                                     {1.0f, 1.0f, 1.0f, 1.0f},
+                                                     {1.0f, 1.0f, 1.0f, 1.0f},
+                                                     {1.0f, 1.0f, 1.0f, 1.0f}}}})
                       .get_vector()};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
 
@@ -1131,11 +1172,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant_single_axis) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant_single_axis.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant_single_axis.onnx"));
 
-    Inputs inputs{test::NDArray<float, 3>({{{1, 2, 3}, {4, 5, 6}}, {{7, 8, 9}, {10, 11, 12}}}).get_vector()};
+    Inputs inputs{ngraph::test::NDArray<float, 3>({{{1, 2, 3}, {4, 5, 6}}, {{7, 8, 9}, {10, 11, 12}}}).get_vector()};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_expected_output<float>(Shape{2, 1, 3}, {5.0f, 7.0f, 9.0f, 17.0f, 19.0f, 21.0f});
 
@@ -1145,16 +1186,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant_single_ax
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant_keepdims_off) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant_keepdims_off.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant_keepdims_off.onnx"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f},
-                                             {1.0f, 1.0f, 1.0f, 1.0f}}}})
+    Inputs inputs{ngraph::test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
+                                                     {1.0f, 1.0f, 1.0f, 1.0f},
+                                                     {1.0f, 1.0f, 1.0f, 1.0f},
+                                                     {1.0f, 1.0f, 1.0f, 1.0f}}}})
                       .get_vector()};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_expected_output<float>(Shape{}, {16.0f});
 
@@ -1163,10 +1204,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant_keepdims_
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_input) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_input.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_input.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f});
     test_case.add_input<int64_t>({1});
 
@@ -1176,9 +1217,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_input) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_0_dim_input) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_0_dim_input.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_0_dim_input.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f});
 
     test_case.add_expected_output<float>(Shape{3, 2, 2},
@@ -1187,10 +1228,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_0_dim_input) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_input_dynamic) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_input_dynamic.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_input_dynamic.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<int64_t>({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
     test_case.add_expected_output<int64_t>(Shape{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, {5});
@@ -1198,10 +1239,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_input_dynamic) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
         {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
@@ -1211,9 +1252,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty_dynamic_rank_input) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_dynamic_rank_input.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_dynamic_rank_input.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
         Shape{1, 1, 4, 4},
         {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
@@ -1224,9 +1265,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty_dynamic_rank_in
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty_with_noop) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_with_noop.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_with_noop.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
         {1.f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
@@ -1238,9 +1279,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty_with_noop) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty_without_noop) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_without_noop.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_without_noop.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
         {1.f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
@@ -1249,10 +1290,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty_without_noop) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_asymertic_last_dim) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_asymertic_last_dim.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_asymertic_last_dim.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(Shape{1, 1, 1, 19},
@@ -1280,9 +1321,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_asymertic_last_dim) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_asymertic_dim_in_the_middle) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_asymertic_dim_in_the_middle.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_asymertic_dim_in_the_middle.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(Shape{1, 1, 19, 1},
@@ -1313,9 +1354,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_empty_constant_as_input) {
     // this node is connected to the "roi" input of the Resize op but this input should be
     // ignored since the Resize coordinate_transformation_mode is set to asymmetric
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_empty_constant_as_input.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_empty_constant_as_input.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
@@ -1331,14 +1372,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_empty_constant_as_input) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_down_scales_const_nearest.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_down_scales_const_nearest.onnx"));
 
     // Input data shape (1, 1, 2, 4)
     // Input const scales values {1.0, 1.0, 0.6, 0.6}
     // mode: linear
 
     Shape expected_output_shape{1, 1, 1, 2};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
     test_case.add_expected_output<float>(expected_output_shape, {1.0, 3.0});
     test_case.run();
@@ -1346,14 +1387,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_linear) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_up_scales_const_linear.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_up_scales_const_linear.onnx"));
 
     // Input data shape (1, 1, 2, 2)
     // Input const scales values {1.0, 1.0, 2.0, 2.0}
     // mode: nearest
 
     Shape expected_output_shape{1, 1, 4, 4};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<float>(
         expected_output_shape,
@@ -1363,14 +1404,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_linear) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_nearest) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_up_scales_const_nearest.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_up_scales_const_nearest.onnx"));
 
     // Input data shape (1, 1, 2, 2)
     // Input const scales values {1.0, 1.0, 2.0, 3.0}
     // mode: linear
 
     Shape expected_output_shape{1, 1, 4, 6};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<float>(expected_output_shape,
                                          {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
@@ -1381,10 +1422,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_nearest) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_scales_linear_asymmetric) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_scales_linear_asymmetric.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_scales_linear_asymmetric.onnx"));
 
     const Shape expected_output_shape{1, 1, 1, 2};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const size_t input_size = 8;
     std::vector<float> input_data(input_size);
     std::iota(std::begin(input_data), std::end(input_data), 1.0f);
@@ -1396,10 +1437,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_scales_linear_asymmetric) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_scales_nearest_asymmetric_floor_dynamic_scales.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/resize11_scales_nearest_asymmetric_floor_dynamic_scales.onnx"));
 
     const Shape expected_output_shape{2, 1, 4, 1};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
     test_case.add_input<float>(input_data);
     test_case.add_input<float>(std::vector<float>{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});  // roi
@@ -1411,10 +1453,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor_dynam
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_linear_asymmetric) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_scales_linear_asymmetric.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_scales_linear_asymmetric.onnx"));
 
     const Shape expected_output_shape{2, 1, 4, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
@@ -1430,10 +1472,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_linear_asymmetric) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_scales_nearest_asymmetric_floor.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_scales_nearest_asymmetric_floor.onnx"));
 
     const Shape expected_output_shape{2, 1, 4, 1};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(expected_output_shape, {1.0f, 1.0f, 4.0f, 4.0f, 6.0f, 6.0f, 7.0f, 7.0f});
@@ -1443,10 +1485,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_cubic_align_corners) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_scales_cubic_align_corners.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_scales_cubic_align_corners.onnx"));
 
     const Shape expected_output_shape{1, 1, 8, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1483,10 +1525,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_cubic_align_corners) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_tf_half_pixel) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_scales_tf_half_pixel.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_scales_tf_half_pixel.onnx"));
 
     const Shape expected_output_shape{1, 1, 8, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1517,10 +1559,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_scales_tf_half_pixel) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_all_attributes_default) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_all_attributes_default.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_all_attributes_default.onnx"));
 
     const Shape expected_output_shape{1, 1, 7, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f, 2.0f, 3.0f, 4.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
@@ -1534,10 +1576,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_all_attributes_default) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_nearest_asymmetric_floor) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_sizes_nearest_asymmetric_floor.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_sizes_nearest_asymmetric_floor.onnx"));
 
     const Shape expected_output_shape{2, 1, 4, 1};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(expected_output_shape, {1.0f, 1.0f, 4.0f, 4.0f, 6.0f, 6.0f, 7.0f, 7.0f});
@@ -1547,10 +1589,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_nearest_asymmetric_floor) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_linear_asymmetric) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_linear_asymmetric.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_linear_asymmetric.onnx"));
 
     const Shape expected_output_shape{2, 1, 4, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{2.0f, 4.0f, 1.0f, 3.0f, 7.0f, 8.0f, 9.0f, 6.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
@@ -1565,10 +1607,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_linear_asymmetric) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_cubic_half_pixel) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_sizes_cubic_half_pixel.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_sizes_cubic_half_pixel.onnx"));
 
     const Shape expected_output_shape{1, 1, 3, 3};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1595,10 +1637,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_cubic_half_pixel) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_linear_pytorch_half_pixel) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_sizes_linear_pytorch_half_pixel.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_sizes_linear_pytorch_half_pixel.onnx"));
 
     const Shape expected_output_shape{1, 1, 3, 1};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1623,10 +1665,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_linear_pytorch_half_pixel)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_cubic_half_pixel) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_cubic_half_pixel.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_cubic_half_pixel.onnx"));
 
     const Shape expected_output_shape{1, 1, 9, 10};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1663,10 +1705,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_cubic_half_pixel) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_cubic_half_pixel_dynamic_sizes.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_cubic_half_pixel_dynamic_sizes.onnx"));
 
     const Shape expected_output_shape{1, 1, 9, 10};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1704,10 +1746,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_cubic_half_pixel_dynamic_siz
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_round_prefer_floor_half_pixel) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_round_prefer_floor_half_pixel.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/resize11_up_sizes_nearest_round_prefer_floor_half_pixel.onnx"));
 
     const Shape expected_output_shape{1, 1, 7, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f, 2.0f, 3.0f, 4.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
@@ -1721,10 +1764,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_round_prefer_floor_h
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_prefer_ceil_asymmetric) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_prefer_ceil_asymmetric.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_prefer_ceil_asymmetric.onnx"));
 
     const Shape expected_output_shape{1, 1, 8, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1756,10 +1799,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_prefer_ceil_asymmetr
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_ceil_half_pixel) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_ceil_half_pixel.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_ceil_half_pixel.onnx"));
 
     const Shape expected_output_shape{1, 1, 8, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1789,10 +1832,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_ceil_half_pixel) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_floor_align_corners) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_floor_align_corners.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_up_sizes_nearest_floor_align_corners.onnx"));
 
     const Shape expected_output_shape{1, 1, 8, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1821,10 +1864,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_nearest_floor_align_corners)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_tf_half_pixel) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_sizes_tf_half_pixel.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_down_sizes_tf_half_pixel.onnx"));
 
     const Shape expected_output_shape{1, 1, 3, 2};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.0f,
                                   2.0f,
                                   3.0f,
@@ -1847,32 +1890,33 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_tf_half_pixel) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_shape) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/shape.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/shape.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                                 {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
-                                                 {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
-                            .get_vector());
+    inputs.emplace_back(
+        ngraph::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                         {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                         {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output<int64_t>({3, 4, 5});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_elu) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/elu.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/elu.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ngraph::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                         {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                         {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ngraph::test::NDArray<float, 3>(
             {{{-1.999753180391830f, -1.999329074744190f, -1.998176236068890f, -1.995042495646670f, -1.986524106001830f},
               {-1.963368722222530f, -1.900425863264270f, -1.729329433526770f, -1.264241117657120f, 0},
               {1, 2, 3, 4, 5},
@@ -1887,64 +1931,67 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_elu) {
               {2, 2, 2, 2, 2}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_leaky_relu) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/leaky_relu.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/leaky_relu.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ngraph::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                         {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                         {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ngraph::test::NDArray<float, 3>(
             {{{-0.9f, -0.8f, -0.7f, -0.6f, -0.5f}, {-0.4f, -0.3f, -0.2f, -0.1f, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
              {{-0.4f, -0.3f, -0.2f, -0.1f, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
              {{1, 1, 1, 1, 1}, {-0.1f, -0.1f, -0.1f, -0.1f, -0.1f}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_prelu_nd) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/prelu.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/prelu.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ngraph::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                         {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                         {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
-    inputs.emplace_back(test::NDArray<float, 3>({{{1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}},
-                                                 {{0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}},
-                                                 {{1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}}})
-                            .get_vector());
+    inputs.emplace_back(
+        ngraph::test::NDArray<float, 3>({{{1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}},
+                                         {{0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}},
+                                         {{1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}, {1, 0, 1, 0, 1}, {0, 1, 0, 1, 0}}})
+            .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>({{{-9, 0, -7, 0, -5}, {0, -3, 0, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{0, -3, 0, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {0, -1, 0, -1, 0}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ngraph::test::NDArray<float, 3>({{{-9, 0, -7, 0, -5}, {0, -3, 0, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                         {{0, -3, 0, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                         {{1, 1, 1, 1, 1}, {0, -1, 0, -1, 0}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_prelu_batch_nd_elementwise) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/prelu_batch_nd.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/prelu_batch_nd.onnx"));
 
     Inputs inputs;
     // Shape{2, 3, 4, 5}
@@ -1972,14 +2019,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_prelu_batch_nd_elementwise) {
         -90.,  -91.,  -92.,  -93.,  -94.,  -95.,  -96.,  -97.,  -98.,  -99.,  -100., -101., -102., -103., -104.,
         -105., -106., -107., -108., -109., -110., -111., -112., -113., -114., -115., -116., -117., -118., -119.};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_prelu_1d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/prelu_1d.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/prelu_1d.onnx"));
 
     Inputs inputs;
     // Shape{2, 3, 4, 5}
@@ -2003,14 +2050,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_prelu_1d) {
         -0., -1., -2., -3., -4., -0., -1., -2., -3., -4., -0., -1., -2., -3., -4., -0., -1., -2., -3., -4.,
         -0., -1., -2., -3., -4., -0., -1., -2., -3., -4., -0., -1., -2., -3., -4., -0., -1., -2., -3., -4.};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_prelu_C_1_1) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/prelu_c_1_1.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/prelu_c_1_1.onnx"));
 
     Inputs inputs;
     // Shape{2, 3, 4, 5}
@@ -2034,24 +2082,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_prelu_C_1_1) {
         -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1., -1.,
         -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2., -2.};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_selu) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/selu.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/selu.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ngraph::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                         {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                         {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ngraph::test::NDArray<float, 3>(
             {{{-5.99925954117548f, -5.99798722423258f, -5.99452870820667f, -5.98512748694000f, -5.95957231800549f},
               {-5.89010616666759f, -5.70127758979282f, -5.18798830058032f, -3.79272335297135f, 0},
               {3, 6, 9, 12, 15},
@@ -2066,24 +2114,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_selu) {
               {6, 6, 6, 6, 6}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sigmoid) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sigmoid.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sigmoid.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ngraph::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                         {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                         {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ngraph::test::NDArray<float, 3>(
             {{{0.00012339457598623f,
                0.00033535013046648f,
                0.00091105119440065f,
@@ -2102,24 +2150,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sigmoid) {
               {0.880797077977882f, 0.880797077977882f, 0.880797077977882f, 0.880797077977882f, 0.880797077977882f}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_tanh) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/tanh.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/tanh.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ngraph::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                         {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                         {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>(
+        ngraph::test::NDArray<float, 3>(
             {{{-0.999999969540041f, -0.999999774929676f, -0.999998336943945f, -0.999987711650796f, -0.999909204262595f},
               {-0.999329299739067f, -0.995054753686731f, -0.964027580075817f, -0.761594155955765f, 0},
               {0.761594155955765f, 0.964027580075817f, 0.995054753686731f, 0.999329299739067f, 0.999909204262595f},
@@ -2134,51 +2182,53 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_tanh) {
               {0.964027580075817f, 0.964027580075817f, 0.964027580075817f, 0.964027580075817f, 0.964027580075817f}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_thresholded_relu) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/thresholded_relu.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/thresholded_relu.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(
-        test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
+        ngraph::test::NDArray<float, 3>({{{-9, -8, -7, -6, -5}, {-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                         {{-4, -3, -2, -1, 0}, {1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                         {{1, 1, 1, 1, 1}, {-1, -1, -1, -1, -1}, {0, 0, 0, 0, 0}, {2, 2, 2, 2, 2}}})
             .get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>({{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 3, 4, 5}, {6, 7, 8, 9, 10}},
-                                 {{0, 0, 0, 0, 0}, {0, 0, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
-                                 {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}}})
+        ngraph::test::NDArray<float, 3>({{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 3, 4, 5}, {6, 7, 8, 9, 10}},
+                                         {{0, 0, 0, 0, 0}, {0, 0, 3, 4, 5}, {6, 7, 8, 9, 10}, {11, 12, 13, 14, 15}},
+                                         {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_vec_ten3d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_vec_ten3d.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_vec_ten3d.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(std::vector<float>{0.f, 1.f});
-    inputs.emplace_back(test::NDArray<float, 3>{{{0.f}, {1.f}}, {{2.f}, {3.f}}, {{4.f}, {5.f}}}.get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 3>{{{0.f}, {1.f}}, {{2.f}, {3.f}}, {{4.f}, {5.f}}}.get_vector());
 
-    auto expected_output = test::NDArray<float, 2>{{1.f}, {3.f}, {5.f}}.get_vector();
+    auto expected_output = ngraph::test::NDArray<float, 2>{{1.f}, {3.f}, {5.f}}.get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softplus) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softplus.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softplus.onnx"));
 
     // -1.0f, 0, 1.0f, 10.f,                    normal input values for activation
     // 100.0f, -100.0f, 1000.0f, -1000.0f,      input values that leads to exp() overflow
@@ -2213,106 +2263,111 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softplus) {
                               inf,
                               0.0};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softplus_infinity) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softplus.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softplus.onnx"));
 
     std::vector<float> input(13, std::numeric_limits<float>::infinity());
     std::vector<float> expected_output(13, std::numeric_limits<float>::infinity());
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum_opset8) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sum_opset8.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sum_opset8.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(std::vector<float>{1.0f, 2.0f, 3.0f});
-    inputs.emplace_back(test::NDArray<float, 2>{{10.0f}, {20.0f}, {30.0f}}.get_vector());
-    inputs.emplace_back(test::NDArray<float, 3>{{{100.0f}}, {{200.0f}}, {{300.0f}}}.get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 2>{{10.0f}, {20.0f}, {30.0f}}.get_vector());
+    inputs.emplace_back(ngraph::test::NDArray<float, 3>{{{100.0f}}, {{200.0f}}, {{300.0f}}}.get_vector());
 
     auto expected_output =
-        test::NDArray<float, 3>{{{111.0f, 112.0f, 113.0f}, {121.0f, 122.0f, 123.0f}, {131.0f, 132.0f, 133.0f}},
+        ngraph::test::NDArray<float, 3>{{{111.0f, 112.0f, 113.0f}, {121.0f, 122.0f, 123.0f}, {131.0f, 132.0f, 133.0f}},
 
-                                {{211.0f, 212.0f, 213.0f}, {221.0f, 222.0f, 223.0f}, {231.0f, 232.0f, 233.0f}},
+                                        {{211.0f, 212.0f, 213.0f}, {221.0f, 222.0f, 223.0f}, {231.0f, 232.0f, 233.0f}},
 
-                                {{311.0f, 312.0f, 313.0f}, {321.0f, 322.0f, 323.0f}, {331.0f, 332.0f, 333.0f}}}
+                                        {{311.0f, 312.0f, 313.0f}, {321.0f, 322.0f, 323.0f}, {331.0f, 332.0f, 333.0f}}}
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_int32) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_int32.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_int32.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<std::int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
     test_case.add_expected_output<std::int64_t>({1, 1, 1, 1, 1, 1});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_int32) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_int32.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_int32.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<std::int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
     test_case.add_expected_output<std::int64_t>({0, 0, 0, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_float) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_float.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_float.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({4, 0.1, 2, 3, -3, 1, -0.9, 0, 1, 2, 3, 0});
     test_case.add_expected_output<std::int64_t>({0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_float) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_float.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_float.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({4, 0.1, 2, 3, -3, 1, -0.9, 0, 1, 2, 3, 0});
     test_case.add_expected_output<std::int64_t>({1, 1, 0, 2});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_select_last_index) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_select_last_index.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_select_last_index.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{4, 3}, {1, 1, 1, 0.5, 3, 4, 0.5, 1, 1.1, 0, 3, 0});
     test_case.add_expected_output<std::int64_t>(Shape{1, 3}, {0, 3, 1});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_select_last_index) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_select_last_index.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_select_last_index.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{4, 3}, {1, 1, 1, 2, 3, 4, 2, 1, 1.1, 3, 3, 8});
     test_case.add_expected_output<std::int64_t>(Shape{4}, {2, 0, 1, 1});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/top_k.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/top_k.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
     test_case.add_expected_output<float>(Shape{3, 3}, {3, 2, 1, 7, 6, 5, 11, 10, 9});       // values
     test_case.add_expected_output<std::int64_t>(Shape{3, 3}, {3, 2, 1, 3, 2, 1, 3, 2, 1});  // indices
@@ -2320,9 +2375,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_top_k_opset_10) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/top_k_opset_10.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/top_k_opset_10.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
     test_case.add_input<int64_t>({3});
 
@@ -2332,10 +2388,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_top_k_opset_10) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_top_k_opset_10_const_k) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/top_k_opset_10_const_k.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/top_k_opset_10_const_k.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
 
     test_case.add_expected_output<float>(Shape{3, 3}, {3, 2, 1, 7, 6, 5, 11, 10, 9});       // values
@@ -2345,9 +2401,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_top_k_opset_10_const_k) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_top_k_opset_11_const_k_smallest) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/top_k_opset_11_const_k_smallest.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/top_k_opset_11_const_k_smallest.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 11, 10, 9, 8});
 
     test_case.add_expected_output<float>(Shape{3, 3}, {0, 1, 2, 4, 5, 6, 8, 9, 10});        // values
@@ -2357,9 +2413,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_top_k_opset_11_const_k_smallest) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_top_k_opset_11_const_k_smallest_negative_axis) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/top_k_opset_11_const_k_smallest_negative_axis.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/top_k_opset_11_const_k_smallest_negative_axis.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 11, 10, 9, 8});
 
     test_case.add_expected_output<float>(Shape{3, 3}, {0, 1, 2, 4, 5, 6, 8, 9, 10});        // values
@@ -2368,9 +2424,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_top_k_opset_11_const_k_smallest_negative_axis)
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_acosh) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/acosh.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/acosh.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 3}, {1.0f, 2.5f, 4.3f});
     test_case.add_expected_output<float>(Shape{1, 3}, {0.0f, 1.5667993f, 2.13795861f});
 
@@ -2378,9 +2434,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_acosh) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_asinh) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/asinh.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/asinh.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 3}, {-1.0f, 0.0f, 1.0f});
     test_case.add_expected_output<float>(Shape{1, 3}, {-0.88137358f, 0.0f, 0.88137358f});
 
@@ -2388,9 +2444,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_asinh) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_atanh) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/atanh.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/atanh.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 3}, {-0.9f, 0.0f, 0.9f});
     test_case.add_expected_output<float>(Shape{1, 3}, {-1.4722194f, 0.0f, 1.4722194f});
 
@@ -2398,25 +2454,25 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_atanh) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sinh) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sinh.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sinh.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({-1.0f, 0.0f, 1.0f});
     test_case.add_expected_output<float>({-1.1752012f, 0.f, 1.1752012f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cosh) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/cosh.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/cosh.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({-1.0f, 0.0f, 1.0f});
     test_case.add_expected_output<float>({1.54308069f, 1.f, 1.54308069f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sign) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sign.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sign.onnx"));
 
     Inputs inputs{std::vector<float>{-std::numeric_limits<float>::infinity(),
                                      -3.141592f,
@@ -2424,41 +2480,43 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sign) {
                                      2.71828f,
                                      std::numeric_limits<float>::infinity()}};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output<float>({-1.0f, -1.0f, 0.0f, 1.0f, 1.0f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_one_hot_with_axis) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/one_hot_axis.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/one_hot_axis.onnx"));
 
     Inputs inputs{{1.0, 9.0, 2.0, 4.0}, {1.0, 3.0}};
     std::vector<float> expected_output{{1.0, 1.0, 3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                                         1.0, 1.0, 1.0, 1.0, 1.0, 3.0, 1.0, 1.0, 1.0, 1.0, 3.0, 1.0, 1.0, 1.0,
                                         1.0, 3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_one_hot_without_axis) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/one_hot_no_axis.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/one_hot_no_axis.onnx"));
 
     std::vector<std::vector<std::int64_t>> inputs{{0, 7, 8}, {2, 5}};
     std::vector<std::int64_t> expected_output{5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
                                               2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_where) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/where.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/where.onnx"));
 
     // conditions tensor - 3x3x3
     auto condition =
@@ -2477,39 +2535,40 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_where) {
     // y = 3x3x3
     std::vector<int> expected_output{2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_erf) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/erf.onnx"));
+    const auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/erf.onnx"));
 
     Inputs inputs;
-    inputs.emplace_back(test::NDArray<float, 2>{
+    inputs.emplace_back(ngraph::test::NDArray<float, 2>{
         {-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()},
         {-3.141592f, 0.0f},
         {0.5f, 1.0f}}.get_vector());
 
     const std::vector<float> expected_output =
-        test::NDArray<float, 2>{{-1.0f, 1.0f}, {-0.99999112f, 0.0f}, {0.52049988f, 0.84270079f}}.get_vector();
+        ngraph::test::NDArray<float, 2>{{-1.0f, 1.0f}, {-0.99999112f, 0.0f}, {0.52049988f, 0.84270079f}}.get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_erf_int32) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/erf_int32.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/erf_int32.onnx"));
 
     const std::vector<std::vector<int32_t>> inputs{
         {-std::numeric_limits<int32_t>::max(), -1, 0, 1, std::numeric_limits<int32_t>::max()}};
 
     const std::vector<int32_t> expected_output{-1, -1, 0, 1, 1};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -2517,9 +2576,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_erf_int32) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_shrink_float) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/shrink_float.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/shrink_float.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({-2.0f, -1.6f, -1.5f, -1.4f, -1.0f, 0.0f, 1.0f, 1.4f, 1.5f, 1.6f, 2.0f});
     test_case.add_expected_output<float>(Shape{11},
                                          {-1.5f, -1.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.1f, 1.5f});
@@ -2528,9 +2587,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_shrink_float) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_shrink_int) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/shrink_int.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/shrink_int.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<int>({-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5});
     test_case.add_expected_output<int>(Shape{11}, {-4, -3, -2, -1, 0, 0, 0, 1, 2, 3, 4});
 
@@ -2538,13 +2598,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_shrink_int) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_p1) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/lp_norm_p1.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lp_norm_p1.onnx"));
 
     Shape data_shape{2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
     std::iota(std::begin(data), std::end(data), 1);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(
         data_shape,
@@ -2556,13 +2617,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_p1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_p2) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/lp_norm_p2.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lp_norm_p2.onnx"));
 
     Shape data_shape{2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
     std::iota(std::begin(data), std::end(data), 1);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(
         data_shape,
@@ -2575,13 +2637,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_p2) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_default) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/lp_norm_default.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lp_norm_default.onnx"));
 
     Shape data_shape{2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
     std::iota(std::begin(data), std::end(data), 1);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(
         data_shape,
@@ -2593,14 +2655,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_default) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_default_dynamic) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/lp_norm_default_dynamic.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lp_norm_default_dynamic.onnx"));
 
     Shape data_shape{2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
     std::iota(std::begin(data), std::end(data), 1);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(data_shape, data);
     test_case.add_expected_output<float>(
         data_shape,
@@ -2613,13 +2675,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_default_dynamic) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm.onnx"));
 
     Shape data_shape{1, 2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
     std::iota(std::begin(data), std::end(data), 1);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(data);
     test_case.add_input<float>(std::vector<float>{2.134f, 3.256f});
@@ -2635,9 +2697,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_instance_normalization_dynamic) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm_dynamic.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm_dynamic.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{1.f, 2.f, 3.f};
     test_case.add_input<float>(Shape{1, 3, 1, 1}, input_data);
     test_case.add_expected_output<float>(Shape{1, 3, 1, 1},
@@ -2646,9 +2708,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_instance_normalization_dynamic) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/eye_like.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/eye_like.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 4}, {5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f});
     test_case.add_expected_output<float>(Shape{3, 4}, {0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f});
 
@@ -2657,8 +2720,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_0_batch_1) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_time_0_batch_1.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_time_0_batch_1.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({0.f, 4.f, 8.f, 12.f, 1.f, 5.f, 9.f, 13.f, 2.f, 6.f, 10.f, 14.f, 3.f, 7.f, 11.f, 15.f});
     test_case.add_input<int>({4, 3, 2, 1});
@@ -2671,8 +2734,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_0_batch_1) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_1_batch_0) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_time_1_batch_0.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_time_1_batch_0.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f});
     test_case.add_input<int>({1, 2, 3, 4});
@@ -2685,31 +2748,33 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_1_batch_0) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_incorrect_batch_axis) {
     EXPECT_THROW(onnx_import::import_onnx_model(
-                     file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_incorrect_batch_axis.onnx")),
-                 ngraph_error)
+                     ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_incorrect_batch_axis.onnx")),
+                 ngraph::ngraph_error)
         << "ReverseSequence batch_axis attribute can only equal 0 or 1. Value of '2' is not "
            "accepted.";
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_incorrect_time_axis) {
     EXPECT_THROW(onnx_import::import_onnx_model(
-                     file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_incorrect_time_axis.onnx")),
-                 ngraph_error)
+                     ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_incorrect_time_axis.onnx")),
+                 ngraph::ngraph_error)
         << "ReverseSequence time_axis attribute can only equal 0 or 1. Value of '2' is not "
            "accepted.";
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_time_and_batch_axis_equal) {
-    EXPECT_THROW(onnx_import::import_onnx_model(
-                     file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_time_and_batch_axis_equal.onnx")),
-                 ngraph_error)
+    EXPECT_THROW(
+        onnx_import::import_onnx_model(
+            ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_time_and_batch_axis_equal.onnx")),
+        ngraph::ngraph_error)
         << "ReverseSequence 'time_axis' and 'batch_axis' can't be equal.";
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_matmul_float_type) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_float.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_float.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(std::vector<float>{0, 1, 2, 3, 4, 5});
     test_case.add_input<float>(std::vector<float>{0, 1});
     test_case.add_expected_output<float>(Shape{3, 1}, std::vector<float>{1, 3, 5});
@@ -2718,8 +2783,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_matmul_float_type) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int32_t>({-4, 7, 5, 4, -7, 8});
     test_case.add_input<int32_t>({2, -3, 8, -2, 3, 5});
@@ -2730,8 +2796,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_i64) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_i64.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_i64.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({-4, 7, 5, 4, -7, 8});
     test_case.add_input<int64_t>({2, -3, 8, -2, 3, 5});
@@ -2742,8 +2808,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_i64) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_broadcast) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_broadcast.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_broadcast.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int32_t>({-8, 3, 4, 9, -17, 1});
     test_case.add_input<int32_t>({3});
@@ -2755,21 +2821,21 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_broadcast) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_f32) {
     try {
         const auto function =
-            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_f32.onnx"));
+            onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_f32.onnx"));
         FAIL() << "Expected exception was not thrown";
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(
             e.what(),
             std::string("If the input type is floating point, then `fmod` attribute must be set to 1."));
     } catch (...) {
-        FAIL() << "Expected ngraph_error exception was not thrown";
+        FAIL() << "Expectedngraph::ngraph_error exception was not thrown";
     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int32_t>({-8, 3, 4, 9, -17, 1});
     test_case.add_input<int32_t>({22, -13, 8, -3, 7, 2});
@@ -2779,9 +2845,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_broadcast) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod_broadcast.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod_broadcast.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int32_t>({-8, 3, 4, 9, -17, 1});
     test_case.add_input<int32_t>({3});
@@ -2792,8 +2858,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_broadcast) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_f32) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod_f32.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_fmod_f32.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({-4.3, 7.2, 5.0, 4.3, -7.2, 8.0});
     test_case.add_input<float>({2.1, -3.4, 8.0, -2.1, 3.4, 5.0});
@@ -2804,20 +2870,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_f32) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_incorrect_fmod) {
     try {
-        const auto function =
-            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mod_incorrect_fmod.onnx"));
+        const auto function = onnx_import::import_onnx_model(
+            ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_incorrect_fmod.onnx"));
         FAIL() << "Expected exception was not thrown";
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Unsupported value of 'fmod' attribute (should be: 0 or 1)"));
     } catch (...) {
-        FAIL() << "Expected ngraph_error exception was not thrown";
+        FAIL() << "Expectedngraph::ngraph_error exception was not thrown";
     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_param_i64_indices) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scatter_nd_param_i64_indices.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/scatter_nd_param_i64_indices.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
     test_case.add_input<int64_t>({4, 3, 1, 7});
@@ -2828,9 +2894,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_param_i64_indices) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_const_i32_indices) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scatter_nd_const_i32_indices.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/scatter_nd_const_i32_indices.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
     test_case.add_input<float>({9.f, 10.f, 11.f, 12.f});
@@ -2841,8 +2907,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_const_i32_indices) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_float_1D.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gather_float_1D.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // clang-format off
     test_case.add_input<float>(Shape{3},
@@ -2859,9 +2925,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_int32_3D_axis_1) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_int32_3D_axis_1.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gather_int32_3D_axis_1.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // clang-format off
     test_case.add_input<int32_t>(Shape{2, 2, 2},
@@ -2891,9 +2957,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_int32_3D_axis_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_int8_3D_axis_neg_1) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_int8_3D_axis_neg_1.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gather_int8_3D_axis_neg_1.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // clang-format off
     test_case.add_input<int8_t>(Shape{2, 2, 2},
@@ -2916,9 +2982,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_int8_3D_axis_neg_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_2D_neg_indices) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_float_2D_axis_1.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gather_float_2D_axis_1.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // clang-format off
     test_case.add_input<float>(Shape{3, 3},
@@ -2944,9 +3010,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_2D_neg_indices) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_1D) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_1D.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_1D.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape{3}, {1, 2, 3});
     test_case.add_input<int64_t>(Shape{1}, {1});
@@ -2956,9 +3022,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_1D) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_int8_axis_1) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_int8_axis_1.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_int8_axis_1.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int8_t>(Shape{2, 2}, {1, 2, 3, 4});
     test_case.add_input<int32_t>(Shape{2, 2}, {0, 0, 1, 0});
@@ -2968,9 +3034,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_int8_axis_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_int32_axis_0) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_int32_axis_0.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_int32_axis_0.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int32_t>(Shape{3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9});
     test_case.add_input<int64_t>(Shape{2, 3}, {1, 2, 0, 2, 0, 0});
@@ -2981,8 +3047,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_int32_axis_0) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_negative_axis) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_negative_axis.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_negative_axis.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape{2, 2}, {1, 2, 3, 4});
     test_case.add_input<int64_t>(Shape{2, 2}, {1, 1, 1, 0});
@@ -2993,8 +3059,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_negative_axis) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_3D_axis_2) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_3D_axis_2.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_3D_axis_2.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape{2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8});
     test_case.add_input<int64_t>(Shape{2, 2, 1}, {0, 1, 0, 1});
@@ -3005,8 +3071,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_3D_axis_2) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gatherND_int32) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gatherND_int32.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gatherND_int32.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int32_t>({0, 1, 2, 3});
     test_case.add_input<int64_t>({1, 0});
@@ -3017,8 +3083,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gatherND_int32) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gatherND_float) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gatherND_float.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gatherND_float.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f});
     test_case.add_input<int64_t>({0, 1, 1, 0});
@@ -3029,8 +3095,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gatherND_float) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_constant) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/pad_constant.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/pad_constant.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.f, 1.2f, 2.3f, 3.4f, 4.5f, 5.7f});
     test_case.add_expected_output<float>(Shape{3, 4},
@@ -3041,8 +3107,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_constant) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_float32_float32) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/pow_float32_float32.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/pow_float32_float32.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});  // base
     test_case.add_input<float>({3.5f});                // exponent
@@ -3054,8 +3120,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_float32_float32) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_float32_int32) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/pow_float32_int32.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/pow_float32_int32.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});  // base
     test_case.add_input<int>({3});                     // exponent
@@ -3067,8 +3133,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_float32_int32) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_int32_float32) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/pow_int32_float32.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/pow_int32_float32.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int>({1, 2, 3, 4});  // base
     test_case.add_input<float>({3.5f});      // exponent
@@ -3079,8 +3145,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_int32_float32) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reciprocal) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reciprocal.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reciprocal.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
     test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1 / 2.f, 1 / 3.f, 1 / 4.f, 1 / 5.f, 1 / 6.f});
@@ -3089,8 +3156,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reciprocal) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/round.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/round.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({0.1f, 0.9f, 1.2f, 1.5f, 1.8f, 2.3f, 2.7f, -1.1f, -1.9f, -2.2f, -2.8f});
     test_case.add_expected_output<float>({0.f, 1.f, 1.f, 2.f, 2.f, 2.f, 3.f, -1.f, -2.f, -2.f, -3.f});
@@ -3099,9 +3167,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round_half_nearest_even) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/round_half_nearest_even.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/round_half_nearest_even.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({0.5f, 2.5f, -1.5f, -2.5f});
     test_case.add_expected_output<float>({0.f, 2.f, -2.f, -2.f});
@@ -3111,7 +3179,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round_half_nearest_even) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter10_import_only) {
     const auto scatter_fn =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scatter_opset10.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/scatter_opset10.onnx"));
 
     const Shape data_shape{2, 2};
 
@@ -3122,8 +3190,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter10_import_only) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only) {
-    const auto scatter_fn =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scatter_elements_opset11.onnx"));
+    const auto scatter_fn = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/scatter_elements_opset11.onnx"));
 
     const Shape data_shape{1, 5};
 
@@ -3136,14 +3204,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_nearest_infer) {
     // clang-format off
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample6_nearest.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/upsample6_nearest.onnx"));
     // height_scale: 2.0
     // width_scale: 3.0
     // mode: nearest
     const Shape input_shape          {1, 1, 2, 2};
     const Shape expected_output_shape{1, 1, 4, 6};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(input_shape,
         {   1.f, 2.f,
             3.f, 4.f    });
@@ -3159,14 +3227,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_nearest_infer) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_bilinear_infer) {
     // clang-format off
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample6_bilinear.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/upsample6_bilinear.onnx"));
     // height_scale: 2.0
     // width_scale: 3.0
     // mode: bilinear
     const Shape input_shape          {1, 1, 2, 2};
     const Shape expected_output_shape{1, 1, 4, 6};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(input_shape,
         {   1.f, 2.f,
             3.f, 4.f    });
@@ -3182,7 +3250,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_bilinear_infer) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_dynamic) {
     // clang-format off
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample6_dynamic.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/upsample6_dynamic.onnx"));
     // height_scale: 1.5
     // width_scale: 2.5
     // mode: nearest
@@ -3190,7 +3258,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_dynamic) {
     //  X ───╤══> Reshape ──R──> Upsample ──> Y
     //  S ───┘
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>(Shape {4},                      // X
         {   1.f, 2.f, 3.f, 4.f  });
@@ -3205,14 +3273,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_dynamic) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_nearest_infer) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.onnx"));
 
     // Input data shape (1, 1, 2, 2)
     // Scales attribute values {1.0, 1.0, 2.0, 3.0}
     // mode: nearest
 
     const Shape expected_output_shape{1, 1, 4, 6};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<float>(expected_output_shape,
                                          {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
@@ -3222,14 +3290,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_nearest_infer) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_linear_infer) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_linear.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_linear.onnx"));
 
     // Input data shape (1, 1, 2, 2)
     // Scales attribute values {1.0, 1.0, 2.0, 2.0}
     // mode: linear
 
     const Shape expected_output_shape{1, 1, 4, 4};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<float>(
         expected_output_shape,
@@ -3239,14 +3307,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_linear_infer) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_nearest_infer) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_nearest.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_nearest.onnx"));
 
     // Input data shape (1, 1, 2, 2)
     // Input const scales values {1.0, 1.0, 2.0, 3.0}
     // mode: nearest
 
     const Shape expected_output_shape{1, 1, 4, 6};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<float>(expected_output_shape,
                                          {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
@@ -3255,15 +3323,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_nearest_infer) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_linear_infer) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_linear.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_linear.onnx"));
 
     // Input data shape (1, 1, 2, 2)
     // Input const scales values {1.0, 1.0, 2.0, 2.0}
     // mode: linear
 
     const Shape expected_output_shape{1, 1, 4, 4};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<float>(
         expected_output_shape,
@@ -3273,9 +3341,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_linear_infer) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_image_scaler) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/image_scaler.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/image_scaler.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0});
     test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, {12.0, 14.0, 16.0, 18.0, 21.0, 41.0, 61.0, 81.0});
     test_case.run();
@@ -3283,9 +3351,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_image_scaler) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_single) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_single.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_single.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
     test_case.add_expected_output<int64_t>(Shape{}, {6});
     test_case.run();
@@ -3293,9 +3361,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_single) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_graph_end) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_graph_end.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_graph_end.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<int64_t>(Shape{}, {4});
     test_case.run();
@@ -3303,19 +3371,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_graph_end) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_graph_middle) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_graph_middle.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_graph_middle.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<float>(Shape{}, {4.0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_on_input_graph_middle) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_on_input_graph_middle.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_on_input_graph_middle.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{1, 2, 4, 1, 3}, {0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
                                                       0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.});
     test_case.add_expected_output<float>(Shape{1, 2, 4, 1, 3},
@@ -3328,11 +3396,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_empty_initializers_handling) {
     // int this test the "scales" input of the Resize operator is set to an empty initializer
     // this input should be ignored since the "sizes" optional input is provided
     // and the inference should use the data from the latter
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/empty_initializers_handling.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/empty_initializers_handling.onnx"));
 
     const Shape expected_output_shape{2, 1, 4, 8};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{2.0f, 4.0f, 1.0f, 3.0f, 7.0f, 8.0f, 9.0f, 6.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
@@ -3347,9 +3415,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_empty_initializers_handling) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_roi_align_f32) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/roi_align_f32.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/roi_align_f32.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.,  10., 11., 12., 13., 14.,
                                 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29.,
                                 30., 31., 32., 33., 34., 35., 36., 37., 38., 39., 40., 41., 42., 43., 44.,
@@ -3384,8 +3452,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_roi_align_f32) {
 
 NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quant_dequant_pattern.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/quant_dequant_pattern.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
     // scale == 3.0
     // zero point == 10
     test_case.add_input<float>({9.0, 10.0, 15.0, 20.0, 30.0});
@@ -3395,9 +3463,9 @@ NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern_axis) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quant_dequant_pattern_axis.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/quant_dequant_pattern_axis.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
     // axis = 1
     // scale == {2.0, 3.0, 4.0}
     // zero point == {10, 20, 30}
@@ -3408,9 +3476,10 @@ NGRAPH_TEST(${BACKEND_NAME}, quant_dequant_pattern_axis) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax_0D) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_0D.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_0D.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({3.141592});
     test_case.add_expected_output<float>({0.0});
     test_case.run();
@@ -3418,8 +3487,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax_0D) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax_1D) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax_1D.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax_1D.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({-1.0f, 0.0f, 1.0f});
     test_case.add_expected_output<float>(Shape{3}, {-2.4076061, -1.407606, -0.407606});
@@ -3428,8 +3497,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax_1D) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_1D) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_1D.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_1D.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({-1.0f, 0.0f, 1.0f});
     test_case.add_expected_output<float>(Shape{3}, {-2.4076061, -1.407606, -0.407606});
@@ -3438,8 +3507,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_1D) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_2D.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_2D.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({0.0f, 1.0f, 2.0f, 3.0f, 10000, 10001, 10002, 10003});
     test_case.add_expected_output<float>(
@@ -3450,7 +3519,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D_reshape) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_2D.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_2D.onnx"));
     InferenceEngine::CNNNetwork net(function);
     InferenceEngine::ICNNNetwork::InputShapes shapes = {};
     InferenceEngine::SizeVector shape = {1, 1, 4000};
@@ -3460,12 +3529,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D_reshape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_hard_sigmoid) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/hard_sigmoid.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/hard_sigmoid.onnx"));
 
     const auto inf = std::numeric_limits<float>::infinity();
     const auto neg_inf = -std::numeric_limits<float>::infinity();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({inf, neg_inf, 0.0f, 1.0f});
     test_case.add_expected_output<float>(Shape{4}, {1.0f, 0.0f, 0.5f, 0.699999988079071f});
@@ -3473,8 +3543,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_hard_sigmoid) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v6.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v6.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.0f, 2.0f, 3.0f});
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
@@ -3483,9 +3554,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6_broadcast_axis_1) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v6_broadcast_axis_1.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v6_broadcast_axis_1.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape));
@@ -3499,9 +3570,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6_broadcast_axis_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6_broadcast_axes_1_2) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v6_broadcast_axes_1_2.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v6_broadcast_axes_1_2.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape), -1.f);
@@ -3513,9 +3584,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6_broadcast_axes_1_2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6_broadcast_no_axis) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v6_broadcast_no_axis.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v6_broadcast_no_axis.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{2, 2};
     std::vector<float> A(shape_size(shape));
@@ -3527,8 +3598,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6_broadcast_no_axis) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v7) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v7.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v7.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.0f, 2.0f, 3.0f});
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
@@ -3538,8 +3610,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v7) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v7_broadcast) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v7_broadcast.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mul_v7_broadcast.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 2, 3};
     std::vector<float> A(shape_size(shape));
@@ -3551,9 +3623,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v7_broadcast) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v6_broadcast_axis_1) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_v6_broadcast_axis_1.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_v6_broadcast_axis_1.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape));
@@ -3567,9 +3639,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v6_broadcast_axis_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v6_broadcast_axes_1_2) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_v6_broadcast_axes_1_2.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_v6_broadcast_axes_1_2.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape), 0.f);
@@ -3580,9 +3652,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v6_broadcast_axes_1_2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v6_broadcast_no_axis) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_v6_broadcast_no_axis.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_v6_broadcast_no_axis.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{2, 2};
     std::vector<float> A(shape_size(shape));
@@ -3594,8 +3666,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v6_broadcast_no_axis) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v7) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_v7.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/add_v7.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.0f, 2.0f, 3.0f});
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
@@ -3604,9 +3677,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v7) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v6_broadcast_axis_1) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v6_broadcast_axis_1.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v6_broadcast_axis_1.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape));
@@ -3619,9 +3692,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v6_broadcast_axis_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v6_broadcast_axes_1_2) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v6_broadcast_axes_1_2.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v6_broadcast_axes_1_2.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape), 0.f);
@@ -3633,9 +3706,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v6_broadcast_axes_1_2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v6_broadcast_no_axis) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v6_broadcast_no_axis.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v6_broadcast_no_axis.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{2, 2};
     std::vector<float> A(shape_size(shape));
@@ -3647,8 +3720,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v6_broadcast_no_axis) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v7) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v7.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v7.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.0f, 2.0f, 3.0f});
     test_case.add_input<float>({3.0f, 8.0f, 7.0f});
@@ -3658,8 +3732,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v7) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v7_broadcast) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v7_broadcast.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/sub_v7_broadcast.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 2, 3};
     std::vector<float> A(shape_size(shape));
@@ -3671,9 +3745,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v7_broadcast) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_axis_1) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/div_v6_broadcast_axis_1.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/div_v6_broadcast_axis_1.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape));
@@ -3687,9 +3761,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_axis_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_axes_1_2) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/div_v6_broadcast_axes_1_2.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/div_v6_broadcast_axes_1_2.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape), 840.f);
@@ -3702,9 +3776,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_axes_1_2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_no_axis) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/div_v6_broadcast_no_axis.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/div_v6_broadcast_no_axis.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{2, 2};
     std::vector<float> A(shape_size(shape));
@@ -3716,8 +3790,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_no_axis) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v7) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/div_v7.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/div_v7.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.0f, 2.0f, 3.0f});
     test_case.add_input<float>({3.0f, 8.0f, 7.0f});
@@ -3727,8 +3802,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v7) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v7_broadcast) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/div_v7_broadcast.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/div_v7_broadcast.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
 
     Shape shape{1, 2, 3};
     std::vector<float> A(shape_size(shape));
@@ -3741,9 +3816,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v7_broadcast) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dangling_parameter) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dangling_parameter.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dangling_parameter.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({-1.0f, 2.0f, -3.0f});
     test_case.add_expected_output<float>(Shape{3}, {1.0f, 2.0f, 3.0f});
@@ -3752,9 +3827,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dangling_parameter) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_inbounds) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/test_clip_inbounds.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/test_clip_inbounds.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<int32_t> data{-1, 0, 1, -9999, 9999};
     test_case.add_input<int32_t>(data);
     test_case.add_expected_output<int32_t>(Shape{data.size()}, data);
@@ -3763,9 +3838,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_inbounds) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_no_max.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_no_max.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
 
     test_case.add_input<float>(data);
@@ -3776,9 +3851,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_inf) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_no_max.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_no_max.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data{std::numeric_limits<float>::infinity(),
                                   -std::numeric_limits<float>::infinity(),
                                   static_cast<float>(std::numeric_limits<double>::max()),
@@ -3805,9 +3880,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_inf) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_set_max) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_set_max.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_set_max.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
     const std::vector<float> max_val{2.01};
     const std::vector<float> output{-1.6, -0.1, 2.01, 0., -10., 1.99, 2.01, 2.01};
@@ -3821,9 +3896,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_set_max) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_no_max) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_no_max.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_no_max.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
     const std::vector<float> min_val{-1.59};
     const std::vector<float> output{-1.59, -0.1, 10., 0., -1.59, 1.99, 2.015, 3.};
@@ -3836,10 +3911,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_no_max) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_int64) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_no_max_int64.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_no_max_int64.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<int64_t> data{INT64_MAX, INT64_MIN, INT32_MAX, INT32_MIN, 0, -1, 1, 0};
 
     test_case.add_input<int64_t>(data);
@@ -3849,10 +3924,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_int64) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_set_max_int64) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_set_max_int64.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/clip_no_min_set_max_int64.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<int64_t> data{INT64_MAX, INT64_MIN, INT32_MAX, INT32_MIN, 0, -1, 1, 0};
     const std::vector<int64_t> max_val{INT32_MAX};
     const std::vector<int64_t> output{INT32_MAX, INT64_MIN, INT32_MAX, INT32_MIN, 0, -1, 1, 0};
@@ -3866,9 +3941,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_set_max_int64) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_no_max_initializers) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_no_max_initializers.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_no_max_initializers.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
     const std::vector<float> output{-1.59, -0.1, 10., 0., -1.59, 1.99, 2.015, 3.};
 
@@ -3880,9 +3955,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_no_max_initializers) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_set_max) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_set_max.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_set_max.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
     const std::vector<float> min_val{-1.59};
     const std::vector<float> max_val{2.01};
@@ -3898,9 +3973,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_set_max) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_set_max_initializers) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_set_max_initializers.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/clip_set_min_set_max_initializers.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data{-1.6, -0.1, 10., 0., -10., 1.99, 2.015, 3.};
     const std::vector<float> output{-1.59, -0.1, 2.01, 0., -1.59, 1.99, 2.01, 2.01};
 
@@ -3911,9 +3986,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_set_min_set_max_initializers) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_mvn_v6) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mvn_v6.onnx"));
+    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mvn_v6.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0.8439683,  0.5665144, 0.05836735, 0.02916367, 0.12964272, 0.5060197, 0.79538304,
                                 0.9411346,  0.9546573, 0.17730942, 0.46192095, 0.26480448, 0.6746842, 0.01665257,
                                 0.62473077, 0.9240844, 0.9722341,  0.11965699, 0.41356155, 0.9129373, 0.59330076,
@@ -3929,9 +4004,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_mvn_v6) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_no_return_mask) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout1_no_training_no_return_mask.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout1_no_training_no_return_mask.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data(3 * 4 * 5, 2.0f);
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
@@ -3940,9 +4015,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_no_return_mask) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_return_mask) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout1_no_training_return_mask.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout1_no_training_return_mask.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data(3 * 4 * 5, 2.0f);
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
@@ -3952,10 +4027,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_return_mask) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout7_no_return_mask) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dropout7_no_return_mask.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout7_no_return_mask.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data(3 * 4 * 5, 2.0f);
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
@@ -3964,9 +4039,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout7_no_return_mask) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_no_return_mask) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_training_no_return_mask.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_training_no_return_mask.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data(3 * 4 * 5, 2.0f);
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
@@ -3975,9 +4050,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_no_return_mask) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_return_mask) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_training_return_mask.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_training_return_mask.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data(3 * 4 * 5, 2.0f);
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
@@ -3988,9 +4063,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_return_mask) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_traning_no_const_rato) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_traning_no_const_rato.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_traning_no_const_rato.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1, 2, 3, 4});
     // test_case.add_input<float>(Shape{}, {0.5}); // ratio input is ignored
 
@@ -4000,25 +4075,25 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_traning_no_const_rato) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_training_mode) {
     try {
-        auto function =
-            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_training_mode.onnx"));
+        auto function = onnx_import::import_onnx_model(
+            ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_training_mode.onnx"));
         FAIL() << "Expected exception was not thrown";
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Training mode is not supported for Dropout op"));
     } catch (...) {
-        FAIL() << "Expected ngraph_error exception was not thrown";
+        FAIL() << "Expectedngraph::ngraph_error exception was not thrown";
     }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode) {
     try {
         auto function = onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_not_const_training_mode.onnx"));
+            ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_not_const_training_mode.onnx"));
         FAIL() << "Expected exception was not thrown";
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Non-constant training_mode input is not supported."));
     } catch (...) {
-        FAIL() << "Expected ngraph_error exception was not thrown";
+        FAIL() << "Expectedngraph::ngraph_error exception was not thrown";
     }
 }
 
@@ -4026,9 +4101,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_multiple_slices_last_layer) {
     std::vector<float> data(1 * 30 * 320 * 320);
     std::fill(data.begin(), data.end(), 1);
 
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/multiple_slices_last_layer.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/multiple_slices_last_layer.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> o1(1 * 320 * 320 * 21);
     std::fill(o1.begin(), o1.end(), 1);
 
@@ -4042,10 +4117,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_multiple_slices_last_layer) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_slice_const_axes_source) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/slice_const_axes_source.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/slice_const_axes_source.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(std::vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
     test_case.add_expected_output<float>(Shape{2, 2}, {2.f, 3.f, 6.f, 7.f});
     test_case.run();
@@ -4053,9 +4128,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_slice_const_axes_source) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_softmax_crossentropy_loss_mean) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_crossentropy_loss_mean.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_crossentropy_loss_mean.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0.54881352186203,
                                 0.7151893377304077,
                                 0.6027633547782898,
@@ -4077,10 +4152,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_softmax_crossentropy_loss_mean) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_negativelog_likelihood_loss) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/negativelog_likelihood_loss.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/negativelog_likelihood_loss.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({
         0.54881352186203,    0.7151893377304077,   0.6027633547782898, 0.5448831915855408, 0.42365479469299316,
         0.6458941102027893,  0.4375872015953064,   0.891772985458374,  0.9636627435684204, 0.3834415078163147,
@@ -4096,234 +4171,234 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_negativelog_likelihood_loss) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_input_as_shape_default_value) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_input_as_shape_default_value.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_input_as_shape_default_value.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{1, 2, 3}, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_input_as_shape_u8_type) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_input_as_shape_u8_type.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_input_as_shape_u8_type.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<uint8_t>(Shape{3, 1, 2}, {3, 3, 3, 3, 3, 3});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_extra_shape) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_extra_shape.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_extra_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{3, 1, 2, 2, 1}, std::vector<float>(12, 3.0f));
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_shape_attribute) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_shape_attribute.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_shape_attribute.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<int32_t>(Shape{2, 3, 4}, std::vector<int32_t>(24, 5));
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_tensor) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_tensor.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_tensor.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{2, 3}, {0.0f, 0.5f, 1.f, 1.5f, 2.f, 2.5f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_bfloat_tensor) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/constant_bfloat_tensor.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_bfloat_tensor.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<bfloat16>(Shape{2, 3}, {0.f, 5.f, 10.f, 15.f, 20.f, 25.f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_scalar) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_scalar.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_scalar.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{}, {0.5f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_array) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_array.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_float_array.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{3}, {0.5f, 1.f, 1.5f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_integer_scalar) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/constant_integer_scalar.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_integer_scalar.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<std::int64_t>(Shape{}, {1});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_integer_array) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/constant_integer_array.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_integer_array.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<std::int64_t>(Shape{3}, {0, 1, 2});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{2, 2}, {0.f, 5.f, 0.f, 0.f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_3x4_linearized_indices) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_3x4_linearized_indices.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_3x4_linearized_indices.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int32_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int32_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int32_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<int32_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int64_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int64_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int64_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<int64_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_boolean_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_boolean_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_boolean_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<bool>(Shape{3, 4}, {1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float16_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float16_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float16_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<ngraph::float16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_double_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_double_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_double_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<double>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int8_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int8_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int8_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<int8_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_int16_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int16_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_int16_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<int16_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_uint8_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint8_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint8_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<uint8_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_uint16_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint16_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint16_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<uint16_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_uint32_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint32_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint32_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<uint32_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_uint64_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint64_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_uint64_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<uint64_t>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_bfloat16_3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_bfloat16_3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_bfloat16_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<ngraph::bfloat16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_8x17) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_8x17.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_8x17.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(
         Shape{8, 17},
         {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
@@ -4338,9 +4413,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_8x17) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{2, 3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f,
                                                           0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 3.f, 0.f});
     test_case.run();
@@ -4348,9 +4423,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x3x4) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2x3x4) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x2x3x4.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x2x3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(
         Shape{2, 2, 3, 4},
         {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 2.f, 3.f, 0.f, 0.f, 0.f, 0.f,
@@ -4360,8 +4435,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2x3x4) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_einsum_sum) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/einsum_sum.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/einsum_sum.onnx"));
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 4},
                                {1.764052345967664,
                                 0.4001572083672233,
@@ -4381,9 +4457,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_einsum_sum) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_fp16_W_as_int32.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/conv_fp16_W_as_int32.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     // clang-format off
     test_case.add_input<ngraph::float16>(Shape{1, 1, 4, 4},
             {   0,  1,  2,  3,
@@ -4402,9 +4478,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_3d) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_3d.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_3d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<int32_t>(Shape{1, 3, 3}, {-1, 0, 1, 20, -20, 10, 0, 2, 1});
     test_case.add_expected_output<int32_t>(Shape{1, 3, 2}, {0, 1, 20, 10, 2, 2});
     test_case.add_expected_output<int64_t>(Shape{1, 3, 2}, {1, 2, 3, 5, 7, 7});
@@ -4414,9 +4491,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_3d) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_ceil_mode) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_ceil_mode.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_ceil_mode.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<int32_t>(Shape{1, 1, 4, 4}, gen_range<int32_t>(16, 1));
     test_case.add_expected_output<int32_t>(Shape{1, 1, 2, 2}, {11, 12, 15, 16});
     test_case.add_expected_output<int64_t>(Shape{1, 1, 2, 2}, {10, 11, 14, 15});
@@ -4426,9 +4503,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_ceil_mode) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_dilations) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_dilations.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_dilations.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<int32_t>(Shape{1, 1, 4, 4}, {9, 10, 11, 12, 1, 2, 3, 4, 16, 14, 15, 13, 5, 6, 8, 7});
     test_case.add_expected_output<int32_t>(Shape{1, 1, 2, 2}, {16, 14, 8, 7});
     test_case.add_expected_output<int64_t>(Shape{1, 1, 2, 2}, {8, 9, 14, 15});
@@ -4441,9 +4518,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_strides) {
     // strides: 3, 3
     // explicit pads: 2, 2, 2, 2
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_strides.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_strides.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<int8_t>(Shape{1, 1, 5, 5}, gen_range<int8_t>(25, 1));
     test_case.add_expected_output<int8_t>(Shape{1, 1, 3, 3}, {1, 4, 5, 16, 19, 20, 21, 24, 25});
     test_case.add_expected_output<int64_t>(Shape{1, 1, 3, 3}, {0, 3, 4, 15, 18, 19, 20, 23, 24});
@@ -4455,10 +4532,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_ceil_strides) {
     // kernel: 3x3
     // strides: 2, 2
     // ceil_mode: 1
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_ceil_strides.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_ceil_strides.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
         Shape{1, 1, 4, 4},
         {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f});
@@ -4470,18 +4547,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_ceil_strides) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{2, 2}, {43.45518, 48.67585, 42.227386, 40.86294});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform_like.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform_like.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 2}, {41, 42, 43, 44});
     test_case.add_expected_output<float>(Shape{2, 2}, {43.45518, 48.67585, 42.227386, 40.86294});
     test_case.run();
@@ -4489,28 +4566,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_normal) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_normal.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/random_normal.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_expected_output<float>(Shape{2, 2}, {13.459274, 41.75028, -19.311913, 131.79282});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_normal_like) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_normal_like.onnx"));
+        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/random_normal_like.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{2, 2}, {0, 0, 0, 0});
     test_case.add_expected_output<float>(Shape{2, 2}, {13.459274, 41.75028, -19.311913, 131.79282});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_2in) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_2in.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_2in.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
     test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
 
@@ -4520,9 +4597,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_2in) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_3in_offsets_none) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_3in_offset_none.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_3in_offset_none.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
     test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
 
@@ -4532,9 +4609,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_3in_offsets_none
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_4in_per_sample_weights) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_4in_per_sample_weights.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_4in_per_sample_weights.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
     test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});            // indices
     test_case.add_input<float>(Shape{3, 2}, {0.5, 0.5, 0.5, 0.5, 0.5, 0.5});  // per_sample_weights
@@ -4545,9 +4622,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_4in_per_sample_w
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_4in_two_none) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_4in_two_none.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_packed_4in_two_none.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
     test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
 
@@ -4556,10 +4633,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_4in_two_none) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_offsets_sum_3in) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_offset_3in.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_offset_3in.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
     test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});  // indices
     test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});     // offsets
@@ -4569,10 +4646,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_offsets_sum_3in) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_offsets_sum_4in) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_offset_4in.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_offset_4in.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
     test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});        // indices
     test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});           // offsets
@@ -4584,13 +4661,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_offsets_sum_4in) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_many_node_outputs) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_many_outputs.onnx"));
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_many_outputs.onnx"));
 
     // 4 outputs in onnx Node (1 connected and 3 not connected)
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_EQ(function->get_results().size(), 1);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
     test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});  // indices
     test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});     // offsets
@@ -4602,7 +4679,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_many_node_outputs) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_embedding_mode) {
     try {
         const auto function = onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_embedding_mode.onnx"));
+            ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_embedding_mode.onnx"));
         FAIL() << "Expected exception was not thrown.";
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(
@@ -4616,8 +4693,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_embedding_mode) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_operator) {
     try {
-        const auto function =
-            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_operator.onnx"));
+        const auto function = onnx_import::import_onnx_model(
+            ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_operator.onnx"));
         FAIL() << "Expected exception was not thrown.";
     } catch (const ngraph::ngraph_error& e) {
         EXPECT_HAS_SUBSTRING(

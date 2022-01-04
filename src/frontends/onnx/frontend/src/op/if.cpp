@@ -5,10 +5,10 @@
 #include "op/if.hpp"
 
 #include "core/graph.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/if.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -21,14 +21,14 @@ OutputVector if_op(const Node& node) {
     auto then_subgraph = subgraphs.at("then_branch");
     const auto& then_params = then_subgraph->get_ng_parameters();
     auto then_branch =
-        std::make_shared<Function>(then_subgraph->get_ng_outputs(), then_params, then_subgraph->get_name());
+        std::make_shared<ov::Model>(then_subgraph->get_ng_outputs(), then_params, then_subgraph->get_name());
     NGRAPH_CHECK(subgraphs.count("else_branch") == 1, "Missing 'else_branch' attribute");
     auto else_subgraph = subgraphs.at("else_branch");
     const auto& else_params = else_subgraph->get_ng_parameters();
     auto else_branch =
-        std::make_shared<Function>(else_subgraph->get_ng_outputs(), else_params, else_subgraph->get_name());
+        std::make_shared<ov::Model>(else_subgraph->get_ng_outputs(), else_params, else_subgraph->get_name());
 
-    auto if_node = std::make_shared<ngraph::opset8::If>(ng_inputs.at(0));
+    auto if_node = std::make_shared<ov::op::v8::If>(ng_inputs.at(0));
     if_node->set_then_body(then_branch);
     if_node->set_else_body(else_branch);
 
@@ -66,4 +66,4 @@ OutputVector if_op(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

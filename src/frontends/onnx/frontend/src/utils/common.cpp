@@ -9,10 +9,10 @@
 #include "default_opset.hpp"
 #include "ngraph/graph_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace common {
-const ngraph::element::Type& get_ngraph_element_type(int64_t onnx_type) {
+const element::Type& get_ngraph_element_type(int64_t onnx_type) {
     switch (onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BOOL:
         return element::boolean;
@@ -43,10 +43,10 @@ const ngraph::element::Type& get_ngraph_element_type(int64_t onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
         return element::bf16;
     }
-    throw ngraph_error("unsupported element type");
+    throw ngraph::ngraph_error("unsupported element type");
 }
 
-std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(const Output<ngraph::Node>& value,
+std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const Output<ov::Node>& value,
                                                                   int64_t start_value,
                                                                   int64_t step) {
     if (value.get_partial_shape().rank().is_static()) {
@@ -63,7 +63,7 @@ std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(const Output<n
 }
 
 void validate_scalar_input(const char* input_name,
-                           const std::shared_ptr<ngraph::Node> input,
+                           const std::shared_ptr<ov::Node> input,
                            const std::set<element::Type> allowed_types) {
     const auto validated_input_shape = input->get_output_partial_shape(0);
     const auto validated_input_rank = validated_input_shape.rank();
@@ -81,8 +81,8 @@ void validate_scalar_input(const char* input_name,
 
 template <typename T>
 OutputVector handle_opset6_binary_op(const Node& node) {
-    const Output<ngraph::Node> lhs_node = node.get_ng_inputs().at(0);
-    Output<ngraph::Node> rhs_node = node.get_ng_inputs().at(1);
+    const Output<ov::Node> lhs_node = node.get_ng_inputs().at(0);
+    Output<ov::Node> rhs_node = node.get_ng_inputs().at(1);
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
     if (broadcast) {
         if (node.has_attribute("axis")) {
@@ -117,4 +117,4 @@ template OutputVector handle_opset6_binary_op<default_opset::Subtract>(const Nod
 
 }  // namespace  common
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

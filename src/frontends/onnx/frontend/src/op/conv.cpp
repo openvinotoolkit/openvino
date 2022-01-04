@@ -18,13 +18,13 @@
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 namespace detail {
 
-std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv, const Output<ngraph::Node>& bias) {
+std::shared_ptr<ov::Node> add_bias(const Output<ov::Node>& ng_conv, const Output<ov::Node>& bias) {
     const auto conv_shape = std::make_shared<default_opset::ShapeOf>(ng_conv);
     const auto conv_rank = std::make_shared<default_opset::ShapeOf>(conv_shape);
 
@@ -33,9 +33,9 @@ std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv, cons
 }
 
 OutputVector conv(const Node& node,
-                  Output<ngraph::Node> data,
-                  Output<ngraph::Node> filters,
-                  Output<ngraph::Node> bias) {
+                  Output<ov::Node> data,
+                  Output<ov::Node> filters,
+                  Output<ov::Node> bias) {
     // in the current implementation we assume that the data input rank is static
     // and only the 'batch' dimension can be dynamic
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
@@ -45,7 +45,7 @@ OutputVector conv(const Node& node,
     const auto strides = convpool::get_strides(node);
     const auto dilations = convpool::get_dilations(node);
     const auto paddings = convpool::get_pads(node);
-    const ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
+    const ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
     const auto& padding_below = paddings.first;
     const auto& padding_above = paddings.second;
 
@@ -59,7 +59,7 @@ OutputVector conv(const Node& node,
                                                              auto_pad_type);
 
     // no bias param
-    if (ngraph::op::is_null(bias)) {
+    if (ov::op::is_null(bias)) {
         return {conv_node};
     } else {
         const auto& bias_ps = bias.get_partial_shape();
@@ -81,4 +81,4 @@ OutputVector conv(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

@@ -12,8 +12,8 @@
 
 #include "onnx_common/parser.hpp"
 
-using namespace ngraph;
-using namespace ngraph::test;
+using namespace ov;
+using namespace ov::test;
 
 namespace {
 ComparisonResult compare_nodes(const ONNX_NAMESPACE::GraphProto& graph,
@@ -191,7 +191,7 @@ ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
     return compare_nodes(graph, ref_graph, comp);
 }
 }  // namespace
-namespace ngraph {
+namespace ov {
 namespace test {
 
 bool default_name_comparator(std::string lhs, std::string rhs) {
@@ -205,4 +205,4 @@ ComparisonResult compare_onnx_models(const std::string& model, const std::string
     return compare_onnx_graphs(model_proto.graph(), ref_model.graph(), comp);
 }
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

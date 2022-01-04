@@ -12,10 +12,10 @@
 #include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace reshape {
 std::vector<std::size_t> infer_dimensions(const std::string& node_name,
@@ -63,7 +63,7 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
     return inferred_dims;
 }
 
-Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node) {
+Output<ov::Node> interpret_as_scalar(const Output<ov::Node>& node) {
     Shape node_shape = node.get_shape();
 
     // If node is already a scalar, return original
@@ -79,11 +79,11 @@ Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node) {
         return std::make_shared<default_opset::Constant>(node.get_element_type(), ngraph::Shape{}, value);
     }
 
-    return builder::opset1::reshape(node, Shape{});
+    return ngraph::builder::opset1::reshape(node, Shape{});
 }
 
-Output<ngraph::Node> reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
-                                                         const Output<ngraph::Node>& expected_rank) {
+Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
+                                                         const Output<ov::Node>& expected_rank) {
     // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
     const auto one_const = default_opset::Constant::create(element::i64, Shape{1}, {1});
     const auto two_const = default_opset::Constant::create(element::i64, Shape{1}, {2});
@@ -99,4 +99,4 @@ Output<ngraph::Node> reshape_channel_shaped_node_to_nchw(const Output<ngraph::No
 
 }  // namespace  reshape
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

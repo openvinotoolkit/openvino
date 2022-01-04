@@ -9,11 +9,11 @@
 #include "default_opset.hpp"
 #include "ngraph/opsets/opset8.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace detail {
 
-OutputVector make_random_normal(const Output<ngraph::Node>& shape,
+OutputVector make_random_normal(const Output<ov::Node>& shape,
                                 element::Type target_type,
                                 float mean,
                                 float scale,
@@ -65,4 +65,4 @@ OutputVector make_random_normal(const Output<ngraph::Node>& shape,
 
 }  // namespace detail
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

@@ -8,15 +8,15 @@
 
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "onnx_common/utils.hpp"
 #include "onnx_import/core/node.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 class ValueInfo {
 public:
@@ -47,10 +47,10 @@ public:
         if (m_value_info_proto->type().tensor_type().has_elem_type()) {
             return common::get_ngraph_element_type(m_value_info_proto->type().tensor_type().elem_type());
         }
-        return ngraph::element::dynamic;
+        return element::dynamic;
     }
 
-    std::shared_ptr<ngraph::Node> get_ng_node(ParameterVector& parameters,
+    std::shared_ptr<ov::Node> get_ng_node(ParameterVector& parameters,
                                               const std::map<std::string, Tensor>& initializers) const {
         const auto it = initializers.find(get_name());
         if (it != std::end(initializers)) {
@@ -61,14 +61,14 @@ public:
     }
 
 protected:
-    std::shared_ptr<ngraph::op::Parameter> get_ng_parameter() const {
-        auto parameter = std::make_shared<ngraph::op::Parameter>(get_element_type(), get_shape());
+    std::shared_ptr<op::v0::Parameter> get_ng_parameter() const {
+        auto parameter = std::make_shared<op::v0::Parameter>(get_element_type(), get_shape());
         parameter->set_friendly_name(get_name());
         parameter->get_output_tensor(0).set_names({get_name()});
         return parameter;
     }
 
-    std::shared_ptr<ngraph::op::Constant> get_ng_constant(const Tensor& tensor) const {
+    std::shared_ptr<default_opset::Constant> get_ng_constant(const Tensor& tensor) const {
         return tensor.get_ng_constant();
     }
 
@@ -83,4 +83,4 @@ inline std::ostream& operator<<(std::ostream& outs, const ValueInfo& info) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

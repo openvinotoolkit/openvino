@@ -44,7 +44,7 @@ static void BinaryConvolutionTest(const std::vector<T_IN>& inputs,
                                                pad_value,
                                                auto_pad);
     auto f = make_shared<Function>(bin_conv, ParameterVector{inputs_param});
-    auto test_case = test::TestCase(f);
+    auto test_case = ov::test::TestCase(f);
     test_case.add_input(inputs_shape, inputs);
     test_case.add_expected_output(outputs_shape, outputs);
     test_case.run();
@@ -75,7 +75,7 @@ static void ConvolutionTest(const std::vector<T_IN>& inputs,
                                                  auto_pad);
     auto f = make_shared<Function>(conv, ParameterVector{inputs_param, filters_param});
 
-    auto test_case = test::TestCase(f);
+    auto test_case = ov::test::TestCase(f);
     test_case.add_input(inputs_shape, inputs);
     test_case.add_input(filters_shape, filters);
     test_case.add_expected_output(outputs_shape, outputs);

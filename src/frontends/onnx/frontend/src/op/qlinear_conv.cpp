@@ -12,13 +12,13 @@
 #include <vector>
 
 #include "conv.hpp"
+#include "default_opset.hpp"
 #include "dequantize_linear.hpp"
 #include "exceptions.hpp"
-#include "ngraph/opsets/opset6.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "quantize_linear.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -33,22 +33,23 @@ OutputVector qlinear_conv(const Node& node) {
     auto w_zero_point = inputs.at(5);
     auto y_scale = inputs.at(6);
     auto y_zero_point = inputs.at(7);
-    Output<ngraph::Node> B = inputs.size() > 8 ? inputs.at(8) : std::make_shared<NullNode>()->output(0);
+    Output<ov::Node> B = inputs.size() > 8 ? inputs.at(8) : std::make_shared<NullNode>()->output(0);
 
     x = set_13::detail::dequantize_linear(x,
                                           x_scale,
-                                          std::make_shared<opset6::Convert>(x_zero_point, element::f32),
+                                          std::make_shared<default_opset::Convert>(x_zero_point, element::f32),
                                           1,
                                           node)[0];
     w = set_13::detail::dequantize_linear(w,
                                           w_scale,
-                                          std::make_shared<opset6::Convert>(w_zero_point, element::f32),
+                                          std::make_shared<default_opset::Convert>(w_zero_point, element::f32),
                                           1,
                                           node)[0];
 
-    if (!ngraph::op::is_null(B)) {
-        B = std::make_shared<opset6::Multiply>(std::make_shared<opset6::Convert>(B, x_scale.get_element_type()),
-                                               std::make_shared<opset6::Multiply>(x_scale, w_scale))
+    if (!ov::op::is_null(B)) {
+        B = std::make_shared<default_opset::Multiply>(
+                std::make_shared<default_opset::Convert>(B, x_scale.get_element_type()),
+                std::make_shared<default_opset::Multiply>(x_scale, w_scale))
                 ->output(0);
     }
 
@@ -65,4 +66,4 @@ OutputVector qlinear_conv(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

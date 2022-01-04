@@ -21,7 +21,7 @@
 #include "ngraph/op/deformable_convolution.hpp"
 #include "utils/convpool.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 OutputVector op::set_1::deformable_conv_2d(const Node& node) {
     const OutputVector& inputs = node.get_ng_inputs();
@@ -45,4 +45,4 @@ OutputVector op::set_1::deformable_conv_2d(const Node& node) {
                                                                    deformable_groups)};
 }
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

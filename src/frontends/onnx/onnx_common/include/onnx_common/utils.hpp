@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ngraph/partial_shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ONNX_NAMESPACE {
 enum TensorProto_DataType : int;
 class TensorShapeProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ngraph {
+namespace ov {
 namespace onnx_common {
 /// \brief Retuns size of an ONNX data type in bytes.
 ///
@@ -44,4 +44,4 @@ bool is_supported_ng_type(const element::Type_t& ng_type);
 PartialShape to_ng_shape(const ONNX_NAMESPACE::TensorShapeProto& onnx_shape);
 
 }  // namespace onnx_common
-}  // namespace ngraph
+}  // namespace ov

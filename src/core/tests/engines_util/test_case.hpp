@@ -10,12 +10,12 @@
 #include "all_close_f.hpp"
 #include "engine_factory.hpp"
 #include "ngraph/file_util.hpp"
-#include "ngraph/function.hpp"
+#include "openvino/core/model.hpp"
 #include "ngraph/ngraph.hpp"
 #include "openvino/runtime/core.hpp"
 #include "test_tools.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace test {
 inline std::string backend_name_to_device(const std::string& backend_name) {
     if (backend_name == "INTERPRETER")
@@ -24,14 +24,14 @@ inline std::string backend_name_to_device(const std::string& backend_name) {
         return "CPU";
     if (backend_name == "IE_GPU")
         return "GPU";
-    throw ngraph_error("Unsupported backend name");
+    throw ov::Exception("Unsupported backend name");
 }
 
-std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const std::string& bin_path = {});
+std::shared_ptr<Model> function_from_ir(const std::string& xml_path, const std::string& bin_path = {});
 
 class TestCase {
 public:
-    TestCase(const std::shared_ptr<Function>& function, const std::string& dev = "TEMPLATE") : m_function{function} {
+    TestCase(const std::shared_ptr<Model>& function, const std::string& dev = "TEMPLATE") : m_function{function} {
         try {
             // Register template plugin
             m_core.register_plugin(std::string("ov_template_plugin") + IE_BUILD_POSTFIX, "TEMPLATE");
@@ -207,7 +207,7 @@ public:
     }
 
 private:
-    std::shared_ptr<Function> m_function;
+    std::shared_ptr<Model> m_function;
     ov::runtime::Core m_core;
     ov::runtime::InferRequest m_request;
     std::vector<ov::runtime::Tensor> m_expected_outputs;

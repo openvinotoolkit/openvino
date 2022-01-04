@@ -7,10 +7,10 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -23,4 +23,4 @@ inline OutputVector sign(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

@@ -9,7 +9,7 @@
 #include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -71,4 +71,4 @@ OutputVector detection_output(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

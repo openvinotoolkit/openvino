@@ -10,7 +10,7 @@
 
 #include "default_opset.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -20,9 +20,9 @@ OutputVector matmul_integer(const Node& node) {
     const auto& A = inputs.at(0);
     const auto& B = inputs.at(1);
     const auto& A_zero_point =
-        (inputs.size() > 2) ? inputs.at(2) : ngraph::op::Constant::create(ngraph::element::i32, {1}, {0});
+        (inputs.size() > 2) ? inputs.at(2) : default_opset::Constant::create(element::i32, {1}, {0});
     const auto& B_zero_point =
-        (inputs.size() > 3) ? inputs.at(3) : ngraph::op::Constant::create(ngraph::element::i32, {1}, {0});
+        (inputs.size() > 3) ? inputs.at(3) : default_opset::Constant::create(element::i32, {1}, {0});
 
     const auto& converted_A = std::make_shared<default_opset::Convert>(A, element::i32);
     const auto& converted_B = std::make_shared<default_opset::Convert>(B, element::i32);
@@ -32,9 +32,9 @@ OutputVector matmul_integer(const Node& node) {
 
     const auto& A_zero_point_rank = A_zero_point.get_partial_shape().rank();
 
-    Output<ngraph::Node> shifted_A;
+    Output<ov::Node> shifted_A;
     if (A_zero_point_rank.is_static() && A_zero_point_rank.get_length() == 1) {
-        const auto& one_node = ngraph::op::Constant::create(ngraph::element::i32, {1}, {1});
+        const auto& one_node = default_opset::Constant::create(element::i32, {1}, {1});
         const auto& reshaped_A_zero_point =
             std::make_shared<default_opset::Unsqueeze>(converted_A_zero_point, one_node);
 
@@ -52,4 +52,4 @@ OutputVector matmul_integer(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

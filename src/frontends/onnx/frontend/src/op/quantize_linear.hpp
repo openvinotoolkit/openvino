@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace detail {
-std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_scale,
-                                                 const Output<ngraph::Node>& y_zero_point,
-                                                 const Output<ngraph::Node>& data);
+std::shared_ptr<ov::Node> make_fake_quantize(const Output<ov::Node>& y_scale,
+                                                 const Output<ov::Node>& y_zero_point,
+                                                 const Output<ov::Node>& data);
 }
 namespace set_1 {
 OutputVector quantize_linear(const Node& node);
@@ -30,4 +30,4 @@ OutputVector quantize_linear(const Node& node);
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

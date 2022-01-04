@@ -157,15 +157,15 @@ TEST(Extension, OnnxModelWithCustomAbs) {
     std::vector<float> expected{1, 4, 3, 8, 5, 12, 7, 16, 9, 20};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<CustomAbsExtension>());
-    ngraph::onnx_import::register_operator(
-        CustomAbs::get_type_info_static().name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
+    ov::onnx_import::register_operator(
+        CustomAbs::get_type_info_static().name, 1, "custom_domain", [](const ov::onnx_import::Node& node) -> ngraph::OutputVector {
             ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
             return {std::make_shared<CustomAbs>(ng_inputs.at(0))};
     });
 
     auto network = ie.ReadNetwork(model_full_path("func_tests/models/custom_abs_op.onnx"));
     infer_model(ie, network, input_values, expected);
-    ngraph::onnx_import::unregister_operator(CustomAbs::get_type_info_static().name, 1, "custom_domain");
+    ov::onnx_import::unregister_operator(CustomAbs::get_type_info_static().name, 1, "custom_domain");
 }
 
 

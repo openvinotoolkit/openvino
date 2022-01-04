@@ -19,7 +19,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace detail {
 static std::string to_string(
@@ -86,7 +86,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
                 // invalid external data makes initializers creation impossible
                 throw;
             } catch (const ngraph::ngraph_error& exc) {
-                NGRAPH_WARN << "\nCould not create an nGraph Constant for initializer '" << initializer_tensor.name()
+                NGRAPH_WARN << "\nCould not create an OV Constant for initializer '" << initializer_tensor.name()
                             << "'. Constant with a 0 value was created, make sure connected input is optional.\n"
                             << "Otherwise verify if the initializer contains a correct number of "
                                "elements matching the initializer's shape. \nDetailed error:\n"
@@ -100,7 +100,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
         }
     }
 
-    // Process all ONNX graph inputs, convert them to nGraph nodes and store in cache
+    // Process all ONNX graph inputs, convert them to OV nodes and store in cache
     for (const auto& input : m_model->get_graph().input()) {
         // Check if a Constant node was already created from an initializer
         if (m_cache->contains(input.name())) {
@@ -144,14 +144,14 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
     }
 
     NGRAPH_CHECK(unknown_operators.empty(),
-                 "nGraph does not support the following ONNX operations: ",
+                 "OV does not support the following ONNX operations: ",
                  detail::to_string(unknown_operators));
 }
 
 void Graph::convert_to_ngraph_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
-    // Process ONNX graph nodes, convert to nGraph nodes
+    // Process ONNX graph nodes, convert to OV nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         const Node node{node_proto, *this};
         if (node.has_subgraphs()) {
@@ -195,7 +195,7 @@ void Graph::remove_dangling_parameters() {
     }
 }
 
-std::shared_ptr<Function> Graph::convert() {
+std::shared_ptr<ov::Model> Graph::convert() {
     convert_to_ngraph_nodes();
     remove_dangling_parameters();
     return create_function();
@@ -204,20 +204,20 @@ std::shared_ptr<Function> Graph::convert() {
 void Graph::decode_to_framework_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
-    // Process ONNX graph nodes, convert to nGraph nodes
+    // Process ONNX graph nodes, convert to OV nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         const Node node{node_proto, *this};
         std::shared_ptr<frontend::ONNXFrameworkNode> framework_node;
         if (node.has_subgraphs()) {
             const auto& subgraphs = node.get_subgraphs();
             auto inputs = node.get_ng_inputs();
-            std::vector<std::shared_ptr<Function>> functions;
+            std::vector<std::shared_ptr<ov::Model>> functions;
             for (const auto& kv : subgraphs) {
                 auto& subgraph = kv.second;
                 functions.push_back(subgraph->decode());
                 for (const auto& input : subgraph->get_inputs_from_parent()) {
                     const auto& name = input.get_node()->get_friendly_name();
-                    if (std::find_if(inputs.begin(), inputs.end(), [&name](const Output<ngraph::Node>& n) -> bool {
+                    if (std::find_if(inputs.begin(), inputs.end(), [&name](const Output<ov::Node>& n) -> bool {
                             return name == n.get_node()->get_friendly_name();
                         }) == inputs.end()) {
                         inputs.push_back(input);
@@ -241,8 +241,8 @@ void Graph::decode_to_framework_nodes() {
     }
 }
 
-std::shared_ptr<Function> Graph::create_function() {
-    auto function = std::make_shared<Function>(get_ng_outputs(), m_parameters, get_name());
+std::shared_ptr<ov::Model> Graph::create_function() {
+    auto function = std::make_shared<ov::Model>(get_ng_outputs(), m_parameters, get_name());
     const auto& onnx_outputs = m_model->get_graph().output();
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
         // the suffix makes the Result's name unique in case the nodes in the model don't have a name
@@ -252,7 +252,7 @@ std::shared_ptr<Function> Graph::create_function() {
     return function;
 }
 
-std::shared_ptr<Function> Graph::decode() {
+std::shared_ptr<ov::Model> Graph::decode() {
     decode_to_framework_nodes();
     auto function = create_function();
     auto& rt_info = function->get_rt_info();
@@ -264,7 +264,7 @@ bool Graph::is_ng_node_in_cache(const std::string& name) const {
     return m_cache->contains(name);
 }
 
-Output<ngraph::Node> Graph::get_ng_node_from_cache(const std::string& name) const {
+Output<ov::Node> Graph::get_ng_node_from_cache(const std::string& name) const {
     return m_cache->get_node(name);
 }
 
@@ -272,7 +272,7 @@ OutputVector Graph::get_ng_outputs() const {
     OutputVector results;
     for (const auto& output : m_model->get_graph().output()) {
         const auto& ng_output = get_ng_node_from_cache(output.name());
-        if (!ngraph::op::is_null(ng_output))  // ignore optional outputs
+        if (!ov::op::is_null(ng_output))  // ignore optional outputs
         {
             results.emplace_back(ng_output);
         }
@@ -286,12 +286,12 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
     OutputVector ng_subgraph_outputs;
     try {
         ng_subgraph_outputs = ng_node_factory(onnx_node);
-    } catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure&) {
+    } catch (const ::ov::onnx_import::error::OnnxNodeValidationFailure&) {
         // Do nothing OnnxNodeValidationFailure exception already has ONNX node information.
         throw;
     } catch (const std::exception& exc) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
-        throw ngraph_error(msg_prefix + ":\n" + std::string(exc.what()));
+        throw ngraph::ngraph_error(msg_prefix + ":\n" + std::string(exc.what()));
     } catch (...) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
         // Since we do not know anything about current exception data type we can only
@@ -347,7 +347,7 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
         }
 
         // null node does not have tensor
-        if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
+        if (!ov::op::is_null(ng_subgraph_outputs[i])) {
             ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
         }
     }
@@ -372,7 +372,7 @@ bool Subgraph::is_ng_node_in_cache(const std::string& name) const {
     return m_parent_graph->is_ng_node_in_cache(name);
 }
 
-Output<ngraph::Node> Subgraph::get_ng_node_from_cache(const std::string& name) const {
+Output<ov::Node> Subgraph::get_ng_node_from_cache(const std::string& name) const {
     if (m_cache->contains(name)) {
         return m_cache->get_node(name);
     }
@@ -380,9 +380,9 @@ Output<ngraph::Node> Subgraph::get_ng_node_from_cache(const std::string& name) c
 }
 
 void Subgraph::replace_input_from_parent_scope_with_parameter(const std::string& in_name,
-                                                              const Output<ngraph::Node>& from_parent_node,
-                                                              Input<ngraph::Node>&& node_to_replace_input) {
-    auto new_param = std::make_shared<ngraph::op::Parameter>(from_parent_node.get_element_type(),
+                                                              const Output<ov::Node>& from_parent_node,
+                                                              Input<ov::Node>&& node_to_replace_input) {
+    auto new_param = std::make_shared<default_opset::Parameter>(from_parent_node.get_element_type(),
                                                              from_parent_node.get_partial_shape());
     node_to_replace_input.replace_source_output(new_param);
     m_parameter_to_parent_node_map.insert({new_param, in_name});
@@ -400,7 +400,7 @@ void Subgraph::find_inputs_from_parent() {
             if (m_parent_graph->is_ng_node_in_cache(in_name)) {
                 const auto& from_parent_node = m_parent_graph->get_ng_node_from_cache(in_name);
                 // constants are skipped
-                if (!ngraph::is_type<ngraph::op::Constant>(from_parent_node.get_node_shared_ptr())) {
+                if (!ov::is_type<default_opset::Constant>(from_parent_node.get_node_shared_ptr())) {
                     for (const auto& out_name : node_proto.output()) {
                         if (m_cache->contains(out_name)) {
                             auto node_to_replace_input = m_cache->get_node(out_name);
@@ -416,7 +416,7 @@ void Subgraph::find_inputs_from_parent() {
         }
         // Nodes with subgraphs (like Loop or If) can have implicit inputs (so their subgraphs depend on nodes from
         // parent) Those implicit inputs are not present in `node_proto.input()` list so to get them, we need to fetch
-        // node's nGraph representation and then we can match those inputs with parent nodes
+        // node's OV representation and then we can match those inputs with parent nodes
         for (const auto& out_name : node_proto.output()) {
             if (m_cache->contains(out_name)) {
                 auto node_to_replace_input = m_cache->get_node(out_name).get_node();
@@ -427,7 +427,7 @@ void Subgraph::find_inputs_from_parent() {
                 for (size_t i = 0; i < inputs.size(); i++) {
                     const auto& input = inputs.at(i);
                     auto input_node = input.get_node();
-                    if (op::is_constant(input_node))
+                    if (op::util::is_constant(input_node))
                         continue;
                     const auto& in_name = input_node->get_friendly_name();
                     if (m_parent_graph->is_ng_node_in_cache(in_name)) {
@@ -442,7 +442,7 @@ void Subgraph::find_inputs_from_parent() {
     }
 }
 
-std::shared_ptr<Function> Subgraph::convert() {
+std::shared_ptr<ov::Model> Subgraph::convert() {
     convert_to_ngraph_nodes();
     find_inputs_from_parent();
     return create_function();
@@ -453,7 +453,7 @@ void Subgraph::decode_to_framework_nodes() {
     find_inputs_from_parent();
 }
 
-const std::vector<Output<ngraph::Node>> Subgraph::get_inputs_from_parent() const {
+const std::vector<Output<ov::Node>> Subgraph::get_inputs_from_parent() const {
     OutputVector result;
     for (const auto& name : m_inputs_from_parent) {
         result.push_back(m_parent_graph->get_ng_node_from_cache(name));
@@ -472,4 +472,4 @@ void Subgraph::infer_inputs_from_parent() {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

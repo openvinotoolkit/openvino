@@ -8,9 +8,9 @@
 #include <memory>
 #include <string>
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 /// \brief      GraphCache stores and provides access to ONNX graph initializers.
 class GraphCache {
@@ -21,7 +21,7 @@ public:
     ///
     /// \param[in]  name       The name of node added to the cache.
     /// \param[in]  node       The node added to the cache.
-    void emplace_node(const std::string& name, Output<ngraph::Node>&& node);
+    void emplace_node(const std::string& name, Output<ov::Node>&& node);
 
     /// \brief      Remove node from the cache
     ///
@@ -35,7 +35,7 @@ public:
     /// \param[in]  name       The name of the node.
     ///
     /// \return     The node named `name`.
-    virtual Output<ngraph::Node> get_node(const std::string& name) const;
+    virtual Output<ov::Node> get_node(const std::string& name) const;
 
     /// \brief      Return true if the node named `name` exist in the cache.
     ///
@@ -47,7 +47,7 @@ public:
     virtual ~GraphCache() = default;
 
 private:
-    std::map<std::string, Output<ngraph::Node>> m_graph_cache_map;
+    std::map<std::string, Output<ov::Node>> m_graph_cache_map;
 };
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

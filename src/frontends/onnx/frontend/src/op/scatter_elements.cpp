@@ -9,7 +9,7 @@
 #include "default_opset.hpp"
 #include "ngraph/opsets/opset3.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -29,4 +29,4 @@ OutputVector scatter_elements(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

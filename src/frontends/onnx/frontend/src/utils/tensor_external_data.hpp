@@ -6,7 +6,7 @@
 
 #include <onnx/onnx_pb.h>
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace detail {
 /// \brief  Helper class used to load tensor data from external files
@@ -36,4 +36,4 @@ private:
 };
 }  // namespace detail
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

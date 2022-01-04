@@ -9,10 +9,10 @@
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/add.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace variadic {
 /// \brief Create an nGraph version of an ONNX variadic operation.
@@ -30,8 +30,8 @@ inline OutputVector make_ng_variadic_op(
     const OutputVector ng_inputs{node.get_ng_inputs()};
 
     // Templated binary operation - Creates Add, Minimum, Maximum, etc.
-    const auto binary_operation = [&auto_broadcast](const Output<ngraph::Node>& arg0,
-                                                    const Output<ngraph::Node>& arg1) {
+    const auto binary_operation = [&auto_broadcast](const Output<ov::Node>& arg0,
+                                                    const Output<ov::Node>& arg1) {
         return std::make_shared<T>(arg0, arg1, auto_broadcast);
     };
 

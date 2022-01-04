@@ -7,7 +7,7 @@
 #include <functional>
 #include <string>
 
-namespace ngraph {
+namespace ov {
 namespace test {
 struct ComparisonResult {
     ComparisonResult() = default;
@@ -37,4 +37,4 @@ ComparisonResult compare_onnx_models(const std::string& model,
                                      CompType comp = default_name_comparator);
 
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

@@ -8,13 +8,13 @@
 #include <memory>
 #include <vector>
 
+#include "default_opset.hpp"
 #include "dequantize_linear.hpp"
 #include "matmul.hpp"
-#include "ngraph/opsets/opset6.hpp"
 #include "quantize_linear.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -33,13 +33,13 @@ OutputVector qlinear_matmul(const Node& node) {
     const auto& dequnatize_a =
         set_13::detail::dequantize_linear(a,
                                           a_scale,
-                                          std::make_shared<opset6::Convert>(a_zero_point, element::f32),
+                                          std::make_shared<default_opset::Convert>(a_zero_point, element::f32),
                                           1,
                                           node);
     const auto& dequnatize_b =
         set_13::detail::dequantize_linear(b,
                                           b_scale,
-                                          std::make_shared<opset6::Convert>(b_zero_point, element::f32),
+                                          std::make_shared<default_opset::Convert>(b_zero_point, element::f32),
                                           1,
                                           node);
 
@@ -52,4 +52,4 @@ OutputVector qlinear_matmul(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

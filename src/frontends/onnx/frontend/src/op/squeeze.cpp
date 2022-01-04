@@ -10,7 +10,7 @@
 #include "ngraph/validation_util.hpp"
 #include "op/squeeze.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -41,4 +41,4 @@ OutputVector squeeze(const Node& node) {
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

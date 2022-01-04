@@ -12,11 +12,11 @@
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/null_node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace detail {
 namespace {
-void remove_dangling_parameters(std::shared_ptr<Function>& function) {
+void remove_dangling_parameters(std::shared_ptr<ov::Model>& function) {
     const auto parameters = function->get_parameters();
     for (auto parameter : parameters) {
         const auto parameter_users = parameter->get_users();
@@ -26,7 +26,7 @@ void remove_dangling_parameters(std::shared_ptr<Function>& function) {
         const bool is_dangling_parameter =
             std::all_of(parameter_users.begin(),
                         parameter_users.end(),
-                        [](const std::shared_ptr<ngraph::Node>& node) -> bool {
+                        [](const std::shared_ptr<ov::Node>& node) -> bool {
                             return std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node) != nullptr;
                         });
         if (is_dangling_parameter) {
@@ -35,15 +35,15 @@ void remove_dangling_parameters(std::shared_ptr<Function>& function) {
     }
 }
 
-void remove_dangling_results(std::shared_ptr<Function>& function) {
+void remove_dangling_results(std::shared_ptr<ov::Model>& function) {
     const auto results = function->get_results();
     for (auto result : results) {
         // we can remove Result from function if after function conversion,
         // Result is connected to NullNode only
         const auto result_inputs = result->input_values();
         const bool is_dangling_result =
-            std::all_of(result_inputs.begin(), result_inputs.end(), [](const Output<ngraph::Node>& node) -> bool {
-                return ngraph::op::is_null(node);
+            std::all_of(result_inputs.begin(), result_inputs.end(), [](const Output<ov::Node>& node) -> bool {
+                return ov::op::is_null(node);
             });
         if (is_dangling_result) {
             function->remove_result(result);
@@ -59,7 +59,7 @@ void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto, const std::s
 
 }  // namespace
 
-void convert_decoded_function(std::shared_ptr<Function> function) {
+void convert_decoded_function(std::shared_ptr<ov::Model> function) {
     auto& rt_info = function->get_rt_info();
     auto it = rt_info.find(ONNX_GRAPH_RT_ATTRIBUTE);
     OPENVINO_ASSERT(it != rt_info.end(),
@@ -87,21 +87,21 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
     detail::remove_dangling_results(function);
 }
 
-std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                            const std::string& model_path,
-                                            ov::frontend::ExtensionHolder extensions) {
+std::shared_ptr<ov::Model> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                             const std::string& model_path,
+                                             ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto, model_path);
     Graph graph{model_proto, extensions};
     return graph.convert();
 }
 
-std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                                    const std::string& model_path,
-                                                    ov::frontend::ExtensionHolder extensions) {
+std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                                 const std::string& model_path,
+                                                 ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto, model_path);
     auto graph = std::make_shared<Graph>(model_proto, extensions);
     return graph->decode();
 }
 }  // namespace detail
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

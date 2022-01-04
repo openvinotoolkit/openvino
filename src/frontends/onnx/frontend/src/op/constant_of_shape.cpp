@@ -6,16 +6,15 @@
 
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
-#include "ngraph/op/constant.hpp"
 #include "op/constant.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector constant_of_shape(const onnx_import::Node& node) {
-    Output<ngraph::Node> constant_value;
+    Output<ov::Node> constant_value;
     if (node.has_attribute("value")) {
         auto value_tensor = node.get_attribute_value<Tensor>("value");
         constant_value = value_tensor.get_ng_constant();
@@ -32,4 +31,4 @@ OutputVector constant_of_shape(const onnx_import::Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

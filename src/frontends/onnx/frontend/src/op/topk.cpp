@@ -10,25 +10,27 @@
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
 #include "op/topk.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/reshape.hpp"
 
+using namespace ov;
+using namespace ov::onnx_import;
 namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
-ngraph::Output<ngraph::Node> get_k(const ngraph::onnx_import::Node& node) {
+Output<ov::Node> get_k(const onnx_import::Node& node) {
     auto k_node = node.get_ng_inputs().at(1);
     NGRAPH_CHECK(shape_size(k_node.get_shape()) == 1,
                  "ONNX TopK operator: 'K' parameter must contain a single positive value.",
                  node);
 
-    return ngraph::onnx_import::reshape::interpret_as_scalar(k_node);
+    return reshape::interpret_as_scalar(k_node);
 }
 }  // namespace
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -38,13 +40,12 @@ OutputVector topk(const Node& node) {
     auto k_node = default_opset::Constant::create(element::i64, Shape{}, {k});
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
-    std::shared_ptr<ngraph::Node> top_k =
-        std::make_shared<default_opset::TopK>(data,
-                                              k_node,
-                                              axis,
-                                              default_opset::TopK::Mode::MAX,
-                                              default_opset::TopK::SortType::SORT_VALUES,
-                                              element::i64);
+    std::shared_ptr<ov::Node> top_k = std::make_shared<default_opset::TopK>(data,
+                                                                            k_node,
+                                                                            axis,
+                                                                            default_opset::TopK::Mode::MAX,
+                                                                            default_opset::TopK::SortType::SORT_VALUES,
+                                                                            element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -56,13 +57,12 @@ OutputVector topk(const Node& node) {
     auto k = get_k(node);
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
-    std::shared_ptr<ngraph::Node> top_k =
-        std::make_shared<default_opset::TopK>(data,
-                                              k,
-                                              axis,
-                                              default_opset::TopK::Mode::MAX,
-                                              default_opset::TopK::SortType::SORT_VALUES,
-                                              element::i64);
+    std::shared_ptr<ov::Node> top_k = std::make_shared<default_opset::TopK>(data,
+                                                                            k,
+                                                                            axis,
+                                                                            default_opset::TopK::Mode::MAX,
+                                                                            default_opset::TopK::SortType::SORT_VALUES,
+                                                                            element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -85,7 +85,7 @@ OutputVector topk(const Node& node) {
     const auto compute_max = static_cast<bool>(largest);
     const auto mode = compute_max ? default_opset::TopK::Mode::MAX : default_opset::TopK::Mode::MIN;
 
-    std::shared_ptr<ngraph::Node> top_k =
+    std::shared_ptr<ov::Node> top_k =
         std::make_shared<default_opset::TopK>(data, k, axis, mode, sort_type, element::i64);
 
     return {top_k->output(0), top_k->output(1)};
@@ -96,4 +96,4 @@ OutputVector topk(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

@@ -26,7 +26,7 @@ TEST(op_eval, floor_mod) {
     std::vector<float> a{5.1, -5.1, 5.1, -5.1};
     std::vector<float> b{3.0, 3.0, -3.0, -3.0};
 
-    auto test_case = test::TestCase(f);
+    auto test_case = ov::test::TestCase(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape, {2.1, 0.9, -0.9, -2.1});
     test_case.run();
@@ -44,7 +44,7 @@ TEST(op_eval, floor_mod_broadcasted) {
     std::vector<float> a{1, 2, 3, 4};
     std::vector<float> b{2, 3};
 
-    auto test_case = test::TestCase(f);
+    auto test_case = ov::test::TestCase(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f, 1.0f, 0.0f, 0.0f, 1.0f});
     test_case.run();
@@ -59,7 +59,7 @@ TEST(op_eval, floor_mod_scalars) {
     std::vector<float> a{2};
     std::vector<float> b{3};
 
-    auto test_case = test::TestCase(f);
+    auto test_case = ov::test::TestCase(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape, {2.0f});
     test_case.run();
@@ -76,7 +76,7 @@ TEST(op_eval, floor_mod_vector_scalar) {
     std::vector<float> a{2, 3, 4, 5};
     std::vector<float> b{2};
 
-    auto test_case = test::TestCase(f);
+    auto test_case = ov::test::TestCase(f);
     test_case.add_multiple_inputs<float>({a, b});
     test_case.add_expected_output<float>(shape_a, {0.0f, 1.0f, 0.0f, 1.0f});
     test_case.run();
@@ -92,7 +92,7 @@ TEST(op_eval, floor_mod_int64) {
     std::vector<int64_t> a{5, -5, 5, -5};
     std::vector<int64_t> b{3, 3, -3, -3};
 
-    auto test_case = test::TestCase(f);
+    auto test_case = ov::test::TestCase(f);
     test_case.add_multiple_inputs<int64_t>({a, b});
     test_case.add_expected_output<int64_t>(shape, {2, 1, -1, -2});
     test_case.run();
@@ -110,7 +110,7 @@ TEST(op_eval, floor_mod_broadcasted_int64) {
     std::vector<int64_t> a{1, 2, 3, 4};
     std::vector<int64_t> b{2, 3};
 
-    auto test_case = test::TestCase(f);
+    auto test_case = ov::test::TestCase(f);
     test_case.add_multiple_inputs<int64_t>({a, b});
     test_case.add_expected_output<int64_t>(shape_r, {1, 0, 1, 2, 1, 0, 0, 1});
     test_case.run();
@@ -126,7 +126,7 @@ TEST(op_eval, floor_mod_int32) {
     std::vector<int32_t> a{5, -5, 5, -5};
     std::vector<int32_t> b{3, 3, -3, -3};
 
-    auto test_case = test::TestCase(f);
+    auto test_case = ov::test::TestCase(f);
     test_case.add_multiple_inputs<int32_t>({a, b});
     test_case.add_expected_output<int32_t>(shape, {2, 1, -1, -2});
     test_case.run();

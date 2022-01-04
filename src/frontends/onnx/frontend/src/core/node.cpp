@@ -11,7 +11,7 @@
 #include "core/tensor.hpp"
 #include "onnx_import/core/null_node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 class Node::Impl {
 public:
@@ -420,4 +420,4 @@ std::vector<Graph> Node::get_attribute_value(const std::string& name) const {
 }
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

@@ -21,14 +21,14 @@
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector instance_norm(const Node& node) {
-    Output<ngraph::Node> data(node.get_ng_inputs().at(0));
-    Output<ngraph::Node> scale(node.get_ng_inputs().at(1));
-    Output<ngraph::Node> bias(node.get_ng_inputs().at(2));
+    Output<ov::Node> data(node.get_ng_inputs().at(0));
+    Output<ov::Node> scale(node.get_ng_inputs().at(1));
+    Output<ov::Node> bias(node.get_ng_inputs().at(2));
     const PartialShape& data_pshape = data.get_partial_shape();
     const PartialShape& scale_pshape = scale.get_partial_shape();
     const PartialShape& bias_pshape = bias.get_partial_shape();
@@ -71,13 +71,13 @@ OutputVector instance_norm(const Node& node) {
     const auto reduction_axes = common::get_monotonic_range_along_node_rank(data, 2);
 
     auto mvn =
-        std::make_shared<default_opset::MVN>(data, reduction_axes, true, epsilon, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+        std::make_shared<default_opset::MVN>(data, reduction_axes, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     const auto mvn_shape = std::make_shared<default_opset::ShapeOf>(mvn);
     const auto mvn_rank = std::make_shared<default_opset::ShapeOf>(mvn_shape);
 
     // scale * mvn + bias
-    std::shared_ptr<ngraph::Node> result =
+    std::shared_ptr<ov::Node> result =
         std::make_shared<default_opset::Multiply>(mvn, reshape::reshape_channel_shaped_node_to_nchw(scale, mvn_rank));
     result = std::make_shared<default_opset::Add>(result, reshape::reshape_channel_shaped_node_to_nchw(bias, mvn_rank));
 
@@ -90,4 +90,4 @@ OutputVector instance_norm(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

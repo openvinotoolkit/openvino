@@ -10,7 +10,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -32,11 +32,11 @@ OutputVector aten(const Node& node) {
     CHECK_VALID_NODE(node, inputs.size() >= 2, "Minimum 2 inputs are required. Got: ", inputs.size());
 
     const bool is_packed_two_inputs =
-        inputs.size() == 2 || (inputs.size() == 3 && ngraph::op::is_null(inputs[2])) ||
-        (inputs.size() == 4 && ngraph::op::is_null(inputs[2]) && ngraph::op::is_null(inputs[3]));
+        inputs.size() == 2 || (inputs.size() == 3 && ov::op::is_null(inputs[2])) ||
+        (inputs.size() == 4 && ov::op::is_null(inputs[2]) && ov::op::is_null(inputs[3]));
     const bool is_packed_three_inputs =
-        inputs.size() == 4 && ngraph::op::is_null(inputs[2]) && !ngraph::op::is_null(inputs[3]);
-    const bool is_offsets_three_inputs = inputs.size() == 3 && !ngraph::op::is_null(inputs[2]);
+        inputs.size() == 4 && ov::op::is_null(inputs[2]) && !ov::op::is_null(inputs[3]);
+    const bool is_offsets_three_inputs = inputs.size() == 3 && !ov::op::is_null(inputs[2]);
 
     Output<ov::Node> embedding_bag;
     if (is_packed_two_inputs) {
@@ -90,4 +90,4 @@ OutputVector aten(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

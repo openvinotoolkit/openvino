@@ -39,7 +39,7 @@ void FrontEndFuzzyOpTest::doLoadFromFile() {
 }
 
 template <typename T>
-inline void addInputOutput(cnpy::NpyArray& npy_array, test::TestCase& test_case, bool is_input = true) {
+inline void addInputOutput(cnpy::NpyArray& npy_array, ov::test::TestCase& test_case, bool is_input = true) {
     T* npy_begin = npy_array.data<T>();
     std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
     if (is_input)
@@ -66,7 +66,7 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
     auto modelFolder = getModelFolder(modelFile);
 
     // run test
-    auto testCase = test::TestCase(function, "CPU");
+    auto testCase = ov::test::TestCase(function, "CPU");
 
     const auto parameters = function->get_parameters();
     for (size_t i = 0; i < parameters.size(); i++) {

@@ -10,7 +10,7 @@
 #include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace {
@@ -54,14 +54,14 @@ default_opset::Interpolate::InterpolateAttrs get_attributes(const std::string& m
     return attrs;
 }
 
-OutputVector create_upsample_subgraph(const Output<ngraph::Node>& data,
-                                      const Output<ngraph::Node>& scales,
+OutputVector create_upsample_subgraph(const Output<ov::Node>& data,
+                                      const Output<ov::Node>& scales,
                                       const std::string& mode) {
     const auto shape_of_data =
-        std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
+        std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data), element::f32);
     const auto multiply = std::make_shared<default_opset::Multiply>(shape_of_data, scales);
     const auto output_shape = std::make_shared<default_opset::Convert>(std::make_shared<default_opset::Floor>(multiply),
-                                                                       ngraph::element::i64);
+                                                                       element::i64);
 
     return {std::make_shared<default_opset::Interpolate>(data, output_shape, scales, get_attributes(mode))};
 }
@@ -87,7 +87,7 @@ OutputVector upsample(const onnx_import::Node& node) {
     scales[rank_size - 1] = width_scale;
     scales[rank_size - 2] = height_scale;
 
-    const auto scales_const = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
+    const auto scales_const = default_opset::Constant::create(element::f32, Shape({scales.size()}), scales);
 
     return create_upsample_subgraph(data, scales_const, mode);
 }
@@ -108,7 +108,7 @@ OutputVector upsample(const onnx_import::Node& node) {
                      "Input tensor's rank is required to be the same as number of "
                      "elements of 'scales' attribute.");
 
-    const auto scales_const = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
+    const auto scales_const = default_opset::Constant::create(element::f32, Shape({scales.size()}), scales);
 
     return create_upsample_subgraph(data, scales_const, mode);
 }
@@ -136,4 +136,4 @@ OutputVector upsample(const onnx_import::Node& node) {
 }  // namespace set_9
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

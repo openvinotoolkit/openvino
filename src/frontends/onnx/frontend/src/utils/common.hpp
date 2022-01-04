@@ -15,14 +15,14 @@
 
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace common {
-const ngraph::element::Type& get_ngraph_element_type(std::int64_t onnx_type);
+const element::Type& get_ngraph_element_type(std::int64_t onnx_type);
 
 /// \brief      Return a monotonic sequence.
 ///
@@ -59,7 +59,7 @@ std::vector<T> get_monotonic_range(T end_value, T start_value = T{0}, T step = T
 /// \param[in]  step         The step value for the sequence.
 ///
 /// \return     The node which represents monotonic sequence.
-std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(const Output<ngraph::Node>& value,
+std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const Output<ov::Node>& value,
                                                                   int64_t start_value = 0,
                                                                   int64_t step = 1);
 
@@ -110,7 +110,7 @@ std::shared_ptr<default_opset::Constant> square_identity(const size_t n, const e
 /// \param[in] input An input node to be validated
 /// \param[in] allowed_types An optional set of allowed element types for this input
 void validate_scalar_input(const char* input_name,
-                           const std::shared_ptr<ngraph::Node> input,
+                           const std::shared_ptr<ov::Node> input,
                            const std::set<element::Type> allowed_types = {});
 
 /// \brief Temporary replacement for C++14 std::make_unique.
@@ -134,4 +134,4 @@ template <typename T>
 OutputVector handle_opset6_binary_op(const Node& node);
 }  // namespace  common
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

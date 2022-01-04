@@ -22,11 +22,11 @@
 #include "ngraph/op/lstm_sequence.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset3.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace {
@@ -53,7 +53,7 @@ struct LSTMNgInputMap {
         // Packed input sequences.
         // ONNX Shape: [seq_length, batch_size, input_size]
         // OpenVino Shape: [batch_size, seq_length, input_size]
-        m_input_map[LSTMInput::LSTM_INPUT_X] = builder::opset1::reorder_axes(ng_inputs.at(0), {1, 0, 2});
+        m_input_map[LSTMInput::LSTM_INPUT_X] = ngraph::builder::opset1::reorder_axes(ng_inputs.at(0), {1, 0, 2});
 
         // Weight tensor for the gates.
         // Shape: [num_directions, 4*hidden_size, input_size]
@@ -97,9 +97,9 @@ struct LSTMNgInputMap {
         // `B` - The bias tensor for input gate.
         // ONNX Shape: [num_directions, 8*hidden_size]
         // OpenVino Shape: [num_directions, 4*hidden_size]
-        if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3))) {
+        if (ng_inputs.size() > 3 && !ov::op::is_null(ng_inputs.at(3))) {
             auto bias = ng_inputs.at(3);
-            auto split_bias = builder::opset1::split(bias, 2, 1);
+            auto split_bias = ngraph::builder::opset1::split(bias, 2, 1);
             m_input_map[LSTMInput::LSTM_INPUT_B] =
                 std::make_shared<default_opset::Add>(split_bias.at(0), split_bias.at(1));
             m_input_map[LSTMInput::LSTM_INPUT_B] =
@@ -120,7 +120,7 @@ struct LSTMNgInputMap {
         }
         // `sequence_lens`- The lengths of the sequences in a batch.
         // Shape: [batch_size]
-        if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4))) {
+        if (ng_inputs.size() > 4 && !ov::op::is_null(ng_inputs.at(4))) {
             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = ng_inputs.at(4);
         } else {
             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
@@ -129,8 +129,9 @@ struct LSTMNgInputMap {
         // `initial_h` - The initial value of the hidden.
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
-        if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5))) {
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] = builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
+        if (ng_inputs.size() > 5 && !ov::op::is_null(ng_inputs.at(5))) {
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
+                ngraph::builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
         } else {
             auto init_h_shape = std::make_shared<default_opset::Concat>(
                 OutputVector{batch_size_node, num_directions_node, hidden_size_node},
@@ -142,8 +143,9 @@ struct LSTMNgInputMap {
         // `initial_c` - The initial value of the cell.
         // ONNX Shape: [num_directions, batch_size, hidden_size]
         // OpenVino Shape: [batch_size, num_directions, hidden_size]
-        if (ng_inputs.size() > 6 && !ngraph::op::is_null(ng_inputs.at(6))) {
-            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] = builder::opset1::reorder_axes(ng_inputs.at(6), {1, 0, 2});
+        if (ng_inputs.size() > 6 && !ov::op::is_null(ng_inputs.at(6))) {
+            m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
+                ngraph::builder::opset1::reorder_axes(ng_inputs.at(6), {1, 0, 2});
         } else {
             auto init_c_shape = std::make_shared<default_opset::Concat>(
                 OutputVector{batch_size_node, num_directions_node, hidden_size_node},
@@ -154,15 +156,15 @@ struct LSTMNgInputMap {
         }
         // `P` - The weight tensor for peepholes.
         // Peepholes input is not supported by OpenVino
-        if (ng_inputs.size() > 7 && !ngraph::op::is_null(ng_inputs.at(7))) {
+        if (ng_inputs.size() > 7 && !ov::op::is_null(ng_inputs.at(7))) {
             NGRAPH_WARN << (node) << " Input `P` (peepholes) is not supported and will be ignored ";
         }
     }
 
-    Output<ngraph::Node>& at(const LSTMInput& key) {
+    Output<ov::Node>& at(const LSTMInput& key) {
         return m_input_map.at(key);
     }
-    std::map<LSTMInput, Output<ngraph::Node>> m_input_map;
+    std::map<LSTMInput, Output<ov::Node>> m_input_map;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -223,9 +225,9 @@ OutputVector lstm(const Node& node) {
     const auto Y_h = lstm_sequence->output(1);
     const auto Y_c = lstm_sequence->output(2);
 
-    return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
-            builder::opset1::reorder_axes(Y_h, {1, 0, 2}),
-            builder::opset1::reorder_axes(Y_c, {1, 0, 2})};
+    return {ngraph::builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
+            ngraph::builder::opset1::reorder_axes(Y_h, {1, 0, 2}),
+            ngraph::builder::opset1::reorder_axes(Y_c, {1, 0, 2})};
 }
 }  // namespace set_1
 
@@ -233,4 +235,4 @@ OutputVector lstm(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

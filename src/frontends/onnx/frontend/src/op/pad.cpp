@@ -13,7 +13,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "op/pad.hpp"
 #include "utils/convpool.hpp"
 
@@ -34,7 +34,7 @@ ngraph::op::PadMode get_pad_mode(std::string mode) {
     return pad_mode;
 }
 }  // namespace
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -66,9 +66,9 @@ namespace set_11 {
 OutputVector pad(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     auto pads = node.get_ng_inputs().at(1);
-    Output<ngraph::Node> values;
-    Output<ngraph::Node> padding_begin;
-    Output<ngraph::Node> padding_end;
+    Output<ov::Node> values;
+    Output<ov::Node> padding_begin;
+    Output<ov::Node> padding_end;
 
     if (node.get_ng_inputs().size() == 3) {
         values = node.get_ng_inputs().at(2);
@@ -87,7 +87,7 @@ OutputVector pad(const Node& node) {
         padding_begin = default_opset::Constant::create(element::i64, ngraph::Shape{half_size}, padding_begin_values);
         padding_end = default_opset::Constant::create(element::i64, ngraph::Shape{half_size}, padding_end_values);
     } else {
-        OutputVector padding = builder::opset1::split(pads, 2, 0);
+        OutputVector padding = ngraph::builder::opset1::split(pads, 2, 0);
 
         padding_begin = padding.at(0);
         padding_end = padding.at(1);
@@ -105,4 +105,4 @@ OutputVector pad(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

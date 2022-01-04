@@ -7,9 +7,9 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -23,10 +23,10 @@ OutputVector crop(const Node& node) {
     // Border values: leftBorder, topBorder, rightBorder, bottomBorder.
     const auto border = node.get_attribute_value<std::vector<std::int64_t>>("border");
 
-    std::shared_ptr<ngraph::Node> end;
+    std::shared_ptr<ov::Node> end;
 
     // Set slice begin values to border values (note order of indexes)
-    const auto begin = default_opset::Constant::create(ngraph::element::i64,
+    const auto begin = default_opset::Constant::create(element::i64,
                                                        Shape{4},
                                                        std::vector<std::int64_t>{0, 0, border[1], border[0]});
 
@@ -44,7 +44,7 @@ OutputVector crop(const Node& node) {
         // Set slice end values to topBorder+heightScale and leftBorder+widthScale
         // Note that indexes don't match, e.g. border[0] + scale[1]
         end = default_opset::Constant::create(
-            ngraph::element::i64,
+            element::i64,
             Shape{4},
             std::vector<std::int64_t>{0, 0, border[1] + scale[0], border[0] + scale[1]});
     }
@@ -58,7 +58,7 @@ OutputVector crop(const Node& node) {
         // Calculate ends as shape(input) - border[2:3]
         const auto input_shape = std::make_shared<default_opset::ShapeOf>(input_data);
         const auto end_offset =
-            default_opset::Constant::create(ngraph::element::i64,
+            default_opset::Constant::create(element::i64,
                                             Shape{4},
                                             std::vector<std::int64_t>{0, 0, -border[3], -border[2]});
         end = std::make_shared<default_opset::Add>(input_shape, end_offset);
@@ -77,4 +77,4 @@ OutputVector crop(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

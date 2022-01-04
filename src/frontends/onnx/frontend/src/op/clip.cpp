@@ -8,11 +8,10 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/make_constant.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/core/null_node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -31,14 +30,14 @@ OutputVector clip(const Node& node) {
 namespace set_11 {
 OutputVector clip(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
-    const Output<ngraph::Node> data = inputs.at(0);
+    const Output<ov::Node> data = inputs.at(0);
     const element::Type data_type = data.get_element_type();
-    Output<ngraph::Node> min;
-    Output<ngraph::Node> max;
+    Output<ov::Node> min;
+    Output<ov::Node> max;
 
     // If second input is provided, assign to min input, otherwise set lowest
     // numeric limit of data type as min input.
-    if (inputs.size() > 1 && !ngraph::op::is_null(inputs.at(1))) {
+    if (inputs.size() > 1 && !ov::op::is_null(inputs.at(1))) {
         min = inputs.at(1);
     } else {
         min = ngraph::get_constant_lowest_of_type(data_type);
@@ -46,7 +45,7 @@ OutputVector clip(const Node& node) {
 
     // If third input is provided, assign to max input, otherwise set maximum
     // numeric limit of data type as max input.
-    if (inputs.size() == 3 && !ngraph::op::is_null(inputs.at(2))) {
+    if (inputs.size() == 3 && !ov::op::is_null(inputs.at(2))) {
         max = inputs.at(2);
     } else {
         max = ngraph::get_constant_max_of_type(data_type);
@@ -63,4 +62,4 @@ OutputVector clip(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

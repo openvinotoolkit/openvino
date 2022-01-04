@@ -14,11 +14,11 @@
 #include "op/identity.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace {
-std::shared_ptr<ngraph::Node> get_dynamic_all_axes_range(const Node& node) {
+std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
     const auto shape_of_input = std::make_shared<default_opset::ShapeOf>(input);
     const auto scalar = default_opset::Constant::create(element::i32, Shape{1}, {0});
@@ -29,7 +29,7 @@ std::shared_ptr<ngraph::Node> get_dynamic_all_axes_range(const Node& node) {
     return std::make_shared<default_opset::Range>(start, rank_of_input_scalar, step, element::i64);
 }
 
-std::shared_ptr<ngraph::Node> get_reduction_axes_from_input(const Node& node) {
+std::shared_ptr<ov::Node> get_reduction_axes_from_input(const Node& node) {
     const std::int64_t noop_with_empty_axes = node.get_attribute_value<std::int64_t>("noop_with_empty_axes", 0);
     const auto input = node.get_ng_inputs().at(0);
     if (node.get_ng_inputs().size() > 1) {
@@ -51,7 +51,7 @@ std::shared_ptr<ngraph::Node> get_reduction_axes_from_input(const Node& node) {
     }
 }
 
-std::shared_ptr<ngraph::Node> get_reduction_axes_from_attr(const Node& node) {
+std::shared_ptr<ov::Node> get_reduction_axes_from_attr(const Node& node) {
     auto reduction_axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
     const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
@@ -78,8 +78,8 @@ std::shared_ptr<ngraph::Node> get_reduction_axes_from_attr(const Node& node) {
 }
 
 template <typename OpType>
-std::shared_ptr<ngraph::Node> make_ng_reduction_op(const Node& node,
-                                                   const Output<ngraph::Node>& ng_input,
+std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
+                                                   const Output<ov::Node>& ng_input,
                                                    bool axes_as_attr = true) {
     const std::int64_t keepdims = node.get_attribute_value<std::int64_t>("keepdims", 1);
 
@@ -100,14 +100,14 @@ OutputVector reduce_sum(const Node& node) {
 
 namespace set_1 {
 OutputVector reduce_log_sum(const Node& node) {
-    const Output<ngraph::Node> sum_node =
+    const Output<ov::Node> sum_node =
         make_ng_reduction_op<default_opset::ReduceSum>(node, node.get_ng_inputs().at(0));
     return {std::make_shared<default_opset::Log>(sum_node)};
 }
 
 OutputVector reduce_log_sum_exp(const Node& node) {
     const auto exp_node = std::make_shared<default_opset::Exp>(node.get_ng_inputs().at(0));
-    const Output<ngraph::Node> sum_node = make_ng_reduction_op<default_opset::ReduceSum>(node, exp_node);
+    const Output<ov::Node> sum_node = make_ng_reduction_op<default_opset::ReduceSum>(node, exp_node);
     return {std::make_shared<default_opset::Log>(sum_node)};
 }
 
@@ -140,7 +140,7 @@ OutputVector reduce_sum(const Node& node) {
 }
 
 OutputVector reduce_sum_square(const Node& node) {
-    const auto input = Output<ngraph::Node>{node.get_ng_inputs().at(0)};
+    const auto input = Output<ov::Node>{node.get_ng_inputs().at(0)};
     const auto square_node = std::make_shared<default_opset::Multiply>(input, input);
     return {make_ng_reduction_op<default_opset::ReduceSum>(node, square_node)};
 }
@@ -151,4 +151,4 @@ OutputVector reduce_sum_square(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

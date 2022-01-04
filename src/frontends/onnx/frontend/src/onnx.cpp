@@ -14,18 +14,18 @@
 #include "ops_bridge.hpp"
 #include "utils/onnx_internal.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
-std::shared_ptr<Function> import_onnx_model(std::istream& stream, const std::string& model_path) {
+std::shared_ptr<Model> import_onnx_model(std::istream& stream, const std::string& model_path) {
     auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
     return detail::import_onnx_model(model_proto, model_path);
 }
 
-std::shared_ptr<Function> import_onnx_model(const std::string& file_path) {
+std::shared_ptr<Model> import_onnx_model(const std::string& file_path) {
     std::ifstream model_stream{file_path, std::ios::in | std::ios::binary};
 
     if (!model_stream.is_open()) {
-        throw ngraph_error("Error during import of ONNX model expected to be in file: " + file_path +
+        throw ngraph::ngraph_error("Error during import of ONNX model expected to be in file: " + file_path +
                            ". Could not open the file.");
     };
 
@@ -47,4 +47,4 @@ bool is_operator_supported(const std::string& op_name, std::int64_t version, con
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

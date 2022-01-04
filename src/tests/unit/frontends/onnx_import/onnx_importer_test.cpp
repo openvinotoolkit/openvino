@@ -14,7 +14,7 @@
 TEST(ONNX_Importer_Tests, ImportBasicModel) {
     auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
         ov::util::path_join({ONNX_MODELS_DIR, "add_abc_initializers.onnx"}));
-    auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
+    auto function = ov::onnx_import::import_onnx_model(model_file_path);
 
     int count_additions = 0;
     int count_constants = 0;
@@ -39,7 +39,7 @@ TEST(ONNX_Importer_Tests, ImportBasicModel) {
 TEST(ONNX_Importer_Tests, ImportModelWithFusedOp) {
     auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
         ov::util::path_join({ONNX_MODELS_DIR, "selu.onnx"}));
-    auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
+    auto function = ov::onnx_import::import_onnx_model(model_file_path);
 
     int count_selu = 0;
     int count_constants = 0;
@@ -64,7 +64,7 @@ TEST(ONNX_Importer_Tests, ImportModelWithFusedOp) {
 TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
     auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
         ov::util::path_join({ONNX_MODELS_DIR, "topk.onnx"}));
-    auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
+    auto function = ov::onnx_import::import_onnx_model(model_file_path);
 
     int count_topk = 0;
     int count_constants = 0;
@@ -93,7 +93,7 @@ TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
     auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
         ov::util::path_join({ONNX_MODELS_DIR, "not_supported.onnx"}));
     try {
-        auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
+        auto function = ov::onnx_import::import_onnx_model(model_file_path);
         FAIL() << "Any expection was thrown despite the ONNX model is not supported";
     }
     catch(const ngraph::ngraph_error& error) {
@@ -108,7 +108,7 @@ TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
     auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
         ov::util::path_join({ONNX_MODELS_DIR, "not_exist_file.onnx"}));
     try {
-        auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
+        auto function = ov::onnx_import::import_onnx_model(model_file_path);
         FAIL() << "Any expection was thrown despite the ONNX model file does not exist";
     }
     catch(const ngraph::ngraph_error& error) {
@@ -129,7 +129,7 @@ TEST(ONNX_Importer_Tests, DISABLED_ImportModelFromStream) {
     int count_multiplies = 0;
     int count_parameters = 0;
 
-    auto function = ngraph::onnx_import::import_onnx_model(model_file_stream);
+    auto function = ov::onnx_import::import_onnx_model(model_file_stream);
     for (auto op : function->get_ops()) {
         const auto op_type = std::string(op->get_type_name());
         count_adds += (op_type == "Add" ? 1 : 0);
@@ -144,7 +144,7 @@ TEST(ONNX_Importer_Tests, DISABLED_ImportModelFromStream) {
 TEST(ONNX_Importer_Tests, GetSupportedOperators) {
     const std::int64_t version = 1;
     const std::string domain = "ai.onnx";
-    const std::set<std::string> supported_ops = ngraph::onnx_import::get_supported_operators(version, domain);
+    const std::set<std::string> supported_ops = ov::onnx_import::get_supported_operators(version, domain);
 
     ASSERT_GT(supported_ops.size(), 1);
     ASSERT_TRUE(supported_ops.find("Add") != supported_ops.end());
@@ -154,7 +154,7 @@ TEST(ONNX_Importer_Tests, IsOperatorSupported) {
     const std::string op_name = "Abs";
     const std::int64_t version = 12;
     const std::string domain = "ai.onnx";
-    const bool is_abs_op_supported = ngraph::onnx_import::is_operator_supported(op_name, version, domain);
+    const bool is_abs_op_supported = ov::onnx_import::is_operator_supported(op_name, version, domain);
 
     ASSERT_TRUE(is_abs_op_supported);
 }

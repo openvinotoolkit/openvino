@@ -10,10 +10,9 @@
 
 #include "common/extension_holder.hpp"
 #include "editor_types.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
 #include "openvino/frontend/extension/progress_reporter_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
@@ -23,7 +22,7 @@ namespace onnx_editor {
 /// \brief A class representing a set of utilities allowing modification of an ONNX model
 ///
 /// \note This class can be used to modify an ONNX model before it gets translated to
-///       an ngraph::Function by the import_onnx_model function. It lets you modify the
+///       an ov::Model by the import_onnx_model function. It lets you modify the
 ///       model's input types and shapes, extract a subgraph and more.
 class ONNX_IMPORTER_API ONNXModelEditor final {
 public:
@@ -62,7 +61,7 @@ public:
     ///                     be used to modified the ONNX model loaded from a file. This
     ///                     method throws an exception if the model doesn't contain any of
     ///                     the inputs specified in its parameter.
-    void set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
+    void set_input_shapes(const std::map<std::string, PartialShape>& input_shapes);
 
     /// \brief Get shape of ONNX tensor indicated by the tensor_name.
     ///
@@ -98,7 +97,7 @@ public:
     /// \param input_values A collection of pairs {input_name: new_input_values} used to
     ///                     update the ONNX model. Initializers already existing are
     ///                     overwritten.
-    void set_input_values(const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
+    void set_input_values(const std::map<std::string, std::shared_ptr<op::v0::Constant>>& input_values);
 
     /// \brief Changes the name of given tensor.
     ///
@@ -143,7 +142,7 @@ public:
     /// \brief Returns a serialized ONNX model, possibly modified by the editor.
     std::string model_string() const;
 
-    /// \brief     Converts an edited ONNX model to an nGraph Function representation.
+    /// \brief     Converts an edited ONNX model to an OV Model representation.
     std::shared_ptr<Model> get_function() const;
 
     /// \brief Returns a list of all inputs of the in-memory model.
@@ -276,8 +275,7 @@ public:
     ///
     std::vector<std::string> get_output_ports(const EditorNode& node) const;
 
-    /// \brief Returns a nGraph function based on edited model
-    ///        decoded to framework nodes
+    /// \brief Returns an OV Model based on edited model decoded to framework nodes
     ///
     std::shared_ptr<Model> decode();
 

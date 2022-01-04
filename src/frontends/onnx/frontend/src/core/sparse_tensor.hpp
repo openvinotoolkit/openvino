@@ -8,11 +8,11 @@
 
 #include <vector>
 
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "tensor.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 class SparseTensor {
 public:
@@ -25,7 +25,7 @@ public:
         if (m_shape == Shape{0}) {
             // It's possible to construct a sparse tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a Shape{0} stored in m_shape.
-            // In nGraph a scalar is represented with Shape{} and thus this replacement.
+            // In OV a scalar is represented with Shape{} and thus this replacement.
             m_shape = Shape{};
         }
     }
@@ -67,4 +67,4 @@ inline std::ostream& operator<<(std::ostream& outs, const SparseTensor& tensor) 
     return (outs << "<Sparse Tensor>");
 }
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

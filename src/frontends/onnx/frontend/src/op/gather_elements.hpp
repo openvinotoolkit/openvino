@@ -5,9 +5,9 @@
 #pragma once
 
 #include "default_opset.hpp"
-#include "ngraph/output_vector.hpp"
+#include "openvino/core/node_vector.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -22,4 +22,4 @@ inline OutputVector gather_elements(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

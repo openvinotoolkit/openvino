@@ -16,13 +16,13 @@ namespace ONNX_NAMESPACE {
 class NodeProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace error {
 namespace node {
-struct UnknownAttribute : ngraph_error {
+struct UnknownAttribute : ngraph::ngraph_error {
     explicit UnknownAttribute(const std::string& node, const std::string& name)
-        : ngraph_error{"Node (" + node + "): unknown attribute \'" + name + "\'"} {}
+        : ngraph::ngraph_error{"Node (" + node + "): unknown attribute \'" + name + "\'"} {}
 };
 
 }  // namespace node
@@ -191,4 +191,4 @@ inline std::ostream& operator<<(std::ostream& outs, const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

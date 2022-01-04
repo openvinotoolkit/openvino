@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/visibility.hpp"
+#include <openvino/core/visibility.hpp>
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define ONNX_IMPORTER_API

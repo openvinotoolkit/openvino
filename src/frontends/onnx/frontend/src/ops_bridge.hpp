@@ -13,21 +13,21 @@
 #include "ngraph/except.hpp"
 #include "onnx_import/core/operator_set.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace error {
-struct UnknownOperator : ngraph_error {
+struct UnknownOperator : ngraph::ngraph_error {
     UnknownOperator(const std::string& name, const std::string& domain)
-        : ngraph_error{(domain.empty() ? "" : domain + ".") + name} {}
+        : ngraph::ngraph_error{(domain.empty() ? "" : domain + ".") + name} {}
 };
 
-struct UnknownDomain : ngraph_error {
-    explicit UnknownDomain(const std::string& domain) : ngraph_error{domain} {}
+struct UnknownDomain : ngraph::ngraph_error {
+    explicit UnknownDomain(const std::string& domain) : ngraph::ngraph_error{domain} {}
 };
 
-struct UnsupportedVersion : ngraph_error {
+struct UnsupportedVersion : ngraph::ngraph_error {
     UnsupportedVersion(const std::string& name, std::int64_t version, const std::string& domain)
-        : ngraph_error{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
+        : ngraph::ngraph_error{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
                        std::to_string(version)} {}
 };
 
@@ -98,4 +98,4 @@ const std::string OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

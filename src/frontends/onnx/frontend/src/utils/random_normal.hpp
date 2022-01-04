@@ -5,9 +5,9 @@
 #pragma once
 
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/output_vector.hpp"
+#include "openvino/core/node_vector.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace detail {
 
@@ -18,7 +18,7 @@ namespace detail {
 /// \param mean Mean of the distribution
 /// \param scale Standard deviation of the distribution
 /// \param seed Seed for the random number generator
-OutputVector make_random_normal(const Output<ngraph::Node>& shape,
+OutputVector make_random_normal(const Output<ov::Node>& shape,
                                 element::Type type,
                                 float mean,
                                 float scale,
@@ -26,4 +26,4 @@ OutputVector make_random_normal(const Output<ngraph::Node>& shape,
 
 }  // namespace detail
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

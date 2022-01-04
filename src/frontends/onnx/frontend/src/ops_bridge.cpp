@@ -163,7 +163,7 @@
 #include "op/where.hpp"
 #include "op/xor.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace {
 const std::map<std::int64_t, Operator>::const_iterator find(std::int64_t version,
@@ -503,4 +503,4 @@ OperatorsBridge::OperatorsBridge() {
 #undef REGISTER_OPERATOR_WITH_DOMAIN
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

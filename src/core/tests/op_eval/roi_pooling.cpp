@@ -38,7 +38,7 @@ NGRAPH_TEST(op_eval, roi_pooling_invalid_roi_batch_id) {
         feat_maps_vect.push_back(1.f * i / 10);
     }
 
-    auto test_case = test::TestCase(f, "TEMPLATE");
+    auto test_case = ov::test::TestCase(f, "TEMPLATE");
     test_case.add_input<float>(feat_maps_shape, feat_maps_vect);
     // ROI with invalid batch id, should throw exception
     test_case.add_input<float>(rois_shape, {-1, 1, 1, 2, 3});

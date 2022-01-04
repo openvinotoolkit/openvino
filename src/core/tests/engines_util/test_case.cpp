@@ -66,9 +66,9 @@ typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
 }
 };  // namespace
 
-namespace ngraph {
+namespace ov {
 namespace test {
-std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const std::string& bin_path) {
+std::shared_ptr<Model> function_from_ir(const std::string& xml_path, const std::string& bin_path) {
     ov::runtime::Core c;
     return c.read_model(xml_path, bin_path);
 }
@@ -179,4 +179,4 @@ testing::AssertionResult TestCase::compare_results_with_tolerance_as_fp(float to
 }
 
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

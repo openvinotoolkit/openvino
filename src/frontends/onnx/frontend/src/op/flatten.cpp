@@ -8,9 +8,9 @@
 
 #include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -23,7 +23,7 @@ OutputVector flatten(const Node& node) {
     if (data_rank.is_static()) {
         const std::int64_t data_rank_value = data_rank.get_length();
         // Accepted range is [-r, r] where r = rank(input).
-        axis = ngraph::normalize_axis(node.get_description(), axis, data_rank_value, -data_rank_value, data_rank_value);
+        axis = ov::normalize_axis(node.get_description(), axis, data_rank_value, -data_rank_value, data_rank_value);
     }
     return {ngraph::builder::opset1::flatten(data, axis)};
 }

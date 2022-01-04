@@ -7,8 +7,9 @@
 #include "default_opset.hpp"
 #include "ngraph/op/normalize_l2.hpp"
 #include "utils/common.hpp"
+#include "openvino/op/util/op_types.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -21,9 +22,9 @@ OutputVector normalize(const Node& node) {
     int64_t across_spatial = node.get_attribute_value<int64_t>("across_spatial", 0);
     int64_t channel_shared = node.get_attribute_value<int64_t>("channel_shared", 0);
 
-    std::shared_ptr<ngraph::Node> weights;
+    std::shared_ptr<ov::Node> weights;
     if (channel_shared) {
-        NGRAPH_CHECK(ngraph::op::is_constant(inputs[1].get_node()),
+        NGRAPH_CHECK(ov::op::util::is_constant(inputs[1].get_node()),
                      "Weights input must be a constant if channel_shared is set to 1");
         const auto& shape = inputs[1].get_partial_shape();
         NGRAPH_CHECK(shape.is_static() && shape.rank().get_length() == 1,
@@ -45,7 +46,7 @@ OutputVector normalize(const Node& node) {
         weights = std::make_shared<default_opset::Reshape>(inputs[1], new_shape, true);
     }
 
-    std::shared_ptr<ngraph::Node> axes;
+    std::shared_ptr<ov::Node> axes;
     if (!across_spatial) {
         axes = std::make_shared<default_opset::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
     } else {
@@ -62,4 +63,4 @@ OutputVector normalize(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

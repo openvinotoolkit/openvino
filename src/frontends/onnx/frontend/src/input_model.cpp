@@ -143,7 +143,7 @@ void InputModel::free_name_for_tensor(const std::string&) {
     FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model. ONNX tensor name is an identifier.");
 }
 
-void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) {
+void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const PartialShape& shape) {
     std::string input_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     if (input_edge) {
@@ -163,7 +163,7 @@ void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const 
         m_inputs_to_reshape[input_name] = shape;
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
+PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
     std::string tensor_name;  // name of the model input which should be reshaped
     const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
     const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
@@ -184,8 +184,8 @@ ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Pt
     return m_editor->get_tensor_shape(tensor_name);
 }
 
-void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) {
-    std::map<std::string, ngraph::element::Type_t> m;
+void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const element::Type& type) {
+    std::map<std::string, element::Type_t> m;
     m[place->get_names().at(0)] = type;
     m_editor->set_input_types(m);
 }
@@ -306,15 +306,14 @@ void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr& place, co
 }
 
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
-    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> map;
+    std::map<std::string, std::shared_ptr<op::v0::Constant>> map;
 
     if (const auto var_place = std::dynamic_pointer_cast<PlaceTensor>(place)) {
         auto name = place->get_names().at(0);
         auto p_shape = m_editor->get_tensor_shape(name);
         auto el_type = m_editor->get_input_type(name);
 
-        std::shared_ptr<ngraph::op::Constant> constant =
-            ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
+        auto constant = op::v0::Constant::create(el_type, p_shape.to_shape(), value);
 
         constant->set_friendly_name(name);
         map.emplace(name, constant);

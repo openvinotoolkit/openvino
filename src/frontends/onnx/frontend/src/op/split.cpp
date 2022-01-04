@@ -10,7 +10,7 @@
 #include "default_opset.hpp"
 #include "op/split.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -48,4 +48,4 @@ OutputVector split(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

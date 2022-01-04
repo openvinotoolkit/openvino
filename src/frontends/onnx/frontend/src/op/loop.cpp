@@ -16,7 +16,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -33,7 +33,7 @@ namespace {
 /// \param[in]  cond_out   loop termination condition computed after each iteration
 ///
 /// \return true if termination condition is not modified during loop iterations, false otherwise.
-bool is_termination_condition_always_true(const ngraph::Node* cond_in, const ngraph::Node* cond_out) {
+bool is_termination_condition_always_true(const ov::Node* cond_in, const ov::Node* cond_out) {
     return cond_in == cond_out;
 }
 }  // namespace
@@ -60,22 +60,22 @@ OutputVector loop(const Node& node) {
     }
 
     // optional inputs
-    Output<ngraph::Node> trip_count;
+    Output<ov::Node> trip_count;
     // trip count skipped or has value max(int64_t) means infinitive loop
-    if (ngraph::op::is_null(ng_inputs.at(0)) ||
+    if (ov::op::is_null(ng_inputs.at(0)) ||
         (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
          ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
              std::numeric_limits<int64_t>::max())) {
         // -1 means infinite Loop
-        trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
+        trip_count = default_opset::Constant::create(element::i64, {1}, {-1});
     } else {
         trip_count = ng_inputs.at(0);
     }
 
-    Output<ngraph::Node> termination_cond;                           // true means that first interation should be run
-    if (ngraph::op::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
+    Output<ov::Node> termination_cond;                           // true means that first interation should be run
+    if (ov::op::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
     {
-        termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+        termination_cond = default_opset::Constant::create(element::boolean, {1}, {true});
     } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
                ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())
                        ->cast_vector<bool>()[0] == false) {
@@ -95,7 +95,7 @@ OutputVector loop(const Node& node) {
     }
 
     const int64_t concat_axis = 0;
-    const auto concat_axis_const = ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
+    const auto concat_axis_const = default_opset::Constant::create(element::i64, {1}, {concat_axis});
     // add dimension along which scan outputs will be concatenated
     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size(); ++i) {
         body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], concat_axis_const);
@@ -105,7 +105,7 @@ OutputVector loop(const Node& node) {
     const auto& cond_out = body_outputs[0];
     // optimization allow to improve nG Loop shape inference
     if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
-        body_outputs[0] = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+        body_outputs[0] = default_opset::Constant::create(element::boolean, {1}, {true});
     }
 
     CHECK_VALID_NODE(node,
@@ -128,7 +128,7 @@ OutputVector loop(const Node& node) {
     ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
     body_params.emplace(body_params.begin(),
                         body_inputs[0]);  // current iteration body input
-    const auto body = std::make_shared<ngraph::Function>(body_outputs, body_params);
+    const auto body = std::make_shared<ov::Model>(body_outputs, body_params);
     auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
     default_opset::Loop::SpecialBodyPorts spec_ports{0, 0};
     loop->set_special_body_ports(spec_ports);
@@ -181,4 +181,4 @@ OutputVector loop(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

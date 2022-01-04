@@ -17,9 +17,8 @@
 #pragma once
 
 #include <core/graph.hpp>
-#include <ngraph/function.hpp>
+#include <openvino/core/model.hpp>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/visibility.hpp>
 #include <onnx_import/core/node.hpp>
 #include <openvino/op/util/framework_node.hpp>
 
@@ -28,7 +27,7 @@ namespace ONNX_NAMESPACE {
 class ModelProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 class Model;
 }
@@ -74,7 +73,7 @@ public:
     NGRAPH_RTTI_DECLARATION;
 
     ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
-                              const std::vector<std::shared_ptr<Function>>& functions,
+                              const std::vector<std::shared_ptr<Model>>& functions,
                               const OutputVector& inputs)
         : ONNXFrameworkNode(node, inputs),
           m_functions(functions) {}
@@ -84,15 +83,15 @@ public:
             subgraph.second->infer_inputs_from_parent();
     }
 
-    const std::vector<std::shared_ptr<Function>>& get_subgraph_functions() const {
+    const std::vector<std::shared_ptr<Model>>& get_subgraph_functions() const {
         return m_functions;
     }
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
 private:
-    std::vector<std::shared_ptr<Function>> m_functions;
+    std::vector<std::shared_ptr<Model>> m_functions;
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

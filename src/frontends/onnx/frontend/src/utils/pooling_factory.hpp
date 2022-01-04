@@ -12,11 +12,11 @@
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "ngraph/strides.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace pooling {
 ///
@@ -57,7 +57,7 @@ protected:
     Strides m_dilations;
     Shape m_padding_below;
     Shape m_padding_above;
-    ngraph::op::PadType m_auto_pad;
+    ov::op::PadType m_auto_pad;
     ngraph::op::RoundingType m_rounding_type;
 
     enum class StorageOrder : int64_t { ROW_MAJOR = 0, COLUMN_MAJOR = 1 };
@@ -66,4 +66,4 @@ protected:
 };
 }  // namespace pooling
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

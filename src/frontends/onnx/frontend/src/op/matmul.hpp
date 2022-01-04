@@ -7,14 +7,14 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace detail {
-inline OutputVector matmul(const Output<ngraph::Node>& a, const Output<ngraph::Node>& b) {
+inline OutputVector matmul(const Output<ov::Node>& a, const Output<ov::Node>& b) {
     return {std::make_shared<default_opset::MatMul>(a, b)};
 }
 }  // namespace detail
@@ -25,4 +25,4 @@ inline OutputVector matmul(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

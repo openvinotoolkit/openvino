@@ -9,7 +9,7 @@
 #include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -38,4 +38,4 @@ OutputVector compress(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

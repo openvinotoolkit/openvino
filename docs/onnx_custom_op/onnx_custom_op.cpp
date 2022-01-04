@@ -3,10 +3,10 @@
 //
 
 //! [onnx_custom_op:headers]
-// onnx_import/onnx_utils.hpp provides ngraph::onnx_import::register_operator function, that registers operator in ONNX importer's set.
+// onnx_import/onnx_utils.hpp provides ov::onnx_import::register_operator function, that registers operator in ONNX importer's set.
 #include <onnx_import/onnx_utils.hpp>
-// ngraph/opsets/opset5.hpp provides the declaration of predefined nGraph operator set
-#include <ngraph/opsets/opset5.hpp>
+// openvino/opsets/opset5.hpp provides the declaration of predefined OV operator set
+#include <openvino/opsets/opset5.hpp>
 //! [onnx_custom_op:headers]
 
 void register_custom_relu_operator() {
@@ -15,9 +15,9 @@ void register_custom_relu_operator() {
     // x < 0  => f(x) = x * beta
 
 //! [onnx_custom_op:register_operator]
-    ngraph::onnx_import::register_operator(
-        "CustomRelu", 1, "com.example", [](const ngraph::onnx_import::Node& onnx_node) -> ngraph::OutputVector {
-            namespace opset = ngraph::opset5;
+    ov::onnx_import::register_operator(
+        "CustomRelu", 1, "com.example", [](const ov::onnx_import::Node& onnx_node) -> ov::OutputVector {
+            namespace opset = ov::opset5;
 
             ngraph::OutputVector ng_inputs{onnx_node.get_ng_inputs()};
             const ngraph::Output<ngraph::Node>& data = ng_inputs.at(0);
@@ -52,6 +52,6 @@ void register_custom_relu_operator() {
 
 void unregister_custom_relu_operator() {
 //! [onnx_custom_op:unregister_operator]
-    ngraph::onnx_import::unregister_operator("CustomRelu", 1, "com.example");
+    ov::onnx_import::unregister_operator("CustomRelu", 1, "com.example");
 //! [onnx_custom_op:unregister_operator]
 }

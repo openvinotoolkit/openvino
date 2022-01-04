@@ -12,7 +12,7 @@
 #include "ngraph/log.hpp"
 #include "openvino/util/file_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace detail {
 TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor) {
@@ -78,4 +78,4 @@ std::string TensorExternalData::to_string() const {
 }
 }  // namespace detail
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

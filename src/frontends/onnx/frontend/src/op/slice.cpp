@@ -11,12 +11,12 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_10 {
 OutputVector slice(const Node& node) {
-    using ngraph::op::is_null;
+    using ov::op::is_null;
 
     OutputVector inputs{node.get_ng_inputs()};
     const auto& data = inputs.at(0);
@@ -26,7 +26,7 @@ OutputVector slice(const Node& node) {
     const bool axes_input_provided = inputs.size() >= 4 && !is_null(inputs.at(3));
     const bool steps_input_provided = inputs.size() == 5 && !is_null(inputs.at(4));
 
-    Output<ngraph::Node> steps;
+    Output<ov::Node> steps;
     if (steps_input_provided) {
         steps = inputs.at(4);
     } else {
@@ -47,7 +47,7 @@ OutputVector slice(const Node& node) {
 
 namespace set_1 {
 OutputVector slice(const Node& node) {
-    Output<ngraph::Node> data = node.get_ng_inputs().at(0);
+    Output<ov::Node> data = node.get_ng_inputs().at(0);
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
     const auto ends_atr = node.get_attribute_value<std::vector<int64_t>>("ends");
 
@@ -70,4 +70,4 @@ OutputVector slice(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

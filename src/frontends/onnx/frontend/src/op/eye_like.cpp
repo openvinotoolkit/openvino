@@ -10,22 +10,22 @@
 #include "ngraph/output_vector.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace detail {
 namespace {
 
 /// \brief Split a shape returned by a ShapeOf operation into two outputs: width and height.
-OutputVector get_shape_width_and_height(const Output<ngraph::Node>& shape) {
-    const auto axis = ngraph::op::Constant::create(ngraph::element::i64, {1}, {0});
+OutputVector get_shape_width_and_height(const Output<ov::Node>& shape) {
+    const auto axis = default_opset::Constant::create(element::i64, {1}, {0});
     const auto height =
         std::make_shared<default_opset::Gather>(shape,
-                                                ngraph::op::Constant::create(ngraph::element::i64, {1}, {0}),
+                                                default_opset::Constant::create(element::i64, {1}, {0}),
                                                 axis);
     const auto width =
         std::make_shared<default_opset::Gather>(shape,
-                                                ngraph::op::Constant::create(ngraph::element::i64, {1}, {1}),
+                                                default_opset::Constant::create(element::i64, {1}, {1}),
                                                 axis);
 
     return {width, height};
@@ -42,7 +42,7 @@ OutputVector get_shape_width_and_height(const Output<ngraph::Node>& shape) {
 ///          The third value is the padding value for the right side of the inner identity matrix.
 ///          The fourth value is the padding value for the top side of the inner identity matrix.
 ///          The fifth value is the padding value for the bottom side of the inner identity matrix.
-OutputVector eyelike_component_dimensions(const Output<ngraph::Node>& shape, std::int64_t k) {
+OutputVector eyelike_component_dimensions(const Output<ov::Node>& shape, std::int64_t k) {
     const auto dims = get_shape_width_and_height(shape);
     const auto width = dims.at(0);
     const auto height = dims.at(1);
@@ -50,14 +50,14 @@ OutputVector eyelike_component_dimensions(const Output<ngraph::Node>& shape, std
     // x1 and y1 are padding values for the left side and top side of the identity matrix.
     const auto x1 = std::max(static_cast<int64_t>(0), k);
     const auto y1 = std::max(static_cast<int64_t>(0), -k);
-    const auto x1_const = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {x1});
-    const auto y1_const = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {y1});
+    const auto x1_const = default_opset::Constant::create(element::i64, Shape{1}, {x1});
+    const auto y1_const = default_opset::Constant::create(element::i64, Shape{1}, {y1});
 
     // upper_pads is a helper value for calculating the size of the inner identity matrix.
-    const auto upper_pads = default_opset::Constant::create(ngraph::element::i64, Shape{2}, {y1, x1});
+    const auto upper_pads = default_opset::Constant::create(element::i64, Shape{2}, {y1, x1});
 
     // a is the size of the inner identity matrix.
-    const auto zero = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {0});
+    const auto zero = default_opset::Constant::create(element::i64, Shape{1}, {0});
     const auto min_size =
         std::make_shared<default_opset::ReduceMin>(std::make_shared<default_opset::Subtract>(shape, upper_pads),
                                                    zero,
@@ -79,7 +79,7 @@ OutputVector eyelike_component_dimensions(const Output<ngraph::Node>& shape, std
 /// \details The identity matrix consists of ones on the main diagonal and zeros elsewhere.
 /// \param matrix_size Size of a side of the identity matrix.
 /// \param target_type Data type of the identity matrix.
-Output<ngraph::Node> square_identity_matrix(const Output<ngraph::Node>& matrix_size, element::Type target_type) {
+Output<ov::Node> square_identity_matrix(const Output<ov::Node>& matrix_size, element::Type target_type) {
     // Construct a 1D representation of the identity matrix data
     // One and zero are the values of the identity matrix.
     const auto zero = default_opset::Constant::create(target_type, Shape{1}, {0});
@@ -90,7 +90,7 @@ Output<ngraph::Node> square_identity_matrix(const Output<ngraph::Node>& matrix_s
     const auto one_followed_by_zeros = std::make_shared<default_opset::Concat>(OutputVector{one, zeros}, 0);
 
     // The identity matrix as a 1D representation.
-    const auto one_int = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {1});
+    const auto one_int = default_opset::Constant::create(element::i64, Shape{1}, {1});
     const auto size_minus_one = std::make_shared<default_opset::Subtract>(matrix_size, one_int);
     const auto one_d_data = std::make_shared<default_opset::Tile>(one_followed_by_zeros, size_minus_one);
     const auto one_d_data_concat = std::make_shared<default_opset::Concat>(OutputVector{one_d_data, one}, 0);
@@ -149,4 +149,4 @@ OutputVector eye_like(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

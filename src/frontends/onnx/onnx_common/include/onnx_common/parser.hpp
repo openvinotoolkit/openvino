@@ -11,7 +11,7 @@ namespace ONNX_NAMESPACE {
 class ModelProto;
 }
 
-namespace ngraph {
+namespace ov {
 namespace onnx_common {
 /// \brief   Parses an ONNX model from a file located on a storage device.
 ///
@@ -31,4 +31,4 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path);
 ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream);
 }  // namespace onnx_common
 
-}  // namespace ngraph
+}  // namespace ov

@@ -7,7 +7,7 @@
 #include "default_opset.hpp"
 #include "onnx_import/core/null_node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -28,12 +28,12 @@ OutputVector embed_layer_normalization(const Node& node) {
     const auto& beta = nodes[6];
 
     auto zero = default_opset::Constant::create(element::i32, Shape{1}, {0});
-    std::shared_ptr<ngraph::Node> input = std::make_shared<default_opset::Gather>(word_embeddings, input_ids, zero, 0);
+    std::shared_ptr<ov::Node> input = std::make_shared<default_opset::Gather>(word_embeddings, input_ids, zero, 0);
     input = std::make_shared<default_opset::Add>(input, position_embeddings);
 
     // add segment embeddings if available
-    if (!ngraph::op::is_null(segment_ids)) {
-        NGRAPH_CHECK(!ngraph::op::is_null(segment_embeddings),
+    if (!ov::op::is_null(segment_ids)) {
+        NGRAPH_CHECK(!ov::op::is_null(segment_embeddings),
                      "segment_ids provided, but segment_embedding input is missing");
         NGRAPH_CHECK(nodes[1].get_element_type() == element::i32, "segment_ids must have int32 type");
         auto gathered_segment_embeddings =
@@ -47,16 +47,16 @@ OutputVector embed_layer_normalization(const Node& node) {
     // is (batch_size, seq_len, hidden_size)
     int hidden_size_dim = 2;
     const auto reduction_axes = default_opset::Constant::create(element::i32, Shape{1}, {hidden_size_dim});
-    std::shared_ptr<ngraph::Node> result =
-        std::make_shared<default_opset::MVN>(input, reduction_axes, true, eps, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+    std::shared_ptr<ov::Node> result =
+        std::make_shared<default_opset::MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     // result = gamma * result + beta
     result = std::make_shared<default_opset::Multiply>(result, gamma);
     result = std::make_shared<default_opset::Add>(result, beta);
 
     // compute mask_index output
-    std::shared_ptr<ngraph::Node> mask_index;
-    if (num_nodes > 7 && !ngraph::op::is_null(nodes[7])) {
+    std::shared_ptr<ov::Node> mask_index;
+    if (num_nodes > 7 && !ov::op::is_null(nodes[7])) {
         NGRAPH_CHECK(nodes[7].get_element_type() == element::i32, "mask must have int32 type");
         auto axis = default_opset::Constant::create(element::i32, Shape{}, {1});
         mask_index = std::make_shared<default_opset::ReduceSum>(nodes[7], axis, false);
@@ -71,4 +71,4 @@ OutputVector embed_layer_normalization(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

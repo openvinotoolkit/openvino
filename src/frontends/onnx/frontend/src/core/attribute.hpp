@@ -10,7 +10,7 @@
 #include "core/tensor.hpp"
 #include "ngraph/except.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 // forward declarations
 class Graph;
@@ -27,8 +27,8 @@ using AttributeProto_AttributeType = decltype(ONNX_NAMESPACE::AttributeProto{}.t
 namespace error {
 namespace attribute {
 namespace detail {
-struct Attribute : ngraph_error {
-    Attribute(const std::string& msg, AttributeProto_AttributeType type) : ngraph_error{msg} {}
+struct Attribute : ngraph::ngraph_error {
+    Attribute(const std::string& msg, AttributeProto_AttributeType type) : ngraph::ngraph_error{msg} {}
 };
 
 }  // namespace detail
@@ -49,7 +49,7 @@ namespace detail {
 namespace attribute {
 template <typename T>
 inline T get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
-    throw ngraph::onnx_import::error::attribute::UnsupportedType{attribute.type()};
+    throw onnx_import::error::attribute::UnsupportedType{attribute.type()};
 }
 
 template <>
@@ -333,4 +333,4 @@ private:
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

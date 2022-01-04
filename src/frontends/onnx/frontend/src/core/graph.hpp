@@ -13,11 +13,10 @@
 #include "common/extension_holder.hpp"
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/core/model.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
@@ -30,8 +29,8 @@ public:
 
     Graph& operator=(const Graph&) = delete;
     Graph& operator=(Graph&&) = default;
-    std::shared_ptr<Function> decode();
-    virtual std::shared_ptr<Function> convert();
+    std::shared_ptr<ov::Model> decode();
+    virtual std::shared_ptr<ov::Model> convert();
     OutputVector get_ng_outputs() const;
     const std::string& get_name() const {
         return m_model->get_graph().name();
@@ -40,7 +39,7 @@ public:
         return m_parameters;
     }
     virtual bool is_ng_node_in_cache(const std::string& name) const;
-    virtual Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
+    virtual Output<ov::Node> get_ng_node_from_cache(const std::string& name) const;
     OutputVector make_ng_nodes(const Node& onnx_node) const;
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
@@ -60,7 +59,7 @@ protected:
     virtual void decode_to_framework_nodes();
     void convert_to_ngraph_nodes();
     void remove_dangling_parameters();
-    std::shared_ptr<Function> create_function();
+    std::shared_ptr<ov::Model> create_function();
 
     ParameterVector m_parameters;
     std::unique_ptr<Model> m_model;
@@ -84,9 +83,9 @@ public:
 
     /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.
-    const std::vector<Output<ngraph::Node>> get_inputs_from_parent() const;
+    const std::vector<Output<ov::Node>> get_inputs_from_parent() const;
 
-    std::shared_ptr<Function> convert() override;
+    std::shared_ptr<ov::Model> convert() override;
 
     Subgraph() = delete;
 
@@ -97,7 +96,7 @@ public:
     Subgraph& operator=(Subgraph&&) = default;
 
     bool is_ng_node_in_cache(const std::string& name) const override;
-    Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const override;
+    Output<ov::Node> get_ng_node_from_cache(const std::string& name) const override;
     void infer_inputs_from_parent();
 
 private:
@@ -106,15 +105,15 @@ private:
     /// \brief      Replaces current node's input with Parameter if that input comes from parent graph scope
     ///
     /// \param[in]  in_name                  input node name
-    /// \param[in]  from_parent_node         nGraph node from parent scope
-    /// \param[in]  node_to_replace_input    nGraph input node to be replaced
+    /// \param[in]  from_parent_node         OV node's output from parent scope
+    /// \param[in]  node_to_replace_input    OV node's input to be replaced
     void replace_input_from_parent_scope_with_parameter(const std::string& in_name,
-                                                        const Output<ngraph::Node>& from_parent_node,
-                                                        Input<ngraph::Node>&& node_to_replace_input);
+                                                        const Output<ov::Node>& from_parent_node,
+                                                        Input<ov::Node>&& node_to_replace_input);
 
     const Graph* m_parent_graph;
     std::vector<std::string> m_inputs_from_parent;
-    std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string> m_parameter_to_parent_node_map;
+    std::unordered_map<std::shared_ptr<ov::op::v0::Parameter>, std::string> m_parameter_to_parent_node_map;
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
@@ -125,4 +124,4 @@ static const char* const ONNX_GRAPH_RT_ATTRIBUTE = "onnx_graph";
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

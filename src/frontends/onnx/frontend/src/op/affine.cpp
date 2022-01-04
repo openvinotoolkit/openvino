@@ -7,9 +7,9 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -41,4 +41,4 @@ OutputVector affine(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

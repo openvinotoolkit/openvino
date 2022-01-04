@@ -10,11 +10,10 @@
 #include <set>
 #include <string>
 
-#include "ngraph/function.hpp"
+#include "openvino/core/model.hpp"
 #include "onnx_importer_visibility.hpp"
 
-/// \brief              Top level nGraph namespace.
-namespace ngraph {
+namespace ov {
 /// \brief          ONNX importer features namespace.
 ///                 Functions in this namespace make it possible to use ONNX models.
 namespace onnx_import {
@@ -39,8 +38,7 @@ std::set<std::string> get_supported_operators(std::int64_t version, const std::s
 ONNX_IMPORTER_API
 bool is_operator_supported(const std::string& op_name, std::int64_t version, const std::string& domain = "ai.onnx");
 
-/// \brief      Imports and converts an serialized ONNX model from the input stream
-///             to an nGraph Function representation.
+/// \brief      Imports and converts a serialized ONNX model from the input stream to the OV Model representation.
 ///
 /// \note       If stream parsing fails or the ONNX model contains unsupported ops,
 ///             the function throws an ngraph_error exception.
@@ -50,12 +48,11 @@ bool is_operator_supported(const std::string& op_name, std::int64_t version, con
 ///                        It is required if the imported model uses data saved in external
 ///                        files.
 ///
-/// \return     An nGraph function that represents a single output from the created graph.
+/// \return     An OV Model that represents a single output from the created graph.
 ONNX_IMPORTER_API
-std::shared_ptr<Function> import_onnx_model(std::istream& stream, const std::string& model_path = "");
+std::shared_ptr<Model> import_onnx_model(std::istream& stream, const std::string& model_path = "");
 
-/// \brief     Imports and converts an ONNX model from the input file
-///            to an nGraph Function representation.
+/// \brief     Imports and converts an ONNX model from the input file to the OV Model representation.
 ///
 /// \note      If file parsing fails or the ONNX model contains unsupported ops,
 ///            the function throws an ngraph_error exception.
@@ -63,9 +60,9 @@ std::shared_ptr<Function> import_onnx_model(std::istream& stream, const std::str
 /// \param[in] file_path  The path to a file containing the ONNX model
 ///                       (relative or absolute).
 ///
-/// \return    An nGraph function that represents a single output from the created graph.
+/// \return    An OV Model that represents a single output from the created graph.
 ONNX_IMPORTER_API
-std::shared_ptr<Function> import_onnx_model(const std::string& file_path);
+std::shared_ptr<Model> import_onnx_model(const std::string& file_path);
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

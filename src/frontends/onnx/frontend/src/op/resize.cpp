@@ -11,7 +11,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace {
@@ -23,12 +23,12 @@ static const std::unordered_set<std::string> supported_transforms = {"half_pixel
                                                                      "asymmetric",
                                                                      "tf_half_pixel_for_nn"};
 
-using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
+using InterpolateMode = ov::op::v4::Interpolate::InterpolateMode;
 static const std::map<std::string, int> interp_mode_map = {{"nearest", static_cast<int>(InterpolateMode::NEAREST)},
                                                            {"linear", static_cast<int>(InterpolateMode::LINEAR_ONNX)},
                                                            {"cubic", static_cast<int>(InterpolateMode::CUBIC)}};
 
-using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
+using Transform_mode = ov::op::v4::Interpolate::CoordinateTransformMode;
 static const std::map<std::string, int> transform_mode_map = {
     {"half_pixel", static_cast<int>(Transform_mode::HALF_PIXEL)},
     {"pytorch_half_pixel", static_cast<int>(Transform_mode::PYTORCH_HALF_PIXEL)},
@@ -36,7 +36,7 @@ static const std::map<std::string, int> transform_mode_map = {
     {"asymmetric", static_cast<int>(Transform_mode::ASYMMETRIC)},
     {"tf_half_pixel_for_nn", static_cast<int>(Transform_mode::TF_HALF_PIXEL_FOR_NN)}};
 
-using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
+using Nearest_mode = ov::op::v4::Interpolate::NearestMode;
 static const std::map<std::string, int> nearest_mode_map = {
     {"round_prefer_floor", static_cast<int>(Nearest_mode::ROUND_PREFER_FLOOR)},
     {"round_prefer_ceil", static_cast<int>(Nearest_mode::ROUND_PREFER_CEIL)},
@@ -56,7 +56,7 @@ static int mode_as_int(const std::map<std::string, int>& converting_map, const s
     return result;
 }
 
-using InterpolateV4Attrs = ngraph::op::v4::Interpolate::InterpolateAttrs;
+using InterpolateV4Attrs = ov::op::v4::Interpolate::InterpolateAttrs;
 
 InterpolateV4Attrs get_resize_attrs(const onnx_import::Node& node) {
     auto get_str_attr = [&node](const std::string& name, const std::string& default_value) {
@@ -112,24 +112,24 @@ InterpolateV4Attrs get_resize_attrs(const onnx_import::Node& node) {
     return attrs;
 }
 
-std::shared_ptr<ngraph::Node> calculate_output_shape_based_on_scales(const Output<ngraph::Node>& data,
-                                                                     const Output<ngraph::Node>& scales) {
+std::shared_ptr<ov::Node> calculate_output_shape_based_on_scales(const Output<ov::Node>& data,
+                                                                     const Output<ov::Node>& scales) {
     const auto shape_of_data = std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data),
                                                                         scales.get_element_type());
     const auto multiply = std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-    const auto output_shape = std::make_shared<default_opset::Convert>(multiply, ngraph::element::i64);
+    const auto output_shape = std::make_shared<default_opset::Convert>(multiply, element::i64);
 
     return output_shape;
 }
 
-std::shared_ptr<ngraph::Node> calculate_scales_based_on_sizes(const Output<ngraph::Node>& data,
-                                                              const Output<ngraph::Node>& sizes) {
+std::shared_ptr<ov::Node> calculate_scales_based_on_sizes(const Output<ov::Node>& data,
+                                                              const Output<ov::Node>& sizes) {
     const float epsilon = 1.0e-5;
     const auto shape_of_data =
-        std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-    const auto converted_sizes = std::make_shared<default_opset::Convert>(sizes, ngraph::element::f32);
+        std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data), element::f32);
+    const auto converted_sizes = std::make_shared<default_opset::Convert>(sizes, element::f32);
     const auto divide = std::make_shared<default_opset::Divide>(converted_sizes, shape_of_data);
-    const auto eps_node = std::make_shared<default_opset::Constant>(ngraph::element::f32, Shape{}, epsilon);
+    const auto eps_node = std::make_shared<default_opset::Constant>(element::f32, Shape{}, epsilon);
     const auto scales = std::make_shared<default_opset::Add>(divide, eps_node);
 
     return scales;
@@ -204,4 +204,4 @@ OutputVector resize(const onnx_import::Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

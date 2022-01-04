@@ -11,10 +11,10 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -22,7 +22,7 @@ OutputVector reshape(const Node& node) {
     OutputVector ng_inputs{node.get_ng_inputs()};
     const auto data = ng_inputs.at(0);
 
-    Output<ngraph::Node> pattern;
+    Output<ov::Node> pattern;
     bool special_zero = true;
     // Since opset 5 the target shape is provided as input
     if (ng_inputs.size() == 2) {
@@ -45,4 +45,4 @@ OutputVector reshape(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

@@ -7,10 +7,9 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -23,4 +22,4 @@ OutputVector cast_like(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

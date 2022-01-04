@@ -175,7 +175,7 @@ TEST(eval, interpret_dynamic_range_sum) {
     auto range = make_shared<op::v0::Range>(p_start, p_stop, p_step);
     auto add = make_shared<op::v1::Add>(range, p1);
     auto fun = make_shared<Function>(OutputVector{add}, ParameterVector{p_start, p_stop, p_step, p1});
-    auto test_case = test::TestCase(fun);
+    auto test_case = ov::test::TestCase(fun);
     test_case.add_input(std::vector<float>{1.0f});
     test_case.add_input(std::vector<float>{10.0f});
     test_case.add_input(std::vector<float>{3.0f});

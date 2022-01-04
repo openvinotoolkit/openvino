@@ -11,10 +11,9 @@
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace {
@@ -24,8 +23,7 @@ inline std::shared_ptr<default_opset::Constant> __make_ng_constant(const element
     try {
         constant = std::make_shared<default_opset::Constant>(type, tensor.get_shape(), tensor.get_data<T>());
     } catch (const ngraph::ngraph_error& exc) {
-        NGRAPH_WARN << "\nCould not create an nGraph Constant for an ONNX Constant "
-                       "node. "
+        NGRAPH_WARN << "\nCould not create an OV Constant for an ONNX Constant node. "
                     << "Constant with a 0 value was created instead.\n"
                     << "Verify if the ONNX Constant node contains a correct number of "
                        "elements matching the node's shape. \n"
@@ -44,7 +42,7 @@ inline std::shared_ptr<default_opset::Constant> make_ng_constant(const Tensor& t
 
 template <>
 inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::float16>(const Tensor& tensor) {
-    return __make_ng_constant<ngraph::float16>(element::f16, tensor);
+    return __make_ng_constant<float16>(element::f16, tensor);
 }
 
 template <>
@@ -104,7 +102,7 @@ inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::b
 
 template <>
 inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::bfloat16>(const Tensor& tensor) {
-    return __make_ng_constant<ngraph::bfloat16>(element::bf16, tensor);
+    return __make_ng_constant<bfloat16>(element::bf16, tensor);
 }
 
 inline std::shared_ptr<default_opset::Constant> make_constant(const Tensor& tensor) {
@@ -165,7 +163,7 @@ std::shared_ptr<default_opset::Constant> get_dense_tensor_as_constant(const std:
     case element::f32:
         return make_dense_tensor_as_constant<float>(absolute_indices, values_tensor, shape);
     case element::f16:
-        return make_dense_tensor_as_constant<ngraph::float16>(absolute_indices, values_tensor, shape);
+        return make_dense_tensor_as_constant<float16>(absolute_indices, values_tensor, shape);
     case element::f64:
         return make_dense_tensor_as_constant<double>(absolute_indices, values_tensor, shape);
     case element::i8:
@@ -185,7 +183,7 @@ std::shared_ptr<default_opset::Constant> get_dense_tensor_as_constant(const std:
     case element::u64:
         return make_dense_tensor_as_constant<uint64_t>(absolute_indices, values_tensor, shape);
     case element::bf16:
-        return make_dense_tensor_as_constant<ngraph::bfloat16>(absolute_indices, values_tensor, shape);
+        return make_dense_tensor_as_constant<bfloat16>(absolute_indices, values_tensor, shape);
     default:
         throw error::tensor::invalid_data_type{values_tensor};
     }
@@ -235,15 +233,15 @@ OutputVector constant(const onnx_import::Node& node) {
     auto& attribute = node.get_attribute(attributes_names[0]);
 
     if (attribute.is_float()) {
-        return {default_opset::Constant::create(element::f32, ngraph::Shape{}, {attribute.get_float()})};
+        return {default_opset::Constant::create(element::f32, Shape{}, {attribute.get_float()})};
     } else if (attribute.is_float_array()) {
         auto values = attribute.get_float_array();
-        return {default_opset::Constant::create(element::f32, ngraph::Shape{values.size()}, values)};
+        return {default_opset::Constant::create(element::f32, Shape{values.size()}, values)};
     } else if (attribute.is_integer()) {
-        return {default_opset::Constant::create(element::i64, ngraph::Shape{}, {attribute.get_integer()})};
+        return {default_opset::Constant::create(element::i64, Shape{}, {attribute.get_integer()})};
     } else if (attribute.is_integer_array()) {
         auto values = attribute.get_integer_array();
-        return {default_opset::Constant::create(element::i64, ngraph::Shape{values.size()}, values)};
+        return {default_opset::Constant::create(element::i64, Shape{values.size()}, values)};
     } else if (attribute.is_sparse_tensor()) {
         auto sparse_tensor = attribute.get_sparse_tensor();
         const Tensor& values_tensor = sparse_tensor.get_values();
@@ -299,4 +297,4 @@ OutputVector constant(const onnx_import::Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

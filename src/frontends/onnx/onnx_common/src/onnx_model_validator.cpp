@@ -194,7 +194,7 @@ bool contains_onnx_model_keys(const std::string& model, const size_t expected_ke
 }  // namespace prototxt
 }  // namespace
 
-namespace ngraph {
+namespace ov {
 namespace onnx_common {
 bool is_valid_model(std::istream& model) {
     // the model usually starts with a 0x08 byte indicating the ir_version value
@@ -218,4 +218,4 @@ bool is_valid_model(std::istream& model) {
     }
 }
 }  // namespace onnx_common
-}  // namespace ngraph
+}  // namespace ov

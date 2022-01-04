@@ -10,7 +10,7 @@
 #include "onnx_import/core/operator_set.hpp"
 #include "onnx_importer_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 /// \brief      Registers ONNX custom operator.
 ///             The function performs the registration of external ONNX operator
@@ -23,7 +23,7 @@ namespace onnx_import {
 /// \param      version   The ONNX operator set version.
 /// \param      domain    The domain the ONNX operator is registered to.
 /// \param      fn        The function providing the implementation of the operator
-///                       which transforms the single ONNX operator to an nGraph sub-graph.
+///                       which transforms the single ONNX operator to an OV sub-graph.
 ONNX_IMPORTER_API
 void register_operator(const std::string& name, std::int64_t version, const std::string& domain, Operator fn);
 
@@ -38,4 +38,4 @@ void unregister_operator(const std::string& name, std::int64_t version, const st
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

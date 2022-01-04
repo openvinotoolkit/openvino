@@ -10,7 +10,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "utils/recurrent.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -49,9 +49,10 @@ OutputVector rnn(const Node& node) {
     const auto Y = rnn_sequence->output(0);
     const auto Y_h = rnn_sequence->output(1);
 
-    return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}), builder::opset1::reorder_axes(Y_h, {1, 0, 2})};
+    return {ngraph::builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
+            ngraph::builder::opset1::reorder_axes(Y_h, {1, 0, 2})};
 }
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

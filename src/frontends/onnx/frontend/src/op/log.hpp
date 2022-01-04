@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "ngraph/output_vector.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -17,4 +17,4 @@ OutputVector log(const Node& node);
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

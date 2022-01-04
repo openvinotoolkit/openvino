@@ -8,13 +8,13 @@
 #include <string>
 
 #include "common/extension_holder.hpp"
-#include "ngraph/function.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ONNX_NAMESPACE {
 class ModelProto;
 }
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace detail {
 /// \brief      Imports and converts an serialized ONNX model from a ModelProto
@@ -32,9 +32,9 @@ namespace detail {
 ///
 /// \return     An nGraph function that represents a single output from the created
 /// graph.
-std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                            const std::string& model_path,
-                                            ov::frontend::ExtensionHolder extensions = {});
+std::shared_ptr<Model> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                         const std::string& model_path,
+                                         ov::frontend::ExtensionHolder extensions = {});
 
 /// \brief      Decode ONNX model to nGraph function with ONNXFrameworkNode(s)
 ///
@@ -44,15 +44,15 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
 ///
 /// \return     A nGraph function with ONNXFrameworkNodes
-std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                                    const std::string& model_path,
-                                                    ov::frontend::ExtensionHolder extensions = {});
+std::shared_ptr<Model> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                                 const std::string& model_path,
+                                                 ov::frontend::ExtensionHolder extensions = {});
 
 /// \brief     Converts a nGraph function (onnx model decoded to function with ONNXFrameworkNode(s))
 ///            to a complete function with actual compute operations
 ///
 /// \return    A nGraph function.
-void convert_decoded_function(std::shared_ptr<Function> function);
+void convert_decoded_function(std::shared_ptr<Model> function);
 }  // namespace detail
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

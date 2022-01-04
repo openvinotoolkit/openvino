@@ -8,7 +8,7 @@
 #include "core/model.hpp"
 #include "ngraph/log.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 Subgraph Attribute::get_subgraph(const Graph* parent_graph) const {
     if (m_attribute_proto->type() != ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPH) {
@@ -27,4 +27,4 @@ Subgraph Attribute::get_subgraph(const Graph* parent_graph) const {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

@@ -49,9 +49,9 @@ public:
     /// \brief  Not applicable for ONNX model. Throws immediately
     void free_name_for_tensor(const std::string& name) override;
 
-    void set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) override;
-    ngraph::PartialShape get_partial_shape(const ov::frontend::Place::Ptr& place) const override;
-    void set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) override;
+    void set_partial_shape(const ov::frontend::Place::Ptr& place, const PartialShape& shape) override;
+    PartialShape get_partial_shape(const ov::frontend::Place::Ptr& place) const override;
+    void set_element_type(const ov::frontend::Place::Ptr& place, const element::Type& type) override;
     ov::frontend::Place::Ptr add_output(const ov::frontend::Place::Ptr& place) override;
     void remove_output(const ov::frontend::Place::Ptr& place) override;
 

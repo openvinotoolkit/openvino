@@ -13,15 +13,15 @@
 #include "ngraph/op/matmul.hpp"
 #include "ngraph/op/multiply.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector gemm(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
-    Output<ngraph::Node> input_a = inputs.at(0);
-    Output<ngraph::Node> input_b = inputs.at(1);
-    Output<ngraph::Node> input_c;
+    Output<ov::Node> input_a = inputs.at(0);
+    Output<ov::Node> input_b = inputs.at(1);
+    Output<ov::Node> input_c;
 
     if (inputs.size() == 3) {
         input_c = inputs.at(2);
@@ -49,7 +49,7 @@ OutputVector gemm(const Node& node) {
     input_a = ngraph::builder::opset1::flatten(input_a, 1);
     input_b = ngraph::builder::opset1::flatten(input_b, 1);
 
-    std::shared_ptr<ngraph::Node> matmul_node = std::make_shared<default_opset::MatMul>(input_a, input_b);
+    std::shared_ptr<ov::Node> matmul_node = std::make_shared<default_opset::MatMul>(input_a, input_b);
 
     if (alpha != 1) {
         matmul_node = std::make_shared<default_opset::Multiply>(matmul_node, alpha_node);
@@ -65,9 +65,9 @@ OutputVector gemm(const Node& node) {
 namespace set_6 {
 OutputVector gemm(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
-    Output<ngraph::Node> input_a = inputs.at(0);
-    Output<ngraph::Node> input_b = inputs.at(1);
-    Output<ngraph::Node> input_c;
+    Output<ov::Node> input_a = inputs.at(0);
+    Output<ov::Node> input_b = inputs.at(1);
+    Output<ov::Node> input_c;
 
     if (inputs.size() == 3) {
         input_c = inputs.at(2);
@@ -84,7 +84,7 @@ OutputVector gemm(const Node& node) {
     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
     const bool trans_b = node.get_attribute_value<int64_t>("transB", 0);
 
-    std::shared_ptr<ngraph::Node> matmul_node =
+    std::shared_ptr<ov::Node> matmul_node =
         std::make_shared<default_opset::MatMul>(input_a, input_b, trans_a, trans_b);
 
     if (alpha != 1) {

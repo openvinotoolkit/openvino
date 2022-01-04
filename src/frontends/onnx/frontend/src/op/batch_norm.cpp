@@ -11,7 +11,7 @@
 #include "exceptions.hpp"
 #include "onnx_import/core/null_node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -21,8 +21,8 @@ OutputVector batch_norm(const Node& node) {
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);
-    Output<ngraph::Node> mean;
-    Output<ngraph::Node> var;
+    Output<ov::Node> mean;
+    Output<ov::Node> var;
 
     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
 
@@ -46,7 +46,7 @@ OutputVector batch_norm(const Node& node) {
                 saved_var};
     }
 
-    throw ngraph_error("Cannot create nGraph batch norm with unsupported number of inputs");
+    throw ngraph::ngraph_error("Cannot create OV batch norm with unsupported number of inputs");
 }
 }  // namespace set_1
 
@@ -75,4 +75,4 @@ OutputVector batch_norm(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

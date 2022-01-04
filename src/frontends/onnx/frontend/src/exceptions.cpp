@@ -6,7 +6,7 @@
 
 #include <sstream>
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace error {
 namespace detail {
@@ -18,4 +18,4 @@ std::string get_error_msg_prefix(const Node& node) {
 }  // namespace detail
 }  // namespace error
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

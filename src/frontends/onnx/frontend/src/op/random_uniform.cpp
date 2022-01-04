@@ -8,10 +8,10 @@
 #include "exceptions.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/opsets/opset8.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -26,9 +26,9 @@ OutputVector random_uniform(const Node& node) {
     const auto seed = node.get_attribute_value<float>("seed", 0.0f);
     const auto shape = node.get_attribute_value<std::vector<int64_t>>("shape");
 
-    const auto target_shape_const = default_opset::Constant::create(ngraph::element::i64, Shape{shape.size()}, shape);
-    const auto high_const = default_opset::Constant::create(ngraph::element::f32, Shape{1}, {high});
-    const auto low_const = default_opset::Constant::create(ngraph::element::f32, Shape{1}, {low});
+    const auto target_shape_const = default_opset::Constant::create(element::i64, Shape{shape.size()}, shape);
+    const auto high_const = default_opset::Constant::create(element::f32, Shape{1}, {high});
+    const auto low_const = default_opset::Constant::create(element::f32, Shape{1}, {low});
 
     const auto target_type = common::get_ngraph_element_type(dtype);
     const uint64_t global_seed = 0;
@@ -45,4 +45,4 @@ OutputVector random_uniform(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

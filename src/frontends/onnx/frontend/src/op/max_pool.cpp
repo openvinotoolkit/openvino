@@ -10,7 +10,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "utils/pooling_factory.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -35,4 +35,4 @@ OutputVector max_pool(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

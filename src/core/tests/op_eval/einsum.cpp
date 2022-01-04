@@ -36,7 +36,7 @@ static void aux_einsum_test(const std::vector<std::vector<T>>& inputs,
     auto einsum = make_shared<op::v7::Einsum>(output_vector, equation);
     auto fun = make_shared<Function>(OutputVector{einsum}, param_vector);
 
-    auto test_case = test::TestCase(fun);
+    auto test_case = ov::test::TestCase(fun);
     for (size_t ind = 0; ind < inputs.size(); ++ind) {
         test_case.add_input<T>(input_shapes[ind], inputs[ind]);
     }

@@ -12,7 +12,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/null_node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace {
@@ -24,7 +24,7 @@ OutputVector build_dropout(const Node& node, bool training_mode) {
 
     if (return_mask) {
         const auto mask = std::make_shared<default_opset::Broadcast>(
-            default_opset::Constant::create(ngraph::element::boolean, Shape{}, {true}),
+            default_opset::Constant::create(element::boolean, Shape{}, {true}),
             std::make_shared<default_opset::ShapeOf>(input_data));
         return {input_data, mask};
     } else {
@@ -39,9 +39,9 @@ OutputVector dropout(const Node& node) {
     // seed attribute and ratio input are ignored because traning mode is not
     // supported anyway
     bool training_mode = false;  // default value
-    if (ng_inputs.size() > 2 && !ngraph::op::is_null(ng_inputs.at(2))) {
+    if (ng_inputs.size() > 2 && !ov::op::is_null(ng_inputs.at(2))) {
         CHECK_VALID_NODE(node,
-                         ngraph::op::is_constant(ng_inputs.at(2).get_node_shared_ptr()),
+                         ov::op::util::is_constant(ng_inputs.at(2).get_node_shared_ptr()),
                          "Non-constant training_mode input is not supported.");
         training_mode =
             ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(2).get_node_shared_ptr())->cast_vector<bool>()[0];
@@ -74,4 +74,4 @@ OutputVector dropout(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

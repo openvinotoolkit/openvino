@@ -20,7 +20,7 @@ using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
-static string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static string s_device = ov::test::backend_name_to_device("${BACKEND_NAME}");
 
 NGRAPH_TEST(${BACKEND_NAME}, sqrt_basic) {
     Shape shape{2, 3};
@@ -30,7 +30,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_basic) {
     std::vector<float> input_data{16, 4, 81, 100, 10000, 0};
     std::vector<float> expected_result{4, 2, 9, 10, 100, 0};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(shape, expected_result);
     test_case.run();
@@ -44,7 +44,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_negative_inputs) {
     std::vector<float> input_data{-1, 4, -81, 100};
     std::vector<float> expected_result{NAN, 2, NAN, 10};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(shape, expected_result);
     test_case.run();
@@ -58,7 +58,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_integral_inputs) {
     std::vector<int> input_data{4, 7, 9, 10, 80, 55, 6, 1, 23, 233, 256, 474, 1024, 110889};
     std::vector<int> expected_result{2, 3, 3, 3, 9, 7, 2, 1, 5, 15, 16, 22, 32, 333};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<int>(input_data);
     test_case.add_expected_output<int>(shape, expected_result);
     test_case.run();
@@ -85,7 +85,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sqrt_floating_inputs) {
                                        32.,
                                        333.33};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(shape, expected_result);
     test_case.run();

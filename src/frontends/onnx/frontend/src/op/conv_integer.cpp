@@ -9,7 +9,7 @@
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -20,9 +20,9 @@ OutputVector conv_integer(const Node& node) {
     const auto& input = inputs.at(0);
     const auto& filter = inputs.at(1);
     const auto& input_zero_point =
-        (inputs.size() > 2) ? inputs.at(2) : ngraph::op::Constant::create(ngraph::element::i32, {1}, {0});
+        (inputs.size() > 2) ? inputs.at(2) : default_opset::Constant::create(element::i32, {1}, {0});
     const auto& filter_zero_point =
-        (inputs.size() > 3) ? inputs.at(3) : ngraph::op::Constant::create(ngraph::element::i32, {1}, {0});
+        (inputs.size() > 3) ? inputs.at(3) : default_opset::Constant::create(element::i32, {1}, {0});
 
     const auto& converted_input = std::make_shared<default_opset::Convert>(input, element::i32);
     const auto& converted_filter = std::make_shared<default_opset::Convert>(filter, element::i32);
@@ -34,7 +34,7 @@ OutputVector conv_integer(const Node& node) {
     const auto& input_rank = std::make_shared<default_opset::ShapeOf>(input_shape, element::i32);
     const auto& input_rank_scalar = reshape::interpret_as_scalar(input_rank);
 
-    const auto& one_node = ngraph::op::Constant::create(ngraph::element::i32, {}, {1});
+    const auto& one_node = default_opset::Constant::create(element::i32, {}, {1});
     const auto& missing_dimensions =
         std::make_shared<default_opset::Range>(one_node, input_rank_scalar, one_node, element::i32);
     const auto& resized_filter_zero_point =
@@ -47,7 +47,7 @@ OutputVector conv_integer(const Node& node) {
     const auto& strides = convpool::get_strides(node);
     const auto& dilations = convpool::get_dilations(node);
     const auto& paddings = convpool::get_pads(node);
-    const ngraph::op::PadType& auto_pad_type = convpool::get_auto_pad(node);
+    const ov::op::PadType& auto_pad_type = convpool::get_auto_pad(node);
     const auto& padding_below = paddings.first;
     const auto& padding_above = paddings.second;
 
@@ -65,4 +65,4 @@ OutputVector conv_integer(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/concat.hpp"
+#include "op/concat.hpp"
 
 #include <cstdint>
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/validation_util.hpp"
-#include "op/concat.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -27,4 +25,4 @@ OutputVector concat(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

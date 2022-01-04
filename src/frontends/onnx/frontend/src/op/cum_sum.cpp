@@ -8,7 +8,7 @@
 
 #include "default_opset.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -17,7 +17,7 @@ OutputVector cum_sum(const Node& node) {
     auto data = inputs.at(0);
     bool exclusive = node.get_attribute_value<std::int64_t>("exclusive", 0);
     bool reverse = node.get_attribute_value<std::int64_t>("reverse", 0);
-    Output<ngraph::Node> axis;
+    Output<ov::Node> axis;
 
     if (inputs.size() > 1) {
         axis = inputs.at(1);  // optional input, 0-D tensor
@@ -33,4 +33,4 @@ OutputVector cum_sum(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

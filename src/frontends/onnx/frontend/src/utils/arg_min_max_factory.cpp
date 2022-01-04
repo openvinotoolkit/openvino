@@ -5,10 +5,10 @@
 #include "utils/arg_min_max_factory.hpp"
 
 #include "default_opset.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/reverse.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace utils {
 ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
@@ -17,16 +17,16 @@ ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
       m_axis{node.get_attribute_value<std::int64_t>("axis", 0)},
       m_select_last_index{node.get_attribute_value<std::int64_t>("select_last_index", 0)} {}
 
-std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_arg_max() const {
+std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_max() const {
     return make_topk_subgraph(default_opset::TopK::Mode::MAX);
 }
 
-std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_arg_min() const {
+std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_min() const {
     return make_topk_subgraph(default_opset::TopK::Mode::MIN);
 }
 
-std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset::TopK::Mode mode) const {
-    const auto k_node = default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
+std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset::TopK::Mode mode) const {
+    const auto k_node = default_opset::Constant::create(element::i64, Shape{}, {1});
 
     if (m_select_last_index == 1) {
         // Example (ArgMin):
@@ -56,8 +56,8 @@ std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset
         const int64_t normalized_axis =
             normalize_axis(m_input_node.get_node(), m_axis, m_input_node.get_partial_shape().rank());
 
-        const auto axis_node = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {normalized_axis});
-        const auto reverse = std::make_shared<opset1::Reverse>(m_input_node, axis_node, opset1::Reverse::Mode::INDEX);
+        const auto axis_node = default_opset::Constant::create(element::i64, Shape{1}, {normalized_axis});
+        const auto reverse = std::make_shared<op::v1::Reverse>(m_input_node, axis_node, op::v1::Reverse::Mode::INDEX);
 
         const auto topk = std::make_shared<default_opset::TopK>(reverse,
                                                                 k_node,
@@ -66,17 +66,17 @@ std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset
                                                                 default_opset::TopK::SortType::NONE);
 
         const auto data_shape = std::make_shared<default_opset::ShapeOf>(m_input_node);
-        const auto dims_on_axis = std::make_shared<default_opset::Gather>(
-            data_shape,
-            axis_node,
-            default_opset::Constant::create(ngraph::element::i64, Shape{}, {0}));
+        const auto dims_on_axis =
+            std::make_shared<default_opset::Gather>(data_shape,
+                                                    axis_node,
+                                                    default_opset::Constant::create(element::i64, Shape{}, {0}));
 
         const auto res_index = std::make_shared<default_opset::Subtract>(
             dims_on_axis,
             std::make_shared<default_opset::Convert>(topk->output(1), element::i64));
-        const auto result = std::make_shared<default_opset::Subtract>(
-            res_index,
-            default_opset::Constant::create(ngraph::element::i64, Shape{1}, {1}));
+        const auto result =
+            std::make_shared<default_opset::Subtract>(res_index,
+                                                      default_opset::Constant::create(element::i64, Shape{1}, {1}));
 
         if (m_keep_dims == 0) {
             const auto axis_to_remove = default_opset::Constant::create(element::u64, Shape{}, {topk->get_axis()});
@@ -102,4 +102,4 @@ std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset
 }
 }  // namespace utils
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

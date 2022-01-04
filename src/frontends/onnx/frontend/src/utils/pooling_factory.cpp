@@ -11,7 +11,7 @@
 #include "ngraph/coordinate_diff.hpp"
 #include "utils/convpool.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace pooling {
 
@@ -89,4 +89,4 @@ OutputVector PoolingFactory::make_max_pool_with_indices() const {
 }
 }  // namespace pooling
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

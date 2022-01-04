@@ -13,7 +13,7 @@
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace detail {
@@ -22,14 +22,14 @@ namespace {
 // before normalization.
 // If data shape is [N,C,H,W], the function returns
 // [N * num_groups, C // num_groups, H, W]
-std::shared_ptr<ngraph::Node> create_group_norm_shape(const Output<ngraph::Node>& data, size_t num_groups) {
+std::shared_ptr<ov::Node> create_group_norm_shape(const Output<ov::Node>& data, size_t num_groups) {
     const auto& pshape = data.get_partial_shape();
     NGRAPH_CHECK(pshape.rank().is_static());
     size_t rank_size = pshape.rank().get_length();
     NGRAPH_CHECK(rank_size >= 3, "3-D and above tensors supported only");
 
     auto shape = std::make_shared<default_opset::ShapeOf>(data);
-    auto splits = builder::opset1::split(shape, rank_size);
+    auto splits = ngraph::builder::opset1::split(shape, rank_size);
     auto num_groups_const = default_opset::Constant::create(element::i64, Shape{1}, {num_groups});
     // The 4D shape: [N * num_groups, C // num_groups, H, W] is created
     // instead of 5D shape: [N, num_groups, C // num_groups, H, W].
@@ -66,8 +66,8 @@ OutputVector group_norm(const Node& node) {
                                                     reduction_axes,
                                                     true,
                                                     eps,
-                                                    ngraph::op::MVNEpsMode::INSIDE_SQRT);
-    std::shared_ptr<ngraph::Node> result = std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
+                                                    ov::op::MVNEpsMode::INSIDE_SQRT);
+    std::shared_ptr<ov::Node> result = std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 
     const auto& scale_shape = scale.get_partial_shape();
     NGRAPH_CHECK(scale_shape.rank().is_static());
@@ -102,4 +102,4 @@ OutputVector group_norm(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

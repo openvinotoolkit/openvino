@@ -11,17 +11,17 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/convert.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace detail {
-Output<ngraph::Node> get_zero_point(const OutputVector& inputs) {
-    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2])) {
+Output<ov::Node> get_zero_point(const OutputVector& inputs) {
+    if (inputs.size() == 3 && !ov::op::is_null(inputs[2])) {
         auto zero_point = inputs[2];
 
         if (zero_point.get_element_type() != element::f32) {
@@ -59,7 +59,7 @@ OutputVector dequantize_linear(const Node& node) {
 
 namespace set_13 {
 namespace detail {
-void validate_scale(const Output<ngraph::Node> scale, const Output<ngraph::Node> x, const int64_t axis) {
+void validate_scale(const Output<ov::Node> scale, const Output<ov::Node> x, const int64_t axis) {
     const auto& scale_shape = scale.get_partial_shape();
     NGRAPH_CHECK(scale_shape.rank().get_length() == 0 || scale_shape.rank().get_length() == 1,
                  "Dequantization scale needs to be a scalar or a vector.");
@@ -79,7 +79,7 @@ void validate_scale(const Output<ngraph::Node> scale, const Output<ngraph::Node>
     }
 }
 
-void validate_zero_point(const Output<ngraph::Node> zero_point, const Output<ngraph::Node> x, const int64_t axis) {
+void validate_zero_point(const Output<ov::Node> zero_point, const Output<ov::Node> x, const int64_t axis) {
     const auto& zero_point_shape = zero_point.get_partial_shape();
     NGRAPH_CHECK(zero_point_shape.rank().get_length() == 0 || zero_point_shape.rank().get_length() == 1,
                  "Zero point needs to be a scalar or a vector.");
@@ -99,7 +99,7 @@ void validate_zero_point(const Output<ngraph::Node> zero_point, const Output<ngr
     }
 }
 
-std::shared_ptr<ngraph::Node> reshape_input(const Output<ngraph::Node> input,
+std::shared_ptr<ov::Node> reshape_input(const Output<ov::Node> input,
                                             const int64_t axis,
                                             const PartialShape& x_shape) {
     auto input_rank = input.get_partial_shape().rank();
@@ -130,16 +130,16 @@ std::shared_ptr<ngraph::Node> reshape_input(const Output<ngraph::Node> input,
     return std::make_shared<default_opset::Reshape>(input, target_shape, true);
 }
 
-OutputVector dequantize_linear(Output<ngraph::Node> x,
-                               Output<ngraph::Node> scale,
-                               Output<ngraph::Node> zero_point,
+OutputVector dequantize_linear(Output<ov::Node> x,
+                               Output<ov::Node> scale,
+                               Output<ov::Node> zero_point,
                                int64_t axis,
                                Node node) {
     const auto x_shape = x.get_partial_shape();
 
     NGRAPH_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
 
-    axis = ngraph::normalize_axis(node.get_description(), axis, x_shape.rank());
+    axis = ov::normalize_axis(node.get_description(), axis, x_shape.rank());
 
     validate_scale(scale, x, axis);
     validate_zero_point(zero_point, x, axis);
@@ -173,4 +173,4 @@ OutputVector dequantize_linear(const Node& node) {
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

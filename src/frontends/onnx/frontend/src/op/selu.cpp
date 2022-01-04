@@ -11,7 +11,7 @@
 #include "ngraph/op/constant.hpp"
 #include "op/selu.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -33,4 +33,4 @@ OutputVector selu(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

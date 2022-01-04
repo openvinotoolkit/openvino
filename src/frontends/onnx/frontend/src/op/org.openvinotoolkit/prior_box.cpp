@@ -10,14 +10,12 @@
 #include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace detail {
 namespace {
-std::shared_ptr<default_opset::StridedSlice> make_slice(std::shared_ptr<ngraph::Node> node,
-                                                        int64_t start,
-                                                        int64_t end) {
+std::shared_ptr<default_opset::StridedSlice> make_slice(std::shared_ptr<ov::Node> node, int64_t start, int64_t end) {
     return std::make_shared<default_opset::StridedSlice>(
         node,
         default_opset::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{start}),
@@ -82,7 +80,7 @@ OutputVector prior_box_clustered(const Node& node) {
     auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
     auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
-    ngraph::op::PriorBoxClusteredAttrs attrs{};
+    ov::op::v0::PriorBoxClustered::Attributes attrs{};
     attrs.widths = node.get_attribute_value<std::vector<float>>("width");
     attrs.heights = node.get_attribute_value<std::vector<float>>("height");
     attrs.clip = static_cast<bool>(node.get_attribute_value<int64_t>("clip", 0));
@@ -104,4 +102,4 @@ OutputVector prior_box_clustered(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

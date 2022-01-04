@@ -8,12 +8,11 @@
 #include <string>
 #include <unordered_map>
 
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
-/// \brief      Function which transforms single ONNX operator to nGraph sub-graph.
+/// \brief      Function which transforms single ONNX operator to OV sub-graph.
 using Operator = std::function<OutputVector(const Node&)>;
 
 /// \brief      Map which contains ONNX operators accessible by std::string value as a key.
@@ -21,4 +20,4 @@ using OperatorSet = std::unordered_map<std::string, std::reference_wrapper<const
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

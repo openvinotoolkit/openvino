@@ -6,7 +6,7 @@
 
 #include <onnx/onnx_pb.h>
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace transform {
 
@@ -59,11 +59,11 @@ static const std::vector<std::string> legacy_ops_to_fixup = {"DeformableConv2D",
 /// Some legacy models use custom operators (listed in legacy_ops_to_fixup vector) which
 /// were registered in the default ONNX domain. This function updates nodes with these
 /// operations to use OPENVINO_ONNX_DOMAIN in order to process them correctly
-/// in the nGraph ONNX Importer.
+/// in the OV ONNX Importer.
 ///
 /// \param model_proto Protobuf message with ONNX model to transform.
 void fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto);
 
 }  // namespace transform
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

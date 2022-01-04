@@ -10,12 +10,12 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector transpose(const Node& node) {
-    Output<ngraph::Node> data = node.get_ng_inputs().at(0);
+    Output<ov::Node> data = node.get_ng_inputs().at(0);
 
     auto permute_axes = node.get_attribute_value<std::vector<std::size_t>>("perm", {});
 
@@ -29,4 +29,4 @@ OutputVector transpose(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

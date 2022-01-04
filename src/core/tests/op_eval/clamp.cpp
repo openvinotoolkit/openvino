@@ -37,7 +37,7 @@ void clamp_test(const element::Type& type,
     auto clamp = make_shared<op::Clamp>(data, min, max);
     auto function = make_shared<Function>(clamp, ParameterVector{data});
 
-    auto test_case = test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.template add_input<T>(static_shape, input);
     test_case.template add_expected_output<T>(static_shape, output);
     return test_case.run();

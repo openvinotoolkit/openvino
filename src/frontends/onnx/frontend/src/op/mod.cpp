@@ -12,13 +12,13 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "op/mod.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector mod(const Node& node) {
-    Output<ngraph::Node> dividend{node.get_ng_inputs().at(0)};
-    Output<ngraph::Node> divisor{node.get_ng_inputs().at(1)};
+    Output<ov::Node> dividend{node.get_ng_inputs().at(0)};
+    Output<ov::Node> divisor{node.get_ng_inputs().at(1)};
 
     std::int64_t fmod = node.get_attribute_value<std::int64_t>("fmod", 0);
     OutputVector output;
@@ -30,7 +30,7 @@ OutputVector mod(const Node& node) {
                      "must be set to 1.");
         output = {std::make_shared<default_opset::FloorMod>(dividend, divisor)};
     } else {
-        throw ngraph_error("Unsupported value of 'fmod' attribute (should be: 0 or 1)");
+        throw ngraph::ngraph_error("Unsupported value of 'fmod' attribute (should be: 0 or 1)");
     }
     return output;
 }
@@ -41,4 +41,4 @@ OutputVector mod(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

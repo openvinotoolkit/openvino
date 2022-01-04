@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -15,7 +15,7 @@ namespace set_1 {
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of quantized ONNX
+/// \return The vector containing OV nodes producing output of quantized ONNX
 ///         convolution operation.
 OutputVector conv_integer(const Node& node);
 
@@ -25,4 +25,4 @@ OutputVector conv_integer(const Node& node);
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

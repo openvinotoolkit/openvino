@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace detail {
-Output<ngraph::Node> get_zero_point(const OutputVector& inputs);
+Output<ov::Node> get_zero_point(const OutputVector& inputs);
 }
 
 namespace set_1 {
@@ -21,9 +21,9 @@ OutputVector dequantize_linear(const Node& node);
 
 namespace set_13 {
 namespace detail {
-OutputVector dequantize_linear(Output<ngraph::Node> x,
-                               Output<ngraph::Node> scale,
-                               Output<ngraph::Node> zero_point,
+OutputVector dequantize_linear(Output<ov::Node> x,
+                               Output<ov::Node> scale,
+                               Output<ov::Node> zero_point,
                                int64_t axis,
                                Node node);
 }
@@ -34,4 +34,4 @@ OutputVector dequantize_linear(const Node& node);
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

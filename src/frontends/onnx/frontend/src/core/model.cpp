@@ -10,7 +10,7 @@
 #include "onnx_framework_node.hpp"
 #include "ops_bridge.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto) {
     return node_proto.has_domain() ? node_proto.domain() : "";
@@ -23,7 +23,7 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
         }
     }
 
-    throw ngraph_error("Couldn't find operator set's version for domain: " + domain + ".");
+    throw ngraph::ngraph_error("Couldn't find operator set's version for domain: " + domain + ".");
 }
 
 Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto) : m_model_proto{model_proto} {
@@ -85,4 +85,4 @@ const OpsetImports& Model::get_opset_imports() const {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

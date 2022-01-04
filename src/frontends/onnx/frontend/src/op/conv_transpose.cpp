@@ -19,22 +19,22 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/partial_shape.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "ngraph/validation_util.hpp"
 #include "utils/convpool.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 namespace {
-Output<ngraph::Node> make_group_conv_backprop(const Output<ngraph::Node>& data,
-                                              const Output<ngraph::Node>& filters,
+Output<ov::Node> make_group_conv_backprop(const Output<ov::Node>& data,
+                                              const Output<ov::Node>& filters,
                                               const Strides& strides,
                                               const Strides& dilations,
                                               const CoordinateDiff& pads_begin,
                                               const CoordinateDiff& pads_end,
-                                              const ngraph::op::PadType& auto_pad_type,
+                                              const ov::op::PadType& auto_pad_type,
                                               const std::vector<std::int64_t>& output_shape,
                                               const std::vector<std::int64_t>& output_padding) {
     if (output_shape.empty()) {
@@ -59,13 +59,13 @@ Output<ngraph::Node> make_group_conv_backprop(const Output<ngraph::Node>& data,
     }
 }
 
-Output<ngraph::Node> make_conv_backprop(const Output<ngraph::Node>& data,
-                                        const Output<ngraph::Node>& filters,
+Output<ov::Node> make_conv_backprop(const Output<ov::Node>& data,
+                                        const Output<ov::Node>& filters,
                                         const Strides& strides,
                                         const Strides& dilations,
                                         const CoordinateDiff& pads_begin,
                                         const CoordinateDiff& pads_end,
-                                        const ngraph::op::PadType& auto_pad_type,
+                                        const ov::op::PadType& auto_pad_type,
                                         const std::vector<std::int64_t>& output_shape,
                                         const std::vector<std::int64_t>& output_padding) {
     if (output_shape.empty()) {
@@ -92,10 +92,10 @@ Output<ngraph::Node> make_conv_backprop(const Output<ngraph::Node>& data,
     }
 }
 
-Output<ngraph::Node> get_prepared_bias(const Output<ngraph::Node>& bias, const Output<ngraph::Node>& conv) {
+Output<ov::Node> get_prepared_bias(const Output<ov::Node>& bias, const Output<ov::Node>& conv) {
     // Prepare bias shape [1, C, 1, 1]
     const auto& conv_pshape = conv.get_partial_shape();
-    std::shared_ptr<ngraph::Node> bias_shape_node;
+    std::shared_ptr<ov::Node> bias_shape_node;
 
     if (conv_pshape.rank().is_static() && conv_pshape[1].is_static()) {
         Shape new_bias_shape(conv_pshape.rank().get_length(), 1);
@@ -145,7 +145,7 @@ OutputVector conv_transpose(const Node& node) {
     std::size_t num_spatial_dims = 0;
     Strides strides, dilations;
     std::pair<CoordinateDiff, CoordinateDiff> paddings;
-    ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
+    ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
 
     // Get attirbutes or infer them from input data rank it it's static.
     if (data_pshape.rank().is_static()) {
@@ -180,7 +180,7 @@ OutputVector conv_transpose(const Node& node) {
 
     CHECK_VALID_NODE(node, groups >= 0, "Incorrect value of 'group' attribute: ", groups);
 
-    Output<ngraph::Node> conv_node;
+    Output<ov::Node> conv_node;
 
     if (groups > 1) {
         filters = convpool::get_reshaped_filters(filters, groups);
@@ -220,4 +220,4 @@ OutputVector conv_transpose(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

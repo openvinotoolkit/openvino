@@ -60,17 +60,17 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->convert();
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
-    ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
+    onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();
@@ -119,14 +119,14 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #endif
     if (model_stream.is_open()) {
         model_stream.seekg(0, model_stream.beg);
-        const bool is_valid_model = ngraph::onnx_common::is_valid_model(model_stream);
+        const bool is_valid_model = onnx_common::is_valid_model(model_stream);
         model_stream.close();
         return is_valid_model;
     }
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         StreamRewinder rwd{*stream};
-        return ngraph::onnx_common::is_valid_model(*stream);
+        return onnx_common::is_valid_model(*stream);
     }
 
     return false;

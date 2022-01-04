@@ -6,7 +6,7 @@
 
 #include "default_opset.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -17,7 +17,7 @@ OutputVector skip_layer_normalization(const Node& node) {
                  "SkipLayerNormalization takes 3, 4 or 5 inputs. Provided " + std::to_string(num_nodes));
 
     // input + skip
-    std::shared_ptr<ngraph::Node> input = std::make_shared<default_opset::Add>(nodes[0], nodes[1]);
+    std::shared_ptr<ov::Node> input = std::make_shared<default_opset::Add>(nodes[0], nodes[1]);
     // add bias if available
     if (num_nodes == 5) {
         input = std::make_shared<default_opset::Add>(input, nodes[4]);
@@ -26,8 +26,8 @@ OutputVector skip_layer_normalization(const Node& node) {
     // reduce over hidden_size
     int hidden_size_dim = 2;
     const auto reduction_axes = default_opset::Constant::create(element::i32, Shape{1}, {hidden_size_dim});
-    std::shared_ptr<ngraph::Node> result =
-        std::make_shared<default_opset::MVN>(input, reduction_axes, true, eps, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+    std::shared_ptr<ov::Node> result =
+        std::make_shared<default_opset::MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT);
     // multiply by gamma
     result = std::make_shared<default_opset::Multiply>(result, nodes[2]);
     // add beta if available
@@ -42,4 +42,4 @@ OutputVector skip_layer_normalization(const Node& node) {
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

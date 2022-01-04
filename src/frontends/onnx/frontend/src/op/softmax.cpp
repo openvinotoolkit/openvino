@@ -10,10 +10,10 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace {
-std::shared_ptr<ngraph::Node> onnx_softmax(const Output<ngraph::Node> data, const int64_t axis) {
+std::shared_ptr<ov::Node> onnx_softmax(const Output<ov::Node> data, const int64_t axis) {
     const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
     const auto result = std::make_shared<default_opset::Softmax>(coerced_data, 1);
     const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
@@ -31,7 +31,7 @@ OutputVector softmax(const Node& node) {
 
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
 
-    std::shared_ptr<ngraph::Node> result;
+    std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
         result = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
@@ -54,7 +54,7 @@ OutputVector softmax(const Node& node) {
 
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
 
-    std::shared_ptr<ngraph::Node> result;
+    std::shared_ptr<ov::Node> result;
     switch (data_rank.get_length()) {
     case 0: {
         result = default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
@@ -80,4 +80,4 @@ OutputVector softmax(const Node& node) {
 }  // namespace set_13
 }  // namespace op
 }  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace ov

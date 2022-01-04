@@ -6,10 +6,10 @@
 
 #include "default_opset.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
@@ -30,4 +30,4 @@ OutputVector add(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

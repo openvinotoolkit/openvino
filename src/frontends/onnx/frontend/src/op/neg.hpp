@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/negative.hpp"
+#include "default_opset.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 inline OutputVector neg(const Node& node) {
-    return {-node.get_ng_inputs().at(0)};
+    return {std::make_shared<default_opset::Negative>(node.get_ng_inputs().at(0))};
 }
 }  // namespace set_1
 
@@ -21,4 +21,4 @@ inline OutputVector neg(const Node& node) {
 
 }  // namespace onnx_import
 
-}  // namespace ngraph
+}  // namespace ov

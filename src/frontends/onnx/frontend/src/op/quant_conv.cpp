@@ -22,7 +22,7 @@
 #    include "ngraph/opsets/opset0.hpp"
 #    include "ngraph/strides.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -34,21 +34,21 @@ namespace ngraph
                 {
                     struct OpScale
                     {
-                        Output<ngraph::Node> data_scale;
-                        Output<ngraph::Node> filter_scale;
-                        Output<ngraph::Node> output_scale;
+                        Output<ov::Node> data_scale;
+                        Output<ov::Node> filter_scale;
+                        Output<ov::Node> output_scale;
                     };
 
                     struct OpZeroPoint
                     {
-                        Output<ngraph::Node> data_zero_point;
-                        Output<ngraph::Node> filter_zero_point;
-                        Output<ngraph::Node> output_zero_point;
+                        Output<ov::Node> data_zero_point;
+                        Output<ov::Node> filter_zero_point;
+                        Output<ov::Node> output_zero_point;
                     };
 
-                    std::shared_ptr<ngraph::Node>
-                        make_ng_quant_conv(const Output<ngraph::Node>& data,
-                                           const Output<ngraph::Node>& filters,
+                    std::shared_ptr<ov::Node>
+                        make_ng_quant_conv(const Output<ov::Node>& data,
+                                           const Output<ov::Node>& filters,
                                            const Strides& strides,
                                            const Strides& filter_dilations,
                                            const CoordinateDiff& padding_below,
@@ -57,18 +57,18 @@ namespace ngraph
                                            int groups,
                                            const OpScale& op_scale,
                                            const OpZeroPoint& op_zero_point,
-                                           const Output<ngraph::Node>& bias = nullptr)
+                                           const Output<ov::Node>& bias = nullptr)
                     {
-                        ngraph::element::Type output_type;
-                        if (data.get_element_type() == ngraph::element::u8 &&
-                            filters.get_element_type() == ngraph::element::i8)
+                        element::Type output_type;
+                        if (data.get_element_type() == element::u8 &&
+                            filters.get_element_type() == element::i8)
                         {
-                            output_type = ngraph::element::i8;
+                            output_type = element::i8;
                         }
-                        else if (data.get_element_type() == ngraph::element::u8 &&
-                                 filters.get_element_type() == ngraph::element::u8)
+                        else if (data.get_element_type() == element::u8 &&
+                                 filters.get_element_type() == element::u8)
                         {
-                            output_type = ngraph::element::u8;
+                            output_type = element::u8;
                         }
                         if (groups > 1)
                         {
@@ -103,7 +103,7 @@ namespace ngraph
 
                                 if (bias.get_node())
                                 {
-                                    throw ngraph_error(
+                                    throw ngraph::ngraph_error(
                                         "Groups != 1 not supported for Quantized Convolution with "
                                         "bias.");
                                 }
@@ -217,7 +217,7 @@ namespace ngraph
                     Strides filter_dilations = convpool::get_dilations(node);
                     Strides data_dilations = Strides(convpool::get_kernel_shape(node).size(), 1UL);
                     auto paddings = convpool::get_pads(node);
-                    ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
+                    ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
                     CoordinateDiff& padding_below = paddings.first;
                     CoordinateDiff& padding_above = paddings.second;
                     convpool::calculate_auto_pads(data.get_shape(),
@@ -228,10 +228,10 @@ namespace ngraph
                                                   padding_below,
                                                   padding_above);
 
-                    std::shared_ptr<ngraph::Node> conv_node = nullptr;
+                    std::shared_ptr<ov::Node> conv_node = nullptr;
 
                     // no bias param
-                    if (inputs.size() == 9 && !ngraph::op::is_null(inputs.at(8)))
+                    if (inputs.size() == 9 && !ov::op::is_null(inputs.at(8)))
                     {
                         auto bias = inputs.at(8);
                         conv_node = make_ng_quant_conv(
@@ -271,6 +271,6 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov
 
 #endif
