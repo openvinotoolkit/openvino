@@ -15,7 +15,7 @@ namespace op {
 namespace set_1 {
 OutputVector normalize(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 2, "Invalid number of inputs");
+    OPENVINO_ASSERT(inputs.size() == 2, "Invalid number of inputs");
 
     auto data = inputs[0];
     float eps = node.get_attribute_value<float>("eps", 0);
@@ -24,10 +24,10 @@ OutputVector normalize(const Node& node) {
 
     std::shared_ptr<ov::Node> weights;
     if (channel_shared) {
-        NGRAPH_CHECK(ov::op::util::is_constant(inputs[1].get_node()),
+        OPENVINO_ASSERT(ov::op::util::is_constant(inputs[1].get_node()),
                      "Weights input must be a constant if channel_shared is set to 1");
         const auto& shape = inputs[1].get_partial_shape();
-        NGRAPH_CHECK(shape.is_static() && shape.rank().get_length() == 1,
+        OPENVINO_ASSERT(shape.is_static() && shape.rank().get_length() == 1,
                      "Weights rank must be equal to 1 if channel_shared is set to 1");
         weights = inputs[1].get_node_shared_ptr();
     } else {

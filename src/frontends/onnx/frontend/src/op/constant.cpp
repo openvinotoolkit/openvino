@@ -131,7 +131,7 @@ inline std::shared_ptr<default_opset::Constant> make_constant(const Tensor& tens
 
 template <typename T>
 std::vector<T> get_dense_vector(const std::vector<T>& values, const std::vector<int64_t>& indices, const size_t size) {
-    NGRAPH_CHECK(values.size() == indices.size(),
+    OPENVINO_ASSERT(values.size() == indices.size(),
                  "The number of values and indices is not equal."
                  " Indices number: ",
                  indices.size(),
@@ -225,7 +225,7 @@ OutputVector constant(const onnx_import::Node& node) {
 namespace set_13 {
 OutputVector constant(const onnx_import::Node& node) {
     auto attributes_names = node.get_attribute_names();
-    NGRAPH_CHECK(attributes_names.size() == 1,
+    OPENVINO_ASSERT(attributes_names.size() == 1,
                  "The Constant op expects exactly one attribute."
                  "Got: ",
                  attributes_names.size());
@@ -256,14 +256,14 @@ OutputVector constant(const onnx_import::Node& node) {
         // [i,j]-th value corresponds to the j-th index of the i-th value (in the
         // values tensor)
         if (indices_tensor.get_shape().size() == 2) {
-            NGRAPH_CHECK(indices_tensor.get_shape().at(0) == nnz,
+            OPENVINO_ASSERT(indices_tensor.get_shape().at(0) == nnz,
                          "The number of values and indices is not equal."
                          " Indices number: ",
                          indices_tensor.get_shape().at(0),
                          " Values number: ",
                          nnz);
 
-            NGRAPH_CHECK(indices_tensor.get_shape().at(1) == rank,
+            OPENVINO_ASSERT(indices_tensor.get_shape().at(1) == rank,
                          "The indices are incorrect. The second dimension of "
                          "indices is not equal to the rank of output."
                          " Second dimension of indices: ",
@@ -277,7 +277,7 @@ OutputVector constant(const onnx_import::Node& node) {
         // i-th value is the linearized-index of the i-th value (in the values
         // tensor)
         else {
-            NGRAPH_CHECK(indices_tensor.get_shape().at(0) == nnz,
+            OPENVINO_ASSERT(indices_tensor.get_shape().at(0) == nnz,
                          "The number of values and indices is not equal."
                          " Indices number: ",
                          indices_tensor.get_shape().at(0),

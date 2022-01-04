@@ -194,7 +194,7 @@ OutputVector quantize_linear(Output<ov::Node> x,
 OutputVector quantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
 
-    NGRAPH_CHECK(2 <= inputs.size() && inputs.size() <= 3,
+    OPENVINO_ASSERT(2 <= inputs.size() && inputs.size() <= 3,
                  "The QuantizeLinear op expects 2 required and one optional "
                  "input. Got: ",
                  inputs.size());

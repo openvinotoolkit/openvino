@@ -143,7 +143,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
         }
     }
 
-    NGRAPH_CHECK(unknown_operators.empty(),
+    OPENVINO_ASSERT(unknown_operators.empty(),
                  "OV does not support the following ONNX operations: ",
                  detail::to_string(unknown_operators));
 }

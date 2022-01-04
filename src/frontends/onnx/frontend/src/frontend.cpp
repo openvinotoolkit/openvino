@@ -62,7 +62,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
-    NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
+    OPENVINO_ASSERT(model_onnx != nullptr, "Invalid input model");
     return model_onnx->convert();
 }
 
@@ -72,7 +72,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) co
 
 std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
-    NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
+    OPENVINO_ASSERT(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();
 }
 

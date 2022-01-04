@@ -25,7 +25,7 @@ OutputVector mod(const Node& node) {
     if (fmod == 1) {
         output = {std::make_shared<default_opset::Mod>(dividend, divisor)};
     } else if (fmod == 0) {
-        NGRAPH_CHECK(dividend.get_element_type().is_integral() && divisor.get_element_type().is_integral(),
+        OPENVINO_ASSERT(dividend.get_element_type().is_integral() && divisor.get_element_type().is_integral(),
                      "If the input type is floating point, then `fmod` attribute "
                      "must be set to 1.");
         output = {std::make_shared<default_opset::FloorMod>(dividend, divisor)};

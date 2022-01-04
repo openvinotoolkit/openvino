@@ -15,9 +15,9 @@ OutputVector embed_layer_normalization(const Node& node) {
     auto nodes = node.get_ng_inputs();
     auto num_nodes = nodes.size();
 
-    NGRAPH_CHECK(num_nodes >= 7 && num_nodes <= 8,
+    OPENVINO_ASSERT(num_nodes >= 7 && num_nodes <= 8,
                  "EmbedLayerNormalization takes 7 or 8 inputs. Provided " + std::to_string(num_nodes));
-    NGRAPH_CHECK(nodes[0].get_element_type() == element::i32, "input_ids must have int32 type");
+    OPENVINO_ASSERT(nodes[0].get_element_type() == element::i32, "input_ids must have int32 type");
 
     const auto& input_ids = nodes[0];
     const auto& segment_ids = nodes[1];
@@ -33,9 +33,9 @@ OutputVector embed_layer_normalization(const Node& node) {
 
     // add segment embeddings if available
     if (!ov::op::is_null(segment_ids)) {
-        NGRAPH_CHECK(!ov::op::is_null(segment_embeddings),
+        OPENVINO_ASSERT(!ov::op::is_null(segment_embeddings),
                      "segment_ids provided, but segment_embedding input is missing");
-        NGRAPH_CHECK(nodes[1].get_element_type() == element::i32, "segment_ids must have int32 type");
+        OPENVINO_ASSERT(nodes[1].get_element_type() == element::i32, "segment_ids must have int32 type");
         auto gathered_segment_embeddings =
             std::make_shared<default_opset::Gather>(segment_embeddings, segment_ids, zero, 0);
         input = std::make_shared<default_opset::Add>(input, gathered_segment_embeddings);
@@ -57,7 +57,7 @@ OutputVector embed_layer_normalization(const Node& node) {
     // compute mask_index output
     std::shared_ptr<ov::Node> mask_index;
     if (num_nodes > 7 && !ov::op::is_null(nodes[7])) {
-        NGRAPH_CHECK(nodes[7].get_element_type() == element::i32, "mask must have int32 type");
+        OPENVINO_ASSERT(nodes[7].get_element_type() == element::i32, "mask must have int32 type");
         auto axis = default_opset::Constant::create(element::i32, Shape{}, {1});
         mask_index = std::make_shared<default_opset::ReduceSum>(nodes[7], axis, false);
     } else {

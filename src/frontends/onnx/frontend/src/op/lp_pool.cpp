@@ -25,10 +25,10 @@ OutputVector global_lp_pool(const Node& node) {
     const std::size_t channel_axis{1};
 
     const auto data_shape = data.get_partial_shape();
-    NGRAPH_CHECK(data_shape.rank().is_static(), "Rank of input data must be static");
-    NGRAPH_CHECK(data_shape.rank().get_length() >= 2, "Rank of input data must be greater or equal to 2");
-    NGRAPH_CHECK(data_shape[0].is_static(), "First dimension of input data must be static");
-    NGRAPH_CHECK(data_shape[channel_axis].is_static(), "Channel dimension of intput data must be static");
+    OPENVINO_ASSERT(data_shape.rank().is_static(), "Rank of input data must be static");
+    OPENVINO_ASSERT(data_shape.rank().get_length() >= 2, "Rank of input data must be greater or equal to 2");
+    OPENVINO_ASSERT(data_shape[0].is_static(), "First dimension of input data must be static");
+    OPENVINO_ASSERT(data_shape[channel_axis].is_static(), "Channel dimension of intput data must be static");
 
     const std::size_t channels_count = data_shape[channel_axis].get_length();
     const std::int64_t p_norm{node.get_attribute_value<std::int64_t>("p", 2)};

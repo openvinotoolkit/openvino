@@ -16,7 +16,7 @@ OutputVector experimental_detectron_generate_proposals(const Node& node) {
     using GenerateProposalsSingleImage = ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
     const auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 4,
+    OPENVINO_ASSERT(inputs.size() == 4,
                  "ExperimentalDetectronGenerateProposalsSingleImage expects 4 "
                  "inputs, received: ",
                  inputs.size());

@@ -13,7 +13,7 @@ namespace set_1 {
 OutputVector skip_layer_normalization(const Node& node) {
     auto nodes = node.get_ng_inputs();
     auto num_nodes = nodes.size();
-    NGRAPH_CHECK(num_nodes >= 3 && num_nodes <= 5,
+    OPENVINO_ASSERT(num_nodes >= 3 && num_nodes <= 5,
                  "SkipLayerNormalization takes 3, 4 or 5 inputs. Provided " + std::to_string(num_nodes));
 
     // input + skip

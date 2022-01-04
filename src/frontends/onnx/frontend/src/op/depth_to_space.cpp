@@ -13,7 +13,7 @@ namespace set_1 {
 OutputVector depth_to_space(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     const auto& shape = data.get_partial_shape();
-    NGRAPH_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4, "Input must be 4-dimensional");
+    OPENVINO_ASSERT(shape.rank().is_static() && shape.rank().get_length() == 4, "Input must be 4-dimensional");
 
     const auto mode = node.get_attribute_value<std::string>("mode", "DCR");
     default_opset::DepthToSpace::DepthToSpaceMode ov_mode;
@@ -22,7 +22,7 @@ OutputVector depth_to_space(const Node& node) {
     else if (mode == "CRD")
         ov_mode = default_opset::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
     else
-        NGRAPH_CHECK(false, "only 'DCR' and 'CRD' modes are supported");
+        OPENVINO_ASSERT(false, "only 'DCR' and 'CRD' modes are supported");
 
     const auto block_size = node.get_attribute_value<std::int64_t>("blocksize");
     return OutputVector{std::make_shared<default_opset::DepthToSpace>(data, ov_mode, block_size)};

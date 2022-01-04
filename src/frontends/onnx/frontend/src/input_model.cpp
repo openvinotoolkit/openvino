@@ -204,9 +204,9 @@ std::shared_ptr<Model> InputModel::convert() {
 // Editor features
 void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
     extract_subgraph({}, outputs);
-    NGRAPH_CHECK(m_editor->model_outputs().size() == outputs.size(),
+    OPENVINO_ASSERT(m_editor->model_outputs().size() == outputs.size(),
                  "Unexpected number of outputs after override_all_outputs");
-    NGRAPH_CHECK(std::all_of(std::begin(outputs),
+    OPENVINO_ASSERT(std::all_of(std::begin(outputs),
                              std::end(outputs),
                              [](const ov::frontend::Place::Ptr& place) {
                                  return place->is_output();
@@ -217,12 +217,12 @@ void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr
 void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
     const auto outputs_before_extraction = m_editor->model_outputs();
     extract_subgraph({inputs}, {});
-    NGRAPH_CHECK(std::equal(std::begin(outputs_before_extraction),
+    OPENVINO_ASSERT(std::equal(std::begin(outputs_before_extraction),
                             std::end(outputs_before_extraction),
                             std::begin(m_editor->model_outputs())),
                  "All outputs should be preserved after override_all_inputs. Provided inputs does "
                  "not satisfy all outputs");
-    NGRAPH_CHECK(m_editor->model_inputs().size() == inputs.size(),
+    OPENVINO_ASSERT(m_editor->model_inputs().size() == inputs.size(),
                  "Unexpected number of inputs after override_all_inputs");
 }
 
@@ -256,7 +256,7 @@ ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& 
         auto output_edge = m_editor->find_output_edge(tensor_name);
         m_editor->add_output(output_edge);
     } else if (const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(output_port)) {
-        NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
+        OPENVINO_ASSERT(onnx_output_edge, "Non-onnx output place was passed.");
         m_editor->add_output(onnx_output_edge->get_output_edge());
     } else {
         return nullptr;
@@ -364,7 +364,7 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
         } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(output)) {
             const auto output_port = tensor->get_producing_port();
             const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(output_port);
-            NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
+            OPENVINO_ASSERT(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
             onnx_outputs.push_back(onnx_output_edge->get_output_edge());
         } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(output)) {
             const auto editor_node = op->get_editor_node();

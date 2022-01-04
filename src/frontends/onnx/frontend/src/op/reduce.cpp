@@ -35,7 +35,7 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_input(const Node& node) {
     if (node.get_ng_inputs().size() > 1) {
         const auto reduction_axes = node.get_ng_inputs().at(1);
         const auto reduction_axes_rank = reduction_axes.get_partial_shape().rank();
-        NGRAPH_CHECK(reduction_axes.get_partial_shape().is_static(),
+        OPENVINO_ASSERT(reduction_axes.get_partial_shape().is_static(),
                      "The axes tensor's shape needs to be known(static). Node: ",
                      node.get_description());
 

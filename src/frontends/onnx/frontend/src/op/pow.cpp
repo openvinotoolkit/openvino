@@ -15,7 +15,7 @@ namespace op {
 namespace set_1 {
 OutputVector pow(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 2, "Power operation requires 2 inputs. Got: ", inputs.size());
+    OPENVINO_ASSERT(inputs.size() == 2, "Power operation requires 2 inputs. Got: ", inputs.size());
 
     auto base = inputs[0];
     auto exponent = inputs[1];

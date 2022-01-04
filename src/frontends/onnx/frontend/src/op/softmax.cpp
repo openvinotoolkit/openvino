@@ -27,7 +27,7 @@ namespace set_1 {
 OutputVector softmax(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
-    NGRAPH_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
+    OPENVINO_ASSERT(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
 
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
 
@@ -50,7 +50,7 @@ namespace set_11 {
 OutputVector softmax(const Node& node) {
     const auto data = node.get_ng_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
-    NGRAPH_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
+    OPENVINO_ASSERT(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
 
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
 

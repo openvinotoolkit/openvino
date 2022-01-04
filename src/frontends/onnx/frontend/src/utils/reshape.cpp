@@ -26,7 +26,7 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
     // shape argument.
     for (std::size_t idx = 0; idx < inferred_dims.size(); ++idx) {
         if (inferred_dims.at(idx) == 0) {
-            NGRAPH_CHECK(idx < input_shape.size(),
+            OPENVINO_ASSERT(idx < input_shape.size(),
                          "Node ",
                          node_name,
                          " cannot copy dimension from the input data shape because "
@@ -42,7 +42,7 @@ std::vector<std::size_t> infer_dimensions(const std::string& node_name,
     auto neg_value_it = std::find(std::begin(inferred_dims), std::end(inferred_dims), -1);
     if (neg_value_it != std::end(inferred_dims)) {
         // only single '-1' value is allowed
-        NGRAPH_CHECK(std::find(std::next(neg_value_it), std::end(inferred_dims), -1) == std::end(inferred_dims),
+        OPENVINO_ASSERT(std::find(std::next(neg_value_it), std::end(inferred_dims), -1) == std::end(inferred_dims),
                      "Node ",
                      node_name,
                      " more than one dimension is set to (-1). ",
@@ -70,7 +70,7 @@ Output<ov::Node> interpret_as_scalar(const Output<ov::Node>& node) {
         return node;
     }
 
-    NGRAPH_CHECK((shape_size(node_shape) == 1), "Scalar value can't be derived from a node with ", node_shape);
+    OPENVINO_ASSERT((shape_size(node_shape) == 1), "Scalar value can't be derived from a node with ", node_shape);
 
     // If node is a Constant, recreate as Constant with Shape{}
     if (op::util::is_constant(node.get_node())) {

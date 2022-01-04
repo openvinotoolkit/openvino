@@ -29,7 +29,7 @@ std::shared_ptr<default_opset::StridedSlice> make_slice(std::shared_ptr<ov::Node
 namespace set_1 {
 OutputVector prior_box(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 2, "Invalid number of inputs");
+    OPENVINO_ASSERT(inputs.size() == 2, "Invalid number of inputs");
 
     auto output_shape = std::make_shared<default_opset::ShapeOf>(inputs[0]);
     auto image_shape = std::make_shared<default_opset::ShapeOf>(inputs[1]);
@@ -60,7 +60,7 @@ OutputVector prior_box(const Node& node) {
 
 OutputVector prior_box_clustered(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 2, "Invalid number of inputs");
+    OPENVINO_ASSERT(inputs.size() == 2, "Invalid number of inputs");
 
     auto output_shape_rank = inputs[0].get_partial_shape().rank().get_length();
     auto image_shape_rank = inputs[1].get_partial_shape().rank().get_length();

@@ -24,9 +24,9 @@ namespace {
 // [N * num_groups, C // num_groups, H, W]
 std::shared_ptr<ov::Node> create_group_norm_shape(const Output<ov::Node>& data, size_t num_groups) {
     const auto& pshape = data.get_partial_shape();
-    NGRAPH_CHECK(pshape.rank().is_static());
+    OPENVINO_ASSERT(pshape.rank().is_static());
     size_t rank_size = pshape.rank().get_length();
-    NGRAPH_CHECK(rank_size >= 3, "3-D and above tensors supported only");
+    OPENVINO_ASSERT(rank_size >= 3, "3-D and above tensors supported only");
 
     auto shape = std::make_shared<default_opset::ShapeOf>(data);
     auto splits = ngraph::builder::opset1::split(shape, rank_size);
@@ -48,7 +48,7 @@ std::shared_ptr<ov::Node> create_group_norm_shape(const Output<ov::Node>& data, 
 namespace set_1 {
 OutputVector group_norm(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    NGRAPH_CHECK(inputs.size() == 3, "Invalid number of inputs. Expected 3, actual " + std::to_string(inputs.size()));
+    OPENVINO_ASSERT(inputs.size() == 3, "Invalid number of inputs. Expected 3, actual " + std::to_string(inputs.size()));
 
     auto data = inputs[0];
     auto scale = inputs[1];
@@ -70,11 +70,11 @@ OutputVector group_norm(const Node& node) {
     std::shared_ptr<ov::Node> result = std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 
     const auto& scale_shape = scale.get_partial_shape();
-    NGRAPH_CHECK(scale_shape.rank().is_static());
+    OPENVINO_ASSERT(scale_shape.rank().is_static());
     auto scale_rank = scale_shape.rank().get_length();
 
     const auto& bias_shape = bias.get_partial_shape();
-    NGRAPH_CHECK(bias_shape.rank().is_static());
+    OPENVINO_ASSERT(bias_shape.rank().is_static());
     auto bias_rank = bias_shape.rank().get_length();
 
     const auto data_rank = std::make_shared<default_opset::ShapeOf>(data_shape_node);

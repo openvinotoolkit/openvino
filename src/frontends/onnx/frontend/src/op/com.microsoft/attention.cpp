@@ -134,8 +134,8 @@ NodeVector split_to_QKV(const std::shared_ptr<default_opset::Add>& node,
         // in this case, weights have shape
         // (input_hidden_size, qkv_hidden_sizes[0] + qkv_hidden_sizes[1] + qkv_hidden_sizes[2])
         // so user specified hidden_sizes for Q, K and V
-        NGRAPH_CHECK(qkv_hidden_sizes.size() == 3, "qkv_hidden_sizes attribute needs to have 3 values");
-        NGRAPH_CHECK(qkv_hidden_sizes[0] == qkv_hidden_sizes[1],
+        OPENVINO_ASSERT(qkv_hidden_sizes.size() == 3, "qkv_hidden_sizes attribute needs to have 3 values");
+        OPENVINO_ASSERT(qkv_hidden_sizes[0] == qkv_hidden_sizes[1],
                      "qkv_hidden_sizes first element should be same as the second");
         // split the node into 3 parts Q, K, V with shapes
         // Q: (batch_size, sequence_len, qkv_hidden_sizes[0])
@@ -412,10 +412,10 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
     }
     if (op_inputs.size() > 3 && !ov::op::is_null(op_inputs[3])) {
         const auto& mask_index = op_inputs[3];
-        NGRAPH_CHECK(mask_index.get_element_type() == element::i32, "'mask_index' type must be int32");
+        OPENVINO_ASSERT(mask_index.get_element_type() == element::i32, "'mask_index' type must be int32");
         auto batch_size = get_dimensions(input_shape, {0});
         const auto mask_rank = mask_index.get_partial_shape().rank();
-        NGRAPH_CHECK(mask_rank.is_static(), "'mask_index' rank must be static");
+        OPENVINO_ASSERT(mask_rank.is_static(), "'mask_index' rank must be static");
         auto mask_rank_val = mask_rank.get_length();
         std::shared_ptr<ov::Node> mask;
         if (mask_rank_val == 1) {
@@ -425,7 +425,7 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
         } else if (mask_rank_val < 4) {
             mask = raw_mask(mask_index, mask_rank.get_length(), type);
         } else {
-            NGRAPH_CHECK(false, "mask_index with rank " + std::to_string(mask_rank_val) + " is not supported");
+            OPENVINO_ASSERT(false, "mask_index with rank " + std::to_string(mask_rank_val) + " is not supported");
         }
         // add the mask with unidirectional mask if available
         if (attention_mask) {
@@ -478,7 +478,7 @@ std::shared_ptr<ov::Node> attention_softmax(const OutputVector& op_inputs,
     softmax_input = std::make_shared<default_opset::Divide>(softmax_input, sqrt);
     // handle 'extra_add' input
     if (op_inputs.size() > 5 && !ov::op::is_null(op_inputs[5])) {
-        NGRAPH_CHECK(!is_past_input_available(op_inputs),
+        OPENVINO_ASSERT(!is_past_input_available(op_inputs),
                      "Cannot use both 'past' and 'extra_add' inputs in the same node");
         const auto& extra_add = op_inputs[5];
         softmax_input = std::make_shared<default_opset::Add>(softmax_input, extra_add);

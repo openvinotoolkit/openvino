@@ -40,7 +40,7 @@ OutputVector conv(const Node& node,
     // and only the 'batch' dimension can be dynamic
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
 
-    NGRAPH_CHECK(data.get_partial_shape().rank().is_static(), "The input data tensor's rank has to be known (static)");
+    OPENVINO_ASSERT(data.get_partial_shape().rank().is_static(), "The input data tensor's rank has to be known (static)");
 
     const auto strides = convpool::get_strides(node);
     const auto dilations = convpool::get_dilations(node);
@@ -64,7 +64,7 @@ OutputVector conv(const Node& node,
     } else {
         const auto& bias_ps = bias.get_partial_shape();
 
-        NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
+        OPENVINO_ASSERT(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
                      "The bias input needs to be 1D vector");
 
         return {add_bias(conv_node, bias)};

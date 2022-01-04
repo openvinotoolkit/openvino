@@ -22,7 +22,7 @@ namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
 Output<ov::Node> get_k(const onnx_import::Node& node) {
     auto k_node = node.get_ng_inputs().at(1);
-    NGRAPH_CHECK(shape_size(k_node.get_shape()) == 1,
+    OPENVINO_ASSERT(shape_size(k_node.get_shape()) == 1,
                  "ONNX TopK operator: 'K' parameter must contain a single positive value.",
                  node);
 

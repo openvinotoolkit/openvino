@@ -30,15 +30,15 @@ OutputVector reverse_sequence(const Node& node) {
     const auto time_axis = node.get_attribute_value<int64_t>("time_axis", 0);
     const auto normalized_time_axis = ov::normalize_axis(node.get_description(), time_axis, data_rank);
 
-    NGRAPH_CHECK(normalized_batch_axis == 0 || normalized_batch_axis == 1,
+    OPENVINO_ASSERT(normalized_batch_axis == 0 || normalized_batch_axis == 1,
                  "Allowed values of the 'batch_axis' attribute for ReverseSequence "
                  "operator are 0 and 1");
 
-    NGRAPH_CHECK(normalized_time_axis == 0 || normalized_time_axis == 1,
+    OPENVINO_ASSERT(normalized_time_axis == 0 || normalized_time_axis == 1,
                  "Allowed values of the 'time_axis' attribute for ReverseSequence "
                  "operator are 0 and 1");
 
-    NGRAPH_CHECK(normalized_batch_axis != normalized_time_axis,
+    OPENVINO_ASSERT(normalized_batch_axis != normalized_time_axis,
                  "'batch_axis' and 'time_axis' attributes of the ReverseSequence "
                  "operator can't point to the same dimension");
 

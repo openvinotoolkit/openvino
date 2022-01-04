@@ -15,7 +15,7 @@ namespace set_1 {
 OutputVector roi_align(const Node& node) {
     const auto inputs = node.get_ng_inputs();
 
-    NGRAPH_CHECK(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
+    OPENVINO_ASSERT(inputs.size() == 3, "The RoiAlign operator expects 3 inputs. Got: ", inputs.size());
 
     const auto& data = inputs[0];
     const auto& rois = inputs[1];

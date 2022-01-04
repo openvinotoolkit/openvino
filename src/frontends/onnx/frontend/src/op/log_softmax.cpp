@@ -25,7 +25,7 @@ OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS) {
     const auto data = inputs.at(0);
     const auto data_rank = data.get_partial_shape().rank();
 
-    NGRAPH_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
+    OPENVINO_ASSERT(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
 
     const auto axis = node.get_attribute_value<int64_t>("axis", DEFAULT_AXIS);
 

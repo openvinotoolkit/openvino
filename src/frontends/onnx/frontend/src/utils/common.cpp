@@ -67,14 +67,14 @@ void validate_scalar_input(const char* input_name,
     const auto validated_input_shape = input->get_output_partial_shape(0);
     const auto validated_input_rank = validated_input_shape.rank();
 
-    NGRAPH_CHECK(validated_input_rank.same_scheme({0}) ||
+    OPENVINO_ASSERT(validated_input_rank.same_scheme({0}) ||
                      (validated_input_rank.same_scheme({1}) && validated_input_shape[0].get_length() == 1),
                  input_name,
                  " needs to be a scalar or 1D, single-element tensor.");
 
     if (!allowed_types.empty()) {
         const bool data_type_ok = allowed_types.count(input->get_element_type());
-        NGRAPH_CHECK(data_type_ok, "Incorrect data type of the ", input_name, " input: ", input->get_element_type());
+        OPENVINO_ASSERT(data_type_ok, "Incorrect data type of the ", input_name, " input: ", input->get_element_type());
     }
 }
 
@@ -85,7 +85,7 @@ OutputVector handle_opset6_binary_op(const Node& node) {
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
     if (broadcast) {
         if (node.has_attribute("axis")) {
-            NGRAPH_CHECK(
+            OPENVINO_ASSERT(
                 lhs_node.get_partial_shape().rank().is_static() && rhs_node.get_partial_shape().rank().is_static(),
                 "Input's rank has to be static.");
             auto axis = node.get_attribute_value<std::int64_t>("axis");
