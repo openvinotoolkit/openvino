@@ -1984,6 +1984,7 @@ bool evaluate(const shared_ptr<op::v0::LSTMCell>& op, const HostTensorVector& ou
                                         op->get_activations()[1],
                                         op->get_activations()[2],
                                         op->get_clip(),
+                                        op->get_weights_format(),
                                         op->get_input_forget());
     return true;
 }
@@ -2109,6 +2110,7 @@ inline void evaluate(const shared_ptr<op::v0::LSTMSequence>& op,
                                                  op->get_activations()[1],
                                                  op->get_activations()[2],
                                                  op->get_clip_threshold(),
+                                                 op->get_weights_format(),
                                                  op->get_input_forget(),
                                                  op->get_direction());
 }

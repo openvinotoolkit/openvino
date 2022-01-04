@@ -29,6 +29,7 @@ struct CellArgs {
     std::string activation_h;          // RNN/GRU/LSTM
     float clip;                        // RNN/GRU/LSTM
     bool linear_before_reset = false;  // GRU
+    ov::op::LSTMWeightsFormat weight_format = ov::op::LSTMWeightsFormat::FICO; //LSTM_v1
     bool input_forget = false;         // LSTM_v1
 };
 
@@ -142,6 +143,7 @@ void cell_pass(CellType type,
                                                 args.activation_g,
                                                 args.activation_h,
                                                 args.clip,
+                                                args.weight_format,
                                                 args.input_forget);
         } else if (type == CellType::RNN) {
             runtime::reference::rnn_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
@@ -378,6 +380,7 @@ void lstm_sequence_v1(const char* X,
                       const std::string& activation_g,
                       const std::string& activation_h,
                       float clip,
+                      const ov::op::LSTMWeightsFormat weight_format,
                       bool input_forget,
                       op::RecurrentSequenceDirection direction) {
     OutputVector results;
@@ -387,6 +390,7 @@ void lstm_sequence_v1(const char* X,
         args.activation_g = activation_g;
         args.activation_h = activation_h;
         args.clip = clip;
+        args.weight_format = weight_format;
         args.input_forget = input_forget;
         std::vector<const char*> inputs = {X, seq_lengths, H, C, W, R, B, P};
         std::vector<char*> outputs = {Y, Ho, Co};
@@ -428,6 +432,7 @@ void lstm_sequence_v1(const char* X,
         args.activation_g = activation_g;
         args.activation_h = activation_h;
         args.clip = clip;
+        args.weight_format = weight_format;
         args.input_forget = input_forget;
         std::vector<Shape> shapes = {X_shape, seq_lengths_shape, H_shape, C_shape, W_shape, R_shape, B_shape, P_shape};
         // update H,C,W,R,B,P shapes after split

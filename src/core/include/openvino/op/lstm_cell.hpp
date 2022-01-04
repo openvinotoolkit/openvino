@@ -23,6 +23,12 @@ enum class LSTMWeightsFormat {
     IOFC,  // ONNX
 };
 
+enum class LSTMPeepholesFormat {
+    FIO,  // IE
+    IOF,  // ONNX, PyTorch
+    IFO,  // CAFe, DNNL, TF, MxNet
+};
+
 namespace v0 {
 ///
 /// \brief      Class for single lstm cell node.

@@ -268,12 +268,12 @@ private:
                                                B,
                                                P,
                                                params.hiddenSize,
-                                               op::LSTMWeightsFormat::IFCO,
+                                               op::LSTMWeightsFormat::FICO,
                                                std::vector<std::string>{"sigmoid", "tanh", "tanh"},
                                                std::vector<float>{},
                                                std::vector<float>{},
                                                clip_threshold,
-                                               true);
+                                               false);
 
         auto function = std::make_shared<Model>(lstm_cell->outputs(), ParameterVector{X, H_t, C_t, W, R, B, P});
         return function;

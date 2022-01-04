@@ -21,7 +21,7 @@ struct LSTMSequenceParams {
     template <class T>
     LSTMSequenceParams(
         const size_t batchSize, const size_t inputSize, const size_t hiddenSize, const size_t seqLength,
-        const op::RecurrentSequenceDirection& lstm_direction,
+        const float clip, const op::RecurrentSequenceDirection& lstm_direction,
         const element::Type_t& iType,
         const std::vector<T>& XValues, const std::vector<T>& H_tValues, const std::vector<T>& C_tValues,
         const std::vector<int64_t>& S_tValues,
@@ -29,7 +29,7 @@ struct LSTMSequenceParams {
         const std::vector<T>& YValues, const std::vector<T>& HoValues, const std::vector<T>& CoValues,
         const std::string& testcaseName = "") :
         batchSize(batchSize), inputSize(inputSize), hiddenSize(hiddenSize), seqLength(seqLength),
-        lstm_direction(lstm_direction), iType(iType), oType(iType),
+        clip(clip), lstm_direction(lstm_direction), iType(iType), oType(iType),
         testcaseName(testcaseName) {
             numDirections = (lstm_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) ? 2 : 1;
 
@@ -61,6 +61,7 @@ struct LSTMSequenceParams {
     size_t hiddenSize;
     size_t seqLength;
     size_t numDirections;
+    float clip;
     op::RecurrentSequenceDirection lstm_direction;
     element::Type_t iType;
     element::Type_t oType;
@@ -82,7 +83,7 @@ struct LSTMSequenceV1Params {
     template <class T>
     LSTMSequenceV1Params(
         const size_t batchSize, const size_t inputSize, const size_t hiddenSize, const size_t seqLength,
-        const bool input_forget, const op::RecurrentSequenceDirection& lstm_direction,
+        const float clip, const bool input_forget, const op::RecurrentSequenceDirection& lstm_direction,
         const element::Type_t& iType,
         const std::vector<T>& XValues, const std::vector<T>& H_tValues, const std::vector<T>& C_tValues,
         const std::vector<int64_t>& S_tValues,
@@ -90,7 +91,7 @@ struct LSTMSequenceV1Params {
         const std::vector<T>& YValues, const std::vector<T>& HoValues, const std::vector<T>& CoValues,
         const std::string& testcaseName = "") :
         batchSize(batchSize), inputSize(inputSize), hiddenSize(hiddenSize), seqLength(seqLength),
-        input_forget(input_forget), lstm_direction(lstm_direction), iType(iType), oType(iType),
+        clip(clip), input_forget(input_forget), lstm_direction(lstm_direction), iType(iType), oType(iType),
         testcaseName(testcaseName) {
             numDirections = (lstm_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) ? 2 : 1;
 
@@ -124,6 +125,7 @@ struct LSTMSequenceV1Params {
     size_t hiddenSize;
     size_t seqLength;
     size_t numDirections;
+    float clip;
     bool input_forget;
     op::RecurrentSequenceDirection lstm_direction;
     element::Type_t iType;
@@ -165,7 +167,9 @@ public:
         result << "bShape=" << param.B.shape << "_";
         result << "YShape=" << param.Y.shape << "_";
         result << "hoShape=" << param.Ho.shape << "_";
-        result << "coShape=" << param.Co.shape;
+        result << "coShape=" << param.Co.shape << "_";
+        result << "clip=" << param.clip << "_";
+        result << "LSTMdirection=" << param.lstm_direction;
         if (!param.testcaseName.empty())
             result << "_" << param.testcaseName;
 
@@ -191,7 +195,11 @@ private:
                                                R,
                                                B,
                                                params.hiddenSize,
-                                               params.lstm_direction);
+                                               params.lstm_direction,
+                                               std::vector<float>{},
+                                               std::vector<float>{},
+                                               std::vector<std::string>{"sigmoid", "tanh", "tanh"},
+                                               params.clip);
 
         auto function = std::make_shared<Model>(lstm_sequence->outputs(), ParameterVector{X, H_t, C_t, S_t, W, R, B});
         return function;
@@ -221,7 +229,9 @@ public:
         result << "pShape=" << param.P.shape << "_";
         result << "YShape=" << param.Y.shape << "_";
         result << "hoShape=" << param.Ho.shape << "_";
-        result << "coShape=" << param.Co.shape;
+        result << "coShape=" << param.Co.shape << "_";
+        result << "clip=" << param.clip << "_";
+        result << "LSTMdirection=" << param.lstm_direction;
         if (!param.testcaseName.empty())
             result << "_" << param.testcaseName;
 
@@ -254,7 +264,7 @@ private:
                                                std::vector<float>{},
                                                std::vector<float>{},
                                                std::vector<std::string>{"sigmoid", "tanh", "tanh"},
-                                               0.f,
+                                               params.clip,
                                                params.input_forget);
 
         auto function = std::make_shared<Model>(lstm_sequence->outputs(), ParameterVector{X, H_t, C_t, S_t, W, R, B, P});
@@ -271,14 +281,14 @@ TEST_P(ReferenceLSTMSequenceV1Test, CompareWithRefs) {
 }
 
 template <element::Type_t ET>
-std::vector<LSTMSequenceParams> generateParams() {
+std::vector<LSTMSequenceParams> generateParamsRuntimeRef(size_t batchSize,
+                                                         size_t inputSize,
+                                                         size_t hiddenSize,
+                                                         size_t seqLength,
+                                                         float clip,
+                                                         op::RecurrentSequenceDirection lstm_direction) {
     using T = typename element_type_traits<ET>::value_type;
 
-    size_t batchSize = 10;
-    size_t inputSize = 10;
-    size_t hiddenSize = 1;
-    size_t seqLength = 2;
-    op::RecurrentSequenceDirection lstm_direction = op::RecurrentSequenceDirection::FORWARD;
     size_t numDirections = (lstm_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) ? 2 : 1;
 
     Shape XShape = Shape{batchSize, seqLength, inputSize};
@@ -325,13 +335,13 @@ std::vector<LSTMSequenceParams> generateParams() {
                    activations[0],
                    activations[1],
                    activations[2],
-                   0.f,
-                   op::RecurrentSequenceDirection::FORWARD);
+                   clip,
+                   lstm_direction);
 
     std::vector<LSTMSequenceParams> params {
         LSTMSequenceParams(
             batchSize, inputSize, hiddenSize, seqLength,
-            lstm_direction,
+            clip, lstm_direction,
             ET,
             X,
             H,
@@ -349,15 +359,15 @@ std::vector<LSTMSequenceParams> generateParams() {
 
 
 template <element::Type_t ET>
-std::vector<LSTMSequenceV1Params> generateV1Params() {
+std::vector<LSTMSequenceV1Params> generateV1ParamsRuntimeRef(size_t batchSize,
+                                                             size_t inputSize,
+                                                             size_t hiddenSize,
+                                                             size_t seqLength,
+                                                             float clip,
+                                                             bool input_forget,
+                                                             op::RecurrentSequenceDirection lstm_direction) {
     using T = typename element_type_traits<ET>::value_type;
 
-    size_t batchSize = 10;
-    size_t inputSize = 10;
-    size_t hiddenSize = 1;
-    size_t seqLength = 2;
-    bool input_forget = false;
-    op::RecurrentSequenceDirection lstm_direction = op::RecurrentSequenceDirection::FORWARD;
     size_t numDirections = (lstm_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) ? 2 : 1;
 
     Shape XShape = Shape{batchSize, seqLength, inputSize};
@@ -408,14 +418,15 @@ std::vector<LSTMSequenceV1Params> generateV1Params() {
                    activations[0],
                    activations[1],
                    activations[2],
-                   0.f,
+                   clip,
+                   ov::op::LSTMWeightsFormat::FICO,
                    input_forget,
-                   op::RecurrentSequenceDirection::FORWARD);
+                   lstm_direction);
 
     std::vector<LSTMSequenceV1Params> params {
         LSTMSequenceV1Params(
             batchSize, inputSize, hiddenSize, seqLength,
-            input_forget, lstm_direction,
+            clip, input_forget, lstm_direction,
             ET,
             X,
             H,
@@ -434,10 +445,18 @@ std::vector<LSTMSequenceV1Params> generateV1Params() {
 
 std::vector<LSTMSequenceParams> generateCombinedParams() {
     const std::vector<std::vector<LSTMSequenceParams>> generatedParams {
-        generateParams<element::Type_t::bf16>(),
-        generateParams<element::Type_t::f16>(),
-        generateParams<element::Type_t::f32>(),
-        generateParams<element::Type_t::f64>(),
+        generateParamsRuntimeRef<element::Type_t::bf16>(10, 10, 3, 2, 0.f, op::RecurrentSequenceDirection::FORWARD),
+        generateParamsRuntimeRef<element::Type_t::f16>(10, 10, 3, 2, 0.f, op::RecurrentSequenceDirection::FORWARD),
+        generateParamsRuntimeRef<element::Type_t::f32>(10, 10, 3, 2, 0.f, op::RecurrentSequenceDirection::FORWARD),
+        generateParamsRuntimeRef<element::Type_t::f64>(10, 10, 3, 2, 0.f, op::RecurrentSequenceDirection::FORWARD),
+        generateParamsRuntimeRef<element::Type_t::bf16>(10, 10, 3, 2, 3.5f, op::RecurrentSequenceDirection::REVERSE),
+        generateParamsRuntimeRef<element::Type_t::f16>(10, 10, 3, 2, 3.5f, op::RecurrentSequenceDirection::REVERSE),
+        generateParamsRuntimeRef<element::Type_t::f32>(10, 10, 3, 2, 3.5f, op::RecurrentSequenceDirection::REVERSE),
+        generateParamsRuntimeRef<element::Type_t::f64>(10, 10, 3, 2, 3.5f, op::RecurrentSequenceDirection::REVERSE),
+        generateParamsRuntimeRef<element::Type_t::bf16>(10, 10, 10, 10, 0.f, op::RecurrentSequenceDirection::BIDIRECTIONAL),
+        generateParamsRuntimeRef<element::Type_t::f16>(10, 10, 10, 10, 0.f, op::RecurrentSequenceDirection::BIDIRECTIONAL),
+        generateParamsRuntimeRef<element::Type_t::f32>(10, 10, 10, 10, 0.f, op::RecurrentSequenceDirection::BIDIRECTIONAL),
+        generateParamsRuntimeRef<element::Type_t::f64>(10, 10, 10, 10, 0.f, op::RecurrentSequenceDirection::BIDIRECTIONAL),
     };
     std::vector<LSTMSequenceParams> combinedParams;
 
@@ -449,10 +468,18 @@ std::vector<LSTMSequenceParams> generateCombinedParams() {
 
 std::vector<LSTMSequenceV1Params> generateV1CombinedParams() {
     const std::vector<std::vector<LSTMSequenceV1Params>> generatedParams {
-        generateV1Params<element::Type_t::bf16>(),
-        generateV1Params<element::Type_t::f16>(),
-        generateV1Params<element::Type_t::f32>(),
-        generateV1Params<element::Type_t::f64>(),
+        generateV1ParamsRuntimeRef<element::Type_t::bf16>(10, 10, 3, 2, 0.f, false, op::RecurrentSequenceDirection::FORWARD),
+        generateV1ParamsRuntimeRef<element::Type_t::f16>(10, 10, 3, 2, 0.f, false, op::RecurrentSequenceDirection::FORWARD),
+        generateV1ParamsRuntimeRef<element::Type_t::f32>(10, 10, 3, 2, 0.f, false, op::RecurrentSequenceDirection::FORWARD),
+        generateV1ParamsRuntimeRef<element::Type_t::f64>(10, 10, 3, 2, 0.f, false, op::RecurrentSequenceDirection::FORWARD),
+        generateV1ParamsRuntimeRef<element::Type_t::bf16>(10, 10, 3, 2, 3.5f, true, op::RecurrentSequenceDirection::REVERSE),
+        generateV1ParamsRuntimeRef<element::Type_t::f16>(10, 10, 3, 2, 3.5f, true, op::RecurrentSequenceDirection::REVERSE),
+        generateV1ParamsRuntimeRef<element::Type_t::f32>(10, 10, 3, 2, 3.5f, true, op::RecurrentSequenceDirection::REVERSE),
+        generateV1ParamsRuntimeRef<element::Type_t::f64>(10, 10, 3, 2, 3.5f, true, op::RecurrentSequenceDirection::REVERSE),
+        generateV1ParamsRuntimeRef<element::Type_t::bf16>(10, 10, 10, 10, 0.f, false, op::RecurrentSequenceDirection::BIDIRECTIONAL),
+        generateV1ParamsRuntimeRef<element::Type_t::f16>(10, 10, 10, 10, 0.f, false, op::RecurrentSequenceDirection::BIDIRECTIONAL),
+        generateV1ParamsRuntimeRef<element::Type_t::f32>(10, 10, 10, 10, 0.f, false, op::RecurrentSequenceDirection::BIDIRECTIONAL),
+        generateV1ParamsRuntimeRef<element::Type_t::f64>(10, 10, 10, 10, 0.f, false, op::RecurrentSequenceDirection::BIDIRECTIONAL),
     };
     std::vector<LSTMSequenceV1Params> combinedParams;
 

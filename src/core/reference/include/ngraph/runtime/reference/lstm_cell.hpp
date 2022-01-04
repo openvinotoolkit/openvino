@@ -177,6 +177,7 @@ void lstm_cell_v1(const T* X,
                   const std::string& activation_g,
                   const std::string& activation_h,
                   float clip,
+                  const ov::op::LSTMWeightsFormat weight_format,
                   bool input_forget) {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
@@ -225,6 +226,10 @@ void lstm_cell_v1(const T* X,
     auto P_gate_size = H_shape[1];
     auto gate_shape_size = X_shape[0] * H_shape[1];
     auto all_gates_shape_size = gate_shape_size * 4;
+
+    if (weight_format != ov::op::LSTMWeightsFormat::FICO) {
+        throw ngraph_error("Only LSTMWeightFormat = FICO is supported.");
+    }
     // Xt*(W^T)
     std::vector<T> Xt_W(all_gates_shape_size);
     reference::matmul(X, W, Xt_W.data(), X_shape, W_shape, all_gates_shape, false, true);
