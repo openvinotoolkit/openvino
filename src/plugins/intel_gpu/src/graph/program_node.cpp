@@ -781,14 +781,21 @@ void program_node::init_onednn_primitive_attributes() {
         auto node = cldnn_post_ops[idx].node;
 
         if (node->is_type<activation>()) {
-            auto& a_node = node->as<activation>();
-            if (!a_node.get_primitive()->additional_params_input.empty()) {
+            auto fused_desc = node->as<activation>().get_primitive();;
+            if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
+                && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
                 int oc_dim = node->get_output_layout().size.feature.size();
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
+            } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
+                // Splits hard_sigmoid activation into eltwise_linear, min and max.
+                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear,
+                    fused_desc->additional_params.a, fused_desc->additional_params.b);
+                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, 0.0f, 1.0f);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
+                update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else {
-                auto fused_desc = node->as<activation>().get_primitive();
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
                 post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
