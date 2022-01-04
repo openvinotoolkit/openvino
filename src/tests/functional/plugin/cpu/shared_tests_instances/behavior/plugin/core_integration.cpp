@@ -103,10 +103,4 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTestWithThrow,
         ::testing::Values(""));
-
-TEST_P(IEClassNetworkTestP, LoadNetworkToDefaultDeviceNoThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));
-}
 } // namespace
