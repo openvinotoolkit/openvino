@@ -173,27 +173,56 @@ public:
 
 class entryFallback : public entryBase {
 public:
-    using entryBase::entryBase;
+    std::shared_ptr<ov::Node> local_op_default;
+
+    entryFallback(std::shared_ptr<ov::Node> node) : entryBase(node) {
+        ngraph::OutputVector new_inputs;
+        auto op = node.get();
+        for (size_t i = 0; i < op->get_input_size(); ++i) {
+            if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
+                new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
+            } else {
+                new_inputs.push_back(std::make_shared<ov::opset1::Parameter>(op->get_input_element_type(i),
+                                                                             op->get_input_partial_shape(i)));
+            }
+        }
+
+        local_op_default = op->clone_with_new_inputs(new_inputs);
+    }
 
     virtual void post_validate_and_infer_types(const std::shared_ptr<ov::Node>& local_op) {}
 
     std::vector<ov::StaticShape> infer(
         const std::vector<ov::StaticShape>& input_shapes,
         const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
-        ngraph::OutputVector new_inputs;
         auto op = node.get();
         std::vector<ov::StaticShape> output_shapes;
-        for (size_t i = 0; i < op->get_input_size(); ++i) {
-            if (constant_data.count(i)) {
-                new_inputs.push_back(std::make_shared<ov::opset1::Constant>(constant_data.at(i)));
-            } else if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
-                new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
-            } else {
-                new_inputs.push_back(std::make_shared<ov::opset1::Parameter>(op->get_input_element_type(i),
-                                                                             input_shapes[i].to_partial_shape()));
+
+        std::shared_ptr<ov::Node> local_op;
+        if (!constant_data.empty()) {
+            ngraph::OutputVector new_inputs;
+            for (size_t i = 0; i < op->get_input_size(); ++i) {
+                if (constant_data.count(i)) {
+                    new_inputs.push_back(std::make_shared<ov::opset1::Constant>(constant_data.at(i)));
+                } else if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
+                    new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
+                } else {
+                    new_inputs.push_back(std::make_shared<ov::opset1::Parameter>(op->get_input_element_type(i),
+                                                                                 input_shapes[i].to_partial_shape()));
+                }
             }
+            local_op = op->clone_with_new_inputs(new_inputs);
+        } else {
+            local_op = local_op_default;
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            for (size_t i = 0; i < local_op->get_input_size(); i++) {
+                if (dynamic_cast<ov::opset1::Parameter*>(local_op->get_input_node_ptr(i))) {
+                    local_op->get_input_tensor(i).set_partial_shape(input_shapes[i].to_partial_shape());
+                }
+            }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
-        const auto local_op = op->clone_with_new_inputs(new_inputs);
+
         local_op->validate_and_infer_types();
 
         output_shapes.resize(local_op->get_output_size());
