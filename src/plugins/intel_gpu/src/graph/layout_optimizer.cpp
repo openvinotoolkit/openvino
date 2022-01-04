@@ -274,11 +274,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         next.as<convolution>().get_primitive()->weights_zero_points.empty())
         return true;
 
-    // Fuse reorder if the following onednn convolution supports bfyx input
-    if (next.is_type<convolution>() && use_onednn_impls && prev_dt == next_dt &&
-        needs_onednn_bfyx_to_blocked(fmt_prev, fmt_next, prev_output_layout, next.as<convolution>()))
-        return true;
-
     // Support to avoid onednn first convolution selects ref kernel
     if (next.is_type<convolution>() && use_onednn_impls && fmt_prev == format::bfyx &&
         next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] == 1)
@@ -315,6 +310,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (use_onednn_impls) {
         if (next.is_type<eltwise>() && (fmt_prev == format::bfyx) && (fmt_next == format::bs_fs_yx_bsv4_fsv2) &&
             prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
+            return true;
+
+        // Fuse reorder if the following onednn convolution supports bfyx input (first conv)
+        if (next.is_type<convolution>() && needs_onednn_bfyx_to_blocked(fmt_prev, fmt_next, prev_output_layout, next.as<convolution>()))
             return true;
 
         // Remove Reorder to support mixed format convolutions of bsv32fsv16 or bsv32fsv32 output
@@ -729,7 +728,8 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
 
 bool layout_optimizer::needs_onednn_bfyx_to_blocked(format fmt_prev, format fmt_next, layout& prev_output_layout, const convolution_node& node) {
     auto next_output_layout = node.get_output_layout();
-    if (prev_output_layout.data_type != next_output_layout.data_type)
+    if (!(prev_output_layout.data_type == next_output_layout.data_type ||
+        (prev_output_layout.data_type == data_types::i8 && next_output_layout.data_type == data_types::u8)))
         return false;
 
     // Target output_layout format
@@ -1312,8 +1312,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             if (((has_groups && !enable_onednn_dw_fp16_conv) || first_conv) &&
                 (output_layout.format == format::b_fs_yx_fsv16 || output_layout.format == format::bs_fs_yx_bsv32_fsv16) &&
                 !needs_onednn_bfyx_to_blocked(format::bfyx, output_layout.format, input_layout, conv))
-                impl_candidate = impl_types::ocl;
-            if (conv.get_output_layout().format == format::b_fs_yx_fsv32 && first_conv)
                 impl_candidate = impl_types::ocl;
         }
 
