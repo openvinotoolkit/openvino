@@ -23,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/ngraph_utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <common/primitive_hashing_utils.hpp>
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -885,6 +886,44 @@ bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
+namespace {
+struct FakeQuantKernelKey {
+    int c;
+    bool is_planar;
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision wei_prc;
+    InferenceEngine::Precision dst_prc;
+    std::vector<size_t> s_str;
+    std::vector<size_t> d_str;
+    Algorithm op_type;
+
+    size_t hash() const {
+        size_t seed = 0;
+        seed = hash_combine(seed, c);
+        seed = hash_combine(seed, is_planar);
+        seed = hash_combine(seed, src_prc.getPrecVal());
+        seed = hash_combine(seed, wei_prc.getPrecVal());
+        seed = hash_combine(seed, dst_prc.getPrecVal());
+        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, s_str);
+        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, d_str);
+        seed = hash_combine(seed, op_type);
+        return seed;
+    }
+
+    bool operator==(const FakeQuantKernelKey& rhs) const {
+        bool result = c == rhs.c && is_planar == rhs.is_planar && src_prc == rhs.src_prc && wei_prc == rhs.wei_prc &&
+                      dst_prc == rhs.dst_prc && op_type == rhs.op_type;
+        for (size_t i = 0; i < s_str.size(); i++) {
+            result = result && s_str[i] == rhs.s_str[i];
+        }
+        for (size_t i = 0; i < d_str.size(); i++) {
+            result = result && d_str[i] == rhs.d_str[i];
+        }
+        return result;
+    }
+};
+}  // namespace
+
 MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
@@ -1363,27 +1402,37 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
-
         const auto& inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-
-        jit_quantize_params jqp = {};
-        jqp.c = inDims.size() > 1 ? inDims[1] : 1;
-
-        jqp.src_prc = config.inConfs[0].desc->getPrecision();
-        jqp.wei_prc = Precision::FP32;
-        jqp.dst_prc = config.outConfs[0].desc->getPrecision();
+        //Form FakeQuanKey
+        FakeQuantKernelKey key = {};
+        key.c = inDims.size() > 1 ? inDims[1] : 1;
+        key.src_prc = config.inConfs[0].desc->getPrecision();
+        key.wei_prc = Precision::FP32;
+        key.dst_prc = config.outConfs[0].desc->getPrecision();
 
         auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        jqp.s_str = srcDesc->getStrides();
-
+        key.s_str = srcDesc->getStrides();
         auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        jqp.d_str = dstDesc->getStrides();
 
-        jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
+        key.d_str = dstDesc->getStrides();
+        key.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
+        key.op_type = getAlgorithm();
 
-        jqp.op_type = getAlgorithm();
-
-        execPtr = std::make_shared<FakeQuantizeJitExecutor>(jqp);
+        auto cache = getRuntimeCache();
+        auto buildExecutor = [](const FakeQuantKernelKey& key) {
+            jit_quantize_params jqp = {};
+            jqp.c = key.c;
+            jqp.src_prc = key.src_prc;
+            jqp.wei_prc = key.wei_prc;
+            jqp.dst_prc = key.dst_prc;
+            jqp.s_str = key.s_str;
+            jqp.d_str = key.d_str;
+            jqp.is_planar = key.is_planar;
+            jqp.op_type = key.op_type;
+            return std::make_shared<FakeQuantizeJitExecutor>(jqp);
+        };
+        auto result = cache->getOrCreate(key, buildExecutor);
+        execPtr = result.first;
     }
 }
 
