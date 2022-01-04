@@ -30,7 +30,7 @@ OutputVector mod(const Node& node) {
                      "must be set to 1.");
         output = {std::make_shared<default_opset::FloorMod>(dividend, divisor)};
     } else {
-        throw ngraph::ngraph_error("Unsupported value of 'fmod' attribute (should be: 0 or 1)");
+        throw ov::Exception("Unsupported value of 'fmod' attribute (should be: 0 or 1)");
     }
     return output;
 }

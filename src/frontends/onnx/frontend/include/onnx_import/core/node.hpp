@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <string>
 
-#include "ngraph/except.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
 
@@ -20,9 +20,9 @@ namespace ov {
 namespace onnx_import {
 namespace error {
 namespace node {
-struct UnknownAttribute : ngraph::ngraph_error {
+struct UnknownAttribute : ov::Exception {
     explicit UnknownAttribute(const std::string& node, const std::string& name)
-        : ngraph::ngraph_error{"Node (" + node + "): unknown attribute \'" + name + "\'"} {}
+        : ov::Exception{"Node (" + node + "): unknown attribute \'" + name + "\'"} {}
 };
 
 }  // namespace node

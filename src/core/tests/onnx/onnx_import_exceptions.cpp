@@ -18,7 +18,7 @@ using namespace ov;
 TEST(onnx_importer, exception_throws_ngraph_error) {
     EXPECT_THROW(onnx_import::import_onnx_model(
                      ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.onnx")),
-                 ngraph::ngraph_error);
+                 ov::Exception);
 }
 
 TEST(onnx_importer, exception_msg_ngraph_error) {
@@ -27,7 +27,7 @@ TEST(onnx_importer, exception_msg_ngraph_error) {
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.onnx"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(DepthToSpace)"));
         EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating node 'v0::DepthToSpace"));
     } catch (...) {

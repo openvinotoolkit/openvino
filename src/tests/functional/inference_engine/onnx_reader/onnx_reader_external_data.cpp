@@ -60,7 +60,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     try {
         auto cnnNetwork = ie.ReadNetwork(modelAsString, weights);
     }
-    catch(const ngraph::ngraph_error& e) {
+    catch(const ov::Exception& e) {
         EXPECT_PRED_FORMAT2(
             testing::IsSubstring,
             std::string("invalid external data:"),

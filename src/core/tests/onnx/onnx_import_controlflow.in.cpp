@@ -255,7 +255,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_scop
             ngraph::file_util::path_join(SERIALIZED_ZOO,
                                          "onnx/controlflow/loop_2d_add_incorrect_access_body_scope.onnx"));
         FAIL() << "Incorrect access to body scope not detected";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         // patent graph should have no access to subgraph (body Loop) scope
         EXPECT_HAS_SUBSTRING(e.what(), std::string("from_body_scope node not found in graph cache"));
     } catch (...) {
@@ -739,7 +739,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
         const auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_missing_then_branch.onnx"));
         FAIL() << "Model import succeed, but it shouldn't";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Missing 'then_branch' attribute"));
     } catch (...) {
         FAIL() << "Model import failed for unexpected reason";
@@ -749,7 +749,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
         const auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/controlflow/if_missing_else_branch.onnx"));
         FAIL() << "Model import succeed, but it shouldn't";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Missing 'else_branch' attribute"));
     } catch (...) {
         FAIL() << "Model import failed for unexpected reason";
@@ -762,7 +762,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_negative_mismatch_between_branches_output) 
             ngraph::file_util::path_join(SERIALIZED_ZOO,
                                          "onnx/controlflow/if_negative_mismatch_between_branches_output.onnx"));
         FAIL() << "Model import succeed, but it shouldn't";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(),
                              std::string("'then' and 'else' branches have to have the same number of outputs"));
     } catch (...) {

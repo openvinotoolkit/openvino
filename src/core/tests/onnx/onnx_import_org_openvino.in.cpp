@@ -123,7 +123,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_first_input_bad_shape) {
         auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered_first_input_bad_shape.onnx"));
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Only 4D inputs are supported. First input rank: 5 (should be 4)"));
     } catch (...) {
         FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
@@ -135,7 +135,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape) {
         auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered_second_input_bad_shape.onnx"));
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Only 4D inputs are supported. Second input rank: 5 (should be 4)"));
     } catch (...) {
         FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";

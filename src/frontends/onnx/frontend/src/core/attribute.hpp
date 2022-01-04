@@ -8,7 +8,7 @@
 
 #include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
-#include "ngraph/except.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace onnx_import {
@@ -27,8 +27,8 @@ using AttributeProto_AttributeType = decltype(ONNX_NAMESPACE::AttributeProto{}.t
 namespace error {
 namespace attribute {
 namespace detail {
-struct Attribute : ngraph::ngraph_error {
-    Attribute(const std::string& msg, AttributeProto_AttributeType type) : ngraph::ngraph_error{msg} {}
+struct Attribute : ov::Exception {
+    Attribute(const std::string& msg, AttributeProto_AttributeType type) : ov::Exception{msg} {}
 };
 
 }  // namespace detail

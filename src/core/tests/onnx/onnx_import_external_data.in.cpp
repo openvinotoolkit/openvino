@@ -89,7 +89,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_external_data_exception) {
         auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data_file_not_found.onnx"));
         FAIL() << "Incorrect path to external data not detected";
-    } catch (const ngraph::ngraph_error& error) {
+    } catch (const ov::Exception& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("not_existed_file.data, offset: 4096, data_length: 16, sha1_digest: 0)"),
                             error.what());
@@ -104,7 +104,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path) {
             ngraph::file_util::path_join(SERIALIZED_ZOO,
                                          "onnx/external_data/inner_scope/external_data_file_in_up_dir.onnx"));
         FAIL() << "Incorrect path to external data not detected";
-    } catch (const ngraph::ngraph_error& error) {
+    } catch (const ov::Exception& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("tensor.data, offset: 4096, "
                                         "data_length: 16, sha1_digest: 0)"),

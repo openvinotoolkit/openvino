@@ -22,7 +22,7 @@ Output<ov::Node> GraphCache::get_node(const std::string& name) const {
     try {
         return m_graph_cache_map.at(name);
     } catch (const std::out_of_range&) {
-        throw ngraph::ngraph_error(name + " node not found in graph cache");
+        throw ov::Exception(name + " node not found in graph cache");
     }
 }
 

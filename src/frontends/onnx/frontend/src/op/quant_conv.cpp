@@ -103,7 +103,7 @@ namespace ov
 
                                 if (bias.get_node())
                                 {
-                                    throw ngraph::ngraph_error(
+                                    throw ov::Exception(
                                         "Groups != 1 not supported for Quantized Convolution with "
                                         "bias.");
                                 }

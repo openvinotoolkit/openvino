@@ -10,7 +10,7 @@
 
 #include <ngraph/file_util.hpp>
 
-#include "ngraph/except.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace onnx_common {
@@ -18,7 +18,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
     std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
-        throw ngraph::ngraph_error("Could not open the file: " + file_path);
+        throw ov::Exception("Could not open the file: " + file_path);
     };
 
     auto model_proto = parse_from_istream(file_stream);
@@ -32,7 +32,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
 
     if (!file_stream.is_open()) {
         NGRAPH_SUPPRESS_DEPRECATED_START
-        throw ngraph::ngraph_error("Could not open the file: " + file_util::wstring_to_string(file_path));
+        throw ov::Exception("Could not open the file: " + file_util::wstring_to_string(file_path));
         NGRAPH_SUPPRESS_DEPRECATED_END
     };
 
@@ -47,13 +47,13 @@ ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
         model_stream.clear();
         model_stream.seekg(0);
         if (!model_stream.good()) {
-            throw ngraph::ngraph_error("Provided input stream has incorrect state.");
+            throw ov::Exception("Provided input stream has incorrect state.");
         }
     }
 
     ONNX_NAMESPACE::ModelProto model_proto;
     if (!model_proto.ParseFromIstream(&model_stream)) {
-        throw ngraph::ngraph_error("Error during import of ONNX model provided as input stream "
+        throw ov::Exception("Error during import of ONNX model provided as input stream "
                            " with binary protobuf message.");
     }
 

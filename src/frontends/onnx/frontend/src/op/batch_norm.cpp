@@ -46,7 +46,7 @@ OutputVector batch_norm(const Node& node) {
                 saved_var};
     }
 
-    throw ngraph::ngraph_error("Cannot create OV batch norm with unsupported number of inputs");
+    throw ov::Exception("Cannot create OV batch norm with unsupported number of inputs");
 }
 }  // namespace set_1
 

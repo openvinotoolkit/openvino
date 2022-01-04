@@ -39,7 +39,7 @@ public:
     ///        In such a case the algorthim tries to match the given node name
     ///        with the input name (providing an input index is not enough).
     ///        If a unique edge is found, it will be returned.
-    ///        If InputEdge cannot be determined based on parameter values an ngraph_error
+    ///        If InputEdge cannot be determined based on parameter values an ov::Exception
     ///        exception will be thrown.
     ///
     /// \param node An EditorNode helper structure created based on a node name
@@ -56,7 +56,7 @@ public:
     ///        In such a case the algorthim will try to match the given node name
     ///        with the output name (providing an output index is not enough).
     ///        If after such operation a found edge is unique, it is returned.
-    ///        If OutputEdge cannot be determined based on given params the ngraph_error
+    ///        If OutputEdge cannot be determined based on given params the ov::Exception
     ///        exception is thrown.
     ///
     /// \param node An EditorNode helper structure created based on a node name

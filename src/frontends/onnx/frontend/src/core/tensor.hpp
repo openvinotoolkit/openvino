@@ -28,28 +28,28 @@ using TensorProto_DataType = decltype(ONNX_NAMESPACE::TensorProto{}.data_type())
 
 namespace error {
 namespace tensor {
-struct invalid_data_type : ngraph::ngraph_error {
-    explicit invalid_data_type(TensorProto_DataType type) : ngraph::ngraph_error{"invalid data type"} {}
+struct invalid_data_type : ov::Exception {
+    explicit invalid_data_type(TensorProto_DataType type) : ov::Exception{"invalid data type"} {}
 };
 
-struct unsupported_data_type : ngraph::ngraph_error {
-    explicit unsupported_data_type(TensorProto_DataType type) : ngraph::ngraph_error{"unsupported data type"} {}
+struct unsupported_data_type : ov::Exception {
+    explicit unsupported_data_type(TensorProto_DataType type) : ov::Exception{"unsupported data type"} {}
 };
 
-struct unspecified_name : ngraph::ngraph_error {
-    unspecified_name() : ngraph::ngraph_error{"tensor has no name specified"} {}
+struct unspecified_name : ov::Exception {
+    unspecified_name() : ov::Exception{"tensor has no name specified"} {}
 };
 
-struct unspecified_data_type : ngraph::ngraph_error {
-    unspecified_data_type() : ngraph::ngraph_error{"tensor has no data type specified"} {}
+struct unspecified_data_type : ov::Exception {
+    unspecified_data_type() : ov::Exception{"tensor has no data type specified"} {}
 };
 
-struct data_type_undefined : ngraph::ngraph_error {
-    data_type_undefined() : ngraph::ngraph_error{"data type is not defined"} {}
+struct data_type_undefined : ov::Exception {
+    data_type_undefined() : ov::Exception{"data type is not defined"} {}
 };
 
-struct segments_unsupported : ngraph::ngraph_error {
-    segments_unsupported() : ngraph::ngraph_error{"loading segments not supported"} {}
+struct segments_unsupported : ov::Exception {
+    segments_unsupported() : ov::Exception{"loading segments not supported"} {}
 };
 }  // namespace tensor
 }  // namespace error

@@ -193,14 +193,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_import_non_existing_file) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsupported_op) {
     try {
         onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/unsupported_op.onnx"));
-        FAIL() << "Expected ngraph::ngraph_error";
-    } catch (ngraph::ngraph_error const& err) {
+        FAIL() << "Expected ov::Exception";
+    } catch (ov::Exception const& err) {
         std::string what{err.what()};
-        EXPECT_NE(what.find("nGraph does not support"), std::string::npos);
+        EXPECT_NE(what.find("OV does not support"), std::string::npos);
         EXPECT_NE(what.find("FakeOpName"), std::string::npos);
         EXPECT_NE(what.find("AnotherFakeOpName"), std::string::npos);
     } catch (...) {
-        FAIL() << "Expected ngraph::ngraph_error";
+        FAIL() << "Expected ov::Exception";
     }
 }
 
@@ -237,12 +237,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op_register_unregister) {
     try {
         auto function =
             onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator.onnx"));
-        FAIL() << "Expected ngraph::ngraph_error";
-    } catch (ngraph::ngraph_error const& err) {
+        FAIL() << "Expected ov::Exception";
+    } catch (ov::Exception const& err) {
         std::string what{err.what()};
         EXPECT_NE(what.find("Check 'unknown_operators.empty()' failed"), std::string::npos);
     } catch (...) {
-        FAIL() << "Expected ngraph::ngraph_error";
+        FAIL() << "Expected ov::Exception";
     }
 }
 
@@ -322,7 +322,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_op_in_unknown_domain) {
         onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/unknown_domain_add.onnx"));
 
         FAIL() << "The onnx_importer did not throw for unknown domain and op";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         const std::string msg = e.what();
 
         EXPECT_NE(msg.find("unknown.domain.Add"), std::string::npos)
@@ -1052,7 +1052,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max_invalid_axes) {
     EXPECT_THROW(onnx_import::import_onnx_model(
                      ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_max_invalid_axes.onnx")),
-                 ngraph::ngraph_error);
+                 ov::Exception);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_mean) {
@@ -2749,7 +2749,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_1_batch_0) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_incorrect_batch_axis) {
     EXPECT_THROW(onnx_import::import_onnx_model(
                      ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_incorrect_batch_axis.onnx")),
-                 ngraph::ngraph_error)
+                 ov::Exception)
         << "ReverseSequence batch_axis attribute can only equal 0 or 1. Value of '2' is not "
            "accepted.";
 }
@@ -2757,7 +2757,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_incorrect_batch_axis) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_incorrect_time_axis) {
     EXPECT_THROW(onnx_import::import_onnx_model(
                      ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_incorrect_time_axis.onnx")),
-                 ngraph::ngraph_error)
+                 ov::Exception)
         << "ReverseSequence time_axis attribute can only equal 0 or 1. Value of '2' is not "
            "accepted.";
 }
@@ -2766,7 +2766,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reverse_sequence_time_and_batch_axis_equ
     EXPECT_THROW(
         onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reverse_sequence_time_and_batch_axis_equal.onnx")),
-        ngraph::ngraph_error)
+        ov::Exception)
         << "ReverseSequence 'time_axis' and 'batch_axis' can't be equal.";
 }
 
@@ -2823,12 +2823,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_f32) {
         const auto function =
             onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_f32.onnx"));
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(
             e.what(),
             std::string("If the input type is floating point, then `fmod` attribute must be set to 1."));
     } catch (...) {
-        FAIL() << "Expectedngraph::ngraph_error exception was not thrown";
+        FAIL() << "Expectedov::Exception exception was not thrown";
     }
 }
 
@@ -2873,10 +2873,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_incorrect_fmod) {
         const auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/mod_incorrect_fmod.onnx"));
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Unsupported value of 'fmod' attribute (should be: 0 or 1)"));
     } catch (...) {
-        FAIL() << "Expectedngraph::ngraph_error exception was not thrown";
+        FAIL() << "Expectedov::Exception exception was not thrown";
     }
 }
 
@@ -4078,10 +4078,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_training_mode) {
         auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_training_mode.onnx"));
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Training mode is not supported for Dropout op"));
     } catch (...) {
-        FAIL() << "Expectedngraph::ngraph_error exception was not thrown";
+        FAIL() << "Expectedov::Exception exception was not thrown";
     }
 }
 
@@ -4090,10 +4090,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode) {
         auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_not_const_training_mode.onnx"));
         FAIL() << "Expected exception was not thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(e.what(), std::string("Non-constant training_mode input is not supported."));
     } catch (...) {
-        FAIL() << "Expectedngraph::ngraph_error exception was not thrown";
+        FAIL() << "Expectedov::Exception exception was not thrown";
     }
 }
 
@@ -4681,7 +4681,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_embedding_mode) {
         const auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_embedding_mode.onnx"));
         FAIL() << "Expected exception was not thrown.";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(
             e.what(),
             std::string(
@@ -4696,7 +4696,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_operator) {
         const auto function = onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_operator.onnx"));
         FAIL() << "Expected exception was not thrown.";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         EXPECT_HAS_SUBSTRING(
             e.what(),
             std::string(

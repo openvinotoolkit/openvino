@@ -41,7 +41,7 @@ bool is_operator_supported(const std::string& op_name, std::int64_t version, con
 /// \brief      Imports and converts a serialized ONNX model from the input stream to the OV Model representation.
 ///
 /// \note       If stream parsing fails or the ONNX model contains unsupported ops,
-///             the function throws an ngraph_error exception.
+///             the function throws an ov::Exception exception.
 ///
 /// \param[in]  stream     The input stream (e.g. file stream, memory stream, etc).
 /// \param[in]  model_path The path to the imported onnx model.
@@ -55,7 +55,7 @@ std::shared_ptr<Model> import_onnx_model(std::istream& stream, const std::string
 /// \brief     Imports and converts an ONNX model from the input file to the OV Model representation.
 ///
 /// \note      If file parsing fails or the ONNX model contains unsupported ops,
-///            the function throws an ngraph_error exception.
+///            the function throws an ov::Exception exception.
 ///
 /// \param[in] file_path  The path to a file containing the ONNX model
 ///                       (relative or absolute).

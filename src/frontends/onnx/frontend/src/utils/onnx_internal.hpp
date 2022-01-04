@@ -23,7 +23,7 @@ namespace detail {
 /// \note       The function can be used only internally by OV components!
 ///             Passing ModelProto between componets which use different protobuf
 ///             library can cause segfaults. If stream parsing fails or the ONNX model
-///             contains unsupported ops, the function throws an ngraph_error exception.
+///             contains unsupported ops, the function throws an ov::Exception exception.
 ///
 /// \param      model_proto Reference to a GraphProto object.
 /// \param      model_path  The path to the imported onnx model.

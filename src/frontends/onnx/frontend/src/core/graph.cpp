@@ -13,10 +13,10 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/log.hpp"
-#include "openvino/core/node.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/core/node.hpp"
 #include "utils/common.hpp"
 
 namespace ov {
@@ -85,7 +85,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
             } catch (const error::invalid_external_data&) {
                 // invalid external data makes initializers creation impossible
                 throw;
-            } catch (const ngraph::ngraph_error& exc) {
+            } catch (const ov::Exception& exc) {
                 NGRAPH_WARN << "\nCould not create an OV Constant for initializer '" << initializer_tensor.name()
                             << "'. Constant with a 0 value was created, make sure connected input is optional.\n"
                             << "Otherwise verify if the initializer contains a correct number of "
@@ -144,8 +144,8 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
     }
 
     OPENVINO_ASSERT(unknown_operators.empty(),
-                 "OV does not support the following ONNX operations: ",
-                 detail::to_string(unknown_operators));
+                    "OV does not support the following ONNX operations: ",
+                    detail::to_string(unknown_operators));
 }
 
 void Graph::convert_to_ngraph_nodes() {
@@ -291,7 +291,7 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
         throw;
     } catch (const std::exception& exc) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
-        throw ngraph::ngraph_error(msg_prefix + ":\n" + std::string(exc.what()));
+        throw ov::Exception(msg_prefix + ":\n" + std::string(exc.what()));
     } catch (...) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
         // Since we do not know anything about current exception data type we can only
@@ -383,7 +383,7 @@ void Subgraph::replace_input_from_parent_scope_with_parameter(const std::string&
                                                               const Output<ov::Node>& from_parent_node,
                                                               Input<ov::Node>&& node_to_replace_input) {
     auto new_param = std::make_shared<default_opset::Parameter>(from_parent_node.get_element_type(),
-                                                             from_parent_node.get_partial_shape());
+                                                                from_parent_node.get_partial_shape());
     node_to_replace_input.replace_source_output(new_param);
     m_parameter_to_parent_node_map.insert({new_param, in_name});
     m_cache->emplace_node(in_name, new_param);

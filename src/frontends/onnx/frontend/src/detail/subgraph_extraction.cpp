@@ -9,7 +9,7 @@
 #include <functional>
 #include <stack>
 
-#include "ngraph/check.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace ov::onnx_editor;
 
@@ -18,11 +18,11 @@ enum class PortType { InputPort, OutputPort };
 namespace {
 void validate_node_index(const ONNX_NAMESPACE::GraphProto& graph, const int node_idx) {
     OPENVINO_ASSERT(node_idx >= 0 && node_idx < graph.node_size(),
-                 "The specified node index is out of range of nodes in the original model(idx: ",
-                 std::to_string(node_idx),
-                 "; nodes count in the model: ",
-                 std::to_string(graph.node_size()),
-                 ")");
+                    "The specified node index is out of range of nodes in the original model(idx: ",
+                    std::to_string(node_idx),
+                    "; nodes count in the model: ",
+                    std::to_string(graph.node_size()),
+                    ")");
 }
 
 void validate_port_index(const ONNX_NAMESPACE::GraphProto& graph,
@@ -32,12 +32,12 @@ void validate_port_index(const ONNX_NAMESPACE::GraphProto& graph,
     const int ports_number =
         (port_type == PortType::InputPort) ? graph.node(node_idx).input().size() : graph.node(node_idx).output().size();
     OPENVINO_ASSERT(port_idx >= 0 && port_idx < ports_number,
-                 "The specified node with index: ",
-                 std::to_string(node_idx),
-                 " has not ",
-                 (port_type == PortType::InputPort) ? "input" : "output",
-                 " port with index: ",
-                 std::to_string(port_idx));
+                    "The specified node with index: ",
+                    std::to_string(node_idx),
+                    " has not ",
+                    (port_type == PortType::InputPort) ? "input" : "output",
+                    " port with index: ",
+                    std::to_string(port_idx));
 }
 
 template <typename T>
@@ -91,8 +91,8 @@ int find_source_node_idx(const ONNX_NAMESPACE::GraphProto& graph,
         }
     }
 
-    throw ngraph::ngraph_error{"Source node not found in the graph for node: " + std::to_string(current_node_idx) +
-                               " and input name: " + input_name};
+    throw ov::Exception{"Source node not found in the graph for node: " + std::to_string(current_node_idx) +
+                        " and input name: " + input_name};
 }
 
 /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred
@@ -178,11 +178,11 @@ std::pair<bool, std::string> append_new_graph_input(ONNX_NAMESPACE::GraphProto& 
 
     auto& target_node = *(graph.mutable_node(edge.m_node_idx));
     OPENVINO_ASSERT(edge.m_port_idx < target_node.input().size(),
-                 "Input '",
-                 edge.m_port_idx,
-                 "' not found in the inputs of node ",
-                 edge.m_node_idx,
-                 ". Cannot append a new graph input to this node.");
+                    "Input '",
+                    edge.m_port_idx,
+                    "' not found in the inputs of node ",
+                    edge.m_node_idx,
+                    ". Cannot append a new graph input to this node.");
 
     // if an edge is connected to an initializer, the initializer is removed and substituted
     // with an input
@@ -194,9 +194,9 @@ std::pair<bool, std::string> append_new_graph_input(ONNX_NAMESPACE::GraphProto& 
         if (!edge.m_new_input_name.empty()) {
             new_input_name = edge.m_new_input_name;
             OPENVINO_ASSERT(!already_exists(graph.input(), new_input_name),
-                         "New custom input name: ",
-                         new_input_name,
-                         " already exist in the graph");
+                            "New custom input name: ",
+                            new_input_name,
+                            " already exist in the graph");
         } else if (input_consumers > 1) {
             new_input_name = target_node.output(0) + "/placeholder_port_" + std::to_string(edge.m_port_idx);
         } else {

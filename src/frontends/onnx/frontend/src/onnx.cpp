@@ -9,7 +9,7 @@
 #include <fstream>
 #include <memory>
 
-#include "ngraph/except.hpp"
+#include "openvino/core/except.hpp"
 #include "onnx_common/parser.hpp"
 #include "ops_bridge.hpp"
 #include "utils/onnx_internal.hpp"
@@ -25,7 +25,7 @@ std::shared_ptr<Model> import_onnx_model(const std::string& file_path) {
     std::ifstream model_stream{file_path, std::ios::in | std::ios::binary};
 
     if (!model_stream.is_open()) {
-        throw ngraph::ngraph_error("Error during import of ONNX model expected to be in file: " + file_path +
+        throw ov::Exception("Error during import of ONNX model expected to be in file: " + file_path +
                            ". Could not open the file.");
     };
 

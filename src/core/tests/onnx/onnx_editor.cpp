@@ -90,7 +90,7 @@ NGRAPH_TEST(onnx_editor, types__missing_type_in_input_descriptor) {
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_type.onnx")};
 
     // input A doesn't have the "type" field in the model and so the data type cannot be modified
-    EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ngraph::ngraph_error);
+    EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ov::Exception);
 }
 
 NGRAPH_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor) {
@@ -98,19 +98,19 @@ NGRAPH_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor) {
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_tensor_type.onnx")};
 
     // input A doesn't have the "tensor_type" field in the model
-    EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ngraph::ngraph_error);
+    EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ov::Exception);
 }
 
 NGRAPH_TEST(onnx_editor, types__unsupported_data_type_passed) {
     ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.onnx")};
 
-    EXPECT_THROW(editor.set_input_types({{"A", element::dynamic}}), ngraph::ngraph_error);
+    EXPECT_THROW(editor.set_input_types({{"A", element::dynamic}}), ov::Exception);
 }
 
 NGRAPH_TEST(onnx_editor, types__incorrect_input_name_passed) {
     ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.onnx")};
 
-    EXPECT_THROW(editor.set_input_types({{"ShiaLaBeouf", element::i64}}), ngraph::ngraph_error);
+    EXPECT_THROW(editor.set_input_types({{"ShiaLaBeouf", element::i64}}), ov::Exception);
 }
 
 NGRAPH_TEST(onnx_editor, types__elem_type_missing_in_input) {

@@ -22,7 +22,7 @@ inline std::shared_ptr<default_opset::Constant> __make_ng_constant(const element
     std::shared_ptr<default_opset::Constant> constant{nullptr};
     try {
         constant = std::make_shared<default_opset::Constant>(type, tensor.get_shape(), tensor.get_data<T>());
-    } catch (const ngraph::ngraph_error& exc) {
+    } catch (const ov::Exception& exc) {
         NGRAPH_WARN << "\nCould not create an OV Constant for an ONNX Constant node. "
                     << "Constant with a 0 value was created instead.\n"
                     << "Verify if the ONNX Constant node contains a correct number of "

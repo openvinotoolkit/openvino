@@ -8,8 +8,8 @@
 
 #include <algorithm>
 
-#include "ngraph/check.hpp"
-#include "ngraph/except.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace ov;
 using namespace ov::onnx_editor;

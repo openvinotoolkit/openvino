@@ -267,7 +267,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
         onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_mode.onnx"));
         FAIL() << "The onnx_importer did not throw for unknown mode to DepthToSpace op";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("only 'DCR' and 'CRD' modes are supported"), std::string::npos);
     } catch (...) {
@@ -280,7 +280,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
         onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_input_shape.onnx"));
         FAIL() << "The onnx_importer did not throw for invalid input shape to DepthToSpace op";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos);
     } catch (...) {
@@ -311,7 +311,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
         onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth_invalid_input_shape.onnx"));
         FAIL() << "Expected ngraph_error exception, but no exception was thrown";
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const ov::Exception& e) {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos)
             << "Could not find \"Input must be 4-dimensional\" in exception message: \"" << msg << "\"";

@@ -23,7 +23,7 @@ std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto, co
         }
     }
 
-    throw ngraph::ngraph_error("Couldn't find operator set's version for domain: " + domain + ".");
+    throw ov::Exception("Couldn't find operator set's version for domain: " + domain + ".");
 }
 
 Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto) : m_model_proto{model_proto} {

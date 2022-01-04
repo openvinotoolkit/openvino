@@ -42,7 +42,7 @@ const element::Type& get_ov_element_type(int64_t onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
         return element::bf16;
     }
-    throw ngraph::ngraph_error("unsupported element type");
+    throw ov::Exception("unsupported element type");
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const Output<ov::Node>& value,

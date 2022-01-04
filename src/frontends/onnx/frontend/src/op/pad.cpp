@@ -28,7 +28,7 @@ ov::op::PadMode get_pad_mode(std::string mode) {
     } else if (mode == "edge") {
         pad_mode = ov::op::PadMode::EDGE;
     } else {
-        throw ngraph::ngraph_error("Unsupported padding mode: [" + mode + "]");
+        throw ov::Exception("Unsupported padding mode: [" + mode + "]");
     }
 
     return pad_mode;

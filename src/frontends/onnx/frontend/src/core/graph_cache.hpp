@@ -30,7 +30,7 @@ public:
 
     /// \brief      Get the node from the cache
     ///
-    /// \note       If the node is not found the ngraph_error exception is thrown.
+    /// \note       If the node is not found the ov::Exception exception is thrown.
     ///
     /// \param[in]  name       The name of the node.
     ///

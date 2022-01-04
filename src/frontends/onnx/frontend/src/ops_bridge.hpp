@@ -10,24 +10,24 @@
 #include <string>
 #include <unordered_map>
 
-#include "ngraph/except.hpp"
+#include "openvino/core/except.hpp"
 #include "onnx_import/core/operator_set.hpp"
 
 namespace ov {
 namespace onnx_import {
 namespace error {
-struct UnknownOperator : ngraph::ngraph_error {
+struct UnknownOperator : ov::Exception {
     UnknownOperator(const std::string& name, const std::string& domain)
-        : ngraph::ngraph_error{(domain.empty() ? "" : domain + ".") + name} {}
+        : ov::Exception{(domain.empty() ? "" : domain + ".") + name} {}
 };
 
-struct UnknownDomain : ngraph::ngraph_error {
-    explicit UnknownDomain(const std::string& domain) : ngraph::ngraph_error{domain} {}
+struct UnknownDomain : ov::Exception {
+    explicit UnknownDomain(const std::string& domain) : ov::Exception{domain} {}
 };
 
-struct UnsupportedVersion : ngraph::ngraph_error {
+struct UnsupportedVersion : ov::Exception {
     UnsupportedVersion(const std::string& name, std::int64_t version, const std::string& domain)
-        : ngraph::ngraph_error{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
+        : ov::Exception{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
                        std::to_string(version)} {}
 };
 
