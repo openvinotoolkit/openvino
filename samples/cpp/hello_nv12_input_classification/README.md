@@ -6,10 +6,10 @@ Hello NV12 Input Classification C++ Sample demonstrates how to use the NV12 auto
 
 | Feature    | API  | Description |
 |:---        |:---  |:---
-|Inference Engine Core Operations| `InferenceEngine::Core::GetMetric` | Gets general runtime metric for dedicated hardware
-| Blob Operations | `InferenceEngine::NV12Blob` | Create NV12Blob to hold the NV12 input data
-| Input in N12 color format | `InferenceEngine::PreProcessInfo::setColorFormat` | Change the color format of the input data
-| Model Input Reshape | `InferenceEngine::CNNNetwork::getInputShapes`, `InferenceEngine::CNNNetwork::reshape`, `InferenceEngine::CNNNetwork::getBatchSize` | Set the batch size equal to the number of input images
+|OpenVINO Runtime Core Operations| `ov::runtime::Core::get_metric` | Gets general runtime metric for dedicated hardware
+| Tensor Operations | `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
+| Input in N12 color format | `ov::preprocess::InputTensorInfo::set_color_format` | Change the color format of the input data
+| Model Input Reshape | `ov::Model::get_output_shape`, `ov::Model::reshape`, `ov::get_batch` | Set the batch size equal to the number of input images
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
