@@ -213,7 +213,6 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
 
     impl_desc_type impl_type;
     ReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
-    auto cache = getRuntimeCache();
 
     auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<mkldnn::primitive> {
         mkldnn::primitive_attr attr;
@@ -226,6 +225,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
         return std::make_shared<mkldnn::reorder>(pd);
     };
 
+    auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, builder);
     // TODO: We should keep shape consistency for const and expected shape for node.
     //       If it requires reshape operation it should explicitly injected into graph.
