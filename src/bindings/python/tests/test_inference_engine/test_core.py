@@ -8,7 +8,8 @@ from sys import platform
 from pathlib import Path
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Model, Core, CompiledModel, Tensor, tensor_from_file, compile_model
+from openvino.runtime import Model, Core, CompiledModel, Tensor, PartialShape, Extension,\
+    tensor_from_file, compile_model
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
@@ -244,48 +245,46 @@ def test_unregister_plugin(device):
     assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
 
-@pytest.mark.skip(reason="dlSym cannot locate method 'create_extensions': libtemplate_extension.so")
 @pytest.mark.template_extension
-def test_add_extension(device):
-    model = bytes(b"""<net name="Network" version="10">
+def test_add_extension_template_extension(device):
+    ir = bytes(b"""<net name="Activation" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
-            <data element_type="f32" shape="2,2,2,1"/>
+            <data shape="1,3,22,22" element_type="f32"/>
             <output>
-                <port id="0" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
+                <port id="0" precision="FP32" names="in_data">
                     <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                 </port>
             </output>
         </layer>
-        <layer name="operation" id="1" type="Template" version="custom_opset">
-            <data  add="11"/>
+        <layer name="activation" id="1" type="Identity" version="extension">
             <input>
                 <port id="1" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
                     <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                 </port>
             </input>
             <output>
-                <port id="2" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
+                <port id="2" precision="FP32" names="out_data">
                     <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                 </port>
             </output>
         </layer>
         <layer name="output" type="Result" id="2" version="opset1">
             <input>
                 <port id="0" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
                     <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
                 </port>
             </input>
         </layer>
@@ -298,23 +297,33 @@ def test_add_extension(device):
 
     core = Core()
     if platform == "win32":
-        core.add_extension(library_path="template_extension.dll")
+        core.add_extension(library_path="ov_template_extension.dll")
     else:
-        core.add_extension(library_path="libtemplate_extension.so")
-    func = core.read_model(model=model, init_from_buffer=True)
-    assert isinstance(func, Model)
+        core.add_extension(library_path="libov_template_extension.so")
+    model = core.read_model(model=ir)
+    assert isinstance(model, Model)
 
-    # input_blob = next(iter(network.input_info))
-    # n, c, h, w = network.input_info[input_blob].input_data.shape
+    before_reshape = PartialShape([1, 3, 22, 22])
+    after_reshape = PartialShape([8, 9, 33, 66])
+    new_shapes = {"in_data": after_reshape}
+    assert model.input().partial_shape == before_reshape
+    model.reshape(new_shapes)
+    assert model.input().partial_shape == after_reshape
 
-    # input_values = np.ndarray(buffer=np.array([1, 2, 3, 4, 5, 6, 7, 8]), shape = (n, c, h, w), dtype=int)
-    # expected = np.ndarray(buffer=np.array([12, 13, 14, 15, 16, 17, 18, 19]),
-    # shape = (n, c, h, w), dtype=int)
-    #
-    # exec_network = core.compile_model(func, device)
-    # computed = exec_network.infer_new_request(inputs={input_blob : input_values})
-    # output_blob = next(iter(network.outputs))
-    # assert np.allclose(expected, computed[output_blob], atol=1e-2, rtol=1e-2)
+    # CVS-74584
+    del model
+
+
+def test_add_extension():
+    class EmptyExtension(Extension):
+        def __init__(self) -> None:
+            super().__init__()
+
+    core = Core()
+    core.add_extension(EmptyExtension())
+    core.add_extension([EmptyExtension(), EmptyExtension()])
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(model, Model)
 
 
 def test_read_model_from_buffer_no_weights(device):
