@@ -72,6 +72,7 @@ NGRAPH_OP(ShapeOf, op::v3)
 
 NGRAPH_OP(CTCLoss, op::v4)
 NGRAPH_OP(LSTMCell, op::v4)
+NGRAPH_OP(NonMaxSuppression, op::v4)
 NGRAPH_OP(Proposal, op::v4)
 
 NGRAPH_OP(BatchNormInference, op::v5)
