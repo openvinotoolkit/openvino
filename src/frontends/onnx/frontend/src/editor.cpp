@@ -227,7 +227,7 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path, fro
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions)
-    : m_model_path{ov::file_util::wstring_to_string(model_path)},
+    : m_model_path{ov::util::wstring_to_string(model_path)},
       m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
