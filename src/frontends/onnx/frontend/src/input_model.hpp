@@ -78,6 +78,7 @@ public:
 
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
+    bool is_correct_place(const ov::frontend::Place::Ptr& place) const;
 
     std::unordered_map<std::string, std::unordered_set<std::string>> m_additional_tensor_names;
     void add_tensor_names(std::shared_ptr<Model>& model);
