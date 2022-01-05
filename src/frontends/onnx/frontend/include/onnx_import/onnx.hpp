@@ -69,7 +69,9 @@ std::shared_ptr<Model> import_onnx_model(const std::string& file_path);
 
 namespace ngraph {
 namespace onnx_import {
-// alias for compatibility purposes
+// aliases for compatibility purposes
+using ov::onnx_import::get_supported_operators;
 using ov::onnx_import::import_onnx_model;
+using ov::onnx_import::is_operator_supported;
 }  // namespace onnx_import
 }  // namespace ngraph
