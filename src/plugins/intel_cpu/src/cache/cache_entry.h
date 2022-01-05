@@ -54,8 +54,9 @@ public:
             return {builder(key), CacheEntryBase::LookUpStatus::Miss};
         }
         auto retStatus = LookUpStatus::Hit;
-        ValType retVal = _impl.get(key);
-        if (retVal == ValType()) {
+        bool found = false;
+        ValType retVal = _impl.get(key, found);
+        if (!found) {
             retStatus = LookUpStatus::Miss;
             retVal = builder(key);
             _impl.put(key, retVal);

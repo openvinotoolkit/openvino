@@ -26,6 +26,7 @@ struct IntKey {
 } // namespace
 
 TEST(LruCacheTests, Evict) {
+    bool found = false;
     constexpr size_t capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (size_t i = 0; i < 2 * capacity; ++i) {
@@ -33,22 +34,24 @@ TEST(LruCacheTests, Evict) {
     }
     ASSERT_NO_THROW(cache.evict(5));
     ASSERT_NO_THROW(cache.evict(10));
-    int result = cache.get({10});
+    int result = cache.get({10}, found);
     ASSERT_EQ(result, int());
     ASSERT_NO_THROW(cache.evict(0));
 }
 
 TEST(LruCacheTests, Put) {
+    bool found = false;
     constexpr size_t capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (size_t i = 0; i < 2 * capacity; ++i) {
         ASSERT_NO_THROW(cache.put({10}, 10));
     }
 
-    ASSERT_EQ(cache.get({10}), 10);
+    ASSERT_EQ(cache.get({10}, found), 10);
 }
 
 TEST(LruCacheTests, Get) {
+    bool found = false;
     constexpr size_t capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < 2 * capacity; ++i) {
@@ -56,15 +59,16 @@ TEST(LruCacheTests, Get) {
     }
 
     for (int i = 1; i < capacity; ++i) {
-        ASSERT_EQ(cache.get({i}), int());
+        ASSERT_EQ(cache.get({i}, found), int());
     }
 
     for (int i = capacity; i < 2 * capacity; ++i) {
-        ASSERT_EQ(cache.get({i}), i);
+        ASSERT_EQ(cache.get({i}, found), i);
     }
 }
 
 TEST(LruCacheTests, LruPolicy) {
+    bool found = false;
     constexpr size_t capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < capacity; ++i) {
@@ -72,7 +76,7 @@ TEST(LruCacheTests, LruPolicy) {
     }
 
     for (int i = 4; i < capacity; ++i) {
-        ASSERT_EQ(cache.get({i}), i);
+        ASSERT_EQ(cache.get({i}, found), i);
     }
 
     for (int i = 21; i < 25; ++i) {
@@ -80,11 +84,12 @@ TEST(LruCacheTests, LruPolicy) {
     }
 
     for (int i = 1; i < 4; ++i) {
-        ASSERT_EQ(cache.get({i}), int());
+        ASSERT_EQ(cache.get({i}, found), int());
     }
 }
 
 TEST(LruCacheTests, Empty) {
+    bool found = false;
     constexpr size_t capacity = 0;
     constexpr size_t attempts = 10;
     LruCache<IntKey, int> cache(capacity);
@@ -93,7 +98,7 @@ TEST(LruCacheTests, Empty) {
     }
 
     for (int i = 1; i < attempts; ++i) {
-        ASSERT_EQ(cache.get({i}), int());
+        ASSERT_EQ(cache.get({i}, found), int());
     }
 }
 namespace {
@@ -148,6 +153,50 @@ TEST(CacheEntryTests, GetOrCreate) {
         auto result = entry.getOrCreate({i}, builder);
         ASSERT_NE(result.first, ValueType());
         ASSERT_EQ(*result.first, i);
+        ASSERT_EQ(result.second, CacheEntryBase::LookUpStatus::Miss);
+    }
+}
+
+TEST(CacheEntryTests, GetOrCreateWithNullptr) {
+    using testing::_;
+    using ValueType = std::shared_ptr<int>;
+
+    constexpr size_t capacity = 10;
+
+    mockBuilder<ValueType, IntKey> builderMock;
+    EXPECT_CALL(builderMock, build(_))
+            .Times(3 * capacity)
+            .WillRepeatedly([](const IntKey& key){return nullptr;});
+
+    auto builder = [&](const IntKey& key) { return (builderMock.build(key)); };
+
+    CacheEntry<IntKey, ValueType> entry(capacity);
+
+    //creating so we miss everytime
+    for (int i = 0; i < capacity; ++i) {
+        auto result = entry.getOrCreate({i}, builder);
+        ASSERT_EQ(result.first, nullptr);
+        ASSERT_EQ(result.second, CacheEntryBase::LookUpStatus::Miss);
+    }
+
+    //always hit
+    for (int i = 0; i < capacity; ++i) {
+        auto result = entry.getOrCreate({i}, builder);
+        ASSERT_EQ(result.first, nullptr);
+        ASSERT_EQ(result.second, CacheEntryBase::LookUpStatus::Hit);
+    }
+
+    //new values displace old ones
+    for (int i = capacity; i < 2 * capacity; ++i) {
+        auto result = entry.getOrCreate({i}, builder);
+        ASSERT_EQ(result.first, nullptr);
+        ASSERT_EQ(result.second, CacheEntryBase::LookUpStatus::Miss);
+    }
+
+    //can not hit the old ones
+    for (int i = 0; i < capacity; ++i) {
+        auto result = entry.getOrCreate({i}, builder);
+        ASSERT_EQ(result.first, nullptr);
         ASSERT_EQ(result.second, CacheEntryBase::LookUpStatus::Miss);
     }
 }

@@ -54,13 +54,14 @@ public:
      * @return Value associated with the key or default constructed instance of the Value type.
      */
 
-    Value get(const Key &key) {
+    Value get(const Key &key, bool& found) {
         auto itr = _cacheMapper.find(key);
         if (itr == _cacheMapper.end()) {
+            found = false;
             return Value();
         }
-
         touch(itr->second);
+        found = true;
         return _lruList.front().second;
     }
 
