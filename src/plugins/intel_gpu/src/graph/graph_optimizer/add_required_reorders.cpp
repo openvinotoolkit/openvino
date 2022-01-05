@@ -63,9 +63,21 @@ void add_required_reorders::run(program& p) {
 
                     auto in_padding = input.get_output_layout().data_padding;
                     if (static_cast<bool>(in_padding)) {
-                        if (in_padding.lower_size().batch[0] != 0 || in_padding.upper_size().batch[0] != 0 ||
-                            in_padding.lower_size().spatial[0] != 0 || in_padding.upper_size().spatial[0] != 0 ||
-                            in_padding.lower_size().spatial[1] != 0 || in_padding.upper_size().spatial[1] != 0) {
+                        bool spatial_padding = false;
+                        for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
+                            spatial_padding |= (in_padding.lower_size().spatial[i] != 0);
+                        }
+                        for (size_t i = 0; i < in_padding.upper_size().spatial.size(); ++i) {
+                            spatial_padding |= (in_padding.upper_size().spatial[i] != 0);
+                        }
+                        bool batch_padding = false;
+                        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
+                            batch_padding |= (in_padding.lower_size().batch[i] != 0);
+                        }
+                        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
+                            batch_padding |= (in_padding.upper_size().batch[i] != 0);
+                        }
+                        if (spatial_padding || batch_padding) {
                             cldnn::layout layout_padding = input.get_output_layout();
                             cldnn::layout layout_wo_padding = input.get_output_layout();
                             layout_wo_padding.data_padding = cldnn::padding{};

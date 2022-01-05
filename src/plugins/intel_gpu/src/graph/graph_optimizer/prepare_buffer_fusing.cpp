@@ -91,8 +91,6 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
     for (auto& input : node.get_dependencies()) {
         if (input->get_preferred_impl_type() == impl_types::onednn) {
-            bool can_reuse_eltwise_mem = false;
-            size_t eltw_dep = 0;
             for (auto& fused_op : input->get_fused_primitives()) {
                 if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
                     auto& eltw_in = input->get_dependency(fused_op.dep_start_idx);
@@ -101,15 +99,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
                     if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
                         continue;
-
-                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout)) {
-                        if (eltw_dep > 0)
-                            throw std::runtime_error("Unsupported multiple full size tensors.");
-
-                        eltw_dep = fused_op.dep_start_idx;
-                        can_reuse_eltwise_mem = true;
-                    }
-                    if (can_reuse_eltwise_mem)
+                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout))
                         return false;
                 }
             }
@@ -124,7 +114,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
         if (!use_usm)
             return false;
-        if (use_usm && out_l.size.batch[0] > 1)
+        if (out_l.size.batch[0] > 1)
             return false;
     }
 

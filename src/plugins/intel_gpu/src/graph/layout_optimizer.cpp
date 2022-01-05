@@ -1182,14 +1182,33 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
     auto out_padding = node.get_output_layout().data_padding;
     // Check if padding exists
     if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
-        if (in_padding.lower_size().batch[0] != 0 || in_padding.upper_size().batch[0] != 0 ||
-            in_padding.lower_size().spatial[0] != 0 || in_padding.upper_size().spatial[0] != 0 ||
-            in_padding.lower_size().spatial[1] != 0 || in_padding.upper_size().spatial[1] != 0)
-            return false;
-        if (out_padding.lower_size().batch[0] != 0 || out_padding.upper_size().batch[0] != 0 ||
-            out_padding.lower_size().spatial[0] != 0 || out_padding.upper_size().spatial[0] != 0 ||
-            out_padding.lower_size().spatial[1] != 0 || out_padding.upper_size().spatial[1] != 0)
-            return false;
+        bool no_spatial_padding = true;
+        for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
+            no_spatial_padding &= (in_padding.lower_size().spatial[i] == 0);
+        }
+        for (size_t i = 0; i < in_padding.upper_size().spatial.size(); ++i) {
+            no_spatial_padding &= (in_padding.upper_size().spatial[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.lower_size().spatial.size(); ++i) {
+            no_spatial_padding &= (out_padding.lower_size().spatial[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.upper_size().spatial.size(); ++i) {
+            no_spatial_padding &= (out_padding.upper_size().spatial[i] == 0);
+        }
+        bool no_batch_padding = true;
+        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
+            no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
+        }
+        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
+            no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
+            no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
+            no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+        }
+        return (no_spatial_padding && no_batch_padding);
     }
     return true;
 }

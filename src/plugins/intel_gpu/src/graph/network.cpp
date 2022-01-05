@@ -830,13 +830,13 @@ void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive
     _events.insert({id, ev});
 }
 
-bool network::should_use_mutable_input(const program_node& node) {
+bool network::is_mutable_input(const program_node& node) {
     for (auto& dep : node.get_dependencies()) {
             if (dep->is_type<input_layout>() || dep->is_type<mutable_data>()) {
                 return true;
         }
         if (dep->can_be_optimized()) {
-            if (should_use_mutable_input(*dep)) {
+            if (is_mutable_input(*dep)) {
                 return true;
             }
         }
@@ -849,7 +849,7 @@ void network::allocate_primitive_instance(program_node const& node) {
         return;
 
     auto inst = node.type()->create_instance(*this, node);
-    if (should_use_mutable_input(node)) {
+    if (is_mutable_input(node)) {
         inst->set_mutable_input(true);
     }
 
