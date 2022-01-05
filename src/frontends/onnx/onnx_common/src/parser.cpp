@@ -30,9 +30,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
     std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        throw ov::Exception("Could not open the file: " + ov::file_util::wstring_to_string(file_path));
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        throw ov::Exception("Could not open the file: " + ov::util::wstring_to_string(file_path));
     };
 
     auto model_proto = parse_from_istream(file_stream);
