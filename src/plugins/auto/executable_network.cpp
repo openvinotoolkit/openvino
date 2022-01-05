@@ -341,6 +341,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
 
     // select next candidate device
     try {
+        std::lock_guard<std::mutex> lock(_confMutex);
         context.deviceInfo = _multiPlugin->SelectDevice(deviceList,
                 context.networkPrecision, _context.modelPriority);
     }
@@ -692,30 +693,50 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                     executableNetwork->GetMetric(name).as<unsigned int>();
             } else {
                 IE_ASSERT(_loadContext[CPU].isAlready == true);
-                real = _loadContext[CPU].
-                    executableNetwork->GetMetric(name).as<unsigned int>();
                 std::unique_lock<std::mutex> lock(_confMutex);
                 auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
                 lock.unlock();
                 if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
                     const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
                     if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
-                         std::map<std::string, InferenceEngine::Parameter> options;
-                         options["MODEL_PTR"] = _network.getFunction(); // CNNntework
-                         try {
-                             auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
-                                     METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-                             auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
-                                     METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
-                             real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);
-                         } catch (const InferenceEngine::Exception &iie) {
-                             LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
-                         }
+                        // THROUGHPUT mode
+                        real = 4u;
+                        // if enable auto-batch, use below code
+                        // std::map<std::string, InferenceEngine::Parameter> options;
+                        // options["MODEL_PTR"] = _network.getFunction(); // CNNntework
+                        // try {
+                        //     auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
+                        //             METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+                        //     auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
+                        //             METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                        //     real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);
+                        // } catch (const InferenceEngine::Exception &iie) {
+                        //     LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
+                        // }
+                    } else {
+                        // if it is not THROUGHPUT mode, we think it's LATENCY mode
+                        real = 1u;
+                    }
+                } else if (deviceInfo.deviceName.find("VPUX") != std::string::npos) {
+                    real = 8u;
+                } else if (deviceInfo.deviceName.find("MYRIAD") != std::string::npos) {
+                    real = 4u;
+                } else if (deviceInfo.deviceName.find("CPU") != std::string::npos) {
+                    LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for CPU_HELP,CPU case, use CPU_HELP value");
+                    real = _loadContext[CPU].
+                        executableNetwork->GetMetric(name).as<unsigned int>();
+                } else {
+                    LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for device:%s,", deviceInfo.deviceName.c_str());
+                    LOG_WARNING("[AUTOPLUGIN] use hardcode value 4 for THROUGHPUT, 1 for LATENCY");
+                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
+                    if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
+                        real = 4u;
+                    } else {
+                        real = 1u;
                     }
                 }
             }
-            unsigned int res = (std::max)(8u, real);
-            IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
+            IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, real);
         }
 
         if (_loadContext[ACTUALDEVICE].isAlready) {
