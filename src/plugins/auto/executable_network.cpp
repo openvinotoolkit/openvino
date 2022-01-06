@@ -199,7 +199,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             _loadContext[CPU].isEnabled = false;
         }
     }
-
+    bool isActualDevGPU =
+        _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("GPU") != std::string::npos;
+    if (isActualDevGPU) {
+        TryApplyAutoBatching(_loadContext[ACTUALDEVICE]);
+    }
     // initialize the rest members of load context
     for (int i = 0; i < CONTEXTNUM; i++) {
          if (_loadContext[i].isEnabled) {
@@ -219,6 +223,9 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                             contextPtr->deviceInfo.config.end());
                           }
                           contextPtr->isAlready = true;
+                          if (contextPtr->deviceInfo.deviceName.find("GPU") != std::string::npos) {
+                              std::cout << "GPU ready!!" <<std::endl;
+                          }
                           auto& deviceName = contextPtr->deviceInfo.deviceName;
                           LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished",
                                   deviceName.c_str());
@@ -273,6 +280,109 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
 
     WaitFirstNetworkReady();
 }
+void MultiDeviceExecutableNetwork::TryApplyAutoBatching(AutoLoadContext& context) {
+    std::string deviceNameWithoutBatch;
+    std::map<std::string, std::string>& config_with_batch = context.deviceInfo.config;
+    // check whether if the Auto-Batching is applicable to the device
+    deviceNameWithoutBatch = context.deviceInfo.deviceName;
+    // if applicable, the  Auto-Batching is implicitly enabled via the performance hints
+    bool bThroughputEnabledInPlugin = false;
+    try {
+        bThroughputEnabledInPlugin =
+        _core->GetConfig(_multiPlugin->GetName(), CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+    } catch (...) {
+        LOG_WARNING("[AUTOPLUGIN]not able to get performance hint config");
+    }
+    const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
+    if ((!bThroughputEnabledInPlugin &&
+        (mode == config_with_batch.end() || mode->second != CONFIG_VALUE(THROUGHPUT))))
+        return;
+    try {
+            // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
+            // the below code is a placeholder for the WIP (22.1) functionality
+            // that will check the reshaping by the batch is robust (CVS-51744)
+            const InputsDataMap inputInfo = _network.getInputsInfo();
+            bool atLeastOneInputIsBatched = false;
+            for (const InputsDataMap::value_type& item : inputInfo) {
+                auto layout = item.second->getTensorDesc().getLayout();
+                if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
+                    layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+                    layout == InferenceEngine::Layout::NDHWC) {
+                    if (item.first == "im_info"  // WA for faster-rcnn* and alikes (CVS-74085)
+                        || 1 != item.second->getTensorDesc().getDims()[0])  // do not reshape/re-batch  batched networks
+                        IE_THROW(NotImplemented)
+                            << "Auto-batching does not reshape/re-batch originally batched networks!";
+                    else
+                        atLeastOneInputIsBatched = true;
+                }
+            }
+            bool atLeastOneOutputIsBatched = false;
+            const OutputsDataMap outputInfo = _network.getOutputsInfo();
+            for (const OutputsDataMap::value_type& item : outputInfo) {
+                auto layout = item.second->getTensorDesc().getLayout();
+                if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
+                    layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+                    layout == InferenceEngine::Layout::NDHWC) {
+                    if (1 != item.second->getTensorDesc()
+                                 .getDims()[0])  // do not reshape/re-batch originally batched networks
+                        IE_THROW(NotImplemented)
+                            << "Auto-batching does not reshape/re-batch originally batched networks!";
+                    else
+                        atLeastOneOutputIsBatched = true;
+                }
+            }
+            if (!atLeastOneInputIsBatched || !atLeastOneOutputIsBatched)
+                IE_THROW(NotImplemented)
+                    << "Auto-batching supports only networks featuring inputs/outputs with the batched layouts !";
+            unsigned int real = 0;
+            std::map<std::string, InferenceEngine::Parameter> options;
+            options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
+            try {
+                auto optimalBatchSize = _core->GetMetric(deviceNameWithoutBatch,
+                                    METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+                auto rangeOfStreams = _core->GetMetric(deviceNameWithoutBatch,
+                                    METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                real = std::max(1u, std::get<1>(rangeOfStreams) * optimalBatchSize);
+            } catch (...) {
+                LOG_WARNING("[AUTOPLUGIN]get optimal infer request num for GPU auto-batch failed :%s");
+            }
+            unsigned int optimalInferRequestNum = (std::max)(8u, real);
+            auto function = _network.getFunction();
+            // have to execute the DetectionOutput separately (without batching)
+            // as this layer mix-in the values from the different inputs (batch id)
+            bool bDetectionOutput = false;
+            const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
+            const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
+            for (auto&& node : function->get_ops()) {
+                auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
+                    for (size_t n = 0; n < nd->get_input_size(); n++) {
+                        // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
+                        // so type_info name check is enough
+                        // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
+                        if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
+                            return true;
+                    }
+                    return false;
+                };
+            if ((detectionOutputOpName == node->get_type_info().name) ||
+                    ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
+                    node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
+                    bDetectionOutput = true;
+                } else {
+                    node->get_rt_info()["affinity"] = "BATCH";
+                }
+            }
+            auto batchConfig = deviceNameWithoutBatch + "(" + std::to_string(optimalInferRequestNum) + ")";
+            if (bDetectionOutput) {
+                _deviceNameWithBatching = "HETERO:BATCH," + deviceNameWithoutBatch;
+                config_with_batch[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
+            } else {
+                _deviceNameWithBatching = "BATCH:" + batchConfig;
+            }
+        } catch (std::exception& e) {
+        // No Auto-Batching Enabled
+    }
+}
 void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
                                                     const std::string& modelPath,
                                                     const InferenceEngine::CNNNetwork& network) {
@@ -280,10 +390,15 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
     auto& deviceConfig = context.deviceInfo.config;
     auto& deviceList = context.metaDevices;
     bool curDevIsCPU = (device.find("CPU") != std::string::npos);
+    bool curDevIsGPU = (device.find("GPU") != std::string::npos);
     try {
         if (!modelPath.empty()) {
+            if (curDevIsGPU && !_deviceNameWithBatching.empty())
+                context.executableNetwork = _core->LoadNetwork(modelPath, _deviceNameWithBatching, deviceConfig);
             context.executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
         } else {
+            if (curDevIsGPU && !_deviceNameWithBatching.empty())
+                context.executableNetwork = _core->LoadNetwork(network, _deviceNameWithBatching, deviceConfig);
             context.executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
         }
         context.isLoadSuccess = true;
@@ -662,11 +777,13 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
+        std::cout << "getMetric called!!" << std::endl;
         if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
             unsigned int real = 0;
             if (_loadContext[ACTUALDEVICE].isAlready) {
                 real = _loadContext[ACTUALDEVICE].
                     executableNetwork->GetMetric(name).as<unsigned int>();
+                std::cout << "1:" << real << std::endl;
             } else {
                 IE_ASSERT(_loadContext[CPU].isAlready == true);
                 real = _loadContext[CPU].
@@ -675,16 +792,19 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
                 lock.unlock();
                 if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
+                    std::cout << "3.1:" << real << std::endl;
                     const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
                     if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
+                        std::cout << "3.2:" << real << std::endl;
                          std::map<std::string, InferenceEngine::Parameter> options;
-                         options["MODEL_PTR"] = _network.getFunction(); // CNNntework
+                         options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction()); // CNNntework
                          try {
                              auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
                                      METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
                              auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
                                      METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
                              real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);
+                             std::cout << "2:" << real << std::endl;
                          } catch (const InferenceEngine::Exception &iie) {
                              LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
                          }

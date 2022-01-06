@@ -136,6 +136,7 @@ private:
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
                                 NotBusyWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
+    void TryApplyAutoBatching(AutoLoadContext& context);
     void TryToLoadNetWork(AutoLoadContext& context,
                           const std::string& modelPath,
                           const InferenceEngine::CNNNetwork& network);
@@ -153,6 +154,7 @@ private:
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
     const InferenceEngine::CNNNetwork                                   _network;
+    DeviceName                                                         _deviceNameWithBatching = {};
 };
 
 }  // namespace MultiDevicePlugin
