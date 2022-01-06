@@ -21,6 +21,7 @@
 #include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <common/primitive_hashing_utils.hpp>
 
 #include <ngraph/opsets/opset6.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -35,6 +36,53 @@ using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
+
+namespace {
+struct MVNKey {
+    jit_mvn_config_params jcp;
+    mkldnn::primitive_attr attr;
+
+    size_t hash() const;
+    bool operator==(const MVNKey& rhs) const;
+};
+
+size_t MVNKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, jcp.planar_layout);
+    seed = hash_combine(seed, jcp.across_channels);
+    seed = hash_combine(seed, jcp.normalize_variance);
+    seed = hash_combine(seed, jcp.src_prc.getPrecVal());
+    seed = hash_combine(seed, jcp.dst_prc.getPrecVal());
+    seed = hash_combine(seed, jcp.src_data_size);
+    seed = hash_combine(seed, jcp.dst_data_size);
+    seed = hash_combine(seed, jcp.C);
+    seed = hash_combine(seed, jcp.D);
+    seed = hash_combine(seed, jcp.H);
+    seed = hash_combine(seed, jcp.W);
+    seed = hash_combine(seed, get_attr_hash(*attr.get()));
+    return seed;
+}
+
+bool MVNKey::operator==(const MVNKey& rhs) const {
+    bool retVal = true;
+    retVal = retVal && jcp.planar_layout == rhs.jcp.planar_layout && jcp.across_channels == rhs.jcp.across_channels &&
+             jcp.normalize_variance == rhs.jcp.normalize_variance && jcp.src_prc == rhs.jcp.src_prc &&
+             jcp.dst_prc == rhs.jcp.dst_prc && jcp.src_data_size == rhs.jcp.src_data_size &&
+             jcp.dst_data_size == rhs.jcp.dst_data_size && jcp.C == rhs.jcp.C && jcp.D == rhs.jcp.D && jcp.H == rhs.jcp.H &&
+             jcp.W == rhs.jcp.W;
+    retVal = retVal && *attr.get() == *rhs.attr.get();
+    return retVal;
+}
+} // namespace
+
+struct MVNKernels {
+    std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
+    std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
+    std::shared_ptr<jit_uni_mvn_kernel> mvn_kernel;
+};
 
 // some utility functions
 static inline bool isFloatCompatible(Precision prc) {
@@ -809,44 +857,60 @@ void MKLDNNMVNNode::prepareParams() {
         int N = 0;
         std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = shape5D;
 
-        if (mayiuse(cpu::x64::avx512_common)) {
-            mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+        MVNKey key = {jcp, attr};
 
-            jcp.normalize_variance = false;
-            mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
-            if (normalizeVariance_) {
-                jcp.normalize_variance = true;
-                mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
+        auto builder = [this](const MVNKey& key) -> std::shared_ptr<MVNKernels> {
+            auto kernels = std::make_shared<MVNKernels>();
+            auto jcp = key.jcp;
+            if (mayiuse(cpu::x64::avx512_common)) {
+                kernels->mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *key.attr.get()));
+
+                jcp.normalize_variance = false;
+                kernels->mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
+                if (this->normalizeVariance_) {
+                    jcp.normalize_variance = true;
+                    kernels->mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
+                }
+            } else if (mayiuse(cpu::x64::avx2)) {
+                kernels->mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp, *key.attr.get()));
+
+                jcp.normalize_variance = false;
+                kernels->mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
+                if (this->normalizeVariance_) {
+                    jcp.normalize_variance = true;
+                    kernels->mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
+                }
+            } else if (mayiuse(cpu::x64::sse41)) {
+                kernels->mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp, *key.attr.get()));
+
+                jcp.normalize_variance = false;
+                kernels->mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
+                if (this->normalizeVariance_) {
+                    jcp.normalize_variance = true;
+                    kernels->mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
+                }
             }
-        } else if (mayiuse(cpu::x64::avx2)) {
-            mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+            if (kernels->mvn_kernel)
+                kernels->mvn_kernel->create_ker();
 
-            jcp.normalize_variance = false;
-            mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
-            if (normalizeVariance_) {
-                jcp.normalize_variance = true;
-                mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
-            }
-        } else if (mayiuse(cpu::x64::sse41)) {
-            mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+            if (kernels->mvn_mean_kernel)
+                kernels->mvn_mean_kernel->create_ker();
 
-            jcp.normalize_variance = false;
-            mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
-            if (normalizeVariance_) {
-                jcp.normalize_variance = true;
-                mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
-            }
-        }
+            if (kernels->mvn_variance_kernel)
+                kernels->mvn_variance_kernel->create_ker();
 
-        if (mvn_kernel)
-            mvn_kernel->create_ker();
+            return kernels;
+        };
+        auto cache = getRuntimeCache();
+        auto result = cache->getOrCreate(key, builder);
 
-        if (mvn_mean_kernel)
-            mvn_mean_kernel->create_ker();
-
-        if (mvn_variance_kernel)
-            mvn_variance_kernel->create_ker();
-        }
+        if (result.first->mvn_kernel)
+            mvn_kernel = result.first->mvn_kernel;
+        if (result.first->mvn_mean_kernel)
+            mvn_mean_kernel = result.first->mvn_mean_kernel;
+        if (result.first->mvn_variance_kernel)
+            mvn_variance_kernel = result.first->mvn_variance_kernel;
+    }
 }
 
 void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
