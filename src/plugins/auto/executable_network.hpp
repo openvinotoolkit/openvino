@@ -154,7 +154,8 @@ private:
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
     const InferenceEngine::CNNNetwork                                   _network;
-    DeviceName                                                         _deviceNameWithBatching = {};
+    DeviceName                                                          _deviceNameWithBatching = {};
+    unsigned int                                                        _optimalBatchingRequestNum{0};
 };
 
 }  // namespace MultiDevicePlugin
