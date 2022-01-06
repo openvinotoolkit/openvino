@@ -52,9 +52,9 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
             break;
         }
         case 1: {
-            stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[0], 1, 1));
-            padding = cldnn::tensor({0, 0, TensorValue(pads_begin[0]), 0}, 0);
-            dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[0], 1, 1));
+            stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(1, strides[0], 1));
+            padding = cldnn::tensor({0, 0, 0, TensorValue(pads_begin[0])}, 0);
+            dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(1, dilations[0], 1));
             break;
         }
         default: IE_THROW() << "Unsupported convolve parameters size. Only 1d, 2d, and 3d cases are supported";
