@@ -33,6 +33,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 
 // onednn -> cldnn
 cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped = false);
+cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 
 int64_t get_offset(dnnl::memory::desc desc);
 

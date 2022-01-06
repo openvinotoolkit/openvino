@@ -742,6 +742,34 @@ inline uint get_g_os_is_yx_osa2_isa8_osv16_isv2(uint g, uint o, uint i, uint y, 
     return idx;
 }
 
+inline uint get_g_is_os_yx_isa2_osa8_isv8_osv2(uint g, uint o, uint i, uint z, uint y, uint x,
+                                               uint size_x, uint size_y,  uint size_z, uint size_ifm, uint size_ofm, uint offset)
+{
+    const uint isv_idx = i % 8;
+    const uint isa_idx = (i / 8) % 2;
+    const uint is_idx = (i / 16);
+    const uint osv_idx = o % 2;
+    const uint osa_idx = (o / 2) % 8;
+    const uint os_idx = (o / 16);
+
+    const uint ifm_16_aligned = ((size_ifm + 15)/16);
+    const uint ofm_16_aligned = ((size_ofm + 15)/16);
+
+    size_t idx = offset +
+                 osv_idx +
+                 isv_idx * 2 +
+                 osa_idx * 8 * 2 +
+                 isa_idx * 8 * 16 +
+                 x * 16 * 16 +
+                 y * size_x * 16 * 16 +
+                 z * size_y * size_x * 16 * 16 +
+                 os_idx * 16 * 16 * size_x * size_y * size_z +
+                 is_idx * 16 * 16 * ofm_16_aligned * size_x * size_y * size_z +
+                 g * 16 * 16 * ifm_16_aligned * ofm_16_aligned * size_x * size_y * size_z;
+
+    return idx;
+}
+
 #define GET_FILTER_OS_IS_YX_OSA4_ISA8_OSV8_ISV4_INDEX(prefix, o, i, y, x) \
     get_g_os_is_yx_osa4_isa8_osv8_isv4(                        \
         0, o, i, 0, y, x,                                                 \
@@ -893,6 +921,16 @@ inline uint get_g_os_is_yx_osa2_isa8_osv16_isv2(uint g, uint o, uint i, uint y, 
         CAT(prefix, _SIZE_Z),                                                               \
         CAT(prefix, _IFM_NUM),                                                              \
         CAT(prefix, _OFM_NUM),                                                              \
+        CAT(prefix, _OFFSET))
+
+#define GET_FILTER_IS_OS_YX_ISA2_OSA8_ISV8_OSV2_INDEX(prefix, o, i, y, x) \
+    get_g_is_os_yx_isa2_osa8_isv8_osv2(                        \
+        0, o, i, 0, y, x,                                                 \
+        CAT(prefix, _SIZE_X),                                             \
+        CAT(prefix, _SIZE_Y),                                             \
+        1,                                                                \
+        CAT(prefix, _IFM_NUM),                                            \
+        CAT(prefix, _OFM_NUM),                                            \
         CAT(prefix, _OFFSET))
 
 
