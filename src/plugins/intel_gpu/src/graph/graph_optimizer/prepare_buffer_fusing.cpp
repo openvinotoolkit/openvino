@@ -87,16 +87,41 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     if (node.has_fused_primitives() || !node.get_fused_activations_funcs().empty())
         return false;
 
+    bool is_onednn_impl = false;
+
+    for (auto& input : node.get_dependencies()) {
+        if (input->get_preferred_impl_type() == impl_types::onednn) {
+            for (auto& fused_op : input->get_fused_primitives()) {
+                if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
+                    auto& eltw_in = input->get_dependency(fused_op.dep_start_idx);
+                    auto eltw_in_layout = eltw_in.get_output_layout();
+                    auto out_layout = input->get_output_layout();
+
+                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                        continue;
+                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout))
+                        return false;
+                }
+            }
+            is_onednn_impl = true;
+        }
+    }
+
+    // Implicit concat for onednn only when use_usm and batch 1.
+    if (is_onednn_impl) {
+        bool use_usm = node.get_program().get_engine().use_unified_shared_memory();
+        layout out_l = node.get_output_layout();
+
+        if (!use_usm)
+            return false;
+        if (out_l.size.batch[0] > 1)
+            return false;
+    }
+
     // For in place concatenation input layouts and data types must match.
     auto output_format = node.get_output_layout().format;
     auto output_datatype = node.get_output_layout().data_type;
     auto concat_axis = node.get_primitive()->axis;
-
-    // oneDNN doens't support paddings and such concat optimizations
-    for (auto& input : node.get_dependencies()) {
-        if (input->get_preferred_impl_type() == impl_types::onednn)
-            return false;
-    }
 
     for (auto& input : node.get_dependencies()) {
         if (input->is_type<reshape>())

@@ -1178,13 +1178,39 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 }
 
 bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
-    auto in_layout = node.get_dependencies().front()->get_output_layout();
-    auto out_layout = node.get_output_layout();
+    auto in_padding = node.get_dependencies().front()->get_output_layout().data_padding;
+    auto out_padding = node.get_output_layout().data_padding;
     // Check if padding exists
-    if (node.get_preferred_impl_type() == impl_types::onednn && (in_layout.data_padding || out_layout.data_padding))
-        return false;
-    else
-        return true;
+    if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
+        bool no_spatial_padding = true;
+        for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
+            no_spatial_padding &= (in_padding.lower_size().spatial[i] == 0);
+        }
+        for (size_t i = 0; i < in_padding.upper_size().spatial.size(); ++i) {
+            no_spatial_padding &= (in_padding.upper_size().spatial[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.lower_size().spatial.size(); ++i) {
+            no_spatial_padding &= (out_padding.lower_size().spatial[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.upper_size().spatial.size(); ++i) {
+            no_spatial_padding &= (out_padding.upper_size().spatial[i] == 0);
+        }
+        bool no_batch_padding = true;
+        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
+            no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
+        }
+        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
+            no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
+            no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
+            no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+        }
+        return (no_spatial_padding && no_batch_padding);
+    }
+    return true;
 }
 
 impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format preferred_format) {
