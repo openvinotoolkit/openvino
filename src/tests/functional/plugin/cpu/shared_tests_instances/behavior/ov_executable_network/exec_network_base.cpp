@@ -51,7 +51,9 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> configSetPrc = {
             {},
-            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}} };
+            {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
+    };
+
     const std::vector<std::map<std::string, std::string>> AutoConfigsSetPrc = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}},
     };
