@@ -68,10 +68,10 @@ struct PoolingKey {
             result = result && out && rhs.out && (out->getDnnlDesc() == rhs.out->getDnnlDesc());
         }
 
-        result = result && *attr.get() == *rhs.attr.get() && stride == rhs.stride && kernel == rhs.stride &&
+        result = result && stride == rhs.stride && kernel == rhs.kernel &&
                  effective_pad_begin == rhs.effective_pad_begin && effective_pad_end == rhs.effective_pad_end &&
-                 effective_dilation == rhs.effective_dilation && data_pad_end == rhs.data_pad_end && alg == rhs.alg &&
-                 implType == rhs.implType;
+                 effective_dilation == rhs.effective_dilation && data_pad_end == rhs.data_pad_end &&
+                 *attr.get() == *rhs.attr.get() && alg == rhs.alg && implType == rhs.implType;
         return result;
     }
 };
