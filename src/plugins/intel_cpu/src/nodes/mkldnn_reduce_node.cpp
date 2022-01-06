@@ -24,6 +24,7 @@
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -69,6 +70,29 @@ using namespace Xbyak;
                                          uint8_t    *out_ptr_ncdhw = out_ptr_ncdh + dst_data_size * ow * blk_size;
 #define GET_PTR_NCD_BASE_PTR_N_BLK const uint8_t    *in_ptr_ncd    = in_ptr_n     + src_data_size * (icb * ID + id) * IH * IW * blk_size; \
                                          uint8_t    *out_ptr_ncd   = out_ptr_n    + dst_data_size * (ocb * OD + od) * OH * OW * blk_size;
+
+namespace {
+struct ReduceKey {
+    mkldnn::primitive_attr attr;
+
+    size_t hash() const;
+    bool operator==(const ReduceKey& rhs) const;
+};
+
+size_t ReduceKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, get_attr_hash(*attr.get()));
+
+    return seed;
+}
+
+bool ReduceKey::operator==(const ReduceKey &rhs) const {
+    return *attr.get() == *rhs.attr.get();
+}
+} // namespace
 
 // some utility functions
 static inline bool isFloatCompatible(memory::data_type type) {
@@ -972,10 +996,10 @@ private:
     }
 
     inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
-        uni_movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
-        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        uni_movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
-        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2,3,4),...
+        uni_vmovshdup(xmm_aux3, xmm_dst);          // dst:1,2,3,4; aux3:2,2,4,4
+        horiz_ps(xmm_dst, xmm_aux3);               // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst); // aux3:f(3,4),f(4,4),4,4
+        horiz_ps(xmm_dst, xmm_aux3);               // dst:f(1,2,3,4),...
         if (load_embedded) {
             load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
             horiz_ps(xmm_dst, xmm_aux3);
@@ -1584,10 +1608,10 @@ private:
     }
 
     inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
-        uni_movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
-        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        uni_movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
-        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2,3,4),...
+        uni_vmovshdup(xmm_aux3, xmm_dst);          // dst:1,2,3,4; aux3:2,2,4,4
+        horiz_ps(xmm_dst, xmm_aux3);               // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst); // aux3:f(3,4),f(4,4),4,4
+        horiz_ps(xmm_dst, xmm_aux3);               // dst:f(1,2,3,4),...
         if (load_embedded) {
             load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
             horiz_ps(xmm_dst, xmm_aux3);
@@ -1848,20 +1872,34 @@ void MKLDNNReduceNode::prepareParams() {
         set_reduce_dim_flags();
     }
 
+    auto builder = [&](const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
+        std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
+        if (mayiuse(cpu::x64::avx512_common)) {
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(jcp, *key.attr.get()));
+        } else if (mayiuse(cpu::x64::avx2)) {
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(jcp, *key.attr.get()));
+        } else if (mayiuse(cpu::x64::sse41)) {
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(jcp, *key.attr.get()));
+        }
+        if (post_kernel)
+            post_kernel->create_ker();
+        return post_kernel;
+    };
+
     if (compile_post_kernel) {
         setPostOps(attr, dst_dims, true);
-        if (mayiuse(cpu::x64::avx512_common)) {
-            reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
-        } else if (mayiuse(cpu::x64::avx2)) {
-            reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
-        } else if (mayiuse(cpu::x64::sse41)) {
-            reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+
+        ReduceKey key = {attr};
+        auto cache = getRuntimeCache();
+        auto result = cache->getOrCreate(key, builder);
+        if (!result.first) {
+            IE_THROW() << "jit_uni_reduce_post_kernel_f32 was not found for node " << getName() << ".";
         }
-        if (reduce_post_kernel)
-            reduce_post_kernel->create_ker();
+
+        reduce_post_kernel = result.first;
         jit_mode = jit_mode && reduce_post_kernel;
 
-        if (!isDynamicNode() || (isDynamicNode() && attr.get()->post_ops_.len() == 0)) {
+        if (!isDynamicNode()) {
             compile_post_kernel = false;
         }
     }
