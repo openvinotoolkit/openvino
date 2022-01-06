@@ -9,9 +9,14 @@
 
 #if INPUT0_TYPE_SIZE == 4
 #define BLOCK_SHUFFLE               intel_sub_group_shuffle
-#else // INPUT0_TYPE_SIZE == 4
+#define MAD_FUNC(A, B, C) (mad(A, B, C))
+#elif INPUT0_TYPE_SIZE == 2
 #define BLOCK_SHUFFLE(data, sg_lid) as_half16(intel_sub_group_shuffle(as_short16(data), sg_lid))
-#endif // INPUT0_TYPE_SIZE == 4
+#define MAD_FUNC(A, B, C) (mad(A, B, C))
+#elif INPUT0_TYPE_SIZE == 1
+#define BLOCK_SHUFFLE(data, sg_lid) as_char16(intel_sub_group_shuffle(as_char16(data), sg_lid))
+#define MAD_FUNC(A, B, C) ((A) * (B) + (C))
+#endif // INPUT0_TYPE_SIZE
 
 #if TILE_K > SIMD_WIDTH
     #define BLOCK_READ_A(ptr, offset) BLOCK_READN(INPUT0_TYPE, A_VEC_SIZE, ptr, offset)
@@ -137,14 +142,14 @@ KERNEL(gemm_tiled_opt)(
     MAKE_VECTOR_TYPE(INPUT0_TYPE, SIMD_WIDTH) a_tile;
 #endif // TRANSPOSE_INPUT0
 #if !TRANSPOSE_INPUT1
-    B_FLOATN b_tile[TILE_K];
+    B_VEC_N b_tile[TILE_K];
 #else // !TRANSPOSE_INPUT1
     MAKE_VECTOR_TYPE(INPUT1_TYPE, SIMD_WIDTH) b_tile;
 #endif // !TRANSPOSE_INPUT1
-    B_FLOATN c_tile[TILE_M];
+    B_VEC_N c_tile[TILE_M];
 
     unroll_for (uint i = 0; i < TILE_M; i++) {
-        c_tile[i] = (B_FLOATN)(ACCUMULATOR_VAL_ZERO);
+        c_tile[i] = (B_VEC_N)(ACCUMULATOR_VAL_ZERO);
     }
 
     // Full tile calculation
@@ -199,18 +204,18 @@ KERNEL(gemm_tiled_opt)(
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
 #if !TRANSPOSE_INPUT0
 #if TILE_K_NOT_DIVISIBLE
-            A_FLOATN a_read = a_ptr[dot_id * K + sglid];
+            A_VEC_N a_read = a_ptr[dot_id * K + sglid];
 #else // TILE_K_NOT_DIVISIBLE
-            A_FLOATN a_read = BLOCK_READ_A(a_ptr, dot_id * K);
+            A_VEC_N a_read = BLOCK_READ_A(a_ptr, dot_id * K);
 #endif // TILE_K_NOT_DIVISIBLE
 
             unroll_for (uint subtile_k_id = 0; subtile_k_id < TILE_K / SIMD_WIDTH; subtile_k_id++) {
                 unroll_for (uint simd_local_id = 0; simd_local_id < SIMD_WIDTH; simd_local_id++) {
 #if TILE_K > SIMD_WIDTH
-                    c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read[subtile_k_id], simd_local_id)),
+                    c_tile[dot_id] = MAD_FUNC((INPUT0_TYPE)(sub_group_broadcast(a_read[subtile_k_id], simd_local_id)),
                                          b_tile[subtile_k_id * SIMD_WIDTH + simd_local_id], c_tile[dot_id]);
 #else // TILE_K > SIMD_WIDTH
-                    c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_local_id)), b_tile[simd_local_id], c_tile[dot_id]);
+                    c_tile[dot_id] = MAD_FUNC((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_local_id)), b_tile[simd_local_id], c_tile[dot_id]);
 #endif // TILE_K > SIMD_WIDTH
                 }
             }
@@ -254,7 +259,7 @@ KERNEL(gemm_tiled_opt)(
         // Tile C calculation for TN, TT cases
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
             unroll_for (uint simd_local_id = 0; simd_local_id < SIMD_WIDTH; simd_local_id++) {
-                c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_tile[dot_id], simd_local_id)), b_tile[simd_local_id], c_tile[dot_id]);
+                c_tile[dot_id] = MAD_FUNC((INPUT0_TYPE)(sub_group_broadcast(a_tile[dot_id], simd_local_id)), b_tile[simd_local_id], c_tile[dot_id]);
             }
         } // Tile C calculation for TN, TT cases end
 #endif // !TRANSPOSE_INPUT0
@@ -277,7 +282,7 @@ KERNEL(gemm_tiled_opt)(
         INPUT0_TYPE a_read = a_ptr[dot_id * K + sglid];
 
         unroll_for (uint simd_id = 0; simd_id < TILE_K_LEFTOVER; simd_id++) {
-            c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);
+            c_tile[dot_id] = MAD_FUNC((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);
         }
     } // Loading leftovers of the matrix A and tile C calculation end
 #endif // TILE_K_NOT_DIVISIBLE
@@ -316,7 +321,7 @@ KERNEL(gemm_tiled_opt)(
 #else // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
 
 #ifdef INPUT2_TYPE
-        B_FLOATN c_val = BLOCK_READ_B(c_ptr, 0);
+        B_VEC_N c_val = BLOCK_READ_B(c_ptr, 0);
         ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_val;
 #else // INPUT2_TYPE
         ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
@@ -347,3 +352,4 @@ KERNEL(gemm_tiled_opt)(
 #undef BLOCK_READ_A
 #undef BLOCK_READ_B
 #undef BLOCK_WRITE_C
+#undef MAD_FUNC
