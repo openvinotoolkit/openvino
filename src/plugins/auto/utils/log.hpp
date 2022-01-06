@@ -14,7 +14,6 @@
 
 #include "singleton.hpp"
 #include "time_utils.hpp"
-#include "thread_utils.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -185,7 +184,6 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
     std::stringstream stream;
     stream << colorBegin(level) << prefix << '[' << TimeUtils::getCurrentTime() << ']';
 
-    stream << '[' << ThreadUtils::getThreadId() << ']';
     if (level < LogLevel::ERROR) {
         stream << levelStr[0];
     } else {
