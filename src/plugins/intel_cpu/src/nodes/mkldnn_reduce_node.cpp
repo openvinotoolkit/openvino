@@ -1002,10 +1002,10 @@ private:
     }
 
     inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
-        uni_vmovshdup(xmm_aux3, xmm_dst);          // dst:1,2,3,4; aux3:2,2,4,4
-        horiz_ps(xmm_dst, xmm_aux3);               // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst); // aux3:f(3,4),f(4,4),4,4
-        horiz_ps(xmm_dst, xmm_aux3);               // dst:f(1,2,3,4),...
+        uni_movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
+        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        uni_movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
+        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2,3,4),...
         if (load_embedded) {
             load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
             horiz_ps(xmm_dst, xmm_aux3);
@@ -1621,10 +1621,10 @@ private:
     }
 
     inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
-        uni_vmovshdup(xmm_aux3, xmm_dst);          // dst:1,2,3,4; aux3:2,2,4,4
-        horiz_ps(xmm_dst, xmm_aux3);               // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst); // aux3:f(3,4),f(4,4),4,4
-        horiz_ps(xmm_dst, xmm_aux3);               // dst:f(1,2,3,4),...
+        uni_movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
+        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        uni_movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
+        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2,3,4),...
         if (load_embedded) {
             load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
             horiz_ps(xmm_dst, xmm_aux3);

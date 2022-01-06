@@ -55,7 +55,8 @@ void TopKLayerTest::SetUp() {
 
 InferenceEngine::Blob::Ptr TopKLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
     IE_ASSERT(InferenceEngine::Precision::FP32 == info.getTensorDesc().getPrecision()
-           || InferenceEngine::Precision::BF16 == info.getTensorDesc().getPrecision());
+           || InferenceEngine::Precision::BF16 == info.getTensorDesc().getPrecision()
+           || InferenceEngine::Precision::FP16 == info.getTensorDesc().getPrecision());
 
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
     blob->allocate();
@@ -77,6 +78,11 @@ InferenceEngine::Blob::Ptr TopKLayerTest::GenerateInput(const InferenceEngine::I
         auto *rawBlobDataPtr = blob->buffer().as<ngraph::bfloat16 *>();
         for (size_t i = 0; i < size; i++) {
             rawBlobDataPtr[i] = static_cast<ngraph::bfloat16>(data[i] / divisor);
+        }
+    } else if (InferenceEngine::Precision::FP16 == info.getTensorDesc().getPrecision()) {
+        auto *rawBlobDataPtr = blob->buffer().as<ngraph::float16 *>();
+        for (size_t i = 0; i < size; i++) {
+            rawBlobDataPtr[i] = static_cast<ngraph::float16>(data[i] / divisor);
         }
     }
 

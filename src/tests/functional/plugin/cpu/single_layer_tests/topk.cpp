@@ -150,7 +150,8 @@ protected:
 
         if (netPrecision == ElementType::f32) {
             std::vector<int> data(size);
-            std::iota(data.begin(), data.end(), - size / 2);
+            int start = - static_cast<int>(size / 2);
+            std::iota(data.begin(), data.end(), start);
             std::mt19937 gen(0);
             std::shuffle(data.begin(), data.end(), gen);
 
@@ -172,7 +173,8 @@ protected:
             for (size_t o = 0; o < O; o++) {
                 for (size_t i = 0; i < I; i++) {
                     std::vector<int> data(A);
-                    std::iota(data.begin(), data.end(), - A / 2);
+                    int start = - static_cast<int>(A / 2);
+                    std::iota(data.begin(), data.end(), start);
                     const size_t seed = (o + 1) * (i + 1);
                     std::mt19937 gen(seed);
                     std::shuffle(data.begin(), data.end(), gen);
@@ -242,7 +244,6 @@ std::vector<ov::test::InputShape> inputShapes = {
 };
 
 std::vector<ov::test::InputShape> inputShapesDynamic = {
-    {{-1, -1, -1, -1}, {{21, 21, 21, 21}, {23, 23, 23, 23}}},
     {{21, 21, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 21, 21, 23}}}
 };
 
