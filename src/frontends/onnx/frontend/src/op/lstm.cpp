@@ -172,6 +172,7 @@ struct LSTMNgInputMap {
             m_input_map[LSTMInput::LSTM_INPUT_P] = std::make_shared<default_opset::Broadcast>(
                 default_opset::Constant::create(m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(), Shape{}, {0}),
                 p_shape);
+            m_input_map[LSTMInput::LSTM_INPUT_P].set_names({"P_blank"});
         }
     }
 
@@ -214,23 +215,41 @@ namespace set_1 {
 OutputVector lstm(const Node& node) {
     LSTMNgInputMap input_map{node};
     LSTMAttributes attributes{node};
+    std::shared_ptr<ngraph::Node> lstm_sequence;
 
-    auto lstm_sequence = std::make_shared<ov::op::v0::LSTMSequence>(input_map.at(LSTMInput::LSTM_INPUT_X),
-                                                                    input_map.at(LSTMInput::LSTM_INPUT_INIT_H),
-                                                                    input_map.at(LSTMInput::LSTM_INPUT_INIT_C),
-                                                                    input_map.at(LSTMInput::LSTM_INPUT_SEQ_LENGTHS),
-                                                                    input_map.at(LSTMInput::LSTM_INPUT_W),
-                                                                    input_map.at(LSTMInput::LSTM_INPUT_R),
-                                                                    input_map.at(LSTMInput::LSTM_INPUT_B),
-                                                                    input_map.at(LSTMInput::LSTM_INPUT_P),
-                                                                    attributes.m_hidden_size,
-                                                                    attributes.m_direction,
-                                                                    ov::op::LSTMWeightsFormat::FICO,
-                                                                    attributes.m_activation_alpha,
-                                                                    attributes.m_activation_beta,
-                                                                    attributes.m_activations,
-                                                                    attributes.m_clip_threshold,
-                                                                    attributes.m_input_forget);
+    if ((input_map.at(LSTMInput::LSTM_INPUT_P).get_names() != std::unordered_set<std::string>({"P_blank"})) || (attributes.m_input_forget == true)) {
+        lstm_sequence = std::make_shared<ov::op::v0::LSTMSequence>(input_map.at(LSTMInput::LSTM_INPUT_X),
+                                                                   input_map.at(LSTMInput::LSTM_INPUT_INIT_H),
+                                                                   input_map.at(LSTMInput::LSTM_INPUT_INIT_C),
+                                                                   input_map.at(LSTMInput::LSTM_INPUT_SEQ_LENGTHS),
+                                                                   input_map.at(LSTMInput::LSTM_INPUT_W),
+                                                                   input_map.at(LSTMInput::LSTM_INPUT_R),
+                                                                   input_map.at(LSTMInput::LSTM_INPUT_B),
+                                                                   input_map.at(LSTMInput::LSTM_INPUT_P),
+                                                                   attributes.m_hidden_size,
+                                                                   attributes.m_direction,
+                                                                   ov::op::LSTMWeightsFormat::FICO,
+                                                                   attributes.m_activation_alpha,
+                                                                   attributes.m_activation_beta,
+                                                                   attributes.m_activations,
+                                                                   attributes.m_clip_threshold,
+                                                                   attributes.m_input_forget);
+    } else {
+        lstm_sequence = std::make_shared<default_opset::LSTMSequence>(input_map.at(LSTMInput::LSTM_INPUT_X),
+                                                                      input_map.at(LSTMInput::LSTM_INPUT_INIT_H),
+                                                                      input_map.at(LSTMInput::LSTM_INPUT_INIT_C),
+                                                                      input_map.at(LSTMInput::LSTM_INPUT_SEQ_LENGTHS),
+                                                                      input_map.at(LSTMInput::LSTM_INPUT_W),
+                                                                      input_map.at(LSTMInput::LSTM_INPUT_R),
+                                                                      input_map.at(LSTMInput::LSTM_INPUT_B),
+                                                                      attributes.m_hidden_size,
+                                                                      attributes.m_direction,
+                                                                      attributes.m_activation_alpha,
+                                                                      attributes.m_activation_beta,
+                                                                      attributes.m_activations,
+                                                                      attributes.m_clip_threshold);
+    }
+
 
     const auto Y = lstm_sequence->output(0);
     const auto Y_h = lstm_sequence->output(1);
