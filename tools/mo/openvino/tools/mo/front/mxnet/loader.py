@@ -8,6 +8,7 @@ import os
 import mxnet as mx
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import add_outputs_identity
 from openvino.tools.mo.front.mxnet.extractor import common_mxnet_fields
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states, create_mxnet_edge
@@ -100,11 +101,11 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
     fw_name_map = {}
     for i, node in enumerate(model_nodes):
         if node['name'] in model_params._arg_params and node['name'] not in input_names:
-            node['value'] = np.array(model_params._arg_params[node['name']].asnumpy(), dtype=np.float32)
+            node['value'] = mo_array(model_params._arg_params[node['name']].asnumpy(), dtype=np.float32)
         elif node['name'] in model_params._aux_params and node['name'] not in input_names:
-            node['value'] = np.array(model_params._aux_params[node['name']].asnumpy(), dtype=np.float32)
+            node['value'] = mo_array(model_params._aux_params[node['name']].asnumpy(), dtype=np.float32)
         elif node['name'] in names_rnn_states:
-            node['value'] = np.zeros(rnn_states[node['name']])
+            node['value'] = np.zeros(rnn_states[node['name']], dtype=np.float32)
         node_name = graph.unique_id(node['name'])
         graph.add_node(node_name, **symbol_attrs(node))
         if hasattr(graph, 'op_names_statistic') and 'op' in node:
