@@ -286,9 +286,9 @@ void MultiDeviceExecutableNetwork::TryApplyAutoBatching(AutoLoadContext& context
     bool bThroughputEnabledInPlugin = false;
     try {
         bThroughputEnabledInPlugin =
-        _core->GetConfig(_multiPlugin->GetName(), CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+        _core->GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
     } catch (...) {
-        LOG_WARNING("[AUTOPLUGIN]not able to get performance hint config");
+        LOG_WARNING("[AUTOPLUGIN]not able to get performance hint config from device");
     }
     const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
     if ((!bThroughputEnabledInPlugin &&
