@@ -138,7 +138,6 @@ public:
        // remove annoying ON CALL message
        EXPECT_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
        gpuMockExeNetwork = gpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
-
        // prepare mockicore and cnnNetwork for loading
        core  = std::shared_ptr<MockICore>(new MockICore());
        auto* origin_plugin = new MockMultiDeviceInferencePlugin();
@@ -260,14 +259,13 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
     EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
                 ::testing::Matcher<const Config&>(_))).Times(1);
-
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
-                ::testing::Matcher<const Config&>(_))).Times(1);
-
     if (isThroughput) {
         EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(ContainsRegex(CommonTestUtils::DEVICE_BATCH)),
+                ::testing::Matcher<const Config&>(_))).Times(1);
+    } else {
+        EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
                 ::testing::Matcher<const Config&>(_))).Times(1);
     }
 

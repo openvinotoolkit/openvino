@@ -31,6 +31,7 @@ using ::testing::Eq;
 using ::testing::ReturnRef;
 using ::testing::AtLeast;
 using ::testing::AnyNumber;
+using ::testing::ContainsRegex;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
@@ -178,8 +179,6 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     // test auto plugin
     config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
     std::string devicesStr = "";
-    unsigned int extraLoadThrBatch = 0;
-    std::once_flag extraLoadOc;
     int selDevsSize = deviceConfigs.size();
     for (auto iter = deviceConfigs.begin(); iter != deviceConfigs.end(); selDevsSize--) {
         std::string deviceName = std::get<0>(*iter);
@@ -207,7 +206,18 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
             case THROUGHPUT:
                 devInfo = {deviceName, {{CONFIG_KEY(PERFORMANCE_HINT),
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, 2, ""};
-                std::call_once(extraLoadOc, [&extraLoadThrBatch]() { extraLoadThrBatch++; });
+                if (deviceName.find("GPU") != std::string::npos) {
+                    if (loadSuccess) {
+                        ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(ContainsRegex(CommonTestUtils::DEVICE_BATCH)),
+                            ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
+                    } else {
+                        ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(ContainsRegex(CommonTestUtils::DEVICE_BATCH)),
+                            ::testing::Matcher<const Config&>(_)))
+                        .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+                    }
+                }
                 break;
             default:
                 LOG_ERROR("should not come here");
@@ -242,7 +252,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(selectCount);
     EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(loadCount + extraLoadThrBatch);
+                ::testing::Matcher<const Config&>(_))).Times(loadCount);
 
     // if loadSuccess will get the optimalNum requset of per device, in this test is 2;
     EXPECT_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))

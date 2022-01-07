@@ -365,11 +365,13 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         if (!modelPath.empty()) {
             if (curDevIsGPU && !_deviceNameWithBatching.empty())
                 context.executableNetwork = _core->LoadNetwork(modelPath, _deviceNameWithBatching, deviceConfig);
-            context.executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
+            else
+                context.executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
         } else {
             if (curDevIsGPU && !_deviceNameWithBatching.empty())
                 context.executableNetwork = _core->LoadNetwork(network, _deviceNameWithBatching, deviceConfig);
-            context.executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
+            else
+                context.executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
         }
         context.isLoadSuccess = true;
     } catch (const std::exception& e) {
