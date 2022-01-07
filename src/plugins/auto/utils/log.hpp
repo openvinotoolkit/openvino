@@ -11,6 +11,9 @@
 #include <sstream>
 #include <string>
 #include <mutex>
+#include <vector>
+#include <stdexcept>
+#include <algorithm>
 
 #include "singleton.hpp"
 #include "time_utils.hpp"
@@ -65,7 +68,6 @@ inline int getDebugLevel() {
     return parseInteger(std::getenv("OPENVINO_LOG_LEVEL"));
 }
 const int debug_level = getDebugLevel();
-
 enum class LogLevel : uint32_t {
     FREQUENT = 0x01,
     PROCESS = 0x02,
@@ -103,6 +105,7 @@ private:
     friend Singleton<Log>;
     static std::string colorBegin(LogLevel logLevel);
     static std::string colorEnd(LogLevel logLevel);
+    void checkFormat(const char* fmt);
     MOCKTESTMACRO void print(std::stringstream& stream);
 
 private:
@@ -113,6 +116,7 @@ private:
     std::string suffix;
     uint32_t logLevel;
     static uint32_t defaultLogLevel;
+    static std::vector<std::string> validFormat;
 };
 
 inline Log::Log()
@@ -173,6 +177,45 @@ inline void Log::setLogLevel(LogLevel logLevel_) {
 inline void Log::print(std::stringstream& stream) {
     std::cout << stream.str() << std::endl;
 }
+
+inline void Log::checkFormat(const char* fmt) {
+    const char* charIter = fmt;
+    std::string fmtStr = "";
+    bool  bCollectFmtStr = false;
+    while (*charIter != '\0') {
+        if (bCollectFmtStr) {
+            fmtStr += *charIter;
+            switch (fmtStr.size()) {
+                case 1:
+                case 2:
+                    {
+                        auto iter = std::find(validFormat.begin(), validFormat.end(), fmtStr);
+                        if (iter != validFormat.end()) {
+                            bCollectFmtStr = false;
+                            fmtStr = "";
+                        }
+                        break;
+                    }
+                default:
+                    {
+                        throw std::runtime_error("format %" + fmtStr + " is not valid in log");
+                        break;
+                    }
+            }
+            charIter++;
+            continue;
+        }
+
+        if (*charIter == '%') {
+            bCollectFmtStr = true;
+        }
+        charIter++;
+    }
+    if (bCollectFmtStr) {
+        throw std::runtime_error("format %" + fmtStr + " is not valid in log");
+    }
+}
+
 template <typename... Args>
 inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const char* levelStr, const char* file,
     const char* func, const long line, const char* tag, const char* fmt, Args... args) {
@@ -204,42 +247,6 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
     stream << ' ' << buffer << suffix << colorEnd(level);
     std::lock_guard<std::mutex> autoLock(mutex);
     print(stream);
-}
-
-inline void Log::checkFormat(const char* fmt) {
-    const char* indexChar = fmt;
-    std::string tmpFormat = "";
-    bool  collectFormatString = false;
-    static const std::vector<std::string> validFormat = {"u", "d", "s", "ld", "lu"};
-    while(indexChar != '\0') {
-        if (collectFormatString) {
-            tmpFormat += indexChar;
-            switch (tmpFormat.size()) {
-                case 1:
-                case 2:
-                    auto validStr = std::find(validFormat.begin(), validFormat.end(), tmpFormat);
-                    if(validStr != validFormat.end()) {
-                        collectFormatString = false;
-                        tmpFormat = "";
-                    }
-                    break;
-                default:
-                    std::throw std::exception("format %" + tmpFormat + " is not valid in log");
-                    break;
-            }
-            indexChar++;
-            continue
-        }
-
-        if(indexChar == "%") {
-           collectFormatString = true;
-        }
-        indexChar++;
-    }
-    if(!tmpFormat.empty()) {
-        std::throw std::exception("format %" + tmpFormat + " is not valid in log");
-    }
-
 }
 
 inline std::string Log::colorBegin(MultiDevicePlugin::LogLevel logLevel) {
