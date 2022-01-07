@@ -137,6 +137,7 @@ private:
                                 NotBusyWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
     void TryApplyAutoBatching(AutoLoadContext& context);
+    void SetOptimalBatchNum(const DeviceName& devicename) const;
     void TryToLoadNetWork(AutoLoadContext& context,
                           const std::string& modelPath,
                           const InferenceEngine::CNNNetwork& network);
@@ -155,7 +156,8 @@ private:
     mutable std::mutex                                                  _confMutex;
     const InferenceEngine::CNNNetwork                                   _network;
     DeviceName                                                          _deviceNameWithBatching = {};
-    unsigned int                                                        _optimalBatchingRequestNum{0};
+    mutable unsigned int                                                _optimalBatchingRequestNum{0};
+    mutable std::once_flag                                              _ocBatchNumQuery;
 };
 
 }  // namespace MultiDevicePlugin

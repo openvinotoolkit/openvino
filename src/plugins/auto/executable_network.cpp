@@ -199,17 +199,16 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             _loadContext[CPU].isEnabled = false;
         }
     }
-    bool isActualDevGPU =
-        _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("GPU") != std::string::npos;
-    if (isActualDevGPU) {
-        TryApplyAutoBatching(_loadContext[ACTUALDEVICE]);
-    }
+
     // initialize the rest members of load context
     for (int i = 0; i < CONTEXTNUM; i++) {
          if (_loadContext[i].isEnabled) {
              _loadContext[i].future =  _loadContext[i].promise.get_future();
               auto* contextPtr = &_loadContext[i];
              _loadContext[i].task = [this, contextPtr, modelPath, network]() mutable {
+                      // check auto batching for GPU only, do not affect CPU load efficiency
+                      if (contextPtr->deviceInfo.deviceName.find("GPU") != std::string::npos)
+                          TryApplyAutoBatching(*contextPtr);
                       TryToLoadNetWork(*contextPtr, modelPath, network);
                       if (contextPtr->isLoadSuccess) {
                           if (contextPtr->workName.empty()) {
@@ -277,6 +276,23 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
 
     WaitFirstNetworkReady();
 }
+void MultiDeviceExecutableNetwork::SetOptimalBatchNum(const DeviceName& devicename) const {
+    try {
+        std::call_once(_ocBatchNumQuery, [this, &devicename] () {
+                        unsigned int real = 0;
+                        std::map<std::string, InferenceEngine::Parameter> options;
+                        options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
+                        auto optimalBatchSize = _core->GetMetric(devicename,
+                                            METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+                        auto rangeOfStreams = _core->GetMetric(devicename,
+                                            METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                        real = std::max(1u, std::get<1>(rangeOfStreams) * optimalBatchSize);
+                        _optimalBatchingRequestNum = (std::max)(8u, real);
+                });
+        } catch (...) {
+            LOG_WARNING("[AUTOPLUGIN]get optimal infer request num for GPU auto-batch failed :%s");
+        }
+}
 void MultiDeviceExecutableNetwork::TryApplyAutoBatching(AutoLoadContext& context) {
     std::string deviceNameWithoutBatch;
     std::map<std::string, std::string>& config_with_batch = context.deviceInfo.config;
@@ -330,19 +346,7 @@ void MultiDeviceExecutableNetwork::TryApplyAutoBatching(AutoLoadContext& context
             if (!atLeastOneInputIsBatched || !atLeastOneOutputIsBatched)
                 IE_THROW(NotImplemented)
                     << "Auto-batching supports only networks featuring inputs/outputs with the batched layouts !";
-            unsigned int real = 0;
-            std::map<std::string, InferenceEngine::Parameter> options;
-            options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
-            try {
-                auto optimalBatchSize = _core->GetMetric(deviceNameWithoutBatch,
-                                    METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-                auto rangeOfStreams = _core->GetMetric(deviceNameWithoutBatch,
-                                    METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
-                real = std::max(1u, std::get<1>(rangeOfStreams) * optimalBatchSize);
-            } catch (...) {
-                LOG_WARNING("[AUTOPLUGIN]get optimal infer request num for GPU auto-batch failed :%s");
-            }
-            _optimalBatchingRequestNum = (std::max)(8u, real);
+            SetOptimalBatchNum(deviceNameWithoutBatch);
             auto batchConfig = deviceNameWithoutBatch + "(" + std::to_string(_optimalBatchingRequestNum) + ")";
             _deviceNameWithBatching = "BATCH:" + batchConfig;
         } catch (std::exception& e) {
@@ -752,7 +756,21 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 IE_ASSERT(_loadContext[CPU].isAlready == true);
                 real = _loadContext[CPU].
                     executableNetwork->GetMetric(name).as<unsigned int>();
-                real = (std::max)(real, _optimalBatchingRequestNum);
+                std::unique_lock<std::mutex> lock(_confMutex);
+                auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
+                lock.unlock();
+                if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
+                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
+                    // for benchmark through AUTO:CPU,GPU
+                    // SetConfig directly set to CPU/GPU in this case
+                    auto bThroughputEnabledInPlugin =
+                        _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+                    if (bThroughputEnabledInPlugin ||
+                        (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
+                        SetOptimalBatchNum(deviceInfo.deviceName);
+                        real = (std::max)(real, _optimalBatchingRequestNum);
+                    }
+                }
             }
             unsigned int res = (std::max)(8u, real);
             IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);

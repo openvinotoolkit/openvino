@@ -190,10 +190,15 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
             .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
         ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
+        ON_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT))))
+            .WillByDefault(Return(CONFIG_VALUE(THROUGHPUT)));
         EXPECT_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT)))).Times(AnyNumber());
     } else {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({CommonTestUtils::DEVICE_GPU, {}, gpuCustomerNum, ""});
+        ON_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT))))
+            .WillByDefault(Return(CONFIG_VALUE(LATENCY)));
+        EXPECT_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT)))).Times(AnyNumber());
     }
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
