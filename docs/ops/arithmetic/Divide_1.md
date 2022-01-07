@@ -1,4 +1,4 @@
-## Divide <a name="Divide"></a> {#openvino_docs_ops_arithmetic_Divide_1}
+# Divide {#openvino_docs_ops_arithmetic_Divide_1}
 
 **Versioned name**: *Divide-1*
 

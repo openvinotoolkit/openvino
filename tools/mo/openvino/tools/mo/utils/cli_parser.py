@@ -13,6 +13,7 @@ from typing import List, Union
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.utils import import_extensions
@@ -288,10 +289,18 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--input',
                               help='Quoted list of comma-separated input nodes names with shapes, data types, '
                                    'and values for freezing. The shape and value are specified as space-separated '
-                                   'lists. The data type of input node is specified in braces and can have one of the '
-                                   'values: f64 (float64), f32 (float32), f16 (float16), i64 (int64), i32 (int32), u8 '
-                                   '(uint8), boolean. For example, use the following format to set input port 0 of the '
-                                   'node `node_name1` with the shape [3 4] as an input node and freeze output port 1 '
+                                   'lists. The data type of input node is specified in braces and '
+                                   'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
+                                   'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
+                                   'If it\'s not specified explicitly then there are two options: '
+                                   'if input node is a parameter, data type is taken from the original node dtype, '
+                                   'if input node is not a parameter, data type is set to f32. '
+                                   'Example, to set `input_1` with shape [1 100], and Parameter node `sequence_len` '
+                                   'with scalar input with value `150`, and boolean input `is_training` with '
+                                   '`False` value use the following format: '
+                                   '"input_1[1 10],sequence_len->150,is_training->False". '
+                                   'Another example, use the following format to set input port 0 of the node '
+                                   '`node_name1` with the shape [3 4] as an input node and freeze output port 1 '
                                    'of the node `node_name2` with the value [20 15] of the int32 type and shape [2]: '
                                    '"0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
     common_group.add_argument('--output',
@@ -795,9 +804,11 @@ def get_shape_from_input_value(input_value: str):
     input_value = input_value.split('->')[0]
 
     # parse shape
-    shape = re.findall(r'[(\[]([0-9\.\?  -]+)[)\]]', input_value)
+    shape = re.findall(r'[(\[]([0-9\.\?  -]*)[)\]]', input_value)
     if len(shape) == 0:
         shape = None
+    elif len(shape) == 1 and shape[0] in ['', ' ']:
+        shape = ()
     elif len(shape) == 1:
         shape = tuple(map(parse_dimension, shape[0].split(' ')))
     else:
@@ -855,7 +866,7 @@ def parse_input_value(input_value: str):
     data_type = get_data_type_from_input_value(input_value)
     node_name = get_node_name_with_port_from_input_value(input_value)
     value = get_value_from_input_value(input_value)
-    shape = get_shape_from_input_value(input_value.split('->')[0])
+    shape = get_shape_from_input_value(input_value)
     value_size = np.prod(len(value)) if isinstance(value, list) else 1
 
     if value is not None and shape is not None:
@@ -1169,6 +1180,9 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
             if '->' not in inp:
                 continue
             shape = placeholder_shapes[inp.split('->')[0]]
+
+            if shape is None:
+                continue
             for dim in shape:
                 if isinstance(dim, tuple) or dim == -1:
                     raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
@@ -1195,7 +1209,7 @@ def parse_tuple_pairs(argv_values: str):
         dictionary with input name and tuple of values or list of values if mean/scale value is specified with input,
         e.g.:
         "data(10,20,30),info(11,22,33)" -> { 'data': [10,20,30], 'info': [11,22,33] }
-        "(10,20,30),(11,22,33)" -> [np.array(10,20,30), np.array(11,22,33)]
+        "(10,20,30),(11,22,33)" -> [mo_array(10,20,30), mo_array(11,22,33)]
     """
     res = {}
     if not argv_values:

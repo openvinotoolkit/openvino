@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <format_reader_ptr.h>
+
 #include <algorithm>
 #include <map>
 #include <regex>
@@ -25,33 +27,28 @@ namespace benchmark_app {
 bool InputInfo::isImage() const {
     if ((layout != "NCHW") && (layout != "NHWC") && (layout != "CHW") && (layout != "HWC"))
         return false;
-    return (channels() == 3);
+    // If tensor_shape is still empty, assume this is still an Image and tensor shape will be filled later
+    return (dataShape.empty() || channels() == 3);
 }
 bool InputInfo::isImageInfo() const {
     if (layout != "NC")
         return false;
     return (channels() >= 2);
 }
-size_t InputInfo::getDimentionByLayout(char character) const {
-    size_t pos = layout.find(character);
-    if (pos == std::string::npos)
-        throw std::runtime_error("Error: Can't get " + std::string(character, 1) + " from layout " + layout);
-    return dataShape.at(pos);
-}
 size_t InputInfo::width() const {
-    return getDimentionByLayout('W');
+    return dataShape.at(ov::layout::width_idx(layout));
 }
 size_t InputInfo::height() const {
-    return getDimentionByLayout('H');
+    return dataShape.at(ov::layout::height_idx(layout));
 }
 size_t InputInfo::channels() const {
-    return getDimentionByLayout('C');
+    return dataShape.at(ov::layout::channels_idx(layout));
 }
 size_t InputInfo::batch() const {
-    return getDimentionByLayout('N');
+    return dataShape.at(ov::layout::batch_idx(layout));
 }
 size_t InputInfo::depth() const {
-    return getDimentionByLayout('D');
+    return dataShape.at(ov::layout::depth_idx(layout));
 }
 }  // namespace benchmark_app
 
@@ -109,8 +106,10 @@ std::vector<float> splitFloat(const std::string& s, char delim) {
 
 std::vector<std::string> parseDevices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
-    if (comma_separated_devices.find(":") != std::string::npos) {
-        comma_separated_devices = comma_separated_devices.substr(comma_separated_devices.find(":") + 1);
+    auto colon = comma_separated_devices.find(":");
+    if (colon != std::string::npos) {
+        auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
+        comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
     if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
         return std::vector<std::string>();
@@ -150,48 +149,36 @@ std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector
 size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
     size_t batch_size = 0;
     for (auto& info : inputs_info) {
-        std::size_t batch_index = info.second.layout.find("N");
-        if (batch_index != std::string::npos) {
+        if (ov::layout::has_batch(info.second.layout)) {
             if (batch_size == 0)
-                batch_size = info.second.dataShape[batch_index];
-            else if (batch_size != info.second.dataShape[batch_index])
+                batch_size = info.second.batch();
+            else if (batch_size != info.second.batch())
                 throw std::logic_error("Can't deterimine batch size: batch is "
                                        "different for different inputs!");
         }
     }
-    if (batch_size == 0)
+    if (batch_size == 0) {
         batch_size = 1;
+    }
     return batch_size;
 }
 
-InferenceEngine::Layout getLayoutFromString(const std::string& string_layout) {
-    static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
-        {"NCHW", InferenceEngine::Layout::NCHW},
-        {"NHWC", InferenceEngine::Layout::NHWC},
-        {"NCDHW", InferenceEngine::Layout::NCDHW},
-        {"NDHWC", InferenceEngine::Layout::NDHWC},
-        {"C", InferenceEngine::Layout::C},
-        {"CHW", InferenceEngine::Layout::CHW},
-        {"HWC", InferenceEngine::Layout::HWC},
-        {"HW", InferenceEngine::Layout::HW},
-        {"NC", InferenceEngine::Layout::NC},
-        {"CN", InferenceEngine::Layout::CN}};
-    auto it = layouts.find(string_layout);
-    if (it != layouts.end()) {
-        return it->second;
+size_t getModelInputBatchSize(const ov::Model& model) {
+    try {
+        auto& param = model.get_parameters()[0];
+        auto layout = param->get_layout();
+        return param->get_shape().at(ov::layout::batch_idx(layout));
+    } catch (...) {
+        slog::warn
+            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
+            << slog::endl;
+        return 1;  // Default batch value
     }
-    IE_THROW() << "Unknown layout with name '" << string_layout << "'.";
 }
 
-std::string getShapeString(const InferenceEngine::SizeVector& shape) {
+std::string getShapeString(const ov::Shape& shape) {
     std::stringstream ss;
-    ss << "[";
-    for (size_t i = 0; i < shape.size(); ++i) {
-        if (i > 0)
-            ss << ", ";
-        ss << shape.at(i);
-    }
-    ss << "]";
+    ss << shape;
     return ss.str();
 }
 
@@ -201,22 +188,6 @@ std::string getShapesString(const benchmark_app::PartialShapes& shapes) {
         if (!ss.str().empty())
             ss << ", ";
         ss << "\'" << shape.first << "': " << shape.second;
-    }
-    return ss.str();
-}
-
-std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& shapes) {
-    std::stringstream ss;
-    for (auto& shape : shapes) {
-        if (!ss.str().empty())
-            ss << ", ";
-        ss << "\'" << shape.first << "': [";
-        for (size_t i = 0; i < shape.second.size(); i++) {
-            if (i > 0)
-                ss << ", ";
-            ss << shape.second.at(i);
-        }
-        ss << "]";
     }
     return ss.str();
 }
@@ -282,9 +253,9 @@ std::vector<ngraph::Dimension> parsePartialShape(const std::string& partial_shap
     return shape;
 }
 
-InferenceEngine::SizeVector parseTensorShape(const std::string& dataShape) {
+ov::Shape parseDataShape(const std::string& dataShapeStr) {
     std::vector<size_t> shape;
-    for (auto& dim : split(dataShape, ',')) {
+    for (auto& dim : split(dataShapeStr, ',')) {
         shape.push_back(std::stoi(dim));
     }
     return shape;
@@ -374,6 +345,317 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::v
     return mapped_files;
 }
 
+std::map<std::string, std::vector<std::string>> parseInputParameters(
+    const std::string& parameter_string,
+    const std::vector<ov::Output<const ov::Node>>& input_info) {
+    // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
+    // inputs)
+    std::map<std::string, std::vector<std::string>> return_value;
+    std::string search_string = parameter_string;
+    auto start_pos = search_string.find_first_of('[');
+    auto input_name = search_string.substr(0, start_pos);
+    while (start_pos != std::string::npos) {
+        auto end_pos = search_string.find_first_of(']');
+        if (end_pos == std::string::npos)
+            break;
+        if (start_pos)
+            input_name = search_string.substr(0, start_pos);
+        auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
+        if (!input_name.empty()) {
+            return_value[input_name].push_back(input_value);
+        } else {
+            for (auto& item : input_info) {
+                return_value[item.get_any_name()].push_back(input_value);
+            }
+        }
+        search_string = search_string.substr(end_pos + 1);
+        if (search_string.empty() || (search_string.front() != ',' && search_string.front() != '['))
+            break;
+        if (search_string.front() == ',')
+            search_string = search_string.substr(1);
+        start_pos = search_string.find_first_of('[');
+    }
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse input parameter string: " + parameter_string);
+    return return_value;
+}
+
+std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_string,
+                                                     const std::string& layout_string,
+                                                     const size_t batch_size,
+                                                     const std::string& data_shapes_string,
+                                                     const std::map<std::string, std::vector<std::string>>& fileNames,
+                                                     const std::string& scale_string,
+                                                     const std::string& mean_string,
+                                                     const std::vector<ov::Output<const ov::Node>>& input_info,
+                                                     bool& reshape_required) {
+    std::map<std::string, std::vector<std::string>> shape_map = parseInputParameters(shape_string, input_info);
+    std::map<std::string, std::vector<std::string>> data_shapes_map =
+        parseInputParameters(data_shapes_string, input_info);
+    std::map<std::string, std::vector<std::string>> layout_map = parseInputParameters(layout_string, input_info);
+
+    size_t min_size = 1, max_size = 1;
+    if (!data_shapes_map.empty()) {
+        min_size = std::min_element(data_shapes_map.begin(),
+                                    data_shapes_map.end(),
+                                    [](std::pair<std::string, std::vector<std::string>> a,
+                                       std::pair<std::string, std::vector<std::string>> b) {
+                                        return a.second.size() < b.second.size() && a.second.size() != 1;
+                                    })
+                       ->second.size();
+
+        max_size = std::max_element(data_shapes_map.begin(),
+                                    data_shapes_map.end(),
+                                    [](std::pair<std::string, std::vector<std::string>> a,
+                                       std::pair<std::string, std::vector<std::string>> b) {
+                                        return a.second.size() < b.second.size();
+                                    })
+                       ->second.size();
+        if (min_size != max_size) {
+            throw std::logic_error(
+                "Shapes number for every input should be either 1 or should be equal to shapes number of other inputs");
+        }
+        slog::info << "Number of test configurations is calculated basing on -tensor_shape parameter" << slog::endl;
+    } else if (fileNames.size() > 0) {
+        slog::info << "Number of test configurations is calculated basing on number of input images" << slog::endl;
+        min_size = std::min_element(fileNames.begin(),
+                                    fileNames.end(),
+                                    [](std::pair<std::string, std::vector<std::string>> a,
+                                       std::pair<std::string, std::vector<std::string>> b) {
+                                        return a.second.size() < b.second.size() && a.second.size() != 1;
+                                    })
+                       ->second.size();
+
+        max_size = std::max_element(fileNames.begin(),
+                                    fileNames.end(),
+                                    [](std::pair<std::string, std::vector<std::string>> a,
+                                       std::pair<std::string, std::vector<std::string>> b) {
+                                        return a.second.size() < b.second.size();
+                                    })
+                       ->second.size();
+        if (min_size != max_size) {
+            slog::warn << "Number of input files is different for some inputs, minimal number of files will be used ("
+                       << min_size << ")" << slog::endl;
+        }
+    }
+
+    reshape_required = false;
+
+    std::map<std::string, int> currentFileCounters;
+    for (auto& item : input_info) {
+        currentFileCounters[item.get_any_name()] = 0;
+    }
+
+    std::vector<benchmark_app::InputsInfo> info_maps;
+    for (size_t i = 0; i < min_size; ++i) {
+        benchmark_app::InputsInfo info_map;
+
+        for (auto& item : input_info) {
+            benchmark_app::InputInfo info;
+            auto name = item.get_any_name();
+
+            // Layout
+            if (layout_map.count(name)) {
+                if (layout_map.at(name).size() > 1) {
+                    throw std::logic_error(
+                        "layout command line parameter doesn't support multiple layouts for one input.");
+                }
+                info.layout = ov::Layout(layout_map.at(name)[0]);
+                // reshape_required = true;
+            } else {
+                info.layout = dynamic_cast<const ov::op::v0::Parameter&>(*item.get_node()).get_layout();
+            }
+
+            // Calculating default layout values if needed
+            std::string newLayout = "";
+            if (info.layout.empty()) {
+                switch (item.get_partial_shape().size()) {
+                case 3:
+                    newLayout = "CHW";
+                    break;
+                case 4:
+                    // Rough check for layout type, basing on max number of image channels
+                    newLayout = (item.get_partial_shape()[3].get_max_length() <= 4 &&
+                                 item.get_partial_shape()[1].get_max_length() > 4)
+                                    ? "NHWC"
+                                    : "NCHW";
+                    break;
+                }
+                if (newLayout != "") {
+                    info.layout = ov::Layout(newLayout);
+                }
+                if (info_maps.empty()) {  // Show warnings only for 1st test case config, as for other test cases
+                                          // they will be the same
+                    slog::warn << item.get_node()->get_friendly_name() << ": layout is not set explicitly"
+                               << (newLayout != "" ? std::string(", so it is defaulted to ") + newLayout : "")
+                               << ". It is STRONGLY recommended to set layout manually to avoid further issues."
+                               << slog::endl;
+                }
+            }
+
+            // Precision
+            info.type = item.get_element_type();
+            // Partial Shape
+            if (shape_map.count(name)) {
+                if (shape_map.at(name).size() > 1) {
+                    throw std::logic_error(
+                        "shape command line parameter doesn't support multiple shapes for one input.");
+                }
+                info.partialShape = parsePartialShape(shape_map.at(name)[0]);
+                reshape_required = true;
+            } else {
+                info.partialShape = item.get_partial_shape();
+            }
+
+            // Files might be mapped without input name. In case of only one input we may map them to the only input
+            // directly
+            std::string filesInputName =
+                fileNames.size() == 1 && input_info.size() == 1 && fileNames.begin()->first == "" ? "" : name;
+
+            // Tensor Shape
+            if (info.partialShape.is_dynamic() && data_shapes_map.count(name)) {
+                info.dataShape = parseDataShape(data_shapes_map.at(name)[i % data_shapes_map.at(name).size()]);
+            } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.isImage()) {
+                auto& namesVector = fileNames.at(filesInputName);
+                if (containsBinaries(namesVector)) {
+                    throw std::logic_error("Input files list for input " + item.get_any_name() +
+                                           " contains binary file(s) and input shape is dynamic. Tensor shape should "
+                                           "be defined explicitly (using -tensor_shape).");
+                }
+
+                info.dataShape = ov::Shape(info.partialShape.size(), 0);
+                for (int i = 0; i < info.partialShape.size(); i++) {
+                    auto& dim = info.partialShape[i];
+                    if (dim.is_static()) {
+                        info.dataShape[i] = dim.get_length();
+                    }
+                }
+
+                size_t tensorBatchSize = std::max(batch_size, (size_t)1);
+                if (ov::layout::has_batch(info.layout)) {
+                    if (info.batch()) {
+                        tensorBatchSize = std::max(tensorBatchSize, info.batch());
+                    } else {
+                        info.dataShape[ov::layout::batch_idx(info.layout)] = tensorBatchSize;
+                    }
+                }
+
+                size_t w = 0;
+                size_t h = 0;
+                size_t fileIdx = currentFileCounters[item.get_any_name()];
+                for (; fileIdx < currentFileCounters[item.get_any_name()] + tensorBatchSize; fileIdx++) {
+                    if (fileIdx >= namesVector.size()) {
+                        throw std::logic_error(
+                            "Not enough files to fill in full batch (number of files should be a multiple of batch "
+                            "size if -tensor_shape parameter is omitted and shape is dynamic)");
+                    }
+                    FormatReader::ReaderPtr reader(namesVector[fileIdx].c_str());
+                    if ((w && w != reader->width()) || (h && h != reader->height())) {
+                        throw std::logic_error("Image sizes putting into one batch should be of the same size if input "
+                                               "shape is dynamic and -tensor_shape is omitted. Problem file: " +
+                                               namesVector[fileIdx]);
+                    }
+                    w = reader->width();
+                    h = reader->height();
+                }
+                currentFileCounters[item.get_any_name()] = fileIdx;
+
+                if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
+                    info.dataShape[ov::layout::height_idx(info.layout)] = h;
+                }
+                if (!info.dataShape[ov::layout::width_idx(info.layout)]) {
+                    info.dataShape[ov::layout::width_idx(info.layout)] = w;
+                }
+
+                if (std::any_of(info.dataShape.begin(), info.dataShape.end(), [](size_t d) {
+                        return d == 0;
+                    })) {
+                    throw std::logic_error("Not enough information in shape and image to determine tensor shape "
+                                           "automatically autmatically. Input: " +
+                                           item.get_node()->get_friendly_name() +
+                                           ", File name: " + namesVector[fileIdx - 1]);
+                }
+
+            } else if (info.partialShape.is_static()) {
+                info.dataShape = info.partialShape.get_shape();
+                if (data_shapes_map.find(name) != data_shapes_map.end()) {
+                    throw std::logic_error(
+                        "Network's input \"" + name +
+                        "\" is static. Use -shape argument for static inputs instead of -data_shape.");
+                }
+            } else if (!data_shapes_map.empty()) {
+                throw std::logic_error("Can't find network input name \"" + name + "\" in \"-data_shape " +
+                                       data_shapes_string + "\" command line parameter");
+            } else {
+                throw std::logic_error("-i or -data_shape command line parameter should be set for all inputs in case "
+                                       "of network with dynamic shapes.");
+            }
+
+            // Update shape with batch if needed (only in static shape case)
+            // Update blob shape only not affecting network shape to trigger dynamic batch size case
+            if (batch_size != 0) {
+                if (ov::layout::has_batch(info.layout)) {
+                    std::size_t batch_index = ov::layout::batch_idx(info.layout);
+                    if (info.dataShape.at(batch_index) != batch_size) {
+                        if (info.partialShape.is_static()) {
+                            info.partialShape[batch_index] = batch_size;
+                        }
+                        info.dataShape[batch_index] = batch_size;
+                        reshape_required = true;
+                    }
+                } else {
+                    slog::warn << "Input '" << item.get_node()->get_friendly_name()
+                               << "' doesn't have batch dimension in layout. -b option will be ignored for this input."
+                               << slog::endl;
+                }
+            }
+            info_map[name] = info;
+        }
+
+        // Update scale and mean
+        std::map<std::string, std::vector<float>> scale_map = parseScaleOrMean(scale_string, info_map);
+        std::map<std::string, std::vector<float>> mean_map = parseScaleOrMean(mean_string, info_map);
+
+        for (auto& item : info_map) {
+            if (item.second.isImage()) {
+                item.second.scale.assign({1, 1, 1});
+                item.second.mean.assign({0, 0, 0});
+
+                if (scale_map.count(item.first)) {
+                    item.second.scale = scale_map.at(item.first);
+                }
+                if (mean_map.count(item.first)) {
+                    item.second.mean = mean_map.at(item.first);
+                }
+            }
+        }
+
+        info_maps.push_back(info_map);
+    }
+
+    return info_maps;
+}
+
+std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_string,
+                                                     const std::string& layout_string,
+                                                     const size_t batch_size,
+                                                     const std::string& tensors_shape_string,
+                                                     const std::map<std::string, std::vector<std::string>>& fileNames,
+                                                     const std::string& scale_string,
+                                                     const std::string& mean_string,
+                                                     const std::vector<ov::Output<const ov::Node>>& input_info) {
+    bool reshape_required = false;
+    return getInputsInfo(shape_string,
+                         layout_string,
+                         batch_size,
+                         tensors_shape_string,
+                         fileNames,
+                         scale_string,
+                         mean_string,
+                         input_info,
+                         reshape_required);
+}
+
 #ifdef USE_OPENCV
 void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
     auto plugin_to_opencv_format = [](const std::string& str) -> std::string {
@@ -427,3 +709,55 @@ void load_config(const std::string& filename, std::map<std::string, std::map<std
     }
 }
 #endif
+
+#ifdef USE_OPENCV
+const std::vector<std::string> supported_image_extensions =
+    {"bmp", "dib", "jpeg", "jpg", "jpe", "jp2", "png", "pbm", "pgm", "ppm", "sr", "ras", "tiff", "tif"};
+#else
+const std::vector<std::string> supported_image_extensions = {"bmp"};
+#endif
+const std::vector<std::string> supported_binary_extensions = {"bin"};
+
+std::string getExtension(const std::string& name) {
+    auto extensionPosition = name.rfind('.', name.size());
+    return extensionPosition == std::string::npos ? "" : name.substr(extensionPosition + 1, name.size() - 1);
+};
+
+bool isBinaryFile(const std::string& filePath) {
+    auto extension = getExtension(filePath);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+    return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
+           supported_binary_extensions.end();
+}
+
+bool isImageFile(const std::string& filePath) {
+    auto extension = getExtension(filePath);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+    return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
+           supported_binary_extensions.end();
+}
+
+bool containsBinaries(const std::vector<std::string>& filePaths) {
+    std::vector<std::string> filtered;
+    for (auto& filePath : filePaths) {
+        auto extension = getExtension(filePath);
+        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+        if (std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
+            supported_binary_extensions.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>& filePaths,
+                                                 const std::vector<std::string>& extensions) {
+    std::vector<std::string> filtered;
+    for (auto& filePath : filePaths) {
+        auto extension = getExtension(filePath);
+        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+        if (std::find(extensions.begin(), extensions.end(), extension) != extensions.end()) {
+            filtered.push_back(filePath);
+        }
+    }
+    return filtered;
+}
