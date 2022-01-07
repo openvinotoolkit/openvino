@@ -15,11 +15,17 @@ add_library(${TARGET_FE_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
 target_include_directories(${TARGET_FE_NAME} PRIVATE ".")
 
-target_link_libraries(${TARGET_FE_NAME} PRIVATE frontend_common::static)
-target_link_libraries(${TARGET_FE_NAME} PUBLIC ngraph PRIVATE ngraph::builder)
+target_link_libraries(${TARGET_FE_NAME} PUBLIC openvino::runtime PRIVATE ngraph::builder)
 
 add_clang_format_target(${TARGET_FE_NAME}_clang FOR_TARGETS ${TARGET_FE_NAME})
 
-install(TARGETS ${TARGET_FE_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+if(BUILD_SHARED_LIBS)
+    install(TARGETS ${TARGET_FE_NAME}
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+else()
+    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+    install(TARGETS ${TARGET_FE_NAME}
+            RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino COMPONENT tests EXCLUDE_FROM_ALL)
+endif()

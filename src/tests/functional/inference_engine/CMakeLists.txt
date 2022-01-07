@@ -26,7 +26,7 @@ set(LINK_LIBRARIES
 set(DEPENDENCIES
     mock_engine
     template_extension
-    template_ov_extension
+    ov_template_extension
     lptNgraphFunctions
     sharedTestClasses
     test_model_zoo
@@ -48,11 +48,15 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
     list(APPEND DEPENDENCIES ov_auto_plugin)
 endif()
 
+if(ENABLE_AUTO_BATCH)
+    list(APPEND DEPENDENCIES ov_auto_batch_plugin)
+endif()
+
 if (NOT ENABLE_OV_ONNX_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
-if (NOT ENABLE_OV_PDPD_FRONTEND)
+if (NOT ENABLE_OV_PADDLE_FRONTEND)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader")
 endif()
 
@@ -77,10 +81,10 @@ if(ENABLE_OV_ONNX_FRONTEND)
     add_dependencies(${TARGET_NAME} ov_onnx_frontend)
 endif()
 
-if(ENABLE_OV_PDPD_FRONTEND)
+if(ENABLE_OV_PADDLE_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
-    add_dependencies(${TARGET_NAME} ov_paddlepaddle_frontend)
+    add_dependencies(${TARGET_NAME} ov_paddle_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
