@@ -288,7 +288,7 @@ void MultiDeviceExecutableNetwork::TryApplyAutoBatching(AutoLoadContext& context
         bThroughputEnabledInPlugin =
         _core->GetConfig(deviceNameWithoutBatch, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
     } catch (...) {
-        LOG_WARNING("[AUTOPLUGIN]not able to get performance hint config from device");
+        LOG_WARNING("[AUTOPLUGIN]not able to get performance hint config");
     }
     const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
     if ((!bThroughputEnabledInPlugin &&
@@ -305,8 +305,7 @@ void MultiDeviceExecutableNetwork::TryApplyAutoBatching(AutoLoadContext& context
                 if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
                     layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
                     layout == InferenceEngine::Layout::NDHWC) {
-                    if (item.first == "im_info"  // WA for faster-rcnn* and alikes (CVS-74085)
-                        || 1 != item.second->getTensorDesc().getDims()[0])  // do not reshape/re-batch  batched networks
+                    if (1 != item.second->getTensorDesc().getDims()[0])  // do not reshape/re-batch  batched networks
                         IE_THROW(NotImplemented)
                             << "Auto-batching does not reshape/re-batch originally batched networks!";
                     else
@@ -344,38 +343,8 @@ void MultiDeviceExecutableNetwork::TryApplyAutoBatching(AutoLoadContext& context
                 LOG_WARNING("[AUTOPLUGIN]get optimal infer request num for GPU auto-batch failed :%s");
             }
             _optimalBatchingRequestNum = (std::max)(8u, real);
-            auto function = _network.getFunction();
-            // have to execute the DetectionOutput separately (without batching)
-            // as this layer mix-in the values from the different inputs (batch id)
-            bool bDetectionOutput = false;
-            const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
-            const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
-            for (auto&& node : function->get_ops()) {
-                auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
-                    for (size_t n = 0; n < nd->get_input_size(); n++) {
-                        // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
-                        // so type_info name check is enough
-                        // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
-                        if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
-                            return true;
-                    }
-                    return false;
-                };
-            if ((detectionOutputOpName == node->get_type_info().name) ||
-                    ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
-                    node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                    bDetectionOutput = true;
-                } else {
-                    node->get_rt_info()["affinity"] = "BATCH";
-                }
-            }
             auto batchConfig = deviceNameWithoutBatch + "(" + std::to_string(_optimalBatchingRequestNum) + ")";
-            if (bDetectionOutput) {
-                _deviceNameWithBatching = "HETERO:BATCH," + deviceNameWithoutBatch;
-                config_with_batch[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
-            } else {
-                _deviceNameWithBatching = "BATCH:" + batchConfig;
-            }
+            _deviceNameWithBatching = "BATCH:" + batchConfig;
         } catch (std::exception& e) {
         // No Auto-Batching Enabled
     }

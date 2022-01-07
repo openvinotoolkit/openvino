@@ -148,6 +148,14 @@ public:
        IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, optimalNum, 2);
        ON_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
+       IE_SET_METRIC(OPTIMAL_BATCH_SIZE, optimalBatchSize, 8);
+       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
+           .WillByDefault(Return(optimalBatchSize));
+       EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _)).Times(AnyNumber());
+       IE_SET_METRIC(RANGE_FOR_STREAMS, rangeStreamsSize, {1u, 2u});
+       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
+           .WillByDefault(Return(rangeStreamsSize));
+       EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _)).Times(AnyNumber());
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(Return(supportConfigs));
@@ -170,6 +178,8 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     // test auto plugin
     config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
     std::string devicesStr = "";
+    unsigned int extraLoadThrBatch = 0;
+    std::once_flag extraLoadOc;
     int selDevsSize = deviceConfigs.size();
     for (auto iter = deviceConfigs.begin(); iter != deviceConfigs.end(); selDevsSize--) {
         std::string deviceName = std::get<0>(*iter);
@@ -197,6 +207,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
             case THROUGHPUT:
                 devInfo = {deviceName, {{CONFIG_KEY(PERFORMANCE_HINT),
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, 2, ""};
+                std::call_once(extraLoadOc, [&extraLoadThrBatch]() { extraLoadThrBatch++; });
                 break;
             default:
                 LOG_ERROR("should not come here");
@@ -231,7 +242,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(selectCount);
     EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(loadCount);
+                ::testing::Matcher<const Config&>(_))).Times(loadCount + extraLoadThrBatch);
 
     // if loadSuccess will get the optimalNum requset of per device, in this test is 2;
     EXPECT_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))

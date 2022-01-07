@@ -34,6 +34,7 @@ using ::testing::ReturnRef;
 using ::testing::AtLeast;
 using ::testing::AnyNumber;
 using ::testing::InvokeWithoutArgs;
+using ::testing::ContainsRegex;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
@@ -189,6 +190,7 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
             .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
         ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
+        EXPECT_CALL(*core.get(), GetConfig(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(CONFIG_KEY(PERFORMANCE_HINT)))).Times(AnyNumber());
     } else {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({CommonTestUtils::DEVICE_GPU, {}, gpuCustomerNum, ""});
@@ -224,6 +226,21 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
                     ::testing::Matcher<const Config&>(_))).WillByDefault(Return(gpuMockExeNetwork));
     }
 
+    if (isThroughput) {
+        if (gpuSleep) {
+            ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                                ::testing::Matcher<const std::string&>(ContainsRegex(CommonTestUtils::DEVICE_BATCH)),
+                                ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
+                            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                            return gpuMockExeNetwork;
+                            }));
+        } else {
+            ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                    ::testing::Matcher<const std::string&>(ContainsRegex(CommonTestUtils::DEVICE_BATCH)),
+                    ::testing::Matcher<const Config&>(_))).WillByDefault(Return(gpuMockExeNetwork));
+        }
+    }
+
     ON_CALL(*cpuMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(RETURN_MOCK_VALUE(cpuOptimalNum));
     ON_CALL(*gpuMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
@@ -242,6 +259,12 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
     EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
                 ::testing::Matcher<const Config&>(_))).Times(1);
+
+    if (isThroughput) {
+        EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                ::testing::Matcher<const std::string&>(ContainsRegex(CommonTestUtils::DEVICE_BATCH)),
+                ::testing::Matcher<const Config&>(_))).Times(1);
+    }
 
     if (cpuCustomerNum == -1) {
         EXPECT_CALL(*cpuMockIExeNet.get(), CreateInferRequest()).Times(cpuOptimalNum);
