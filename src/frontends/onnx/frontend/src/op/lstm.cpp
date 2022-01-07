@@ -217,7 +217,8 @@ OutputVector lstm(const Node& node) {
     LSTMAttributes attributes{node};
     std::shared_ptr<ngraph::Node> lstm_sequence;
 
-    if ((input_map.at(LSTMInput::LSTM_INPUT_P).get_names() != std::unordered_set<std::string>({"P_blank"})) || (attributes.m_input_forget == true)) {
+    if ((input_map.at(LSTMInput::LSTM_INPUT_P).get_names() != std::unordered_set<std::string>({"P_blank"})) ||
+        (attributes.m_input_forget == true)) {
         lstm_sequence = std::make_shared<ov::op::v0::LSTMSequence>(input_map.at(LSTMInput::LSTM_INPUT_X),
                                                                    input_map.at(LSTMInput::LSTM_INPUT_INIT_H),
                                                                    input_map.at(LSTMInput::LSTM_INPUT_INIT_C),
