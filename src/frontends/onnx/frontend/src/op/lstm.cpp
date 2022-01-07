@@ -251,7 +251,6 @@ OutputVector lstm(const Node& node) {
                                                                       attributes.m_clip_threshold);
     }
 
-
     const auto Y = lstm_sequence->output(0);
     const auto Y_h = lstm_sequence->output(1);
     const auto Y_c = lstm_sequence->output(2);
