@@ -23,14 +23,14 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-struct ConvoltuionParameters {
+struct ConvolutionParameters {
     cldnn::tensor stride;
     cldnn::tensor padding;
     cldnn::tensor dilation;
     uint32_t groups;
 };
 
-static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDiff& pads_begin,
+static ConvolutionParameters GetConvolutionParameters(const ngraph::CoordinateDiff& pads_begin,
                                                       const ngraph::Strides& dilations,
                                                       const ngraph::Strides& strides,
                                                       uint32_t groups) {
@@ -239,7 +239,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
 
 static void DeformableConvolutionImpl(Program& p,
                                       const std::shared_ptr<ngraph::Node>& op,
-                                      const ConvoltuionParameters& params,
+                                      const ConvolutionParameters& params,
                                       std::int64_t deformableGroupsNum,
                                       bool bilinearInterpolationPad = false) {
     auto inputs = p.GetInputPrimitiveIDs(op);
