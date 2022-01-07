@@ -73,6 +73,10 @@ using namespace Xbyak;
 
 namespace {
 struct ReduceKey {
+    ReduceLayoutType layout;
+    Algorithm reduce_mode;
+    mkldnn::memory::data_type src_dt;
+    mkldnn::memory::data_type dst_dt;
     mkldnn::primitive_attr attr;
 
     size_t hash() const;
@@ -84,13 +88,19 @@ size_t ReduceKey::hash() const {
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
+    seed = hash_combine(seed, layout);
+    seed = hash_combine(seed, reduce_mode);
+    seed = hash_combine(seed, src_dt);
+    seed = hash_combine(seed, dst_dt);
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
 
     return seed;
 }
 
 bool ReduceKey::operator==(const ReduceKey &rhs) const {
-    return *attr.get() == *rhs.attr.get();
+    return layout == rhs.layout && reduce_mode == rhs.reduce_mode &&
+           src_dt == rhs.src_dt && dst_dt == rhs.dst_dt &&
+           *attr.get() == *rhs.attr.get();
 }
 } // namespace
 
@@ -1874,22 +1884,31 @@ void MKLDNNReduceNode::prepareParams() {
 
     auto builder = [&](const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
+        auto post_jcp = jit_reduce_config_params();
+        post_jcp.layout = key.layout;
+        post_jcp.reduce_mode = key.reduce_mode;
+        post_jcp.src_dt = key.src_dt;
+        post_jcp.dst_dt = key.dst_dt;
+        post_jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(post_jcp.src_dt);
+        post_jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(post_jcp.dst_dt);
+
         if (mayiuse(cpu::x64::avx512_common)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(jcp, *key.attr.get()));
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(post_jcp, *key.attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(jcp, *key.attr.get()));
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(post_jcp, *key.attr.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(jcp, *key.attr.get()));
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(post_jcp, *key.attr.get()));
         }
         if (post_kernel)
             post_kernel->create_ker();
+
         return post_kernel;
     };
 
     if (compile_post_kernel) {
         setPostOps(attr, dst_dims, true);
 
-        ReduceKey key = {attr};
+        ReduceKey key = {jcp.layout, jcp.reduce_mode, jcp.src_dt, jcp.dst_dt, attr};
         auto cache = getRuntimeCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
