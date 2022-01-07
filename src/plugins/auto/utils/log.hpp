@@ -198,11 +198,48 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
         stream << '[' << tag << ']';
     }
     char buffer[255];
+    checkFormat(fmt);
     std::string compatibleString =  "%s" + std::string(fmt);
     std::snprintf(&buffer[0], sizeof(buffer), compatibleString.c_str(), "", args...);
     stream << ' ' << buffer << suffix << colorEnd(level);
     std::lock_guard<std::mutex> autoLock(mutex);
     print(stream);
+}
+
+inline void Log::checkFormat(const char* fmt) {
+    const char* indexChar = fmt;
+    std::string tmpFormat = "";
+    bool  collectFormatString = false;
+    static const std::vector<std::string> validFormat = {"u", "d", "s", "ld", "lu"};
+    while(indexChar != '\0') {
+        if (collectFormatString) {
+            tmpFormat += indexChar;
+            switch (tmpFormat.size()) {
+                case 1:
+                case 2:
+                    auto validStr = std::find(validFormat.begin(), validFormat.end(), tmpFormat);
+                    if(validStr != validFormat.end()) {
+                        collectFormatString = false;
+                        tmpFormat = "";
+                    }
+                    break;
+                default:
+                    std::throw std::exception("format %" + tmpFormat + " is not valid in log");
+                    break;
+            }
+            indexChar++;
+            continue
+        }
+
+        if(indexChar == "%") {
+           collectFormatString = true;
+        }
+        indexChar++;
+    }
+    if(!tmpFormat.empty()) {
+        std::throw std::exception("format %" + tmpFormat + " is not valid in log");
+    }
+
 }
 
 inline std::string Log::colorBegin(MultiDevicePlugin::LogLevel logLevel) {
