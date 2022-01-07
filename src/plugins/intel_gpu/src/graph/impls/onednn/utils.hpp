@@ -34,6 +34,8 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 // onednn -> cldnn
 cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped = false);
 
+int64_t get_offset(dnnl::memory::desc desc);
+
 // If the values in the tensor are identical, make it as per-tensor value
 template <typename T>
 void make_per_tensor_if_possible(cldnn::data_node& node);
