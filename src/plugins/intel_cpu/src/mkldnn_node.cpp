@@ -324,8 +324,6 @@ bool MKLDNNNode::canBeInPlace() const {
 }
 
 void MKLDNNNode::resolveInPlaceEdges() {
-    // TODO [DS]: first version dynamic shapes do not support inPlace logic
-    // after enabling inPlace logic for dynamic shapes we need to update this method for nodes with several edges at single port
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
@@ -335,9 +333,9 @@ void MKLDNNNode::resolveInPlaceEdges() {
         if (parentEdge->getStatus() != MKLDNNEdge::Status::NotAllocated || selected_pd->getConfig().inConfs[i].inPlace() < 0)
             continue;
 
-        auto * memPtr = reinterpret_cast<char*>(parentEdge->getMemory().GetData());
+        auto memMgr = parentEdge->getMemory().getDnnlMemoryMngr();
         parentEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
-        parentEdge->getMemoryPtr()->Create(*selected_pd->getConfig().inConfs[i].getMemDesc(), memPtr);
+        parentEdge->getMemoryPtr()->Create(selected_pd->getConfig().inConfs[i].getMemDesc(), memMgr);
 
         parentEdge->changeStatus(MKLDNNEdge::Status::Allocated);
     }
@@ -347,9 +345,9 @@ void MKLDNNNode::resolveInPlaceEdges() {
         if (childEdge->getStatus() != MKLDNNEdge::Status::NotAllocated || selected_pd->getConfig().outConfs[i].inPlace() < 0)
             continue;
 
-        auto * memPtr = reinterpret_cast<char*>(childEdge->getMemory().GetData());
+        auto memMgr = childEdge->getMemory().getDnnlMemoryMngr();
         childEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
-        childEdge->getMemoryPtr()->Create(*selected_pd->getConfig().outConfs[i].getMemDesc(), memPtr);
+        childEdge->getMemoryPtr()->Create(selected_pd->getConfig().outConfs[i].getMemDesc(), memMgr);
 
         childEdge->changeStatus(MKLDNNEdge::Status::Allocated);
     }
@@ -548,24 +546,9 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
         if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
             continue;
 
-        // this path neccesary if there are several edges per one port
-        // in this case edge memory share same physical memory
-        // so we need to find which edge allocate memory, reallocate memory and share this memory between other edges
-        size_t sharedEdgeNum = 0;
-        for (size_t j = 0; j < edges.size(); j++) {
-            if (!edges[j]->getMemory().isUsedExternalStorage()) {
-                sharedEdgeNum = j;
-                break;
-            }
-        }
-
         const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
-        edges[sharedEdgeNum]->getMemoryPtr()->redefineDesc(memDesc);
-        void *data = edges[sharedEdgeNum]->getMemoryPtr()->GetData();
         for (size_t j = 0; j < edges.size(); j++) {
-            if (j == sharedEdgeNum)
-                continue;
-            edges[j]->getMemoryPtr()->Create(memDesc, data, false);
+            edges[j]->getMemoryPtr()->redefineDesc(memDesc);
         }
     }
 }

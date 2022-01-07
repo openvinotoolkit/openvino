@@ -466,9 +466,9 @@ void MKLDNNMatMulNode::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto& src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW()  << errorPrefix << " did not allocate destination memory";
-    if (!src0MemPtr || !src0MemPtr->GetPrimitivePtr() || !src1MemPtr || !src1MemPtr->GetPrimitivePtr())
+    if (!src0MemPtr || !src0MemPtr->isAllocated() || !src1MemPtr || !src1MemPtr->isAllocated())
         IE_THROW()  << errorPrefix << " did not allocate input memory";
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -504,7 +504,7 @@ void MKLDNNMatMulNode::prepareParams() {
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
         auto& biasMemory = getParentEdgeAt(2)->getMemoryPtr();
-        if (!biasMemory || !biasMemory->GetPrimitivePtr())
+        if (!biasMemory || !biasMemory->isAllocated())
             IE_THROW()  << errorPrefix << " did not allocate bias memory";
         dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();
     }

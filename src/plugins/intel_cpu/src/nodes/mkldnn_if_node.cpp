@@ -32,25 +32,10 @@ void MKLDNNIfNode::PortMapHelper::execute(mkldnn::stream& strm) {
 void MKLDNNIfNode::PortMapHelper::redefineTo() {
     const auto &currDesc = dstMemPtrs.front()->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
-        // WA [DS] : need to rewrite it. Copypaste from MKLDNNNode::redefineOutputMemory
-        // this path is necessary if there are several edges per one port
-        // in this case edge memory share same physical memory
-        // so we need to find which edge allocate memory, reallocate memory and share this memory between other edges
-        size_t sharedEdgeNum = 0;
+        // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
+        auto memDesc = srcMemPtr->getDescPtr();
         for (size_t j = 0; j < dstMemPtrs.size(); j++) {
-            if (!dstMemPtrs[j]->isUsedExternalStorage()) {
-                sharedEdgeNum = j;
-                break;
-            }
-        }
-
-        const auto &memDesc = srcMemPtr->getDesc();
-        dstMemPtrs[sharedEdgeNum]->redefineDesc(memDesc);
-        void *data = dstMemPtrs[sharedEdgeNum]->GetData();
-        for (size_t j = 0; j < dstMemPtrs.size(); j++) {
-            if (j == sharedEdgeNum)
-                continue;
-            dstMemPtrs[j]->redefineDesc(memDesc, data);
+            dstMemPtrs[j]->redefineDesc(memDesc);
         }
 
         size = srcMemPtr->GetSize();

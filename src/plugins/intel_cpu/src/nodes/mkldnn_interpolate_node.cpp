@@ -2151,9 +2151,9 @@ void MKLDNNInterpolateNode::prepareParams() {
 void MKLDNNInterpolateNode::createPrimitive() {
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
