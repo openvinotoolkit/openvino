@@ -26,9 +26,7 @@ from tests_compatibility import (
     xfail_issue_38735,
     xfail_issue_39658,
     xfail_issue_39662,
-    xfail_issue_44854,
     xfail_issue_44858,
-    xfail_issue_44956,
     xfail_issue_44965,
     xfail_issue_44968,
     xfail_issue_45180,
@@ -194,7 +192,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_38706,
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
-        "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (
         xfail_issue_33538,
@@ -258,12 +255,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_random_cpu",
     ),
     (
-        xfail_issue_44854,
-        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_cpu",
-    ),
-    (
         xfail_issue_44858,
         "OnnxBackendNodeModelTest.test_unsqueeze_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_axis_1_cpu",
@@ -272,12 +263,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_unsqueeze_three_axes_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_two_axes_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_unsorted_axes_cpu",
-    ),
-    (
-        xfail_issue_44956,
-        "OnnxBackendNodeModelTest.test_loop11_cpu",
-        "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_expanded_cpu",
     ),
     (
         xfail_issue_44965,
