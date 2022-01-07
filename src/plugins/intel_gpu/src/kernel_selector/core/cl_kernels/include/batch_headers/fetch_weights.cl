@@ -745,29 +745,7 @@ inline uint get_g_os_is_yx_osa2_isa8_osv16_isv2(uint g, uint o, uint i, uint y, 
 inline uint get_g_is_os_yx_isa2_osa8_isv8_osv2(uint g, uint o, uint i, uint z, uint y, uint x,
                                                uint size_x, uint size_y,  uint size_z, uint size_ifm, uint size_ofm, uint offset)
 {
-    const uint isv_idx = i % 8;
-    const uint isa_idx = (i / 8) % 2;
-    const uint is_idx = (i / 16);
-    const uint osv_idx = o % 2;
-    const uint osa_idx = (o / 2) % 8;
-    const uint os_idx = (o / 16);
-
-    const uint ifm_16_aligned = ((size_ifm + 15)/16);
-    const uint ofm_16_aligned = ((size_ofm + 15)/16);
-
-    size_t idx = offset +
-                 osv_idx +
-                 isv_idx * 2 +
-                 osa_idx * 8 * 2 +
-                 isa_idx * 8 * 16 +
-                 x * 16 * 16 +
-                 y * size_x * 16 * 16 +
-                 z * size_y * size_x * 16 * 16 +
-                 os_idx * 16 * 16 * size_x * size_y * size_z +
-                 is_idx * 16 * 16 * ofm_16_aligned * size_x * size_y * size_z +
-                 g * 16 * 16 * ifm_16_aligned * ofm_16_aligned * size_x * size_y * size_z;
-
-    return idx;
+    return get_g_os_is_yx_osa2_isa8_osv8_isv2(g, i, o, z, y, x, size_x, size_y, size_z, size_ofm, size_ifm, offset);
 }
 
 #define GET_FILTER_OS_IS_YX_OSA4_ISA8_OSV8_ISV4_INDEX(prefix, o, i, y, x) \
