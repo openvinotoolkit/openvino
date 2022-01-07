@@ -162,6 +162,7 @@ struct format {
         os_is_yx_osa2_isa8_osv8_isv2,
         os_is_yx_osa2_isa8_osv16_isv2,
         os_is_yx_osa2_isa8_osv16_isv4,
+        is_os_yx_isa2_osa8_isv8_osv2,
         is_o_yx_isv32,                                ///< format for weights for 1x1 MMAD convolutions
         is_o32_yx_isv32_swizzled_by_4,                ///< format for weights for 1x1 MMAD convolutions
         os_is_y_x8_osv8_isv4,                         ///< format for weights for 1x1 MMAD convolutions
@@ -301,6 +302,7 @@ struct format {
                 { os_is_zyx_isa8_osv16_isv4,                   { 1, 1, 3, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 4}}}},
                 { os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  { 1, 1, 2, 0, "oiyx",   "oixy?",      {{0, 32}, {1, 32}}}},
                 { os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, { 1, 1, 3, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 32}}}},
+                { is_os_yx_isa2_osa8_isv8_osv2,                { 1, 1, 2, 0, "ioyx",   "ioxy?",      {{1, 16}, {0, 16}}}},
                 { is_o_yx_isv32,                               { 1, 1, 2, 0, "oyxi",   "oixy?",      {{1, 32}}}},
                 { is_o32_yx_isv32_swizzled_by_4,               { 1, 1, 2, 0, "oyxi",   "oixy?",      {}}},
                 { os_is_y_x8_osv8_isv4,                        { 1, 1, 2, 0, "oyxi",   "oixy?",      {}}},

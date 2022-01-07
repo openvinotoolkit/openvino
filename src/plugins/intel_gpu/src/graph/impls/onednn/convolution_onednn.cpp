@@ -117,7 +117,7 @@ protected:
         auto cldnn_prim = arg.get_primitive();
         auto weights_layout = arg.get_dependency(1).get_output_layout();
         auto grouped_weights = format::is_grouped(weights_layout.format) || arg.get_primitive()->grouped_weights_shape;
-        cldnn::format out_fmt = onednn::convert_format(onednn::get_format_by_desc(pd.weights_desc(0)), grouped_weights);
+        cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
         kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
         set_params(arg, r_params);
