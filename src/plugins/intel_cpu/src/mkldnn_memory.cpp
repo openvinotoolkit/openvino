@@ -138,6 +138,7 @@ DnnlMemoryDescPtr MKLDNNMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
 void MKLDNNMemory::setDataHandle(void *data) {
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
+    prim->set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve mkldnn::memory::set_data_handle behaviour
 }
 
 void MKLDNNMemory::update() {
