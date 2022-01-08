@@ -386,7 +386,7 @@ void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
     for (const auto& graphNode : graphNodes) {
         if (graphNode->isConstant()) {
             constantGraphNodes.emplace_back(graphNode);
-        } else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) {
+        } else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable()) || graphNode->isDynamicNode()) {
             /* @todo
              * Revise implementation.
              * With current way it is possible that with debug_caps enabled
@@ -695,11 +695,11 @@ void MKLDNNGraph::Allocate() {
     // Allocate memory space for all edges marked with NeedAllocation
     AllocateWithReuse();
 
+    // Create dummy memory with undefined desc for edges that are need allocation but has not been allocated withing mem solver
+    for (auto& edge : graphEdges) edge->allocate();
+
     // Resolve all other edges with status NotAllocated and in-place
     for (auto& node : graphNodes) node->resolveInPlaceEdges();
-
-    // Create dummy memory with undefined desc for edges that are not allocated on the previous stages (memory solver and inPlace resolving)
-    for (auto& edge : graphEdges) edge->allocate();
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
