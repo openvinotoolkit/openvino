@@ -126,6 +126,7 @@ void set_result_shape_pdpd(const ov::Node* op,
 
 template <typename T>
 void set_result_shape_bidirectional(const ov::Node* op, const T& arg_shape, T& target_shape, T& result_shape) {
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic()) {
         result_shape = PartialShape::dynamic();
         return;
@@ -149,12 +150,11 @@ void set_result_shape_bidirectional(const ov::Node* op, const T& arg_shape, T& t
             result_shape[i] = arg_shape_vec[i];
         } else {
             NODE_VALIDATION_CHECK(op,
-                                  arg_shape_vec[i].compatible(target_shape[i]),
+                                  DimType::merge(result_shape[i], arg_shape_vec[i], target_shape[i]),
                                   "Broadcast incorrect target shape. Expecting either 1 or ",
                                   arg_shape_vec[i],
                                   ". Got ",
                                   target_shape[i]);
-            result_shape[i] = target_shape[i];
         }
     }
 }
