@@ -49,7 +49,7 @@ The script generates ONNX* model file `bert-ner.onnx`.
 ## Convert ONNX* BERT-NER model to IR
 
 ```bash
- mo --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
+mo --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
 ```
 
 where `1` is `batch_size` and `128` is `sequence_length`.

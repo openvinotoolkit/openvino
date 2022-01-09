@@ -20,7 +20,10 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedShapeOf, "SharedShapeOf", 0);
 
-bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Function> f) {
+static constexpr size_t index_for_int32 = 0;
+static constexpr size_t index_for_int64 = 1;
+
+bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SharedShapeOf);
     bool graph_rewritten = false;
 
@@ -29,7 +32,7 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
             if (auto sub_graph = sub_graph_node->get_function())
-                graph_rewritten |= run_on_function(sub_graph);
+                graph_rewritten |= run_on_model(sub_graph);
 
         if (ov::is_type<ngraph::opset1::ShapeOf>(node) || ov::is_type<ngraph::opset3::ShapeOf>(node))
             source_to_shape_of[node->input_value(0)].push_back(node);
@@ -38,10 +41,21 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
     for (const auto& pair : source_to_shape_of) {
         if (pair.second.size() < 2)
             continue;
-        const auto& root_ss = pair.second[0];
-        for (const auto& child_ss : pair.second)
-            if (root_ss->get_instance_id() != child_ss->get_instance_id() && root_ss->get_output_element_type(0) == root_ss->get_output_element_type(0))
-                graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
+
+        NodeVector nodes_for_different_types[2];
+        for (const auto& child : pair.second) {
+            const auto& type_of_output = child->get_output_element_type(0);
+            size_t index = (type_of_output == element::i32) ? index_for_int32 : index_for_int64;
+            nodes_for_different_types[index].push_back(child);
+        }
+        for (const auto& v : nodes_for_different_types) {
+            if (v.empty())
+                continue;
+            const auto& root_ss = v[0];
+            for (const auto& child_ss : v)
+                if (root_ss->get_instance_id() != child_ss->get_instance_id())
+                    graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
+        }
     }
     return graph_rewritten;
 }
@@ -290,7 +304,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSubGraph", 0);
 
-bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);

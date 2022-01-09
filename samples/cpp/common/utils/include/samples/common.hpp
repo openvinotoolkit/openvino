@@ -12,19 +12,22 @@
 #include <algorithm>
 #include <fstream>
 #include <functional>
-#include <inference_engine.hpp>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <list>
 #include <map>
+#include <openvino/openvino.hpp>
 #include <random>
 #include <string>
 #include <utility>
 #include <vector>
 
+// clang-format off
+#include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
 #include "slog.hpp"
+// clang-format on
 
 #ifndef UNUSED
 #    if defined(_MSC_VER) && !defined(__clang__)
@@ -411,6 +414,7 @@ static UNUSED void addRectangles(unsigned char* data,
                                  {180, 130, 70},  {60, 20, 220},  {0, 0, 255},   {142, 0, 0},     {70, 0, 0},
                                  {100, 60, 0},    {90, 0, 0},     {230, 0, 0},   {32, 11, 119},   {0, 74, 111},
                                  {81, 0, 81}};
+
     if (rectangles.size() % 4 != 0 || rectangles.size() / 4 != classes.size()) {
         return;
     }
@@ -433,21 +437,21 @@ static UNUSED void addRectangles(unsigned char* data,
             h = 0;
 
         if (static_cast<std::size_t>(x) >= width) {
-            x = width - 1;
+            x = static_cast<int>(width - 1);
             w = 0;
             thickness = 1;
         }
         if (static_cast<std::size_t>(y) >= height) {
-            y = height - 1;
+            y = static_cast<int>(height - 1);
             h = 0;
             thickness = 1;
         }
 
         if (static_cast<std::size_t>(x + w) >= width) {
-            w = width - x - 1;
+            w = static_cast<int>(width - x - 1);
         }
         if (static_cast<std::size_t>(y + h) >= height) {
-            h = height - y - 1;
+            h = static_cast<int>(height - y - 1);
         }
 
         thickness = std::min(std::min(thickness, w / 2 + 1), h / 2 + 1);
@@ -569,35 +573,18 @@ static UNUSED bool writeOutputBmp(unsigned char* data, size_t height, size_t wid
     return true;
 }
 
-static std::vector<std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfCountersSorted(
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap) {
-    using perfItem = std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>;
-    std::vector<perfItem> sorted;
-    for (auto& kvp : perfMap)
-        sorted.push_back(kvp);
-
-    std::stable_sort(sorted.begin(), sorted.end(), [](const perfItem& l, const perfItem& r) {
-        return l.second.execution_index < r.second.execution_index;
-    });
-
-    return sorted;
-}
-
-static UNUSED void printPerformanceCounts(
-    const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performanceMap,
-    std::ostream& stream,
-    std::string deviceName,
-    bool bshowHeader = true) {
-    long long totalTime = 0;
+static UNUSED void printPerformanceCounts(const std::map<std::string, ov::runtime::ProfilingInfo>& performanceMap,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true) {
+    std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
     // Print performance counts
     if (bshowHeader) {
         stream << std::endl << "performance counts:" << std::endl << std::endl;
     }
     std::ios::fmtflags fmt(std::cout.flags());
 
-    auto performanceMapSorted = perfCountersSorted(performanceMap);
-
-    for (const auto& it : performanceMapSorted) {
+    for (const auto& it : performanceMap) {
         std::string toPrint(it.first);
         const int maxLayerName = 30;
 
@@ -608,38 +595,39 @@ static UNUSED void printPerformanceCounts(
 
         stream << std::setw(maxLayerName) << std::left << toPrint;
         switch (it.second.status) {
-        case InferenceEngine::InferenceEngineProfileInfo::EXECUTED:
+        case ov::runtime::ProfilingInfo::Status::EXECUTED:
             stream << std::setw(15) << std::left << "EXECUTED";
             break;
-        case InferenceEngine::InferenceEngineProfileInfo::NOT_RUN:
+        case ov::runtime::ProfilingInfo::Status::NOT_RUN:
             stream << std::setw(15) << std::left << "NOT_RUN";
             break;
-        case InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT:
+        case ov::runtime::ProfilingInfo::Status::OPTIMIZED_OUT:
             stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
             break;
         }
-        stream << std::setw(30) << std::left << "layerType: " + std::string(it.second.layer_type) + " ";
-        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.second.realTime_uSec);
-        stream << std::setw(20) << std::left << "cpu: " + std::to_string(it.second.cpu_uSec);
+        stream << std::setw(30) << std::left << "layerType: " + std::string(it.second.node_type) + " ";
+        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.second.real_time.count());
+        stream << std::setw(20) << std::left << "cpu: " + std::to_string(it.second.cpu_time.count());
         stream << " execType: " << it.second.exec_type << std::endl;
-        if (it.second.realTime_uSec > 0) {
-            totalTime += it.second.realTime_uSec;
+        if (it.second.real_time.count() > 0) {
+            totalTime += it.second.real_time;
         }
     }
-    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime) << " microseconds" << std::endl;
+    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count()) << " microseconds"
+           << std::endl;
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
     std::cout.flags(fmt);
 }
 
-static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request,
-                                          std::ostream& stream,
-                                          std::string deviceName,
-                                          bool bshowHeader = true) {
-    auto performanceMap = request.GetPerformanceCounts();
-    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
-}
+// static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request,
+//                                          std::ostream& stream,
+//                                          std::string deviceName,
+//                                          bool bshowHeader = true) {
+//    auto performanceMap = request.GetPerformanceCounts();
+//    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
+//}
 
 inline std::map<std::string, std::string> getMapFullDevicesNames(InferenceEngine::Core& ie,
                                                                  std::vector<std::string> devices) {
@@ -951,7 +939,7 @@ public:
                 rec.push_back(recall);
             }
 
-            int num = rec.size();
+            int num = static_cast<int>(rec.size());
 
             // 11point from Caffe
             double ap = 0;
@@ -1123,8 +1111,8 @@ inline std::size_t getTensorBatch(const InferenceEngine::TensorDesc& desc) {
 }
 
 inline void showAvailableDevices() {
-    InferenceEngine::Core ie;
-    std::vector<std::string> devices = ie.GetAvailableDevices();
+    ov::runtime::Core core;
+    std::vector<std::string> devices = core.get_available_devices();
 
     std::cout << std::endl;
     std::cout << "Available target devices:";
@@ -1143,3 +1131,68 @@ inline void showAvailableDevices() {
  * @param comment - lines starting with symbol `comment` are skipped
  */
 std::map<std::string, std::string> parseConfig(const std::string& configName, char comment = '#');
+
+//--- API 2.0 --------------------------------------------------------------------------------------
+inline std::string getFullDeviceName(ov::runtime::Core& core, std::string device) {
+    InferenceEngine::Parameter p;
+    try {
+        p = core.get_metric(device, METRIC_KEY(FULL_DEVICE_NAME));
+        return p.as<std::string>();
+    } catch (InferenceEngine::Exception&) {
+        return "";
+    }
+}
+
+static UNUSED void printPerformanceCounts(std::vector<ov::runtime::ProfilingInfo> performanceData,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true) {
+    std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
+    // Print performance counts
+    if (bshowHeader) {
+        stream << std::endl << "performance counts:" << std::endl << std::endl;
+    }
+
+    for (const auto& it : performanceData) {
+        std::string toPrint(it.node_name);
+        const int maxLayerName = 30;
+
+        if (it.node_name.length() >= maxLayerName) {
+            toPrint = it.node_name.substr(0, maxLayerName - 4);
+            toPrint += "...";
+        }
+
+        stream << std::setw(maxLayerName) << std::left << toPrint;
+        switch (it.status) {
+        case ov::runtime::ProfilingInfo::Status::EXECUTED:
+            stream << std::setw(15) << std::left << "EXECUTED";
+            break;
+        case ov::runtime::ProfilingInfo::Status::NOT_RUN:
+            stream << std::setw(15) << std::left << "NOT_RUN";
+            break;
+        case ov::runtime::ProfilingInfo::Status::OPTIMIZED_OUT:
+            stream << std::setw(15) << std::left << "OPTIMIZED_OUT";
+            break;
+        }
+        stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
+        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
+        stream << std::setw(20) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
+        stream << " execType: " << it.exec_type << std::endl;
+        if (it.real_time.count() > 0) {
+            totalTime += it.real_time;
+        }
+    }
+    stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count()) << " microseconds"
+           << std::endl;
+    std::cout << std::endl;
+    std::cout << "Full device name: " << deviceName << std::endl;
+    std::cout << std::endl;
+}
+
+static UNUSED void printPerformanceCounts(ov::runtime::InferRequest request,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true) {
+    auto performanceMap = request.get_profiling_info();
+    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
+}

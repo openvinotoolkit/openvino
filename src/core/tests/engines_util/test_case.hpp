@@ -12,18 +12,33 @@
 #include "ngraph/file_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/ngraph.hpp"
+#include "openvino/runtime/core.hpp"
 #include "test_tools.hpp"
 
 namespace ngraph {
 namespace test {
+inline std::string backend_name_to_device(const std::string& backend_name) {
+    if (backend_name == "INTERPRETER")
+        return "TEMPLATE";
+    if (backend_name == "IE_CPU")
+        return "CPU";
+    if (backend_name == "IE_GPU")
+        return "GPU";
+    throw ngraph_error("Unsupported backend name");
+}
+
 std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const std::string& bin_path = {});
 
-template <typename Engine, TestCaseType tct = TestCaseType::STATIC>
 class TestCase {
 public:
-    TestCase(const std::shared_ptr<Function>& function)
-        : m_engine{create_engine<Engine>(function, tct)},
-          m_function{function} {}
+    TestCase(const std::shared_ptr<Function>& function, const std::string& dev = "TEMPLATE") : m_function{function} {
+        try {
+            // Register template plugin
+            m_core.register_plugin(std::string("ov_template_plugin") + IE_BUILD_POSTFIX, "TEMPLATE");
+        } catch (...) {
+        }
+        m_request = m_core.compile_model(function, dev).create_infer_request();
+    }
 
     template <typename T>
     void add_input(const Shape& shape, const std::vector<T>& values) {
@@ -39,7 +54,31 @@ public:
                      " for input ",
                      m_input_index);
 
-        m_engine.template add_input<T>(shape, values);
+        auto t_shape = m_request.get_input_tensor(m_input_index).get_shape();
+        bool is_dynamic = false;
+        for (const auto& dim : t_shape) {
+            if (!dim) {
+                is_dynamic = true;
+                break;
+            }
+        }
+
+        if (is_dynamic) {
+            ov::runtime::Tensor tensor(params.at(m_input_index)->get_element_type(), shape);
+
+            std::copy(values.begin(), values.end(), tensor.data<T>());
+            m_request.set_input_tensor(m_input_index, tensor);
+        } else {
+            auto tensor = m_request.get_input_tensor(m_input_index);
+            NGRAPH_CHECK(tensor.get_size() >= values.size(),
+                         "Tensor and values have different sizes. Tensor (",
+                         tensor.get_shape(),
+                         ") size: ",
+                         tensor.get_size(),
+                         " and values size is ",
+                         values.size());
+            std::copy(values.begin(), values.end(), tensor.data<T>());
+        }
 
         ++m_input_index;
     }
@@ -107,7 +146,8 @@ public:
                      " for output ",
                      m_output_index);
 
-        m_engine.template add_expected_output<T>(expected_shape, values);
+        ov::runtime::Tensor tensor(results[m_output_index]->get_output_element_type(0), expected_shape);
+        std::copy(values.begin(), values.end(), tensor.data<T>());
 
         ++m_output_index;
     }
@@ -139,8 +179,8 @@ public:
     }
 
     void run(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS) {
-        m_engine.infer();
-        const auto res = m_engine.compare_results(tolerance_bits);
+        m_request.infer();
+        const auto res = compare_results(tolerance_bits);
 
         if (res != testing::AssertionSuccess()) {
             std::cout << res.message() << std::endl;
@@ -148,14 +188,13 @@ public:
 
         m_input_index = 0;
         m_output_index = 0;
-        m_engine.reset();
 
         EXPECT_TRUE(res);
     }
 
     void run_with_tolerance_as_fp(const float tolerance = 1.0e-5f) {
-        m_engine.infer();
-        const auto res = m_engine.compare_results_with_tolerance_as_fp(tolerance);
+        m_request.infer();
+        const auto res = compare_results_with_tolerance_as_fp(tolerance);
 
         if (res != testing::AssertionSuccess()) {
             std::cout << res.message() << std::endl;
@@ -163,16 +202,19 @@ public:
 
         m_input_index = 0;
         m_output_index = 0;
-        m_engine.reset();
 
         EXPECT_TRUE(res);
     }
 
 private:
-    Engine m_engine;
     std::shared_ptr<Function> m_function;
+    ov::runtime::Core m_core;
+    ov::runtime::InferRequest m_request;
+    std::vector<ov::runtime::Tensor> m_expected_outputs;
     size_t m_input_index = 0;
     size_t m_output_index = 0;
+    testing::AssertionResult compare_results(size_t tolerance_bits);
+    testing::AssertionResult compare_results_with_tolerance_as_fp(float tolerance_bits);
 };
 }  // namespace test
 }  // namespace ngraph
