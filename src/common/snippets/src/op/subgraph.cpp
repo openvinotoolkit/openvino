@@ -118,21 +118,6 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     return subgraph;
 }
 
-std::shared_ptr<snippets::op::Subgraph> snippets::op::Subgraph::make_canonical_from_this() {
-    INTERNAL_OP_SCOPE(Subgraph);
-    ngraph::OutputVector subgraph_node_inputs;
-    for (auto input : this->input_values()) {
-        subgraph_node_inputs.push_back(input);
-    }
-    auto new_body = ov::clone_model(*this->get_body().get());
-    auto snippet = std::make_shared<op::Subgraph>(subgraph_node_inputs, new_body);
-    ngraph::copy_runtime_info(this->shared_from_this(), snippet);
-    snippet->set_friendly_name(this->get_friendly_name());
-    snippet->set_generator(this->m_generator);
-
-    return snippet;
-}
-
 // We also can think of canonization as of pass to copy original subgraph and transforming it to canonical form suitable for code generation
 // pass actual parameters and results shapes to generate for as well as channel mapping,
 // Todo: we need to distinguish between 5d tensors that represents <N, C, H, W, c> and <N, C, D, H, W> somehow like locked dimensions
