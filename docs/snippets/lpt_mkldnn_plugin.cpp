@@ -29,7 +29,7 @@ public:
 } // ngraph
 
 int main() {
-std::shared_ptr<ov::Function> nGraphFunc;
+std::shared_ptr<ov::Model> nGraphFunc;
 ngraph::pass::Manager manager;
 auto pass_config = manager.get_pass_config();
 //! [lpt_common]
@@ -129,7 +129,7 @@ return 0;
 }
 
 int lpt_supported_precisions() {
-std::shared_ptr<ov::Function> nGraphFunc;
+std::shared_ptr<ov::Model> nGraphFunc;
 ngraph::pass::Manager manager;
 
 using namespace ngraph::pass::low_precision;
@@ -154,7 +154,7 @@ return 0;
 }
 
 int per_tensor_quantization() {
-std::shared_ptr<ov::Function> nGraphFunc;
+std::shared_ptr<ov::Model> nGraphFunc;
 //! [per_tensor_quantization]
 using namespace ngraph::pass::low_precision;
 
@@ -173,7 +173,7 @@ return 0;
 }
 
 int asymmetric_quantization() {
-std::shared_ptr<ov::Function> nGraphFunc;
+std::shared_ptr<ov::Model> nGraphFunc;
 ngraph::pass::Manager manager;
 auto pass_config = manager.get_pass_config();
 
@@ -192,7 +192,7 @@ return 0;
 }
 
 int lpt_markup_pipeline() {
-std::shared_ptr<ov::Function> nGraphFunc;
+std::shared_ptr<ov::Model> nGraphFunc;
 ngraph::pass::Manager manager;
 
 using namespace ngraph::pass::low_precision;
