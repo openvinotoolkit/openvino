@@ -449,10 +449,10 @@ std::tuple<PartialShape, Layout> LayoutUtils::find_squeeze(const Layout& src_lay
         if (dst_layout.has_name(src_dim_name)) {
             if (!rank_dynamic) {
                 res_dims[dst_idx] = src_shape[src_idx];
-                res.m_index_map[dst_idx] = src_dim_name;
-                res.m_names[src_dim_name] = dst_idx;
-                dst_idx++;
             }
+            res.m_index_map[dst_idx] = src_dim_name;
+            res.m_names[src_dim_name] = dst_idx;
+            dst_idx++;
         }
     }
     if (dst_idx != dst_layout.m_left_size) {
