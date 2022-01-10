@@ -516,7 +516,7 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             auto startTime = Time::now();
-            
+
             std::ifstream modelStream(FLAGS_m);
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
