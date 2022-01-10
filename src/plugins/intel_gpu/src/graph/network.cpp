@@ -36,6 +36,7 @@
 #include <set>
 #include <utility>
 #include <map>
+#include <functional>
 
 #ifdef GPU_DEBUG_CONFIG
 #include <iomanip>
@@ -835,11 +836,23 @@ void network::allocate_primitive_instance(program_node const& node) {
         return;
 
     auto inst = node.type()->create_instance(*this, node);
-    for (auto& dep : node.get_dependencies()) {
-        if (dep->is_type<input_layout>() || dep->is_type<mutable_data>() || dep->can_be_optimized()) {
-            inst->set_mutable_input(true);
-            break;
+
+    std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
+        for (auto& dep : node.get_dependencies()) {
+                if (dep->is_type<input_layout>() || dep->is_type<mutable_data>()) {
+                    return true;
+            }
+            if (dep->can_be_optimized()) {
+                if (is_mutable_input(*dep)) {
+                    return true;
+                }
+            }
         }
+        return false;
+    };
+
+    if (is_mutable_input(node)) {
+        inst->set_mutable_input(true);
     }
 
     _primitives[node.id()] = inst;

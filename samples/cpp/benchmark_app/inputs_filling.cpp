@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "inputs_filling.hpp"
+
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
@@ -11,41 +13,9 @@
 #include <utility>
 #include <vector>
 
-// clang-format off
-#include "samples/slog.hpp"
 #include "format_reader_ptr.h"
-
-#include "inputs_filling.hpp"
-#include "shared_blob_allocator.hpp"
+#include "shared_tensor_allocator.hpp"
 #include "utils.hpp"
-// clang-format on
-
-using namespace InferenceEngine;
-
-#ifdef USE_OPENCV
-static const std::vector<std::string> supported_image_extensions =
-    {"bmp", "dib", "jpeg", "jpg", "jpe", "jp2", "png", "pbm", "pgm", "ppm", "sr", "ras", "tiff", "tif"};
-#else
-static const std::vector<std::string> supported_image_extensions = {"bmp"};
-#endif
-static const std::vector<std::string> supported_binary_extensions = {"bin"};
-
-std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>& filePaths,
-                                                 const std::vector<std::string>& extensions) {
-    std::vector<std::string> filtered;
-    auto getExtension = [](const std::string& name) {
-        auto extensionPosition = name.rfind('.', name.size());
-        return extensionPosition == std::string::npos ? "" : name.substr(extensionPosition + 1, name.size() - 1);
-    };
-    for (auto& filePath : filePaths) {
-        auto extension = getExtension(filePath);
-        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-        if (std::find(extensions.begin(), extensions.end(), extension) != extensions.end()) {
-            filtered.push_back(filePath);
-        }
-    }
-    return filtered;
-}
 
 template <typename T>
 using uniformDistribution = typename std::conditional<
@@ -54,20 +24,30 @@ using uniformDistribution = typename std::conditional<
     typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
 
 template <typename T>
-InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& files,
-                                               size_t inputId,
-                                               size_t batchSize,
-                                               const benchmark_app::InputInfo& inputInfo,
-                                               std::string* filenames_used = nullptr) {
-    size_t blob_size =
-        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<int>());
-    T* data = new T[blob_size];
+ov::runtime::Tensor createTensorFromImage(const std::vector<std::string>& files,
+                                          size_t inputId,
+                                          size_t batchSize,
+                                          const benchmark_app::InputInfo& inputInfo,
+                                          const std::string& inputName,
+                                          std::string* filenames_used = nullptr) {
+    size_t tensor_size =
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
+    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
+    auto data = reinterpret_cast<T*>(allocator->getBuffer());
 
     /** Collect images data ptrs **/
     std::vector<std::shared_ptr<uint8_t>> vreader;
     vreader.reserve(batchSize);
 
-    for (size_t b = 0; b < batchSize; ++b) {
+    size_t imgBatchSize = 1;
+    if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
+        imgBatchSize = batchSize;
+    } else {
+        slog::warn << inputName << ": layout does not contain batch dimension. Assuming bath 1 for this input"
+                   << slog::endl;
+    }
+
+    for (size_t b = 0; b < imgBatchSize; ++b) {
         auto inputIndex = (inputId + b) % files.size();
         if (filenames_used) {
             *filenames_used += (filenames_used->empty() ? "" : ", ") + files[inputIndex];
@@ -90,7 +70,7 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
     const size_t width = inputInfo.width();
     const size_t height = inputInfo.height();
     /** Iterate over all input images **/
-    for (size_t b = 0; b < batchSize; ++b) {
+    for (size_t b = 0; b < imgBatchSize; ++b) {
         /** Iterate over all width **/
         for (size_t w = 0; w < width; ++w) {
             /** Iterate over all height **/
@@ -112,24 +92,30 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.dataShape, inputInfo.originalLayout);
-    auto blob =
-        InferenceEngine::make_shared_blob<T>(tDesc,
-                                             std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
-    blob->allocate();
-    return blob;
+    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    return tensor;
 }
 
 template <typename T>
-InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& image_size,
-                                            size_t batchSize,
-                                            const benchmark_app::InputInfo& inputInfo) {
-    size_t blob_size =
-        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<int>());
-    T* data = new T[blob_size];
+ov::runtime::Tensor createTensorImInfo(const std::pair<size_t, size_t>& image_size,
+                                       size_t batchSize,
+                                       const benchmark_app::InputInfo& inputInfo,
+                                       const std::string& inputName) {
+    size_t tensor_size =
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
+    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
+    auto data = reinterpret_cast<T*>(allocator->getBuffer());
 
-    for (size_t b = 0; b < batchSize; b++) {
-        size_t iminfoSize = blob_size / batchSize;
+    size_t infoBatchSize = 1;
+    if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
+        infoBatchSize = batchSize;
+    } else {
+        slog::warn << inputName << ": layout is not set or does not contain batch dimension. Assuming batch 1. "
+                   << slog::endl;
+    }
+
+    for (size_t b = 0; b < infoBatchSize; b++) {
+        size_t iminfoSize = tensor_size / infoBatchSize;
         for (size_t i = 0; i < iminfoSize; i++) {
             size_t index = b * iminfoSize + i;
             if (0 == i)
@@ -141,35 +127,32 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.dataShape, inputInfo.originalLayout);
-    InferenceEngine::Blob::Ptr blob =
-        InferenceEngine::make_shared_blob<T>(tDesc,
-                                             std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
-    blob->allocate();
-    return blob;
+    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    return tensor;
 }
 
 template <typename T>
-InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& files,
-                                                size_t inputId,
-                                                size_t batchSize,
-                                                const benchmark_app::InputInfo& inputInfo,
-                                                std::string* filenames_used = nullptr) {
-    size_t blob_size =
-        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<int>());
-    char* data = new char[blob_size * sizeof(T)];
-
-    // adjust batch size
-    std::stringstream ss;
-    ss << inputInfo.originalLayout;
-    std::string layout = ss.str();
-    if (layout.find("N") == std::string::npos) {
-        batchSize = 1;
-    } else if (inputInfo.batch() != batchSize) {
-        batchSize = inputInfo.batch();
+ov::runtime::Tensor createTensorFromBinary(const std::vector<std::string>& files,
+                                           size_t inputId,
+                                           size_t batchSize,
+                                           const benchmark_app::InputInfo& inputInfo,
+                                           const std::string& inputName,
+                                           std::string* filenames_used = nullptr) {
+    size_t tensor_size =
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
+    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
+    char* data = allocator->getBuffer();
+    size_t binaryBatchSize = 1;
+    if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
+        binaryBatchSize = batchSize;
+    } else {
+        slog::warn << inputName
+                   << ": layout is not set or does not contain batch dimension. Assuming that binary "
+                      "data read from file contains data for all batches."
+                   << slog::endl;
     }
 
-    for (size_t b = 0; b < batchSize; ++b) {
+    for (size_t b = 0; b < binaryBatchSize; ++b) {
         size_t inputIndex = (inputId + b) % files.size();
         std::ifstream binaryFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
         if (!binaryFile) {
@@ -181,7 +164,7 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
         if (!binaryFile.good()) {
             IE_THROW() << "Can not read " << files[inputIndex];
         }
-        auto inputSize = blob_size * sizeof(T) / batchSize;
+        auto inputSize = tensor_size * sizeof(T) / binaryBatchSize;
         if (fileSize != inputSize) {
             IE_THROW() << "File " << files[inputIndex] << " contains " << std::to_string(fileSize)
                        << " bytes "
@@ -193,7 +176,7 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
             binaryFile.read(&data[b * inputSize], inputSize);
         } else {
             for (int i = 0; i < inputInfo.channels(); i++) {
-                binaryFile.read(&data[(i * batchSize + b) * sizeof(T)], sizeof(T));
+                binaryFile.read(&data[(i * binaryBatchSize + b) * sizeof(T)], sizeof(T));
             }
         }
 
@@ -202,128 +185,171 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.dataShape, inputInfo.originalLayout);
-    InferenceEngine::Blob::Ptr blob =
-        InferenceEngine::make_shared_blob<T>(tDesc,
-                                             std::make_shared<SharedBlobAllocator<T>>((T*)data, blob_size * sizeof(T)));
-    blob->allocate();
-    return blob;
+    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    return tensor;
 }
 
 template <typename T, typename T2>
-InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inputInfo,
-                                            T rand_min = std::numeric_limits<uint8_t>::min(),
-                                            T rand_max = std::numeric_limits<uint8_t>::max()) {
-    size_t blob_size =
-        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<int>());
-    T* data = new T[blob_size];
+ov::runtime::Tensor createTensorRandom(const benchmark_app::InputInfo& inputInfo,
+                                       T rand_min = std::numeric_limits<uint8_t>::min(),
+                                       T rand_max = std::numeric_limits<uint8_t>::max()) {
+    size_t tensor_size =
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
+    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
+    auto data = reinterpret_cast<T*>(allocator->getBuffer());
 
     std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);
-    for (size_t i = 0; i < blob_size; i++) {
+    for (size_t i = 0; i < tensor_size; i++) {
         data[i] = static_cast<T>(distribution(gen));
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.dataShape, inputInfo.originalLayout);
-    InferenceEngine::Blob::Ptr blob =
-        InferenceEngine::make_shared_blob<T>(tDesc,
-                                             std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
-    blob->allocate();
-    return blob;
+    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    return tensor;
 }
 
-InferenceEngine::Blob::Ptr getImageBlob(const std::vector<std::string>& files,
-                                        size_t inputId,
-                                        size_t batchSize,
-                                        const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
-                                        std::string* filenames_used = nullptr) {
-    auto precision = inputInfo.second.precision;
-    if (precision == InferenceEngine::Precision::FP32) {
-        return createBlobFromImage<float>(files, inputId, batchSize, inputInfo.second, filenames_used);
-    } else if (precision == InferenceEngine::Precision::FP16) {
-        return createBlobFromImage<short>(files, inputId, batchSize, inputInfo.second, filenames_used);
-    } else if (precision == InferenceEngine::Precision::I32) {
-        return createBlobFromImage<int32_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
-    } else if (precision == InferenceEngine::Precision::I64) {
-        return createBlobFromImage<int64_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
-    } else if (precision == InferenceEngine::Precision::U8) {
-        return createBlobFromImage<uint8_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
+ov::runtime::Tensor getImageTensor(const std::vector<std::string>& files,
+                                   size_t inputId,
+                                   size_t batchSize,
+                                   const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                                   std::string* filenames_used = nullptr) {
+    auto type = inputInfo.second.type;
+    if (type == ov::element::f32) {
+        return createTensorFromImage<float>(files,
+                                            inputId,
+                                            batchSize,
+                                            inputInfo.second,
+                                            inputInfo.first,
+                                            filenames_used);
+    } else if (type == ov::element::f16) {
+        return createTensorFromImage<short>(files,
+                                            inputId,
+                                            batchSize,
+                                            inputInfo.second,
+                                            inputInfo.first,
+                                            filenames_used);
+    } else if (type == ov::element::i32) {
+        return createTensorFromImage<int32_t>(files,
+                                              inputId,
+                                              batchSize,
+                                              inputInfo.second,
+                                              inputInfo.first,
+                                              filenames_used);
+    } else if (type == ov::element::i64) {
+        return createTensorFromImage<int64_t>(files,
+                                              inputId,
+                                              batchSize,
+                                              inputInfo.second,
+                                              inputInfo.first,
+                                              filenames_used);
+    } else if (type == ov::element::u8) {
+        return createTensorFromImage<uint8_t>(files,
+                                              inputId,
+                                              batchSize,
+                                              inputInfo.second,
+                                              inputInfo.first,
+                                              filenames_used);
     } else {
-        IE_THROW() << "Input precision is not supported for " << inputInfo.first;
+        IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
 }
 
-InferenceEngine::Blob::Ptr getImInfoBlob(const std::pair<size_t, size_t>& image_size,
-                                         size_t batchSize,
-                                         const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
-    auto precision = inputInfo.second.precision;
-    if (precision == InferenceEngine::Precision::FP32) {
-        return createBlobImInfo<float>(image_size, batchSize, inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::FP16) {
-        return createBlobImInfo<short>(image_size, batchSize, inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::I32) {
-        return createBlobImInfo<int32_t>(image_size, batchSize, inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::I64) {
-        return createBlobImInfo<int64_t>(image_size, batchSize, inputInfo.second);
+ov::runtime::Tensor getImInfoTensor(const std::pair<size_t, size_t>& image_size,
+                                    size_t batchSize,
+                                    const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+    auto type = inputInfo.second.type;
+    if (type == ov::element::f32) {
+        return createTensorImInfo<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    } else if (type == ov::element::f16) {
+        return createTensorImInfo<short>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    } else if (type == ov::element::i32) {
+        return createTensorImInfo<int32_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    } else if (type == ov::element::i64) {
+        return createTensorImInfo<int64_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else {
-        IE_THROW() << "Input precision is not supported for " << inputInfo.first;
+        IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
 }
 
-InferenceEngine::Blob::Ptr getBinaryBlob(const std::vector<std::string>& files,
-                                         size_t inputId,
-                                         size_t batchSize,
-                                         const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
-                                         std::string* filenames_used = nullptr) {
-    auto precision = inputInfo.second.precision;
-    if (precision == InferenceEngine::Precision::FP32) {
-        return createBlobFromBinary<float>(files, inputId, batchSize, inputInfo.second, filenames_used);
-    } else if (precision == InferenceEngine::Precision::FP16) {
-        return createBlobFromBinary<short>(files, inputId, batchSize, inputInfo.second, filenames_used);
-    } else if (precision == InferenceEngine::Precision::I32) {
-        return createBlobFromBinary<int32_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
-    } else if (precision == InferenceEngine::Precision::I64) {
-        return createBlobFromBinary<int64_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
-    } else if ((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::BOOL)) {
-        return createBlobFromBinary<uint8_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
+ov::runtime::Tensor getBinaryTensor(const std::vector<std::string>& files,
+                                    size_t inputId,
+                                    size_t batchSize,
+                                    const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                                    std::string* filenames_used = nullptr) {
+    const auto& type = inputInfo.second.type;
+    if (type == ov::element::f32) {
+        return createTensorFromBinary<float>(files,
+                                             inputId,
+                                             batchSize,
+                                             inputInfo.second,
+                                             inputInfo.first,
+                                             filenames_used);
+    } else if (type == ov::element::f16) {
+        return createTensorFromBinary<short>(files,
+                                             inputId,
+                                             batchSize,
+                                             inputInfo.second,
+                                             inputInfo.first,
+                                             filenames_used);
+    } else if (type == ov::element::i32) {
+        return createTensorFromBinary<int32_t>(files,
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
+    } else if (type == ov::element::i64) {
+        return createTensorFromBinary<int64_t>(files,
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
+    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
+        return createTensorFromBinary<uint8_t>(files,
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
     } else {
-        IE_THROW() << "Input precision is not supported for " << inputInfo.first;
+        IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
 }
 
-InferenceEngine::Blob::Ptr getRandomBlob(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
-    auto precision = inputInfo.second.precision;
-    if (precision == InferenceEngine::Precision::FP32) {
-        return createBlobRandom<float, float>(inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::FP16) {
-        return createBlobRandom<short, short>(inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::I32) {
-        return createBlobRandom<int32_t, int32_t>(inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::I64) {
-        return createBlobRandom<int64_t, int64_t>(inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::U8) {
+ov::runtime::Tensor getRandomTensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+    auto type = inputInfo.second.type;
+    if (type == ov::element::f32) {
+        return createTensorRandom<float, float>(inputInfo.second);
+    } else if (type == ov::element::f16) {
+        return createTensorRandom<short, short>(inputInfo.second);
+    } else if (type == ov::element::i32) {
+        return createTensorRandom<int32_t, int32_t>(inputInfo.second);
+    } else if (type == ov::element::i64) {
+        return createTensorRandom<int64_t, int64_t>(inputInfo.second);
+    } else if (type == ov::element::u8) {
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
-        return createBlobRandom<uint8_t, uint32_t>(inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::I8) {
+        return createTensorRandom<uint8_t, uint32_t>(inputInfo.second);
+    } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
-        return createBlobRandom<int8_t, int32_t>(inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::U16) {
-        return createBlobRandom<uint16_t, uint16_t>(inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::I16) {
-        return createBlobRandom<int16_t, int16_t>(inputInfo.second);
-    } else if (precision == InferenceEngine::Precision::BOOL) {
-        return createBlobRandom<uint8_t, uint32_t>(inputInfo.second, 0, 1);
+        return createTensorRandom<int8_t, int32_t>(inputInfo.second);
+    } else if (type == ov::element::u16) {
+        return createTensorRandom<uint16_t, uint16_t>(inputInfo.second);
+    } else if (type == ov::element::i16) {
+        return createTensorRandom<int16_t, int16_t>(inputInfo.second);
+    } else if (type == ov::element::boolean) {
+        return createTensorRandom<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else {
-        IE_THROW() << "Input precision is not supported for " << inputInfo.first;
+        IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
 }
 
 std::string getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
     std::stringstream strOut;
-    strOut << "(" << inputInfo.layout << ", " << inputInfo.precision << ", " << getShapeString(inputInfo.dataShape)
-           << ", ";
+    strOut << "(" << inputInfo.layout.to_string() << ", " << inputInfo.type.get_type_name() << ", "
+           << getShapeString(inputInfo.dataShape) << ", ";
     if (inputInfo.partialShape.is_dynamic()) {
         strOut << std::string("dyn:") << inputInfo.partialShape << "):\t";
     } else {
@@ -332,16 +358,15 @@ std::string getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
     return strOut.str();
 }
 
-std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
-    std::map<std::string, std::vector<std::string>>& inputFiles,
-    std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
-    std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> blobs;
+std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string, std::vector<std::string>> inputFiles,
+                                                            std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
+    std::map<std::string, ov::runtime::TensorVector> tensors;
     if (app_inputs_info.empty()) {
         throw std::logic_error("Inputs Info for network is empty!");
     }
 
     if (!inputFiles.empty() && inputFiles.size() != app_inputs_info[0].size()) {
-        throw std::logic_error("Number of inputs specified in -i must be equal number of network inputs!");
+        throw std::logic_error("Number of inputs specified in -i must be equal to number of network inputs!");
     }
 
     // count image type inputs of network
@@ -378,7 +403,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
         }
 
         if (files.second.empty()) {
-            slog::warn << "No suitable files for input found! Random data will be used for input " << input_name
+            slog::warn << "No suitable files for input were found! Random data will be used for input " << input_name
                        << slog::endl;
             files.second = {"random"};
         }
@@ -438,30 +463,30 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             size_t inputId = m_file % files.second.size();
             auto input_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
 
-            std::string blob_src_info;
+            std::string tensor_src_info;
             if (files.second[0] == "random") {
                 // Fill random
-                blob_src_info =
+                tensor_src_info =
                     "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
-                blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
+                tensors[input_name].push_back(getRandomTensor({input_name, input_info}));
             } else if (files.second[0] == "image_info") {
                 // Most likely it is image info: fill with image information
                 auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
-                blob_src_info =
-                    "Image size blob " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
-                blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, input_info}));
+                tensor_src_info =
+                    "Image size tensor " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
+                tensors[input_name].push_back(getImInfoTensor(image_size, batchSize, {input_name, input_info}));
             } else if (input_info.isImage()) {
                 // Fill with Images
-                blobs[input_name].push_back(
-                    getImageBlob(files.second, inputId, batchSize, {input_name, input_info}, &blob_src_info));
+                tensors[input_name].push_back(
+                    getImageTensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
             } else {
                 // Fill with binary files
-                blobs[input_name].push_back(
-                    getBinaryBlob(files.second, inputId, batchSize, {input_name, input_info}, &blob_src_info));
+                tensors[input_name].push_back(
+                    getBinaryTensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
             }
 
             // Preparing info
-            std::string strOut = getTestInfoStreamHeader(input_info) + blob_src_info;
+            std::string strOut = getTestInfoStreamHeader(input_info) + tensor_src_info;
             if (n_shape >= logOutput.size()) {
                 logOutput.resize(n_shape + 1);
             }
@@ -486,19 +511,18 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
         }
     }
 
-    return blobs;
+    return tensors;
 }
 
-std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCase(
-    const std::vector<std::string>& inputFiles,
-    const size_t& batchSize,
-    benchmark_app::InputsInfo& app_inputs_info,
-    size_t requestsNum) {
-    std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> blobs;
+std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std::vector<std::string>& inputFiles,
+                                                                      const size_t& batchSize,
+                                                                      benchmark_app::InputsInfo& app_inputs_info,
+                                                                      size_t requestsNum) {
+    std::map<std::string, ov::runtime::TensorVector> blobs;
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
     for (auto& item : app_inputs_info) {
-        if (item.second.isImage()) {
+        if (item.second.partialShape.is_static() && item.second.isImage()) {
             net_input_im_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
         }
     }
@@ -606,8 +630,11 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
             if (input_info.isImage()) {
                 if (!imageFiles.empty()) {
                     // Fill with Images
-                    blobs[input_name].push_back(
-                        getImageBlob(files.second, imageInputId, batchSize, {input_name, input_info}, &blob_src_info));
+                    blobs[input_name].push_back(getImageTensor(files.second,
+                                                               imageInputId,
+                                                               batchSize,
+                                                               {input_name, input_info},
+                                                               &blob_src_info));
                     imageInputId = (imageInputId + batchSize) % files.second.size();
                     logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;
@@ -615,11 +642,11 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
             } else {
                 if (!binaryFiles.empty()) {
                     // Fill with binary files
-                    blobs[input_name].push_back(getBinaryBlob(files.second,
-                                                              binaryInputId,
-                                                              batchSize,
-                                                              {input_name, input_info},
-                                                              &blob_src_info));
+                    blobs[input_name].push_back(getBinaryTensor(files.second,
+                                                                binaryInputId,
+                                                                batchSize,
+                                                                {input_name, input_info},
+                                                                &blob_src_info));
                     binaryInputId = (binaryInputId + batchSize) % files.second.size();
                     logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;
@@ -629,7 +656,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
                     auto image_size = net_input_im_sizes.at(0);
                     blob_src_info = "Image size blob " + std::to_string(image_size.first) + " x " +
                                     std::to_string(image_size.second);
-                    blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, input_info}));
+                    blobs[input_name].push_back(getImInfoTensor(image_size, batchSize, {input_name, input_info}));
                     logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
                     continue;
                 }
@@ -637,7 +664,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
             // Fill random
             blob_src_info =
                 "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
-            blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
+            blobs[input_name].push_back(getRandomTensor({input_name, input_info}));
             logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
         }
     }
@@ -659,31 +686,11 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
     return blobs;
 }
 
-void copyBlobData(InferenceEngine::Blob::Ptr& dst, const InferenceEngine::Blob::Ptr& src) {
-    if (src->getTensorDesc() != dst->getTensorDesc()) {
+void copyTensorData(ov::runtime::Tensor& dst, const ov::runtime::Tensor& src) {
+    if (src.get_shape() != dst.get_shape() || src.get_byte_size() != dst.get_byte_size()) {
         throw std::runtime_error(
-            "Source and destination blobs tensor descriptions are expected to be equal for data copying.");
+            "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");
     }
 
-    InferenceEngine::MemoryBlob::Ptr srcMinput = as<InferenceEngine::MemoryBlob>(src);
-    if (!srcMinput) {
-        IE_THROW() << "We expect source blob to be inherited from MemoryBlob in "
-                      "fillBlobImage, "
-                   << "but by fact we were not able to cast source blob to MemoryBlob";
-    }
-    // locked memory holder should be alive all time while access to its buffer
-    // happens
-    auto srcMinputHolder = srcMinput->wmap();
-    auto srcBlobData = srcMinputHolder.as<void*>();
-
-    InferenceEngine::MemoryBlob::Ptr dstMinput = as<InferenceEngine::MemoryBlob>(dst);
-    if (!dstMinput) {
-        IE_THROW() << "We expect destination blob to be inherited from MemoryBlob in "
-                      "fillBlobImage, "
-                   << "but by fact we were not able to cast destination blob to MemoryBlob";
-    }
-    auto dstMinputHolder = dstMinput->wmap();
-    auto dstBlobData = dstMinputHolder.as<void*>();
-
-    std::memcpy(dstBlobData, srcBlobData, src->byteSize());
+    memcpy(dst.data(), src.data(), src.get_byte_size());
 }
