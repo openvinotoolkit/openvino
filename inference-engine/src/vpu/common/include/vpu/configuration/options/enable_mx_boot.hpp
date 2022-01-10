@@ -19,8 +19,8 @@ enum class Category;
 
 class PluginConfiguration;
 
-struct DisableMXBootOption : public AsParsedParameterEnabler<DisableMXBootOption> {
-    using value_type = std::string;
+struct EnableMXBootOption : public AsParsedParameterEnabler<EnableMXBootOption> {
+    using value_type = bool;
 
     static std::string key();
     static void validate(const std::string&);

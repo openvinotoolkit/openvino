@@ -26,7 +26,7 @@
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
-#include <vpu/configuration/options/disable_mx_boot.hpp>
+#include <vpu/configuration/options/enable_mx_boot.hpp>
 
 #include "myriad_executor.h"
 
@@ -83,7 +83,7 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
-    auto st = config.get<DisableMXBootOption>() == "YES,YES";
+    auto st = config.get<EnableMXBootOption>() == false;
     if (st) {
         return ncStatus_t(st);
     }
@@ -262,16 +262,22 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
     // In case, then there is no another not booted device, use already booted with minimum number of executors
     if (booted != NC_OK) {
         std::vector<DevicePtr> availableDevices;
-
-        // Get all suitable devices
-        std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
-            [&config](const DevicePtr &device) {
-                return device->isBooted() && device->isNotFull()
-                    && device->isSuitableForConfig(config);
-            });
-        // Return mock device. If try infer with it, exception will be thrown
-        if (availableDevices.empty()) {
+        if (config.get<EnableMXBootOption>() == true) {
+            // Get all suitable devices
+            std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
+                [&config](const DevicePtr &device) {
+                    return device->isBooted() && device->isNotFull()
+                        && device->isSuitableForConfig(config);
+                });
+            // Return mock device. If try infer with it, exception will be thrown
+            if (availableDevices.empty()) {
+                DeviceDesc device;
+                device._protocol = config.get<ProtocolOption>();
+                return std::make_shared<DeviceDesc>(device);
+            }
+        } else {
             DeviceDesc device;
+            device._deviceHandle = new ncDeviceHandle_t;
             device._protocol = config.get<ProtocolOption>();
             return std::make_shared<DeviceDesc>(device);
         }
@@ -316,7 +322,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
     VPU_PROFILE(allocateGraph);
     _numStages = static_cast<int>(numStages);
     graphDesc._name = networkName;
-    if (config.get<DisableMXBootOption>() == "YES,YES") {
+    if (config.get<EnableMXBootOption>() == false) {
         return;
     }
     if (device->_deviceHandle == nullptr) {

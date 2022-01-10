@@ -621,11 +621,6 @@ static std::map<std::string, std::string> configure() {
     auto config = parseConfigFile();
 
     if (isMYRIAD) {
-        if (config[InferenceEngine::MYRIAD_DISABLE_MX_BOOT] == "YES") {
-            // the second "YES" is used to make sure we are working with compile_tool
-            // and not affecting other applications.
-            config[InferenceEngine::MYRIAD_DISABLE_MX_BOOT] = "YES,YES";
-        }
         if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
             config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
         }
