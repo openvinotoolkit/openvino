@@ -375,3 +375,93 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         self.check_graph_attrs(graph, graph_ref, [])
         add_node = graph.get_op_nodes(type="Add")[0]
         self.assertTrue(add_node.in_port(1).get_connection().get_source().node['value'].dtype == np.float32)
+
+    def test_mean_values_explicit_and_optimized_layout(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+            *connect('parameter_2', 'result_2'),
+        ])
+
+        argv = Namespace(mean_scale_values={'parameter': {'mean': np.array([1., 2., 3.])},
+                                            'parameter_2': {'mean': np.array([0., 0., 0.])}},
+                         layout_values={'parameter': {'source_layout': 'nchw', 'target_layout': None},
+                                        'parameter_2': {'source_layout': 'nchw', 'target_layout': None}}
+                         )
+        graph = build_graph(nodes, [*connect('parameter', 'result'), *connect('parameter_2', 'result_2')],
+                            nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter', 'parameter_2'])
+        self.set_graph_attrs(graph_ref, ['parameter', 'parameter_2'])
+        graph.graph['layout'] = 'NHWC'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, ['parameter', 'parameter_2'])
+
+    def test_mean_values_explicit_and_scale_values_optimized_layout(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values={'parameter': {'scale': np.array([1.]), 'mean': np.array([1., 2., 3.])}},
+                         layout_values={'': {'source_layout': 'nchw', 'target_layout': None}}
+                         )
+        graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NHWC'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, ['parameter'])
+
+    def test_mean_values_optimized_and_scale_values_explicit_layout(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
+
+        argv = Namespace(
+            mean_scale_values={'parameter': {'scale': np.array([1., 2., 3.]), 'mean': np.array([0., 0., 0.])}},
+                         layout_values={'': {'source_layout': 'nchw', 'target_layout': None}}
+                         )
+        graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NHWC'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, ['parameter'])
+
+    def test_mean_values_explicit_and_scale_values_explicit_layout(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values=[[np.array([1., 2., 3.]), np.array([1., 2., 3.])]],
+                         layout_values={'': {'source_layout': 'nchw', 'target_layout': None}}
+                         )
+        graph = build_graph(nodes, [*connect('parameter', 'result')],
+                            nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NHWC'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, ['parameter'])
