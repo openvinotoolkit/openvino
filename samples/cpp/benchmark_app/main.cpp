@@ -499,9 +499,10 @@ int main(int argc, char* argv[]) {
                                            });
 
             topology_name = model->get_friendly_name();
-            // use batch size according to provided layout and shapes (static case)
-            if (!isDynamicNetwork) {
-                batchSize = getModelInputBatchSize(*model);
+            
+            // Calculate batch size according to provided layout and shapes (static case)
+            if (!isDynamicNetwork && app_inputs_info.size()) {
+                batchSize = getBatchSize(app_inputs_info.front());
 
                 slog::info << "Network batch size: " << batchSize << slog::endl;
             } else if (batchSize == 0) {
