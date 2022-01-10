@@ -81,7 +81,10 @@
 #include "nodes/mkldnn_if_node.h"
 #include "nodes/mkldnn_ctc_greedy_decoder_node.h"
 #include "nodes/mkldnn_non_zero.h"
+#include "nodes/mkldnn_color_convert_node.h"
 #include "nodes/subgraph.h"
+#include "nodes/mkldnn_priorbox_node.h"
+#include "nodes/mkldnn_priorbox_clustered_node.h"
 
 #define MKLDNN_NODE(__prim, __type) \
     registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>)
@@ -172,4 +175,7 @@ MKLDNNPlugin::MKLDNNNode::NodesFactory::NodesFactory()
     MKLDNN_NODE(MKLDNNGRNNode, GRN);
     MKLDNN_NODE(MKLDNNNonZeroNode, NonZero);
     MKLDNN_NODE(MKLDNNSnippetNode, Subgraph);
+    MKLDNN_NODE(MKLDNNColorConvertNode, ColorConvert);
+    MKLDNN_NODE(MKLDNNPriorBoxNode, PriorBox);
+    MKLDNN_NODE(MKLDNNPriorBoxClusteredNode, PriorBoxClustered);
 }

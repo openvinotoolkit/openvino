@@ -68,7 +68,7 @@ struct memory {
     virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */) = 0;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    virtual dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */) {
+    virtual dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) {
         throw std::runtime_error("[CLDNN] Can't convert memory object to onednn");
     }
 #endif

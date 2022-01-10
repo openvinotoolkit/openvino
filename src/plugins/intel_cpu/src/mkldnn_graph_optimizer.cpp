@@ -1474,6 +1474,12 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
         }
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+
+        if ((parentNode->isDynamicNode() && !childNode->isDynamicNode()) || (!parentNode->isDynamicNode() && childNode->isDynamicNode())) {
+            parent++;
+            continue;
+        }
+
         if (!isSuitableChildNode(parentNode, childNode)) {
             parent++;
             continue;
