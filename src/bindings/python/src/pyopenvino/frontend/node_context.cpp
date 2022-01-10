@@ -57,13 +57,16 @@ void regclass_frontend_NodeContext(py::module m) {
         "get_attribute",
         [=](NodeContext& self, const std::string& name, const py::object& default_value, const py::object& dtype)
             -> py::object {
-            // std::cout << "XXXXXXXXXXXXX " << dtype << std::endl;
             auto any = self.get_attribute_as_any(name);
             auto module = py::module_::import("openvino.runtime");
 
             auto type = m.attr("Type");
-            if (dtype == type && (any.is<int32_t>() || any.is<int64_t>())) {
-                return py::cast(self.get_attribute<ov::element::Type>(name));
+            if (dtype == type) {
+                if (any.is<int32_t>() || any.is<int64_t>()) {
+                    return py::cast(self.get_attribute<ov::element::Type>(name));
+                } else if (any.is<std::vector<int32_t>>() || any.is<std::vector<int64_t>>()) {
+                    return py::cast(self.get_attribute<std::vector<ov::element::Type>>(name));
+                }
             }
 
             CAST_TO_PY(any, dtype, int32_t);

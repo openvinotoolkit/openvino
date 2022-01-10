@@ -72,6 +72,13 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
 ov::Any DecoderProto::convert_attribute(const Any& data, const std::type_info& type_info) const {
     if (data.is<int32_t>() && type_info == typeid(ov::element::Type)) {
         return TYPE_MAP.at(static_cast<proto::VarType_Type>(data.as<int32_t>()));
+    } else if (data.is<std::vector<int32_t>>() && type_info == typeid(std::vector<ov::element::Type>)) {
+        const auto& casted = data.as<std::vector<int32_t>>();
+        std::vector<ov::element::Type> types(casted.size());
+        for (size_t i = 0; i < casted.size(); ++i) {
+            types[i] = TYPE_MAP.at(static_cast<proto::VarType_Type>(casted[i]));
+        }
+        return types;
     }
     // no conversion rules found.
     return data;

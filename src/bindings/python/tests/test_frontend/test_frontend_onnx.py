@@ -421,9 +421,3 @@ def test_onnx_conversion_extension():
     assert model
     teardown_module()
     assert invoked
-
-
-test_onnx_conversion_extension_attribute_with_default_value()
-test_onnx_conversion_extension_cast_attributes()
-test_onnx_conversion_extension_common()
-test_onnx_conversion_extension()
