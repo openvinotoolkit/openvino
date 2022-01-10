@@ -143,7 +143,7 @@ private:
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
     InferenceEngine::IStreamsExecutor::Ptr                              _executor;
-    MultiDeviceInferencePlugin*                                         _multiPlugin;
+    MultiDeviceInferencePlugin*                                         _multiPlugin = nullptr;
     AutoContext                                                         _context;
     bool                                                                _workModeIsAUTO = {false};
     mutable std::once_flag                                              _oc;
