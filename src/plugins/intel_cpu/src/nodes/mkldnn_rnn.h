@@ -53,7 +53,6 @@ private:
 
     void copyWeightsData();
 
-    InferenceEngine::Precision runtimePrecision;
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 

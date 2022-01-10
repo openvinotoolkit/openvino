@@ -16,7 +16,7 @@
 #include <string>
 #include <utility>
 
-#define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
+#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
 using namespace mkldnn;
 using namespace InferenceEngine;
@@ -230,8 +230,6 @@ MKLDNNRNN::MKLDNNRNN(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& 
     if (!rnnCellBase)
         THROW_ERROR << "does not have original layer for RNNCell.";
 
-    runtimePrecision = getOriginalInputPrecisionAtPort(0);
-
     cell_type = ie2dnnl(op);
     cell_act = mkldnn::algorithm::undef;
     if (!rnnCellBase->get_activations().empty())
@@ -283,21 +281,22 @@ void MKLDNNRNN::initCell() {
     // Expected shapes.
     const Shape shapeD{{N.minVal, DC}, {N.maxVal, DC}}, shapeS{{N.minVal, SC}, {N.maxVal, SC}};
 
-    if (getInputShapeAtPort(0).isStatic() && getInputShapeAtPort(0) != shapeD ||
-            getInputShapeAtPort(1).isStatic() && getInputShapeAtPort(1) != shapeS || getOutputShapeAtPort(0) != shapeS) {
+    if ((getInputShapeAtPort(0).isStatic() && getInputShapeAtPort(0) != shapeD) ||
+            (getInputShapeAtPort(1).isStatic() && getInputShapeAtPort(1) != shapeS) ||
+            (getOutputShapeAtPort(0) != shapeS)) {
         THROW_ERROR << "has incorrect input/output shapes. Data shape: " << getInputShapeAtPort(0).toString() <<
                 "; Hidden state input: " << getInputShapeAtPort(1).toString() << "; Hidden state output: " << getOutputShapeAtPort(0).toString();
     }
 
     if (S == 2) {
-        if (getInputShapeAtPort(2).isStatic() && getInputShapeAtPort(2) != shapeS || getOutputShapeAtPort(1) != shapeS)
+        if ((getInputShapeAtPort(2).isStatic() && getInputShapeAtPort(2) != shapeS) || (getOutputShapeAtPort(1) != shapeS))
             THROW_ERROR << "has incorrect input/output shapes. Cell state input: " << getInputShapeAtPort(2).toString() <<
                     "; Cell state output: " << getOutputShapeAtPort(1).toString();
     }
 }
 
 void MKLDNNRNN::fillCellDesc() {
-    const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+    const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     const Shape shapeS_4D = MemoryDescUtils::makeDummyShape({{L, D, N.minVal, SC}, {L, D, N.maxVal, SC}}),
             inShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, DC}, {T.maxVal, N.maxVal, DC}}),
             outShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, SC}, {T.maxVal, N.maxVal, SC}});
@@ -367,7 +366,7 @@ void MKLDNNRNN::initSequence() {
 }
 
 void MKLDNNRNN::fillSequenceDesc() {
-    const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+    const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
     const Shape shapeS_4D = MemoryDescUtils::makeDummyShape({{L, D, N.minVal, SC}, {L, D, N.maxVal, SC}}),
             inShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, DC}, {T.maxVal, N.maxVal, DC}}),
             outShape = MemoryDescUtils::makeDummyShape({{T.minVal, N.minVal, SC}, {T.maxVal, N.maxVal, SC}}),
@@ -457,13 +456,14 @@ bool MKLDNNRNN::verifyWeightsPrecision(const Precision &layerPrec, const Precisi
 
 template <typename Prec>
 void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx) {
-    const auto weightPrec = getOriginalInputPrecisionAtPort(wIdx);
-    if (!verifyWeightsPrecision(runtimePrecision, weightPrec) && runtimePrecision != Precision::BF16 && weightPrec != Precision::FP32) {
-        THROW_ERROR << "doesn't support combination of weights precision: " << weightPrec << " and runtime precision: " << runtimePrecision;
+    const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
+    const auto& weightPrec = getOriginalInputPrecisionAtPort(wIdx);
+    if (!verifyWeightsPrecision(dataPrecision, weightPrec) && dataPrecision != Precision::BF16 && weightPrec != Precision::FP32) {
+        THROW_ERROR << "doesn't support combination of weights precision: " << weightPrec << " and runtime precision: " << dataPrecision;
     }
     // create weight blobs (data and state part)
     const VectorDims dims_w = { L, D, DC, G, SC };
-    TensorDesc w_data_desc(runtimePrecision, dims_w, getWeightsLayoutByDims(dims_w, false));
+    TensorDesc w_data_desc(dataPrecision, dims_w, getWeightsLayoutByDims(dims_w, false));
     Blob::Ptr w_data_mem = make_shared_blob<Prec>(w_data_desc);
     w_data_mem->allocate();
     auto w_ptr = static_cast<Prec*>(w_data_mem->buffer());
@@ -471,7 +471,7 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
         IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
 
     const VectorDims dims_s = { L, D, SC, G, SC };
-    TensorDesc w_state_desc(runtimePrecision, dims_s, getWeightsLayoutByDims(dims_s, false));
+    TensorDesc w_state_desc(dataPrecision, dims_s, getWeightsLayoutByDims(dims_s, false));
     Blob::Ptr w_state_mem = make_shared_blob<Prec>(w_state_desc);
     w_state_mem->allocate();
     auto r_ptr = static_cast<Prec*>(w_state_mem->buffer());
@@ -491,8 +491,8 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
 
     auto ie_w_ptr = ie_w_vec.data();
     auto ie_r_ptr = ie_r_vec.data();
-    cpu_convert(wConstBlob->GetPtr(), ie_w_ptr, weightPrec, runtimePrecision, ie_w_vec_size);
-    cpu_convert(rConstBlob->GetPtr(), ie_r_ptr, weightPrec, runtimePrecision, ie_r_vec_size);
+    cpu_convert(wConstBlob->GetPtr(), ie_w_ptr, weightPrec, dataPrecision, ie_w_vec_size);
+    cpu_convert(rConstBlob->GetPtr(), ie_r_ptr, weightPrec, dataPrecision, ie_r_vec_size);
 
     const int step = SC * G;
 
@@ -607,18 +607,19 @@ void MKLDNNRNN::copyWeightsData() {
         }
     }
 
-    if (runtimePrecision == Precision::BF16) {
+    const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
+    if (dataPrecision == Precision::BF16) {
         fillWeights<uint16_t>(gate_map, wIdx, rIdx);
-    } else if (runtimePrecision == Precision::FP32) {
+    } else if (dataPrecision == Precision::FP32) {
         // WA To avoid different weights layer and iter formats in FP32 case
-        if ((T.isStatic() && T.maxVal != 1) || (N.isStatic() && N.maxVal < optimalBatchSize))
+        if (T.minVal > 1 || N.maxVal < optimalBatchSize)
             wFormat = mkldnn::memory::format_tag::ldigo;
         fillWeights<float>(gate_map, wIdx, rIdx);
     } else {// TODO FP16 and INT8 support
-        THROW_ERROR << "has unsupported data type: " << runtimePrecision;
+        THROW_ERROR << "has unsupported data type: " << dataPrecision;
     }
 
-    if (runtimePrecision == Precision::BF16 || runtimePrecision == Precision::FP32)
+    if (dataPrecision == Precision::BF16 || dataPrecision == Precision::FP32)
         fillBiases<Precision::FP32>(gate_map);
 }
 
@@ -690,7 +691,8 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                  const std::vector<MemoryDescPtr> &outputDesc) {
     if (descs.empty()) {
         wDescs.resize(3);
-        auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+        const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
+        auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(dataPrecision);
         auto weightsDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
         wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
         auto statesDims = MKLDNNExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
@@ -730,7 +732,8 @@ void MKLDNNRNN::prepareParams() {
             THROW_ERROR << "has uninitialized memory at port " << i;
     }
 
-    const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
+    const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
+    const auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(dataPrecision);
 
     auto dataMemPtr = getParentEdgesAtPort(0).front()->getMemoryPtr();
     const size_t B = dataMemPtr->GetShape().getStaticDims()[0];
@@ -750,7 +753,7 @@ void MKLDNNRNN::prepareParams() {
 
     bool wFormatWasChanged = false;
     // WA To avoid different weights layer and iter formats in FP32 case.
-    if (runtimePrecision == Precision::FP32) {
+    if (dataPrecision == Precision::FP32) {
         if (SL != 1 || B < optimalBatchSize) {
             if (wFormat != mkldnn::memory::format_tag::ldigo) {
                 wFormat = mkldnn::memory::format_tag::ldigo;
@@ -846,8 +849,8 @@ void MKLDNNRNN::executeDynamicImpl(mkldnn::stream strm) {
 }
 
 std::vector<VectorDims> MKLDNNRNN::shapeInfer() const {
-    if (is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[1] ||
-            !is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[2])
+    if ((is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[1]) ||
+            (!is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[2]))
         THROW_ERROR << "has incorrect input size value in the first input.";
 
     auto originOutputShapes = MKLDNNNode::shapeInfer();
