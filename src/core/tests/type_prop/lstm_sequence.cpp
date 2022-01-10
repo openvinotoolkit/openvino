@@ -293,7 +293,6 @@ TEST(type_prop, lstm_sequence_v1_bidirectional) {
     EXPECT_EQ(lstm_sequence->get_output_shape(2), (Shape{batch_size, num_directions, hidden_size}));
 }
 
-
 TEST(type_prop, lstm_sequence_dynamic_batch_size) {
     recurrent_sequence_parameters param;
 
