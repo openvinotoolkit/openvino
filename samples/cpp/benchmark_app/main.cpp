@@ -516,7 +516,14 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             auto startTime = Time::now();
-            compiledModel = core.compile_model(FLAGS_m, device_name, {});
+            
+            std::ifstream modelStream(FLAGS_m);
+            if (!modelStream.is_open()) {
+                throw std::runtime_error("Cannot open model file " + FLAGS_m);
+            }
+            compiledModel = core.import_model(modelStream, device_name, {});
+            modelStream.close();
+
             auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
