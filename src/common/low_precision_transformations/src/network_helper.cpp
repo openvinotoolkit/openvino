@@ -22,6 +22,7 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -61,7 +62,9 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
             ov::is_type<opset1::Convolution>(node) ||
             ov::is_type<opset1::GroupConvolution>(node) ||
             ov::is_type<opset1::MatMul>(node) ||
-            ov::is_type<opset1::ConvolutionBackpropData>(node);
+            ov::is_type<opset1::ConvolutionBackpropData>(node) ||
+            ov::is_type<opset3::ReadValue>(node) ||
+            ov::is_type<opset6::ReadValue>(node);
     };
 
     if (isNotConstantPathOperation(op)) {
@@ -1730,8 +1733,8 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
         const auto intNode = ov::is_type<opset1::Convert>(parent) ? parent : node;
         const auto type = intNode->get_input_element_type(0);
         if (type == element::u8 || type == element::i8) {
-            min = DataPrecision::getMinValue(type, 256) - 0.5f;
-            max = DataPrecision::getMaxValue(type, 256) + 0.5f;
+            min = DataPrecision::getMinValue(type, levels::int8) - 0.5f;
+            max = DataPrecision::getMaxValue(type, levels::int8) + 0.5f;
         } else {
             return type == element::f32 || type == element::f16;
         }
