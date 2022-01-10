@@ -105,8 +105,6 @@ public:
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
-            if (size == 200704)
-                std::cout << i << " expected " << ref << " actual " << res << std::endl;
             const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
             if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
                 IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
