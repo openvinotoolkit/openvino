@@ -120,12 +120,12 @@ class ifs_function():
 
 class DataFreeEngine(SimplifiedEngine):
 
-    def __init__(self, config, stat_subset_size=300):
+    def __init__(self, config):
         super().__init__(config)
         np.random.seed(seed=42)
         self._cpu_count = os.cpu_count()
 
-        self.shape = config.get('shape', None)
+        self.shape = config.get('input_shape', None)
         self._layout = config.get('layout', None)
         if not self.shape:
             inputs = get_nodes_by_type(self.model, ['Parameter'], recursively=False)
@@ -137,8 +137,9 @@ class DataFreeEngine(SimplifiedEngine):
         else:
             self.data_loader = self.get_data_loader()
 
-        self.download = config.get('download', True)
+        self.download = config.get('generate_data', False)
         self.dataset_dir = config.get('dataset_dir', Path(__file__).resolve().parents[7])
+        self.subset_size = config.get('subset_size', 300)
         logger.info(f'Syntetic dataset will be stored in {self.dataset_dir}')
         if not os.path.exists(self.dataset_dir):
             os.mkdir(self.dataset_dir)
@@ -163,15 +164,15 @@ class DataFreeEngine(SimplifiedEngine):
                     height, width = self.shape[-2], self.shape[-1]
                     default_img_size = 362 * 362
                     points_coeff = np.max(1, np.round(height * width / default_img_size))
-                    self._num_of_points = 100000 * points_coeff
+                    self._num_of_points = 100000 * int(points_coeff)
 
-                    if stat_subset_size < len(self._weights):
+                    if self.subset_size < len(self._weights):
                         self._instances = 1
                         self._categories = 1
-                        self._weights = self._weights[:stat_subset_size]
+                        self._weights = self._weights[:self.subset_size]
                     else:
-                        self._instances = np.ceil(0.25 * stat_subset_size / len(self._weights))
-                        self._categories = np.ceil(stat_subset_size / (self._instances * len(self._weights)))
+                        self._instances = np.ceil(0.25 * self.subset_size / len(self._weights))
+                        self._categories = np.ceil(self.subset_size / (self._instances * len(self._weights)))
 
                     self.generate_dataset()
 

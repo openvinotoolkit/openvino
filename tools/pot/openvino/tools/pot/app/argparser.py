@@ -105,14 +105,39 @@ def get_common_argument_parser():
         default=False,
         help='Keep Convolution, Deconvolution and FullyConnected weights uncompressed')
 
+    parser.add_argument(
+        '--engine',
+        # default='data_free', # overload from config if provided
+        type=str,
+        help='Provide model input shape for DataFreeEngine')
+
+    parser.add_argument(
+        '--generate-data',
+        action='store_true',
+        help='Generate syntetic dataset for DataFreeEngine on first run and store to `dataset-dir`. '
+             'If not provided dataset will be downloaded.')
+
+    parser.add_argument(
+        '--dataset-dir',
+        default='../../../syntetic_dataset',
+        help='The directory where syntetic dataset for DataFreeEngine are saved. Default: ../../../syntetic_dataset')
+
+    parser.add_argument(
+        '--shape',
+        help='Provide model input shape for DataFreeEngine if model has dynamic shapes')
+
     return parser
 
 
 def check_dependencies(args):
+    if args.config is None and args.ac_config is None:
+        assert args.engine is None or args.engine == 'data_free'
+        args.engine = 'data_free'
+
     if (args.quantize is not None and
             (args.model is None or
              args.weights is None or
-             args.ac_config is None)):
+             args.ac_config is None and args.engine != 'data_free')):
         raise ValueError(
             '--quantize option requires model, weights, and AC config to be specified.')
     if args.quantize is None and args.config is None:
