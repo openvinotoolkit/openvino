@@ -2,11 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <signal.h>
+#ifdef _WIN32
+#include <process.h>
+#endif
+
 #include <pugixml.hpp>
 #include <ngraph_functions/builders.hpp>
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/layer_test_utils/op_info.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/read_ir/read_ir.hpp"
 
@@ -36,6 +42,36 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     }
     result << ")";
     return result.str();
+}
+
+void ReadIRTest::query_model() {
+    if (functionRefs == nullptr) {
+        functionRefs = ngraph::clone_function(*function);
+        functionRefs->set_friendly_name("refFunction");
+    }
+    auto crashHandler = [](int errCode) {
+        auto &s = LayerTestsUtils::Summary::getInstance();
+        s.saveReport();
+        std::cout << "Unexpected application crash!" << std::endl;
+        std::abort();
+    };
+    signal(SIGSEGV, crashHandler);
+
+    auto &s = LayerTestsUtils::Summary::getInstance();
+    s.setDeviceName(targetDevice);
+
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::SKIPPED);
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    } else {
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::CRASHED);
+    }
+    try {
+        query_model();
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::PASSED);
+    } catch (...) {
+        s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::FAILED);
+    }
 }
 
 void ReadIRTest::SetUp() {

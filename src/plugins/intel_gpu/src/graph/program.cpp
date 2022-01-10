@@ -1347,8 +1347,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::strided_slice::type_id() &&
             prim.type() != cldnn::region_yolo::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
-            prim.type() != cldnn::mvn::type_id())
+            prim.type() != cldnn::mvn::type_id() &&
+            prim.type() != cldnn::gather::type_id()) {
             can_use_fsv16 = false;
+        }
 
         if (prim.type() == cldnn::quantize::type_id() &&
             (prim.get_output_layout().data_type == data_types::i8 || prim.get_output_layout().data_type == data_types::u8)) {

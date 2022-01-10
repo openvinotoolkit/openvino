@@ -8,14 +8,10 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-TEST_P(ReadIRTest, CompareResultsWithRef) {
-    run();
-}
-
-
 TEST_P(ReadIRTest, QueryModel) {
-   query_model();
+    query_model();
 }
+
 
 } // namespace subgraph
 } // namespace test

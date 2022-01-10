@@ -48,6 +48,7 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
             try:
                 if data_type != np.bool:
                     value = mo_array(string_value, dtype=data_type)
+                # TODO: investigate why boolean type is allowed only for TensorFlow
                 elif data_type == np.bool and graph.graph['fw'] == 'tf':
                     from openvino.tools.mo.front.tf.common import tf_data_type_cast
                     if isinstance(string_value, list):
@@ -58,9 +59,9 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
                     else:
                         value = tf_data_type_cast[ph.data_type](string_value)
                 else:
-                    raise Error("Can not cast value {} to {} data_type".format(string_value, data_type))
+                    raise Error("Cannot cast value {} to {} data_type".format(string_value, data_type))
             except:
-                raise Error("Can not cast value {} to {} data_type".format(string_value, data_type))
+                raise Error("Cannot cast value {} to {} data_type".format(string_value, data_type))
             try:
                 value = np.reshape(a=value, newshape=ph.shape)
             except:

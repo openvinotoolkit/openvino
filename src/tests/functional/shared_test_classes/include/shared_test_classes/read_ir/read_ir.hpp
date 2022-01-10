@@ -19,6 +19,7 @@ class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
+    void query_model() override;
 
 protected:
     void SetUp() override;
