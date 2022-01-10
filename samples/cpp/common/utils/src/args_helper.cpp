@@ -588,11 +588,11 @@ void setPrecisions(const ov::Model& network, const std::string& iop) {
         auto& results = network.get_results();
 
         const auto input =
-            std::find_if(params.begin(), params.end(), [&item](const std::shared_ptr<ov::op::v0::Parameter>& a) {
+            std::find_if(params.begin(), params.end(), [&item](const std::shared_ptr<ov::op::v1::Parameter>& a) {
                 return a->get_friendly_name() == item.first;
             });
         const auto output =
-            std::find_if(results.begin(), results.end(), [&layer_name](const std::shared_ptr<ov::op::v0::Result>& a) {
+            std::find_if(results.begin(), results.end(), [&layer_name](const std::shared_ptr<ov::op::v1::Result>& a) {
                 return a->get_friendly_name() == layer_name;
             });
 

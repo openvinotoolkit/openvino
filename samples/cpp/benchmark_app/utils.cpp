@@ -463,7 +463,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 info.layout = ov::Layout(layout_map.at(name)[0]);
                 // reshape_required = true;
             } else {
-                info.layout = dynamic_cast<const ov::op::v0::Parameter&>(*item.get_node()).get_layout();
+                info.layout = dynamic_cast<const ov::op::v1::Parameter&>(*item.get_node()).get_layout();
             }
 
             // Calculating default layout values if needed
