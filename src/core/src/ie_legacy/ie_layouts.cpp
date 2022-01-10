@@ -83,16 +83,13 @@ TensorDesc::TensorDesc() {
 
 void TensorDesc::setDims(const SizeVector& dims) {
     if (layout == Layout::BLOCKED) {
-        auto newDims = blockingDesc.getBlockDims();
         auto newOrder = blockingDesc.getOrder();
-        if (newDims.empty())
-            newDims = dims;
         if (newOrder.empty()) {
-            for (size_t i = 0; i < newDims.size(); i++) {
+            for (size_t i = 0; i < newOrder.size(); i++) {
                 newOrder.push_back(i);
             }
         }
-        blockingDesc = BlockingDesc(newDims, newOrder);
+        blockingDesc = BlockingDesc(dims, newOrder);
     } else {
         if (layout == Layout::SCALAR && (dims.size() > 1 || (dims.size() == 1 && dims[0] != 1)))
             IE_THROW() << "Cannot set dimensions for SCALAR layout!";
