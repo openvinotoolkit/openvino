@@ -63,6 +63,11 @@ def test_compile_model(device):
     exec_net = ie.compile_model(func, device)
     assert isinstance(exec_net, CompiledModel)
 
+def test_compile_model_without_device():
+    ie = Core()
+    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie.compile_model(func)
+    assert isinstance(exec_net, CompiledModel)
 
 def test_read_model_from_ir():
     core = Core()

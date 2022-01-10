@@ -115,6 +115,14 @@ class Core(CoreBase):
             super().compile_model(model, device_name, {} if config is None else config)
         )
 
+    def compile_model(
+        self, model: Union[Model, str], config: dict = None
+    ) -> CompiledModel:
+        """Compile a model from given Model with AUTO plugin as device device."""
+        return CompiledModel(
+            super().compile_model(model, {} if config is None else config)
+        )
+
     def import_model(
         self, model_file: str, device_name: str, config: dict = None
     ) -> CompiledModel:
