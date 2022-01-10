@@ -6,8 +6,6 @@
 
 #include "itt.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::v8::I420toBGR);
-
 ov::op::v8::I420toBGR::I420toBGR(const Output<Node>& arg)
     : util::ConvertColorI420Base(arg, util::ConvertColorI420Base::ColorConversion::I420_TO_BGR) {
     constructor_validate_and_infer_types();
