@@ -9,7 +9,7 @@
 @sphinxdirective
 .. tab:: Windows
 
-  Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. Follow the wizard instructions.
+  Go to the ``Downloads`` folder and double-click ``w_openvino_toolkit_p_<version>.exe``. Follow the wizard instructions.
 
 .. tab:: Linux
 
@@ -31,7 +31,7 @@
 
 .. tab:: macOS
 
-  Go to the `Downloads` folder and double-click `m_openvino_toolkit_p_<version>.dmg`. Follow the wizard instructions.
+  Go to the ``Downloads`` folder and double-click ``m_openvino_toolkit_p_<version>.dmg``. Follow the wizard instructions.
 
 @endsphinxdirective
 
