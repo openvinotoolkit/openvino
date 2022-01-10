@@ -51,8 +51,9 @@ struct jit_topk_call_args {
     void *index;
     const int *bitonic_idx_buf;
     const int *bitonic_k_idx_buf;
-    const int *axis_dim_buf; // point to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
-    const int *idx_seq_buf;  // original idx sequence, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
+    const int *idx_block_buf;// original idx sequence, repeated by block (eg. 00000000,11111111,...,77777777), only used in bubble sort
+    const int *idx_seq_buf;  // original idx sequence (eg. 01234567), only used in bubble sort and heap sort
+    size_t axis_dim;         // point to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
     size_t work_amount;
 };
 
@@ -118,8 +119,8 @@ private:
     size_t blk_size;
     size_t count_xmm;
     size_t data_size;
+    size_t axis_dim;
     int top_k;
-    int axis_size;
     int dim, before_num;
     bool is_last_dim = false;
     bool bubble_inplace = false;
@@ -133,6 +134,7 @@ private:
     std::vector<int> vec_bitonic_k_idx;
 
     std::vector<int> vec_idx_seq;
+    std::vector<int> vec_idx_block;
 
     std::vector<uint8_t> vec_process_ptr;
     std::vector<uint8_t> vec_process_idx_ptr;
