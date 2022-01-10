@@ -25,6 +25,8 @@ public:
     void executeDynamicImpl(mkldnn::stream strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    bool isExecutable() const override { return true; }
+
 private:
     std::string errorPrefix;
     template <typename inputType>
