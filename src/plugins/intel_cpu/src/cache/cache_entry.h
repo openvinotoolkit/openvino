@@ -55,10 +55,12 @@ public:
         }
         auto retStatus = LookUpStatus::Hit;
         ValType retVal = _impl.get(key);
-        if (retVal == ValType()) {
+        auto retEmpty = ValType();
+        if (retVal == retEmpty) {
             retStatus = LookUpStatus::Miss;
             retVal = builder(key);
-            _impl.put(key, retVal);
+            if (retVal != retEmpty)
+                _impl.put(key, retVal);
         }
         return {retVal, retStatus};
     }
