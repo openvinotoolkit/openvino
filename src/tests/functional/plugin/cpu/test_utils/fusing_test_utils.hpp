@@ -237,6 +237,29 @@ const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{std::make_sha
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Relu);
             }, "Relu"}}), {"FakeQuantize", "Relu"}};
 
+const auto fusingFQPerChannelSigmoidFQPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            auto localPrc = inpNode->get_element_type();
+            auto shape = inpNode->get_output_partial_shape(0);
+            if (shape.size() == 1)
+                IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+            ngraph::Shape newShape(shape.size(), 1);
+            newShape[1] = shape[1].get_length();
+            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        }, "FakeQuantize(PerChannel)"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Sigmoid);
+        }, "Sigmoid"},
+        {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+            auto localPrc = inpNode->get_element_type();
+            auto shape = inpNode->get_output_partial_shape(0);
+            if (shape.size() == 1)
+                IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+            ngraph::Shape newShape(shape.size(), 1);
+            newShape[1] = shape[1].get_length();
+            return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
+        }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize", "Sigmoid", "FakeQuantize"}};
+
 const auto fusingFakeQuantizePerTensorRelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
                 auto localPrc = inpNode->get_element_type();
