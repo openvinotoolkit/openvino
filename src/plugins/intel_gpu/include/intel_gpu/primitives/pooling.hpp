@@ -233,7 +233,7 @@ struct pooling : public primitive_base<pooling> {
     /// @brief first dimension of input that should be used to calculate the upper bound of index output
     int64_t axis;
     /// @brief type of index output
-    data_types index_element_type;
+    data_types index_element_type = data_types::i32;
     bool maxPoolOpset8Features{false};
 
 protected:
