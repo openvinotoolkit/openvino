@@ -48,6 +48,13 @@ def get_common_argument_parser():
         help='Model name. Applicable only when -q option is used.')
 
     parser.add_argument(
+        '--engine',
+        default='accuracy_checker',
+        choices=['accuracy_checker', 'data_free', 'simplified'],
+        type=str,
+        help='Specify engine. Default: `accuracy_checker`')
+
+    parser.add_argument(
         '--ac-config',
         type=str,
         help='Path to the Accuracy Checker configuration file. Applicable only when -q option is used.')
@@ -106,38 +113,37 @@ def get_common_argument_parser():
         help='Keep Convolution, Deconvolution and FullyConnected weights uncompressed')
 
     parser.add_argument(
-        '--engine',
-        # default='data_free', # overload from config if provided
-        type=str,
-        help='Provide model input shape for DataFreeEngine')
-
-    parser.add_argument(
-        '--generate-data',
-        action='store_true',
-        help='Generate syntetic dataset for DataFreeEngine on first run and store to `dataset-dir`. '
-             'If not provided dataset will be downloaded.')
-
-    parser.add_argument(
         '--dataset-dir',
-        default='../../../syntetic_dataset',
-        help='The directory where syntetic dataset for DataFreeEngine are saved. Default: ../../../syntetic_dataset')
+        default='../../../pot_dataset',
+        help='Valid only for DataFreeEngine or SimplifiedEngine. For SimplifiedEngine specify path to dataset dir. '
+             'For DataFreeEngine specify path to directory where syntetic dataset will be downloaded or generated and saved. '
+             'Default: `../../../pot_dataset`')
 
     parser.add_argument(
         '--shape',
         help='Provide model input shape for DataFreeEngine if model has dynamic shapes')
 
+    data_free_opt = parser.add_argument_group('DataFree options')
+
+    data_free_opt.add_argument(
+        '--data-type',
+        default='image',
+        choices=['image', 'text', 'audio'],
+        help='Specify type of data. Dafault: image')
+
+    data_free_opt.add_argument(
+        '--generate-data',
+        action='store_true',
+        help='Generate syntetic dataset on first run and store to `dataset-dir`. If not specified, dataset will be downloaded.')
+
     return parser
 
 
 def check_dependencies(args):
-    if args.config is None and args.ac_config is None:
-        assert args.engine is None or args.engine == 'data_free'
-        args.engine = 'data_free'
-
     if (args.quantize is not None and
             (args.model is None or
              args.weights is None or
-             args.ac_config is None and args.engine != 'data_free')):
+             args.ac_config is None and args.engine == 'accuracy_checker')):
         raise ValueError(
             '--quantize option requires model, weights, and AC config to be specified.')
     if args.quantize is None and args.config is None:
