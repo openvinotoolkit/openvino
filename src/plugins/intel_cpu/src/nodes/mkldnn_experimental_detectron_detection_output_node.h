@@ -41,8 +41,6 @@ private:
     int max_detections_per_image_;
     bool class_agnostic_box_regression_;
     std::vector<float> deltas_weights_;
-
-    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

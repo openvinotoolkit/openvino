@@ -287,12 +287,7 @@ bool MKLDNNMatrixNmsNode::isExecutable() const {
 
 void MKLDNNMatrixNmsNode::executeDynamicImpl(mkldnn::stream strm) {
     if (hasEmptyInputTensors()) {
-        getChildEdgesAtPort(NMS_SELECTED_OUTPUTS)[0]->getMemoryPtr()->redefineDesc(
-            getBaseMemDescAtOutputPort(NMS_SELECTED_OUTPUTS)->cloneWithNewDims({0, 6}));
-        getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->redefineDesc(
-            getBaseMemDescAtOutputPort(NMS_SELECTED_INDICES)->cloneWithNewDims({0, 1}));
-        getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr()->redefineDesc(
-            getBaseMemDescAtOutputPort(NMS_VALID_OUTPUTS)->cloneWithNewDims({0}));
+        redefineOutputMemory({{0, 6}, {0, 1}, {0}});
         return;
     }
     execute(strm);
@@ -375,9 +370,7 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
     // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (isDynamicNode()) {
         size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), 0);
-        selectedOutputsMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTED_OUTPUTS)->cloneWithNewDims({totalBox, 6}));
-        selectedIndicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTED_INDICES)->cloneWithNewDims({totalBox, 1}));
-        validOutputsMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_VALID_OUTPUTS)->cloneWithNewDims({m_numBatches}));
+        redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
     float* selectedOutputs = reinterpret_cast<float*>(selectedOutputsMemPtr->GetPtr());
     int* selectedIndices = reinterpret_cast<int*>(selectedIndicesMemPtr->GetPtr());

@@ -236,6 +236,15 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
     }
 }
 
+InferenceEngine::Parameter ExecutableNetwork::GetConfig(const std::string &name) const {
+    auto confValues = _config.getValues();
+    auto it = confValues.find(name);
+    if (it != confValues.end()) {
+        return it->second;
+    }
+    VPU_THROW_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
+}
+
 std::shared_ptr<ngraph::Function> ExecutableNetwork::GetExecGraphInfo() {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
     if (_graphDesc._name == importedNetworkName)

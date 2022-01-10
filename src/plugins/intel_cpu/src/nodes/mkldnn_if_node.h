@@ -23,8 +23,20 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    bool isExecutable() const override { return true; }
 
     void inline setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    bool needPrepareParams() const override { return false; };
+    bool needShapeInfer() const override { return false; }
+
+private:
+    void prepareBeforeMappers(const bool isThen, const dnnl::engine& eng);
+    void prepareAfterMappers(const bool isThen, const dnnl::engine& eng);
+
+    std::deque<MKLDNNMemoryPtr> getToMemories(const MKLDNNNode* node, const size_t port) const;
 
     struct PortMap {
         int from; /**< Index of external/internal out data */
@@ -33,20 +45,24 @@ public:
 
     class PortMapHelper {
     public:
-        PortMapHelper(const MKLDNNMemoryPtr& from, const MKLDNNMemoryPtr& to, const mkldnn::engine& eng);
-        virtual ~PortMapHelper() = default;
-        virtual void execute(mkldnn::stream& strm);
-    protected:
-        mkldnn::reorder reorder;
-        mkldnn::memory mem_holder_src;
-        mkldnn::memory mem_holder_dst;
+        PortMapHelper(const MKLDNNMemoryPtr& from, const std::deque<MKLDNNMemoryPtr>& to, const mkldnn::engine& eng);
+        ~PortMapHelper() = default;
+        void execute(mkldnn::stream& strm);
+
+    private:
+        void redefineTo();
+
+        MKLDNNMemoryPtr srcMemPtr;
+        std::deque<MKLDNNMemoryPtr> dstMemPtrs;
+
+        ptrdiff_t size;
     };
 
-private:
     MKLDNNExtensionManager::Ptr ext_mng;
     MKLDNNGraph subGraphThen;
     MKLDNNGraph subGraphElse;
-    std::deque<MKLDNNMemoryPtr> inputMemThen, inputMemElse, outputMemThen, outputMemElse;
+    std::vector<std::deque<MKLDNNMemoryPtr>> inputMemThen, inputMemElse;
+    std::deque<MKLDNNMemoryPtr> outputMemThen, outputMemElse;
 
     std::vector<std::shared_ptr<PortMapHelper>>
         beforeThenMappers,

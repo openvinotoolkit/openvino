@@ -6,14 +6,13 @@ from collections import defaultdict
 
 import numpy as np
 
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph, FrontReplacementPattern
 from openvino.tools.mo.front.extractor import add_input_ops
 from openvino.tools.mo.front.output_cut import OutputCut
 from openvino.tools.mo.front.user_data_repack import UserDataRepack
-from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_precision, SUPPORTED_DATA_TYPES
-
-from openvino.tools.mo.ops.parameter import Parameter
-from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph, FrontReplacementPattern
 from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_precision, SUPPORTED_DATA_TYPES
+from openvino.tools.mo.ops.parameter import Parameter
 from openvino.tools.mo.utils.error import Error
 
 
@@ -61,8 +60,10 @@ class FIFOQueue(FrontReplacementSubgraph):
         true_placeholder_shape = match['placeholder'].shape
         placeholder_shape = match['fifo_queue'].shapes[0]
         placeholder_data_type = match['fifo_queue'].types[0]
-        assert true_placeholder_shape.ndim <= 1
-        if true_placeholder_shape.ndim == 1 and len(true_placeholder_shape) > 1:
+        # in case OOB conversion batch_size placeholder shape is not required
+        # so use a shape specified in FIFOQueueV2 shapes list attribute
+        assert true_placeholder_shape is None or true_placeholder_shape.ndim <= 1
+        if true_placeholder_shape is not None and true_placeholder_shape.ndim == 1 and len(true_placeholder_shape) > 1:
             log.warning(
                 'Placeholder \'{}\' got non 0-dimensional shape {} in FIFOQueue pattern. Placeholder will have the '
                 'same shape after folding the pattern instead of {} shape which is original for the network.'
