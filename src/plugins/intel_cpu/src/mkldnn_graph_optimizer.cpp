@@ -578,7 +578,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
         ptrdiff_t OC = weightsConstantDims[0 + groupOffset];
         ptrdiff_t IC = weightsConstantDims[1 + groupOffset];
         ptrdiff_t KD = weightsConstantDims.size() == (5 + groupOffset) ? weightsConstantDims[weightsConstantDims.size() - 3] : 1;
-        ptrdiff_t KH = node->getInputShapeAtPort(0).getRank() > (3 + groupOffset) ? weightsConstantDims[weightsConstantDims.size() - 2] : 1;
+        ptrdiff_t KH = weightsConstantDims.size() == (3 + groupOffset) ? 1 : weightsConstantDims[weightsConstantDims.size() - 2];
         ptrdiff_t KW = weightsConstantDims[weightsConstantDims.size() - 1];
 
         for (size_t g = 0; g < G; g++) {
@@ -1474,6 +1474,12 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
         }
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+
+        if ((parentNode->isDynamicNode() && !childNode->isDynamicNode()) || (!parentNode->isDynamicNode() && childNode->isDynamicNode())) {
+            parent++;
+            continue;
+        }
+
         if (!isSuitableChildNode(parentNode, childNode)) {
             parent++;
             continue;

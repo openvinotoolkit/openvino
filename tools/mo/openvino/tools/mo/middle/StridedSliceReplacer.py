@@ -49,8 +49,8 @@ class ReplaceStridedSliceWithSqueezeUnsqueeze(MiddleReplacementPattern):
             if np.prod(input_shape) != np.prod(output_shape):
                 continue
 
-            shrink_axis_mask = node.soft_get('shrink_axis_mask', np.zeros(len(input_shape)))
-            new_axis_mask = node.soft_get('new_axis_mask', np.zeros(len(input_shape)))
+            shrink_axis_mask = node.soft_get('shrink_axis_mask', np.zeros(len(input_shape), dtype=np.bool))
+            new_axis_mask = node.soft_get('new_axis_mask', np.zeros(len(input_shape), dtype=np.bool))
 
             is_shrink_axis_mask = any(x == 1 for x in shrink_axis_mask)
             is_new_axis_mask = any(x == 1 for x in new_axis_mask)

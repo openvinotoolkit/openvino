@@ -13,6 +13,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
 #include <ie_algorithm.hpp>
 #include <debug.h>
 
@@ -218,6 +219,9 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
     if (0 == dataSize) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
+    if (inputTensorsMap.find(name) != inputTensorsMap.end()) {
+        inputTensorsMap.erase(name);
+    }
     const bool compoundBlobPassed = data->is<CompoundBlob>();
 
     InputInfo::Ptr foundInput;
@@ -238,8 +242,14 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
     size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
+    bool preProcResize = false;
+    if (is_input) {
+        preProcResize = foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE;
+        const auto inputColorFormat = foundInput->getPreProcess().getColorFormat();
+        preProcResize |= (inputColorFormat != ColorFormat::RAW) && (inputColorFormat != ColorFormat::BGR);
+    }
 
-    if (dataBinSize != netReqBinSize && !compoundBlobPassed) {
+    if (dataBinSize != netReqBinSize && !compoundBlobPassed && !preProcResize) {
         IE_THROW() << "Incorrect binary data size for " << (is_input ? "input" : "output") <<
                       " blob with name: \'" << name <<  "\' " <<
                       "Current: " << dataBinSize << " Required: " << netReqBinSize;
@@ -350,6 +360,94 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
         }
         _outputs[name] = data;
     }
+}
+
+void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
+    if (blobs.size() == 1) {
+        SetBlob(name, blobs[0]);
+        return;
+    }
+
+    if (name.empty()) {
+        IE_THROW(NotFound) << "Failed to set blobs with empty name";
+    }
+    if (blobs.empty()) {
+        IE_THROW(NotAllocated) << "Failed to set empty blobs with name: \'" << name << "\'";
+    }
+    bool empty_data = std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->size() == 0;
+    });
+    if (empty_data) {
+        IE_THROW() << "At least one of the input blobs is empty. Input name: \'" << name << "\'";
+    }
+
+    bool is_compound = std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->is<CompoundBlob>();
+    });
+    if (is_compound) {
+        IE_THROW(NotImplemented) << cannot_set_compound;
+    }
+
+    bool is_buffer = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->is<gpu::ClBufferBlob>();
+    });
+    bool is_surface = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->is<gpu::ClImage2DBlob>();
+    });
+    bool is_remote = is_buffer || is_surface;
+
+    bool is_host = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->is<InferenceEngine::MemoryBlob>();
+    });
+    is_host &= !is_remote;
+
+    if (!is_host && !is_remote) {
+        IE_THROW() << "Incorrect input blobs. All blobs must be of the same type";
+    }
+
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    bool is_input = findInputAndOutputBlobByName(name, foundInput, foundOutput);
+
+    if (!is_input) {
+        IE_THROW() << "SetBlobs method doesn't support outputs";
+    }
+
+    if (is_buffer) {
+        IE_THROW(NotImplemented) << "SetBlobs method doesn't support buffer blobs";
+    }
+
+    const TensorDesc& desc = foundInput->getTensorDesc();
+
+    size_t dataBinSize = blobs.front()->size() * blobs.front()->element_size() * blobs.size();
+    size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
+                                           desc.getPrecision().size(),
+                                           std::multiplies<size_t>());
+    bool preProcResize = false;
+    if (is_input) {
+        preProcResize = foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE;
+        const auto inputColorFormat = foundInput->getPreProcess().getColorFormat();
+        preProcResize |= (inputColorFormat != ColorFormat::RAW) && (inputColorFormat != ColorFormat::BGR);
+    }
+    if (dataBinSize != netReqBinSize && !preProcResize) {
+        IE_THROW() << "Incorrect binary data size for input blobs with name: \'" << name <<  "\' " <<
+                      "Current: " << dataBinSize << " Required: " << netReqBinSize;
+    }
+
+    if (_inputs.find(name) != _inputs.end()) {
+        _inputs.erase(name);
+    }
+
+    if (is_remote) {
+        for (auto& blob : blobs) {
+            auto impl = getBlobImpl(blob->as<gpu::ClBlob>());
+            if (!impl->is_allocated()) {
+                impl->allocate();
+            }
+        }
+    }
+
+    inputTensorsMap.insert({ name, blobs });
 }
 
 void InferRequest::checkBlobs() {
@@ -519,6 +617,24 @@ void InferRequest::enqueue() {
     // set input and output memory from request blob maps
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
+
+    for (const auto& inputTensor : inputTensorsMap) {
+        const auto& blobs = inputTensor.second;
+        auto blobsDesc = blobs.front()->getTensorDesc();
+
+        bool is_surface = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+            return blob->is<gpu::ClImage2DBlob>();
+        });
+
+        if (is_surface) {
+            for (size_t i = 0; i < blobs.size(); ++i) {
+                std::string new_name = inputTensor.first + "_" + std::to_string(i);
+                _inputs[new_name] = blobs[i];
+                _deviceInputs[new_name] = blobs[i];
+            }
+        }
+    }
+
     for (auto& item : _inputs) {
         std::string inputName = item.first;
         Blob::Ptr& inputBlob = item.second;
@@ -809,14 +925,30 @@ Blob::Ptr InferRequest::host_blob_from_device_blob(Blob::Ptr blobPtr) {
 void InferRequest::allocate_inputs() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::allocate_inputs");
     auto inputLayouts = m_graph->GetInputLayouts();
+
     // allocate inputs
     for (auto& ni : _networkInputs) {
         std::string name = ni.first;
         const TensorDesc& desc = ni.second->getTensorDesc();
 
-        if (ColorFormat::NV12 == ni.second->getPreProcess().getColorFormat() &&
-            m_graph->getConfig().nv12_two_inputs) {
-        } else {
+        bool is_nv12_input = ColorFormat::NV12 == ni.second->getPreProcess().getColorFormat() &&
+                             m_graph->getConfig().nv12_two_inputs;
+
+        auto parameter = std::find_if(_parameters.begin(), _parameters.end(), [&](const std::shared_ptr<const ov::Node>& node) {
+            return node->get_friendly_name() == name;
+        });
+
+        if (parameter != _parameters.end()) {
+            if (parameter->get()->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
+                std::string mem_type = parameter->get()->output(0).get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
+                                                                                .as<ov::preprocess::TensorInfoMemoryType>().value;
+                if (mem_type.find(GPU_CONFIG_KEY(SURFACE)) != std::string::npos) {
+                    is_nv12_input = true;
+                }
+            }
+        }
+
+        if (!is_nv12_input) {
             auto litr = inputLayouts.find(name);
             if (litr == inputLayouts.end()) {
                 IE_THROW() << "Input layout for " << name << " is not found";

@@ -16,6 +16,11 @@ if(ENABLE_AUTO OR ENABLE_MULTI)
     list(APPEND DEPENDENCIES ov_auto_plugin)
 endif()
 
+if(ENABLE_AUTO_BATCH)
+    list(APPEND DEPENDENCIES ov_auto_batch_plugin)
+endif()
+
+
 # remove once CVS-69781 is fixed
 if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES ov_ir_frontend)

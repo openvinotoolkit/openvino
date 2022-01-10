@@ -82,7 +82,7 @@ class SparseSegmentSqrtN(Op):
 
         # infer
         num_adds = np.zeros(num_segments, dtype=np.int)
-        output_value = np.zeros([num_segments] + data_shape[1:].tolist(), dtype=np.float)
+        output_value = np.zeros([num_segments] + data_shape[1:].tolist(), dtype=np.float32)
         output_shape = output_value.shape
         for i in range(len(segment_ids_value)):
             segment_id = int(segment_ids_value[i])

@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes, dynamic_dimension, shape_array, is_fully_defined, compatible_dims
+from openvino.tools.mo.front.common.partial_infer.utils import compatible_shapes, dynamic_dimension, shape_array, is_fully_defined
 from openvino.tools.mo.graph.graph import Node, Graph, Error
 from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.broadcasting import bi_directional_shape_broadcasting, bi_directional_broadcasting
@@ -66,7 +66,7 @@ class Select(Op):
                 if is_fully_defined(condition_shape[0]) and not output_is_scalar and is_fully_defined(output_shape[0]):
                     assert condition_shape[0] == output_shape[0], msg_tf
                 ones_shape = len(output_shape) if output_is_scalar else len(output_shape) - 1
-                condition_shape = np.concatenate((condition_shape, np.ones(ones_shape)))
+                condition_shape = np.concatenate((condition_shape, np.ones(ones_shape, dtype=np.int64)))
 
             output_shape = bi_directional_shape_broadcasting(output_shape, condition_shape)
             assert output_shape is not None, msg

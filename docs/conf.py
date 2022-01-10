@@ -81,10 +81,10 @@ html_theme_options = {
 }
 
 html_context = {
-    'current_version': '2021.4',
+    'current_version': 'nightly',
     'current_language': 'English',
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
-    'versions': (('Latest', '/latest'), ('2021.4', '/2021.4'),
+    'versions': (('Latest', '/latest'), ('nightly', '/nightly'), ('2021.4', '/2021.4'),
                 ('2021.3', '/2021.3'), ('2021.2', '/2021.2'), ('2021.1', '/2021.1'),
                  ('2020.4', '/2020.4'), ('2020.3', '/2020.3'), ('2020.2', '/2020.1'),
                   ('2020.1', '/2020.1'), ('2019_R3.1', '/2019_R3.1'), ('2019_R3', '/2019_R3'),
@@ -97,7 +97,7 @@ repositories = {
     'openvino': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'openvino',
-        'github_version': 'releases/2021/4',
+        'github_version': 'master',
         'host_url': 'https://github.com'
     },
     'open_model_zoo': {

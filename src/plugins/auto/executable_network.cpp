@@ -156,7 +156,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _needPerfCounters(needPerfCounters)
                                                            , _multiPlugin(plugin)
                                                            , _context(context)
-                                                           , _workModeIsAUTO(true) {
+                                                           , _workModeIsAUTO(true)
+                                                           , _network(network) {
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
@@ -667,10 +668,30 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 real = _loadContext[ACTUALDEVICE].
                     executableNetwork->GetMetric(name).as<unsigned int>();
             } else {
+                IE_ASSERT(_loadContext[CPU].isAlready == true);
                 real = _loadContext[CPU].
                     executableNetwork->GetMetric(name).as<unsigned int>();
+                std::unique_lock<std::mutex> lock(_confMutex);
+                auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
+                lock.unlock();
+                if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
+                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
+                    if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
+                         std::map<std::string, InferenceEngine::Parameter> options;
+                         options["MODEL_PTR"] = _network.getFunction(); // CNNntework
+                         try {
+                             auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
+                                     METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+                             auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
+                                     METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                             real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);
+                         } catch (const InferenceEngine::Exception &iie) {
+                             LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
+                         }
+                    }
+                }
             }
-            unsigned int res = std::max(8u, real);
+            unsigned int res = (std::max)(8u, real);
             IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
         }
 

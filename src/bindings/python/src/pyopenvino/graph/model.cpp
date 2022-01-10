@@ -771,12 +771,7 @@ void regclass_graph_Model(py::module m) {
     });
 
     function.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);
-    function.def_property_readonly("inputs",
-                                   (std::vector<ov::Output<const ov::Node>>(ov::Model::*)() const) & ov::Model::inputs);
     function.def_property_readonly("outputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::outputs);
-    function.def_property_readonly(
-        "outputs",
-        (std::vector<ov::Output<const ov::Node>>(ov::Model::*)() const) & ov::Model::outputs);
     function.def_property_readonly("name", &ov::Model::get_name);
     function.def_property("friendly_name", &ov::Model::get_friendly_name, &ov::Model::set_friendly_name);
 }

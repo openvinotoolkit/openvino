@@ -14,7 +14,7 @@ def generate_pot_version():
         branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
         commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode()
         return "custom_{}_{}".format(branch_name, commit_hash)
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except Exception: # pylint:disable=W0703
         return "unknown version"
 
 
