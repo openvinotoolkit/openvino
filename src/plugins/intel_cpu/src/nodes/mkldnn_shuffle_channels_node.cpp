@@ -14,6 +14,7 @@
 
 #include <string>
 #include <cmath>
+#include <common/primitive_hashing_utils.hpp>
 
 #define THROW_SHCH_ERROR IE_THROW() << "ShuffleChannels layer with name '" << getName() << "' "
 
@@ -22,6 +23,53 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
+
+namespace {
+struct ShuffleChannelsKey {
+    MKLDNNPlugin::MKLDNNShuffleChannelsNode::ShuffleChannelsAttributes attrs;
+    VectorDims srcDims;
+    VectorDims srcBlockedDims;
+    size_t hash() const;
+    bool operator==(const ShuffleChannelsKey& rhs) const;
+};
+
+size_t ShuffleChannelsKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, attrs.layoutType);
+    seed = hash_combine(seed, attrs.dataRank);
+    seed = hash_combine(seed, attrs.axis);
+    seed = hash_combine(seed, attrs.spatialRank);
+    seed = hash_combine(seed, attrs.group);
+    seed = hash_combine(seed, attrs.dataSize);
+    seed = get_vector_hash(seed, srcDims);
+    seed = get_vector_hash(seed, srcBlockedDims);
+
+    return seed;
+}
+
+bool ShuffleChannelsKey::operator==(const ShuffleChannelsKey& rhs) const {
+    if (srcDims.size() != rhs.srcDims.size() || srcBlockedDims.size() != rhs.srcBlockedDims.size()) {
+        return false;
+    }
+
+    bool result = attrs.layoutType == rhs.attrs.layoutType && attrs.dataRank == rhs.attrs.dataRank &&
+                  attrs.axis == rhs.attrs.axis && attrs.spatialRank == rhs.attrs.spatialRank &&
+                  attrs.group == rhs.attrs.group && attrs.dataSize == rhs.attrs.dataSize;
+
+    for (size_t i = 0; i < srcDims.size() && result; ++i) {
+        result = result && (srcDims[i] == rhs.srcDims[i]);
+    }
+
+    for (size_t i = 0; i < srcBlockedDims.size() && result; ++i) {
+        result = result && (srcBlockedDims[i] == rhs.srcBlockedDims[i]);
+    }
+    return result;
+}
+
+}  // namespace
 
 bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -123,7 +171,20 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
 
 void MKLDNNShuffleChannelsNode::prepareParams() {
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    execPtr = std::make_shared<ShuffleChannelsExecutor>(attrs, srcMemPtr->getStaticDims(), srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims());
+    auto builder = [](const ShuffleChannelsKey& key) -> std::shared_ptr<ShuffleChannelsExecutor> {
+        return std::make_shared<ShuffleChannelsExecutor>(key.attrs, key.srcDims, key.srcBlockedDims);
+    };
+
+    ShuffleChannelsKey key = {attrs,
+                              srcMemPtr->getStaticDims(),
+                              srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims()};
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+    if (!result.first) {
+        IE_THROW() << "DepthToSpaceExecutor was not found for node " << getName() << ".";
+    }
+
+    execPtr = result.first;
 }
 
 MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs,

@@ -26,11 +26,6 @@ public:
     bool created() const override;
 
     void prepareParams() override;
-
-protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
-
-private:
     struct ShuffleChannelsAttributes {
         LayoutType layoutType;
         int dataRank = 0;
@@ -38,7 +33,13 @@ private:
         int spatialRank = 0;
         size_t group = 0lu;
         size_t dataSize = 1lu;
-    } attrs;
+    };
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+private:
+    ShuffleChannelsAttributes attrs;
 
     struct ShuffleChannelsExecutor final {
         ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs, const VectorDims& srcDims, const VectorDims& srcBlockedDims);
