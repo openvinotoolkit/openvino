@@ -226,7 +226,9 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
     };
 
     auto cache = getRuntimeCache();
-    auto result = cache->getOrCreate(key, builder);
+    std::pair<std::shared_ptr<mkldnn::primitive>, CacheEntryBase::LookUpStatus> result{
+        nullptr,
+        CacheEntryBase::LookUpStatus::Miss};
     // TODO: We should keep shape consistency for const and expected shape for node.
     //       If it requires reshape operation it should explicitly injected into graph.
     //
@@ -238,7 +240,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
     // perform such conversion if the source tensor can be reshaped to the destination rank. This is
     // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
     // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
-    if (!result.first && src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
+    if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
         src_blocked->GetShape().getRank() != dst_blocked->GetShape().getRank()) {
         const auto newDims = dst_blocked->getStaticDims();
         const auto newFormat = MKLDNNExtensionUtils::GetPlainFormatByRank(newDims.size());
@@ -249,6 +251,8 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc& srcDe
         src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
 
         key.src = src_blocked->GetPrimitive().get_desc();
+        result = cache->getOrCreate(key, builder);
+    } else {
         result = cache->getOrCreate(key, builder);
     }
 
