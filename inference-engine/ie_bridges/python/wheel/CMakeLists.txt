@@ -20,7 +20,7 @@ endif()
 
 # create target for openvino.wheel
 
-set(openvino_wheel_deps ie_api offline_transformations_api)
+set(openvino_wheel_deps ie_api)
 foreach(_target ov_runtime_libraries ie_plugins _pyngraph pyopenvino)
     if(TARGET ${_target})
         list(APPEND openvino_wheel_deps ${_target})
