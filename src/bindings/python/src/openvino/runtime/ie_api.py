@@ -108,20 +108,17 @@ class Core(CoreBase):
     """Core wrapper."""
 
     def compile_model(
-        self, model: Union[Model, str], device_name: str, config: dict = None
+        self, model: Union[Model, str], device_name: str = None, config: dict = None
     ) -> CompiledModel:
         """Compile a model from given Model."""
-        return CompiledModel(
-            super().compile_model(model, device_name, {} if config is None else config)
-        )
-
-    def compile_model(
-        self, model: Union[Model, str], config: dict = None
-    ) -> CompiledModel:
-        """Compile a model from given Model with AUTO plugin as device device."""
-        return CompiledModel(
-            super().compile_model(model, {} if config is None else config)
-        )
+        if device_name is None:
+            return CompiledModel(
+                super().compile_model(model, {} if config is None else config)
+            )
+        else:
+            return CompiledModel(
+                super().compile_model(model, device_name, {} if config is None else config)
+            )
 
     def import_model(
         self, model_file: str, device_name: str, config: dict = None
