@@ -4,10 +4,6 @@
 
 #pragma once
 
-#include <fstream>
-#include <iostream>
-#include <type_traits>
-
 #include "openvino/core/extension.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/visibility.hpp"
@@ -52,7 +48,6 @@ public:
     ~ConversionExtension() override = default;
 
     using PyCreatorFunction = std::function<OutputVector(const NodeContext*)>;
-    ;
     using PyCreatorFunctionNamed = std::function<std::map<std::string, OutputVector>(const NodeContext*)>;
     ConversionExtension(const std::string& op_type, const PyCreatorFunction& py_converter)
         : ConversionExtensionBase(op_type),

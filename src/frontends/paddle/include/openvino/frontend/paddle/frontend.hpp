@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <openvino/core/extension.hpp>
-#include <openvino/frontend/extension/decoder_transformation.hpp>
-#include <openvino/frontend/extension/telemetry.hpp>
-#include <openvino/frontend/frontend.hpp>
-#include <openvino/frontend/input_model.hpp>
-
+#include "openvino/core/extension.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/paddle/exception.hpp"
 #include "openvino/frontend/paddle/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"

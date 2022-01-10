@@ -8,7 +8,7 @@ from onnx.helper import make_graph, make_model, make_tensor_value_info
 import pytest
 
 from openvino.frontend import FrontEndManager
-#from tests.runtime import get_runtime
+from tests.runtime import get_runtime
 
 
 def create_onnx_model():
@@ -207,6 +207,7 @@ def test_onnx_conversion_extension_check_attributes():
         invoked = True
 
         def check_attribute(context, name, expected_type, expected_value):
+            assert context.has_attribute(name)
             attribute = context.get_attribute(name)
             assert type(attribute) == expected_type
             assert attribute == expected_value
@@ -262,6 +263,7 @@ def test_onnx_conversion_extension_attribute_with_default_value():
         invoked = True
 
         def check_attribute(context, name, default_value):
+            assert not context.has_attribute(name)
             attribute = context.get_attribute(name, default_value)
             assert type(attribute) == type(default_value)
             if isinstance(attribute, np.ndarray):
@@ -322,7 +324,6 @@ def test_onnx_conversion_extension_cast_attributes():
 
         def check_attribute(context, name, expected_value, dtype):
             attribute = context.get_attribute(name, dtype=dtype)
-            print(attribute)
             if isinstance(attribute, list):
                 assert type(attribute[0]) == dtype
             else:

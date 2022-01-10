@@ -3,10 +3,10 @@
 //
 
 #pragma once
-#include <openvino/core/any.hpp>
 
 #include "decoder.hpp"
 #include "exception.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/frontend/node_context.hpp"
 
 namespace ov {

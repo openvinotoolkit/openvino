@@ -4,15 +4,6 @@
 
 #pragma once
 
-#include <execinfo.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#include <fstream>
-#include <iostream>
-#include <type_traits>
-
 #include "openvino/core/extension.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/visibility.hpp"

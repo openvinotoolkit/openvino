@@ -23,7 +23,7 @@ public:
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
 
-    const ov::frontend::CreatorFunctionNamed& get_converter() {
+    const ov::frontend::CreatorFunctionNamed& get_converter() const {
         return m_converter;
     }
 

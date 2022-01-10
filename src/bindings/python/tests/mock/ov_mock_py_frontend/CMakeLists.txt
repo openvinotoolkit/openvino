@@ -4,8 +4,8 @@
 
 set(TARGET_FE_NAME "ov_mock_py_frontend")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
@@ -13,7 +13,9 @@ source_group("include" FILES ${LIBRARY_HEADERS})
 # Create shared library
 add_library(${TARGET_FE_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
-target_include_directories(${TARGET_FE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${TARGET_FE_NAME}
+        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/)
 
 target_link_libraries(${TARGET_FE_NAME} PRIVATE frontend_common::static
         ov_onnx_frontend ov_tensorflow_frontend ov_paddle_frontend)

@@ -18,13 +18,13 @@ from openvino.pyopenvino import FrontEnd
 from openvino.pyopenvino import InputModel
 from openvino.pyopenvino import NodeContext
 from openvino.pyopenvino import Place
-from openvino.pyopenvino import TelemetryExtension
 
 # extensions
 from openvino.pyopenvino import DecoderTransformationExtension
 from openvino.pyopenvino import JsonConfigExtension
 from openvino.pyopenvino import ConversionExtension
 from openvino.pyopenvino import ProgressReporterExtension
+from openvino.pyopenvino import TelemetryExtension
 
 # exceptions
 from openvino.pyopenvino import NotImplementedFailure

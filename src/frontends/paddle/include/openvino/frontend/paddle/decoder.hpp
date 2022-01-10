@@ -3,7 +3,6 @@
 //
 
 #pragma once
-#include "ngraph/compatibility.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
@@ -32,6 +31,7 @@ public:
     /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
     virtual ov::Any convert_attribute(const ov::Any& data, const std::type_info& type_info) const = 0;
 
+    /// \brief Get the output names
     virtual std::vector<OutPortName> get_output_names() const = 0;
 
     /// \brief Get the output size
