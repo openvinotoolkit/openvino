@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 
 
 def get_tid_telemetry():
-    return 'UA-17808594-29'
+    return 'UA-196629455-1'
 
 
 def send_event(action,
