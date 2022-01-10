@@ -66,6 +66,12 @@ protected:
     bool m_is_relevant_to_shapes{false};
 };
 }  // namespace v1
+
+namespace v0 {
+// TODO: remove this using
+using v1::Parameter;
+}  // namespace v0
+
 }  // namespace op
 using ParameterVector = std::vector<std::shared_ptr<op::v1::Parameter>>;
 
