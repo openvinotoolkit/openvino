@@ -78,6 +78,7 @@
 
 #include "backend.hpp"
 #include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/convert_color_nv12.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -2759,6 +2760,67 @@ bool evaluate(const shared_ptr<op::v8::Gather>& op, const HostTensorVector& outp
         throw ngraph_error("Unexpected indices type for Gather operation");
     }
     return true;
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate_nv12(const shared_ptr<Node>& op,
+                          const HostTensorVector& outputs,
+                          const HostTensorVector& inputs,
+                          ov::op::util::ConvertColorNV12Base::ColorConversion type) {
+    static const size_t N_DIM = 0;
+    static const size_t H_DIM = 1;
+    static const size_t W_DIM = 2;
+    NGRAPH_CHECK(op->get_input_size() == 1 || op->get_input_size() == 2,
+                 "NV12 conversion shall have one or 2 inputs, but it is ",
+                 op->get_input_size());
+    auto single_plane = op->get_input_size() == 1;
+
+    using namespace ov::op::util;
+    const auto& y_tensor = inputs[0];
+    auto batch_size = y_tensor->get_shape()[N_DIM];
+    auto image_w = y_tensor->get_shape()[W_DIM];
+    auto image_h = y_tensor->get_shape()[H_DIM];
+    if (single_plane) {
+        image_h = image_h * 2 / 3;
+    }
+    outputs[0]->set_shape({batch_size, image_h, image_w, 3});  // 3 is RGB
+    if (single_plane) {
+        ngraph::runtime::reference::color_convert_nv12(y_tensor->get_data_ptr<ET>(),
+                                                       y_tensor->get_data_ptr<ET>() + image_w * image_h,
+                                                       outputs[0]->get_data_ptr<ET>(),
+                                                       batch_size,
+                                                       image_h,
+                                                       image_w,
+                                                       image_w * image_h * 3 / 2,
+                                                       image_w * image_h * 3 / 2,
+                                                       type);
+    } else {
+        const auto& uv_tensor = inputs[1];
+        ngraph::runtime::reference::color_convert_nv12(y_tensor->get_data_ptr<ET>(),
+                                                       uv_tensor->get_data_ptr<ET>(),
+                                                       outputs[0]->get_data_ptr<ET>(),
+                                                       batch_size,
+                                                       image_h,
+                                                       image_w,
+                                                       image_w * image_h,
+                                                       image_w * image_h / 2,
+                                                       type);
+    }
+    return true;
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::NV12toRGB>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return evaluate_nv12<ET>(op, outputs, inputs, ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_RGB);
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::NV12toBGR>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return evaluate_nv12<ET>(op, outputs, inputs, ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR);
 }
 
 template <typename T>
