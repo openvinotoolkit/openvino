@@ -1,23 +1,23 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import networkx as nx
-
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
-from openvino.tools.mo.graph.graph import Graph, Node, Port
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.elementwise import Div
 from openvino.tools.mo.ops.reshape import Reshape
 from openvino.tools.mo.ops.shape import Shape
 from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
 
 
 def find_max_frame_time(node: Node):
     """
     Find maximum time_dim among all inputs of given node
-    If one of inputs has undefined time_dim, it returns None.
+    If one of inputs has undefined time_dim, it raises Error because we assume that all parent nodes already have
+    set time_dim.
     """
     in_frame_time_max = 0
 
@@ -26,46 +26,11 @@ def find_max_frame_time(node: Node):
             continue
         in_node = node.in_port(inp).get_source().node
         if in_node.time_dim == -1:
-            return None
+            raise Error("Parent node {} have not set time_dim".format(in_node.id))
         if in_node.time_dim > in_frame_time_max:
             in_frame_time_max = in_node.time_dim
 
     return in_frame_time_max
-
-
-def propagate_time_dim_through_branch(child_node: Node, dest_port: Port):
-    """
-    Propagate time_dim for one branch starting from given node:dest_port :
-    MemoryOffset/Splice nodes increase time_dim;
-    Convolution/Pooling decrease time_dim to 0 value because it works through the whole context;
-    other nodes don't change time_dim;
-    If we find out node with several inputs, one of which have undefined time_dim, process stops.
-    """
-    child = dest_port.node
-
-    if child.time_dim >= 0:
-        return
-
-    if child.op == "MemoryOffset":
-        child.time_dim = child_node.time_dim + abs(child.t)
-    elif child.op == "Splice":
-        child.time_dim = child_node.time_dim + len(child.context) - 1
-    elif child.op in ['Convolution', 'Pooling']:
-        child.time_dim = 0
-    elif len([port for port in child_node.in_ports().values() if not port.disconnected()]) > 1:
-        child_supposed_time_dim = find_max_frame_time(child)
-        if child_supposed_time_dim is not None:
-            child.time_dim = child_supposed_time_dim
-        else:
-            return
-    else:  # len([port for port in child_node.in_ports() if not port.disconnected()]) == 1
-        child.time_dim = child_node.time_dim
-
-    for p in child.out_ports():
-        if child.out_port(p).disconnected():
-            continue
-        for dest in child.out_port(p).get_destinations():
-            propagate_time_dim_through_branch(child, dest)
 
 
 def set_time_dim(graph):
@@ -73,18 +38,29 @@ def set_time_dim(graph):
     Set value of dimension where we gather frames with different time labels.
     If in some node we don't use any context, then time_dim = 0
     """
-    nx.set_node_attributes(G=graph, name='time_dim', values=-1)
-    start_nodes = graph.get_op_nodes(op="Const")
-    start_nodes.extend(graph.get_op_nodes(op='Parameter'))
-    for n in start_nodes:
-        n.time_dim = 0
+    graph.set_node_attributes('time_dim', -1)
 
-    for node in start_nodes:
-        for p in node.out_ports():
-            if node.out_port(p).disconnected():
-                continue
-            for dest in node.out_port(p).get_destinations():
-                propagate_time_dim_through_branch(node, dest)
+    # set correct time dim for start Convolutions
+    update_time_dim_for_start_convolution(graph)
+
+    sorted_nodes = graph.topological_sort()
+
+    for node in sorted_nodes:
+        if node.time_dim >= 0:
+            continue
+
+        if node.op == "MemoryOffset":
+            node.time_dim = node.in_port(0).get_source().node.time_dim + abs(node.t)
+        elif node.op == "Splice":
+            node.time_dim = node.in_port(0).get_source().node.time_dim + len(node.context) - 1
+        elif node.op in ['Convolution', 'Pooling']:
+            node.time_dim = 0
+        elif len([port for port in node.in_ports().values() if not port.disconnected()]) > 1:
+            node.time_dim = find_max_frame_time(node)
+        elif len([port for port in node.in_ports().values() if not port.disconnected()]) == 1:
+            node.time_dim = node.in_port(0).get_source().node.time_dim
+        else:
+            node.time_dim = 0
 
 
 def update_time_dim_for_start_convolution(graph):
@@ -93,9 +69,6 @@ def update_time_dim_for_start_convolution(graph):
     time_dim will be set as 1 and it will be wrong. For such pattern time_dim should be set as kernel[1]
     (convolution run through the whole splice)
     """
-    # set initial values for Parameters and Constants
-    set_time_dim(graph)
-
     params = graph.get_op_nodes(op="Parameter")
     for param_node in params:
         if not param_node.out_port(0).disconnected() and \
@@ -123,13 +96,8 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
     graph_condition = [lambda graph: graph.graph['fw'] == "kaldi"]
 
     def run_before(self):
-        from openvino.tools.mo.front.MatMul_normalizer import FullyConnectedDecomposer
         from openvino.tools.mo.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
-        return [SplitRecurrentMemoryOffset, FullyConnectedDecomposer]
-
-    def run_after(self):
-        from openvino.tools.mo.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
-        return [MemoryOffsetAdjustment]
+        return [SplitRecurrentMemoryOffset]
 
     @staticmethod
     def find_and_replace_pattern(graph: Graph):
@@ -139,15 +107,17 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
         if len(conv_pool_nodes) == 0:
             return
 
-        update_time_dim_for_start_convolution(graph)
+        set_time_dim(graph)
 
         for node in conv_pool_nodes:
             node_name = node.soft_get('name', node.id)
 
             # create Reshape before convolution
-            # shape = [in_shape[0], t, patch_stride, C = in_shape[1]/(patch_stride*t)]
+            # shape = [in_shape[0], t, patch_stride, C = in_shape[1]/(patch_stride*t)],
+            # where patch_stride is attribute in Convolution taken from Kaldi
             # or before pooling
             # shape = [in_shape[0], t, in_shape[1]/(pool_stride*t), pool_stride]
+            # where pool_stride is attribute in Pooling taken from Kaldi
             # adapt time_dim to use in kernel as dimension
             time_dim = node.in_port(0).get_source().node.time_dim + 1
             if node.op == 'Convolution':
@@ -180,9 +150,9 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
 
             # gather all dims
             concat_dims = create_op_with_const_inputs(graph, Concat, {index_const: int64_array([frame_height]),
-                                                                 1: int64_array([time_dim])},
-                                                 {'name': node_name + '/concat_all_dims', 'in_ports_count': 4,
-                                                  'axis': 0})
+                                                                      1: int64_array([time_dim])},
+                                                      {'name': node_name + '/concat_all_dims', 'in_ports_count': 4,
+                                                       'axis': 0})
             concat_dims.in_port(0).connect(N.out_port(0))
             concat_dims.in_port(index_div).connect(H_div_stride_t.out_port(0))
 
