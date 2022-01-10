@@ -75,6 +75,7 @@ namespace {
 struct ReduceKey {
     ReduceLayoutType layout;
     Algorithm reduce_mode;
+    impl_desc_type implType;
     mkldnn::memory::data_type src_dt;
     mkldnn::memory::data_type dst_dt;
     mkldnn::primitive_attr attr;
@@ -90,6 +91,7 @@ size_t ReduceKey::hash() const {
     size_t seed = 0;
     seed = hash_combine(seed, layout);
     seed = hash_combine(seed, reduce_mode);
+    seed = hash_combine(seed, implType);
     seed = hash_combine(seed, src_dt);
     seed = hash_combine(seed, dst_dt);
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
@@ -98,9 +100,8 @@ size_t ReduceKey::hash() const {
 }
 
 bool ReduceKey::operator==(const ReduceKey &rhs) const {
-    return layout == rhs.layout && reduce_mode == rhs.reduce_mode &&
-           src_dt == rhs.src_dt && dst_dt == rhs.dst_dt &&
-           *attr.get() == *rhs.attr.get();
+    return layout == rhs.layout && reduce_mode == rhs.reduce_mode && implType == rhs.implType &&
+           src_dt == rhs.src_dt && dst_dt == rhs.dst_dt && *attr.get() == *rhs.attr.get();
 }
 } // namespace
 
@@ -1908,7 +1909,8 @@ void MKLDNNReduceNode::prepareParams() {
     if (compile_post_kernel) {
         setPostOps(attr, dst_dims, true);
 
-        ReduceKey key = {jcp.layout, jcp.reduce_mode, jcp.src_dt, jcp.dst_dt, attr};
+        auto selected_pd = getSelectedPrimitiveDescriptor();
+        ReduceKey key = {jcp.layout, jcp.reduce_mode, selected_pd->getImplementationType(), jcp.src_dt, jcp.dst_dt, attr};
         auto cache = getRuntimeCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
