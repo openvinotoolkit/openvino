@@ -3,8 +3,8 @@
 
 import argparse
 
-from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.cli_parser import parse_transform
+from openvino.tools.mo.utils.error import Error
 
 
 def get_available_transformations():
@@ -35,6 +35,12 @@ def apply_user_transformations(func: object, transforms: list):
 def apply_moc_transformations(func: object):
     from openvino.offline_transformations_pybind import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
     apply_moc_transformations(func, False)
+
+
+def apply_moc_legacy_transformations(func: object):
+    from openvino.offline_transformations_pybind import apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
+    apply_moc_legacy_transformations(func)
+
 
 def compress_model(func: object):
     from openvino.offline_transformations_pybind import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
@@ -88,6 +94,7 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
 
     apply_user_transformations(func, parse_transform(argv.transform))
     apply_moc_transformations(func)
+    apply_moc_legacy_transformations(func)
 
     if "compress_fp16" in argv and argv.compress_fp16:
         compress_model(func)

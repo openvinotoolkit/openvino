@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include "ngraph/pass/pass.hpp"
+#include "openvino/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API MOCLegacyTransformations;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 /**
@@ -27,11 +27,11 @@ namespace pass {
  * usage of NCHW layout that is critical for TensorFlow models.
  */
 
-class MOCLegacyTransformations : public FunctionPass {
- public:
-  NGRAPH_RTTI_DECLARATION;
-  bool run_on_function(std::shared_ptr<ov::Function> f) override;
+class MOCLegacyTransformations : public ModelPass {
+public:
+    OPENVINO_RTTI("MOCLegacyTransformations", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

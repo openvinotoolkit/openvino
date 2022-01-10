@@ -3,12 +3,13 @@
 
 import argparse
 import os
-from openvino.tools.mo.pipeline.common import get_ir_version
+
+from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
+
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 from openvino.tools.mo.back.preprocessing import apply_preprocessing
+from openvino.tools.mo.pipeline.common import get_ir_version
 from openvino.tools.mo.utils.cli_parser import get_meta_info, parse_transform
-
-from openvino.runtime import Model         # pylint: disable=no-name-in-module,import-error
 
 
 def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
@@ -18,9 +19,12 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     apply_preprocessing(ov_function=ngraph_function, argv=argv)
 
     # Apply transformations
-    from openvino.tools.mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations
+    from openvino.tools.mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations, \
+        apply_moc_legacy_transformations
+
     apply_user_transformations(ngraph_function, parse_transform(argv.transform))
     apply_moc_transformations(ngraph_function)
+    apply_moc_legacy_transformations(ngraph_function)
 
     if argv.compress_fp16:
         from openvino.tools.mo.back.offline_transformations import compress_model

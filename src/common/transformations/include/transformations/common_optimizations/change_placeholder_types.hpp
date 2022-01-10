@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/pass.hpp"
+#pragma once
+
+#include "openvino/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ChangePlaceholderTypes;
@@ -13,11 +15,11 @@ class TRANSFORMATIONS_API ChangePlaceholderTypes;
 /**
  * @brief Add OldApiMap with legacy type for Parameter node
  */
-class ChangePlaceholderTypes : public ngraph::pass::FunctionPass {
+class ChangePlaceholderTypes : public ModelPass {
  public:
-  NGRAPH_RTTI_DECLARATION;
-  bool run_on_function(std::shared_ptr<ov::Function> function) override;
+     OPENVINO_RTTI("ChangePlaceholderTypes", "0");
+     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
