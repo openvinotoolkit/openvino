@@ -10,9 +10,55 @@
 #include <memory>
 #include <vector>
 
+#define BOX_COORD_NUM 4
+
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
+
+enum class NMSBoxEncodeType {
+    CORNER,
+    CENTER
+};
+
+enum NMSCandidateStatus {
+    SUPPRESSED = 0,
+    SELECTED = 1,
+    UPDATED = 2
+};
+
+struct jit_nms_config_params {
+    NMSBoxEncodeType box_encode_type;
+    bool is_soft_suppressed_by_iou;
+};
+
+struct jit_nms_args {
+    const void* selected_boxes_coord[BOX_COORD_NUM];
+    size_t selected_boxes_num;
+    const void* candidate_box;
+    const void* iou_threshold;
+    void* candidate_status;
+    // for soft suppression, score *= scale * iou * iou;
+    const void* score_threshold;
+    const void* scale;
+    void* score;
+};
+
+struct jit_uni_nms_kernel {
+    void (*ker_)(const jit_nms_args *);
+
+    void operator()(const jit_nms_args *args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    explicit jit_uni_nms_kernel(jit_nms_config_params jcp_) : ker_(nullptr), jcp(jcp_) {}
+    virtual ~jit_uni_nms_kernel() {}
+
+    virtual void create_ker() = 0;
+
+    jit_nms_config_params jcp;
+};
 
 class MKLDNNNonMaxSuppressionNode : public MKLDNNNode {
 public:
@@ -73,23 +119,20 @@ private:
         NMS_VALIDOUTPUTS
     };
 
+    NMSBoxEncodeType boxEncodingType = NMSBoxEncodeType::CORNER;
+    bool sortResultDescending = true;
 
-    enum class boxEncoding {
-        CORNER,
-        CENTER
-    };
-    boxEncoding boxEncodingType = boxEncoding::CORNER;
-    bool sort_result_descending = true;
+    size_t numBatches = 0;
+    size_t numBoxes = 0;
+    size_t numClasses = 0;
 
-    size_t num_batches = 0;
-    size_t num_boxes = 0;
-    size_t num_classes = 0;
-
-    size_t max_output_boxes_per_class = 0lu;
-    float iou_threshold = 0.0f;
-    float score_threshold = 0.0f;
-    float soft_nms_sigma = 0.0f;
+    size_t maxOutputBoxesPerClass = 0lu;
+    float iouThreshold = 0.0f;
+    float scoreThreshold = 0.0f;
+    float softNMSSigma = 0.0f;
     float scale = 1.f;
+    // control placeholder for NMS in new opset.
+    bool isSoftSuppressedByIOU = true;
 
     std::string errorPrefix;
 
@@ -99,6 +142,9 @@ private:
     void checkPrecision(const Precision& prec, const std::vector<Precision>& precList, const std::string& name, const std::string& type);
     void check1DInput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
     void checkOutput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
+
+    void createJitKernel();
+    std::shared_ptr<jit_uni_nms_kernel> nms_kernel;
 };
 
 }  // namespace MKLDNNPlugin

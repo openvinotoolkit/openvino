@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
             while (getline(stream, outStr, ',')) {
                 std::string filename(fileNameNoExt(outStr) + "." + extInputFile);
                 inputFiles.push_back(filename);
-                file->GetFileInfo(filename.c_str(), 0, &currentNumUtterances, &currentNumBytesThisUtterance);
+                file->get_file_info(filename.c_str(), 0, &currentNumUtterances, &currentNumBytesThisUtterance);
                 if (numUtterances == 0) {
                     numUtterances = currentNumUtterances;
                 } else if (currentNumUtterances != numUtterances) {
@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
         ov::runtime::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
-        CheckNumberOfInputs(model->inputs().size(), numInputFiles);
+        check_number_of_inputs(model->inputs().size(), numInputFiles);
         const ov::Layout tensor_layout{"NC"};
         ov::preprocess::PrePostProcessor proc(model);
         for (int i = 0; i < model->inputs().size(); i++) {
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
             if (!FLAGS_rg.empty()) {
                 slog::warn << "Custom scale factor will be used for imported gna model: " << FLAGS_rg << slog::endl;
             }
-            auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
+            auto scaleFactorInput = parse_scale_factors(FLAGS_sf);
             if (numInputFiles != scaleFactorInput.size()) {
                 std::string errMessage(
                     "Incorrect command line for multiple inputs: " + std::to_string(scaleFactorInput.size()) +
@@ -144,17 +144,18 @@ int main(int argc, char* argv[]) {
                     std::string name;
                     std::vector<uint8_t> ptrFeatures;
                     uint32_t numArrays(0), numBytes(0), numFrames(0), numFrameElements(0), numBytesPerElement(0);
-                    file->GetFileInfo(inputFileName, 0, &numArrays, &numBytes);
+                    file->get_file_info(inputFileName, 0, &numArrays, &numBytes);
                     ptrFeatures.resize(numBytes);
-                    file->LoadFile(inputFileName,
-                                   0,
-                                   name,
-                                   ptrFeatures,
-                                   &numFrames,
-                                   &numFrameElements,
-                                   &numBytesPerElement);
-                    auto floatScaleFactor =
-                        ScaleFactorForQuantization(ptrFeatures.data(), MAX_VAL_2B_FEAT, numFrames * numFrameElements);
+                    file->load_file(inputFileName,
+                                    0,
+                                    name,
+                                    ptrFeatures,
+                                    &numFrames,
+                                    &numFrameElements,
+                                    &numBytesPerElement);
+                    auto floatScaleFactor = scale_factor_for_quantization(ptrFeatures.data(),
+                                                                          MAX_VAL_2B_FEAT,
+                                                                          numFrames * numFrameElements);
                     slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance."
                                << slog::endl;
                     std::string scaleFactorConfigKey =
@@ -188,7 +189,7 @@ int main(int argc, char* argv[]) {
         auto t0 = Time::now();
         std::vector<std::string> outputs;
         if (!FLAGS_oname.empty()) {
-            std::vector<std::string> output_names = ConvertStrToVector(FLAGS_oname);
+            std::vector<std::string> output_names = convert_str_to_vector(FLAGS_oname);
             std::vector<size_t> ports;
             for (const auto& outBlobName : output_names) {
                 int pos_layer = outBlobName.rfind(":");
@@ -246,9 +247,9 @@ int main(int argc, char* argv[]) {
         // --------------------------------------------------
         std::vector<ov::runtime::Tensor> ptrInputBlobs;
         auto cInputInfo = executableNet.inputs();
-        CheckNumberOfInputs(cInputInfo.size(), numInputFiles);
+        check_number_of_inputs(cInputInfo.size(), numInputFiles);
         if (!FLAGS_iname.empty()) {
-            std::vector<std::string> inputNameBlobs = ConvertStrToVector(FLAGS_iname);
+            std::vector<std::string> inputNameBlobs = convert_str_to_vector(FLAGS_iname);
             if (inputNameBlobs.size() != cInputInfo.size()) {
                 std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
                                        " ) is not equal to the number of inputs entered in the -iname argument ( " +
@@ -272,14 +273,14 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> reference_name_files;
         size_t count_file = 1;
         if (!FLAGS_o.empty()) {
-            output_name_files = ConvertStrToVector(FLAGS_o);
+            output_name_files = convert_str_to_vector(FLAGS_o);
             if (output_name_files.size() != outputs.size() && !outputs.empty()) {
                 throw std::logic_error("The number of output files is not equal to the number of network outputs.");
             }
             count_file = output_name_files.empty() ? 1 : output_name_files.size();
         }
         if (!FLAGS_r.empty()) {
-            reference_name_files = ConvertStrToVector(FLAGS_r);
+            reference_name_files = convert_str_to_vector(FLAGS_r);
             if (reference_name_files.size() != outputs.size() && !outputs.empty()) {
                 throw std::logic_error("The number of reference files is not equal to the number of network outputs.");
             }
@@ -291,7 +292,7 @@ int main(int argc, char* argv[]) {
             std::vector<std::vector<uint8_t>> ptrUtterances;
             std::vector<uint8_t> ptrScores;
             std::vector<uint8_t> ptrReferenceScores;
-            score_error_t frameError, totalError;
+            ScoreErrorT frameError, totalError;
             ptrUtterances.resize(inputFiles.size());
             // initialize memory state before starting
             for (auto&& state : inferRequests.begin()->inferRequest.query_state()) {
@@ -316,15 +317,15 @@ int main(int argc, char* argv[]) {
                     std::vector<uint8_t> ptrUtterance;
                     auto inputFilename = inputFiles[i].c_str();
                     uint32_t currentNumFrames(0), currentNumFrameElementsInput(0), currentNumBytesPerElementInput(0);
-                    file->GetFileInfo(inputFilename, utteranceIndex, &n, &numBytesThisUtterance[i]);
+                    file->get_file_info(inputFilename, utteranceIndex, &n, &numBytesThisUtterance[i]);
                     ptrUtterance.resize(numBytesThisUtterance[i]);
-                    file->LoadFile(inputFilename,
-                                   utteranceIndex,
-                                   uttName,
-                                   ptrUtterance,
-                                   &currentNumFrames,
-                                   &currentNumFrameElementsInput,
-                                   &currentNumBytesPerElementInput);
+                    file->load_file(inputFilename,
+                                    utteranceIndex,
+                                    uttName,
+                                    ptrUtterance,
+                                    &currentNumFrames,
+                                    &currentNumFrameElementsInput,
+                                    &currentNumBytesPerElementInput);
                     if (numFrames == 0) {
                         numFrames = currentNumFrames;
                     } else if (numFrames != currentNumFrames) {
@@ -356,22 +357,22 @@ int main(int argc, char* argv[]) {
                         throw std::logic_error("Invalid Reference Scores file");
                     }
                     std::string refUtteranceName;
-                    fileReferenceScores->GetFileInfo(reference_name_files[next_output].c_str(),
-                                                     utteranceIndex,
-                                                     &n,
-                                                     &numBytesReferenceScoreThisUtterance);
+                    fileReferenceScores->get_file_info(reference_name_files[next_output].c_str(),
+                                                       utteranceIndex,
+                                                       &n,
+                                                       &numBytesReferenceScoreThisUtterance);
                     ptrReferenceScores.resize(numBytesReferenceScoreThisUtterance);
-                    fileReferenceScores->LoadFile(reference_name_files[next_output].c_str(),
-                                                  utteranceIndex,
-                                                  refUtteranceName,
-                                                  ptrReferenceScores,
-                                                  &numFramesReference,
-                                                  &numFrameElementsReference,
-                                                  &numBytesPerElementReference);
+                    fileReferenceScores->load_file(reference_name_files[next_output].c_str(),
+                                                   utteranceIndex,
+                                                   refUtteranceName,
+                                                   ptrReferenceScores,
+                                                   &numFramesReference,
+                                                   &numFrameElementsReference,
+                                                   &numBytesPerElementReference);
                 }
                 double totalTime = 0.0;
                 std::cout << "Utterance " << utteranceIndex << ": " << std::endl;
-                ClearScoreError(&totalError);
+                clear_score_error(&totalError);
                 totalError.threshold = frameError.threshold = MAX_SCORE_DIFFERENCE;
                 auto outputFrame = &ptrScores.front();
                 std::vector<uint8_t*> inputFrame;
@@ -428,20 +429,20 @@ int main(int argc, char* argv[]) {
                                     if (!FLAGS_oname.empty())
                                         outputBlob =
                                             inferRequest.inferRequest.get_tensor(executableNet.outputs().back());
-                                    CompareScores(
+                                    compare_scores(
                                         outputBlob.data<float>(),
                                         &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
                                                             numBytesPerElementReference],
                                         &frameError,
                                         inferRequest.numFramesThisBatch,
                                         numFrameElementsReference);
-                                    UpdateScoreError(&frameError, &totalError);
+                                    update_score_error(&frameError, &totalError);
                                 }
                                 if (FLAGS_pc) {
                                     // retrieve new counters
-                                    getPerformanceCounters(inferRequest.inferRequest, callPerfMap);
+                                    get_performance_counters(inferRequest.inferRequest, callPerfMap);
                                     // summarize retrieved counters with all previous
-                                    sumPerformanceCounters(callPerfMap, utterancePerfMap, totalNumberOfRunsOnHw);
+                                    sum_performance_counters(callPerfMap, utterancePerfMap, totalNumberOfRunsOnHw);
                                 }
                             }
                             // -----------------------------------------------------------------------------------------------------
@@ -510,12 +511,12 @@ int main(int argc, char* argv[]) {
                     }
                     /* Save output data to file */
                     bool shouldAppend = (utteranceIndex == 0) ? false : true;
-                    fileOutput->SaveFile(output_name_files[next_output].c_str(),
-                                         shouldAppend,
-                                         uttName,
-                                         &ptrScores.front(),
-                                         numFramesFile,
-                                         numScoresPerFrame);
+                    fileOutput->save_file(output_name_files[next_output].c_str(),
+                                          shouldAppend,
+                                          uttName,
+                                          &ptrScores.front(),
+                                          numFramesFile,
+                                          numScoresPerFrame);
                 }
                 /** Show performance results **/
                 std::cout << "Total time in Infer (HW and SW):\t" << totalTime << " ms" << std::endl;
@@ -524,16 +525,16 @@ int main(int argc, char* argv[]) {
                           << std::endl;
                 if (FLAGS_pc) {
                     // print performance results
-                    printPerformanceCounters(utterancePerfMap,
-                                             frameIndex,
-                                             std::cout,
-                                             getFullDeviceName(core, FLAGS_d),
-                                             totalNumberOfRunsOnHw,
-                                             FLAGS_d);
+                    print_performance_counters(utterancePerfMap,
+                                               frameIndex,
+                                               std::cout,
+                                               getFullDeviceName(core, FLAGS_d),
+                                               totalNumberOfRunsOnHw,
+                                               FLAGS_d);
                 }
                 if (!FLAGS_r.empty()) {
                     // print statistical score error
-                    printReferenceCompareResults(totalError, numFrames, std::cout);
+                    print_reference_compare_results(totalError, numFrames, std::cout);
                 }
                 std::cout << "End of Utterance " << utteranceIndex << std::endl << std::endl;
                 // -----------------------------------------------------------------------------------------------------

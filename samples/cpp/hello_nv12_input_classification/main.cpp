@@ -37,7 +37,7 @@ using namespace ov::preprocess;
  * @param string of image size in WIDTHxHEIGHT format
  * @return parsed width and height
  */
-std::pair<size_t, size_t> parseImageSize(const std::string& size_string) {
+std::pair<size_t, size_t> parse_image_size(const std::string& size_string) {
     auto delimiter_pos = size_string.find("x");
     if (delimiter_pos == std::string::npos || delimiter_pos >= size_string.size() - 1 || delimiter_pos == 0) {
         std::stringstream err;
@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
         const std::string image_path{argv[2]};
         size_t input_width = 0;
         size_t input_height = 0;
-        std::tie(input_width, input_height) = parseImageSize(argv[3]);
+        std::tie(input_width, input_height) = parse_image_size(argv[3]);
         const std::string device_name{argv[4]};
         // -----------------------------------------------------------------------------------------------------
 

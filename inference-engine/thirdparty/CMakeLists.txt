@@ -16,7 +16,3 @@ endif()
 if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
-
-if (ENABLE_INTEL_GPU)
-    add_subdirectory(clDNN)
-endif()
