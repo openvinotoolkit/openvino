@@ -664,6 +664,7 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
 
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string device_id = GetConfig(CONFIG_KEY(DEVICE_ID), options);
 
     auto iter = device_map.find(device_id);
@@ -831,7 +832,6 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         }
         IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
     } else if (name == GPU_METRIC_KEY(MAX_BATCH_SIZE)) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
         const auto& config = _impl->m_configs.GetConfig(device_id);
         uint32_t n_streams = static_cast<uint32_t>(config.throughput_streams);
         uint64_t occupied_device_mem = 0;
