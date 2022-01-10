@@ -250,4 +250,39 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::compare(const std::vector<ov:
     SubgraphBaseTest::compare(expected, actual);
 }
 
+void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
+    std::vector<ov::test::InputShape> shapes;
+    ov::test::ElementType inType;
+    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+
+    init_input_shapes(shapes);
+    for (auto &target : targetStaticShapes)
+        target.emplace_back(ov::Shape{});
+    auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+    params.emplace_back(std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
+
+    auto p1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+    auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+
+    const size_t axis = 1;
+    const size_t dim = inputDynamicShapes[0][axis].get_length();  // should be static for this test suit
+    auto thenOp = ngraph::builder::makeSplit(p1, inType, dim, axis);
+    auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp->output(dim / 2));
+
+    auto elseOp = ngraph::builder::makeSplit(p2, inType, dim, axis);
+    auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp->output(dim - 1));
+
+    auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
+    auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{elseRes}, ov::ParameterVector{p2});
+
+    auto ifOp = std::make_shared<ov::op::v8::If>(params[1]);
+    ifOp->set_then_body(thenBody);
+    ifOp->set_else_body(elseBody);
+    ifOp->set_input(params[0], p1, p2);
+    auto ifRes = ifOp->set_output(thenRes, elseRes);
+
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ifRes)};
+    function = std::make_shared<ov::Model>(results, params, "SimpleIfNotConstConditionUnusedOutputPortsTest");
+}
+
 } // namespace SubgraphTestsDefinitions

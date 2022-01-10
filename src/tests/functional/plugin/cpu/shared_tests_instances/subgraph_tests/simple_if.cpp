@@ -152,4 +152,29 @@ TEST_P(SimpleIfNotConstConditionAndDimsIncreaseTest, CompareWithRefs) {
     run();
 };
 
+// the axis of split in test suit "SimpleIfNotConstConditionUnusedOutputPortsTest" is hardcoded as 1, so shape[axis] should be static
+std::vector<std::vector<ov::test::InputShape>> inputShapes_4 = {
+        {
+            {{}, {{5, 7}}},
+        },
+        {
+            {
+             {-1, 5, -1},
+             {{10, 5, 10}, {2, 5, 5}, {1, 5, 5}}
+            },
+        },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfNotConstConditionUnusedOutputPortsTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapes_4),
+                                 ::testing::ValuesIn(inTypes),
+                                 ::testing::ValuesIn(conditions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         SimpleIfNotConstConditionUnusedOutputPortsTest::getTestCaseName);
+
+TEST_P(SimpleIfNotConstConditionUnusedOutputPortsTest, CompareWithRefs) {
+    run();
+};
+
 }  // namespace

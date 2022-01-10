@@ -12,7 +12,6 @@ from tests_compatibility.test_onnx.utils.model_importer import ModelImportRunner
 
 from tests_compatibility import (
     xfail_issue_38701,
-    xfail_issue_45457,
     xfail_issue_37957,
     xfail_issue_38084,
     xfail_issue_39669,
@@ -183,7 +182,6 @@ if len(zoo_models) > 0:
 
             (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
             (xfail_issue_47495, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
-            (xfail_issue_45457, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
             (xfail_issue_63643, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
         ]
         for test_case in import_xfail_list + execution_xfail_list:
