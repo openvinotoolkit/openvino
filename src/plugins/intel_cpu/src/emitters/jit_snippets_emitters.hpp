@@ -361,13 +361,7 @@ class ScalarEmitter : public jit_emitter {
 public:
     ScalarEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
-        auto out_pshape = n->output(0).get_tensor().get_partial_shape();
-        if (out_pshape.is_dynamic())
-            IE_THROW() << "ScalarEmitter supports only static input shapes";
-        if ( out_pshape.get_shape() != ov::Shape() && ov::shape_size(out_pshape.get_shape()) != 1)
-            IE_THROW() << "ScalarEmitter got invalid shape";
         value = mkldnn::impl::cpu::x64::float2int(ov::as_type_ptr<ngraph::snippets::op::Scalar>(n)->cast_vector<float>()[0]);
-
         push_arg_entry_of("scalar", value, true);
         prepare_table();
     }

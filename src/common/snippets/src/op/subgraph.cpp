@@ -10,6 +10,7 @@
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/assign_registers.hpp"
+#include "snippets/pass/convert_constants_to_scalars.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -213,6 +214,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
     ngraph::pass::Manager manager;
+    manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::InsertLoad>();
     manager.register_pass<snippets::pass::InsertStore>();
     manager.register_pass<snippets::pass::InsertMoveBroadcast>();
@@ -245,15 +247,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
     // Todo: ngraph::pass::Manager introduces appreciable overheads, especially while used on small graphs.
-    // replace only constants which are actually should be represented as scalars during code generation and probably move this step a bit later
-    for (auto op : m_body->get_ordered_ops()) {
-        if (auto constant = ngraph::as_type_ptr<opset1::Constant>(op)) {
-            auto scalar = std::make_shared<snippets::op::Scalar>(*constant);
-            scalar->set_friendly_name(constant->get_friendly_name());
-            ngraph::copy_runtime_info(constant, scalar);
-            ngraph::replace_node(constant, scalar);
-        }
-    }
     // So don't wrap this transformation as a MatcherPass, but rewrite convert_to_snippet_dialect() as a
     // for loop to improve first-inference time.
     // replace power with power static
