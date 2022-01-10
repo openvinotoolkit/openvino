@@ -499,7 +499,7 @@ int main(int argc, char* argv[]) {
                                            });
 
             topology_name = model->get_friendly_name();
-            
+
             // Calculate batch size according to provided layout and shapes (static case)
             if (!isDynamicNetwork && app_inputs_info.size()) {
                 batchSize = getBatchSize(app_inputs_info.front());
