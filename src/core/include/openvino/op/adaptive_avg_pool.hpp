@@ -15,7 +15,6 @@ namespace v8 {
 class OPENVINO_API AdaptiveAvgPool : public Op {
 public:
     OPENVINO_OP("AdaptiveAvgPool", "opset8");
-    BWDCMP_RTTI_DECLARATION;
 
     AdaptiveAvgPool() = default;
 

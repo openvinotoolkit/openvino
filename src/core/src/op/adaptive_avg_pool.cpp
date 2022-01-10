@@ -11,7 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-BWDCMP_RTTI_DEFINITION(ov::op::v8::AdaptiveAvgPool);
 
 op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<Node>& output_shape)
     : Op({data, output_shape}) {

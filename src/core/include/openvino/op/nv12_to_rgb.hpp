@@ -33,8 +33,6 @@ class OPENVINO_API NV12toRGB : public util::ConvertColorNV12Base {
 public:
     OPENVINO_OP("NV12toRGB", "opset8", util::ConvertColorNV12Base);
 
-    BWDCMP_RTTI_DECLARATION;
-
     NV12toRGB() = default;
 
     /// \brief Constructs a conversion operation from input image in NV12 format

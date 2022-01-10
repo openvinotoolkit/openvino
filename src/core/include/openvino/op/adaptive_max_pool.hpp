@@ -15,7 +15,6 @@ namespace v8 {
 class OPENVINO_API AdaptiveMaxPool : public Op {
 public:
     OPENVINO_OP("AdaptiveMaxPool", "opset8");
-    BWDCMP_RTTI_DECLARATION;
 
     AdaptiveMaxPool() = default;
 
