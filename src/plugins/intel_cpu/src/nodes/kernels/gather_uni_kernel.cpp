@@ -23,7 +23,7 @@ const unsigned jitGatherKernelBase::incVec[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 
 #define GET_OFF(field) offsetof(gatherJitExecArgs, field)
 
 template <x64::cpu_isa_t isa>
-jitUniGatherKernel<isa>::jitUniGatherKernel(jGatherConfParams jcp) :
+jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp) :
         jitGatherKernelBase(jcp), x64::jit_generator() {
     vlen = x64::cpu_isa_traits<isa>::vlen;
     dataElPerVec = vlen / jcp.dataTypeSize;
@@ -141,7 +141,7 @@ void jitUniGatherKernel<isa>::generate() {
 
                 process(true, true);
             } else { // Long case.
-                throw std::invalid_argument("Unsupported case.");
+                throw std::invalid_argument("Gather kernel does not support static shape with after axis size greater than elements in vector.");
             }
         }
     } else { // Dynamic shapes.
@@ -866,7 +866,7 @@ void jitUniGatherKernel<isa>::tail(bool isShortIdx, bool shiftFirst, bool blocke
     auto& kAuxMask1 = masksContainer[vAux1.getIdx()];
     Xbyak::Label lEnd;
 
-    const int secondStepCycles = jcp.dataTypeSize == 4 ? 1 : jcp.dataTypeSize == 2 ? 2 : 4;
+    const int secondStepCycles = 4 / jcp.dataTypeSize;
     for (int p = 0; p < secondStepCycles; p++) {
         cmp(regWorkAmount, 0);
         jle(lEnd, T_NEAR);
@@ -910,7 +910,7 @@ void jitUniGatherKernel<isa>::tail(bool isShortIdx, bool shiftFirst, bool blocke
             uni_vmovups_tail(ptr[regDst], kAuxMask0, vAux1);
             sub(regWorkAmount, dataElPerVec);
         } else {
-            storeScalar(regDst, regWorkAmount, vAux1, vAux0);
+            storeVectorPart(regDst, regWorkAmount, vAux1, vAux0);
         }
     }
     L(lEnd);
@@ -956,7 +956,7 @@ void jitUniGatherKernel<x64::avx2>::fillRestWorkMask(Vmask& kDstMask, Vmm& vAux,
 }
 
 template <x64::cpu_isa_t isa>
-void jitUniGatherKernel<isa>::storeScalar(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux) {
+void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux) {
     Xbyak::Label lEnd;
     Xbyak::Xmm xAux(vAux.getIdx());
     for (int j = 0; j < vlen / vlenXmm; j++) {

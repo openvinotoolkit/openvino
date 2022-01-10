@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl::cpu;
 
-#define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
+#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
 bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -113,12 +113,32 @@ void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    auto typeCandidate = ref_any, type = ref_any;
+    size_t vlen = 1;
+    if (x64::mayiuse(x64::avx512_common)) {
+        typeCandidate = jit_avx512;
+        vlen = x64::cpu_isa_traits<x64::avx512_common>::vlen / dataTypeSize;
+    } else if (x64::mayiuse(x64::avx2)) {
+        typeCandidate = jit_avx2;
+        vlen = x64::cpu_isa_traits<x64::avx2>::vlen / dataTypeSize;
+    }
+
+    if (typeCandidate != ref_any) {
+         if (isDynamicNode()) {
+            if (isDataShapeStat && isAxisInputConst && afterAxisSize == 1) {
+                type = typeCandidate;
+            }
+         } else if (afterAxisSize < vlen) {
+            type = typeCandidate;
+         }
+    }
+
     Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, Precision::I32},
                           {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
                          {{LayoutType::ncsp, dataPrecision}},
-                         impl_desc_type::ref_any);
+                         type);
 }
 
 void MKLDNNGatherNode::prepareParams() {
@@ -149,6 +169,19 @@ void MKLDNNGatherNode::prepareParams() {
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
         axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
         srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
+
+        const auto selectedPD = getSelectedPrimitiveDescriptor();
+        if (afterAxisSize == 1) {
+            if (x64::mayiuse(x64::avx512_common)) {
+                selectedPD->setImplementationType(jit_avx512);
+            } else if (x64::mayiuse(x64::avx2)) {
+                selectedPD->setImplementationType(jit_avx2);
+            } else {
+                selectedPD->setImplementationType(ref_any);
+            }
+        } else {
+            selectedPD->setImplementationType(ref_any);
+        }
     }
     if (!isIdxShapeStat) {
         const auto& idxDims = idxMemPtr->getStaticDims();
@@ -194,8 +227,14 @@ bool MKLDNNGatherNode::needPrepareParams() const {
 }
 
 void MKLDNNGatherNode::createPrimitive() {
+    uint64_t idxElPerVec = 1;
+    if (!isDynamicNode()) {
+        idxElPerVec = x64::mayiuse(x64::avx512_common) ? x64::cpu_isa_traits<x64::avx512_common>::vlen / idxTypeSize :
+            x64::mayiuse(x64::avx2) ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize : 1;
+    }
     // Gather instruction is not supported by SSE.
-    if ((x64::mayiuse(x64::avx512_common) || x64::mayiuse(x64::avx2))) {
+    if ((x64::mayiuse(x64::avx512_common) || x64::mayiuse(x64::avx2)) &&
+            (isDynamicNode() || afterAxisSize < idxElPerVec)) {
         jGatherConfParams jcp;
         jcp.dataTypeSize = dataTypeSize;
         jcp.reverseIndexing = reverseIndexing;
@@ -221,11 +260,8 @@ void MKLDNNGatherNode::createPrimitive() {
             jitKernel->create_ker();
         }
     }
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
+
+    MKLDNNNode::createPrimitive();
 }
 
 void MKLDNNGatherNode::execute(mkldnn::stream strm) {
@@ -312,7 +348,6 @@ void MKLDNNGatherNode::executeDynamicImpl(mkldnn::stream strm) {
             arg.workAmount = workAmount;
 
             const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
-            const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
             if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) {
                 int permIdxMask[16];
                 int beforeAxisDiff[16];
@@ -336,21 +371,6 @@ void MKLDNNGatherNode::executeDynamicImpl(mkldnn::stream strm) {
                 }
                 arg.permIdxMask = permIdxMask;
                 arg.beforeAxisDiff = beforeAxisDiff;
-            } else if (afterAxisSize > 1 && afterAxisSize < dataElPerVec) {
-                int beforeBlockDiff[16];
-                int div = idxElPerVec / afterAxisSize;
-                int remainder = idxElPerVec % afterAxisSize;
-                int blockIndices[16] = {0};
-                for (int i = 0; i < idxElPerVec; i++) {
-                    blockIndices[i] = (start + i) % afterAxisSize;
-                }
-                for (int i = 0; i < idxElPerVec; i++) {
-                    if (blockIndices[i] < afterAxisSize - remainder)
-                        beforeBlockDiff[i] = div;
-                    else
-                        beforeBlockDiff[i] = div + 1;
-                }
-                arg.beforeAxisDiff = beforeBlockDiff;
             }
 
             (*jitKernel)(&arg);

@@ -56,17 +56,17 @@ struct jitGatherKernelBase {
         assert(ker_);
         ker_(args);
     }
-    explicit jitGatherKernelBase(jGatherConfParams jcp) : ker_(nullptr), jcp(jcp) {}
+    explicit jitGatherKernelBase(const jGatherConfParams& jcp) : ker_(nullptr), jcp(jcp) {}
     virtual ~jitGatherKernelBase() {}
 
     virtual void create_ker() = 0;
-    inline uint64_t getVecLen() {
+    uint64_t getVecLen() {
         return vlen;
     }
-    inline uint64_t getDataElPerVec() {
+    uint64_t getDataElPerVec() {
         return dataElPerVec;
     }
-    inline uint64_t getIdxElPerVec() {
+    uint64_t getIdxElPerVec() {
         return idxElPerVec;
     }
     virtual bool isSupportedConfiguration(uint64_t afterAxisSize) = 0;
@@ -92,7 +92,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jitUniGatherKernel : public jitGatherKernelBase, public dnnl::impl::cpu::x64::jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jitUniGatherKernel)
 
-    explicit jitUniGatherKernel(jGatherConfParams jcp);
+    explicit jitUniGatherKernel(const jGatherConfParams& jcp);
 
     void create_ker() override;
     void generate() override;
@@ -102,9 +102,9 @@ struct jitUniGatherKernel : public jitGatherKernelBase, public dnnl::impl::cpu::
 protected:
     using Vmm = typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using Vmask = typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Opmask>::type;
-    const uint32_t vlenXmm = dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen;
-    const uint32_t indicesTypeSize = sizeof(uint32_t);
-    const uint8_t idxTypeShift = 2;
+    static const uint32_t vlenXmm = dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen;
+    static const uint32_t indicesTypeSize = sizeof(uint32_t);
+    static const uint8_t idxTypeShift = 2;
     uint8_t dataTypeShift = 0;
 
     // Suffix B means "In Bytes".
@@ -180,7 +180,7 @@ protected:
     void normalizeRawIndices(Vmm& rawIndices, Vmask& dstMask, Vmask& aux);
     void normWithUpperBound(Vmm& vTarget, Vmm& vMax, Vmask& kAuxMask);
     void fillRestWorkMask(Vmask& kMask, Vmm& vAux, const Xbyak::Reg64& rWorkRest, const Xbyak::Reg64& rAux0, const Xbyak::Reg64& rAux1);
-    void storeScalar(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux);
+    void storeVectorPart(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux);
     void uniVpGatherDd(Vmm& vDst, const Xbyak::Address& srcAddr, Vmask& vMask);
     void fillVlenVector();
 
