@@ -7,7 +7,7 @@
 #include "color_utils.hpp"
 #include "function_guard.hpp"
 #include "layout_utils.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/core/model.hpp"
 #include "preprocess_steps_impl.hpp"
 
@@ -197,7 +197,15 @@ struct InputInfo::InputInfoImpl {
         return m_tensor_info.m_impl;
     }
 
+    const std::unique_ptr<InputTensorInfo::InputTensorInfoImpl>& get_tensor_data() const {
+        return m_tensor_info.m_impl;
+    }
+
     std::unique_ptr<PreProcessSteps::PreProcessStepsImpl>& get_preprocess() {
+        return m_preprocess.m_impl;
+    }
+
+    const std::unique_ptr<PreProcessSteps::PreProcessStepsImpl>& get_preprocess() const {
         return m_preprocess.m_impl;
     }
 
@@ -205,10 +213,129 @@ struct InputInfo::InputInfoImpl {
         return m_model_data.m_impl;
     }
 
+    const std::unique_ptr<InputModelInfo::InputModelInfoImpl>& get_model() const {
+        return m_model_data.m_impl;
+    }
+
     InputTensorInfo m_tensor_info;
     PreProcessSteps m_preprocess;
     InputModelInfo m_model_data;
     std::shared_ptr<op::v0::Parameter> m_resolved_param;
+    struct InputInfoData {
+        std::vector<std::shared_ptr<opset1::Parameter>> m_new_params;
+        std::shared_ptr<opset1::Parameter> m_param;
+        Layout m_model_layout;
+        Layout m_tensor_layout;
+        std::vector<Output<Node>> as_nodes() const {
+            std::vector<Output<Node>> res;
+            std::transform(m_new_params.begin(), m_new_params.end(), std::back_inserter(res), [](const std::shared_ptr<opset1::Parameter>& param) {
+                return param;
+            });
+            return res;
+        }
+    };
+    InputInfoData create_new_params(std::tuple<std::unordered_set<std::string>, bool>& existing_names,
+                               const std::shared_ptr<Model>& model) const {
+        InputInfoData res;
+        res.m_param = m_resolved_param;
+        auto tensor_elem_type = get_tensor_data()->is_element_type_set() ? get_tensor_data()->get_element_type() : res.m_param->get_element_type();
+        res.m_tensor_layout = get_tensor_data()->get_layout();
+        auto color_info = ColorFormatInfo::get(get_tensor_data()->get_color_format());
+        if (!get_tensor_data()->is_layout_set()) {
+            if (!color_info->default_layout().empty()) {
+                res.m_tensor_layout = color_info->default_layout();
+            }
+        }
+
+        auto model_shape = res.m_param->get_partial_shape();
+        auto new_param_shape = model_shape;
+        if (get_tensor_data()->is_shape_set()) {
+            new_param_shape = get_tensor_data()->get_shape();
+        }
+        res.m_model_layout = get_model()->is_layout_set() ? get_model()->get_layout() : res.m_param->get_layout();
+        if (res.m_model_layout.empty() && get_tensor_data()->is_layout_set()) {
+            res.m_model_layout = get_preprocess()->propagate_layout(res.m_tensor_layout);
+        }
+        if (!res.m_tensor_layout.empty() && !res.m_model_layout.empty() && res.m_model_layout != res.m_tensor_layout) {
+            // Find transpose between model and tensor layouts and update tensor shape
+            auto net_to_tensor = layout::utils::find_permutation(res.m_model_layout, model_shape, res.m_tensor_layout);
+            if (!net_to_tensor.empty()) {
+                std::vector<ov::Dimension> dims(new_param_shape.size());
+                std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
+                    return new_param_shape[v];
+                });
+                new_param_shape = PartialShape(dims);
+            }
+        } else {
+            Layout new_layout;
+            std::tie(new_param_shape, new_layout) =
+                    get_preprocess()->calculate_param_shape(new_param_shape, res.m_model_layout);
+            if (res.m_tensor_layout.empty()) {
+                // Reusing param's layout according to converted calculated layout
+                res.m_tensor_layout = new_layout;
+            }
+        }
+
+        if (get_tensor_data()->is_spatial_shape_set()) {
+            auto height_idx = get_and_check_height_idx(res.m_tensor_layout, new_param_shape);
+            auto width_idx = get_and_check_width_idx(res.m_tensor_layout, new_param_shape);
+            if (get_tensor_data()->is_spatial_shape_dynamic()) {
+                // Use dynamic spatial dimensions
+                new_param_shape[height_idx] = Dimension::dynamic();
+                new_param_shape[width_idx] = Dimension::dynamic();
+            } else {
+                // Use static spatial dimensions
+                new_param_shape[height_idx] = get_tensor_data()->get_spatial_height();
+                new_param_shape[width_idx] = get_tensor_data()->get_spatial_width();
+            }
+        }
+
+        // Create separate parameter for each plane. Shape is based on color format
+        for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
+            auto plane_shape = color_info->shape(plane, new_param_shape);
+            auto plane_param =
+                    std::make_shared<op::v0::Parameter>(tensor_elem_type, plane_shape);
+            if (plane < get_tensor_data()->planes_sub_names().size()) {
+                std::unordered_set<std::string> plane_tensor_names;
+                std::string sub_name;
+                sub_name = std::string("/") + get_tensor_data()->planes_sub_names()[plane];
+                if (!std::get<1>(existing_names)) {
+                    existing_names = std::make_tuple(get_function_tensor_names(model), true);
+                }
+                for (const auto& tensor_name : res.m_param->get_default_output().get_tensor().get_names()) {
+                    auto new_name = tensor_name + sub_name;
+                    OPENVINO_ASSERT(
+                            std::get<0>(existing_names).count(new_name) == 0,
+                            "Error while trying to create plane input with name '",
+                            new_name,
+                            "' - name already exists in model. Please specify another sub-name for set_color_format");
+                    plane_tensor_names.insert(new_name);
+                }
+                plane_param->get_default_output().get_tensor().set_names(plane_tensor_names);
+                plane_param->set_friendly_name(res.m_param->get_friendly_name() + sub_name);
+            } else if (color_info->planes_count() == 1) {
+                plane_param->get_default_output().get_tensor().set_names(
+                        res.m_param->get_default_output().get_tensor().get_names());
+                plane_param->set_friendly_name(res.m_param->get_friendly_name());
+            }
+            // Fill runtime info
+            plane_param->get_rt_info() = res.m_param->get_rt_info();
+            plane_param->output(0).get_rt_info() = res.m_param->output(0).get_rt_info();
+            if (!res.m_tensor_layout.empty()) {
+                plane_param->set_layout(res.m_tensor_layout);
+            }
+            if (get_tensor_data()->is_memory_type_set()) {
+                if (get_tensor_data()->get_memory_type().empty()) {
+                    plane_param->output(0).get_rt_info().erase(TensorInfoMemoryType::get_type_info_static());
+                } else {
+                    plane_param->output(0).get_rt_info()[TensorInfoMemoryType::get_type_info_static()] =
+                            TensorInfoMemoryType(get_tensor_data()->get_memory_type());
+                }
+            }
+            res.m_new_params.push_back(plane_param);
+        }
+        return res;
+    }
 };
 
 /// \brief OutputInfoImpl - internal data structure
@@ -361,136 +488,26 @@ OutputInfo& PrePostProcessor::output(const std::string& tensor_name) {
 
 std::shared_ptr<Model> PrePostProcessor::build() {
     auto function = m_impl->m_function;
-    FunctionGuard guard(function);
     std::tuple<std::unordered_set<std::string>, bool> existing_names{std::unordered_set<std::string>{}, false};
+    FunctionGuard guard(function);
     bool tensor_data_updated = false;
-    for (const auto& input_info : m_impl->m_inputs) {
-        auto& input = input_info.m_impl;
-        // Set parameter layout from 'model' information
-        if (input->get_model()->is_layout_set()) {
-            // Overwrite existing model's layout here (fix 74065)
-            input->m_resolved_param->set_layout(input->get_model()->get_layout());
-        }
-    }
     auto results = function->get_results();
     auto parameters_list = std::list<std::shared_ptr<op::v0::Parameter>>(function->get_parameters().begin(),
                                                                          function->get_parameters().end());
 
     for (const auto& input_info : m_impl->m_inputs) {
         const auto& input = input_info.m_impl;
-        auto param = input->m_resolved_param;
-        auto consumers = param->output(0).get_target_inputs();
-        if (!input->get_tensor_data()->is_element_type_set()) {
-            input->get_tensor_data()->set_element_type(param->get_element_type());
-        }
-        auto color_info = ColorFormatInfo::get(input->get_tensor_data()->get_color_format());
-        if (!input->get_tensor_data()->is_layout_set()) {
-            if (!color_info->default_layout().empty()) {
-                input->get_tensor_data()->set_layout(color_info->default_layout());
-            }
-        }
+        auto data = input->create_new_params(existing_names, function);
+        auto consumers = data.m_param->output(0).get_target_inputs();
 
-        auto net_shape = param->get_partial_shape();
-        auto new_param_shape = net_shape;
-        if (input->get_tensor_data()->is_shape_set()) {
-            new_param_shape = input->get_tensor_data()->get_shape();
-        }
-        auto model_layout = param->get_layout();
-        if (model_layout.empty() && input->get_tensor_data()->is_layout_set()) {
-            model_layout = input->get_preprocess()->propagate_layout(input->get_tensor_data()->get_layout());
-        }
-        if (input->get_tensor_data()->is_layout_set() && !model_layout.empty() &&
-            model_layout != input->get_tensor_data()->get_layout()) {
-            // Find transpose between model and tensor layouts and update tensor shape
-            auto net_to_tensor =
-                layout::utils::find_permutation(model_layout, net_shape, input->get_tensor_data()->get_layout());
-            if (!net_to_tensor.empty()) {
-                std::vector<ov::Dimension> dims(new_param_shape.size());
-                std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
-                    return new_param_shape[v];
-                });
-                new_param_shape = PartialShape(dims);
-            }
-        } else {
-            Layout new_layout;
-            std::tie(new_param_shape, new_layout) =
-                input->get_preprocess()->calculate_param_shape(new_param_shape, model_layout);
-            if (!input->get_tensor_data()->is_layout_set()) {
-                // Reusing param's layout according to converted calculated layout
-                input->get_tensor_data()->set_layout(new_layout);
-            }
-        }
-
-        if (input->get_tensor_data()->is_spatial_shape_set()) {
-            auto height_idx = get_and_check_height_idx(input->get_tensor_data()->get_layout(), new_param_shape);
-            auto width_idx = get_and_check_width_idx(input->get_tensor_data()->get_layout(), new_param_shape);
-            if (input->get_tensor_data()->is_spatial_shape_dynamic()) {
-                // Use dynamic spatial dimensions
-                new_param_shape[height_idx] = Dimension::dynamic();
-                new_param_shape[width_idx] = Dimension::dynamic();
-            } else {
-                // Use static spatial dimensions
-                new_param_shape[height_idx] = input->get_tensor_data()->get_spatial_height();
-                new_param_shape[width_idx] = input->get_tensor_data()->get_spatial_width();
-            }
-        }
-
-        std::vector<Output<Node>> nodes;
-        std::vector<std::shared_ptr<op::v0::Parameter>> new_params;
-
-        // Create separate parameter for each plane. Shape is based on color format
-        for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
-            auto plane_shape = color_info->shape(plane, new_param_shape);
-            auto plane_param =
-                std::make_shared<op::v0::Parameter>(input->get_tensor_data()->get_element_type(), plane_shape);
-            if (plane < input->get_tensor_data()->planes_sub_names().size()) {
-                std::unordered_set<std::string> plane_tensor_names;
-                std::string sub_name;
-                sub_name = std::string("/") + input->get_tensor_data()->planes_sub_names()[plane];
-                if (!std::get<1>(existing_names)) {
-                    existing_names = std::make_tuple(get_function_tensor_names(function), true);
-                }
-                for (const auto& tensor_name : param->get_default_output().get_tensor().get_names()) {
-                    auto new_name = tensor_name + sub_name;
-                    OPENVINO_ASSERT(
-                        std::get<0>(existing_names).count(new_name) == 0,
-                        "Error while trying to create plane input with name '",
-                        new_name,
-                        "' - name already exists in model. Please specify another sub-name for set_color_format");
-                    plane_tensor_names.insert(new_name);
-                }
-                plane_param->get_default_output().get_tensor().set_names(plane_tensor_names);
-                plane_param->set_friendly_name(param->get_friendly_name() + sub_name);
-            } else if (color_info->planes_count() == 1) {
-                plane_param->get_default_output().get_tensor().set_names(
-                    param->get_default_output().get_tensor().get_names());
-                plane_param->set_friendly_name(param->get_friendly_name());
-            }
-            // Fill runtime info
-            plane_param->get_rt_info() = param->get_rt_info();
-            plane_param->output(0).get_rt_info() = param->output(0).get_rt_info();
-            if (!input->get_tensor_data()->get_layout().empty()) {
-                plane_param->set_layout(input->get_tensor_data()->get_layout());
-            }
-            if (input->get_tensor_data()->is_memory_type_set()) {
-                if (input->get_tensor_data()->get_memory_type().empty()) {
-                    plane_param->output(0).get_rt_info().erase(TensorInfoMemoryType::get_type_info_static());
-                } else {
-                    plane_param->output(0).get_rt_info()[TensorInfoMemoryType::get_type_info_static()] =
-                        TensorInfoMemoryType(input->get_tensor_data()->get_memory_type());
-                }
-            }
-            new_params.push_back(plane_param);
-            nodes.emplace_back(plane_param);
-        }
-
-        PreprocessingContext context(input->get_tensor_data()->get_layout());
+        PreprocessingContext context(data.m_tensor_layout);
         context.color_format() = input->get_tensor_data()->get_color_format();
-        context.target_layout() = model_layout;
-        context.model_shape() = param->get_partial_shape();
-        context.target_element_type() = param->get_element_type();
+        context.target_layout() = data.m_model_layout;
+        context.model_shape() = data.m_param->get_partial_shape();
+        context.target_element_type() = data.m_param->get_element_type();
 
         // 2. Apply preprocessing
+        auto nodes = data.as_nodes();
         for (const auto& action : input->get_preprocess()->actions()) {
             auto action_result = action(nodes, function, context);
             nodes = std::get<0>(action_result);
@@ -510,7 +527,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
 
         // Implicit: Convert element type + layout to user's tensor implicitly
         PreStepsList implicit_steps;
-        implicit_steps.add_convert_impl(param->get_element_type());
+        implicit_steps.add_convert_impl(context.target_element_type());
         if (!context.target_layout().empty()) {
             implicit_steps.add_convert_layout_impl(context.target_layout());
         }
@@ -521,28 +538,28 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         }
 
         auto node = nodes[0];
-        if (node.get_partial_shape() != param->get_partial_shape()) {
+        if (node.get_partial_shape() != context.model_shape()) {
             tensor_data_updated = true;  // Trigger revalidation if input parameter shape is changed
         }
         // Check final shape
-        OPENVINO_ASSERT(node.get_partial_shape().compatible(param->get_partial_shape()),
+        OPENVINO_ASSERT(node.get_partial_shape().compatible(context.model_shape()),
                         "Resulting shape '",
                         node.get_partial_shape(),
                         "' after preprocessing is not aligned with original parameter's shape: ",
-                        param->get_partial_shape());
+                        context.model_shape());
 
         // Replace parameter
         for (auto consumer : consumers) {
             consumer.replace_source_output(node);
         }
         {
-            auto param_it = std::find(parameters_list.begin(), parameters_list.end(), param);
+            auto param_it = std::find(parameters_list.begin(), parameters_list.end(), data.m_param);
             OPENVINO_ASSERT(param_it != parameters_list.end(),
                             "Parameter to replace has been replaced by previous steps of preprocessing. Use only one "
                             "InputInfo for one input parameter");
             // Insert list of new parameters to the place of original parameter
             param_it = parameters_list.erase(param_it);
-            parameters_list.insert(param_it, new_params.begin(), new_params.end());
+            parameters_list.insert(param_it, data.m_new_params.begin(), data.m_new_params.end());
         }
     }
 
