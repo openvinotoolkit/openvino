@@ -15,6 +15,7 @@
 #include <gflags/gflags.h>
 
 #include "inference_engine.hpp"
+#include "openvino/openvino.hpp"
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/string.hpp>
@@ -59,13 +60,29 @@ static constexpr char inputs_layout_message[] =
                                              "Optional. Specifies layout for all input layers of the network.";
 
 static constexpr char outputs_layout_message[] =
-                                             "Optional. Specifies layout for all input layers of the network.";
+                                             "Optional. Specifies layout for all output layers of the network.";
 
 static constexpr char iol_message[] =
                                              "Optional. Specifies layout for input and output layers by name.\n"
 "                                             Example: -iol \"input:NCHW, output:NHWC\".\n"
 "                                             Notice that quotes are required.\n"
 "                                             Overwrites layout from il and ol options for specified layers.";
+
+static constexpr char inputs_model_layout_message[] =
+                                             "Optional. Specifies model layout for all input layers of the network.";
+
+static constexpr char outputs_model_layout_message[] =
+                                             "Optional. Specifies model layout for all output layers of the network.";
+
+static constexpr char ioml_message[] =
+                                             "Optional. Specifies model layout for input and output tensors by name.\n"
+"                                             Example: -ionl \"input:NCHW, output:NHWC\".\n"
+"                                             Notice that quotes are required.\n"
+"                                             Overwrites layout from il and ol options for specified layers.";
+
+static constexpr char api1_message[] =
+                                             "Optional. Compile model to legacy format for usage in Inference Engine API,\n"
+"                                             by default compiles to OV 2.0 API";
 
 // MYRIAD-specific
 static constexpr char number_of_shaves_message[] =
@@ -95,6 +112,10 @@ DEFINE_string(iop, "", iop_message);
 DEFINE_string(il, "", inputs_layout_message);
 DEFINE_string(ol, "", outputs_layout_message);
 DEFINE_string(iol, "", iol_message);
+DEFINE_string(iml, "", inputs_model_layout_message);
+DEFINE_string(oml, "", outputs_model_layout_message);
+DEFINE_string(ioml, "", ioml_message);
+DEFINE_bool(ov_api_1_0, false, api1_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
@@ -114,6 +135,10 @@ static void showUsage() {
     std::cout << "    -il                          <value>     "   << inputs_layout_message        << std::endl;
     std::cout << "    -ol                          <value>     "   << outputs_layout_message       << std::endl;
     std::cout << "    -iol                        \"<value>\"    "   << iol_message                << std::endl;
+    std::cout << "    -iml                         <value>     "   << inputs_model_layout_message  << std::endl;
+    std::cout << "    -oml                         <value>     "   << outputs_model_layout_message << std::endl;
+    std::cout << "    -ioml                       \"<value>\"    "   << ioml_message               << std::endl;
+    std::cout << "    -ov_api_1_0                              "   << api1_message                 << std::endl;
     std::cout                                                                                      << std::endl;
     std::cout << " MYRIAD-specific options:                    "                                   << std::endl;
     std::cout << "      -VPU_NUMBER_OF_SHAVES      <value>     "   << number_of_shaves_message     << std::endl;
@@ -263,41 +288,71 @@ int main(int argc, char* argv[]) {
     TimeDiff loadNetworkTimeElapsed {0};
 
     try {
-        std::cout << "Inference Engine: " << InferenceEngine::GetInferenceEngineVersion() << std::endl;
-        std::cout << std::endl;
+        const auto& version = ov::get_openvino_version();
+        std::cout << version.description << " version ......... ";
+        std::cout << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH << std::endl;
+
+        std::cout << "Build ........... ";
+        std::cout << version.buildNumber << std::endl;
 
         if (!parseCommandLine(&argc, &argv)) {
             return EXIT_SUCCESS;
         }
+        if (FLAGS_ov_api_1_0) {
+            InferenceEngine::Core ie;
+            if (!FLAGS_log_level.empty()) {
+                ie.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
+            }
 
-        InferenceEngine::Core ie;
-        if (!FLAGS_log_level.empty()) {
-            ie.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
-        }
+            auto network = ie.ReadNetwork(FLAGS_m);
 
-        auto network = ie.ReadNetwork(FLAGS_m);
+            setDefaultIO(network);
+            processPrecision(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            processLayout(network, FLAGS_il, FLAGS_ol, FLAGS_iol);
 
-        setDefaultIO(network);
-        processPrecision(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
-        processLayout(network, FLAGS_il, FLAGS_ol, FLAGS_iol);
+            printInputAndOutputsInfo(network);
 
-        printInputAndOutputsInfo(network);
+            auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
+            auto executableNetwork = ie.LoadNetwork(network, FLAGS_d, configure());
+            loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
 
-        auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
-        auto executableNetwork = ie.LoadNetwork(network, FLAGS_d, configure());
-        loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
+            std::string outputName = FLAGS_o;
+            if (outputName.empty()) {
+                outputName = getFileNameFromPath(fileNameNoExt(FLAGS_m)) + ".blob";
+            }
 
-        std::string outputName = FLAGS_o;
-        if (outputName.empty()) {
-            outputName = getFileNameFromPath(fileNameNoExt(FLAGS_m)) + ".blob";
-        }
-
-        std::ofstream outputFile{outputName, std::ios::out | std::ios::binary};
-        if (!outputFile.is_open()) {
-            std::cout << "Output file " << outputName << " can't be opened for writing" << std::endl;
-            return EXIT_FAILURE;
+            std::ofstream outputFile{outputName, std::ios::out | std::ios::binary};
+            if (!outputFile.is_open()) {
+                std::cout << "Output file " << outputName << " can't be opened for writing" << std::endl;
+                return EXIT_FAILURE;
+            } else {
+                executableNetwork.Export(outputFile);
+            }
         } else {
-            executableNetwork.Export(outputFile);
+            ov::runtime::Core core;
+            if (!FLAGS_log_level.empty()) {
+                core.set_config({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
+            }
+
+            auto model = core.read_model(FLAGS_m);
+
+            configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml, FLAGS_oml, FLAGS_ioml);
+            printInputAndOutputsInfo(*model);
+            auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
+            auto compiledModel = core.compile_model(model, FLAGS_d, configure());
+            loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
+            std::string outputName = FLAGS_o;
+            if (outputName.empty()) {
+                outputName = getFileNameFromPath(fileNameNoExt(FLAGS_m)) + ".blob";
+            }
+
+            std::ofstream outputFile{outputName, std::ios::out | std::ios::binary};
+            if (!outputFile.is_open()) {
+                std::cout << "Output file " << outputName << " can't be opened for writing" << std::endl;
+                return EXIT_FAILURE;
+            } else {
+                compiledModel.export_model(outputFile);
+            }
         }
     } catch (const std::exception& error) {
         std::cerr << error.what() << std::endl;

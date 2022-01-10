@@ -10,7 +10,7 @@ using namespace ov::opset8;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 ov::OutputVector translate_leaky_relu_op(const NodeContext& node) {
     auto in = node.get_input(0);
@@ -21,6 +21,6 @@ ov::OutputVector translate_leaky_relu_op(const NodeContext& node) {
     return leaky_relu->outputs();
 }
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

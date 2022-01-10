@@ -10,8 +10,7 @@ Before creating a transformation, do the following:
 * Understand where to put your transformation code
 
 ### Transformation Library Structure
-Transformation library is independent from Inference Engine target library named as `inference_engine_transformations`
-and is located in the `src/common/transformations` directory.
+OpenVINO transformations are located in the `src/common/transformations` directory.
 
 Transformations root directory contains two folders:
 * `ngraph_ops` - Contains internal opset operations that are common for plugins.
@@ -379,7 +378,7 @@ Another example shows how multiple matcher passes can be united into single Grap
 
 @snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager2
 
-> **Note:** nGraph used to have the `pass::PassConfig` class for transformation pipeline manipulation.
+> **NOTE**: nGraph used to have the `pass::PassConfig` class for transformation pipeline manipulation.
 This mechanism is now obsolete and the `pass::PassConfig` class will be removed in future release.
 
 ## How to debug transformations <a name="how_to_debug_transformations"></a>

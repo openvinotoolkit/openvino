@@ -6,6 +6,7 @@ import os
 
 import numpy as np
 
+from openvino.tools.mo.back.MaxPool import MaxPool
 from openvino.tools.mo.back.TopKNormalizer import TopKNormalizer
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.ReduceOps import ReduceOp
@@ -271,6 +272,7 @@ preprocessing_op_nodes = {
 postprocessing_op_nodes = {
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
+    'MaxPool': MaxPool.normalize_outputs,
 }
 
 
@@ -278,8 +280,8 @@ def restore_tensor_names(op: Node):
     for out_port in op.ports:
         # op.ports is our internal attribute, dictionary, where keys are numbers of output ports
         # and values are tuples with shape and tensor name:
-        # {out_port_idx_1: (out_port_idx_1_shape, out_port_idx_1_tensor_name),
-        #  out_port_idx_2: (out_port_idx_2_shape, out_port_idx_2_tensor_name)}
+        # {out_port_idx_1: (out_port_idx_1_shape, out_port_idx_1_tensor_name, out_port_idx_1_rt_info),
+        #  out_port_idx_2: (out_port_idx_2_shape, out_port_idx_2_tensor_name, out_port_idx_2_rt_info)}
         out_tensor_names = op.ports[out_port][1]
 
         # handle Constant operations with old style output port numbering
@@ -404,6 +406,9 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
             assert len(op.out_nodes()) == 1 and op.out_node(0).soft_get('kind') == 'data',\
                 'Const node {} not properly corrected to appropriate data node'.format(op.soft_get('name'))
             op.out_node(0)['correct_data_type'] = True
+
+            if op.has_and_set('rt_info'):
+                op.out_node(0)['rt_info'] = op.rt_info
 
         restore_tensor_names(op)
 

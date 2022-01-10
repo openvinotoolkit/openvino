@@ -8,24 +8,38 @@
 #include <string>
 #include <vector>
 
-#include "input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/op_extension.hpp"
-#include "visibility.hpp"
+#include "openvino/frontend/input_model.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 /// \brief An interface for identifying a frontend for a particular framework.
 /// Provides an ability to load and convert of input model
 class FRONTEND_API FrontEnd {
-public:
-    typedef std::shared_ptr<FrontEnd> Ptr;
+    friend class FrontEndManager;
 
+    std::shared_ptr<void> m_shared_object = {};  // Library handle
+    std::shared_ptr<FrontEnd> m_actual = {};
+
+public:
+    using Ptr = std::shared_ptr<FrontEnd>;
+
+    /// \brief Default constructor
     FrontEnd();
 
-    virtual ~FrontEnd() = 0;
+    FrontEnd(const FrontEnd&) = delete;
+
+    FrontEnd(FrontEnd&&) = delete;
+
+    FrontEnd& operator=(const FrontEnd&) = delete;
+
+    FrontEnd& operator=(FrontEnd&&) = delete;
+
+    virtual ~FrontEnd();
 
     /// \brief Validates if FrontEnd can recognize model with parameters specified.
     /// Same parameters should be used to load model.
@@ -59,11 +73,11 @@ public:
     /// possible
     /// \param model Input model
     /// \return fully converted OV Model
-    virtual std::shared_ptr<ov::Model> convert(InputModel::Ptr model) const;
+    virtual std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const;
 
     /// \brief Completely convert the remaining, not converted part of a Model.
     /// \param partiallyConverted partially converted OV Model
-    virtual void convert(std::shared_ptr<ov::Model> partially_converted) const;
+    virtual void convert(const std::shared_ptr<ov::Model>& partially_converted) const;
 
     /// \brief Convert only those parts of the model that can be converted leaving others
     /// as-is. Converted parts are not normalized by additional transformations; normalize
@@ -71,18 +85,18 @@ public:
     /// conversion process.
     /// \param model Input model
     /// \return partially converted OV Model
-    virtual std::shared_ptr<ov::Model> convert_partially(InputModel::Ptr model) const;
+    virtual std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
     /// Each decoding node is an OV node representing a single FW operation node with
     /// all attributes represented in FW-independent way.
     /// \param model Input model
     /// \return OV Model after decoding
-    virtual std::shared_ptr<ov::Model> decode(InputModel::Ptr model) const;
+    virtual std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const;
 
     /// \brief Runs normalization passes on Model that was loaded with partial conversion
     /// \param Model partially converted OV Model
-    virtual void normalize(std::shared_ptr<ov::Model> model) const;
+    virtual void normalize(const std::shared_ptr<ov::Model>& model) const;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model
@@ -93,17 +107,21 @@ public:
     /// \brief Register base extension in the FrontEnd
     /// \param extension base extension
     virtual void add_extension(const std::shared_ptr<ov::Extension>& extension);
+
     /// \brief Register base extensions in the FrontEnd
     /// \param extensions vector of extensions
     void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
+
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
     void add_extension(const std::string& library_path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
     void add_extension(const std::wstring& library_path);
+
 #endif
 
     /// @brief Registers extension
@@ -113,6 +131,7 @@ public:
         std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
         add_extension(ext);
     }
+
     /// @brief Registers extensions
     /// @param extension Extension class which is inherited from ov::Extension class
     template <class T,
@@ -126,7 +145,12 @@ public:
 
 protected:
     virtual bool supported_impl(const std::vector<ov::Any>& variants) const;
+
     virtual InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
+
+private:
+    static std::shared_ptr<ov::Model> create_copy(const std::shared_ptr<ov::Model>& ov_model,
+                                                  const std::shared_ptr<void>& shared_object);
 };
 
 template <>

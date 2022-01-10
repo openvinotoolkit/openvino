@@ -4,11 +4,11 @@
 #! [complex_abs:transformation]
 import numpy as np
 
-from extensions.ops.elementwise import Pow
-from extensions.ops.ReduceOps import ReduceSum
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Graph, Node
-from mo.ops.const import Const
+from openvino.tools.mo.ops.elementwise import Pow
+from openvino.tools.mo.ops.ReduceOps import ReduceSum
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.const import Const
 
 
 class ComplexAbs(FrontReplacementOp):

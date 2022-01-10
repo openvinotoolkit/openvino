@@ -57,6 +57,7 @@ protected:
     std::map<std::string, std::string> configuration;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
 };
+using OVNotSupportRequestDynamicTests = OVInferRequestDynamicTests;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

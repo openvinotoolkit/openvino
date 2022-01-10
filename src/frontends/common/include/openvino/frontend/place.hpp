@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "visibility.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -292,7 +292,7 @@ public:
     /// \brief Returns true if another place is the same as this place.
     ///
     /// \param another Another place object
-    virtual bool is_equal(Ptr another) const;
+    virtual bool is_equal(const Ptr& another) const;
 
     /// \brief Returns true if another place points to the same data.
     ///
@@ -300,7 +300,7 @@ public:
     /// -> input edge -> input port.
     ///
     /// \param another Another place object
-    virtual bool is_equal_data(Ptr another) const;
+    virtual bool is_equal_data(const Ptr& another) const;
 };
 }  // namespace frontend
 }  // namespace ov

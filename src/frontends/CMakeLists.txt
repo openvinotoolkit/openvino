@@ -12,8 +12,8 @@ if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()
 
-if(ENABLE_OV_PDPD_FRONTEND)
-    add_subdirectory(paddlepaddle)
+if(ENABLE_OV_PADDLE_FRONTEND)
+    add_subdirectory(paddle)
 endif()
 
 if(ENABLE_OV_IR_FRONTEND)
@@ -23,6 +23,3 @@ endif()
 if(ENABLE_OV_TF_FRONTEND)
     add_subdirectory(tensorflow)
 endif()
-
-# used for static build
-ov_generate_frontends_hpp()

@@ -87,19 +87,18 @@ void op::v0::TensorIterator::validate_and_infer_types() {
         if (auto slice_input_description = ov::as_type_ptr<SliceInputDescription>(input_description)) {
             auto body_parameter = body->get_parameters().at(slice_input_description->m_body_parameter_index);
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            if (input_partial_shape.is_static()) {
-                auto input_shape = input_partial_shape.to_shape();
-                auto axis = slice_input_description->m_axis;
+            auto axis = slice_input_description->m_axis;
+            if (input_partial_shape.rank().is_static() && input_partial_shape[axis].is_static()) {
                 auto part_size = slice_input_description->m_part_size;
 
-                auto dim_size = input_shape[axis];
+                auto dim_size = input_partial_shape[axis].get_length();
                 auto start = make_positive(slice_input_description->m_start, dim_size);
                 auto end = make_positive(slice_input_description->m_end, dim_size);
 
                 // +1 because the left and right borders are included [start, end]
                 m_num_iterations = (abs(end - start) + 1) / part_size;
                 // infer type for m_body_parameter
-                ov::Shape out_shape{input_shape};
+                ov::PartialShape out_shape{input_partial_shape};
                 out_shape[axis] = part_size;
                 body_parameter->set_partial_shape(out_shape);
             } else {

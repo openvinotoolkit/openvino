@@ -111,7 +111,7 @@ class Reader : public IReader {
             std::shared_ptr<IReader> plugin_impl;
             using createFunc = void(std::shared_ptr<IReader>&);
             reinterpret_cast<createFunc*>(ov::util::get_symbol(so, "CreateReader"))(plugin_impl);
-            ptr = {so, plugin_impl};
+            ptr = {plugin_impl, so};
 #    endif  // OPENVINO_STATIC_LIBRARY
         });
 
