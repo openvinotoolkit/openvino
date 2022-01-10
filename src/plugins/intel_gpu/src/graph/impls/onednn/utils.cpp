@@ -222,7 +222,7 @@ static bool isSame(dnnl::memory::desc desc, dnnl::memory::format_tag fmt) {
     return true;
 }
 
-dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
+static dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
     // TODO [OneDNN]: Previously it was a field of tdesc, but now the brute
     //                force search here. Please avoid of using this method.
     const auto ndims = desc.dims().size();
@@ -239,25 +239,8 @@ dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
     return dnnl::memory::format_tag::undef;
 }
 
-dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
-    switch (func) {
-        case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
-        case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
-        case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu;
-        case cldnn::activation_func::elu: return dnnl::algorithm::eltwise_elu;
-        case cldnn::activation_func::mish: return dnnl::algorithm::eltwise_mish;
-        case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
-        case cldnn::activation_func::hswish: return dnnl::algorithm::eltwise_hardswish;
-        case cldnn::activation_func::abs: return dnnl::algorithm::eltwise_abs;
-        case cldnn::activation_func::exp: return dnnl::algorithm::eltwise_exp;
-        case cldnn::activation_func::logistic: return dnnl::algorithm::eltwise_logistic;
-        case cldnn::activation_func::clamp: return dnnl::algorithm::eltwise_clip;
-        case cldnn::activation_func::hyperbolic_tan: return dnnl::algorithm::eltwise_tanh;
-        default: throw std::runtime_error("Unsupported activation func for onednn primitive " + std::to_string(static_cast<int>(func)));
-    }
-}
-
-cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
+// onednn -> cldnn
+static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
     if (is_grouped) {
         switch (fmt) {
         case dnnl::memory::format_tag::abcde: return cldnn::format::goiyx;
@@ -278,7 +261,7 @@ cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
         switch (fmt) {
         case dnnl::memory::format_tag::ab: return cldnn::format::oiyx;
         case dnnl::memory::format_tag::abcd: return cldnn::format::oiyx;
-        case dnnl::memory::format_tag::bacd: return cldnn::format::oiyx;
+        case dnnl::memory::format_tag::bacd: return cldnn::format::ioyx;
         case dnnl::memory::format_tag::BAcd16b16a: return cldnn::format::is_os_yx_isv16_osv16;
         case dnnl::memory::format_tag::ABcd16b16a: return cldnn::format::os_is_yx_isv16_osv16;
         case dnnl::memory::format_tag::abcde: return cldnn::format::oizyx;
@@ -296,6 +279,46 @@ cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
         case dnnl::memory::format_tag::ABcd2a8b16a2b: return cldnn::format::os_is_yx_osa2_isa8_osv16_isv2;
         default: throw std::runtime_error(std::string("Unsupported onednn fmt ") + dnnl_fmt_tag2str((dnnl_format_tag_t)fmt));
         }
+    }
+}
+
+cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
+    auto onednn_desc = get_format_by_desc(desc);
+
+    if (onednn_desc != dnnl::memory::format_tag::undef) {
+        return convert_format(onednn_desc, is_grouped);
+    } else {
+        if (is_grouped) {
+            throw std::runtime_error(std::string("Unsupported grouped onednn dnnl::memory::desc find_format"));
+        } else {
+            auto blk = desc.data.format_desc.blocking;
+
+            if (desc.data.ndims == 4 && desc.data.format_desc.blocking.inner_nblks == 4
+                && blk.inner_blks[0] == 2 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 2
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1 && blk.inner_idxs[3] == 0) {
+                return cldnn::format::is_os_yx_isa2_osa8_isv8_osv2;
+            } else {
+                throw std::runtime_error(std::string("Unsupported onednn dnnl::memory::desc find_format"));
+            }
+        }
+    }
+}
+
+dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
+    switch (func) {
+        case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
+        case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
+        case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu;
+        case cldnn::activation_func::elu: return dnnl::algorithm::eltwise_elu;
+        case cldnn::activation_func::mish: return dnnl::algorithm::eltwise_mish;
+        case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
+        case cldnn::activation_func::hswish: return dnnl::algorithm::eltwise_hardswish;
+        case cldnn::activation_func::abs: return dnnl::algorithm::eltwise_abs;
+        case cldnn::activation_func::exp: return dnnl::algorithm::eltwise_exp;
+        case cldnn::activation_func::logistic: return dnnl::algorithm::eltwise_logistic;
+        case cldnn::activation_func::clamp: return dnnl::algorithm::eltwise_clip;
+        case cldnn::activation_func::hyperbolic_tan: return dnnl::algorithm::eltwise_tanh;
+        default: throw std::runtime_error("Unsupported activation func for onednn primitive " + std::to_string(static_cast<int>(func)));
     }
 }
 
