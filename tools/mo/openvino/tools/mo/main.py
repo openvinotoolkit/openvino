@@ -95,12 +95,21 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines), flush=True)
 
 
+def get_default_frontends():
+    # Set which frontend to use by default, values should be 'new' or 'legacy'
+    default_frontends = {
+        'onnx': 'legacy',
+        'tf': 'legacy'
+    }
+    return default_frontends
+
+
 def get_moc_frontends(argv: argparse.Namespace):
     fem = argv.feManager
 
     # Read user flags:
-    use_legacy_frontend = argv.use_legacy_frontend if argv.use_legacy_frontend else False
-    use_new_frontend = argv.use_new_frontend if argv.use_new_frontend else False
+    use_legacy_frontend = argv.use_legacy_frontend
+    use_new_frontend = argv.use_new_frontend
 
     if not fem or use_legacy_frontend:
         return None, []
@@ -117,8 +126,9 @@ def get_moc_frontends(argv: argparse.Namespace):
     else:
         return None, []
 
+    default_frontends = get_default_frontends()
     # Disable MOC frontend if default is set to legacy and no user override
-    if argv.frontend_defaults.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
+    if default_frontends.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
         moc_front_end = None
 
     return moc_front_end, available_moc_front_ends
@@ -134,7 +144,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
         frameworks = list(set(frameworks + available_moc_front_ends))
         if argv.framework not in frameworks:
-            if argv.use_legacy_frontend and argv.use_legacy_frontend:
+            if argv.use_legacy_frontend:
                 raise Error('Framework {} is not a valid target when using the --use_legacy_frontend flag. '
                             'The following legacy frameworks are available: {}' +
                             refer_to_faq_msg(15), argv.framework, frameworks)
@@ -319,7 +329,7 @@ def check_fallback(argv : argparse.Namespace):
     if not any(deduce_framework_by_namespace(argv)): # no legacy path
         return fallback_reasons
 
-    if argv.use_new_frontend is not None or argv.use_legacy_frontend is not None: # frontend chosen explicitly
+    if argv.use_new_frontend or argv.use_legacy_frontend: # frontend chosen explicitly
         return fallback_reasons
 
     fallback_reasons['extensions'] = \
@@ -478,12 +488,6 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
         if framework:
             argv.framework = framework
         argv.feManager = fem
-
-        # Set which frontend to use by default, values should be 'new' or 'legacy'
-        argv.frontend_defaults = {
-            'onnx': 'legacy',
-            'tf': 'legacy'
-        }
 
         ov_update_message = None
         if not hasattr(argv, 'silent') or not argv.silent:
