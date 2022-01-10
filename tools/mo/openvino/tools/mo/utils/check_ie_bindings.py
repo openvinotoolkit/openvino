@@ -52,8 +52,8 @@ def import_core_modules(silent: bool, path_to_module: str):
         from openvino.offline_transformations_pybind import apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
         from openvino.offline_transformations_pybind import generate_mapping_file, apply_make_stateful_transformation, serialize  # pylint: disable=import-error,no-name-in-module
 
-        from openvino.runtime import Function, get_version  # pylint: disable=import-error,no-name-in-module
-        from openvino.runtime.impl.op import Parameter  # pylint: disable=import-error,no-name-in-module
+        from openvino.runtime import Model, get_version  # pylint: disable=import-error,no-name-in-module
+        from openvino.runtime.op import Parameter  # pylint: disable=import-error,no-name-in-module
         from openvino.runtime import PartialShape, Dimension  # pylint: disable=import-error,no-name-in-module
         from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
 

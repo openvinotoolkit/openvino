@@ -15,13 +15,13 @@ import onnx
 from onnx.backend.base import Backend, BackendRep
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 
-from openvino.runtime import Function
+from openvino.runtime import Model
 from tests.runtime import get_runtime
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model, np_dtype_to_tensor_type
 
 
 class OpenVinoOnnxBackendRep(BackendRep):
-    def __init__(self, ng_model_function, device="CPU"):  # type: (List[Function], str) -> None
+    def __init__(self, ng_model_function, device="CPU"):  # type: (List[Model], str) -> None
         super().__init__()
         self.device = device
         self.ng_model_function = ng_model_function

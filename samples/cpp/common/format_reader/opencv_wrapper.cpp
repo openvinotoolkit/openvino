@@ -3,12 +3,15 @@
 //
 
 #ifdef USE_OPENCV
-#    include "opencv_wrapper.h"
-
 #    include <fstream>
 #    include <iostream>
+
+// clang-format off
 #    include <opencv2/opencv.hpp>
-#    include <samples/slog.hpp>
+
+#    include "samples/slog.hpp"
+#    include "opencv_wrapper.h"
+// clang-format on
 
 using namespace std;
 using namespace FormatReader;

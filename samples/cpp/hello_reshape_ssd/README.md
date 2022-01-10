@@ -1,16 +1,14 @@
 # Hello Reshape SSD C++ Sample {#openvino_inference_engine_samples_hello_reshape_ssd_README}
 
-This sample demonstrates how to execute an inference of object detection networks like SSD-VGG using Synchronous Inference Request API, [input reshape feature](../../../docs/IE_DG/ShapeInference.md) and implementation of [custom extension library for CPU device](../../../docs/IE_DG/Extensibility_DG/CPU_Kernel.md) (CustomReLU kernel).
+This sample demonstrates how to execute an inference of object detection networks like SSD-VGG using Synchronous Inference Request API, [input reshape feature](../../../docs/IE_DG/ShapeInference.md).
 
 Hello Reshape SSD C++ sample application demonstrates how to use the following Inference Engine C++ API in applications:
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-| Network Operations | `InferenceEngine::CNNNetwork::getBatchSize`, `InferenceEngine::CNNNetwork::getFunction` |  Managing of network, operate with its batch size.
-|Input Reshape|`InferenceEngine::CNNNetwork::getInputShapes`, `InferenceEngine::CNNNetwork::reshape`| Resize network to match image sizes and given batch
-|nGraph Functions|`ngraph::Function::get_ops`, `ngraph::Node::get_friendly_name`, `ngraph::Node::get_type_info`| Go thru network nGraph
-|Custom Extension Kernels|`InferenceEngine::Core::AddExtension`| Load extension library
-|CustomReLU kernel| `InferenceEngine::ILayerExecImpl`| Implementation of custom extension library
+| Model Operations | `ov::runtime::Core::read_model`, `ov::runtime::Core::compile_model` |  Managing of model
+| Model Input Reshape | `ov::Model::reshape`| Resize model to match image sizes and given batch
+| Tensor Operations | `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 
@@ -80,13 +78,28 @@ of the detected objects along with the respective confidence values and the coor
 rectangles to the standard output stream.
 
 ```
-Resizing network to the image size = [960x1699] with batch = 1
-Resulting input shape = [1,3,960,1699]
-Resulting output shape = [1,1,200,7]
-[0,1] element, prob = 0.722292, bbox = (852.382,187.756)-(983.352,520.733), batch id = 0
-The resulting image was saved in the file: hello_reshape_ssd_output.jpg
-
-This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+[ INFO ] Loading model files: C:\temp\models\public\ssd_mobilenet_v1_fpn_coco\FP16\ssd_mobilenet_v1_fpn_coco.xml
+[ INFO ] model name: ssd_mobilenet_v1_fpn_coco
+[ INFO ]     inputs
+[ INFO ]         input name: image_tensor
+[ INFO ]         input type: f32
+[ INFO ]         input shape: {1, 3, 640, 640}
+[ INFO ]     outputs
+[ INFO ]         output name: DetectionOutput
+[ INFO ]         output type: f32
+[ INFO ]         output shape: {1, 1, 100, 7}
+Reshape network to the image size = [512x512] with batch = 1
+[ INFO ] model name: ssd_mobilenet_v1_fpn_coco
+[ INFO ]     inputs
+[ INFO ]         input name: image_tensor
+[ INFO ]         input type: f32
+[ INFO ]         input shape: {1, 3, 512, 512}
+[ INFO ]     outputs
+[ INFO ]         output name: DetectionOutput
+[ INFO ]         output type: f32
+[ INFO ]         output shape: {1, 1, 100, 7}
+[0,18] element, prob = 0.781129    (109,52)-(342,441) batch id = 0
+The resulting image was saved in the file: hello_reshape_ssd_batch_0.bmp
 ```
 
 ## See Also

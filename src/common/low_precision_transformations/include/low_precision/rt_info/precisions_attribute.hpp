@@ -13,7 +13,6 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/variant.hpp>
 
-#include "low_precision/layer_transformation.hpp"
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
 #include "low_precision/rt_info/shared_value_attribute.hpp"
@@ -23,8 +22,7 @@ namespace ngraph {
 class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedAttribute<std::vector<ngraph::element::Type>> {
 public:
     OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute, 0);
-    static std::vector<ngraph::element::Type> defaultPrecisions;
-    PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions = defaultPrecisions);
+    PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions);
 
     static ov::Any create(
         const std::shared_ptr<ngraph::Node>& node,

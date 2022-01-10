@@ -7,7 +7,7 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "pyopenvino/core/common.hpp"
@@ -21,7 +21,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
     py::class_<ov::preprocess::PreProcessSteps, Common::ref_wrapper<ov::preprocess::PreProcessSteps>> steps(
         m,
         "PreProcessSteps");
-    steps.doc() = "openvino.impl.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
+    steps.doc() = "openvino.runtime.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
 
     steps.def(
         "mean",
@@ -173,7 +173,7 @@ static void regclass_graph_PostProcessSteps(py::module m) {
     py::class_<ov::preprocess::PostProcessSteps, Common::ref_wrapper<ov::preprocess::PostProcessSteps>> steps(
         m,
         "PostProcessSteps");
-    steps.doc() = "openvino.impl.preprocess.PostprocessSteps wraps ov::preprocess::PostProcessSteps";
+    steps.doc() = "openvino.runtime.preprocess.PostprocessSteps wraps ov::preprocess::PostProcessSteps";
 
     steps.def(
         "convert_element_type",
@@ -227,7 +227,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
     py::class_<ov::preprocess::InputTensorInfo, Common::ref_wrapper<ov::preprocess::InputTensorInfo>> info(
         m,
         "InputTensorInfo");
-    info.doc() = "openvino.impl.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo";
+    info.doc() = "openvino.runtime.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo";
 
     info.def(
         "set_element_type",
@@ -275,7 +275,7 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
     py::class_<ov::preprocess::OutputTensorInfo, Common::ref_wrapper<ov::preprocess::OutputTensorInfo>> info(
         m,
         "OutputTensorInfo");
-    info.doc() = "openvino.impl.preprocess.OutputTensorInfo wraps ov::preprocess::OutputTensorInfo";
+    info.doc() = "openvino.runtime.preprocess.OutputTensorInfo wraps ov::preprocess::OutputTensorInfo";
 
     info.def(
         "set_element_type",
@@ -302,7 +302,7 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
 
 static void regclass_graph_InputInfo(py::module m) {
     py::class_<ov::preprocess::InputInfo, Common::ref_wrapper<ov::preprocess::InputInfo>> inp(m, "InputInfo");
-    inp.doc() = "openvino.impl.preprocess.InputInfo wraps ov::preprocess::InputInfo";
+    inp.doc() = "openvino.runtime.preprocess.InputInfo wraps ov::preprocess::InputInfo";
 
     inp.def("tensor", [](ov::preprocess::InputInfo& me) {
         return &me.tensor();
@@ -317,7 +317,7 @@ static void regclass_graph_InputInfo(py::module m) {
 
 static void regclass_graph_OutputInfo(py::module m) {
     py::class_<ov::preprocess::OutputInfo, Common::ref_wrapper<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
-    out.doc() = "openvino.impl.preprocess.OutputInfo wraps ov::preprocess::OutputInfo";
+    out.doc() = "openvino.runtime.preprocess.OutputInfo wraps ov::preprocess::OutputInfo";
 
     out.def("tensor", [](ov::preprocess::OutputInfo& me) {
         return &me.tensor();
@@ -334,7 +334,7 @@ static void regclass_graph_OutputModelInfo(py::module m) {
     py::class_<ov::preprocess::OutputModelInfo, Common::ref_wrapper<ov::preprocess::OutputModelInfo>> info(
         m,
         "OutputModelInfo");
-    info.doc() = "openvino.impl.preprocess.OutputModelInfo wraps ov::preprocess::OutputModelInfo";
+    info.doc() = "openvino.runtime.preprocess.OutputModelInfo wraps ov::preprocess::OutputModelInfo";
 
     info.def("set_layout", [](ov::preprocess::OutputModelInfo& me, const ov::Layout& layout) {
         return &me.set_layout(layout);
@@ -345,7 +345,7 @@ static void regclass_graph_InputModelInfo(py::module m) {
     py::class_<ov::preprocess::InputModelInfo, Common::ref_wrapper<ov::preprocess::InputModelInfo>> info(
         m,
         "InputModelInfo");
-    info.doc() = "openvino.impl.preprocess.InputModelInfo wraps ov::preprocess::InputModelInfo";
+    info.doc() = "openvino.runtime.preprocess.InputModelInfo wraps ov::preprocess::InputModelInfo";
 
     info.def("set_layout", [](ov::preprocess::InputModelInfo& me, const ov::Layout& layout) {
         return &me.set_layout(layout);
@@ -388,9 +388,9 @@ void regclass_graph_PrePostProcessor(py::module m) {
     py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
         m,
         "PrePostProcessor");
-    proc.doc() = "openvino.impl.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
+    proc.doc() = "openvino.runtime.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
-    proc.def(py::init<const std::shared_ptr<ov::Function>&>());
+    proc.def(py::init<const std::shared_ptr<ov::Model>&>());
 
     proc.def("input", [](ov::preprocess::PrePostProcessor& me) {
         return &me.input();

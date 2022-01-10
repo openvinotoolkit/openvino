@@ -24,6 +24,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
                            const std::vector<ngraph::Input<ngraph::Node>>& consumers);
 bool fuse_type_to_shapeof(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_shapeof_v0(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
@@ -39,6 +40,8 @@ bool fuse_type_to_bucketize(const std::shared_ptr<ngraph::Node>& node, ngraph::e
 bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node>& node,
                                              ngraph::element::Type to,
                                              size_t idx);
+
+bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx);
 
 bool extend_select_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 
@@ -247,7 +250,7 @@ precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
 
-bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     type_to_fuse_map type_to_fuse{
         {opset4::Parameter::get_type_info_static(), fuse_type_to_parameter},
         {opset4::Convert::get_type_info_static(), fuse_type_to_convert},
@@ -275,7 +278,8 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset4::ReduceLogicalAnd::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
         {opset4::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
         {opset1::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},
-        {opset4::Range::get_type_info_static(), fuse_type_to_range_v4}};
+        {opset4::Range::get_type_info_static(), fuse_type_to_range_v4},
+        {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
 
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
 
@@ -305,6 +309,16 @@ bool fuse_type_to_shapeof(const std::shared_ptr<ngraph::Node>& node, element::Ty
     if (auto shapeof = ov::as_type_ptr<opset4::ShapeOf>(node)) {
         if (to == element::i32 || to == element::i64) {
             shapeof->set_output_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
+    if (auto random_uniform = ov::as_type_ptr<opset8::RandomUniform>(node)) {
+        if (to.is_integral_number() || to.is_real()) {
+            random_uniform->set_out_type(to);
             return true;
         }
     }

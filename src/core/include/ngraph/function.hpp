@@ -12,8 +12,8 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ngraph {
-using ov::Function;
+using Function = ov::Model;
 }  // namespace ngraph

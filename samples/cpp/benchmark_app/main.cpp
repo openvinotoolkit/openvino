@@ -4,38 +4,33 @@
 
 #include <algorithm>
 #include <chrono>
-#include <gna/gna_config.hpp>
-#include <gpu/gpu_config.hpp>
-#include <inference_engine.hpp>
 #include <map>
 #include <memory>
-#include <samples/args_helper.hpp>
-#include <samples/common.hpp>
-#include <samples/slog.hpp>
 #include <string>
 #include <utility>
 #include <vector>
-#include <vpu/vpu_plugin_config.hpp>
+
+// clang-format off
+#include "openvino/pass/serialize.hpp"
+
+#include "gna/gna_config.hpp"
+#include "gpu/gpu_config.hpp"
+#include "vpu/vpu_plugin_config.hpp"
+
+#include "samples/args_helper.hpp"
+#include "samples/common.hpp"
+#include "samples/slog.hpp"
 
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
 #include "inputs_filling.hpp"
 #include "progress_bar.hpp"
-#include "remote_blobs_filling.hpp"
+#include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
-
-using namespace InferenceEngine;
+// clang-format on
 
 static const size_t progressBarDefaultTotalCount = 1000;
-
-uint64_t getDurationInMilliseconds(uint32_t duration) {
-    return duration * 1000LL;
-}
-
-uint64_t getDurationInNanoseconds(uint32_t duration) {
-    return duration * 1000000000LL;
-}
 
 bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
@@ -99,7 +94,7 @@ static void next_step(const std::string additional_info = "") {
         {6, "Configuring input of the model"},
         {7, "Loading the model to the device"},
         {8, "Setting optimal runtime parameters"},
-        {9, "Creating infer requests and filling input blobs with images"},
+        {9, "Creating infer requests and preparing input blobs with data"},
         {10, "Measuring performance"},
         {11, "Dumping statistics report"}};
 
@@ -111,20 +106,13 @@ static void next_step(const std::string additional_info = "") {
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
 }
 
-template <typename T>
-T getMedianValue(const std::vector<T>& vec, std::size_t percentile) {
-    std::vector<T> sortedVec(vec);
-    std::sort(sortedVec.begin(), sortedVec.end());
-    return sortedVec[(sortedVec.size() / 100) * percentile];
-}
-
 /**
  * @brief The entry point of the benchmark application
  */
 int main(int argc, char* argv[]) {
     std::shared_ptr<StatisticsReport> statistics;
     try {
-        ExecutableNetwork exeNetwork;
+        ov::runtime::CompiledModel compiledModel;
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
@@ -175,20 +163,20 @@ int main(int argc, char* argv[]) {
             load_config(FLAGS_load_config, config);
         }
 #endif
-        /** This vector stores paths to the processed images **/
-        std::vector<std::string> inputFiles;
-        parseInputFilesArguments(inputFiles);
+        /** This vector stores paths to the processed images with input names**/
+        auto inputFiles = parseInputArguments(gflags::GetArgvs());
 
         // ----------------- 2. Loading the Inference Engine
         // -----------------------------------------------------------
         next_step();
 
-        Core ie;
+        ov::runtime::Core core;
+
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
             // pointer to base extension
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
-            ie.AddExtension(extension_ptr);
+            core.add_extension(extension_ptr);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
 
@@ -201,13 +189,13 @@ int main(int argc, char* argv[]) {
         }
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
             auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE));
-            ie.SetConfig({{CONFIG_KEY(CONFIG_FILE), ext}}, "GPU");
+            core.set_config({{CONFIG_KEY(CONFIG_FILE), ext}}, "GPU");
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
-        slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
+        slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
         slog::info << "Device info: " << slog::endl;
-        slog::info << ie.GetVersions(device_name) << slog::endl;
+        slog::info << core.get_versions(device_name) << slog::endl;
 
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
@@ -279,7 +267,7 @@ int main(int argc, char* argv[]) {
                 if (device_nstreams.count(device)) {
                     // set to user defined value
                     std::vector<std::string> supported_config_keys =
-                        ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                        core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                     if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) ==
                         supported_config_keys.end()) {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "'! " +
@@ -352,7 +340,7 @@ int main(int argc, char* argv[]) {
                     device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
             } else {
                 std::vector<std::string> supported_config_keys =
-                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 auto supported = [&](const std::string& key) {
                     return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) !=
                            std::end(supported_config_keys);
@@ -370,28 +358,21 @@ int main(int argc, char* argv[]) {
         }
 
         for (auto&& item : config) {
-            ie.SetConfig(item.second, item.first);
+            core.set_config(item.second, item.first);
         }
 
-        auto double_to_string = [](const double number) {
-            std::stringstream ss;
-            ss << std::fixed << std::setprecision(2) << number;
-            return ss.str();
-        };
-        auto get_total_ms_time = [](Time::time_point& startTime) {
-            return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
-        };
-
         size_t batchSize = FLAGS_b;
-        Precision precision = Precision::UNSPECIFIED;
+        ov::element::Type type = ov::element::undefined;
         std::string topology_name = "";
-        benchmark_app::InputsInfo app_inputs_info;
+        std::vector<benchmark_app::InputsInfo> app_inputs_info;
         std::string output_name;
 
         // Takes priority over config from file
         if (!FLAGS_cache_dir.empty()) {
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
+            core.set_config({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
         }
+
+        bool isDynamicNetwork = false;
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             next_step();
@@ -401,21 +382,24 @@ int main(int argc, char* argv[]) {
             next_step();
             slog::info << "Skipping the step for loading network from file" << slog::endl;
             auto startTime = Time::now();
-            exeNetwork = ie.LoadNetwork(FLAGS_m, device_name);
-            auto duration_ms = double_to_string(get_total_ms_time(startTime));
+            compiledModel = core.compile_model(FLAGS_m, device_name);
+            auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
-            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
-                                                             FLAGS_layout,
-                                                             FLAGS_b,
-                                                             FLAGS_iscale,
-                                                             FLAGS_imean,
-                                                             exeNetwork.GetInputsInfo());
+            app_inputs_info = getInputsInfo(FLAGS_shape,
+                                            FLAGS_layout,
+                                            batchSize,
+                                            FLAGS_data_shape,
+                                            inputFiles,
+                                            FLAGS_iscale,
+                                            FLAGS_imean,
+                                            compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
             }
+
         } else if (!isNetworkCompiled) {
             // ----------------- 4. Reading the Intermediate Representation network
             // ----------------------------------------
@@ -424,14 +408,14 @@ int main(int argc, char* argv[]) {
             slog::info << "Loading network files" << slog::endl;
 
             auto startTime = Time::now();
-            CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
-            auto duration_ms = double_to_string(get_total_ms_time(startTime));
+            auto model = core.read_model(FLAGS_m);
+            auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"read network time (ms)", duration_ms}});
 
-            const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
+            const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
             if (inputInfo.empty()) {
                 throw std::logic_error("no inputs info is provided");
             }
@@ -439,59 +423,84 @@ int main(int argc, char* argv[]) {
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
             next_step();
-            batchSize = cnnNetwork.getBatchSize();
             // Parse input shapes if specified
             bool reshape = false;
-            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
-                                                            FLAGS_layout,
-                                                            FLAGS_b,
-                                                            FLAGS_iscale,
-                                                            FLAGS_imean,
-                                                            inputInfo,
-                                                            reshape);
+            app_inputs_info = getInputsInfo(FLAGS_shape,
+                                            FLAGS_layout,
+                                            FLAGS_b,
+                                            FLAGS_data_shape,
+                                            inputFiles,
+                                            FLAGS_iscale,
+                                            FLAGS_imean,
+                                            inputInfo,
+                                            reshape);
             if (reshape) {
-                InferenceEngine::ICNNNetwork::InputShapes shapes = {};
-                for (auto& item : app_inputs_info)
-                    shapes[item.first] = item.second.shape;
+                benchmark_app::PartialShapes shapes = {};
+                for (auto& item : app_inputs_info[0])
+                    shapes[item.first] = item.second.partialShape;
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
-                cnnNetwork.reshape(shapes);
-                duration_ms = double_to_string(get_total_ms_time(startTime));
+                model->reshape(shapes);
+                duration_ms = double_to_string(get_duration_ms_till_now(startTime));
                 slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
                 if (statistics)
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {{"reshape network time (ms)", duration_ms}});
             }
-            // use batch size according to provided layout and shapes
-            batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
-
-            topology_name = cnnNetwork.getName();
-            slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
-                       << slog::endl;
 
             // ----------------- 6. Configuring inputs and outputs
             // ----------------------------------------------------------------------
             next_step();
+            auto preproc = ov::preprocess::PrePostProcessor(model);
 
-            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
-            for (auto& item : cnnNetwork.getInputsInfo()) {
+            processPrecision(*model, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            for (auto& item : model->inputs()) {
                 // if precision for input set by user, then set it to app_inputs
-                // if it an image, set U8
-                if (!FLAGS_ip.empty() || FLAGS_iop.find(item.first) != std::string::npos) {
-                    app_inputs_info.at(item.first).precision = item.second->getPrecision();
-                } else if (app_inputs_info.at(item.first).isImage()) {
-                    app_inputs_info.at(item.first).precision = Precision::U8;
-                    item.second->setPrecision(app_inputs_info.at(item.first).precision);
+                const auto& name = item.get_any_name();
+                if (!FLAGS_ip.empty() || FLAGS_iop.find(name) != std::string::npos) {
+                    for (auto& info : app_inputs_info) {
+                        info.at(name).type = item.get_element_type();
+                    }
+                } else if (app_inputs_info[0].at(name).isImage()) {
+                    // image input, set U8
+                    for (auto& info : app_inputs_info) {
+                        info.at(name).type = ov::element::u8;
+                    }
                 }
+                auto& in = preproc.input(name);
+                in.tensor().set_element_type(app_inputs_info[0].at(name).type);
+
+                // Explicitly set inputs layout.
+                in.model().set_layout(app_inputs_info[0].at(name).layout);
             }
 
-            printInputAndOutputsInfo(cnnNetwork);
+            model = preproc.build();
+
+            // Check if network has dynamic shapes
+            auto input_info = app_inputs_info[0];
+            isDynamicNetwork = std::any_of(input_info.begin(),
+                                           input_info.end(),
+                                           [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
+                                               return i.second.partialShape.is_dynamic();
+                                           });
+
+            topology_name = model->get_friendly_name();
+            // use batch size according to provided layout and shapes (static case)
+            if (!isDynamicNetwork) {
+                batchSize = getModelInputBatchSize(*model);
+
+                slog::info << "Network batch size: " << batchSize << slog::endl;
+            } else if (batchSize == 0) {
+                batchSize = 1;
+            }
+
+            printInputAndOutputsInfoShort(*model);
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
             startTime = Time::now();
-            exeNetwork = ie.LoadNetwork(cnnNetwork, device_name);
-            duration_ms = double_to_string(get_total_ms_time(startTime));
+            compiledModel = core.compile_model(model, device_name);
+            duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -507,22 +516,42 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             auto startTime = Time::now();
-            exeNetwork = ie.ImportNetwork(FLAGS_m, device_name, {});
-            auto duration_ms = double_to_string(get_total_ms_time(startTime));
+            compiledModel = core.compile_model(FLAGS_m, device_name, {});
+            auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"import network time (ms)", duration_ms}});
-            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
-                                                             FLAGS_layout,
-                                                             FLAGS_b,
-                                                             FLAGS_iscale,
-                                                             FLAGS_imean,
-                                                             exeNetwork.GetInputsInfo());
+
+            app_inputs_info = getInputsInfo(FLAGS_shape,
+                                            FLAGS_layout,
+                                            FLAGS_b,
+                                            FLAGS_data_shape,
+                                            inputFiles,
+                                            FLAGS_iscale,
+                                            FLAGS_imean,
+                                            compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
             }
         }
+
+        if (isDynamicNetwork && FLAGS_api == "sync") {
+            throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only."
+                                   "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
+        }
+
+        // Defining of benchmark mode
+        // for static models inference only mode is used as default one
+        bool inferenceOnly = FLAGS_inference_only;
+        if (isDynamicNetwork) {
+            if (isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() != 1) {
+                throw std::logic_error(
+                    "Dynamic models with different input data shapes must be benchmarked only in full mode.");
+            }
+            inferenceOnly = isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() == 1;
+        }
+
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
@@ -530,11 +559,11 @@ int main(int argc, char* argv[]) {
         if (!ov_perf_hint.empty()) {
             for (const auto& device : devices) {
                 std::vector<std::string> supported_config_keys =
-                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 slog::info << "Device: " << device << slog::endl;
                 for (const auto& cfg : supported_config_keys) {
                     try {
-                        slog::info << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
+                        slog::info << "  {" << cfg << " , " << compiledModel.get_config(cfg).as<std::string>();
                     } catch (...) {
                     };
                     slog::info << " }" << slog::endl;
@@ -545,7 +574,7 @@ int main(int argc, char* argv[]) {
         // Update number of streams
         for (auto&& ds : device_nstreams) {
             const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
-            device_nstreams[ds.first] = ie.GetConfig(ds.first, key).as<std::string>();
+            device_nstreams[ds.first] = core.get_config(ds.first, key).as<std::string>();
         }
 
         // Number of requests
@@ -556,11 +585,10 @@ int main(int argc, char* argv[]) {
             } else {
                 std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
                 try {
-                    nireq = exeNetwork.GetMetric(key).as<unsigned int>();
+                    nireq = compiledModel.get_metric(key).as<unsigned int>();
                 } catch (const std::exception& ex) {
                     IE_THROW() << "Every device used with the benchmark_app should "
-                               << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS "
-                                  "ExecutableNetwork metric. "
+                               << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS metric. "
                                << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
                 }
             }
@@ -568,11 +596,21 @@ int main(int argc, char* argv[]) {
 
         // Iteration limit
         uint32_t niter = FLAGS_niter;
+        size_t shape_groups_num = app_inputs_info.size();
         if ((niter > 0) && (FLAGS_api == "async")) {
-            niter = ((niter + nireq - 1) / nireq) * nireq;
-            if (FLAGS_niter != niter) {
-                slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
-                           << niter << " using number of requests " << nireq << slog::endl;
+            if (shape_groups_num > nireq) {
+                niter = ((niter + shape_groups_num - 1) / shape_groups_num) * shape_groups_num;
+                if (FLAGS_niter != niter) {
+                    slog::warn << "Number of iterations was aligned by data shape groups number from " << FLAGS_niter
+                               << " to " << niter << " using number of possible input shapes " << shape_groups_num
+                               << slog::endl;
+                }
+            } else {
+                niter = ((niter + nireq - 1) / nireq) * nireq;
+                if (FLAGS_niter != niter) {
+                    slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
+                               << niter << " using number of requests " << nireq << slog::endl;
+                }
             }
         }
 
@@ -591,10 +629,11 @@ int main(int argc, char* argv[]) {
             statistics->addParameters(
                 StatisticsReport::Category::RUNTIME_CONFIG,
                 {
+                    {"benchmark mode", inferenceOnly ? "inference only" : "full"},
                     {"topology", topology_name},
                     {"target device", device_name},
                     {"API", FLAGS_api},
-                    {"precision", std::string(precision.name())},
+                    {"precision", std::string(type.get_type_name())},
                     {"batch size", std::to_string(batchSize)},
                     {"number of iterations", std::to_string(niter)},
                     {"number of parallel infer requests", std::to_string(nireq)},
@@ -614,18 +653,46 @@ int main(int argc, char* argv[]) {
         // ----------------------------------------
         next_step();
 
-        InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
-        if (isFlagSetInCommandLine("use_device_mem")) {
-            if (device_name.find("GPU") == 0)
-                ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests, exeNetwork);
-            else if (device_name.find("CPU") == 0)
-                fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
-            else
-                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
-        } else {
-            fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
-        }
+        InferRequestsQueue inferRequestsQueue(compiledModel, nireq, app_inputs_info.size(), FLAGS_pcseq);
 
+        bool inputHasName = false;
+        if (inputFiles.size() > 0) {
+            inputHasName = inputFiles.begin()->first != "";
+        }
+        bool newInputType = isDynamicNetwork || inputHasName;
+        // create vector to store remote input blobs buffer
+        std::vector<::gpu::BufferType> clInputsBuffer;
+        bool useGpuMem = false;
+
+        std::map<std::string, ov::runtime::TensorVector> inputsData;
+        if (isFlagSetInCommandLine("use_device_mem")) {
+            if (device_name.find("GPU") == 0) {
+                inputsData = ::gpu::getRemoteInputTensors(inputFiles, app_inputs_info, compiledModel, clInputsBuffer);
+                useGpuMem = true;
+            } else if (device_name.find("CPU") == 0) {
+                if (newInputType) {
+                    inputsData = getTensors(inputFiles, app_inputs_info);
+                } else {
+                    inputsData = getTensorsStaticCase(
+                        inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                        batchSize,
+                        app_inputs_info[0],
+                        nireq);
+                }
+            } else {
+                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+            }
+        } else {
+            if (newInputType) {
+                inputsData = getTensors(inputFiles, app_inputs_info);
+            } else {
+                inputsData =
+                    getTensorsStaticCase(inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                                         batchSize,
+                                         app_inputs_info[0],
+                                         nireq);
+            }
+        }
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
         size_t progressCnt = 0;
@@ -663,26 +730,92 @@ int main(int argc, char* argv[]) {
             }
             ss << niter << " iterations";
         }
+
         next_step(ss.str());
+
+        if (inferenceOnly) {
+            slog::info << "BENCHMARK IS IN INFERENCE ONLY MODE." << slog::endl;
+            slog::info << "Input blobs will be filled once before performance measurements." << slog::endl;
+        } else {
+            slog::info << "BENCHMARK IS IN FULL MODE." << slog::endl;
+            slog::info << "Inputs setup stage will be included in performance measurements." << slog::endl;
+        }
+
+        // copy prepared data straight into inferRequest->getTensor()
+        // for inference only mode
+        if (inferenceOnly) {
+            if (nireq < inputsData.begin()->second.size())
+                slog::warn << "Only " << nireq << " test configs will be used." << slog::endl;
+            size_t i = 0;
+            for (auto& inferRequest : inferRequestsQueue.requests) {
+                auto inputs = app_inputs_info[i % app_inputs_info.size()];
+                for (auto& item : inputs) {
+                    auto inputName = item.first;
+                    const auto& inputTensor = inputsData.at(inputName)[i % inputsData.at(inputName).size()];
+                    // for remote blobs setTensor is used, they are already allocated on the device
+                    if (useGpuMem) {
+                        inferRequest->setTensor(inputName, inputTensor);
+                    } else {
+                        auto requestTensor = inferRequest->getTensor(inputName);
+                        if (isDynamicNetwork) {
+                            requestTensor.set_shape(inputTensor.get_shape());
+                        }
+                        copyTensorData(requestTensor, inputTensor);
+                    }
+                }
+
+                if (useGpuMem) {
+                    auto outputTensors =
+                        ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
+                    for (auto& output : compiledModel.outputs()) {
+                        inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                    }
+                }
+                ++i;
+            }
+        }
 
         // warming up - out of scope
         auto inferRequest = inferRequestsQueue.getIdleRequest();
         if (!inferRequest) {
             IE_THROW() << "No idle Infer Requests!";
         }
+
+        if (!inferenceOnly) {
+            auto inputs = app_inputs_info[0];
+
+            for (auto& item : inputs) {
+                auto inputName = item.first;
+                const auto& data = inputsData.at(inputName)[0];
+                inferRequest->setTensor(inputName, data);
+            }
+
+            if (useGpuMem) {
+                auto outputTensors = ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
+                for (auto& output : compiledModel.outputs()) {
+                    inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                }
+            }
+        }
+
         if (FLAGS_api == "sync") {
             inferRequest->infer();
         } else {
             inferRequest->startAsync();
         }
+
         inferRequestsQueue.waitAll();
+
         auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
-        if (statistics)
+
+        if (statistics) {
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                       {{"first inference time (ms)", duration_ms}});
+        }
         inferRequestsQueue.resetTimes();
 
+        size_t processedFramesN = 0;
         auto startTime = Time::now();
         auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
 
@@ -690,13 +823,48 @@ int main(int argc, char* argv[]) {
         /** to align number if iterations to guarantee that last infer requests are
          * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
-
         while ((niter != 0LL && iteration < niter) ||
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
                (FLAGS_api == "async" && iteration % nireq != 0)) {
             inferRequest = inferRequestsQueue.getIdleRequest();
             if (!inferRequest) {
                 IE_THROW() << "No idle Infer Requests!";
+            }
+
+            if (!inferenceOnly) {
+                auto inputs = app_inputs_info[iteration % app_inputs_info.size()];
+
+                if (FLAGS_pcseq) {
+                    inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
+                }
+
+                if (isDynamicNetwork) {
+                    batchSize = getBatchSize(inputs);
+                    if (!std::any_of(inputs.begin(),
+                                     inputs.end(),
+                                     [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
+                                         return ov::layout::has_batch(info.second.layout);
+                                     })) {
+                        slog::warn
+                            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect "
+                               "FPS calculation."
+                            << slog::endl;
+                    }
+                }
+
+                for (auto& item : inputs) {
+                    auto inputName = item.first;
+                    const auto& data = inputsData.at(inputName)[iteration % inputsData.at(inputName).size()];
+                    inferRequest->setTensor(inputName, data);
+                }
+
+                if (useGpuMem) {
+                    auto outputTensors =
+                        ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
+                    for (auto& output : compiledModel.outputs()) {
+                        inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                    }
+                }
             }
 
             if (FLAGS_api == "sync") {
@@ -711,9 +879,10 @@ int main(int argc, char* argv[]) {
                 inferRequest->wait();
                 inferRequest->startAsync();
             }
-            iteration++;
+            ++iteration;
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
+            processedFramesN += batchSize;
 
             if (niter > 0) {
                 progressBar.addProgress(1);
@@ -732,10 +901,17 @@ int main(int argc, char* argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.waitAll();
 
-        double latency = getMedianValue<double>(inferRequestsQueue.getLatencies(), FLAGS_latency_percentile);
+        LatencyMetrics generalLatency(inferRequestsQueue.getLatencies());
+        std::vector<LatencyMetrics> groupLatencies = {};
+        if (FLAGS_pcseq && app_inputs_info.size() > 1) {
+            for (auto lats : inferRequestsQueue.getLatencyGroups()) {
+                groupLatencies.push_back(LatencyMetrics(lats));
+            }
+        }
+
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
-        double fps =
-            (FLAGS_api == "sync") ? batchSize * 1000.0 / latency : batchSize * 1000.0 * iteration / totalDuration;
+        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / generalLatency.percentile(FLAGS_latency_percentile)
+                                           : 1000.0 * processedFramesN / totalDuration;
 
         if (statistics) {
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -746,19 +922,67 @@ int main(int argc, char* argv[]) {
             if (device_name.find("MULTI") == std::string::npos) {
                 std::string latency_label;
                 if (FLAGS_latency_percentile == 50) {
-                    latency_label = "latency (ms)";
+                    latency_label = "Median latency (ms)";
                 } else {
                     latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
                 }
+                statistics->addParameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {
+                        {latency_label, double_to_string(generalLatency.percentile(FLAGS_latency_percentile))},
+                    });
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
-                                              {latency_label, double_to_string(latency)},
+                                              {"Average latency (ms)", double_to_string(generalLatency.average())},
                                           });
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {
+                                              {"Min latency (ms)", double_to_string(generalLatency.min())},
+                                          });
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {
+                                              {"Max latency (ms)", double_to_string(generalLatency.max())},
+                                          });
+
+                if (FLAGS_pcseq && app_inputs_info.size() > 1) {
+                    statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                              {
+                                                  {"Latency for each data shape group:", ""},
+                                              });
+                    for (size_t i = 0; i < app_inputs_info.size(); ++i) {
+                        std::string data_shapes_string = "";
+                        data_shapes_string += std::to_string(i + 1) + ". ";
+                        for (auto& item : app_inputs_info[i]) {
+                            data_shapes_string += item.first + " : " + getShapeString(item.second.dataShape) + " ";
+                        }
+                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                  {
+                                                      {data_shapes_string, ""},
+                                                  });
+                        statistics->addParameters(
+                            StatisticsReport::Category::EXECUTION_RESULTS,
+                            {
+                                {latency_label,
+                                 double_to_string(groupLatencies[i].percentile(FLAGS_latency_percentile))},
+                            });
+                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                  {
+                                                      {"Average (ms)", double_to_string(groupLatencies[i].average())},
+                                                  });
+                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                  {
+                                                      {"Min (ms)", double_to_string(groupLatencies[i].min())},
+                                                  });
+                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                  {
+                                                      {"Max (ms)", double_to_string(groupLatencies[i].max())},
+                                                  });
+                    }
+                }
             }
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                       {{"throughput", double_to_string(fps)}});
         }
-
         progressBar.finish();
 
         // ----------------- 11. Dumping statistics report
@@ -774,8 +998,9 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
-                CNNNetwork execGraphInfo = exeNetwork.GetExecGraphInfo();
-                execGraphInfo.serialize(FLAGS_exec_graph_path);
+                std::string fileName = fileNameNoExt(FLAGS_exec_graph_path);
+                ov::pass::Serialize serializer(fileName + ".xml", fileName + ".bin");
+                serializer.run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
                 slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
@@ -783,12 +1008,12 @@ int main(int argc, char* argv[]) {
         }
 
         if (perf_counts) {
-            std::vector<std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfCounts;
+            std::vector<std::vector<ov::runtime::ProfilingInfo>> perfCounts;
             for (size_t ireq = 0; ireq < nireq; ireq++) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->getPerformanceCounts();
                 if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
-                    printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(ie, FLAGS_d), false);
+                    printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
                 }
                 perfCounts.push_back(reqPerfCounts);
             }
@@ -800,18 +1025,32 @@ int main(int argc, char* argv[]) {
         if (statistics)
             statistics->dump();
 
-        std::cout << "Count:      " << iteration << " iterations" << std::endl;
-        std::cout << "Duration:   " << double_to_string(totalDuration) << " ms" << std::endl;
+        // Performance metrics report
+        slog::info << "Count:      " << iteration << " iterations" << slog::endl;
+        slog::info << "Duration:   " << double_to_string(totalDuration) << " ms" << slog::endl;
         if (device_name.find("MULTI") == std::string::npos) {
-            std::cout << "Latency";
-            if (FLAGS_latency_percentile == 50) {
-                std::cout << ":    ";
-            } else {
-                std::cout << " (" << FLAGS_latency_percentile << " percentile):    ";
+            slog::info << "Latency: " << slog::endl;
+            generalLatency.logTotal(FLAGS_latency_percentile);
+
+            if (FLAGS_pcseq && app_inputs_info.size() > 1) {
+                slog::info << "Latency for each data shape group:" << slog::endl;
+                for (size_t i = 0; i < app_inputs_info.size(); ++i) {
+                    slog::info << (i + 1) << ".";
+                    for (auto& item : app_inputs_info[i]) {
+                        std::stringstream input_shape;
+                        auto shape = item.second.dataShape;
+                        std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<size_t>(input_shape, ","));
+                        input_shape << shape.back();
+                        slog::info << " " << item.first << " : " << getShapeString(item.second.dataShape);
+                    }
+                    slog::info << slog::endl;
+
+                    groupLatencies[i].logTotal(FLAGS_latency_percentile);
+                }
             }
-            std::cout << double_to_string(latency) << " ms" << std::endl;
         }
-        std::cout << "Throughput: " << double_to_string(fps) << " FPS" << std::endl;
+        slog::info << "Throughput: " << double_to_string(fps) << " FPS" << slog::endl;
+
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
 

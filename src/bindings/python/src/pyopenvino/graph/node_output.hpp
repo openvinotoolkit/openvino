@@ -11,11 +11,15 @@
 
 namespace py = pybind11;
 
+using PyRTMap = ov::Node::RTMap;
+
+PYBIND11_MAKE_OPAQUE(PyRTMap);
+
 template <typename VT>
 void regclass_graph_Output(py::module m, std::string typestring)
 {
     auto pyclass_name = py::detail::c_str((typestring + std::string("Output")));
-    auto docs = py::detail::c_str((std::string("openvino.impl.") + typestring + std::string("Output wraps ov::Output<") + typestring + std::string(" ov::Node >")));
+    auto docs = py::detail::c_str((std::string("openvino.runtime.") + typestring + std::string("Output wraps ov::Output<") + typestring + std::string(" ov::Node >")));
     py::class_<ov::Output<VT>, std::shared_ptr<ov::Output<VT>>> output(m,
                                                                        pyclass_name,
                                                                        py::dynamic_attr());
@@ -115,6 +119,18 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 get_tensor : descriptor.Tensor
                     Tensor of the output.
                )");
+    output.def("get_rt_info",
+             (ov::RTMap & (ov::Output<VT>::*)()) &  ov::Output<VT>::get_rt_info,
+             py::return_value_policy::reference_internal,
+             R"(
+                Returns RTMap which is a dictionary of user defined runtime info.
+
+                Returns
+                ----------
+                get_rt_info : RTMap
+                    A dictionary of user defined data.
+             )");
+
 
     output.def_property_readonly("node", &ov::Output<VT>::get_node);
     output.def_property_readonly("index", &ov::Output<VT>::get_index);
@@ -125,4 +141,12 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def_property_readonly("partial_shape", &ov::Output<VT>::get_partial_shape);
     output.def_property_readonly("target_inputs", &ov::Output<VT>::get_target_inputs);
     output.def_property_readonly("tensor", &ov::Output<VT>::get_tensor);
+    output.def_property_readonly("rt_info",
+                                (ov::RTMap&(ov::Output<VT>::*)()) &
+                                ov::Output<VT>::get_rt_info,
+                                py::return_value_policy::reference_internal);
+    output.def_property_readonly("rt_info",
+                                (const ov::RTMap&(ov::Output<VT>::*)() const) &
+                                ov::Output<VT>::get_rt_info,
+                                py::return_value_policy::reference_internal);
 }

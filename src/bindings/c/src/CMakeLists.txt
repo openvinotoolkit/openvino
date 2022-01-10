@@ -12,7 +12,7 @@ file(GLOB HEADERS ${InferenceEngine_C_API_SOURCE_DIR}/include/*.h)
 add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
 add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+target_link_libraries(${TARGET_NAME} PRIVATE ov_runtime)
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${InferenceEngine_C_API_SOURCE_DIR}/include>)
@@ -33,8 +33,6 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
-
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
 
 # install
 

@@ -62,23 +62,8 @@ def prepare_executable_cmd(args: dict):
         str(args["executable"].resolve(strict=True)),
         "-m", str(args["model"].resolve(strict=True)),
         "-d", args["device"],
-        "-p", args["perf_hint"],
-        "-v" if args["vpu_compiler"] else "", args['vpu_compiler'] if args["vpu_compiler"] else "",
-        "-c" if args["cpu_cache"] else "",
+        "-c" if args["model_cache"] else "",
     ]
-
-
-def get_cache_stats(flatten_data):
-    """Update statistics for run with models cache"""
-    data_cache = {
-        "full_run_using_cache": flatten_data["full_run"],
-        "time_to_inference_using_cache": flatten_data["time_to_inference"],
-        "load_plugin": flatten_data["load_plugin"],
-        "load_network_using_cache": flatten_data["load_network"],
-        "first_inference": flatten_data["first_inference"],
-        "fill_inputs": flatten_data["fill_inputs"],
-    }
-    return data_cache
 
 
 def run_timetest(args: dict, log=None):
@@ -107,9 +92,6 @@ def run_timetest(args: dict, log=None):
         # Parse raw data
         flatten_data = {}
         parse_stats(raw_data[0], flatten_data)
-
-        if run_iter > 0 and args["cpu_cache"]:
-            flatten_data = get_cache_stats(flatten_data)
 
         log.debug(f"Statistics after run of executable #{run_iter}: {flatten_data}")
 
@@ -151,23 +133,11 @@ def cli_parser():
     parser.add_argument("-s",
                         dest="stats_path",
                         type=Path,
-                        help="path to a file to save aggregated statistics")
-    parser.add_argument("-p",
-                        dest="perf_hint",
-                        choices=["LATENCY", "THROUGHPUT"],
-                        default="LATENCY",
-                        type=str,
-                        help="Enables performance hint for specified device. Default hint is LATENCY")
-    exclusive_group = parser.add_mutually_exclusive_group(required=False)
-    exclusive_group.add_argument("-c",
-                                 dest="cpu_cache",
-                                 action="store_true",
-                                 help="Enable CPU model cache usage")
-    exclusive_group.add_argument("-v",
-                                 dest="vpu_compiler",
-                                 choices=["MCM", "MLIR"],
-                                 type=str,
-                                 help="Change VPUX compiler type")
+                        help="Path to a file to save aggregated statistics")
+    parser.add_argument("-c",
+                        dest="model_cache",
+                        action="store_true",
+                        help="Enable model cache usage")
 
     args = parser.parse_args()
 
@@ -179,12 +149,6 @@ if __name__ == "__main__":
 
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
-
-    assert not (args.cpu_cache and args.device != "CPU"), \
-        "The cache option is used only for the CPU device."
-
-    assert not (args.vpu_compiler and "VPUX" not in args.device), \
-        "The VPUX compiler option is used only for the VPUX device."
 
     exit_code, _, aggr_stats, _ = run_timetest(
         dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access

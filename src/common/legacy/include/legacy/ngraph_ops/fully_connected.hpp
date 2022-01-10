@@ -15,7 +15,7 @@ namespace ngraph {
 namespace op {
 
 /// \brief Operator performing Matrix Multiplication.
-class INFERENCE_ENGINE_API_CLASS(FullyConnected) : public Op {
+class FullyConnected : public Op {
 public:
     OPENVINO_OP("FullyConnected", "legacy");
     BWDCMP_RTTI_DECLARATION;

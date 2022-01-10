@@ -33,7 +33,7 @@ IE_SUPPRESS_DEPRECATED_START
  * @param source - source layer object
  * @return Shared pointer to new layer object
  */
-INFERENCE_ENGINE_API_CPP(CNNLayerPtr) clonelayer(const CNNLayer& source);
+CNNLayerPtr clonelayer(const CNNLayer& source);
 
 /**
  * @brief Clones selected set of nodes into separate network
@@ -44,7 +44,7 @@ INFERENCE_ENGINE_API_CPP(CNNLayerPtr) clonelayer(const CNNLayer& source);
  *
  * @return Cloned network
  */
-INFERENCE_ENGINE_API_CPP(InferenceEngine::details::CNNNetworkImplPtr)
+InferenceEngine::details::CNNNetworkImplPtr
 cloneNet(const std::vector<InferenceEngine::CNNLayerPtr>& layers);
 
 IE_SUPPRESS_DEPRECATED_END
@@ -55,7 +55,7 @@ IE_SUPPRESS_DEPRECATED_END
  * @param network A network to clone
  * @return A cloned object
  */
-INFERENCE_ENGINE_API_CPP(InferenceEngine::CNNNetwork)
+InferenceEngine::CNNNetwork
 cloneNetwork(const InferenceEngine::CNNNetwork& network);
 
 /**
@@ -64,7 +64,7 @@ cloneNetwork(const InferenceEngine::CNNNetwork& network);
  * @param network A network to clone
  * @return A cloned object
  */
-INFERENCE_ENGINE_API_CPP(InferenceEngine::details::CNNNetworkImplPtr)
+InferenceEngine::details::CNNNetworkImplPtr
 cloneNet(const InferenceEngine::CNNNetwork& network);
 
 using ordered_properties = std::vector<std::pair<std::string, std::string>>;
@@ -78,7 +78,7 @@ using printer_callback =
  * @param out - output stream for saving graph
  * @param layer_cb - callback function, that called on every printed layer node
  */
-INFERENCE_ENGINE_API_CPP(void)
+void
 saveGraphToDot(const InferenceEngine::CNNNetwork& network, std::ostream& out, printer_callback layer_cb = nullptr);
 
 }  // namespace InferenceEngine

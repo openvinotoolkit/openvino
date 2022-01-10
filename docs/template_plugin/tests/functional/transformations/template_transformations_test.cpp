@@ -31,7 +31,7 @@ TEST(TransformationTests, DISABLED_TemplateTest) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
 
         // This transformation init runtime info attributes
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+        ngraph::pass::InitNodeInfo().run_on_model(f);
 
         // Run transformation
         // ngraph::pass::MyTransformation().run_on_function(f);

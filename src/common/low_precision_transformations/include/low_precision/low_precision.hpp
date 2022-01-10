@@ -43,7 +43,7 @@ public:
     MarkupOptimizations(
         const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
         const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions);
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 private:
     const std::vector<OperationPrecisionRestriction>& precisionRestrictions;
     const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions;
@@ -62,7 +62,7 @@ public:
         const std::vector<OperationPrecisionRestriction>& precisionRestrictions = {},
         const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {},
         const LayerTransformation::Params = LayerTransformation::Params());
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
     static bool isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function);
     static bool isFQLevelsPresent(const std::shared_ptr<const ngraph::Function>& function, const std::set<size_t>& levels);

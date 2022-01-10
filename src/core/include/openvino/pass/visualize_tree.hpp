@@ -22,13 +22,13 @@ using visualize_tree_ops_map_t =
 
 namespace ov {
 namespace pass {
-class OPENVINO_API VisualizeTree : public FunctionPass {
+class OPENVINO_API VisualizeTree : public ModelPass {
 public:
     OPENVINO_RTTI("ov::pass::VisualizeTree");
 
     using node_modifiers_t = std::function<void(const Node& node, std::vector<std::string>& attributes)>;
     VisualizeTree(const std::string& file_name, node_modifiers_t nm = nullptr, bool dot_only = false);
-    bool run_on_function(std::shared_ptr<ov::Function>) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 
     void set_ops_to_details(const visualize_tree_ops_map_t& ops_map) {
         m_ops_to_details = ops_map;

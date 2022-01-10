@@ -8,12 +8,13 @@
  */
 #pragma once
 
-#include <format_reader.h>
-
 #include <memory>
 #include <string>
 
+// clang-format off
+#include "format_reader.h"
 #include "register.h"
+// clang-format on
 
 namespace FormatReader {
 /**

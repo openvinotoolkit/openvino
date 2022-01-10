@@ -40,7 +40,7 @@ ie::ParamMap RemoteTensor::get_params() const {
     try {
         ParamMap paramMap;
         for (auto&& param : remote_impl->getParams()) {
-            paramMap.emplace(param.first, Any{_so, param.second});
+            paramMap.emplace(param.first, Any{param.second, _so});
         }
         return paramMap;
     } catch (const std::exception& ex) {

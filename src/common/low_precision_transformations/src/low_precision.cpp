@@ -38,6 +38,7 @@
 
 // general transformations
 #include "low_precision/add.hpp"
+#include "low_precision/assign_and_read_value.hpp"
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/clamp.hpp"
 #include "low_precision/convolution.hpp"
@@ -166,7 +167,7 @@ MarkupOptimizations::MarkupOptimizations(
     precisionRestrictions(precisionRestrictions),
     quantizationRestrictions(quantizationRestrictions) {}
 
-bool ngraph::pass::low_precision::MarkupOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::MarkupOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     ngraph::pass::Manager markup(get_pass_config());
     markup.set_per_pass_validation(false);
     markup.register_pass<low_precision::MarkupCanBeQuantized>();
@@ -188,7 +189,7 @@ bool ngraph::pass::low_precision::MarkupOptimizations::run_on_function(std::shar
     return false;
 }
 
-bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
     auto passConfig = get_pass_config();
@@ -207,6 +208,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
 
     std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
     common->add_matcher<ngraph::pass::low_precision::AddTransformation>(params);
+    common->add_matcher<ngraph::pass::low_precision::AssignAndReadValueTransformation>(f, params);
     common->add_matcher<ngraph::pass::low_precision::AvgPoolTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ClampTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(params);
@@ -303,5 +305,5 @@ bool ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
 }
 
 void ngraph::pass::low_precision::LowPrecision::setDefaultPrecisions(const std::vector<element::Type>& precisions) {
-    ngraph::PrecisionsAttribute::defaultPrecisions = precisions;
+    LayerTransformation::setDefaultPrecisions(precisions);
 }

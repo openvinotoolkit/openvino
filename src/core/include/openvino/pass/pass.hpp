@@ -11,7 +11,7 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/enum_mask.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/pass/pass_config.hpp"
 
@@ -87,11 +87,17 @@ private:
     std::shared_ptr<PassConfig> m_pass_config;
 };
 
-class OPENVINO_API FunctionPass : public PassBase {
+class OPENVINO_API ModelPass : public PassBase {
 public:
-    OPENVINO_RTTI("ov::pass::FunctionPass");
-    ~FunctionPass() override;
-    virtual bool run_on_function(std::shared_ptr<ov::Function>) = 0;
+    OPENVINO_RTTI("ov::pass::ModelPass");
+    ~ModelPass() override;
+    OPENVINO_DEPRECATED("run_on_function() method is deprecated. Please use run_on_model() instead.")
+    virtual bool run_on_function(std::shared_ptr<ov::Model> m);
+    virtual bool run_on_model(const std::shared_ptr<ov::Model>& m);
+
+private:
+    bool call_on_function{false};
+    bool call_on_model{false};
 };
 
 class Manager;

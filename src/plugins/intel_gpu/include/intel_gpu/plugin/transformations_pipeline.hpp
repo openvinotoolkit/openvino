@@ -18,7 +18,7 @@ class TransformationsPipeline {
 public:
     explicit TransformationsPipeline(const Config &conf, const cldnn::device_info &device_info)
         : config(conf), device_info(device_info) {}
-    void apply(std::shared_ptr<ov::Function> func);
+    void apply(std::shared_ptr<ov::Model> func);
 
 private:
     Config config;

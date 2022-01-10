@@ -9,5 +9,3 @@
 namespace py = pybind11;
 
 void regclass_frontend_FrontEnd(py::module m);
-void regclass_frontend_Extension(py::module m);
-void regclass_frontend_TelemetryExtension(py::module m);

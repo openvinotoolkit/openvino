@@ -9,20 +9,12 @@
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
-
-class Layout;
-
-namespace layout {
-
-std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& src_shape_rank, const Layout& dst_layout);
-Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
-
-}  // namespace layout
 
 class OPENVINO_API Layout {
 public:
@@ -85,11 +77,7 @@ private:
     int64_t m_left_size = 0;
     int64_t m_right_size = 0;
 
-    friend Layout layout::apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
-
-    friend std::vector<int64_t> layout::find_permutation(const Layout& src_layout,
-                                                         const Rank& src_shape_rank,
-                                                         const Layout& dst_layout);
+    friend class LayoutUtils;
 };
 
 namespace layout {
@@ -141,6 +129,21 @@ OPENVINO_API bool has_width(const Layout& layout);
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
 OPENVINO_API std::int64_t width_idx(const Layout& layout);
+
+/// \brief Sets Layout of port
+///
+/// \throws ov::Exception if port is not connected with Result or Parameter
+OPENVINO_API void set_layout(ov::Output<ov::Node> output, const ov::Layout& layout);
+
+/// \brief Gets Layout of port
+///
+/// \return layout from port and empty layout in other case
+OPENVINO_API ov::Layout get_layout(const ov::Output<ov::Node>& output);
+
+/// \brief Gets Layout of port
+///
+/// \return layout from port and empty layout in other case
+OPENVINO_API ov::Layout get_layout(const ov::Output<const ov::Node>& output);
 
 }  // namespace layout
 

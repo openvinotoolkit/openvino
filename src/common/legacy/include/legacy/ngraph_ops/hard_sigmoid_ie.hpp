@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(HardSigmoid_IE) : public Op {
+class HardSigmoid_IE : public Op {
 public:
     OPENVINO_OP("HardSigmoid_IE", "legacy");
     BWDCMP_RTTI_DECLARATION;

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include "gna/gna_config.hpp"
 
 namespace GNAPluginNS {
 struct GNAFlags {
@@ -18,5 +19,6 @@ struct GNAFlags {
     bool sw_fp32 = false;
     bool performance_counting = false;
     bool input_low_precision = false;
+    std::string log_level = InferenceEngine::PluginConfigParams::LOG_NONE;
 };
 }  // namespace GNAPluginNS

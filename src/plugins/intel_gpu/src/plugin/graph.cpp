@@ -394,14 +394,12 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         info[ExecGraphInfoSerialization::PERF_COUNTER] = exec_time;
 
         for (auto&& kvp : info) {
-            auto variant = std::make_shared<::ngraph::VariantWrapper<std::string>>(kvp.second);
-            return_node->get_rt_info()[kvp.first] = variant;
+            return_node->get_rt_info()[kvp.first] = kvp.second;
             if (is_output)
-                results.back()->get_rt_info()[kvp.first] = variant;
+                results.back()->get_rt_info()[kvp.first] = kvp.second;
         }
         if (is_output)
-            results.back()->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE] =
-                std::make_shared<::ngraph::VariantWrapper<std::string>>("Result");
+            results.back()->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE] = "Result";
 
         nodes.push_back(return_node);
         node2layer[prim_info.original_id] = return_node;

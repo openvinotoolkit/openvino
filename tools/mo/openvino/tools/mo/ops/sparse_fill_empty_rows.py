@@ -4,6 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, is_fully_defined
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -50,7 +51,7 @@ class SparseFillEmptyRows(Op):
         assert shape.value is not None and shape.value.size == 2, \
             "SparseFillEmptyRows is supported only with constant shape value"
 
-        shape_value = np.array(shape.value, dtype=np.int64)
+        shape_value = int64_array(shape.value)
 
         # check that default value is scalar
         default_value = node.in_node(3)

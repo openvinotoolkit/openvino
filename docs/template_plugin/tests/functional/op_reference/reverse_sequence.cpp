@@ -42,11 +42,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ReverseSequenceParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ReverseSequenceParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.mDataTensor.type, params.mDataTensor.shape);
         const auto seqLengths = std::make_shared<op::v0::Parameter>(params.mSeqLengthsTensor.type, params.mSeqLengthsTensor.shape);
         const auto reverseSequence = std::make_shared<op::v0::ReverseSequence>(data, seqLengths, params.mBatchAxis, params.mSeqAxis);
-        return std::make_shared<ov::Function>(NodeVector {reverseSequence}, ParameterVector {data, seqLengths});
+        return std::make_shared<ov::Model>(NodeVector {reverseSequence}, ParameterVector {data, seqLengths});
     }
 };
 
