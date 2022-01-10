@@ -340,6 +340,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
         new_param->set_element_type(
             InferenceEngine::details::convertPrecision(inputsInfo.at(param_name)->getPrecision()));
         new_param->set_layout(param->get_layout());
+        new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
         new_param->validate_and_infer_types();
         const_params.emplace_back(new_param);
     }

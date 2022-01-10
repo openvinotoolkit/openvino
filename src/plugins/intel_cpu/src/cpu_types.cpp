@@ -103,6 +103,8 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "ReadValue", MemoryInput},  // for construction from name ctor, arbitrary name is used
         { "Assign", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
+        { "NV12toRGB", ColorConvert },
+        { "NV12toBGR", ColorConvert },
         { "MVN", MVN},
         { "NormalizeL2", NormalizeL2},
         { "ScatterUpdate", ScatterUpdate},
@@ -183,7 +185,9 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "MatrixNms", MatrixNms},
         { "MulticlassNms", MulticlassNms},
         { "Reference", Reference},
-        { "Subgraph", Subgraph}
+        { "Subgraph", Subgraph},
+        { "PriorBox", PriorBox},
+        { "PriorBoxClustered", PriorBoxClustered},
 };
 
 Type TypeFromName(const std::string& type) {
@@ -275,6 +279,8 @@ std::string NameFromType(const Type type) {
             return "TensorIterator";
         case Convert:
             return "Convert";
+        case ColorConvert:
+            return "ColorConvert";
         case NormalizeL2:
             return "NormalizeL2";
         case ScatterUpdate:
@@ -468,6 +474,10 @@ std::string algToString(const Algorithm alg) {
     CASE(MathSoftPlus);
     CASE(MathSoftsign);
     CASE(MathTan);
+    CASE(TensorIteratorCommon);
+    CASE(TensorIteratorLoop);
+    CASE(ColorConvertNV12toRGB);
+    CASE(ColorConvertNV12toBGR);
 #undef CASE
     return "Undefined";
 }
