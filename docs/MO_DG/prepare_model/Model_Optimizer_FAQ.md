@@ -634,4 +634,4 @@ For the models in ONNX* format, there are two available paths of IR conversion.
 The old one is handled by the old Python* implementation, while the new one uses new C++ frontends. 
 Starting from the 2022.1 version, the default IR conversion path for ONNX models is processed using the new ONNX frontend. 
 Certain features, such as `--extensions` and `--transformations_config`, are not yet supported on the new frontends. 
-The IR conversion is performed via the old path if a user does not select any expected path of conversion explicitly (by `--use_new_frontend` or `--use_legacy_frontend` MO arguments) and an unsupported pre-defined scenario is detected on the new frontend path.
+The IR conversion falls back to the old path if a user does not select any expected path of conversion explicitly (by `--use_new_frontend` or `--use_legacy_frontend` MO arguments) and unsupported pre-defined scenario is detected on the new frontend path.
