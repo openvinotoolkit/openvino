@@ -205,11 +205,9 @@ void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string
 
         if (input != inputs.end()) {
             input->second->setPrecision(getPrecision(user_precision));
-        }
-        else if (output != outputs.end()) {
+        } else if (output != outputs.end()) {
             output->second->setPrecision(getPrecision(user_precision));
-        }
-        else {
+        } else {
             throw std::logic_error(layer_name + " is not an input neither output");
         }
     }
@@ -306,15 +304,13 @@ void setLayouts(const InferenceEngine::CNNNetwork& network, const std::string io
             }
 
             input->second->setLayout(user_layout);
-        }
-        else if (output != outputs.end()) {
+        } else if (output != outputs.end()) {
             if (!isMatchLayoutToDims(user_layout, output->second->getTensorDesc().getDims().size())) {
                 throw std::logic_error(item.second + " layout is not applicable to " + layer_name);
             }
 
             output->second->setLayout(user_layout);
-        }
-        else {
+        } else {
             throw std::logic_error(layer_name + " is not an input neither output");
         }
     }
