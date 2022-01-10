@@ -40,27 +40,27 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     }
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
-        return std::make_shared<InputModel>(path, m_telemetry);
+        return std::make_shared<InputModel>(path, m_extensions);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
-        return std::make_shared<InputModel>(path, m_telemetry);
+        return std::make_shared<InputModel>(path, m_extensions);
     }
 #endif
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1 && variants[1].is<std::string>()) {
             const auto path = variants[0].as<std::string>();
-            return std::make_shared<InputModel>(*stream, path, m_telemetry);
+            return std::make_shared<InputModel>(*stream, path, m_extensions);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         if (variants.size() > 1 && variants[1].is<std::wstring>()) {
             const auto path = variants[1].as<std::wstring>();
-            return std::make_shared<InputModel>(*stream, path, m_telemetry);
+            return std::make_shared<InputModel>(*stream, path, m_extensions);
         }
 #endif
-        return std::make_shared<InputModel>(*stream, m_telemetry);
+        return std::make_shared<InputModel>(*stream, m_extensions);
     }
     return nullptr;
 }
@@ -152,12 +152,12 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
-        m_telemetry = telemetry;
+        m_extensions.telemetry = telemetry;
     } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_transformation_extensions.push_back(transformation);
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
-        m_extensions.push_back(so_ext);
+        m_other_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
 
@@ -179,5 +179,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                                                    [=](const ov::frontend::onnx::Node& context) -> OutputVector {
                                                        return onnx_conv_ext->get_converter()(NodeContext(context));
                                                    });
+    } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
+        m_extensions.progress_reporter = progress_reporter;
     }
 }

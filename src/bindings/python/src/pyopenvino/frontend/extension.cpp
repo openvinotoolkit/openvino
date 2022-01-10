@@ -12,6 +12,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/extension/progress_reporter_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "pyopenvino/graph/model.hpp"
 
@@ -75,4 +76,27 @@ void regclass_frontend_ConversionExtension(py::module m) {
         py::init([](const std::string& op_type, const ov::frontend::ConversionExtension::PyCreatorFunctionNamed& f) {
             return std::make_shared<ov::frontend::ConversionExtension>(op_type, f);
         }));
+}
+
+void regclass_frontend_ProgressReporterExtension(py::module m) {
+    py::class_<ProgressReporterExtension, std::shared_ptr<ProgressReporterExtension>, ov::Extension> ext{
+        m,
+        "ProgressReporterExtension",
+        py::dynamic_attr()};
+
+    ext.doc() = "An extension class intented to use as progress reporting utility";
+
+    ext.def(py::init([]() {
+        return std::make_shared<ProgressReporterExtension>();
+    }));
+
+    ext.def(py::init([](const ProgressReporterExtension::progress_notifier_callback& callback) {
+        return std::make_shared<ProgressReporterExtension>(callback);
+    }));
+
+    ext.def(py::init([](ProgressReporterExtension::progress_notifier_callback&& callback) {
+        return std::make_shared<ProgressReporterExtension>(std::move(callback));
+    }));
+
+    ext.def("report_progress", &ProgressReporterExtension::report_progress);
 }

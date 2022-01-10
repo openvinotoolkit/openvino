@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <openvino/frontend/frontend.hpp>
+#include <common/extension_holder.hpp>
 
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
 namespace ov {
@@ -31,10 +32,12 @@ protected:
     // m_extensions should be the first member here,
     // m_extensions can contain SO Extension (holder for other Extensions),
     // so it should be released last.
-    std::vector<Extension::Ptr> m_extensions;
-    std::shared_ptr<TelemetryExtension> m_telemetry;
+    std::vector<Extension::Ptr> m_other_extensions;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
+
+private:
+    ExtensionHolder m_extensions;
 };
 
 }  // namespace onnx

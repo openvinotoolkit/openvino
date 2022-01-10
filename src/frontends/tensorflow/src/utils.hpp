@@ -81,12 +81,6 @@ void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T
     FRONT_END_THROW("Node must be converted to Constant.");
 }
 
-// TODO: move to decoder or rewrite
-// should be part of DecoderProto
-// tensor_proto -> HostTensor?? avoid double copying of data
-
-// decoder.get_native_attribute() for TensorProto/DataType
-
 // Taken from: tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc
 // Extract values from a Const op to `values`. Returns true if succeeds.
 //

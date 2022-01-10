@@ -10,8 +10,6 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/frontend/paddle/extension/conversion.hpp"
-#include "openvino/frontend/paddle/frontend.hpp"
-#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace py = pybind11;
 

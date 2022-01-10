@@ -13,3 +13,4 @@ void regclass_frontend_DecoderTransformationExtension(py::module m);
 void regclass_frontend_JsonConfigExtension(py::module m);
 void regclass_frontend_ConversionExtension(py::module m);
 void regclass_frontend_ConversionExtensionBase(py::module m);
+void regclass_frontend_ProgressReporterExtension(py::module m);

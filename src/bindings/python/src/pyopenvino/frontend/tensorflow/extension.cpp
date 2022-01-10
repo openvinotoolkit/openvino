@@ -11,8 +11,6 @@
 
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
-#include "openvino/frontend/tensorflow/frontend.hpp"
-#include "openvino/frontend/tensorflow/node_context.hpp"
 
 namespace py = pybind11;
 

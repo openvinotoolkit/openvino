@@ -132,6 +132,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_ProfilingInfo(m);
     regclass_Extension(m);
 
+    // frontend
     regclass_frontend_Place(m);
     regclass_frontend_InitializationFailureFrontEnd(m);
     regclass_frontend_GeneralFailureFrontEnd(m);
@@ -149,6 +150,8 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_JsonConfigExtension(m);
     regclass_frontend_ConversionExtensionBase(m);
     regclass_frontend_ConversionExtension(m);
+    regclass_frontend_ProgressReporterExtension(m);
+
     // specific frontend extensions
     regclass_frontend_onnx_ConversionExtension(m);
     regclass_frontend_tensorflow_ConversionExtension(m);
