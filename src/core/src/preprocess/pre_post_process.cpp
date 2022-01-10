@@ -367,7 +367,8 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     for (const auto& input_info : m_impl->m_inputs) {
         auto& input = input_info.m_impl;
         // Set parameter layout from 'model' information
-        if (input->get_model()->is_layout_set() && input->m_resolved_param->get_layout().empty()) {
+        if (input->get_model()->is_layout_set()) {
+            // Overwrite existing model's layout here (fix 74065)
             input->m_resolved_param->set_layout(input->get_model()->get_layout());
         }
     }
@@ -563,7 +564,8 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         node.get_tensor().set_names({});
         result = std::dynamic_pointer_cast<op::v0::Result>(node.get_node_shared_ptr());
         // Set result layout from 'model' information
-        if (output->get_model_data()->is_layout_set() && result->get_layout().empty()) {
+        if (output->get_model_data()->is_layout_set()) {
+            // Overwrite existing model's layout here (fix 74065)
             result->set_layout(output->get_model_data()->get_layout());
         }
         auto parent = result->get_input_source_output(0);

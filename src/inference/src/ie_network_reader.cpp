@@ -18,7 +18,7 @@
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
-#include "manager.hpp"
+#include "openvino/frontend/manager.hpp"
 #ifdef ENABLE_IR_V7_READER
 #    include "legacy/ie_ir_version.hpp"
 #endif
@@ -111,7 +111,7 @@ class Reader : public IReader {
             std::shared_ptr<IReader> plugin_impl;
             using createFunc = void(std::shared_ptr<IReader>&);
             reinterpret_cast<createFunc*>(ov::util::get_symbol(so, "CreateReader"))(plugin_impl);
-            ptr = {so, plugin_impl};
+            ptr = {plugin_impl, so};
 #    endif  // OPENVINO_STATIC_LIBRARY
         });
 

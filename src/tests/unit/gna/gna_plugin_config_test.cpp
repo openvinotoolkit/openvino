@@ -15,7 +15,6 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
-    {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
     {GNA_CONFIG_KEY(EXEC_TARGET), ""},
     {GNA_CONFIG_KEY(COMPILE_TARGET), ""},
     {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT},
@@ -96,45 +95,26 @@ TEST_F(GNAPluginConfigTest, GnaConfigFirmwareModelImageTest) {
     EXPECT_EQ(config.dumpXNNPath, "abc");
 }
 
-TEST_F(GNAPluginConfigTest, GnaConfigFirmwareModelImageGeneratorTest) {
-    SetAndCompare(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), "def");
-    EXPECT_EQ(config.dumpXNNGeneration, "def");
-}
-
 TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW);
-#if GNA_LIB_VER == 1
-    EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_HARDWARE));
-#else
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardware);
     EXPECT_EQ(config.swExactMode, false);
-#endif
-#if GNA_LIB_VER == 2
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW_WITH_SW_FBACK);
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardwareWithSoftwareFallback);
     EXPECT_EQ(config.swExactMode, false);
-#endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW);
-#if GNA_LIB_VER == 1
-    EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_SOFTWARE));
-#else
+
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
     EXPECT_EQ(config.swExactMode, false);
-#endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT);
-#if GNA_LIB_VER == 1
-    EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE));
-#else
+
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeSoftware);
     EXPECT_EQ(config.swExactMode, true);
-#endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_AUTO);
-#if GNA_LIB_VER == 1
-    EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_AUTO));
-#else
+
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeAuto);
     EXPECT_EQ(config.swExactMode, false);
-#endif
+
     ExpectThrow(GNA_CONFIG_KEY(DEVICE_MODE), "");
     ExpectThrow(GNA_CONFIG_KEY(DEVICE_MODE), "abc");
 }

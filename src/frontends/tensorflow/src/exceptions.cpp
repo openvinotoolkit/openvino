@@ -8,12 +8,12 @@
 
 namespace ov {
 namespace frontend {
-namespace tf {
-std::string OpValidationFailureTF::get_error_msg_prefix_tf(const tf::NodeContext& node) {
+namespace tensorflow {
+std::string OpValidationFailure::get_error_msg_prefix_tf(const tensorflow::NodeContext& node) {
     std::stringstream ss;
     ss << "While validating node '" << node.get_op_type() << '\'';
     return ss.str();
 }
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
