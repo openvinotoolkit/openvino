@@ -236,7 +236,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
     InferenceEngine::ExecutableNetwork execNet;
 
-// Create simple function
+    // Create simple function
     {
         auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");

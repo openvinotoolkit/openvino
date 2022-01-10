@@ -304,7 +304,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     bool add_operation_names = false;
     const auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
-    if (it != rt_info.end() && new_api) {
+    if (it != rt_info.end()) {
         const int64_t ir_version = it->second.as<int64_t>();
         // here we decide whether we need to add operation_names as tensor names for
         // getInputs / getOutputs. Since these functions are designed to be used in new API only
@@ -330,7 +330,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
         auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
         new_param->set_friendly_name(param_name);
         if (add_operation_names) {
-            OPENVINO_ASSERT(leaf_names.find(param_name) == leaf_names.end() ||
+            OPENVINO_ASSERT(!new_api || leaf_names.find(param_name) == leaf_names.end() ||
                                 param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
                             "Model operation names have collisions with tensor names.",
                             " Please use MO to generate new IR version, it should allow to avoid the issue");
@@ -357,7 +357,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
         auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
         if (add_operation_names) {
-            OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
+            OPENVINO_ASSERT(!new_api || leaf_names.find(res_name) == leaf_names.end() ||
                                 result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                             "Model operation names have collisions with tensor names.",
                             " Please use MO to generate new IR version, it should allow to avoid the issue");
