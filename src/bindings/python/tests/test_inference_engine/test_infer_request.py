@@ -188,21 +188,15 @@ def test_infer_list_as_inputs(device):
         for input_idx in range(len(inputs)):
             assert np.array_equal(request.get_input_tensor(input_idx).data, inputs[input_idx])
 
-    inputs = [np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)]
-
     request = compiled_model.create_infer_request()
+
+    inputs = [np.random.normal(size=input_shape).astype(dtype)]
     request.infer(inputs)
     check_fill_inputs(request, inputs)
 
-    request = compiled_model.create_infer_request()
-    request.start_async(inputs)
-    request.wait()
+    inputs = [np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)]
+    request.infer(inputs)
     check_fill_inputs(request, inputs)
-
-    queue = AsyncInferQueue(compiled_model, 1)
-    queue.start_async(inputs)
-    queue.wait_all()
-    check_fill_inputs(queue[0], inputs)
 
 
 def test_infer_mixed_keys(device):
