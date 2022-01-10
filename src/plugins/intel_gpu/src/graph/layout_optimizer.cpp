@@ -17,6 +17,7 @@
 #include "pooling_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
+#include "gemm_inst.h"
 #include "quantize_inst.h"
 #include "mvn_inst.h"
 #include "depth_to_space_inst.h"
@@ -1177,13 +1178,39 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 }
 
 bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
-    auto in_layout = node.get_dependencies().front()->get_output_layout();
-    auto out_layout = node.get_output_layout();
+    auto in_padding = node.get_dependencies().front()->get_output_layout().data_padding;
+    auto out_padding = node.get_output_layout().data_padding;
     // Check if padding exists
-    if (node.get_preferred_impl_type() == impl_types::onednn && (in_layout.data_padding || out_layout.data_padding))
-        return false;
-    else
-        return true;
+    if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
+        bool no_spatial_padding = true;
+        for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
+            no_spatial_padding &= (in_padding.lower_size().spatial[i] == 0);
+        }
+        for (size_t i = 0; i < in_padding.upper_size().spatial.size(); ++i) {
+            no_spatial_padding &= (in_padding.upper_size().spatial[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.lower_size().spatial.size(); ++i) {
+            no_spatial_padding &= (out_padding.lower_size().spatial[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.upper_size().spatial.size(); ++i) {
+            no_spatial_padding &= (out_padding.upper_size().spatial[i] == 0);
+        }
+        bool no_batch_padding = true;
+        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
+            no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
+        }
+        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
+            no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
+            no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
+        }
+        for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
+            no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+        }
+        return (no_spatial_padding && no_batch_padding);
+    }
+    return true;
 }
 
 impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format preferred_format) {
@@ -1470,7 +1497,25 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             layout{ data_types::f32, format::bfyx, tensor{} }).format;
     } else if (node.is_type<quantize>()) {
         auto layout = node.get_output_layout();
-        if (layout.format.spatial_num() == 2 &&
+
+        std::function<bool(const program_node& node)> only_gemm_users = [&](const program_node& node) {
+            bool all_users_gemm = true;
+
+            for (auto user : node.get_users()) {
+                if (user->is_type<reorder>() || user->is_type<reshape>())
+                    all_users_gemm &= only_gemm_users(*user);
+                else if (user->is_type<gemm>())
+                    all_users_gemm &= true;
+                else
+                    return false;
+            }
+
+            return all_users_gemm;
+        };
+        if (only_gemm_users(node)) {
+            // TODO: Gemm is not supporting fsv layouts
+            expected = format::bfyx;
+        } else if (layout.format.spatial_num() == 2 &&
             (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
             layout.size.batch[0] % 16 == 0) {
             if (use_onednn_impls && layout.size.batch[0] % 32 == 0) {

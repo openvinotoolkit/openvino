@@ -713,10 +713,7 @@ void MKLDNNNonMaxSuppressionNode::createJitKernel() {
 void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
     if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
             reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
-        getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->redefineDesc(
-            getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims({0, 3}));
-        getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr()->redefineDesc(
-            getBaseMemDescAtOutputPort(NMS_SELECTEDSCORES)->cloneWithNewDims({0, 3}));
+        redefineOutputMemory({{0, 3}, {0, 3}, {1}});
         *reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr()) = 0;
         return;
     }
@@ -794,8 +791,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (isDynamicNode()) {
         VectorDims newDims{validOutputs, 3};
-        indicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims(newDims));
-        scoresMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDSCORES)->cloneWithNewDims(newDims));
+        redefineOutputMemory({newDims, newDims, {1}});
     }
 
     int selectedIndicesStride = indicesMemPtr->GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
