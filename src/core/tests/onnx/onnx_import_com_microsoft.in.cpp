@@ -24,10 +24,10 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace ov;
 
 static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_device = ov::test::backend_name_to_device("${BACKEND_NAME}");
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/bias_gelu.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -48,7 +48,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta_bias) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
                                      "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta_bias.onnx"));
 
@@ -75,7 +75,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
                                      "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta.onnx"));
 
@@ -102,7 +102,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/skip_layer_normalization_with_gamma.onnx"));
 
     std::vector<float> input = {
@@ -128,7 +128,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_dynamic_shapes) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
                                      "onnx/com.microsoft/skip_layer_normalization_dynamic_shapes.onnx"));
 
@@ -177,7 +177,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_dynamic_shapes)
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/embed_layer_normalization.onnx"));
 
     std::vector<int> input_ids = {
@@ -208,7 +208,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_embedding) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
                                      "onnx/com.microsoft/embed_layer_normalization_with_segment_embedding.onnx"));
 
@@ -251,7 +251,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_e
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_embedding_and_mask) {
-    const auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(
+    const auto function = ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(
         SERIALIZED_ZOO,
         "onnx/com.microsoft/embed_layer_normalization_with_segment_embedding_and_mask.onnx"));
 
@@ -297,7 +297,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_e
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shapes) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
                                      "onnx/com.microsoft/embed_layer_normalization_dynamic_shapes.onnx"));
 
@@ -394,7 +394,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shapes
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -416,7 +416,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_qkv_hidden_sizes) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_qkv_hidden_sizes.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -442,7 +442,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_qkv_hidden_sizes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_unidirectional) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_unidirectional.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -475,7 +475,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_unidirectional) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_1) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_mask_index_1.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -513,7 +513,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_2) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_mask_index_2.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -553,7 +553,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_3) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_mask_index_3.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -597,7 +597,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_3) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_mask_index_4.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -634,7 +634,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_past.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -710,7 +710,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_extra_add.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -765,7 +765,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_dynamic_shapes.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 

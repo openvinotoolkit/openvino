@@ -27,11 +27,11 @@ using namespace ov;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_device = ov::test::backend_name_to_device("${BACKEND_NAME}");
 
 // ONNX LSTM tests (implemented by nGraph LSTMCell and LSTMSequence)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_default_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_default_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -46,8 +46,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_default_const) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_reverse_const) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_reverse_const.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_reverse_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607});  // X
@@ -61,8 +61,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_reverse_const) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_bidir_const) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_bidir_const.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_bidir_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607});  // X
@@ -85,8 +85,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_bidir_const) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip_const) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_clip_const.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_clip_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607});  // X
@@ -100,7 +100,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip_const) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_mixed_seq_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -130,7 +130,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq_const) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_reverse_mixed_seq_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_reverse_mixed_seq_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -160,7 +160,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_reverse_mixed_seq_const) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_bidir_mixed_seq_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_bidir_mixed_seq_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -207,7 +207,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_bidir_mixed_seq_const) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip_peepholes) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_with_clip_peepholes.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -274,8 +274,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip_peepholes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_mixed_seq.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_mixed_seq.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     int hidden_size{3};
@@ -311,7 +311,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_hardsigmoid_activation) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_hardsigmoid_activation.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -365,7 +365,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_hardsigmoid_activation) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_large_batch_no_clip) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_large_batch_no_clip.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -406,7 +406,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_large_batch_no_clip) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_bdir_short_input_seq_peepholes) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_bdir_short_input_seq.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -451,7 +451,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_bdir_short_input_seq_peepholes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_mixed_seq_reverse) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_mixed_seq_reverse.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -493,7 +493,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_mixed_seq_reverse) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_import_only_lstm_dynamic_batch_seq_all_inputs) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/lstm_dyn_batch_seq.onnx"));
 
     auto batch_size = Dimension::dynamic();
@@ -513,7 +513,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_import_only_lstm_dynamic_batch_seq_all_i
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_import_only_lstm_dynamic_batch_seq_3_inputs) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/lstm_dyn_batch_seq_3_inputs.onnx"));
 
     auto batch_size = Dimension::dynamic();
@@ -533,7 +533,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_import_only_lstm_dynamic_batch_seq_3_inp
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_dynamic_batch_size_and_seq_len) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_dynamic_batch_size_and_seq_len.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -647,7 +647,7 @@ protected:
 };
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_defaults_fwd_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_defaults_fwd_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -690,8 +690,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_defaults_fwd_const)
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_defaults_fwd) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_defaults_fwd.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_defaults_fwd.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -737,7 +737,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_defaults_fwd) {
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations_const) {
     // activations: relu, sigmoid
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_activations_relu_sigmoid_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -777,7 +777,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations_con
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations_relu_hardsigmoid) {
     // activations: relu, hardsigmoid
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_activations_relu_hardsigmoid.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -822,8 +822,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations_rel
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_mixed_seq_len) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_mixed_seq_len.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_mixed_seq_len.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -871,7 +871,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_mixed_seq_len) 
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_mixed_seq_len_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_mixed_seq_len_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -911,7 +911,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_mixed_seq_len_c
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse_mixed_seq_len_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_reverse_mixed_seq_len_const.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
@@ -951,7 +951,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse_mixed_seq_l
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_bidir_mixed_seq_len_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_bidir_mixed_seq_len_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -990,7 +990,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_bidir_mixed_seq_len
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_rev_clip) {
     auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_rev_clip.onnx"));
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_rev_clip.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -1035,8 +1035,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_rev_clip) {
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_rev_clip_const) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_rev_clip_const.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_rev_clip_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(in_X);
@@ -1078,8 +1078,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_rev_clip_const) {
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse_const) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_reverse_const.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_reverse_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(in_X);
@@ -1122,7 +1122,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse_const) {
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse) {
     auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_reverse.onnx"));
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_reverse.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -1167,7 +1167,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse) {
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_bias_initial_h_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_bias_initial_h_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1210,7 +1210,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_bias_initial_h_
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_bias_initial_h) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_bias_initial_h.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1258,7 +1258,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_bias_initial_h)
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_bidirectional_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_bidirectional_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1300,8 +1300,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_bidirectional_const
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_bidirectional) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_bidirectional.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_bidirectional.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -1345,7 +1345,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_bidirectional) {
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_linear_before_reset_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_linear_before_reset_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1388,7 +1388,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_linear_before_r
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_linear_before_reset) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_linear_before_reset.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1435,7 +1435,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_linear_before_r
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_defaults_fwd_const_dynamic) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/gru_defaults_fwd_const_dynamic.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1478,7 +1478,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_defaults_fwd_const_
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_import_only_gru_defaults_fwd_const_dynamic) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/gru_defaults_fwd_const_dynamic.onnx"));
 
     auto batch_size = Dimension::dynamic();
@@ -1578,7 +1578,7 @@ protected:
 };
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_defaults_fwd_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_defaults_fwd_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1621,8 +1621,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_defaults_fwd_const)
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_defaults_fwd) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_defaults_fwd.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_defaults_fwd.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -1667,7 +1667,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_defaults_fwd) {
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_activations_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1710,8 +1710,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations_con
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_activations.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_activations.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -1755,7 +1755,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_activations) {
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_mixed_seq_len_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1798,8 +1798,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len_c
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_mixed_seq_len.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_mixed_seq_len.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -1847,7 +1847,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_mixed_seq_len) 
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse_mixed_seq_len_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_reverse_mixed_seq_len_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1886,7 +1886,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse_mixed_seq_l
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_bidir_mixed_seq_len_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_bidir_mixed_seq_len_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1926,8 +1926,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_bidir_mixed_seq_len
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_rev_clip_const) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_rev_clip_const.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_rev_clip_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(in_X);
@@ -1970,7 +1970,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_rev_clip_const) {
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_rev_clip) {
     auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_rev_clip.onnx"));
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_rev_clip.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -2015,8 +2015,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_rev_clip) {
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse_const) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_reverse_const.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_reverse_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(in_X);
@@ -2059,7 +2059,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse_const) {
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse) {
     auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_reverse.onnx"));
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_reverse.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -2104,7 +2104,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse) {
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_bias_initial_h_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -2147,7 +2147,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h_
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_fwd_bias_initial_h.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -2195,8 +2195,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h)
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_bidirectional) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_bidirectional.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_bidirectional.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -2241,7 +2241,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_bidirectional) {
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_bidirectional_const) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/rnn_bidirectional_const.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -2285,7 +2285,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_bidirectional_const
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_defaults_fwd_const_dynamic) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/rnn_defaults_fwd_const_dynamic.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -2328,7 +2328,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_defaults_fwd_const_
 }
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_import_only_rnn_defaults_fwd_const_dynamic) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/rnn_defaults_fwd_const_dynamic.onnx"));
 
     auto batch_size = Dimension::dynamic();

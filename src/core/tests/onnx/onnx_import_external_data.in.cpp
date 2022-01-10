@@ -13,16 +13,15 @@
 #include "util/type_prop.hpp"
 
 using namespace ov;
-using namespace ov::onnx_import;
 using namespace ngraph::test;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_device = ov::test::backend_name_to_device("${BACKEND_NAME}");
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -36,7 +35,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_from_stream) {
     std::string path = ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data.onnx");
     std::ifstream stream{path, std::ios::in | std::ios::binary};
     ASSERT_TRUE(stream.is_open());
-    const auto function = onnx_import::import_onnx_model(stream, path);
+    const auto function = ngraph::onnx_import::import_onnx_model(stream, path);
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
@@ -48,7 +47,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_from_stream) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_optional_fields) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data_optional_fields.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -59,7 +58,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_optional_fields) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_in_different_paths) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data_different_paths.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -71,7 +70,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_in_different_paths) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_two_tensors_data_in_the_same_file) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
                                      "onnx/external_data/external_data_two_tensors_data_in_the_same_file.onnx"));
 
@@ -85,7 +84,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_two_tensors_data_in_the_same_file) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_external_data_exception) {
     try {
-        auto function = onnx_import::import_onnx_model(
+        auto function = ngraph::onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data_file_not_found.onnx"));
         FAIL() << "Incorrect path to external data not detected";
     } catch (const ov::Exception& error) {
@@ -99,7 +98,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_external_data_exception) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path) {
     try {
-        auto function = onnx_import::import_onnx_model(
+        auto function = ngraph::onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO,
                                          "onnx/external_data/inner_scope/external_data_file_in_up_dir.onnx"));
         FAIL() << "Incorrect path to external data not detected";
@@ -114,7 +113,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_sanitize_path) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data_sanitize_test.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);

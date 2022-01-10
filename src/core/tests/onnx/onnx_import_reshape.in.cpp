@@ -28,14 +28,14 @@ using namespace ov;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_device = ov::test::backend_name_to_device("${BACKEND_NAME}");
 
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reduced_dims) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_reduced_dims.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_reduced_dims.onnx"));
 
     // input data shape (2, 3, 4)
     auto input = ngraph::test::NDArray<float, 3>({{{0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}},
@@ -54,7 +54,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reduced_dims) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reordered_dims) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_reordered_dims.onnx"));
 
     // input data shape (2, 3, 4)
@@ -76,8 +76,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reordered_dims) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_extended_dims) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_extended_dims.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_extended_dims.onnx"));
 
     // input data shape (2, 3, 4)
     auto input = ngraph::test::NDArray<float, 3>({{{0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}},
@@ -97,8 +97,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_extended_dims) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_single_dim) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_single_dim.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_single_dim.onnx"));
 
     // input data shape (2, 3, 4)
     auto input = ngraph::test::NDArray<float, 3>({{{0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}},
@@ -118,8 +118,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_single_dim) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_dim) {
     // the model contains the target shape in the initializers: [2, -1, 2]
-    const auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_negative_dim.onnx"));
+    const auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_negative_dim.onnx"));
 
     // 2x3x4
     auto input = ngraph::test::NDArray<float, 3>({{{0.5488135, 0.71518934, 0.60276335, 0.5448832},
@@ -154,7 +154,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_dim) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_with_zero_dim) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_negative_with_zero_dims.onnx"));
 
     // input data shape (2, 3, 4)
@@ -175,7 +175,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_with_zero_dim) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/reshape_output_shape_as_input.onnx"));
 
     // input data shape (2, 3, 4)
@@ -196,8 +196,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space.onnx"));
 
     std::vector<float> input(32);
     std::iota(input.begin(), input.end(), 0);
@@ -213,8 +213,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_v1.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_v1.onnx"));
 
     std::vector<float> input(32);
     std::iota(input.begin(), input.end(), 0);
@@ -230,8 +230,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_crd.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_crd.onnx"));
 
     std::vector<float> input(32);
     std::iota(input.begin(), input.end(), 0);
@@ -249,21 +249,21 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_blocksize) {
     // This model fails to import since the depth channel length must be a multiple of the
     // `blocksize` attribute value.
-    EXPECT_THROW(onnx_import::import_onnx_model(
+    EXPECT_THROW(ngraph::onnx_import::import_onnx_model(
                      ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.onnx")),
                  std::runtime_error);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_no_blocksize) {
     // This model fails to import since it lacks of required parameter `blocksize`.
-    EXPECT_THROW(onnx_import::import_onnx_model(
+    EXPECT_THROW(ngraph::onnx_import::import_onnx_model(
                      ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_no_blocksize.onnx")),
                  std::runtime_error);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
     try {
-        onnx_import::import_onnx_model(
+        ngraph::onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_mode.onnx"));
         FAIL() << "The onnx_importer did not throw for unknown mode to DepthToSpace op";
     } catch (const ov::Exception& e) {
@@ -276,7 +276,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
     try {
-        onnx_import::import_onnx_model(
+        ngraph::onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_input_shape.onnx"));
         FAIL() << "The onnx_importer did not throw for invalid input shape to DepthToSpace op";
     } catch (const ov::Exception& e) {
@@ -288,8 +288,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth.onnx"));
 
     std::vector<float> input(32);
     std::iota(input.begin(), input.end(), 0);
@@ -307,7 +307,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
     try {
-        onnx_import::import_onnx_model(
+        ngraph::onnx_import::import_onnx_model(
             ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth_invalid_input_shape.onnx"));
         FAIL() << "Expected ngraph_error exception, but no exception was thrown";
     } catch (const ov::Exception& e) {
@@ -322,20 +322,21 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_bad_blocksize) {
     // This model fails to import since the depth channel length must be a multiple of the
     // `blocksize` attribute value.
-    EXPECT_THROW(onnx_import::import_onnx_model(
+    EXPECT_THROW(ngraph::onnx_import::import_onnx_model(
                      ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth_bad_blocksize.onnx")),
                  std::runtime_error);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_no_blocksize) {
     // This model fails to import since it lacks of required `blocksize` attribute.
-    EXPECT_THROW(onnx_import::import_onnx_model(
+    EXPECT_THROW(ngraph::onnx_import::import_onnx_model(
                      ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth_no_blocksize.onnx")),
                  std::runtime_error);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/squeeze.onnx"));
+    auto function =
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/squeeze.onnx"));
 
     // {1, 4, 1, 1, 2}
     auto input =
@@ -353,7 +354,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/squeeze_opset13_no_axes.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -364,7 +365,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze.onnx"));
+    auto function =
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze.onnx"));
 
     auto input = ngraph::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
                                                   {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
@@ -384,7 +386,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze_negative_axes.onnx"));
 
     auto input =
@@ -406,7 +408,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/concat.onnx"));
+    auto function =
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/concat.onnx"));
 
     Inputs inputs;
 
@@ -422,8 +425,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat_negative_axis) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/concat_negative_axis.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/concat_negative_axis.onnx"));
 
     Inputs inputs;
 
@@ -439,7 +442,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat_negative_axis) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_default) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_default.onnx"));
 
     Inputs inputs{{1, 2, 3, 4, 5, 6}};
@@ -455,8 +458,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_default) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_2d) {
     // Split into 2 equal parts along axis=1
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_2d.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_2d.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
@@ -467,7 +470,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_2d) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_variable_parts_2d) {
     // Split into variable parts {2, 4} along axis=1
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/split_variable_parts_2d.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -478,8 +481,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_variable_parts_2d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_expand_static_shape) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/expand_static_shape.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/expand_static_shape.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     // input data shape (3,1)

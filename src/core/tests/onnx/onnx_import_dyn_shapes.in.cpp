@@ -31,12 +31,12 @@ using namespace ngraph::test;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_device = ov::test::backend_name_to_device("${BACKEND_NAME}");
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_onnx_dynamic_dims_to_ngraph_dynamic_dims) {
     // the model represents a linear function A * x + B
     // where all 3 operands are model inputs (no initializers)
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/ab_plus_c.onnx"));
 
     const auto& graph_inputs = function->get_parameters();
@@ -69,7 +69,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_onnx_dynamic_dims_to_ngraph_dynamic
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/ab_plus_c.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -107,7 +107,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_scalar_initializers_shape_check) {
     // initializers defined witout the "dims" field should produce Constants with an empty Shape
     // initializers with "dims: 0" should be have the same way (Shape{} not Shape{0})
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/scalar_initializers.onnx"));
 
     for (auto ng_node : function->get_ordered_ops()) {
@@ -119,7 +119,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_scalar_initializers_shape_check) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_check) {
     // the model contains a single Add operation that takes a fully dynamic input and a scalar
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/a_plus_b_dyn_rank.onnx"));
 
     const auto& graph_inputs = function->get_parameters();
@@ -142,7 +142,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_check) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_inference) {
     // the model contains a single Add operation that takes a fully dynamic input and a scalar
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/a_plus_b_dyn_rank.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -169,7 +169,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_inference) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_1_3) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/acosh_dyn_shape.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -180,7 +180,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_1_3) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_3_2) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/acosh_dyn_shape.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -191,7 +191,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_3_2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_1_3) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/asinh_dyn_shape.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -202,7 +202,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_1_3) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_3_2) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/asinh_dyn_shape.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -213,7 +213,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_3_2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_1_3) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/atanh_dyn_shape.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -224,7 +224,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_1_3) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_3_2) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/atanh_dyn_shape.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -236,7 +236,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_3_2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/conv_with_dynamic_batch.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -258,7 +258,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/conv_with_dynamic_bias.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -280,7 +280,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_avg_pool_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/average_pool_2d_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -299,7 +299,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_avg_pool_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/max_pool_2d_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -318,7 +318,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/max_pool_with_indices_output.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -340,7 +340,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_avg_pool_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/global_average_pool_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -359,7 +359,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_avg_pool_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_max_pool_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/global_max_pool_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -378,7 +378,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_max_pool_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_max_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/argmax_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -397,7 +397,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_max_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/argmin_no_keep_dims_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -416,7 +416,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_float_zeros) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/constant_of_shape_float_zeros.onnx"));
 
     std::vector<float> expected_values(24, 0);
@@ -430,7 +430,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_float_zeros) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_int_ones) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/constant_of_shape_int_ones.onnx"));
 
     std::vector<int32_t> expected_values(6, 1);
@@ -444,7 +444,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_int_ones) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_1_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/expand_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -461,7 +461,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_1_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_2_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/expand_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -477,7 +477,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_2_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_3_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/expand_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -492,7 +492,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_3_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_4_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/expand_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -507,7 +507,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_4_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_5_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/expand_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -523,7 +523,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_5_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_6_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/expand_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -539,7 +539,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_6_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_uint16_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/expand_uint16_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -554,7 +554,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_uint16_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/tile.onnx"));
+    auto function =
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/tile.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<std::int16_t>({0, 1, 2, 3, 4, 5});  // input
@@ -565,7 +566,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile_static) {
     auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/tile_static.onnx"));
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/tile_static.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<std::int16_t>({0, 1, 2, 3, 4, 5});  // input
@@ -575,7 +576,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile_static) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_data) {
-    auto ct_fn = onnx_import::import_onnx_model(
+    auto ct_fn = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_dyn_data.onnx"));
 
     auto test_case = ov::test::TestCase(ct_fn);
@@ -616,7 +617,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_data) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_filters) {
-    auto ct_fn = onnx_import::import_onnx_model(
+    auto ct_fn = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_dyn_filters.onnx"));
 
     auto test_case = ov::test::TestCase(ct_fn);
@@ -657,7 +658,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_filters) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_transpose) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/transpose.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -689,7 +690,7 @@ Shape get_flattened_shape(const Shape& in_shape, size_t axis) {
 }  // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/flatten_dyn_shape_axis0.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -714,7 +715,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/flatten_dyn_shape_axis.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -739,7 +740,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/flatten_dyn_shape_neg_axis.onnx"));
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -764,7 +765,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_flatten) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/flatten.onnx"));
+    auto function =
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/flatten.onnx"));
 
     std::vector<float> data{1, 2, 3, 4, 5, 6, 7, 8};
     auto test_case = ov::test::TestCase(function, s_device);
@@ -775,7 +777,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_flatten) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_global_lp_dynamic_hw) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/global_lp_pool_dynamic_hw.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -787,7 +789,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_global_lp_dynamic_hw) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_2d_input) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_input.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -800,7 +802,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_2d_input) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_steps) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_default_steps.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -812,7 +814,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_steps) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_default_steps_dyn_begin_end.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -824,7 +826,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_clamp_neg_ends) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_default_steps.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -836,7 +838,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_clamp_neg_ends) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_3d_input.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -853,7 +855,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_3d_input_neg_axes.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -870,7 +872,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_3d_input_12_axes.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -886,7 +888,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_3d_input_20_axes.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -903,7 +905,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_4d_input_23_axes.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -919,7 +921,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_4d_input_0231_axes_ends_max.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -938,7 +940,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_ma
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_4d_input_2103_axes.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -958,7 +960,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_ma
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_4d_input_23_axes_21_steps.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -974,7 +976,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps)
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_default_axes.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -989,7 +991,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_the_same_out_shape.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1000,7 +1002,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/hardmax.onnx"));
+    auto function =
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/hardmax.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(
@@ -1030,8 +1033,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_2.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_2.onnx"));
 
     const std::vector<float> input = {
         2.75793882,  -0.50841322, 0.82013929,  -0.62409912, -0.96136118, 0.21004745,  1.38337255,
@@ -1068,7 +1071,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_positive_step) {
     const auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/range.onnx"));
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/range.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -1082,7 +1085,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_positive_step) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_negative_step) {
     const auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/range.onnx"));
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/range.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -1095,7 +1098,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_negative_step) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/instance_norm_dyn_shape.onnx"));
 
     Shape data_shape{1, 2, 3, 4};
@@ -1116,7 +1119,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/instance_norm_dyn_shape2.onnx"));
 
     Shape data_shape{1, 2, 3, 4};
@@ -1138,7 +1141,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
 
 // NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
 // {
-//     const auto function = onnx_import::import_onnx_model(
+//     const auto function = ngraph::onnx_import::import_onnx_model(
 //         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_input_nearest.onnx"));
 //
 //     // Input data shape (1, 1, 2, 2)
@@ -1155,7 +1158,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
 // }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_2d_input) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_input_opset1.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1165,7 +1168,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_2d_input) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_clamp_neg_ends) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_clamp_neg_ends_opset1.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1175,7 +1178,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_clamp_neg_ends) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
                                      "onnx/dynamic_shapes/slice_3d_input_21_axes_ends_max_opset1.onnx"));
 
@@ -1191,7 +1194,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) 
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis) {
     // the ReduceMax node has a fully dynamic input and the reduction axis is -1
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
                                      "onnx/dynamic_shapes/reduce_max_dynamic_input_rank_negative_axis.onnx"));
 
@@ -1202,7 +1205,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_reduce_max_dynamic_input_rank_negat
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_size_dyn_op) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/size_op_dyn.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1212,7 +1215,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_size_dyn_op) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO,
                                      "onnx/dynamic_shapes/max_pool_dyn_rank_without_default_attrs.onnx"));
 
@@ -1227,7 +1230,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs)
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/depth_to_space.onnx"));
 
     std::vector<float> input(32);
@@ -1244,7 +1247,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
-    auto function = onnx_import::import_onnx_model(
+    auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/space_to_depth.onnx"));
 
     std::vector<float> input(32);
@@ -1262,7 +1265,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_like_dyn_shape.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
@@ -1273,7 +1276,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_rank) {
-    const auto function = onnx_import::import_onnx_model(
+    const auto function = ngraph::onnx_import::import_onnx_model(
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_like_dyn_rank.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);

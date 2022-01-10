@@ -27,10 +27,11 @@ using namespace ov;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_device = ov::test::backend_name_to_device("${BACKEND_NAME}");
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_affine) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/affine.onnx"));
+    auto function =
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/affine.onnx"));
 
     // input/output shape (1, 3)
     auto input = ngraph::test::NDArray<float, 2>{{{0.f, 1.f, 2.f}}}.get_vector();
@@ -43,7 +44,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_affine) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/crop.onnx"));
+    auto function =
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/crop.onnx"));
 
     // input shape (1, 1, 4, 4)
     auto input = ngraph::test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},
@@ -62,8 +64,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop_with_scale) {
-    auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/crop_with_scale.onnx"));
+    auto function = ngraph::onnx_import::import_onnx_model(
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/crop_with_scale.onnx"));
 
     // input shape (1, 1, 4, 4)
     auto input = ngraph::test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},

@@ -14,14 +14,17 @@
 #include "ops_bridge.hpp"
 #include "utils/onnx_internal.hpp"
 
-namespace ov {
+namespace ngraph {
 namespace onnx_import {
-std::shared_ptr<Model> import_onnx_model(std::istream& stream, const std::string& model_path) {
-    auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
+
+using namespace ov::onnx_import;
+
+std::shared_ptr<ov::Model> import_onnx_model(std::istream& stream, const std::string& model_path) {
+    auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(ov::onnx_common::parse_from_istream(stream));
     return detail::import_onnx_model(model_proto, model_path);
 }
 
-std::shared_ptr<Model> import_onnx_model(const std::string& file_path) {
+std::shared_ptr<ov::Model> import_onnx_model(const std::string& file_path) {
     std::ifstream model_stream{file_path, std::ios::in | std::ios::binary};
 
     if (!model_stream.is_open()) {
@@ -33,7 +36,7 @@ std::shared_ptr<Model> import_onnx_model(const std::string& file_path) {
 }
 
 std::set<std::string> get_supported_operators(std::int64_t version, const std::string& domain) {
-    OperatorSet op_set{OperatorsBridge::get_operator_set(domain == "ai.onnx" ? "" : domain, version)};
+    const auto op_set = OperatorsBridge::get_operator_set(domain == "ai.onnx" ? "" : domain, version);
     std::set<std::string> op_list{};
     for (const auto& op : op_set) {
         op_list.emplace(op.first);
@@ -47,4 +50,4 @@ bool is_operator_supported(const std::string& op_name, std::int64_t version, con
 
 }  // namespace onnx_import
 
-}  // namespace ov
+}  // namespace ngraph

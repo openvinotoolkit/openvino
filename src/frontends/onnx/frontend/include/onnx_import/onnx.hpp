@@ -13,7 +13,7 @@
 #include "onnx_importer_visibility.hpp"
 #include "openvino/core/model.hpp"
 
-namespace ov {
+namespace ngraph {
 /// \brief          ONNX importer features namespace.
 ///                 Functions in this namespace make it possible to use ONNX models.
 namespace onnx_import {
@@ -50,7 +50,7 @@ bool is_operator_supported(const std::string& op_name, std::int64_t version, con
 ///
 /// \return     An OV Model that represents a single output from the created graph.
 ONNX_IMPORTER_API
-std::shared_ptr<Model> import_onnx_model(std::istream& stream, const std::string& model_path = "");
+std::shared_ptr<ov::Model> import_onnx_model(std::istream& stream, const std::string& model_path = "");
 
 /// \brief     Imports and converts an ONNX model from the input file to the OV Model representation.
 ///
@@ -62,16 +62,7 @@ std::shared_ptr<Model> import_onnx_model(std::istream& stream, const std::string
 ///
 /// \return    An OV Model that represents a single output from the created graph.
 ONNX_IMPORTER_API
-std::shared_ptr<Model> import_onnx_model(const std::string& file_path);
+std::shared_ptr<ov::Model> import_onnx_model(const std::string& file_path);
 }  // namespace onnx_import
 
-}  // namespace ov
-
-namespace ngraph {
-namespace onnx_import {
-// aliases for compatibility purposes
-using ov::onnx_import::get_supported_operators;
-using ov::onnx_import::import_onnx_model;
-using ov::onnx_import::is_operator_supported;
-}  // namespace onnx_import
 }  // namespace ngraph

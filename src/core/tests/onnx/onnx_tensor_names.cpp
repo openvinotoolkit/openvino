@@ -37,7 +37,7 @@ bool matching_node_found_in_graph(const std::vector<DerivedFromNode>& ops,
 
 NGRAPH_TEST(onnx_tensor_names, simple_model) {
     auto function =
-        onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/tensor_names.onnx"));
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/tensor_names.onnx"));
 
     const auto ops = function->get_ordered_ops();
     EXPECT_TRUE(matching_node_found_in_graph<op::v0::Parameter>(ops, "input", {"input", "identity_on_input"}));
@@ -49,7 +49,8 @@ NGRAPH_TEST(onnx_tensor_names, simple_model) {
 }
 
 NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
-    auto function = onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/top_k.onnx"));
+    auto function =
+        ngraph::onnx_import::import_onnx_model(ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/top_k.onnx"));
 
     const auto ops = function->get_ordered_ops();
     EXPECT_TRUE(matching_node_found_in_graph<op::v0::Parameter>(ops, "x", {"x"}));
