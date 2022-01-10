@@ -31,7 +31,6 @@ if [ -e "$INSTALLDIR/runtime" ]; then
 
     system_type=$(ls "$INSTALLDIR/runtime/lib/")
     IE_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
-    export OV_FRONTEND_PATH=${IE_PLUGINS_PATH}${OV_FRONTEND_PATH:+:$OV_FRONTEND_PATH}
 
     export HDDL_INSTALL_DIR=$INSTALLDIR/runtime/3rdparty/hddl
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -60,27 +59,23 @@ if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
     export LD_LIBRARY_PATH=$INSTALLDIR/tools/compile_tool${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 fi
 
-
 # OpenCV environment
-for _loc in "extras/opencv" "opencv" ; do
-    _fname="$INSTALLDIR/${_loc}/setupvars.sh"
-    [ -f "${_fname}"  ] && source "${_fname}" && break
-done
-
-
-if [ -f "$INTEL_OPENVINO_DIR/extras/dl_streamer/setupvars.sh" ]; then
-    source "$INTEL_OPENVINO_DIR/extras/dl_streamer/setupvars.sh"
+if [ -f "$INSTALLDIR/opencv/setupvars.sh" ]; then
+    source "$INSTALLDIR/opencv/setupvars.sh"
 fi
 
-export PATH="$INTEL_OPENVINO_DIR/tools/mo${PATH:+:$PATH}"
-export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/mo${PYTHONPATH:+:$PYTHONPATH}"
-
-if [ -e "$INTEL_OPENVINO_DIR/tools/post_training_optimization_toolkit" ]; then
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/tools/post_training_optimization_toolkit:$PYTHONPATH"
+if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
+    source "$INSTALLDIR/extras/opencv/setupvars.sh"
 fi
 
 if [ -z "$python_version" ]; then
     python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
+fi
+
+version_arr=(${python_version//./ })
+if [ "${#version_arr[@]}" -ge "2" ]; then
+    python_version_major=${version_arr[0]}
+    python_version_minor=${version_arr[1]}
 fi
 
 OS_NAME=""
@@ -93,13 +88,18 @@ if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" 
     echo "[setupvars.sh] 64 bitness for Python $python_version is required"
 fi
 
-MINIMUM_REQUIRED_PYTHON_VERSION="3.6"
-MAX_SUPPORTED_PYTHON_VERSION=$([[ "$OSTYPE" == "darwin"* ]] && echo '3.7' || echo '3.8')
-if [[ -n "$python_version" && "$(printf '%s\n' "$python_version" "$MINIMUM_REQUIRED_PYTHON_VERSION" | sort -V | head -n 1)" != "$MINIMUM_REQUIRED_PYTHON_VERSION" ]]; then
-    echo "[setupvars.sh] ERROR: Unsupported Python version. Please install one of Python 3.6-${MAX_SUPPORTED_PYTHON_VERSION} (64-bit) from https://www.python.org/downloads/"
+PYTHON_VERSION_MAJOR="3"
+MIN_REQUIRED_PYTHON_VERSION_MINOR="6"
+MAX_SUPPORTED_PYTHON_VERSION_MINOR="9"
+
+if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
+    [ "$python_version_minor" -lt "$MIN_REQUIRED_PYTHON_VERSION_MINOR" ] ||
+    [ "$python_version_minor" -gt "$MAX_SUPPORTED_PYTHON_VERSION_MINOR" ] ; then
+    echo "[setupvars.sh] ERROR: Unsupported Python version. Please install one of Python" \
+    "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
+    "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
     return 1
 fi
-
 
 if [ -n "$python_version" ]; then
     if [[ -d $INTEL_OPENVINO_DIR/python ]]; then

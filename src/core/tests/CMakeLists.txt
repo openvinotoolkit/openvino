@@ -420,7 +420,7 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
+list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_extension)
 
 if (ENABLE_INTEL_CPU AND ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: IE:CPU enabled")
@@ -446,7 +446,7 @@ if (ENABLE_OV_CORE_BACKEND_UNIT_TESTS)
     message(STATUS "OV_CORE_TESTS: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
-        list(APPEND UNIT_TESTS_DEPENDENCIES templatePlugin)
+        list(APPEND UNIT_TESTS_DEPENDENCIES ov_template_plugin)
     endif()
 endif()
 
@@ -467,7 +467,7 @@ set(MULTI_TEST_SRC
     backend/sqrt.in.cpp
 )
 
-set(OP_EVAL_TEST_SRC 
+set(OP_EVAL_TEST_SRC
     # It should be a part of template plugin
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
@@ -518,7 +518,8 @@ endif()
 
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
-                             ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/progress_reporter.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)
