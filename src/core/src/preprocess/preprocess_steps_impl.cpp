@@ -28,7 +28,11 @@ static Shape construct_mean_scale_shape(const Output<Node>& node,
                     "Number of channels and mean/values size mismatch: Channels = ",
                     node_shape[channels_index].get_length(),
                     ", mean/scale = ",
-                    values_size);
+                    values_size,
+                    ", shape = ",
+                    node_shape,
+                    ", layout = ",
+                    context.layout().to_string());
     v[channels_index] = values_size;
     return {v};
 }
@@ -169,7 +173,18 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
     });
 }
 
+Layout PreStepsList::propagate_layout(const Layout& tensor_layout) const {
+    auto res = m_last_explicit_layout_set ? m_last_explicit_layout : tensor_layout;
+    for (const auto& convert : m_forward_layout_converts) {
+        res = layout::utils::apply_permutation(res, convert);
+    }
+    return res;
+}
+
 void PreStepsList::add_convert_layout_impl(const Layout& layout) {
+    m_forward_layout_converts.clear();
+    m_last_explicit_layout = layout;
+    m_last_explicit_layout_set = true;
     m_actions.emplace_back([layout](const std::vector<Output<Node>>& nodes,
                                     const std::shared_ptr<Model>& function,
                                     PreprocessingContext& context) {
@@ -200,6 +215,7 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         return;
     }
     m_layout_converts.emplace_front(dims);
+    m_forward_layout_converts.emplace_back(dims);
     m_actions.emplace_back([dims](const std::vector<Output<Node>>& nodes,
                                   const std::shared_ptr<Model>& function,
                                   PreprocessingContext& context) {
