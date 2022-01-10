@@ -23,10 +23,7 @@
 #include "gna_plugin_log.hpp"
 #include "gna_plugin_config.hpp"
 #include <legacy/ie_util_internal.hpp>
-
-#if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
-#endif
 
 namespace GNAPluginNS {
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
@@ -45,17 +42,11 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     /**
      * @brief - copy of nnet structure and indicator that related infer request not yet synced
      */
-#if GNA_LIB_VER == 1
-    std::vector<std::tuple<dnn_ptr, int32_t, InferenceEngine::BlobMap>> nnets;
-#else
     static constexpr uint32_t FAKE_REQUEST_CONFIG_ID = 0xffffffff;
     std::vector<std::tuple<dnn_ptr>> gnaModels;
     std::vector<std::tuple<uint32_t, int64_t, InferenceEngine::BlobMap>> gnaRequestConfigToRequestIdMap;
-#endif
 
-#if GNA_LIB_VER == 2
     uint32_t activeLayerIndex = 0xffffffff;
-#endif
     TranspositionInfoMap transpose_inputs_info;
     TranspositionInfoMap transpose_outputs_info;
     uint32_t *ptr_active_indices = nullptr;
@@ -64,9 +55,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     uint32_t dnn_dump_write_index = 0;
     intel_dnn_number_type_t output_type = kDnnInt;
 
-#if GNA_LIB_VER == 2
     void createRequestConfigsForGnaModels();
-#endif
 
     static int GetDeviceVersionFromString(const std::string deviceString);
 

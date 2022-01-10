@@ -33,4 +33,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestCallbackTests,
                                  ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                  ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestCallbackTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Batch_BehaviorTests, InferRequestCallbackTests,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_BATCH))),
+                         InferRequestCallbackTests::getTestCaseName);
 }  // namespace

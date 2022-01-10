@@ -89,7 +89,7 @@ repositories = {
     'openvino': {
         'github_user': 'openvinotoolkit',
         'github_repo': 'openvino',
-        'github_version': 'releases/2021/4',
+        'github_version': 'master',
         'host_url': 'https://github.com'
     },
     'open_model_zoo': {

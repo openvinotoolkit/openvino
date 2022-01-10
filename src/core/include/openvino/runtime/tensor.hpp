@@ -207,17 +207,6 @@ public:
         T::type_check(*this);
         return *static_cast<const T*>(this);
     }
-
-    /**
-     * @brief Casts this Tensor object to the type T.
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the Tensor
-     * @return T object
-     */
-    template <typename T, typename = typename std::enable_if<std::is_base_of<Tensor, T>::value>::type>
-    operator T() const {
-        return as<T>();
-    }
 };
 
 using TensorVector = std::vector<Tensor>;

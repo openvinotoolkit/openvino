@@ -306,10 +306,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         // OpenVino Default layout is   NCHW
         // GNA Convolution input is     NHCW
         // When layer layout is in NHWC it means that is was created by PassManager
-#if GNA_LIB_VER == 2
         return finalizeConvolution2DPrimitive(layer, in_batch, in_channels, in_height, in_width,
                                               out_batch, out_channels, out_height, out_width);
-#endif
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution 2D is not supported on GNA 1.0 library";
     }
     finalizeConvolution1DPrimitive(layer, in_batch, in_channels, in_width,
@@ -519,8 +517,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
 }
 
-#if GNA_LIB_VER == 2
-
 void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerPtr layer,
     uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,
     uint32_t out_batch, uint32_t out_channels, uint32_t out_height, uint32_t out_width) {
@@ -661,7 +657,6 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         gnamem->readonly().push_value(layer, ptr_biases, 0.0f, out_channels, 64);
     }
 }
-#endif
 
 void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& power = dynamic_cast<PowerLayer&>(*layer.get());

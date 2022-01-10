@@ -70,7 +70,7 @@ inline ov::runtime::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
     ov::runtime::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
-    std::string pluginName = "templatePlugin";
+    std::string pluginName = "ov_template_plugin";
     pluginName += IE_BUILD_POSTFIX;
     core.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY

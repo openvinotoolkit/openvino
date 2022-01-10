@@ -25,16 +25,9 @@ endif()
 
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
 
-if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-    set(GNA_LIBRARY_VERSION_NUMBER 2)
-else()
-    set(GNA_LIBRARY_VERSION_NUMBER 1)
-endif()
-
 target_compile_definitions(${TARGET_NAME}
         PRIVATE
             USE_GNA=ON
-            GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER}
         PUBLIC ${ARGV}
             DATA_PATH=\"${DATA_PATH}\"
             MODELS_PATH=\"${MODELS_PATH}\")
@@ -59,6 +52,3 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
-if(GNA_LIBRARY_VERSION STREQUAL "GNA1")
-    target_compile_definitions(${TARGET_NAME} PRIVATE GNA1_LIB)
-endif()

@@ -25,7 +25,8 @@ public:
                    const emitter_context *emit_context = nullptr) const override {};
 
 protected:
-    jit_mkldnn_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
+    jit_mkldnn_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
+                       mkldnn_alg_kind_t algKind, float inpAlpha, float inpBeta,
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
     jit_mkldnn_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
@@ -45,7 +46,8 @@ private:
 
 class jit_mkldnn_aux_emitter : public jit_mkldnn_emitter {
 public:
-    jit_mkldnn_aux_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
+    jit_mkldnn_aux_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
+                           mkldnn_alg_kind_t algKind, float inpAlpha, float inpBeta,
                            InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
 private:

@@ -135,7 +135,7 @@ public:
     }
 
     template<typename PType>
-    void AddPrimitive(PType prim) {
+    void AddPrimitive(const PType& prim) {
         if (m_topology == nullptr) {
             IE_THROW() << "m_topology object was not created in ov::runtime::intel_gpu::Program";
         }

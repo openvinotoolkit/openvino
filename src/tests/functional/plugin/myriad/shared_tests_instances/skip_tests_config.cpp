@@ -24,6 +24,8 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferDynamicNetworkWithSetTensor2times.*",
         ".*InferRequestDynamicTests.GetSameTensor2times.*",
         ".*InferRequestDynamicTests.InferDynamicNetworkWithSetTensor.*",
+        // TODO: Issue: 67972
+        R"(.*Hetero.*InferRequestDynamicTests.*)",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197

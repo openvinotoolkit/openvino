@@ -45,8 +45,6 @@ private:
     float coordinates_offset;
 
     std::vector<int> roi_indices_;
-
-    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

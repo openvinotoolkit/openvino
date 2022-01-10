@@ -24,9 +24,10 @@ inline const std::string getPluginLibNameByDevice(const std::string& deviceName)
             { "GNA", "ov_intel_gna_plugin" },
             { "GPU", "ov_intel_gpu_plugin" },
             { "HETERO", "ov_hetero_plugin" },
+            { "BATCH", "ov_auto_batch_plugin" },
             { "MULTI", "ov_multi_plugin" },
             { "MYRIAD", "myriadPlugin" },
-            { "TEMPLATE", "templatePlugin" },
+            { "TEMPLATE", "ov_template_plugin" },
     };
     if (devices.find(deviceName) == devices.end()) {
         throw std::runtime_error("Incorrect device name");
@@ -42,6 +43,11 @@ inline const std::pair<std::string, std::string> generateDefaultHeteroConfig() {
     return { "TARGET_FALLBACK" , ConformanceTests::targetDevice };
 }
 
+inline const std::pair<std::string, std::string> generateDefaultBatchConfig() {
+    // auto-batching with batch 1 (no real batching in fact, but full machinery is in action)
+    return { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ConformanceTests::targetDevice)};
+}
+
 inline const std::vector<std::map<std::string, std::string>> generateConfigs(const std::string& targetDevice,
                                                                              const std::vector<std::map<std::string, std::string>>& config = {}) {
     std::pair<std::string, std::string> defaultConfig;
@@ -49,6 +55,8 @@ inline const std::vector<std::map<std::string, std::string>> generateConfigs(con
         defaultConfig = generateDefaultMultiConfig();
     } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
         defaultConfig = generateDefaultHeteroConfig();
+    } else if (targetDevice ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
+        defaultConfig = generateDefaultBatchConfig();
     } else {
         throw std::runtime_error("Incorrect target device: " + targetDevice);
     }
@@ -70,7 +78,8 @@ inline const std::string generateComplexDeviceName(const std::string& deviceName
 
 inline const std::vector<std::string> returnAllPossibleDeviceCombination() {
     std::vector<std::string> res{ConformanceTests::targetDevice};
-    std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI};
+    std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO,
+                                     CommonTestUtils::DEVICE_BATCH, CommonTestUtils::DEVICE_MULTI};
     for (const auto& device : devices) {
         res.emplace_back(generateComplexDeviceName(device));
     }
