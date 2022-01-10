@@ -547,6 +547,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
     layout_map = parse_input_parameters(layout_string, input_names)
     batch_size = parse_batch_size(batch_size)
     reshape = False
+    batch_found = False
     input_info = []
     for i in range(len(inputs)):
         info = AppInputInfo()
@@ -600,7 +601,8 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                 if batch_index != -1 and info.partial_shape[batch_index] != batch_size:
                     info.partial_shape[batch_index] = batch_size
                     reshape = True
-                elif batch_index == -1:
+                    batch_found = True
+                elif batch_index == -1 and not batch_found:
                     raise Exception(f"Batch dimension is not specified for this model!")
 
         # Data shape
