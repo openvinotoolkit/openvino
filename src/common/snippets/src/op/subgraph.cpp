@@ -11,6 +11,7 @@
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants_to_scalars.hpp"
+#include "snippets/pass/convert_power_to_powerstatic.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -215,6 +216,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
+    manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>();
     manager.register_pass<snippets::pass::InsertStore>();
     manager.register_pass<snippets::pass::InsertMoveBroadcast>();
@@ -246,23 +248,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
-    // Todo: ngraph::pass::Manager introduces appreciable overheads, especially while used on small graphs.
-    // So don't wrap this transformation as a MatcherPass, but rewrite convert_to_snippet_dialect() as a
-    // for loop to improve first-inference time.
-    // replace power with power static
-    for (auto op : m_body->get_ordered_ops()) {
-        if (ov::is_type<opset1::Power>(op) &&
-            ov::is_type<snippets::op::Scalar>(op->get_input_node_shared_ptr(1)) &&
-            ov::shape_size(op->get_input_shape(1)) == 1) {
-            auto power = ov::as_type_ptr<opset1::Power>(op);
-            auto scalar = ov::as_type_ptr<snippets::op::Scalar>(op->get_input_node_shared_ptr(1));
-            auto value = scalar->cast_vector<float>()[0];
-            auto power_static = std::make_shared<snippets::op::PowerStatic>(power->input(0).get_source_output(), value);
-            power_static->set_friendly_name(power->get_friendly_name());
-            ngraph::copy_runtime_info(power, power_static);
-            ngraph::replace_node(power, power_static);
-        }
-    }
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
 
