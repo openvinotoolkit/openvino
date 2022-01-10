@@ -54,14 +54,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Tensor& input, const ngraph::AxisSet& reductionAxes, const bool acrossChannels,
+    static std::shared_ptr<Model> CreateFunction(const Tensor& input, const ngraph::AxisSet& reductionAxes, const bool acrossChannels,
                                                     const bool normalizeVariance, const double eps) {
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
         auto mvn = std::make_shared<op::v0::MVN>(in, acrossChannels, normalizeVariance, eps);
         if (!reductionAxes.empty()) {
             mvn = std::make_shared<op::v0::MVN>(in, reductionAxes, normalizeVariance, eps);
         }
-        return std::make_shared<ov::Function>(NodeVector {mvn}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {mvn}, ParameterVector {in});
     }
 };
 
@@ -177,7 +177,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const Tensor& input, const Tensor& reductionAxes, const bool normalizeVariance, const double eps,
+    static std::shared_ptr<Model> CreateFunction(const Tensor& input, const Tensor& reductionAxes, const bool normalizeVariance, const double eps,
                                                     const op::MVNEpsMode epsMode) {
         std::vector<int64_t> dataVector(reductionAxes.shape[0]);
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
@@ -187,7 +187,7 @@ private:
         }
         const auto axes = std::make_shared<op::v0::Constant>(reductionAxes.type, reductionAxes.shape, dataVector);
         auto mvn = std::make_shared<op::v6::MVN>(in, axes, normalizeVariance, eps, epsMode);
-        return std::make_shared<ov::Function>(NodeVector {mvn}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector {mvn}, ParameterVector {in});
     }
 };
 

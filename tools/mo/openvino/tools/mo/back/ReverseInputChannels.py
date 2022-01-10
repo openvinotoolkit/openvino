@@ -5,15 +5,17 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.ops.gather import Gather
-from openvino.tools.mo.ops.split import Split
 from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.layout import get_dim_from_layout, get_features_dim
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.ops.split import Split
 
 
 class ReverseChannels(Op):
@@ -51,50 +53,47 @@ class InsertReverseChannels(BackReplacementPattern):
     enabled = False
 
     @staticmethod
-    def get_fw_index(node: Node, idx: int) -> int:
-        if not node.has_valid('rt_info'):
+    def get_channel_index(node: Node) -> int:
+        guessed_layout = 'NCHW'
+        if node.has_valid('rt_info'):
+            rt_info = node.rt_info
+            if rt_info.contains('old_api_map_order'):
+                old_api_map_version = rt_info.get_attribute_version('old_api_map_order')
+                old_api_map = rt_info.info['old_api_map_order', old_api_map_version]
+                if 'inverse_order' in old_api_map.info:
+                    order = old_api_map.info['inverse_order']
+                    assert len(order) == len(guessed_layout)
+                    guessed_layout = np.array(list(guessed_layout))[order]
+                    guessed_layout = ''.join(guessed_layout)
+        idx, has_layout = get_dim_from_layout(node, 'C')
+        if has_layout:
             return idx
-
-        rt_info = node.rt_info
-        if not rt_info.contains('old_api_map_order'):
-            return idx
-
-        old_api_map_version = rt_info.get_attribute_version('old_api_map_order')
-        old_api_map = rt_info.info['old_api_map_order', old_api_map_version]
-        if 'inverse_order' not in old_api_map.info:
-            return idx
-
-        order = old_api_map.info['inverse_order']
-        node_name = node.soft_get('name', node.id)
-
-        if idx < 0:
-            assert not node.out_port(0).disconnected(), 'Cannot normalize negative axis {} in node {} ' \
-                                                        'as out port is disconnected.'.format(idx, node_name)
-            data_rank = len(list(node.out_port(0).data.get_shape()))
-            idx = data_rank + idx
-
-        assert len(order) > idx >= 0, \
-            'Channel index {} is incompatible with old_api_map in node {}.'.format(idx, node_name)
-        return list(order).index(idx)
+        else:
+            return get_features_dim(guessed_layout, len(node.shape))
 
     def find_and_replace_pattern(self, graph: Graph):
         all_params = [(p.soft_get('name', p.id), p, list(p.out_port(0).data.get_shape()))
                       for p in graph.get_op_nodes(type='Parameter')]
-        suitable_params = [(name, p, shape) for name, p, shape in all_params if
-                           len(shape) == 4 and shape[self.get_fw_index(p, 1)] == 3]
+        suitable_params = []
+        for name, p, shape in all_params:
+            if len(shape) == 4:
+                idx = self.get_channel_index(p)
+                if idx is not None and shape[idx] == 3:
+                    suitable_params.append((name, p, shape, idx))
+
 
         log.debug('All network inputs: {}'.format({name: shape for name, _, shape in all_params}))
-        log.debug('Will reverse input channels for: {}'.format({name: shape for name, _, shape in suitable_params}))
+        log.debug('Will reverse input channels for: {}'.format({name: shape for name, _, shape, _ in suitable_params}))
         if len(suitable_params) < len(all_params):
             log.error('Network has {} inputs overall, but only {} of them are suitable for input channels reversing.\n'
                       'Suitable for input channel reversing inputs are 4-dimensional with 3 channels\nAll inputs: {}\n'
                       'Suitable inputs {}'.format(len(all_params), len(suitable_params),
                                                   {name: shape for name, _, shape in all_params},
-                                                  {name: shape for name, _, shape in suitable_params}),
+                                                  {name: shape for name, _, shape, _ in suitable_params}),
                       extra={'is_warning': True})
 
-        for name, parameter, _ in suitable_params:
-            reverse_index = int64_array(self.get_fw_index(parameter, 1))
+        for name, parameter, _, idx in suitable_params:
+            reverse_index = int64_array(idx)
 
             if parameter.out_port(0).disconnected():
                 continue
@@ -221,7 +220,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
         # insert ReverseChannels on weights port of Convolution
         ric_to_move_to_weights = reverse_channels if group == 1 else reverse_channels.copy_node()
-        ric_to_move_to_weights['axis'] = np.array(channel_idx)
+        ric_to_move_to_weights['axis'] = mo_array(channel_idx)
         src = node.in_port(1).get_connection().get_source()
         node.in_port(1).get_connection().set_source(ric_to_move_to_weights.out_port(0))
         src.disconnect()
@@ -235,8 +234,8 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
             multiplier = int(bottom_channels / group)
             new_order = np.take(np.arange(bottom_channels).reshape((group, multiplier)),
                                 indices=reverse_channels.order, axis=0).flatten()
-            reverse_channels['axis'] = np.array(reverse_channels.axis.copy())
-            reverse_channels['order'] = np.array(new_order)
+            reverse_channels['axis'] = mo_array(reverse_channels.axis.copy())
+            reverse_channels['order'] = mo_array(new_order)
 
             node.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
             node.out_port(0).disconnect()
@@ -285,7 +284,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
         # reversing eltwise inputs where applicable
         for port, axis in port_axis:
-            ric_copy = reverse_channels.copy_node({'axis': np.array(axis), 'order': np.array(reverse_channels.order)})
+            ric_copy = reverse_channels.copy_node({'axis': mo_array(axis), 'order': mo_array(reverse_channels.order)})
 
             src = port.get_connection().get_source()
             port.get_connection().set_source(ric_copy.out_port(0))
@@ -452,7 +451,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
 
         copies = []
         for port, axis in port_axis:
-            reverse_channels_copy = reverse_channels.copy_node({'axis': np.array(axis)})
+            reverse_channels_copy = reverse_channels.copy_node({'axis': mo_array(axis)})
 
             src = port.get_connection().get_source()
             if src.node.soft_get('type') == 'Parameter':

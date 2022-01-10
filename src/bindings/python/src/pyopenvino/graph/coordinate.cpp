@@ -18,4 +18,22 @@ void regclass_graph_Coordinate(py::module m) {
     coordinate.def(py::init<const ov::Shape&>());
     coordinate.def(py::init<const std::vector<size_t>&>());
     coordinate.def(py::init<const ov::Coordinate&>());
+    coordinate.def("__setitem__", [](ov::Coordinate& self, size_t key, size_t value) {
+        self[key] = value;
+    });
+
+    coordinate.def("__getitem__", [](const ov::Coordinate& self, size_t key) {
+        return self[key];
+    });
+
+    coordinate.def("__len__", [](const ov::Coordinate& self) {
+        return self.size();
+    });
+
+    coordinate.def(
+        "__iter__",
+        [](const ov::Coordinate& self) {
+            return py::make_iterator(self.begin(), self.end());
+        },
+        py::keep_alive<0, 1>()); /* Keep vector alive while iterator is used */
 }

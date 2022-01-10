@@ -30,7 +30,7 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
 template <class AttributeType>
 class ngraph::pass::low_precision::PropagateSharedValue : public ngraph::pass::FunctionPass {
 public:
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateSharedValue");
 
         std::vector<std::shared_ptr<ngraph::Node>> nodes(f->get_ordered_ops());

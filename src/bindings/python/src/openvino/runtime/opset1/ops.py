@@ -2431,7 +2431,7 @@ def reshape(
 
 @unary_op
 def result(data: NodeInput, name: Optional[str] = None) -> Node:
-    """Return a node which represents an output of a graph (Function).
+    """Return a node which represents an output of a graph (Model).
 
     @param data: The tensor containing the input data
     @return Result node

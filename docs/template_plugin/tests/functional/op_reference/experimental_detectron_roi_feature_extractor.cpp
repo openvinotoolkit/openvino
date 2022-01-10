@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    std::shared_ptr<Function> create_function(const std::vector<Tensor>& inputs) {
+    std::shared_ptr<Model> create_function(const std::vector<Tensor>& inputs) {
         op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
         attrs.aligned = false;
         attrs.output_size = 3;
@@ -62,7 +62,7 @@ private:
         }
 
         auto roi = std::make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(node_vector, attrs);
-        auto fun = std::make_shared<ov::Function>(OutputVector{roi->output(0), roi->output(1)}, parameter_vector);
+        auto fun = std::make_shared<ov::Model>(OutputVector{roi->output(0), roi->output(1)}, parameter_vector);
         return fun;
     }
 };

@@ -6,7 +6,7 @@ Hello Query Device C++ sample application demonstrates how to use the following 
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-|Available Devices|`InferenceEngine::Core::GetAvailableDevices`, `InferenceEngine::Core::GetMetric`, `InferenceEngine::Core::GetConfig`| Get available devices information and configuration for inference
+|Available Devices|`ov::runtime::Core::get_available_devices`, `ov::runtime::Core::get_metric`, `ov::runtime::Core::get_config`| Get available devices information and configuration for inference
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 

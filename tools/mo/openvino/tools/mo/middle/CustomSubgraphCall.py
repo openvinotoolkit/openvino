@@ -7,6 +7,7 @@ import logging as log
 import numpy as np
 
 from openvino.tools.mo.front.common.layout import nhwc_to_nchw_permute
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, shape_insert
 from openvino.tools.mo.front.extractor import update_ie_fields
 from openvino.tools.mo.graph.graph import Graph
@@ -206,15 +207,15 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         # reshape shape data node
         reshape_shape_data_node_name = graph.unique_id("Reshape_shape_")
         graph.add_node(reshape_shape_data_node_name, kind='data', name=reshape_shape_data_node_name,
-                       value=np.array(data_node['shape']), shape=[1])
+                       value=mo_array(data_node['shape']), shape=[1])
 
         # reshaped data node
         reshaped_value = None
         if data_node['value'] is not None:
-            reshaped_value = np.array(data_node['value'])
+            reshaped_value = mo_array(data_node['value'])
         reshaped_data_node_name = graph.unique_id("reshaped_data_")
         graph.add_node(reshaped_data_node_name, kind='data', name=reshaped_data_node_name,
-                       shape=np.array(data_node['shape']), value=reshaped_value, nchw_layout=True)
+                       shape=mo_array(data_node['shape']), value=reshaped_value, nchw_layout=True)
 
         if is_out_node:
             add_opoutput(graph, reshaped_data_node_name, 0, False)

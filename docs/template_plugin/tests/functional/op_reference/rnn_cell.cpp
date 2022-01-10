@@ -65,7 +65,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const RNNCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const RNNCellParams& params) {
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
         const auto H_t = std::make_shared<op::v0::Parameter>(params.H_t.type, params.H_t.shape);
         const auto W = std::make_shared<op::v0::Parameter>(params.W.type, params.W.shape);
@@ -73,14 +73,14 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
 
         const auto rnn_cell = std::make_shared<op::v0::RNNCell>(X, H_t, W, R, B, params.hiddenSize);
-        auto function = std::make_shared<Function>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };
 
 class ReferenceRNNCellTestBiasClip : public ReferenceRNNCellTest {
 private:
-    static std::shared_ptr<Function> CreateFunction(const RNNCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const RNNCellParams& params) {
         float clip = 2.88f;
 
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
@@ -92,7 +92,7 @@ private:
         const auto rnn_cell = std::make_shared<op::v0::RNNCell>(
             X, H_t, W, R, B, params.hiddenSize,
             std::vector<std::string>{"tanh"}, std::vector<float>{}, std::vector<float>{}, clip);
-        auto function = std::make_shared<Function>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };
@@ -107,7 +107,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const RNNCellParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const RNNCellParams& params) {
         float clip = 2.88f;
 
         const auto X = std::make_shared<op::v0::Parameter>(params.X.type, params.X.shape);
@@ -126,7 +126,7 @@ private:
                                                                 std::vector<float>{},
                                                                 std::vector<float>{},
                                                                 clip);
-        auto function = std::make_shared<Function>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(NodeVector{rnn_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };

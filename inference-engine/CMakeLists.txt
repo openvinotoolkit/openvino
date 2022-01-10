@@ -3,8 +3,3 @@
 #
 
 project(InferenceEngine)
-
-if(ENABLE_TESTS)
-    add_subdirectory(tests_deprecated)
-    add_subdirectory(tests)
-endif()

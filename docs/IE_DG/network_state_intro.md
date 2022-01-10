@@ -7,7 +7,7 @@ This section describes how to work with stateful networks in OpenVINO toolkit, s
 
 The section additionally provides small examples of stateful network and code to infer it.
 
-## What is a Stateful Network
+## What is a Stateful Network?
 
  Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
  we can process it with RNN like networks that contain a cycle inside. But in some cases, like online speech recognition of time series 
@@ -316,7 +316,7 @@ InferenceEngine::lowLatency2(cnnNetwork, false);
 
 	![low_latency_limitation_2](./img/low_latency_limitation_2.png)
 
-	**Current solution:** Trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input`, `--output`. For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option: 
+	**Current solution:** Trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model.md) `--input`, `--output`. For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option: 
 	`--input Reshape_layer_name`. The problematic constant can be also replaced using ngraph, as shown in the example below.
 
 ```cpp
@@ -403,7 +403,7 @@ InferenceEngine::LowLatency(cnnNetwork);
 4. Use state API. See sections [OpenVINO state API](#openvino-state-api), [Example of stateful network inference](#example-of-stateful-network-inference).
 
  
-### Known Limitations
+### Known Limitations for LowLatency [DEPRECATED]
 1. Parameters connected directly to ReadValues (States) after the transformation is applied are not allowed.
 
 	Unnecessary parameters may remain on the graph after applying the transformation. The automatic handling of this case inside the transformation is not possible now. Such Parameters should be removed manually from `ngraph::Function` or replaced with a Constant.
@@ -411,7 +411,7 @@ InferenceEngine::LowLatency(cnnNetwork);
 	![low_latency_limitation_1](./img/low_latency_limitation_1.png)
 
 	**Current solutions:** 
-	* Replace Parameter with Constant (freeze) with the value [0, 0, 0 … 0] via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input` or `--freeze_placeholder_with_value`.
+	* Replace Parameter with Constant (freeze) with the value [0, 0, 0 … 0] via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model.md) `--input` or `--freeze_placeholder_with_value`.
 	* Use ngraph API to replace Parameter with Constant.
 
 		```cpp
@@ -436,7 +436,7 @@ InferenceEngine::LowLatency(cnnNetwork);
 
 	![low_latency_limitation_2](./img/low_latency_limitation_2.png)
 
-	**Current solution:** trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input`, `--output`. For example, we can trim the Parameter and the problematic Constant in the picture above, using the following command line option: 
+	**Current solution:** trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model.md) `--input`, `--output`. For example, we can trim the Parameter and the problematic Constant in the picture above, using the following command line option: 
 	`--input Reshape_layer_name`. We can also replace the problematic Constant using ngraph, as shown in the example below.
 
 ```cpp

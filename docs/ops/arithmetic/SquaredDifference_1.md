@@ -1,4 +1,4 @@
-## SquaredDifference <a name="SquaredDifference"></a> {#openvino_docs_ops_arithmetic_SquaredDifference_1}
+# SquaredDifference {#openvino_docs_ops_arithmetic_SquaredDifference_1}
 
 **Versioned name**: *SquaredDifference-1*
 

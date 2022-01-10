@@ -137,11 +137,12 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
-    // WA: For the cases like Const(weights)->Sub(zp)->Deconv.
+    bool hasConstantWeights = IsNodeOnConstPath(weights_node);
+    // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap (and transpose) I and O dimensions to match the format
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
-    if (IsNodeOnConstPath(weights_node) && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) {
+    if ((hasConstantWeights && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) || !hasConstantWeights) {
         std::string permuteName = layerName + "_cldnn_weights_permute";
         auto weights_rank = op->get_input_shape(1).size();
         std::vector<uint16_t> permute_order(weights_rank);
@@ -195,11 +196,12 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
-    // WA: For the cases like Const(weights)->Sub(zp)->Deconv.
+    bool hasConstWeights = IsNodeOnConstPath(weights_node);
+    // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap I and O dimensions to match the format.
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
-    if (IsNodeOnConstPath(weights_node) && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) {
+    if ((hasConstWeights && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) || !hasConstWeights) {
         std::string permuteName = layerName + "_cldnn_weights_permute";
         auto weights_rank = op->get_input_shape(1).size();
         std::vector<uint16_t> permute_order(weights_rank);

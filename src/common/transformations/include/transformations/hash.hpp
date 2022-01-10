@@ -7,20 +7,20 @@
 #include <string>
 
 #include "ngraph/opsets/opset.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/pass/serialize.hpp"
 
 namespace ov {
 namespace pass {
 
 /**
- * @brief Hash transformation calculates hash value for ov::Function
+ * @brief Hash transformation calculates hash value for ov::Model
  */
-class NGRAPH_API Hash : public ov::pass::FunctionPass {
+class NGRAPH_API Hash : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("HashPass");
 
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 
     /**
      * @brief Hash pass constructor
@@ -33,7 +33,6 @@ public:
 private:
     uint64_t& m_hash;
 };
-
 
 }  // namespace pass
 }  // namespace ov

@@ -51,10 +51,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ShuffleChannelsParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const ShuffleChannelsParams& params) {
         const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto function = std::make_shared<opset1::ShuffleChannels>(data, params.axis, params.group);
-        return std::make_shared<Function>(NodeVector {function}, ParameterVector {data});
+        return std::make_shared<Model>(NodeVector {function}, ParameterVector {data});
     }
 };
 

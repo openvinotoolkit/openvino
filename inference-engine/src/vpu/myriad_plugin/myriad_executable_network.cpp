@@ -164,11 +164,20 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
 
     this->_networkInputs  = blobReader.getNetworkInputs();
     this->_networkOutputs = blobReader.getNetworkOutputs();
-    std::size_t numStages = blobReader.getStageCount();
-    auto blobHeader = blobReader.getHeader();
+    if (blobSize == blobReader.getFileSize()) {
+        _log->warning(
+            "Older version of blob. Unable to get information about network "
+            "parameters/results. Please recompile blob");
+    }
+    this->setInputs(blobReader.getNetworkParemeters());
+    this->setOutputs(blobReader.getNetworkResults());
 
     _inputInfo  = blobReader.getInputInfo();
     _outputInfo = blobReader.getOutputInfo();
+
+    std::size_t numStages = blobReader.getStageCount();
+    auto blobHeader = blobReader.getHeader();
+
     openDevice(devicePool);
     _executor->allocateGraph(_device, _graphDesc, _graphBlob, blobHeader, numStages, networkName, _actualNumExecutors);
     _graphMetaData.stagesMeta.resize(numStages);
@@ -225,6 +234,15 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
     } else {
         IE_THROW(NotImplemented);
     }
+}
+
+InferenceEngine::Parameter ExecutableNetwork::GetConfig(const std::string &name) const {
+    auto confValues = _config.getValues();
+    auto it = confValues.find(name);
+    if (it != confValues.end()) {
+        return it->second;
+    }
+    VPU_THROW_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
 }
 
 std::shared_ptr<ngraph::Function> ExecutableNetwork::GetExecGraphInfo() {

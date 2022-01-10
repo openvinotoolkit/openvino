@@ -112,8 +112,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const StridedSliceParams& params) {
-        std::shared_ptr<Function> function;
+    static std::shared_ptr<Model> CreateFunction(const StridedSliceParams& params) {
+        std::shared_ptr<Model> function;
         if (params.dynamicDataShape.is_static()) {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
             const auto beginOp = std::make_shared<op::v0::Constant>(params.beginTensor.type, params.beginTensor.shape,
@@ -125,7 +125,7 @@ private:
             const auto StridedSlice = std::make_shared<op::v1::StridedSlice>(data, beginOp, endOp, stridesOp,
                                                                              params.beginMask, params.endMask, params.newAxisMask,
                                                                              params.shrinkAxisMask, params.ellipsisMask);
-            function = std::make_shared<ov::Function>(NodeVector{StridedSlice}, ParameterVector{data});
+            function = std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data});
         } else {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, PartialShape::dynamic());
             const auto beginOp = std::make_shared<op::v0::Parameter>(params.beginTensor.type, params.beginTensor.shape);
@@ -134,7 +134,7 @@ private:
             const auto StridedSlice = std::make_shared<op::v1::StridedSlice>(data, beginOp, endOp, stridesOp,
                                                                              params.beginMask, params.endMask, params.newAxisMask,
                                                                              params.shrinkAxisMask, params.ellipsisMask);
-            function = std::make_shared<ov::Function>(NodeVector{StridedSlice}, ParameterVector{data, beginOp, endOp, stridesOp});
+            function = std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data, beginOp, endOp, stridesOp});
         }
         return function;
     }
@@ -174,8 +174,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const StridedSliceStrideOptionalParams& params) {
-        std::shared_ptr<Function> function;
+    static std::shared_ptr<Model> CreateFunction(const StridedSliceStrideOptionalParams& params) {
+        std::shared_ptr<Model> function;
         if (params.dynamicDataShape.is_static()) {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
             const auto beginOp = std::make_shared<op::v0::Constant>(params.beginTensor.type, params.beginTensor.shape,
@@ -185,7 +185,7 @@ private:
             const auto StridedSlice = std::make_shared<op::v1::StridedSlice>(data, beginOp, endOp,
                                                                              params.beginMask, params.endMask, params.newAxisMask,
                                                                              params.shrinkAxisMask, params.ellipsisMask);
-            function = std::make_shared<ov::Function>(NodeVector{StridedSlice}, ParameterVector{data});
+            function = std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data});
         } else {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, PartialShape::dynamic());
             const auto beginOp = std::make_shared<op::v0::Parameter>(params.beginTensor.type, params.beginTensor.shape);
@@ -193,7 +193,7 @@ private:
             const auto StridedSlice = std::make_shared<op::v1::StridedSlice>(data, beginOp, endOp,
                                                                              params.beginMask, params.endMask, params.newAxisMask,
                                                                              params.shrinkAxisMask, params.ellipsisMask);
-            function = std::make_shared<ov::Function>(NodeVector{StridedSlice}, ParameterVector{data, beginOp, endOp});
+            function = std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data, beginOp, endOp});
         }
         return function;
     }

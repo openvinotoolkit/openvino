@@ -8,10 +8,10 @@ from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 from openvino.tools.mo.back.preprocessing import apply_preprocessing
 from openvino.tools.mo.utils.cli_parser import get_meta_info, parse_transform
 
-from openvino.runtime import Function         # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Model         # pylint: disable=no-name-in-module,import-error
 
 
-def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
+def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
 
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)

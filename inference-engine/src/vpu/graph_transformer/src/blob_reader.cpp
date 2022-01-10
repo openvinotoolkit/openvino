@@ -10,7 +10,7 @@
 #include <string>
 
 #include <ie_input_info.hpp>
-
+#include <ie_ngraph_utils.hpp>
 #include <vpu/graph_transformer.hpp>
 #include <vpu/backend/blob_format.hpp>
 #include <vpu/model/data.hpp>
@@ -114,6 +114,64 @@ void BlobReader::parse(const std::vector<char>& blob) {
         const auto processedOutput = readIO(_outputInfo, outputSectionOffset, i);
         if (!isIOShapeName(processedOutput.getName())) {
             _networkOutputs[processedOutput.getName()] = std::make_shared<ie::Data>(processedOutput);
+        }
+    }
+    if (blob.size() != _blobHeader.file_size) {
+        auto networkInfoOffset = _blobHeader.file_size;
+        const auto nih = readFromBlob<network_info_header>(blob, networkInfoOffset);
+        auto extractParameter = [&blob, &networkInfoOffset](bool isResult) {
+            const auto nph = readFromBlob<network_params_header>(blob, networkInfoOffset);
+            std::string parameterFriendlyName(nph.name_lenght, '0');
+
+            for (auto idx = 0; idx < nph.name_lenght; ++idx) {
+                parameterFriendlyName[idx] = readFromBlob<char>(blob, networkInfoOffset);
+            }
+
+            ov::Shape parameterShape(nph.shape_size);
+            for (auto idx = 0; idx < nph.shape_size; ++idx) {
+                parameterShape[idx] = readFromBlob<size_t>(blob, networkInfoOffset);
+            }
+
+            ov::element::Type_t parameterType = readFromBlob<ov::element::Type_t>(blob, networkInfoOffset);
+            std::shared_ptr<ov::Node> parameter =
+                std::make_shared<ov::op::v0::Parameter>(parameterType,
+                                                        parameterShape);
+
+            std::unordered_set<std::string> tensorNames;
+            for (auto idx = 0; idx < nph.output_tensor_names_size; ++idx) {
+                const auto nameLenght = readFromBlob<size_t>(blob, networkInfoOffset);
+                std::string tensorName;
+                for (auto nameSymbolIdx = 0; nameSymbolIdx < nameLenght; ++nameSymbolIdx) {
+                    tensorName += readFromBlob<char>(blob, networkInfoOffset);
+                }
+                tensorNames.insert(tensorName);
+            }
+            if (isResult) {
+                auto fakeParameter = parameter;
+                parameter = std::make_shared<ov::op::v0::Result>(parameter);
+
+                const auto inputNameLenght = readFromBlob<size_t>(blob, networkInfoOffset);
+
+                std::string inputName;
+                for (auto nameSymbolIdx = 0; nameSymbolIdx < inputNameLenght; ++nameSymbolIdx) {
+                    inputName += readFromBlob<char>(blob, networkInfoOffset);
+                }
+                fakeParameter->set_friendly_name(inputName);
+
+                parameter = parameter->copy_with_new_inputs({fakeParameter});
+            }
+            parameter->set_friendly_name(parameterFriendlyName);
+            parameter->output(0).get_tensor().set_names(tensorNames);
+
+            return parameter;
+        };
+
+        for (auto paramIdx = 0; paramIdx < nih.parameters_size; ++paramIdx) {
+            _parameters.emplace_back(extractParameter(false));
+        }
+
+        for (auto paramIdx = 0; paramIdx < nih.results_size; ++paramIdx) {
+            _results.emplace_back(extractParameter(true));
         }
     }
 }

@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Function, PartialShape, Shape
+from openvino.runtime import Model, PartialShape, Shape
 from openvino.runtime.passes import Manager
 from tests.test_ngraph.util import count_ops_of_type
 from openvino.runtime import Core
@@ -19,7 +19,7 @@ from openvino.runtime import Core
 def test_constant_folding():
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.ceiling(node_constant)
-    func = Function(node_ceil, [], "TestFunction")
+    func = Model(node_ceil, [], "TestFunction")
 
     assert count_ops_of_type(func, node_ceil) == 1
     assert count_ops_of_type(func, node_constant) == 1
@@ -47,7 +47,7 @@ def test_serialize_seperate_paths_kwargs():
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
     model = (parameter_a + parameter_b) * parameter_c
-    func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
 
     pass_manager = Manager()
     pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path)
@@ -71,7 +71,7 @@ def test_serialize_seperate_paths_args():
     parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
     parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
     model = ((parameter_a + parameter_b) * parameter_c) / parameter_d
-    func = Function(model, [parameter_a, parameter_b, parameter_c, parameter_d], "Function")
+    func = Model(model, [parameter_a, parameter_b, parameter_c, parameter_d], "Model")
 
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", xml_path, bin_path)
@@ -94,7 +94,7 @@ def test_serialize_pass_mixed_args_kwargs():
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     model = parameter_a - parameter_b
-    func = Function(model, [parameter_a, parameter_b], "Function")
+    func = Model(model, [parameter_a, parameter_b], "Model")
 
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", xml_path, bin_path=bin_path)
@@ -119,7 +119,7 @@ def test_serialize_pass_mixed_args_kwargs_v2():
     parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
     parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
-    func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
     pass_manager.run_passes(func)
@@ -147,7 +147,7 @@ def test_serialize_results():
     core = Core()
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.ceiling(node_constant)
-    func = Function(node_ceil, [], "Function")
+    func = Model(node_ceil, [], "Model")
 
     xml_path = "serialized_function.xml"
     bin_path = "serialized_function.bin"
@@ -175,7 +175,7 @@ def test_serialize_pass_tuple():
     parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
     parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
-    func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
     pass_manager.run_passes(func)
@@ -199,7 +199,7 @@ def test_default_version():
     parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
     parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
-    func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
     pass_manager.run_passes(func)
@@ -223,7 +223,7 @@ def test_default_version_IR_V11_tuple():
     parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
     parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
-    func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path), version="IR_V11")
     pass_manager.run_passes(func)
@@ -247,7 +247,7 @@ def test_default_version_IR_V11_seperate_paths():
     parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
     parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
-    func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
+    func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path, version="IR_V11")
     pass_manager.run_passes(func)

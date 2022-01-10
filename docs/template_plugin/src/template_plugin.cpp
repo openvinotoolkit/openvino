@@ -35,8 +35,7 @@ Plugin::Plugin() {
     _pluginName = "TEMPLATE";
 
     // create ngraph backend which performs inference using ngraph reference implementations
-    ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
-    _backend = ngraph::runtime::Backend::create("INTERPRETER");
+    _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
     _waitExecutor =
@@ -299,6 +298,6 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name,
 // ! [plugin:get_metric]
 
 // ! [plugin:create_plugin_engine]
-static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "templatePlugin"};
+static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "ov_template_plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 // ! [plugin:create_plugin_engine]

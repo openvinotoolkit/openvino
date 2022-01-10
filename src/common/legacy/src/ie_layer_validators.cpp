@@ -18,7 +18,7 @@
 
 namespace InferenceEngine {
 
-using namespace details;
+using namespace details_legacy;
 using std::map;
 using std::string;
 using std::vector;
@@ -534,7 +534,7 @@ void NormValidator::parseParams(CNNLayer* layer) {
     casted->_k = casted->GetParamAsUInt("k", 1);
     casted->_alpha = casted->GetParamAsFloat("alpha");
     casted->_beta = casted->GetParamAsFloat("beta");
-    casted->_isAcrossMaps = CaselessEq<std::string>()(casted->GetParamAsString("region"), "across");
+    casted->_isAcrossMaps = details::CaselessEq<std::string>()(casted->GetParamAsString("region"), "across");
 }
 
 NormValidator::NormValidator(const std::string& _type): LayerValidator(_type) {}
@@ -903,18 +903,18 @@ void RNNSequenceValidator<CELL>::parseParams(CNNLayer* layer) {
     casted->direction = direction_from(direction);
 }
 
-template class details::RNNSequenceValidator<RNNSequenceLayer::RNN>;
-template class details::RNNSequenceValidator<RNNSequenceLayer::GRU>;
-template class details::RNNSequenceValidator<RNNSequenceLayer::LSTM>;
+template class details_legacy::RNNSequenceValidator<RNNSequenceLayer::RNN>;
+template class details_legacy::RNNSequenceValidator<RNNSequenceLayer::GRU>;
+template class details_legacy::RNNSequenceValidator<RNNSequenceLayer::LSTM>;
 
 //
 
 template <RNNSequenceLayer::CellType CELL>
 RNNCellValidator<CELL>::RNNCellValidator(const std::string& _type): RNNBaseValidator(_type, CELL) {}
 
-template class details::RNNCellValidator<RNNSequenceLayer::RNN>;
-template class details::RNNCellValidator<RNNSequenceLayer::GRU>;
-template class details::RNNCellValidator<RNNSequenceLayer::LSTM>;
+template class details_legacy::RNNCellValidator<RNNSequenceLayer::RNN>;
+template class details_legacy::RNNCellValidator<RNNSequenceLayer::GRU>;
+template class details_legacy::RNNCellValidator<RNNSequenceLayer::LSTM>;
 
 //
 

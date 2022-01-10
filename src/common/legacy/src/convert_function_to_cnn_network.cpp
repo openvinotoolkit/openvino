@@ -10,8 +10,8 @@
 #include <sstream>
 
 #include <cnn_network_ngraph_impl.hpp>
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/deconvolution_ie.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "legacy/ngraph_ops/gather_ie.hpp"
@@ -321,7 +321,7 @@ public:
     }
 
     void addSpecificCreator(const std::vector<std::string>& forTypes, const CreatorFor& creator) {
-        for (const auto type : forTypes) {
+        for (const auto& type : forTypes) {
             creators[type] = creator;
         }
     }
@@ -391,8 +391,13 @@ void CNNLayerCreator::on_adapter(const std::string& name,
         params[name] = details::convertPrecision(type).name();
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::PartialShape>>(&adapter)) {
         std::string dims;
-        auto shape = static_cast<::ngraph::PartialShape&>(*a);
+        auto shape = a->get();
+        if (shape.rank().is_dynamic()) {
+            IE_THROW() << "Error converting ngraph to CNN network. Dynamic rank is not supported.";
+        }
         for (int64_t i = 0; i < shape.rank().get_length(); i++) {
+            if (shape[i].is_dynamic())
+                IE_THROW() << "Error converting ngraph to CNN network. Dynamic dimension is not supported.";
             if (!dims.empty()) dims += ",";
             dims += std::to_string(shape[i].get_length());
         }
@@ -2070,11 +2075,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     InputsDataMap resultInputDataMap;
     cnnNetworkImpl->getInputsInfo(resultInputDataMap);
     IE_ASSERT(resultInputDataMap.size() == thisInputDataMap.size());
-    for (auto i : resultInputDataMap) {
-        auto &thisInputData = *thisInputDataMap[i.first];
-        i.second->setPrecision(thisInputData.getPrecision());
-        i.second->setLayout(thisInputData.getLayout());
-        i.second->getPreProcess() = thisInputData.getPreProcess();
+    auto params = graph->get_parameters();
+    for ( const auto &param : params ) {
+        const std::string input_name = param->get_friendly_name();
+        auto &thisInputData = *thisInputDataMap[input_name];
+        resultInputDataMap[input_name]->setPrecision(thisInputData.getPrecision());
+        resultInputDataMap[input_name]->setLayout(thisInputData.getLayout());
+        resultInputDataMap[input_name]->getPreProcess() = thisInputData.getPreProcess();
     }
 }
 

@@ -38,7 +38,7 @@ public:
 
     NGRAPH_RTTI_DECLARATION;
     explicit MarkupPrecisions(const std::vector<OperationPrecisionRestriction>& restrictions = {});
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
 private:
     static bool isPrecisionPreserved(const std::shared_ptr<Node>& node);

@@ -10,10 +10,10 @@ $ python setup.py sdist bdist_wheel
 """
 
 import os
-import sys
 import re
+import sys
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, copy
 
 from setuptools import setup, find_namespace_packages
 from setuptools.command.build_py import build_py
@@ -56,12 +56,10 @@ with open('requirements.txt', 'rt') as req_file:
 class InstallCmd(install):
     def run(self):
         install.run(self)
-        # Create requirements.txt files for all the frameworks
+        # copy requirements.txt files for all the frameworks
         for name in requirements_txt:
-            path = os.path.join(self.install_purelib, prefix, name)
-            with open(path, 'wt') as common_reqs_file:
-                common_reqs_file.write('\n'.join(deps))
-        # Add version.txt if exists
+            copy(name, os.path.join(self.install_purelib, prefix))
+
         version_txt = 'version.txt'
         if os.path.exists(version_txt):
             copyfile(os.path.join(version_txt),

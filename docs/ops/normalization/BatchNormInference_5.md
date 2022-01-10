@@ -1,4 +1,4 @@
-## BatchNormInference <a name="BatchNormInference"></a> {#openvino_docs_ops_normalization_BatchNormInference_5}
+# BatchNormInference {#openvino_docs_ops_normalization_BatchNormInference_5}
 
 **Versioned name**: *BatchNormInference-5*
 

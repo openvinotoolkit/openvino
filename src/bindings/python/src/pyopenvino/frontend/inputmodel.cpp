@@ -6,8 +6,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/frontend_exceptions.hpp"
-#include "manager.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -19,14 +20,14 @@ void regclass_frontend_InputModel(py::module m) {
 
     im.def("get_place_by_tensor_name",
            &ov::frontend::InputModel::get_place_by_tensor_name,
-           py::arg("tensorName"),
+           py::arg("tensor_name"),
            R"(
                 Returns a tensor place by a tensor name following framework conventions, or
                 nullptr if a tensor with this name doesn't exist.
 
                 Parameters
                 ----------
-                tensorName : str
+                tensor_name : str
                     Name of tensor.
 
                 Returns
@@ -37,14 +38,14 @@ void regclass_frontend_InputModel(py::module m) {
 
     im.def("get_place_by_operation_name",
            &ov::frontend::InputModel::get_place_by_operation_name,
-           py::arg("operationName"),
+           py::arg("operation_name"),
            R"(
                 Returns an operation place by an operation name following framework conventions, or
                 nullptr if an operation with this name doesn't exist.
 
                 Parameters
                 ----------
-                operationName : str
+                operation_name : str
                     Name of operation.
 
                 Returns
@@ -55,17 +56,17 @@ void regclass_frontend_InputModel(py::module m) {
 
     im.def("get_place_by_operation_name_and_input_port",
            &ov::frontend::InputModel::get_place_by_operation_name_and_input_port,
-           py::arg("operationName"),
-           py::arg("inputPortIndex"),
+           py::arg("operation_name"),
+           py::arg("input_port_index"),
            R"(
                 Returns an input port place by operation name and appropriate port index.
 
                 Parameters
                 ----------
-                operationName : str
+                operation_name : str
                     Name of operation.
 
-                inputPortIndex : int
+                input_port_index : int
                     Index of input port for this operation.
 
                 Returns
@@ -76,17 +77,17 @@ void regclass_frontend_InputModel(py::module m) {
 
     im.def("get_place_by_operation_name_and_output_port",
            &ov::frontend::InputModel::get_place_by_operation_name_and_output_port,
-           py::arg("operationName"),
-           py::arg("outputPortIndex"),
+           py::arg("operation_name"),
+           py::arg("output_port_index"),
            R"(
                 Returns an output port place by operation name and appropriate port index.
 
                 Parameters
                 ----------
-                operationName : str
+                operation_name : str
                     Name of operation.
 
-                outputPortIndex : int
+                output_port_index : int
                     Index of output port for this operation.
 
                 Returns
@@ -98,7 +99,7 @@ void regclass_frontend_InputModel(py::module m) {
     im.def("set_name_for_tensor",
            &ov::frontend::InputModel::set_name_for_tensor,
            py::arg("tensor"),
-           py::arg("newName"),
+           py::arg("new_name"),
            R"(
                 Sets name for tensor. Overwrites existing names of this place.
 
@@ -107,14 +108,14 @@ void regclass_frontend_InputModel(py::module m) {
                 tensor : Place
                     Tensor place.
 
-                newName : str
+                new_name : str
                     New name for this tensor.
             )");
 
     im.def("add_name_for_tensor",
            &ov::frontend::InputModel::add_name_for_tensor,
            py::arg("tensor"),
-           py::arg("newName"),
+           py::arg("new_name"),
            R"(
                 Adds new name for tensor
 
@@ -123,14 +124,14 @@ void regclass_frontend_InputModel(py::module m) {
                 tensor : Place
                     Tensor place.
 
-                newName : str
+                new_name : str
                     New name to be added to this place.
             )");
 
     im.def("set_name_for_operation",
            &ov::frontend::InputModel::set_name_for_operation,
            py::arg("operation"),
-           py::arg("newName"),
+           py::arg("new_name"),
            R"(
                 Adds new name for tensor.
 
@@ -139,7 +140,7 @@ void regclass_frontend_InputModel(py::module m) {
                 operation : Place
                     Operation place.
 
-                newName : str
+                new_name : str
                     New name for this operation.
             )");
 
@@ -170,8 +171,8 @@ void regclass_frontend_InputModel(py::module m) {
     im.def("set_name_for_dimension",
            &ov::frontend::InputModel::set_name_for_dimension,
            py::arg("place"),
-           py::arg("dimIndex"),
-           py::arg("dimName"),
+           py::arg("dim_index"),
+           py::arg("dim_name"),
            R"(
                 Set name for a particular dimension of a place (e.g. batch dimension).
 
@@ -180,17 +181,17 @@ void regclass_frontend_InputModel(py::module m) {
                 place : Place
                     Model's place.
 
-                dimIndex : int
+                dim_index : int
                     Dimension index.
 
-                dimName : str
+                dim_name : str
                     Name to assign on this dimension.
             )");
 
     im.def("cut_and_add_new_input",
            &ov::frontend::InputModel::cut_and_add_new_input,
            py::arg("place"),
-           py::arg("newName") = std::string(),
+           py::arg("new_name") = std::string(),
            R"(
                 Cut immediately before this place and assign this place as new input; prune
                 all nodes that don't contribute to any output.
@@ -200,14 +201,14 @@ void regclass_frontend_InputModel(py::module m) {
                 place : Place
                     New place to be assigned as input.
 
-                newNameOptional : str
+                new_name_optional : str
                     Optional new name assigned to this input place.
             )");
 
     im.def("cut_and_add_new_output",
            &ov::frontend::InputModel::cut_and_add_new_output,
            py::arg("place"),
-           py::arg("newName") = std::string(),
+           py::arg("new_name") = std::string(),
            R"(
                 Cut immediately before this place and assign this place as new output; prune
                 all nodes that don't contribute to any output.
@@ -217,7 +218,7 @@ void regclass_frontend_InputModel(py::module m) {
                 place : Place
                     New place to be assigned as output.
 
-                newNameOptional : str
+                new_name_optional : str
                     Optional new name assigned to this output place.
             )");
 
@@ -361,4 +362,25 @@ void regclass_frontend_InputModel(py::module m) {
                 type : ngraph.Type
                     New element type.
             )");
+
+    im.def(
+        "set_tensor_value",
+        [](ov::frontend::InputModel& self, const ov::frontend::Place::Ptr& place, py::array& value) {
+            // Convert to contiguous array if not already C-style.
+            auto tensor = Common::tensor_from_numpy(value, false);
+            self.set_tensor_value(place, (const void*)tensor.data());
+        },
+        py::arg("place"),
+        py::arg("value"),
+        R"(
+            Sets new element type for a place.
+
+            Parameters
+            ----------
+            place : Place
+                Model place.
+
+            value : ndarray
+                New value to assign.
+        )");
 }
