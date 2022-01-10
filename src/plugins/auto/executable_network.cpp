@@ -361,17 +361,12 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
     auto& deviceList = context.metaDevices;
     bool curDevIsCPU = (device.find("CPU") != std::string::npos);
     bool curDevIsGPU = (device.find("GPU") != std::string::npos);
+    bool batchingEnabled = curDevIsGPU && !_deviceNameWithBatching.empty();
     try {
         if (!modelPath.empty()) {
-            if (curDevIsGPU && !_deviceNameWithBatching.empty())
-                context.executableNetwork = _core->LoadNetwork(modelPath, _deviceNameWithBatching, deviceConfig);
-            else
-                context.executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
+            context.executableNetwork = _core->LoadNetwork(modelPath, batchingEnabled ? _deviceNameWithBatching : device, deviceConfig);
         } else {
-            if (curDevIsGPU && !_deviceNameWithBatching.empty())
-                context.executableNetwork = _core->LoadNetwork(network, _deviceNameWithBatching, deviceConfig);
-            else
-                context.executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
+            context.executableNetwork = _core->LoadNetwork(network, batchingEnabled ? _deviceNameWithBatching : device, deviceConfig);
         }
         context.isLoadSuccess = true;
     } catch (const std::exception& e) {
