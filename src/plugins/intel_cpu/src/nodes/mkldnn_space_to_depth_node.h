@@ -24,14 +24,7 @@ public:
 
     void prepareParams() override;
 
-protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
-
-private:
-    enum Mode {
-        BLOCKS_FIRST = 0,
-        DEPTH_FIRST = 1
-    };
+    enum Mode { BLOCKS_FIRST = 0, DEPTH_FIRST = 1 };
 
     struct SpaceToDepthAttrs {
         LayoutType layoutType;
@@ -40,7 +33,13 @@ private:
         size_t blockStep = 1lu;
         size_t dataSize = 1lu;
         size_t nSpatialDims = 0lu;
-    } attrs;
+    };
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+private:
+    SpaceToDepthAttrs attrs;
 
     struct SpaceToDepthExecutor final {
         SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs,

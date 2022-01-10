@@ -8,6 +8,7 @@
 #include <utils/general_utils.h>
 
 #include <cmath>
+#include <common/primitive_hashing_utils.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <string>
@@ -20,6 +21,52 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
+
+namespace {
+struct SpaceToDepthKey {
+    MKLDNNPlugin::MKLDNNSpaceToDepthNode::SpaceToDepthAttrs s2d_attrs;
+    VectorDims srcBlockedDims;
+    VectorDims destBlockedDims;
+    size_t hash() const;
+    bool operator==(const SpaceToDepthKey& rhs) const;
+};
+
+size_t SpaceToDepthKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, s2d_attrs.layoutType);
+    seed = hash_combine(seed, s2d_attrs.mode);
+    seed = hash_combine(seed, s2d_attrs.blockSize);
+    seed = hash_combine(seed, s2d_attrs.blockStep);
+    seed = hash_combine(seed, s2d_attrs.dataSize);
+    seed = hash_combine(seed, s2d_attrs.nSpatialDims);
+    seed = get_vector_hash(seed, srcBlockedDims);
+    seed = get_vector_hash(seed, destBlockedDims);
+
+    return seed;
+}
+
+bool SpaceToDepthKey::operator==(const SpaceToDepthKey& rhs) const {
+    if (srcBlockedDims.size() != rhs.srcBlockedDims.size() || destBlockedDims.size() != rhs.destBlockedDims.size()) {
+        return false;
+    }
+
+    bool result = s2d_attrs.layoutType == rhs.s2d_attrs.layoutType && s2d_attrs.mode == rhs.s2d_attrs.mode &&
+                  s2d_attrs.blockSize == rhs.s2d_attrs.blockSize && s2d_attrs.blockStep == rhs.s2d_attrs.blockStep &&
+                  s2d_attrs.dataSize == rhs.s2d_attrs.dataSize && s2d_attrs.nSpatialDims == rhs.s2d_attrs.nSpatialDims;
+
+    for (size_t i = 0; i < srcBlockedDims.size() && result; ++i) {
+        result = result && (srcBlockedDims[i] == rhs.srcBlockedDims[i]);
+    }
+    for (size_t i = 0; i < destBlockedDims.size() && result; ++i) {
+        result = result && (destBlockedDims[i] == rhs.destBlockedDims[i]);
+    }
+    return result;
+}
+
+}  // namespace
 
 bool MKLDNNSpaceToDepthNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                                                   std::string& errorMessage) noexcept {
@@ -162,9 +209,22 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
 }
 
 void MKLDNNSpaceToDepthNode::prepareParams() {
-    const VectorDims& srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    const VectorDims& dstBlockedDims = getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    execPtr = std::make_shared<SpaceToDepthExecutor>(attrs, srcBlockedDims, dstBlockedDims);
+    const VectorDims& srcBlockedDims =
+        getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    const VectorDims& dstBlockedDims =
+        getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto builder = [](const SpaceToDepthKey& key) -> std::shared_ptr<SpaceToDepthExecutor> {
+        return std::make_shared<SpaceToDepthExecutor>(key.s2d_attrs, key.srcBlockedDims, key.destBlockedDims);
+    };
+
+    SpaceToDepthKey key = {attrs, srcBlockedDims, dstBlockedDims};
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+    if (!result.first) {
+        IE_THROW() << "DepthToSpaceExecutor was not found for node " << getName() << ".";
+    }
+
+    execPtr = result.first;
 }
 
 MKLDNNSpaceToDepthNode::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs,
