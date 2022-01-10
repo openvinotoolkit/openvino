@@ -243,9 +243,16 @@ INSTANTIATE_TEST_SUITE_P(
                       // TODO: Whats the right behavior here?
                       // SelectParams({{2}, {2, 4}, {2}, {2, 4}}, {element::boolean, element::f32,
                       // element::dynamic, element::f32}, {op::AutoBroadcastType::PDPD, 0}),
+                      SelectParams({{4}, {2, 4}, {2, 4}, {2, 4}},
+                                   {element::boolean, element::f32, element::f32, element::f32},
+                                   {op::AutoBroadcastType::PDPD, 1}),
                       SelectParams({{4}, {2, 4}, {4}, {2, 4}},
                                    {element::boolean, element::f32, element::dynamic, element::f32},
-                                   {op::AutoBroadcastType::PDPD, 1})),
+                                   {op::AutoBroadcastType::PDPD, 1}),
+                      SelectParams({{4}, {4, 2, 3, 8}, {4, 2, 3, 1}, {4, 2, 3, 8}},
+                                   {element::boolean, element::f32, element::f32, element::f32},
+                                   {op::AutoBroadcastType::PDPD, 0})),
+
     PrintToDummyParamName());
 
 TEST(type_prop, select_v1_partial_shape) {

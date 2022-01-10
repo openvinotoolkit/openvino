@@ -108,10 +108,14 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
               importedExecNet.input(0).get_tensor().get_partial_shape());
     EXPECT_EQ(function->input(0).get_tensor().get_element_type(),
               importedExecNet.input(0).get_tensor().get_element_type());
+    EXPECT_EQ(function->input(0).get_element_type(),
+              importedExecNet.input(0).get_tensor().get_element_type());
     EXPECT_EQ(function->input(1).get_tensor().get_names(), importedExecNet.input(1).get_tensor().get_names());
     EXPECT_EQ(function->input(1).get_tensor().get_partial_shape(),
               importedExecNet.input(1).get_tensor().get_partial_shape());
     EXPECT_EQ(function->input(1).get_tensor().get_element_type(),
+              importedExecNet.input(1).get_tensor().get_element_type());
+    EXPECT_EQ(function->input(1).get_element_type(),
               importedExecNet.input(1).get_tensor().get_element_type());
     EXPECT_EQ(importedExecNet.input(0).get_node(), importedExecNet.input("data1").get_node());
     EXPECT_NE(importedExecNet.input(1).get_node(), importedExecNet.input("data1").get_node());
@@ -125,10 +129,14 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
               importedExecNet.output(0).get_tensor().get_partial_shape());
     EXPECT_EQ(function->output(0).get_tensor().get_element_type(),
               importedExecNet.output(0).get_tensor().get_element_type());
+    EXPECT_EQ(function->output(0).get_element_type(),
+              importedExecNet.output(0).get_tensor().get_element_type());
     EXPECT_EQ(function->output(1).get_tensor().get_names(), importedExecNet.output(1).get_tensor().get_names());
     EXPECT_EQ(function->output(1).get_tensor().get_partial_shape(),
               importedExecNet.output(1).get_tensor().get_partial_shape());
     EXPECT_EQ(function->output(1).get_tensor().get_element_type(),
+              importedExecNet.output(1).get_tensor().get_element_type());
+    EXPECT_EQ(function->output(1).get_element_type(),
               importedExecNet.output(1).get_tensor().get_element_type());
     EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("relu").get_node());
     EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("relu").get_node());

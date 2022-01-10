@@ -313,32 +313,3 @@ TEST_F(TransformationTestsF, TransposeConvertNegativeConsumers) {
         manager.register_pass<ngraph::pass::TransposeConvert>();
     }
 }
-
-TEST_F(TransformationTestsF, TransposePreProcessing) {
-    {
-        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 64 });
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 2, 1, 0 });
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
-        auto relu = std::make_shared<ngraph::opset6::Relu>(transpose);
-
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ relu }, ngraph::ParameterVector{ input });
-
-        using namespace ov::preprocess;
-        PrePostProcessor p(function);
-        p.input(0).tensor().set_element_type(element::f16);
-        p.input(0).preprocess().convert_layout({2, 0, 1});
-        p.build();
-
-        manager.register_pass<ngraph::pass::TransposeSinking>();
-    }
-
-    {
-        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::Shape{ 3, 64, 1 });
-        auto convert = std::make_shared<ngraph::opset6::Convert>(input, element::f32);
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 1, 0, 2 });
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(convert, order);
-        auto relu = std::make_shared<ngraph::opset6::Relu>(transpose);
-
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ relu }, ngraph::ParameterVector{ input });
-    }
-}

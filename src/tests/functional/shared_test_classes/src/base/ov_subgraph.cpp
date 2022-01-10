@@ -55,6 +55,8 @@ void SubgraphBaseTest::run() {
             try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
+                    // Note: output shapes of some nodes depend on the input data
+                    // so for some tests we need to override this function and replace parameter with constant node to get correct output shapes
                     init_ref_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
@@ -264,7 +266,13 @@ void SubgraphBaseTest::validate() {
 
 void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) {
     size_t targetStaticShapeSize = shapes.front().second.size();
+    for (size_t i = 1; i < shapes.size(); ++i) {
+        if (targetStaticShapeSize < shapes[i].second.size()) {
+            targetStaticShapeSize = shapes[i].second.size();
+        }
+    }
     targetStaticShapes.resize(targetStaticShapeSize);
+
     for (const auto& shape : shapes) {
         auto dynShape = shape.first;
         if (dynShape.rank() == 0) {
@@ -272,10 +280,8 @@ void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) 
             dynShape = shape.second.front();
         }
         inputDynamicShapes.push_back(dynShape);
-        ASSERT_EQ(shape.second.size(), targetStaticShapeSize)
-            << "Target static count shapes should be the same for all inputs";
-        for (size_t i = 0; i < shape.second.size(); ++i) {
-            targetStaticShapes[i].push_back(shape.second.at(i));
+        for (size_t i = 0; i < targetStaticShapeSize; ++i) {
+            targetStaticShapes[i].push_back(i < shape.second.size() ? shape.second.at(i) : shape.second.back());
         }
     }
 }

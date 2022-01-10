@@ -10,10 +10,11 @@ namespace LayerTestsDefinitions {
 
 void ImportNonZero::SetUp() {
     InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) = this->GetParam();
+    ngraph::Shape inputShape;
+    std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) = this->GetParam();
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto parameter = std::make_shared<ngraph::opset5::Parameter>(ngPrc, ngraph::Shape{1000});
+    const auto parameter = std::make_shared<ngraph::opset5::Parameter>(ngPrc, inputShape);
     const auto nonZero = std::make_shared<ngraph::opset5::NonZero>(parameter);
 
     function = std::make_shared<ngraph::Function>(nonZero->outputs(), ngraph::ParameterVector{parameter}, "ExportImportNetwork");
