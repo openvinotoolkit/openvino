@@ -722,9 +722,14 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 } else if (deviceInfo.deviceName.find("MYRIAD") != std::string::npos) {
                     real = 4u;
                 } else if (deviceInfo.deviceName.find("CPU") != std::string::npos) {
-                    LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for CPU_HELP,CPU case, use the value of CPU_HELP");
-                    real = _loadContext[CPU].
-                        executableNetwork->GetMetric(name).as<unsigned int>();
+                    LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for CPU_HELP,CPU case");
+                    LOG_WARNING("[AUTOPLUGIN] use default value 4 for THROUGHPUT, 1 for else");
+                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
+                    if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
+                        real = 4u;
+                    } else {
+                        real = 1u;
+                    }
                 } else {
                     LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for device:%s,", deviceInfo.deviceName.c_str());
                     LOG_WARNING("[AUTOPLUGIN] use default value 4 for THROUGHPUT, 1 for else");
