@@ -34,8 +34,6 @@ class OPENVINO_API I420toBGR : public util::ConvertColorI420Base {
 public:
     OPENVINO_OP("I420toBGR", "opset8", util::ConvertColorI420Base);
 
-    BWDCMP_RTTI_DECLARATION;
-
     I420toBGR() = default;
 
     /// \brief Constructs a conversion operation from input image in I420 format
