@@ -828,8 +828,6 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequestNewApi::GetBlob(const
 
                     InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)),
                                                      dims, InferenceEngine::TensorDesc::getLayoutByRank(dims.size()));
-                    // FIXME: remove after jit_convert fp32 -> fp16 fix
-                    desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
 
                     data = make_blob_with_precision(desc);
                     data->allocate();
