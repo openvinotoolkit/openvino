@@ -54,7 +54,7 @@ void regmodule_offline_transformations(py::module m) {
         "apply_moc_legacy_transformations",
         [](std::shared_ptr<ov::Model> function) {
             ov::pass::Manager manager;
-            manager.register_pass<ngraph::pass::MOCLegacyTransformations>();
+            manager.register_pass<ov::pass::MOCLegacyTransformations>();
             manager.run_passes(function);
         },
         py::arg("function"));
