@@ -101,7 +101,9 @@ enum Type {
     NonMaxSuppression,
     MatrixNms,
     MulticlassNms,
-    Subgraph
+    Subgraph,
+    PriorBox,
+    PriorBoxClustered,
 };
 
 enum Algorithm {
