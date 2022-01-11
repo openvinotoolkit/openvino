@@ -515,7 +515,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
                 IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
             }
             const auto input = findInputByNodeName(name);
-            isDynamic = input->get_output_partial_shape(0).is_dynamic();
+            isDynamic = input && input->get_output_partial_shape(0).is_dynamic();
             dims = foundInputPair->second->getTensorDesc().getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         } else {
@@ -528,9 +528,9 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
                 IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
             }
             const auto output = findOutputByNodeName(name);
-            isDynamic = output->get_output_partial_shape(0).is_dynamic();
+            isDynamic = output && output->get_output_partial_shape(0).is_dynamic();
             ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
-            if (output->get_output_partial_shape(0).compatible(blobPartialShape)) {
+            if (output && output->get_output_partial_shape(0).compatible(blobPartialShape)) {
                 dims = blob->getTensorDesc().getDims();
             } else {
                 // TODO: it is strange to request tensor desc from data when the shapes are not compatible, probably we
