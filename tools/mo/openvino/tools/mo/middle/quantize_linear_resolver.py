@@ -42,7 +42,7 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
         for quantize_node in graph.get_op_nodes(op='QuantizeLinear'):
             # if quantize_node has True attribute 'isolated', node was isolated in QuantizeDequantizeLinearResolver and
             # will be deleted after next cleanup
-            if quantize_node.has('isolated') and quantize_node['isolated']:
+            if quantize_node.has_and_set('isolated'):
                 continue
             QuantizeLinearResolver.quantize_to_fakequantize(graph, quantize_node)
 
@@ -75,7 +75,7 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
                                                                           4: float_array(output_high_value)},
                                                     {'levels': 256, 'name': node_name + '/FakeQuantize'})            
         if set_stop_value_propagation:
-            fake_quantize['not_compress'] = True
+            fake_quantize['stop_compression'] = True
             fake_quantize['stop_value_propagation'] = True
         quantize_node.in_port(0).get_connection().set_destination(fake_quantize.in_port(0))
 
