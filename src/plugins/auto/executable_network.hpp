@@ -152,6 +152,7 @@ private:
     std::promise<void>                                                  _firstLoadPromise;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
+    bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
 };
 
