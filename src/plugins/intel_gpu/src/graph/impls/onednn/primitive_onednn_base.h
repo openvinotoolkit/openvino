@@ -128,7 +128,10 @@ protected:
 
                 case onednn_post_op_type::sum:
                 case onednn_post_op_type::optimized_sum:
-                case onednn_post_op_type::optimized_eltwise:
+                case onednn_post_op_type::optimized_eltwise_linear:
+                case onednn_post_op_type::optimized_eltwise_act:
+                case onednn_post_op_type::optimized_eltwise_round:
+                case onednn_post_op_type::optimized_eltwise_clip:
                 {
                     break;
                 }
@@ -153,12 +156,14 @@ protected:
 
         {
             auto& input = instance.input_memory(0);
-            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0))});
+            auto offset = onednn::get_offset(_pd.dnnl::primitive_desc_base::src_desc(0));
+            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0))});
+            auto offset = onednn::get_offset(_pd.dnnl::primitive_desc_base::dst_desc(0));
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
         configure_post_ops_arguments(instance, args);
@@ -197,7 +202,9 @@ protected:
             event = stream.create_user_event(false);
         }
 
-        _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+        if (!instance.can_be_optimized()) {
+            _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+        }
 
         if (profiling) {
             stream.finish();
