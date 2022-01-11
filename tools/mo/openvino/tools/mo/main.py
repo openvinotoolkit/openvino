@@ -289,16 +289,11 @@ def arguments_post_parsing(argv: argparse.Namespace):
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
 
-    load_extensions(argv)
+    load_extensions(argv, is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx)
 
     return argv
 
-
-def load_extensions(argv : argparse.Namespace):
-    moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
-
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
-        deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
+def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool, is_onnx:bool):
     extensions = None
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
         extensions = argv.extensions.split(',')
@@ -360,8 +355,7 @@ def prepare_ir(argv : argparse.Namespace):
             return graph, ngraph_function
         else: # apply fallback
             reasons_message = ", ".join(fallback_reasons)
-            argv.use_legacy_frontend = True
-            load_extensions(argv)
+            load_extensions(argv, *list(deduce_framework_by_namespace(argv)))
             t.send_event("mo", "fallback_reason", reasons_message)
             log.warning("The IR preparation was executed by the legacy MO path. "
                         "This is a fallback scenario applicable only for some specific cases. "
