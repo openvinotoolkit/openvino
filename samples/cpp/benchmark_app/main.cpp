@@ -577,9 +577,9 @@ int main(int argc, char* argv[]) {
             for (const auto& cfg : supported_config_keys) {
                 try {
                     slog::info << "  {" << cfg << " , " << compiledModel.get_config(cfg).as<std::string>();
+                    slog::info << " }" << slog::endl;
                 } catch (...) {
                 };
-                slog::info << " }" << slog::endl;
             }
         }
 
