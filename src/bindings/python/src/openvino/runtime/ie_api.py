@@ -167,6 +167,7 @@ class OVAny(OVAnyBase):
         any = OVAny(Test())
         print(any.value.data)
     @endcode
+
     """
 
     def __getitem__(self, key: Union[str, int]) -> Any:

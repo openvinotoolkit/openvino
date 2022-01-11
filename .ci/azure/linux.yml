@@ -113,7 +113,7 @@ jobs:
       # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # For running Paddle frontend unit tests
