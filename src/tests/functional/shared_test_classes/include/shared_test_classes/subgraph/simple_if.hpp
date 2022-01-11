@@ -58,4 +58,9 @@ protected:
     void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
 };
 
+class SimpleIfNotConstConditionUnusedOutputPortsTest : public SimpleIfNotConstConditionTest {
+protected:
+    void SetUp() override;
+};
+
 }  // namespace SubgraphTestsDefinitions
