@@ -2000,7 +2000,7 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
 
         execPtr->exec(args_ptrs, dims_out);
     } else {
-        IE_THROW() << "Can't execute eltwise node. Primitive has not been created";
+        IE_THROW() << "Can't execute eltwise node with name: " << getName() << ". Primitive isn't created";
     }
 }
 
