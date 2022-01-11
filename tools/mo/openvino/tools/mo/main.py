@@ -326,10 +326,12 @@ def load_extensions(argv : argparse.Namespace):
 def check_fallback(argv : argparse.Namespace):
     fallback_reasons = {}
 
-    if not any(deduce_framework_by_namespace(argv)): # no legacy path
+    # Some frontend such as PDPD does not have legacy path so it has no reasons to fallback
+    if not any(deduce_framework_by_namespace(argv)):
         return fallback_reasons
 
-    if argv.use_new_frontend or argv.use_legacy_frontend: # frontend chosen explicitly
+    # There is no possibility for fallback if a user strictly wants to use new frontend
+    if argv.use_new_frontend:
         return fallback_reasons
 
     fallback_reasons['extensions'] = \
