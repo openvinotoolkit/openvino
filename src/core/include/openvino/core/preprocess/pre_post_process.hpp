@@ -30,6 +30,7 @@ class OPENVINO_API PrePostProcessor final {
     class PrePostProcessorImpl;
     std::unique_ptr<PrePostProcessorImpl> m_impl;
     friend OPENVINO_API std::ostream& operator<<(std::ostream&, const PrePostProcessor&);
+
 public:
     /// \brief Default constructor
     ///

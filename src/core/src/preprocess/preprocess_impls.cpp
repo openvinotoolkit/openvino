@@ -3,14 +3,18 @@
 //
 
 #include "preprocess_impls.hpp"
+
 #include "layout_utils.hpp"
 
 using namespace ov::preprocess;
 
 namespace {
-    using namespace ov;
-    static void dump_tensor (std::ostream& str, const PartialShape& shape, const Layout& layout, const element::Type& type,
-                          const ColorFormat& color = ColorFormat::UNDEFINED) {
+using namespace ov;
+static void dump_tensor(std::ostream& str,
+                        const PartialShape& shape,
+                        const Layout& layout,
+                        const element::Type& type,
+                        const ColorFormat& color = ColorFormat::UNDEFINED) {
     str << shape << ", ";
     if (layout.empty()) {
         str << "<no layout>";
@@ -22,14 +26,15 @@ namespace {
         str << ", " << color_format_name(color);
     }
 }
-}
+}  // namespace
 
 InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_params(
-                                std::tuple<std::unordered_set<std::string>, bool>& existing_names,
-                                const std::shared_ptr<Model>& model) const {
+    std::tuple<std::unordered_set<std::string>, bool>& existing_names,
+    const std::shared_ptr<Model>& model) const {
     InputInfoData res;
     res.m_param = m_resolved_param;
-    auto tensor_elem_type = get_tensor_data()->is_element_type_set() ? get_tensor_data()->get_element_type() : res.m_param->get_element_type();
+    auto tensor_elem_type = get_tensor_data()->is_element_type_set() ? get_tensor_data()->get_element_type()
+                                                                     : res.m_param->get_element_type();
     res.m_tensor_layout = get_tensor_data()->get_layout();
     auto color_info = ColorFormatInfo::get(get_tensor_data()->get_color_format());
     if (!get_tensor_data()->is_layout_set()) {
@@ -60,7 +65,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
     } else {
         Layout new_layout;
         std::tie(new_param_shape, new_layout) =
-                get_preprocess()->calculate_param_shape(new_param_shape, res.m_model_layout);
+            get_preprocess()->calculate_param_shape(new_param_shape, res.m_model_layout);
         if (res.m_tensor_layout.empty()) {
             // Reusing param's layout according to converted calculated layout
             res.m_tensor_layout = new_layout;
@@ -84,8 +89,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
     // Create separate parameter for each plane. Shape is based on color format
     for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
         auto plane_shape = color_info->shape(plane, new_param_shape);
-        auto plane_param =
-                std::make_shared<opset8::Parameter>(tensor_elem_type, plane_shape);
+        auto plane_param = std::make_shared<opset8::Parameter>(tensor_elem_type, plane_shape);
         if (plane < get_tensor_data()->planes_sub_names().size()) {
             std::unordered_set<std::string> plane_tensor_names;
             std::string sub_name;
@@ -96,17 +100,17 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
             for (const auto& tensor_name : res.m_param->get_default_output().get_tensor().get_names()) {
                 auto new_name = tensor_name + sub_name;
                 OPENVINO_ASSERT(
-                        std::get<0>(existing_names).count(new_name) == 0,
-                        "Error while trying to create plane input with name '",
-                        new_name,
-                        "' - name already exists in model. Please specify another sub-name for set_color_format");
+                    std::get<0>(existing_names).count(new_name) == 0,
+                    "Error while trying to create plane input with name '",
+                    new_name,
+                    "' - name already exists in model. Please specify another sub-name for set_color_format");
                 plane_tensor_names.insert(new_name);
             }
             plane_param->get_default_output().get_tensor().set_names(plane_tensor_names);
             plane_param->set_friendly_name(res.m_param->get_friendly_name() + sub_name);
         } else if (color_info->planes_count() == 1) {
             plane_param->get_default_output().get_tensor().set_names(
-                    res.m_param->get_default_output().get_tensor().get_names());
+                res.m_param->get_default_output().get_tensor().get_names());
             plane_param->set_friendly_name(res.m_param->get_friendly_name());
         }
         // Fill runtime info
@@ -120,7 +124,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
                 plane_param->output(0).get_rt_info().erase(TensorInfoMemoryType::get_type_info_static());
             } else {
                 plane_param->output(0).get_rt_info()[TensorInfoMemoryType::get_type_info_static()] =
-                        TensorInfoMemoryType(get_tensor_data()->get_memory_type());
+                    TensorInfoMemoryType(get_tensor_data()->get_memory_type());
             }
         }
         res.m_new_params.push_back(plane_param);
@@ -140,8 +144,8 @@ PreStepsList InputInfo::InputInfoImpl::create_implicit_steps(const Preprocessing
 }
 
 bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
-           std::tuple<std::unordered_set<std::string>, bool>& existing_names,
-           std::list<std::shared_ptr<opset8::Parameter>>& parameters_list) {
+                                     std::tuple<std::unordered_set<std::string>, bool>& existing_names,
+                                     std::list<std::shared_ptr<opset8::Parameter>>& parameters_list) {
     auto data = create_new_params(existing_names, model);
     auto consumers = data.m_param->output(0).get_target_inputs();
     bool tensor_data_updated = false;
@@ -206,8 +210,8 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
 }
 
 void InputInfo::InputInfoImpl::dump(std::ostream& str,
-          const std::shared_ptr<Model>& model,
-          std::tuple<std::unordered_set<std::string>, bool>& existing_names) const {
+                                    const std::shared_ptr<Model>& model,
+                                    std::tuple<std::unordered_set<std::string>, bool>& existing_names) const {
     auto data = create_new_params(existing_names, model);
     auto nodes = data.as_nodes();
 
@@ -216,11 +220,10 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     context.target_layout() = data.m_model_layout;
     context.model_shape() = data.m_param->get_partial_shape();
     context.target_element_type() = data.m_param->get_element_type();
-    bool need_dump = nodes.size() > 1 ||
-            nodes[0].get_partial_shape() != context.model_shape() ||
-            data.m_param->get_layout() != context.target_layout() ||
-            nodes[0].get_element_type() != context.target_element_type() ||
-            !get_preprocess()->actions().empty();
+    bool need_dump = nodes.size() > 1 || nodes[0].get_partial_shape() != context.model_shape() ||
+                     data.m_param->get_layout() != context.target_layout() ||
+                     nodes[0].get_element_type() != context.target_element_type() ||
+                     !get_preprocess()->actions().empty();
     if (!need_dump) {
         return;
     }
@@ -256,13 +259,21 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     if (!get_preprocess()->actions().empty()) {
         str << "    Pre-processing steps (" << get_preprocess()->actions().size() << "):" << std::endl;
     }
-    for (const auto &action: get_preprocess()->actions()) {
+    for (const auto& action : get_preprocess()->actions()) {
         str << "      " << action.m_name << ": (";
-        dump_tensor(str, nodes[0].get_partial_shape(), context.layout(), nodes[0].get_element_type(), context.color_format());
+        dump_tensor(str,
+                    nodes[0].get_partial_shape(),
+                    context.layout(),
+                    nodes[0].get_element_type(),
+                    context.color_format());
         auto action_result = action.m_op(nodes, model, context);
         nodes = std::get<0>(action_result);
         str << ") -> (";
-        dump_tensor(str, nodes[0].get_partial_shape(), context.layout(), nodes[0].get_element_type(), context.color_format());
+        dump_tensor(str,
+                    nodes[0].get_partial_shape(),
+                    context.layout(),
+                    nodes[0].get_element_type(),
+                    context.color_format());
         str << ")" << std::endl;
     }
 
@@ -271,19 +282,27 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     if (!implicit_steps.actions().empty()) {
         str << "    Implicit pre-processing steps (" << implicit_steps.actions().size() << "):" << std::endl;
     }
-    for (const auto &action: implicit_steps.actions()) {
+    for (const auto& action : implicit_steps.actions()) {
         str << "      " << action.m_name << ": (";
-        dump_tensor(str, nodes[0].get_partial_shape(), context.layout(), nodes[0].get_element_type(), context.color_format());
+        dump_tensor(str,
+                    nodes[0].get_partial_shape(),
+                    context.layout(),
+                    nodes[0].get_element_type(),
+                    context.color_format());
         auto action_result = action.m_op(nodes, model, context);
         nodes = std::get<0>(action_result);
         str << ") -> (";
-        dump_tensor(str, nodes[0].get_partial_shape(), context.layout(), nodes[0].get_element_type(), context.color_format());
+        dump_tensor(str,
+                    nodes[0].get_partial_shape(),
+                    context.layout(),
+                    nodes[0].get_element_type(),
+                    context.color_format());
         str << ")" << std::endl;
     }
 }
 
 //----------- OutputInfoImpl ----------
-void OutputInfo::OutputInfoImpl::build(ov::ResultVector &results) {
+void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
     auto start_out_node_names = node.get_tensor().get_names();
@@ -311,8 +330,8 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector &results) {
     }
     // Implicit: Convert element type + layout to user's tensor implicitly
     PostStepsList implicit_steps;
-    if (node.get_element_type() != get_tensor_data()->get_element_type() &&
-        get_tensor_data()->is_element_type_set() && node.get_element_type() != element::dynamic) {
+    if (node.get_element_type() != get_tensor_data()->get_element_type() && get_tensor_data()->is_element_type_set() &&
+        node.get_element_type() != element::dynamic) {
         implicit_steps.add_convert_impl(get_tensor_data()->get_element_type());
     }
 
@@ -325,7 +344,7 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector &results) {
         post_processing_applied = true;
     }
     node.get_node_shared_ptr()->set_friendly_name(
-            result->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
+        result->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
 
     // Reset friendly name of input node to avoid names collision
     // when there is at a new node inserted by post-processing steps
@@ -371,9 +390,10 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
         context.target_element_type() = get_tensor_data()->get_element_type();
     }
 
-    bool need_dump = (model_layout != context.target_layout() && get_tensor_data()->is_layout_set()) ||
-            (node.get_element_type() != context.target_element_type() && get_tensor_data()->is_element_type_set() ||
-                    !get_postprocess()->actions().empty());
+    bool need_dump =
+        (model_layout != context.target_layout() && get_tensor_data()->is_layout_set()) ||
+        (node.get_element_type() != context.target_element_type() && get_tensor_data()->is_element_type_set() ||
+         !get_postprocess()->actions().empty());
     if (!need_dump) {
         return;
     }
@@ -403,8 +423,8 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
     }
     // Implicit: Convert element type + layout to user's tensor implicitly
     PostStepsList implicit_steps;
-    if (node.get_element_type() != get_tensor_data()->get_element_type() &&
-        get_tensor_data()->is_element_type_set() && node.get_element_type() != element::dynamic) {
+    if (node.get_element_type() != get_tensor_data()->get_element_type() && get_tensor_data()->is_element_type_set() &&
+        node.get_element_type() != element::dynamic) {
         implicit_steps.add_convert_impl(get_tensor_data()->get_element_type());
     }
 

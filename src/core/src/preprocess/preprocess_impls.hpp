@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <openvino/opsets/opset8.hpp>
 #include <openvino/core/preprocess/input_info.hpp>
 #include <openvino/core/preprocess/output_info.hpp>
-#include "preprocess_steps_impl.hpp"
+#include <openvino/opsets/opset8.hpp>
+
 #include "color_utils.hpp"
+#include "preprocess_steps_impl.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -69,7 +70,6 @@ struct OutputInfo::OutputInfoImpl {
     void build(ov::ResultVector& results);
 
     void dump(std::ostream& str) const;
-
 
     OutputTensorInfo m_tensor_info;
     PostProcessSteps m_postprocess;
@@ -192,8 +192,8 @@ public:
 
     void set_shape(const PartialShape& shape) {
         OPENVINO_ASSERT(
-                !m_spatial_shape_set,
-                "'set_spatial_static_shape', 'set_spatial_dynamic_shape', 'set_shape' shall not be used together");
+            !m_spatial_shape_set,
+            "'set_spatial_static_shape', 'set_spatial_dynamic_shape', 'set_shape' shall not be used together");
         m_shape = shape;
         m_shape_set = true;
     }
@@ -236,9 +236,12 @@ struct InputInfo::InputInfoImpl {
         Layout m_tensor_layout;
         std::vector<Output<Node>> as_nodes() const {
             std::vector<Output<Node>> res;
-            std::transform(m_new_params.begin(), m_new_params.end(), std::back_inserter(res), [](const std::shared_ptr<opset8::Parameter>& param) {
-                return param;
-            });
+            std::transform(m_new_params.begin(),
+                           m_new_params.end(),
+                           std::back_inserter(res),
+                           [](const std::shared_ptr<opset8::Parameter>& param) {
+                               return param;
+                           });
             return res;
         }
     };

@@ -307,14 +307,16 @@ PreProcessSteps& PreProcessSteps::convert_color(const ov::preprocess::ColorForma
 
 PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) {
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
-    m_impl->actions().emplace_back([preprocess_cb](const std::vector<Output<Node>>& nodes,
-                                                   const std::shared_ptr<ov::Model>&,
-                                                   PreprocessingContext&) {
-        OPENVINO_ASSERT(nodes.size() == 1,
-                        "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
-                        "current image to RGB/BGR color format using 'convert_color'");
-        return std::make_tuple(std::vector<Output<Node>>{preprocess_cb(nodes[0])}, true);
-    }, "custom");
+    m_impl->actions().emplace_back(
+        [preprocess_cb](const std::vector<Output<Node>>& nodes,
+                        const std::shared_ptr<ov::Model>&,
+                        PreprocessingContext&) {
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
+                            "current image to RGB/BGR color format using 'convert_color'");
+            return std::make_tuple(std::vector<Output<Node>>{preprocess_cb(nodes[0])}, true);
+        },
+        "custom");
     return *this;
 }
 
@@ -368,9 +370,11 @@ PostProcessSteps& PostProcessSteps::convert_layout(const std::vector<uint64_t>& 
 
 PostProcessSteps& PostProcessSteps::custom(const CustomPostprocessOp& postprocess_cb) {
     // 'true' indicates that custom postprocessing step will trigger validate_and_infer_types
-    m_impl->actions().emplace_back([postprocess_cb](const Output<ov::Node>& node, PostprocessingContext&) {
-        return std::make_tuple(postprocess_cb(node), true);
-    }, "custom");
+    m_impl->actions().emplace_back(
+        [postprocess_cb](const Output<ov::Node>& node, PostprocessingContext&) {
+            return std::make_tuple(postprocess_cb(node), true);
+        },
+        "custom");
     return *this;
 }
 

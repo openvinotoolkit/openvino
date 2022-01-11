@@ -141,12 +141,15 @@ private:
     ColorFormat m_color_format = ColorFormat::UNDEFINED;
 };
 
-using InternalPreprocessOp = std::function<std::tuple<std::vector<Output<Node>>, bool>(const std::vector<Output<Node>> &nodes,
-                                                                                      const std::shared_ptr<Model> &function,
-                                                                                      PreprocessingContext &context)>;
+using InternalPreprocessOp =
+    std::function<std::tuple<std::vector<Output<Node>>, bool>(const std::vector<Output<Node>>& nodes,
+                                                              const std::shared_ptr<Model>& function,
+                                                              PreprocessingContext& context)>;
 
 struct InternalPreprocessAction {
-    InternalPreprocessAction(InternalPreprocessOp op, std::string name): m_op(std::move(op)), m_name(std::move(name)) {}
+    InternalPreprocessAction(InternalPreprocessOp op, std::string name)
+        : m_op(std::move(op)),
+          m_name(std::move(name)) {}
     InternalPreprocessOp m_op;
     std::string m_name;
 };
@@ -203,7 +206,9 @@ using InternalPostprocessOp = std::function<std::tuple<ov::Output<ov::Node>, boo
                                                                                    PostprocessingContext& context)>;
 
 struct InternalPostprocessAction {
-    InternalPostprocessAction(InternalPostprocessOp op, std::string name): m_op(std::move(op)), m_name(std::move(name)) {}
+    InternalPostprocessAction(InternalPostprocessOp op, std::string name)
+        : m_op(std::move(op)),
+          m_name(std::move(name)) {}
     InternalPostprocessOp m_op;
     std::string m_name;
 };
