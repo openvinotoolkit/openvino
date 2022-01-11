@@ -356,6 +356,7 @@ std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func, ngraph::NodeMa
     auto result =
         std::make_shared<ov::Model>(cloned_results, cloned_sinks, cloned_params, cloned_vars, func.get_friendly_name());
     result->get_rt_info() = func.get_rt_info();
+    result->m_shared_object = func.m_shared_object;
     return result;
 }
 

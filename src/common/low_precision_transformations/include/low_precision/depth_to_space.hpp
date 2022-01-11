@@ -10,6 +10,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief DepthToSpaceTransformation propagates dequantization operations through DepthToSpace operation.
+ *
+ * For more details about the transformation, refer to
+ * [DepthToSpaceTransformation](@ref openvino_docs_IE_DG_lpt_DepthToSpaceTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API DepthToSpaceTransformation : public TransparentBaseTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

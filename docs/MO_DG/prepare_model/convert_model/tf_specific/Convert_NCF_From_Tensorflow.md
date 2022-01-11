@@ -12,11 +12,11 @@ Run the following commands:
 import tensorflow as tf
 from tensorflow.python.framework import graph_io
 
-sess = tf.Session()
-saver = tf.train.import_meta_graph("/path/to/model/model.meta")
+sess = tf.compat.v1.Session()
+saver = tf.compat.v1.train.import_meta_graph("/path/to/model/model.meta")
 saver.restore(sess, tf.train.latest_checkpoint('/path/to/model/'))
 
-frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, \
+frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, \
                                                       ["rating/BiasAdd"])
 graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
 ```

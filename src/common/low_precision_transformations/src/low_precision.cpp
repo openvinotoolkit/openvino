@@ -38,6 +38,7 @@
 
 // general transformations
 #include "low_precision/add.hpp"
+#include "low_precision/assign_and_read_value.hpp"
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/clamp.hpp"
 #include "low_precision/convolution.hpp"
@@ -207,6 +208,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
 
     std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
     common->add_matcher<ngraph::pass::low_precision::AddTransformation>(params);
+    common->add_matcher<ngraph::pass::low_precision::AssignAndReadValueTransformation>(f, params);
     common->add_matcher<ngraph::pass::low_precision::AvgPoolTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ClampTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(params);
@@ -290,12 +292,10 @@ bool ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
         const std::set<size_t>& levels) {
     std::vector<std::shared_ptr<ngraph::Node>> nodes = function->get_ops();
     for (auto& node : nodes) {
-        for (size_t i = 0; i < node->inputs().size(); ++i) {
-            const auto fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(node);
-            if (fakeQuantize != nullptr) {
-                if (levels.count(fakeQuantize->get_levels()) == 1) {
-                    return true;
-                }
+        const auto fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(node);
+        if (fakeQuantize != nullptr) {
+            if (levels.count(fakeQuantize->get_levels()) == 1) {
+                return true;
             }
         }
     }

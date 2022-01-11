@@ -367,7 +367,8 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     for (const auto& input_info : m_impl->m_inputs) {
         auto& input = input_info.m_impl;
         // Set parameter layout from 'model' information
-        if (input->get_model()->is_layout_set() && input->m_resolved_param->get_layout().empty()) {
+        if (input->get_model()->is_layout_set()) {
+            // Overwrite existing model's layout here (fix 74065)
             input->m_resolved_param->set_layout(input->get_model()->get_layout());
         }
     }
@@ -386,8 +387,6 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         if (!input->get_tensor_data()->is_layout_set()) {
             if (!color_info->default_layout().empty()) {
                 input->get_tensor_data()->set_layout(color_info->default_layout());
-            } else if (!param->get_layout().empty()) {
-                input->get_tensor_data()->set_layout(param->get_layout());
             }
         }
 
@@ -398,10 +397,15 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         }
         if (input->get_tensor_data()->is_layout_set() && !param->get_layout().empty() &&
             param->get_layout() != input->get_tensor_data()->get_layout()) {
+            auto sq_layout = Layout();
+            // Find if some squeeze is needed between model and tensor
+            // E.g. model=NCHW, tensor=HWC
+            std::tie(new_param_shape, sq_layout) =
+                layout::utils::find_squeeze(param->get_layout(), net_shape, input->get_tensor_data()->get_layout());
             // Find transpose between model and tensor layouts and update tensor shape
             auto net_to_tensor =
-                layout::utils::find_permutation(param->get_layout(), net_shape, input->get_tensor_data()->get_layout());
-            if (!net_to_tensor.empty()) {
+                layout::utils::find_permutation(sq_layout, new_param_shape, input->get_tensor_data()->get_layout());
+            if (!net_to_tensor.empty() && new_param_shape.rank().is_static()) {
                 std::vector<ov::Dimension> dims(new_param_shape.size());
                 std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
                     return new_param_shape[v];
@@ -409,8 +413,15 @@ std::shared_ptr<Model> PrePostProcessor::build() {
                 new_param_shape = PartialShape(dims);
             }
         } else {
-            new_param_shape = input->get_preprocess()->calculate_param_shape(new_param_shape);
+            Layout new_layout;
+            std::tie(new_param_shape, new_layout) =
+                input->get_preprocess()->calculate_param_shape(new_param_shape, param->get_layout());
+            if (!input->get_tensor_data()->is_layout_set()) {
+                // Reusing param's layout according to converted calculated layout
+                input->get_tensor_data()->set_layout(new_layout);
+            }
         }
+
         if (input->get_tensor_data()->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->get_tensor_data()->get_layout(), new_param_shape);
             auto width_idx = get_and_check_width_idx(input->get_tensor_data()->get_layout(), new_param_shape);
@@ -519,7 +530,9 @@ std::shared_ptr<Model> PrePostProcessor::build() {
                         "Resulting shape '",
                         node.get_partial_shape(),
                         "' after preprocessing is not aligned with original parameter's shape: ",
-                        param->get_partial_shape());
+                        param->get_partial_shape(),
+                        ", input parameter: ",
+                        param->get_friendly_name());
 
         // Replace parameter
         for (auto consumer : consumers) {
@@ -558,7 +571,8 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         node.get_tensor().set_names({});
         result = std::dynamic_pointer_cast<op::v0::Result>(node.get_node_shared_ptr());
         // Set result layout from 'model' information
-        if (output->get_model_data()->is_layout_set() && result->get_layout().empty()) {
+        if (output->get_model_data()->is_layout_set()) {
+            // Overwrite existing model's layout here (fix 74065)
             result->set_layout(output->get_model_data()->get_layout());
         }
         auto parent = result->get_input_source_output(0);

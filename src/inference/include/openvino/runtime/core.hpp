@@ -102,6 +102,19 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::string& model, const Tensor& weights) const;
 
     /**
+     * @brief Creates a compiled model from a source model and loads to the default device.
+     *
+     * Users can create as many compiled models as they need and use
+     * them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param model Model object acquired from Core::read_model
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return A compiled model
+     */
+    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model, const ConfigMap& config = {});
+
+    /**
      * @brief Creates a compiled model from a source model object.
      *
      * Users can create as many compiled models as they need and use
@@ -118,9 +131,23 @@ public:
                                 const ConfigMap& config = {});
 
     /**
-     * @brief Reads model and creates a compiled model from IR or ONNX file
+     * @brief Reads model and creates an compiled model from IR / ONNX / PDPD file and load model to the default device.
      *
-     * This can be more efficient than using read_model + compile_model(Model) flow
+     * This can be more efficient than using read_model + compile_model(model_in_memory_object) flow
+     * especially for cases when caching is enabled and cached model is available
+     *
+     * @param model_path path to model
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation/
+     *
+     * @return A compiled model
+     */
+    CompiledModel compile_model(const std::string& model_path, const ConfigMap& config = {});
+
+    /**
+     * @brief Reads model and creates a compiled model from IR / ONNX / PDPD file
+     *
+     * This can be more efficient than using read_model + compile_model(model_in_memory_object) flow
      * especially for cases when caching is enabled and cached model is available
      *
      * @param model_path Path to a model

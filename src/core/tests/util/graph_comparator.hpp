@@ -14,6 +14,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/serialize.hpp"
 
 class FunctionsComparator {
 public:
@@ -425,7 +426,9 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<SubGraphOpInputDescription>,
                 private AttributeStorage<SubGraphOpOutputDescription>,
                 private AttributeStorage<ov::op::util::FrameworkNodeAttrs>,
-                private AttributeStorage<std::shared_ptr<ngraph::Variable>> {
+                private AttributeStorage<std::shared_ptr<ngraph::Variable>>,
+                private AttributeStorage<ov::PartialShape>,
+                private AttributeStorage<ov::Dimension> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -458,7 +461,8 @@ public:
                storage<SubGraphOpInputDescription>().get_attributes_number() +
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
                storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
-               storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number();
+               storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number() +
+               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number();
     }
 };
 
@@ -737,6 +741,22 @@ struct Equal<std::shared_ptr<Constant>> {
         return false;
     }
 };
+
+template <>
+struct Equal<std::shared_ptr<ov::Dimension>> {
+    static bool equal_value(const std::shared_ptr<ov::Dimension>& dim1, const std::shared_ptr<ov::Dimension>& dim2) {
+        return dim1 == dim2;
+    }
+};
+
+template <>
+struct Equal<std::shared_ptr<ov::PartialShape>> {
+    static bool equal_value(const std::shared_ptr<ov::PartialShape>& shape1,
+                            const std::shared_ptr<ov::PartialShape>& shape2) {
+        return shape1 == shape2;
+    }
+};
+
 }  // namespace equal
 
 namespace str {
@@ -797,6 +817,24 @@ struct Get<ov::op::util::FrameworkNodeAttrs, void> {
         }
         oss << "]";
         return "[" + oss.str() + "]";
+    }
+};
+
+template <>
+struct Get<ov::Dimension, void> {
+    static std::string value(const ov::Dimension& dim) {
+        std::stringstream dim_str;
+        dim_str << dim;
+        return dim_str.str();
+    }
+};
+
+template <>
+struct Get<ov::PartialShape, void> {
+    static std::string value(const ov::PartialShape& shape) {
+        std::stringstream shape_str;
+        shape_str << shape;
+        return shape_str.str();
     }
 };
 

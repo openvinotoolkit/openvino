@@ -6,7 +6,7 @@ import json
 import cv2
 import numpy as np
 
-from openvino.tools.pot.api import DataLoader
+from openvino.tools.pot import DataLoader
 
 
 class COCOLoader(DataLoader):

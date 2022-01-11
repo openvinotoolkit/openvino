@@ -89,6 +89,7 @@ std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, const Pl
 
 const uint32_t BLOB_MAGIC_NUMBER  = 9709;
 const uint32_t BLOB_VERSION_MAJOR = 6;
+// Must be changed when possible
 const uint32_t BLOB_VERSION_MINOR = 0;
 
 }  // namespace vpu

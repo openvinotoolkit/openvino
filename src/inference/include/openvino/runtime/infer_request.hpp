@@ -34,23 +34,46 @@ class CompiledModel;
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class OPENVINO_RUNTIME_API InferRequest {
-    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IInferRequestInternal> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is
      * destroyed.
-     * @param impl Initialized shared pointer
      */
-    InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl);
+    InferRequest(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl, const std::shared_ptr<void>& so);
     friend class ov::runtime::CompiledModel;
 
 public:
-    /**
-     * @brief Default constructor
-     */
+    /// @brief Default constructor
     InferRequest() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other InferRequest object
+    InferRequest(const InferRequest& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other InferRequest object
+    /// @return reference to the current object
+    InferRequest& operator=(const InferRequest& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other InferRequest object
+    InferRequest(InferRequest&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other InferRequest object
+    /// @return reference to the current object
+    InferRequest& operator=(InferRequest&& other) = default;
+
+    /**
+     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @note To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
+     *       And use destructor to remove implementation object before reference to library explicitly
+     */
+    ~InferRequest();
 
     /**
      * @brief Sets input/output tensor to infer on
@@ -94,8 +117,32 @@ public:
     void set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor);
 
     /**
-     * @brief Sets input tensor to infer identified by @p idx index
-     * @note An index of input preserved accross ov::Model, ov::runtime::CompiledModel and ov::runtime::InferRequest
+     * @brief Sets batch of tensors for input data to infer by input name
+     * Model input shall have batch dimension and number of @p tensors shall match with batch size
+     * Current version supports set tensors to model inputs only. In case if @p name is associated
+     * with output (or any other non-input node) - an exception will be thrown
+     *
+     * @param name Name of input tensor.
+     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
+     * input element type and shape (except batch dimension). Total size of tensors shall match with input's size
+     */
+    void set_tensors(const std::string& name, const std::vector<Tensor>& tensors);
+
+    /**
+     * @brief Sets batch of tensors for input data to infer by input port
+     * Model input shall have batch dimension and number of @p tensors shall match with batch size
+     * Current version supports set tensors to model inputs only. In case if @p port is associated
+     * with output (or any other non-input node) - an exception will be thrown
+     *
+     * @param port Port of input tensor.
+     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
+     * input element type and shape (except batch dimension). Total size of tensors shall match with input's size
+     */
+    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors);
+
+    /**
+     * @brief Sets input tensor to infer
+     *
      * @param idx Index of input tensor.
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
@@ -115,8 +162,8 @@ public:
      * @param idx Index of output tensor.
      * @param tensor Reference to output tensor. The type of a tensor must match the model output precision and size.
      */
-
     void set_output_tensor(size_t idx, const Tensor& tensor);
+
     /**
      * @brief Sets output tensor to infer models with single output
      *
@@ -130,24 +177,24 @@ public:
      * @param name A name of tensor to get
      * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
      */
-
     Tensor get_tensor(const std::string& name);
+
     /**
      * @brief Gets input/output tensor for inference
      *
      * @param port Port of tensor to get
      * @return A Tensor for the port @p port. If a tensor with specified @p port is not found, an exception is thrown.
      */
-
     Tensor get_tensor(const ov::Output<const ov::Node>& port);
+
     /**
      * @brief Gets input/output tensor for inference
      *
      * @param port Port of tensor to get
      * @return A Tensor for the port @p port. If a tensor with specified @p port is not found, an exception is thrown.
      */
-
     Tensor get_tensor(const ov::Output<ov::Node>& port);
+
     /**
      * @brief Gets input tensor for inference
      *
@@ -155,8 +202,8 @@ public:
      * @return A Tensor with an input index @p idx. If a tensor with specified @p idx is not found, an exception is
      * thrown.
      */
-
     Tensor get_input_tensor(size_t idx);
+
     /**
      * @brief Gets input tensor for inference
      *
@@ -237,6 +284,13 @@ public:
      * @return A vector of Memory State objects
      */
     std::vector<VariableState> query_state();
+
+    /**
+     * @brief Returns compiled model that creates this inference request
+     *
+     * @return Compiled model object
+     */
+    CompiledModel get_compiled_model();
 
     /**
      * @brief Checks if current InferRequest object is not initialized

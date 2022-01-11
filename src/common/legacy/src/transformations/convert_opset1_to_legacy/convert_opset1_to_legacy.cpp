@@ -42,8 +42,8 @@
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
 
-#include <transformations/common_optimizations/conv_bias_fusion.hpp>
-#include <transformations/op_conversions/convert_convolutions.hpp>
+#include "legacy/transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_convolutions.hpp"
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>

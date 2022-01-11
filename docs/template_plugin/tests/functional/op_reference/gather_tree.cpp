@@ -3,12 +3,9 @@
 //
 
 #include <gtest/gtest.h>
-#include <random>
 
 #include "openvino/opsets/opset1.hpp"
 #include "base_reference_test.hpp"
-#include "ngraph/runtime/reference/gather_tree.hpp"
-#include "ngraph_functions/utils/data_utils.hpp"
 
 using namespace reference_tests;
 using namespace ov;

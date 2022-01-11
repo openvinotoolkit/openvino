@@ -1,4 +1,4 @@
-## Bucketize <a name="Bucketize"></a> {#openvino_docs_ops_condition_Bucketize_3}
+# Bucketize {#openvino_docs_ops_condition_Bucketize_3}
 
 **Versioned name**: *Bucketize-3*
 

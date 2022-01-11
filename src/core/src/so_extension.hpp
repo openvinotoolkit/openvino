@@ -13,15 +13,19 @@ namespace detail {
 
 class OPENVINO_API SOExtension : public Extension {
 public:
-    SOExtension(const std::shared_ptr<void>& so, const Extension::Ptr& ext) : m_so(so), m_ext(ext) {}
+    ~SOExtension() {
+        m_ext = {};
+    }
+
+    SOExtension(const Extension::Ptr& ext, const std::shared_ptr<void>& so) : m_ext(ext), m_so(so) {}
 
     const Extension::Ptr& extension() const;
 
     const std::shared_ptr<void> shared_object() const;
 
 private:
-    std::shared_ptr<void> m_so;
     Extension::Ptr m_ext;
+    std::shared_ptr<void> m_so;
 };
 
 inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
@@ -34,7 +38,7 @@ inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
     so_extensions.reserve(extensions.size());
 
     for (auto&& ex : extensions) {
-        so_extensions.emplace_back(std::make_shared<SOExtension>(so, ex));
+        so_extensions.emplace_back(std::make_shared<SOExtension>(ex, so));
     }
     return so_extensions;
 }

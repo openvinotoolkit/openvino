@@ -20,9 +20,9 @@ assume that we have already created the `CustomOp` class (inherited from `Op` cl
 for this MXNet custom operation as described in the [Customize_Model_Optimizer](Customize_Model_Optimizer.md).
 
 ```py
-from extension.ops.custom_op import CustomOp  # implementation of the MO operation class
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.front.extractor import MXNetCustomFrontExtractorOp
+from openvino.tools.mo.ops.custom_op import CustomOp  # implementation of the MO operation class
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.front.extractor import MXNetCustomFrontExtractorOp
 
 class CustomProposalFrontExtractor(MXNetCustomFrontExtractorOp):  # inherit from specific base class
     op = 'MyCustomOp'  # the value corresponding to the `op_type` value of the MXNet operation

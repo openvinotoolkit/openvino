@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <format_reader_ptr.h>
+
+#include <inference_engine.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -202,6 +205,9 @@ int main(int argc, char* argv[]) {
         std::cerr << ex.what() << std::endl;
         return EXIT_FAILURE;
     }
-
+    std::cout << std::endl
+              << "This sample is an API example, for any performance measurements "
+                 "please use the dedicated benchmark_app tool"
+              << std::endl;
     return EXIT_SUCCESS;
 }

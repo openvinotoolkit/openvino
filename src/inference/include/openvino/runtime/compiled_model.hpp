@@ -28,6 +28,7 @@ namespace ov {
 namespace runtime {
 
 class Core;
+class InferRequest;
 
 /**
  * @brief This class represents compiled model
@@ -35,18 +36,19 @@ class Core;
  * transformations, then mapping to compute kernels.
  */
 class OPENVINO_RUNTIME_API CompiledModel {
-    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs CompiledModel from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that CompiledModel can work properly even if plugin
      * object is destroyed.
-     * @param impl Initialized shared pointer
      */
-    CompiledModel(const std::shared_ptr<void>& so,
-                  const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl);
+    CompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl,
+                  const std::shared_ptr<void>& so);
     friend class ov::runtime::Core;
+    friend class ov::runtime::InferRequest;
 
 public:
     /**
@@ -55,11 +57,17 @@ public:
     CompiledModel() = default;
 
     /**
+     * @brief Destructor presereves unload order of implementation object and reference to library
+     */
+    ~CompiledModel();
+
+    /**
      * @brief Get executable model information from a device
      * This model represents the internal device specific model which is optimized for particular
      * accelerator. It contains device speicific nodes, runtime information and can be used only
      * to understand how the source model is optimized and which kernels, element types and layouts
      * are selected for inference
+     *
      * @return Model containing Executable Graph Info
      */
     std::shared_ptr<const Model> get_runtime_model() const;

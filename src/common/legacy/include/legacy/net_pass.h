@@ -22,8 +22,8 @@ IE_SUPPRESS_DEPRECATED_START
  * @param net network to modify
  * @return true if all Tensor iterator was converted
  */
-INFERENCE_ENGINE_API_CPP(bool) CombineRNNSeq(CNNNetwork& net);
-INFERENCE_ENGINE_API_CPP(bool) CombineRNNSeq(TensorIterator::Body& net);
+bool CombineRNNSeq(CNNNetwork& net);
+bool CombineRNNSeq(TensorIterator::Body& net);
 
 /**
  * Returns a vector of the topologically sorted layers from
@@ -32,7 +32,7 @@ INFERENCE_ENGINE_API_CPP(bool) CombineRNNSeq(TensorIterator::Body& net);
  * @param body TI body
  * @return vector of layer objects
  */
-INFERENCE_ENGINE_API_CPP(std::vector<CNNLayerPtr>) TIBodySortTopologically(const TensorIterator::Body& body);
+std::vector<CNNLayerPtr> TIBodySortTopologically(const TensorIterator::Body& body);
 
 /**
  * Check if provided layer contains internal attribute like subnet/subgraph
@@ -59,7 +59,7 @@ details::CNNSubnet GetInternalSubnet(const CNNLayerPtr &layer);
  * @param net network to modify
  * @return true if all Tensor iterator was unrolled successfully
  */
-INFERENCE_ENGINE_API_CPP(bool) UnrollTI(CNNNetwork& net);
+bool UnrollTI(CNNNetwork& net);
 
 /**
  * Unroll all RNN specific layers by predicate
@@ -70,7 +70,7 @@ INFERENCE_ENGINE_API_CPP(bool) UnrollTI(CNNNetwork& net);
  * @param pred predicate to mark layer to unroll
  * @return true if all RNN layers was unrolled successfully
  */
-INFERENCE_ENGINE_API_CPP(bool) UnrollRNN_if(CNNNetwork& net, std::function<bool(const RNNCellBase&)> pred);
+bool UnrollRNN_if(CNNNetwork& net, std::function<bool(const RNNCellBase&)> pred);
 
 /**
  * Construct a copy of provided subnet. Will change names by adding suffix if it was provided.
@@ -80,9 +80,9 @@ INFERENCE_ENGINE_API_CPP(bool) UnrollRNN_if(CNNNetwork& net, std::function<bool(
  * @return subnet copy. Each layer/data object is newly created. Const blob objects is inherited from
  *         original subnet.
  */
-INFERENCE_ENGINE_API_CPP(TensorIterator::Body) CopyTIBody(const TensorIterator::Body& body, std::string suffix = std::string());
+TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string suffix = std::string());
 
-INFERENCE_ENGINE_API_CPP(bool) UnrollRNN_if(TensorIterator::Body& net, std::function<bool(const RNNCellBase&)> pred);
+bool UnrollRNN_if(TensorIterator::Body& net, std::function<bool(const RNNCellBase&)> pred);
 
 IE_SUPPRESS_DEPRECATED_END
 
@@ -99,9 +99,9 @@ IE_SUPPRESS_DEPRECATED_END
  * @param from precision of tensors required conversion
  * @param to resulting precision of tensors
  */
-INFERENCE_ENGINE_API_CPP(void) ConvertPrecision(CNNNetwork& net, Precision from, Precision to);
+void ConvertPrecision(CNNNetwork& net, Precision from, Precision to);
 
-INFERENCE_ENGINE_API_CPP(void) ConvertIOPrecision(CNNNetwork& net, Precision from, Precision to);
+void ConvertIOPrecision(CNNNetwork& net, Precision from, Precision to);
 
 }  // namespace NetPass
 }  // namespace InferenceEngine
