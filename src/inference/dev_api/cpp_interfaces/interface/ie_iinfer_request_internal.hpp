@@ -265,6 +265,9 @@ protected:
      */
     bool findInputAndOutputBlobByName(const std::string& name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const;
 
+    std::shared_ptr<const ov::Node> findInputByNodeName(const std::string& name) const;
+    std::shared_ptr<const ov::Node> findOutputByNodeName(const std::string& name) const;
+
     /**
      * @brief Concatenates _batched_inputs into single blob before inference
      * It is expected that _batched_inputs map contains only valid BatchedBlob blobs with 2 or more blobs inside
