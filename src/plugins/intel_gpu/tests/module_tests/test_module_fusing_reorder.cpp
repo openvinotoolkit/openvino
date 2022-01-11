@@ -114,7 +114,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     }
 }
 
-
+namespace {
 struct reorder_test_param {
     format input_format;
     format output_format;
@@ -129,6 +129,8 @@ struct reorder_test_param {
     format weights_format;
     bool expected_result;
 };
+
+}  // namespace namespace
 
 template<typename T>
 class ReorderTest : public ::testing::TestWithParam<T> {
