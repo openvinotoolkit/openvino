@@ -1612,13 +1612,15 @@ TEST(pre_post_process, dump_preprocess) {
     auto shape_str = shape_stream.str();
     auto f = create_simple_function(element::f32, shape);
     auto p = PrePostProcessor(f);
-    p.input().tensor().set_element_type(element::u8).set_layout("NHWC");
+    p.input().tensor().set_element_type(element::u8).set_layout("NHWC").set_spatial_dynamic_shape();
     p.input()
         .preprocess()
         .convert_element_type(element::f32)
         .mean(1.f)
         .scale(2.f)
         .convert_layout({3, 2, 1, 0})
+        .resize(ResizeAlgorithm::RESIZE_LINEAR, 480, 640)
+        .resize(ResizeAlgorithm::RESIZE_LINEAR)
         .custom([](const Output<Node>& node) {
             return node;
         });
@@ -1629,14 +1631,16 @@ TEST(pre_post_process, dump_preprocess) {
     std::cout << dump << std::endl;
     EXPECT_TRUE(dump.find("Input") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("input1") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("Implicit pre-processing steps (1):") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("Pre-processing steps (5):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Pre-processing steps (7):") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("mean") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("scale") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert layout") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert layout (3,2,1,0)") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout (3,2,1,0):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("resize to (480, 640):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("resize to model width/height:") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("custom:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Implicit pre-processing steps (1):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Model's expected tensor: " + shape_str + ", " + Layout("NCHW").to_string()) !=
                 std::string::npos)
         << dump;
