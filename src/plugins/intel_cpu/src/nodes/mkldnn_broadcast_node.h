@@ -39,7 +39,7 @@ private:
         NUMPY,
         EXPLICIT
     };
-    AutoBroadcastType broadcastType;
+    AutoBroadcastType broadcastType = NUMPY;
 
     static constexpr size_t INPUT_DATA_IDX = 0;
     static constexpr size_t TARGET_SHAPE_IDX = 1;

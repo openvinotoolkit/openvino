@@ -907,7 +907,6 @@ std::shared_ptr<MKLDNNDescriptor> MKLDNNConvolutionNode::createMkldnnConvDesc(co
                                                                               const mkldnn::memory::desc& wghDesc,
                                                                               const mkldnn::memory::desc& dstDesc,
                                                                               const mkldnn::memory::desc& biasDesc) {
-    std::shared_ptr<mkldnn::convolution_forward::desc> dnnlConvDesc;
     auto alg = isWinograd() ? mkldnn::algorithm::convolution_winograd : mkldnn::algorithm::convolution_direct;
 
     if (withBiases) {
@@ -931,11 +930,11 @@ void MKLDNNConvolutionNode::prepareParams() {
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory was not allocated.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory was not allocated.";
     if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Weight memory didn't allocate.";
+        IE_THROW() << "Weight memory was not allocated.";
     MKLDNNMemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
