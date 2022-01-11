@@ -399,7 +399,8 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
             return wl->_biases->size();
         }
         // calculating biases len using outdata dims: biases number should be equal to output channels number
-        return InferenceEngine::GetDataDimSize(wl->outData.front(), InferenceEngine::DataDimName::C);
+        std::cout << __FILE__ << ":" << __LINE__ << " " << InferenceEngine::GetDataDimSizeNHWC(wl->outData.front(), InferenceEngine::DataDimName::C) << std::endl;
+        return InferenceEngine::GetDataDimSizeNHWC(wl->outData.front(), InferenceEngine::DataDimName::C);
     };
 
     using BiasesPrecision = typename QuantDesc::BiasesPrecision;
