@@ -38,6 +38,31 @@ void experimental_detectron_proposals_single_image_postprocessing(void* prois,
                                                                   const std::vector<float>& output_scores,
                                                                   const Shape& output_rois_shape,
                                                                   const Shape& output_scores_shape);
+
+void experimental_detectron_proposals_single_image_v8(
+    const float* im_info,
+    const float* anchors,
+    const float* deltas,
+    const float* scores,
+    const op::v8::ExperimentalDetectronGenerateProposalsSingleImage::Attributes& attrs,
+    const Shape& im_info_shape,
+    const Shape& anchors_shape,
+    const Shape& deltas_shape,
+    const Shape& scores_shape,
+    std::vector<float>& output_rois,
+    std::vector<float>& output_scores,
+    std::vector<int64_t>& output_num);
+
+void experimental_detectron_proposals_single_image_postprocessing_v8(void* prois,
+                                                                     void* pscores,
+                                                                     void* pnum,
+                                                                     const ngraph::element::Type output_type,
+                                                                     const std::vector<float>& output_rois,
+                                                                     const std::vector<float>& output_scores,
+                                                                     const std::vector<int64_t>& output_num,
+                                                                     const Shape& output_rois_shape,
+                                                                     const Shape& output_scores_shape);
+
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph

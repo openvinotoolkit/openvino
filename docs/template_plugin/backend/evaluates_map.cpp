@@ -3072,6 +3072,77 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronGenerateProposalsSin
 }
 
 template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v8::ExperimentalDetectronGenerateProposalsSingleImage>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    const auto attrs = op->get_attrs();
+
+    size_t post_nms_count = 0;
+    if (attrs.post_nms_count < 0) {
+        throw ngraph_error("The attribute post_nms_count of the operation "
+                           "ExperimentalDetectronGenerateProposalsSingleImage must be a "
+                           "nonnegative integer.");
+    } else {
+        post_nms_count = static_cast<size_t>(attrs.post_nms_count);
+    }
+
+    const auto output_type = op->get_input_element_type(0);
+
+    const auto im_info_shape = inputs[0]->get_shape();
+    const auto anchors_shape = inputs[1]->get_shape();
+    const auto deltas_shape = inputs[2]->get_shape();
+    const auto scores_shape = inputs[3]->get_shape();
+
+    const auto im_info_data = get_floats(inputs[0], im_info_shape);
+    const auto anchors_data = get_floats(inputs[1], anchors_shape);
+    const auto deltas_data = get_floats(inputs[2], deltas_shape);
+    const auto scores_data = get_floats(inputs[3], scores_shape);
+
+    std::vector<float> output_rois;
+    std::vector<float> output_scores;
+    std::vector<int64_t> output_num;
+
+    runtime::reference::experimental_detectron_proposals_single_image_v8(im_info_data.data(),
+                                                                         anchors_data.data(),
+                                                                         deltas_data.data(),
+                                                                         scores_data.data(),
+                                                                         attrs,
+                                                                         im_info_shape,
+                                                                         anchors_shape,
+                                                                         deltas_shape,
+                                                                         scores_shape,
+                                                                         output_rois,
+                                                                         output_scores,
+                                                                         output_num);
+
+    int64_t num_selected = output_num[0];
+
+    Shape output_rois_shape = Shape{num_selected, 4};
+    Shape output_scores_shape = Shape{num_selected};
+    Shape output_num_shape = Shape{1};
+
+    outputs[0]->set_element_type(output_type);
+    outputs[0]->set_shape(output_rois_shape);
+    outputs[1]->set_element_type(output_type);
+    outputs[1]->set_shape(output_scores_shape);
+    outputs[2]->set_element_type(element::Type_t::i32);
+    outputs[2]->set_shape(output_num_shape);
+
+    runtime::reference::experimental_detectron_proposals_single_image_postprocessing_v8(
+            outputs[0]->get_data_ptr(),
+            outputs[1]->get_data_ptr(),
+            outputs[2]->get_data_ptr(),
+            output_type,
+            output_rois,
+            output_scores,
+            output_num,
+            output_rois_shape,
+            output_scores_shape);
+
+    return true;
+}
+
+template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::SquaredDifference>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {

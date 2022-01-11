@@ -203,11 +203,48 @@ void fill_output_blobs(const float* proposals,
         }
     }
 }
+
+void fill_output_blobs_v8(const float* proposals,
+                       const int64_t* roi_indices,
+                       std::vector<float>& rois,
+                       std::vector<float>& scores,
+                       std::vector<int64_t>& num,
+                       const int64_t num_proposals,
+                       const int64_t num_rois,
+                       const int64_t post_nms_topn,
+                       const bool dynamic_output) {
+    const float* src_x0 = proposals + 0 * num_proposals;
+    const float* src_y0 = proposals + 1 * num_proposals;
+    const float* src_x1 = proposals + 2 * num_proposals;
+    const float* src_y1 = proposals + 3 * num_proposals;
+    const float* src_score = proposals + 4 * num_proposals;
+
+    for (int64_t i = 0; i < num_rois; ++i) {
+        int64_t index = roi_indices[i];
+        rois.push_back(src_x0[index]);
+        rois.push_back(src_y0[index]);
+        rois.push_back(src_x1[index]);
+        rois.push_back(src_y1[index]);
+        scores.push_back(src_score[index]);
+    }
+
+    if (!dynamic_output && num_rois < post_nms_topn) {
+        for (int64_t i = 4 * num_rois; i < 4 * post_nms_topn; i++) {
+            rois.push_back(0.0f);
+        }
+        for (int64_t i = num_rois; i < post_nms_topn; i++) {
+            scores.push_back(0.0f);
+        }
+    }
+
+    num.push_back(num_rois);
+}
 }  // namespace
 
 namespace ngraph {
 namespace runtime {
 namespace reference {
+
 void experimental_detectron_proposals_single_image(
     const float* im_info,
     const float* anchors,
@@ -294,6 +331,97 @@ void experimental_detectron_proposals_single_image(
                       post_nms_topn);
 }
 
+void experimental_detectron_proposals_single_image_v8(
+    const float* im_info,
+    const float* anchors,
+    const float* deltas,
+    const float* scores,
+    const op::v8::ExperimentalDetectronGenerateProposalsSingleImage::Attributes& attrs,
+    const Shape& im_info_shape,
+    const Shape& anchors_shape,
+    const Shape& deltas_shape,
+    const Shape& scores_shape,
+    std::vector<float>& output_rois,
+    std::vector<float>& output_scores,
+    std::vector<int64_t>& output_num) {
+    const int64_t anchors_num = static_cast<int64_t>(scores_shape[0]);
+
+    // bottom shape: (num_anchors) x H x W
+    const int64_t bottom_H = static_cast<int64_t>(deltas_shape[1]);
+    const int64_t bottom_W = static_cast<int64_t>(deltas_shape[2]);
+
+    // input image height & width
+    const float img_H = im_info[0];
+    const float img_W = im_info[1];
+
+    // scale factor for height & width
+
+    // minimum box width & height
+    const float min_box_H = attrs.min_size;
+    const float min_box_W = attrs.min_size;
+
+    const float nms_thresh = attrs.nms_threshold;
+    const int64_t post_nms_topn = attrs.post_nms_count;
+    const bool dynamic_output = attrs.dynamic_output;
+
+    // number of all proposals = num_anchors * H * W
+    const int64_t num_proposals = anchors_num * bottom_H * bottom_W;
+
+    // number of top-n proposals before NMS
+    const int64_t pre_nms_topn = std::min(num_proposals, attrs.pre_nms_count);
+
+    // number of final RoIs
+    int64_t num_rois = 0;
+
+    std::vector<ProposalBox> proposals(num_proposals);
+    std::vector<float> unpacked_boxes(5 * pre_nms_topn);
+    std::vector<int64_t> is_dead(pre_nms_topn);
+
+    refine_anchors(deltas,
+                   scores,
+                   anchors,
+                   reinterpret_cast<float*>(proposals.data()),
+                   anchors_num,
+                   bottom_H,
+                   bottom_W,
+                   img_H,
+                   img_W,
+                   min_box_H,
+                   min_box_W,
+                   static_cast<const float>(std::log(1000. / 16.)),
+                   1.0f);
+    std::partial_sort(proposals.begin(),
+                      proposals.begin() + pre_nms_topn,
+                      proposals.end(),
+                      [](const ProposalBox& struct1, const ProposalBox& struct2) {
+                          return (struct1.score > struct2.score);
+                      });
+
+    unpack_boxes(reinterpret_cast<float*>(proposals.data()), unpacked_boxes.data(), pre_nms_topn);
+
+    std::vector<int64_t> roi_indices(post_nms_topn);
+
+    nms_cpu(pre_nms_topn,
+            is_dead.data(),
+            unpacked_boxes.data(),
+            roi_indices.data(),
+            &num_rois,
+            0,
+            nms_thresh,
+            post_nms_topn,
+            0.0f);
+    fill_output_blobs_v8(unpacked_boxes.data(),
+                         roi_indices.data(),
+                         output_rois,
+                         output_scores,
+                         output_num,
+                         pre_nms_topn,
+                         num_rois,
+                         post_nms_topn,
+                         dynamic_output);
+}
+
+
 void experimental_detectron_proposals_single_image_postprocessing(void* prois,
                                                                   void* pscores,
                                                                   const ngraph::element::Type output_type,
@@ -336,6 +464,58 @@ void experimental_detectron_proposals_single_image_postprocessing(void* prois,
         throw ngraph_error("Unsupported input data type: "
                            "ExperimentalDetectronGenerateProposalsSingleImage operation"
                            " supports only fp32, fp16, or bf16 data.");
+    }
+}
+
+void experimental_detectron_proposals_single_image_postprocessing_v8(void* prois,
+                                                                     void* pscores,
+                                                                     void* pnum,
+                                                                     const ngraph::element::Type output_type,
+                                                                     const std::vector<float>& output_rois,
+                                                                     const std::vector<float>& output_scores,
+                                                                     const std::vector<int64_t>& output_num,
+                                                                     const Shape& output_rois_shape,
+                                                                     const Shape& output_scores_shape) {
+    size_t rois_num = output_rois_shape[0];
+
+    switch (output_type) {
+    case element::Type_t::bf16: {
+        bfloat16* rois_ptr = reinterpret_cast<bfloat16*>(prois);
+        bfloat16* scores_ptr = reinterpret_cast<bfloat16*>(pscores);
+        for (size_t i = 0; i < rois_num; ++i) {
+            rois_ptr[4 * i + 0] = bfloat16(output_rois[4 * i + 0]);
+            rois_ptr[4 * i + 1] = bfloat16(output_rois[4 * i + 1]);
+            rois_ptr[4 * i + 2] = bfloat16(output_rois[4 * i + 2]);
+            rois_ptr[4 * i + 3] = bfloat16(output_rois[4 * i + 3]);
+            scores_ptr[i] = bfloat16(output_scores[i]);
+        }
+    } break;
+    case element::Type_t::f16: {
+        float16* rois_ptr = reinterpret_cast<float16*>(prois);
+        float16* scores_ptr = reinterpret_cast<float16*>(pscores);
+        for (size_t i = 0; i < rois_num; ++i) {
+            rois_ptr[4 * i + 0] = float16(output_rois[4 * i + 0]);
+            rois_ptr[4 * i + 1] = float16(output_rois[4 * i + 1]);
+            rois_ptr[4 * i + 2] = float16(output_rois[4 * i + 2]);
+            rois_ptr[4 * i + 3] = float16(output_rois[4 * i + 3]);
+            scores_ptr[i] = float16(output_scores[i]);
+        }
+    } break;
+    case element::Type_t::f32: {
+        float* rois_ptr = reinterpret_cast<float*>(prois);
+        float* scores_ptr = reinterpret_cast<float*>(pscores);
+        memcpy(rois_ptr, output_rois.data(), shape_size(output_rois_shape) * sizeof(float));
+        memcpy(scores_ptr, output_scores.data(), shape_size(output_scores_shape) * sizeof(float));
+    } break;
+    default:;
+        throw ngraph_error("Unsupported input data type: "
+                           "ExperimentalDetectronGenerateProposalsSingleImage operation"
+                           " supports only fp32, fp16, or bf16 data.");
+    }
+
+    if (pnum) {
+        int* num_ptr = reinterpret_cast<int*>(pnum);
+        num_ptr[0] = output_num[0];
     }
 }
 }  // namespace reference

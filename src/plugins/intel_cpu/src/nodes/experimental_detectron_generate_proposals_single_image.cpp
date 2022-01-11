@@ -19,6 +19,8 @@
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_generate_proposals_single_image.h"
 
+// TODO: remember to change in reference
+
 namespace {
 struct Indexer4d {
     int dim3_;
@@ -49,7 +51,8 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
                     float coordinates_offset) {
     Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
     Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
-    Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 5);
+    //Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 5);
+    Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
     Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
 
     parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
@@ -103,18 +106,19 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
             proposals[p_idx + 3] = y1;
-            proposals[p_idx + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
+            proposals[p_idx + 4] = score;
+            proposals[p_idx + 5] = (min_box_W <= box_w) * (min_box_H <= box_h) * 1.0;
         }
     });
 }
 
 static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn) {
     parallel_for(pre_nms_topn, [&](size_t i) {
-        unpacked_boxes[0*pre_nms_topn + i] = p_proposals[5*i + 0];
-        unpacked_boxes[1*pre_nms_topn + i] = p_proposals[5*i + 1];
-        unpacked_boxes[2*pre_nms_topn + i] = p_proposals[5*i + 2];
-        unpacked_boxes[3*pre_nms_topn + i] = p_proposals[5*i + 3];
-        unpacked_boxes[4*pre_nms_topn + i] = p_proposals[5*i + 4];
+        unpacked_boxes[0*pre_nms_topn + i] = p_proposals[6*i + 0];
+        unpacked_boxes[1*pre_nms_topn + i] = p_proposals[6*i + 1];
+        unpacked_boxes[2*pre_nms_topn + i] = p_proposals[6*i + 2];
+        unpacked_boxes[3*pre_nms_topn + i] = p_proposals[6*i + 3];
+        unpacked_boxes[4*pre_nms_topn + i] = p_proposals[6*i + 4] * p_proposals[6*i + 5];
     });
 }
 
@@ -130,6 +134,7 @@ void nms_cpu(const int num_boxes, int is_dead[],
     const float* y0 = boxes + 1 * num_proposals;
     const float* x1 = boxes + 2 * num_proposals;
     const float* y1 = boxes + 3 * num_proposals;
+    const float* scores = boxes + 4 * num_proposals;
 
     std::memset(is_dead, 0, num_boxes * sizeof(int));
 
@@ -142,6 +147,8 @@ void nms_cpu(const int num_boxes, int is_dead[],
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
+        if (scores[box] == 0)
+            is_dead[box] = 1;
         if (is_dead[box])
             continue;
 
@@ -246,7 +253,8 @@ void nms_cpu(const int num_boxes, int is_dead[],
 static
 void fill_output_blobs(const float* proposals, const int* roi_indices,
                        float* rois, float* scores,
-                       const int num_proposals, const int num_rois, const int post_nms_topn) {
+                       const int num_proposals, const int num_rois, const int post_nms_topn,
+                       int* roi_num, bool dynamic_output) {
     const float *src_x0 = proposals + 0 * num_proposals;
     const float *src_y0 = proposals + 1 * num_proposals;
     const float *src_x1 = proposals + 2 * num_proposals;
@@ -262,7 +270,7 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
         scores[i] = src_score[index];
     });
 
-    if (num_rois < post_nms_topn) {
+    if (!dynamic_output && num_rois < post_nms_topn) {
         for (int i = 4 * num_rois; i < 4 * post_nms_topn; i++) {
             rois[i] = 0.f;
         }
@@ -270,13 +278,18 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
             scores[i] = 0.f;
         }
     }
+
+    if (dynamic_output)
+        roi_num[0] = num_rois;
+    else
+        roi_num[0] = post_nms_topn;
 }
 
 bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::isSupportedOperation
             (const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
-        if (!proposalOp) {
+        if (!ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op)
+            && !ngraph::as_type_ptr<const ngraph::op::v8::ExperimentalDetectronGenerateProposalsSingleImage>(op)) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
             return false;
         }
@@ -294,13 +307,23 @@ MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::MKLDNNExperimentalD
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
-    auto proposalAttrs = proposalOp->get_attrs();
+    if (auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v8::ExperimentalDetectronGenerateProposalsSingleImage>(op)) {
+        auto proposalAttrs = proposalOp->get_attrs();
 
-    min_size_ = proposalAttrs.min_size;
-    nms_thresh_ = proposalAttrs.nms_threshold;
-    pre_nms_topn_ = proposalAttrs.pre_nms_count;
-    post_nms_topn_ = proposalAttrs.post_nms_count;
+        min_size_ = proposalAttrs.min_size;
+        nms_thresh_ = proposalAttrs.nms_threshold;
+        pre_nms_topn_ = proposalAttrs.pre_nms_count;
+        post_nms_topn_ = proposalAttrs.post_nms_count;
+        dynamic_output = proposalAttrs.dynamic_output;
+    } else if (auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op)) {
+        auto proposalAttrs = proposalOp->get_attrs();
+
+        min_size_ = proposalAttrs.min_size;
+        nms_thresh_ = proposalAttrs.nms_threshold;
+        pre_nms_topn_ = proposalAttrs.pre_nms_count;
+        post_nms_topn_ = proposalAttrs.post_nms_count;
+        dynamic_output = false;
+    }
 
     coordinates_offset = 0.0f;
 
@@ -316,13 +339,19 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::initSupportedP
                           {LayoutType::ncsp, Precision::FP32},
                           {LayoutType::ncsp, Precision::FP32}},
                          {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
+                          {LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::I32}},
                          impl_desc_type::ref_any);
+}
+
+void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::executeDynamicImpl(mkldnn::stream strm) {
+    redefineOutputMemory({{0, 4}, {0}, {1}});
+    execute(strm);
 }
 
 void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn::stream strm) {
     try {
-        if (inputShapes.size() != 4 || outputShapes.size() != 2) {
+        if (inputShapes.size() != 4 || outputShapes.size() != 3) {
             IE_THROW() << "Incorrect number of input or output edges!";
         }
 
@@ -353,9 +382,6 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
         const float *p_scores_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->GetPtr());
         const float *p_anchors_item = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ANCHORS)->getMemoryPtr()->GetPtr());
         const float *p_img_info_cpu = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
-
-        float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
-        float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
 
         const int anchors_num = scoreDims[0];
 
@@ -392,6 +418,7 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
             float x1;
             float y1;
             float score;
+            float keep;
         };
         std::vector<ProposalBox> proposals_(num_proposals);
         std::vector<float> unpacked_boxes(5 * pre_nms_topn);
@@ -405,7 +432,7 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
                            bottom_W, img_H, img_W,
                            min_box_H, min_box_W,
                            static_cast<const float>(log(1000. / 16.)),
-                           1.0f);
+                           coordinates_offset);
             std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
                               [](const ProposalBox &struct1, const ProposalBox &struct2) {
                                   return (struct1.score > struct2.score);
@@ -414,8 +441,16 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
             unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
             nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0,
                     nms_thresh_, post_nms_topn_, coordinates_offset);
+
+            // Only supported when batch size = 1
+            if (dynamic_output)
+                redefineOutputMemory({{num_rois, 4}, {num_rois}, {1}});
+            float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
+            float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
+            int *p_roi_num_item     = reinterpret_cast<int *>(getChildEdgesAtPort(OUTPUT_NUM)[0]->getMemoryPtr()->GetPtr());
+
             fill_output_blobs(&unpacked_boxes[0], &roi_indices_[0], p_roi_item, p_roi_score_item,
-                              pre_nms_topn, num_rois, post_nms_topn_);
+                              pre_nms_topn, num_rois, post_nms_topn_, p_roi_num_item, dynamic_output);
         }
     } catch (const std::exception &e) {
         std::string errorMsg = e.what();

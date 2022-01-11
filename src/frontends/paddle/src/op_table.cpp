@@ -81,6 +81,7 @@ OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(yolo_box);
+OP_CONVERTER(generate_proposals_v2);
 }  // namespace op
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
@@ -163,7 +164,8 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
-            {"yolo_box", op::yolo_box}};
+            {"yolo_box", op::yolo_box},
+            {"generate_proposals_v2", op::generate_proposals_v2}};
 };
 
 }  // namespace paddle

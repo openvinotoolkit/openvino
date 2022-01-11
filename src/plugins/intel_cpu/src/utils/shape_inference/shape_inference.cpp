@@ -519,6 +519,8 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset6::ExperimentalDetectronGenerateProposalsSingleImage>(op)) {
         return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset8::ExperimentalDetectronGenerateProposalsSingleImage>(op)) {
+        return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset4::Proposal>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::Proposal>(op)) {

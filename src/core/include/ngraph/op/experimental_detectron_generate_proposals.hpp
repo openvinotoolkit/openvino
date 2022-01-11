@@ -17,5 +17,8 @@ namespace op {
 namespace v6 {
 using ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 }  // namespace v6
+namespace v8 {
+using ov::op::v8::ExperimentalDetectronGenerateProposalsSingleImage;
+}  // namespace v8
 }  // namespace op
 }  // namespace ngraph
