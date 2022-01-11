@@ -91,6 +91,7 @@ private:
         bool with_bilinear_pad = false;
         std::vector<ptrdiff_t> stride = {};
         std::vector<ptrdiff_t> dilation = {};
+        std::vector<ptrdiff_t> padL;
     } defConvAttr;
 
     std::vector<int> sampledCoordsVector;
@@ -99,7 +100,6 @@ private:
     void prepareParams() override;
     void updatePadding();
 
-    std::vector<ptrdiff_t> paddingL = {};
     void executeDynamicImpl(mkldnn::stream strm) override;
     static constexpr size_t DATA_ID = 0;
     static constexpr size_t OFF_ID = 1;
@@ -109,8 +109,7 @@ private:
     class DefConvExecutor {
         public:
             DefConvExecutor(const DefConvAttr &defConvAttr,
-                                const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                                const std::vector<ptrdiff_t> &padL);
+                                const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector);
 
             virtual void exec(const float* src, const float* offsets,
                 const float* weights, const float* modulation, float* dst,
@@ -132,9 +131,8 @@ private:
     class DefConvRefExecutor : public DefConvExecutor {
         public:
             DefConvRefExecutor(const DefConvAttr &defConvAttr,
-                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                            const std::vector<ptrdiff_t> &padL) :
-                DefConvExecutor(defConvAttr, descVector, padL) {}
+                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) :
+                DefConvExecutor(defConvAttr, descVector) {}
 
             void exec(const float* src, const float* offsets,
                 const float* weights, const float* modulation, float* dst,
@@ -145,8 +143,7 @@ private:
             std::shared_ptr<jit_uni_def_conv_kernel> def_conv_kernel = nullptr;
         public:
             DefConvJitExecutor(const DefConvAttr &defConvAttr,
-                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                            const std::vector<ptrdiff_t> &padL);
+                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector);
 
             void exec(const float* src, const float* offsets,
                 const float* weights, const float* modulation, float* dst,

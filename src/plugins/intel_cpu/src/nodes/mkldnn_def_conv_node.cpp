@@ -613,7 +613,7 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
         defConvAttr.dilation.push_back(dilations[dilations.size() - i] - 1);
     }
 
-    paddingL = defConvNodeBase->get_pads_begin();
+    defConvAttr.padL = defConvNodeBase->get_pads_begin();
 
     autoPadding = one_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
 
@@ -856,8 +856,7 @@ void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(
 }
 
 MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
-                                const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                                const std::vector<ptrdiff_t> &padL) {
+                                const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) {
     if (descVector.size() != 4 && descVector.size() != 5) {
         IE_THROW() << "Deformable Convolution executor got incorrect desc's count (" << descVector.size() << ")";
     }
@@ -900,8 +899,8 @@ MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvA
     jcp.kh = weiDims[2];
     jcp.kw = weiDims[3];
 
-    jcp.t_pad = padL[0];
-    jcp.l_pad = padL[1];
+    jcp.t_pad = defConvAttr.padL[0];
+    jcp.l_pad = defConvAttr.padL[1];
 
     jcp.stride_h = defConvAttr.stride[0];
     jcp.stride_w = defConvAttr.stride[1];
@@ -933,9 +932,8 @@ MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvA
 }
 
 MKLDNNDeformableConvolutionNode::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
-                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
-                            const std::vector<ptrdiff_t> &padL) :
-                DefConvExecutor(defConvAttr, descVector, padL) {
+                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) :
+                DefConvExecutor(defConvAttr, descVector) {
     if (mayiuse(cpu::x64::avx512_common)) {
         def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
@@ -1066,9 +1064,9 @@ void MKLDNNDeformableConvolutionNode::prepareParams() {
     interpWeightsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
 
     if (enforceRef) {
-        execPtr = std::make_shared<DefConvRefExecutor>(defConvAttr, descVector, paddingL);
+        execPtr = std::make_shared<DefConvRefExecutor>(defConvAttr, descVector);
     } else {
-        execPtr = std::make_shared<DefConvJitExecutor>(defConvAttr, descVector, paddingL);
+        execPtr = std::make_shared<DefConvJitExecutor>(defConvAttr, descVector);
     }
 }
 
@@ -1142,7 +1140,7 @@ void MKLDNNDeformableConvolutionNode::updatePadding() {
     //update padding. TODO [DS] : rewrite when the final shape inference interface is available
     if (isDynamicNode() && autoPadding) {
         auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(opToShapeInfer);
-        paddingL = defConvNodeBase->get_pads_begin();
+        defConvAttr.padL = defConvNodeBase->get_pads_begin();
     }
 }
 
