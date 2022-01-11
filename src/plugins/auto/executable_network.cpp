@@ -281,7 +281,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 while (_idleWorkerRequests["CPU_HELP"].try_pop(workerRequestPtr))
                     destroynum++;
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
-                    std::lock_guard<std::mutex> lock(_recycleMutex);
+                    std::lock_guard<std::mutex> lock(_confMutex);
                     _workerRequests["CPU_HELP"].clear();
                     _loadContext[CPU].executableNetwork._ptr.reset();
                     _loadContext[CPU].executableNetwork._so.reset();
@@ -514,7 +514,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         idleWorker.second.set_capacity(0);
     }
     {
-        std::lock_guard<std::mutex> lock(_recycleMutex);
+        std::lock_guard<std::mutex> lock(_confMutex);
         _workerRequests.clear();
     }
 }

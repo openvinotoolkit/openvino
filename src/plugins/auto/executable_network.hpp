@@ -153,7 +153,6 @@ private:
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
     bool                                                                _exitFlag = {false};
-    std::mutex                                                          _recycleMutex;
     const InferenceEngine::CNNNetwork                                   _network;
 };
 
