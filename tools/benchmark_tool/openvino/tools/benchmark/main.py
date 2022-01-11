@@ -379,7 +379,8 @@ def run(args):
             data_tensors = data_queue.get_next_input()
             for port, data_tensor in data_tensors.items():
                 input_tensor = request.get_input_tensor(port)
-                input_tensor.shape = data_tensor.shape
+                if not static_mode:
+                    input_tensor.shape = data_tensor.shape
                 input_tensor.data[:] = data_tensor.data
 
         if statistics:
