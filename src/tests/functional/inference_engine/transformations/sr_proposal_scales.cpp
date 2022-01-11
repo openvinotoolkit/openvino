@@ -16,6 +16,7 @@ TEST(SmartReshapeTests, Proposal1Scales) {
         auto input_0 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 24, 75, 128});
         auto input_1 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 48, 75, 128});
         auto input_2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
+        input_2->set_friendly_name("input_2");
         auto reshape = std::make_shared<ngraph::opset5::Reshape>(input_2, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {3}), true);
         ngraph::op::ProposalAttrs attrs;
         attrs.base_size = 256;
@@ -39,6 +40,7 @@ TEST(SmartReshapeTests, Proposal1Scales) {
     InferenceEngine::CNNNetwork network(f);
     ASSERT_NO_THROW(network.setBatchSize(2));
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({600, 5}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "input_2");
 }
 
 TEST(SmartReshapeTests, Proposal4Scales) {
@@ -47,6 +49,7 @@ TEST(SmartReshapeTests, Proposal4Scales) {
         auto input_0 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 24, 75, 128});
         auto input_1 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 48, 75, 128});
         auto input_2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 4});
+        input_2->set_friendly_name("input_2");
         auto reshape = std::make_shared<ngraph::opset5::Reshape>(input_2, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {-1}), true);
         ngraph::op::ProposalAttrs attrs;
         attrs.base_size = 256;
@@ -70,4 +73,5 @@ TEST(SmartReshapeTests, Proposal4Scales) {
     InferenceEngine::CNNNetwork network(f);
     ASSERT_NO_THROW(network.setBatchSize(2));
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({600, 5}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "input_2");
 }
