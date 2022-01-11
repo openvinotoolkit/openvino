@@ -969,7 +969,11 @@ private:
 template <typename in_data_t, typename out_data_t>
 class MKLDNNNormalizeL2Node::NormalizeL2JitExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
 public:
-    NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) : attrs(attrs_) {
+    NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_,
+                           const mkldnn::primitive_attr& kernel_attrs_,
+                           const VectorDims& dims)
+        : attrs(attrs_),
+          kernel_attrs(kernel_attrs_) {
         if (!attrs.is_nchw && !attrs.is_nhwc && !attrs.is_blk) {
             IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
@@ -1285,6 +1289,7 @@ private:
     size_t blk_size = 1lu;
     jit_normalize_config_params jcp = {};
     NormalizeL2Attrs attrs;
+    mkldnn::primitive_attr kernel_attrs;
 
     std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
     std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
