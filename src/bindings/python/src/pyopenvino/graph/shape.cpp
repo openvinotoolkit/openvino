@@ -22,6 +22,12 @@ void regclass_graph_Shape(py::module m) {
     shape.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axis_lengths"));
     shape.def(py::init<const std::vector<size_t>&>(), py::arg("axis_lengths"));
     shape.def(py::init<const ov::Shape&>(), py::arg("axis_lengths"));
+    shape.def(
+        "__eq__",
+        [](const ov::Shape& a, const ov::Shape& b) {
+            return a == b;
+        },
+        py::is_operator());
     shape.def("__len__", [](const ov::Shape& v) {
         return v.size();
     });
