@@ -3,9 +3,9 @@
 
 import pytest
 
-import onnx  # pylint: disable=import-error
-from onnx import helper  # pylint: disable=import-error
-from onnx import TensorProto  # pylint: disable=import-error
+import onnx
+from onnx import helper
+from onnx import TensorProto
 import numpy as np
 
 from unit_tests.utils.graph import build_graph  # pylint: disable=import-error

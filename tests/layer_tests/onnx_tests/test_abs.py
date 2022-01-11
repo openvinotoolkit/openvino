@@ -3,14 +3,14 @@
 
 import pytest
 
-import onnx  # pylint: disable=import-error
-from onnx import helper  # pylint: disable=import-error
-from onnx import TensorProto  # pylint: disable=import-error
+import onnx
+from onnx import helper
+from onnx import TensorProto
 import numpy as np
 
 from unit_tests.utils.graph import build_graph
-from common.layer_test_class import check_ir_version  # pylint: disable=import-error
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest  # pylint: disable=import-error
+from common.layer_test_class import check_ir_version
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
 class TestAbs(OnnxRuntimeLayerTest):

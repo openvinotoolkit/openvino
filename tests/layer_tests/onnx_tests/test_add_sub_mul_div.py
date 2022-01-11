@@ -4,10 +4,10 @@
 import numpy as np
 import pytest
 
-from onnx import helper  # pylint: disable=import-error
-from onnx import TensorProto  # pylint: disable=import-error
+from onnx import helper
+from onnx import TensorProto
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest  # pylint: disable=import-error
+from common.onnx_layer_test_class import Caffe2OnnxLayerTest
 
 
 class TestOperations(Caffe2OnnxLayerTest):
