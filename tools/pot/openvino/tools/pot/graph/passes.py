@@ -491,7 +491,11 @@ class RemoveFakeQuantize:
             parent_node['need_shape_inference'] = True
 
     def optimize_for_gp_hw(self, graph, target_device):
-        def walk_for_branch(node):
+        """
+        Removing redundant FQs before operation Add
+        for SPR(CPU) and ATS(GPU) platform
+        """
+        def _walk_for_branch(node):
             input_node = node
             delete_const = lambda node: ([op for op in node if op is not None and op.type != 'Const'])
             while True:
@@ -503,40 +507,26 @@ class RemoveFakeQuantize:
                 if input_node.type in ['Convolution', 'GroupConvolution', 'MatMul']:
                     return True
 
-        def a(node):
+        def _check_const_input(node):
             input = get_node_inputs(node)[0]
             return nu.check_const_input(input)
 
         def delete_one_fq(inputs_node):
             fq_1, fq_2 = inputs_node
-            if len(get_all_node_outputs(fq_1)) > 1 and len(get_all_node_outputs(fq_2)) == 1 and a(fq_2):
+            if len(get_all_node_outputs(fq_1)) > 1 and len(get_all_node_outputs(fq_2)) == 1 and _check_const_input(fq_2):
                 self.disconnect_fq_node(fq_2)
                 return
-            if walk_for_branch(fq_1) and walk_for_branch(fq_2):
+            if _walk_for_branch(fq_1) and _walk_for_branch(fq_2):
                 if np.prod(nu.get_output_shape(fq_1, 0)) >= np.prod(nu.get_output_shape(fq_2, 0)):
                     self.disconnect_fq_node(fq_1)
                 else:
                     self.disconnect_fq_node(fq_2)
                 return
 
-            fq_1_input = get_node_inputs(fq_1)[0]
-            fq_2_input = get_node_inputs(fq_2)[0]
-            #if len(get_node_inputs(fq_1_input)) > 1 or len(get_node_inputs(fq_2_input)) > 1:
-            #    print('AAAAAAA')
-
-
-
-            """for i, input_node in enumerate(inputs_node):
-                if check_childs_fq_is_eltwise(input_node):
-                    self.disconnect_fq_node(inputs_node[i])
-                    return"""
-
-        if target_device in ['VPU', 'GNA']:
+        if target_device not in ['CPU_SPR', 'GPU_ATS']:
             return
 
         check_is_inputs_fq = lambda node: all([op.type == 'FakeQuantize' for op in node])
-        check_childs_fq_is_eltwise = lambda node: all([is_eltwise(op) for op in get_all_node_outputs(node)])
-
         for op in get_nodes_by_type(graph, ['Add']):
             if not nu.check_const_input(op):
                 inputs_node = np.array(get_node_inputs(op))
@@ -545,7 +535,6 @@ class RemoveFakeQuantize:
                 inputs_node = inputs_node[indices]
                 if check_is_inputs_fq(inputs_node):
                     delete_one_fq(inputs_node)
-        #assert False
 
     @staticmethod
     def undo_bias_correction(conv_node):
@@ -768,7 +757,7 @@ def create_bias_node(graph: Graph, src_node):
 
     for destination_port in destination_ports:
         add_op.out_port(0).connect(destination_port)
-    #add_bias.out_node(0)['Insert_Convert_operation_after'] = True
+    add_bias.out_node(0)['Insert_Convert_operation_after'] = True
 
 
 def create_fake_quantize_node(graph: Graph, name):

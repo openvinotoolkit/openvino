@@ -18,7 +18,9 @@ __HARDWARE_CONFIGS_MAP = {'ANY': 'cpu.json',
                           'CPU': 'cpu.json',
                           'GNA': 'gna.json',
                           'GPU': 'cpu.json',
-                          'VPU': 'vpu.json'}
+                          'VPU': 'vpu.json',
+                          'CPU_SPR': 'cpu.json',
+                          'GPU_ATS': 'cpu.json'}
 
 
 def load_hardware_config(config):
