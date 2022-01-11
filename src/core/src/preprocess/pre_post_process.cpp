@@ -400,11 +400,16 @@ std::shared_ptr<Model> PrePostProcessor::build() {
             model_layout = input->get_preprocess()->propagate_layout(input->get_tensor_data()->get_layout());
         }
         if (input->get_tensor_data()->is_layout_set() && !model_layout.empty() &&
-            model_layout != input->get_tensor_data()->get_layout()) {
+                model_layout != input->get_tensor_data()->get_layout()) {
+            auto sq_layout = Layout();
+            // Find if some squeeze is needed between model and tensor
+            // E.g. model=NCHW, tensor=HWC
+            std::tie(new_param_shape, sq_layout) =
+                layout::utils::find_squeeze(model_layout, net_shape, input->get_tensor_data()->get_layout());
             // Find transpose between model and tensor layouts and update tensor shape
             auto net_to_tensor =
-                layout::utils::find_permutation(model_layout, net_shape, input->get_tensor_data()->get_layout());
-            if (!net_to_tensor.empty()) {
+                layout::utils::find_permutation(sq_layout, new_param_shape, input->get_tensor_data()->get_layout());
+            if (!net_to_tensor.empty() && new_param_shape.rank().is_static()) {
                 std::vector<ov::Dimension> dims(new_param_shape.size());
                 std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
                     return new_param_shape[v];
@@ -529,7 +534,9 @@ std::shared_ptr<Model> PrePostProcessor::build() {
                         "Resulting shape '",
                         node.get_partial_shape(),
                         "' after preprocessing is not aligned with original parameter's shape: ",
-                        param->get_partial_shape());
+                        param->get_partial_shape(),
+                        ", input parameter: ",
+                        param->get_friendly_name());
 
         // Replace parameter
         for (auto consumer : consumers) {

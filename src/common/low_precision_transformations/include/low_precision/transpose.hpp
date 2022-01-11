@@ -12,6 +12,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeTransformation propagates dequantization operations through Transpose operation.
+ *
+ * For more details about the transformation, refer to
+ * [TransposeTransformation](@ref openvino_docs_IE_DG_lpt_TransposeTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API TransposeTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
