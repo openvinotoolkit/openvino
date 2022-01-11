@@ -653,6 +653,51 @@ TEST_P(OVExecutableNetworkBaseTest, getCompiledModelFromInferRequest) {
         ASSERT_NO_THROW(another_req.infer());
     }
 }
+
+TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV10Model) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(10);
+        function->set_friendly_name("SimpleReLU");
+    }
+    EXPECT_THROW(core->compile_model(function, targetDevice, configuration), ov::Exception);
+}
+
+TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV11Model) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(11);
+        function->set_friendly_name("SimpleReLU");
+    }
+    EXPECT_NO_THROW(core->compile_model(function, targetDevice, configuration));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
