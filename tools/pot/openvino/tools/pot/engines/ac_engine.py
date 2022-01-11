@@ -129,7 +129,7 @@ class ACEngine(Engine):
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
-            
+
             for model in self._model:
                 cast_friendly_names(model['model'].outputs)
 

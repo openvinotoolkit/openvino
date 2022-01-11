@@ -1,14 +1,14 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from unittest.mock import Mock
+
 import numpy as np
 from addict import Dict
-
 from openvino.tools.pot.engines.ac_engine import ACEngine
 from openvino.tools.pot.engines.ie_engine import IEEngine
 from openvino.tools.pot.engines.utils import append_stats
 from openvino.tools.pot.statistics.statistics import TensorStatistic
-from unittest.mock import Mock
 
 
 def test_ac_engine_append_stats():

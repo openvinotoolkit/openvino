@@ -20,6 +20,7 @@ DEFAULT_TARGET_DEVICE = 'ANY'
 DEFAULT_PRESET = 'performance'
 
 
+# pylint: disable=W0212
 class Config(Dict):
     """ Tool configuration containing model, engine, and algorithms' parameters
     """

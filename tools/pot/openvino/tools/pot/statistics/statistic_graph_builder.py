@@ -21,6 +21,7 @@ from ..statistics.statistics import Statistic, TensorStatistic, TensorStatisticA
 from ..statistics.function_selector import ACTIVATIONS, get_stats_function
 
 
+# pylint: disable=R0912
 class StatisticGraphBuilder:
     def insert_statistic(self, model, stats_layout, stat_aliases=None):
         output_to_node_names = {}

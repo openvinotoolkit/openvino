@@ -286,7 +286,7 @@ class IEEngine(Engine):
         :param requests_num: number of infer requests
         """
 
-        def completion_callback(request, start_time):
+        def completion_callback(request, start_time, batch_id):
             predictions = request.results
             self._process_infer_output(stats_layout, predictions,
                                        batch_annotations, batch_meta,
@@ -317,7 +317,7 @@ class IEEngine(Engine):
         infer_queue.set_callback(completion_callback)
         for batch_id, data_batch in sampler_iter:
             batch_annotations, image_batch, batch_meta = self._process_batch(data_batch)
-            infer_queue.start_async(self._fill_input(compiled_model, image_batch), start_time)
+            infer_queue.start_async(self._fill_input(compiled_model, image_batch), start_time, batch_id)
         infer_queue.wait_all()
         progress_log_fn('Inference finished')
 
