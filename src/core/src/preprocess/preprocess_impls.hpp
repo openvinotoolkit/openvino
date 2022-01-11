@@ -46,13 +46,30 @@ struct OutputInfo::OutputInfoImpl {
         return m_tensor_info.m_impl;
     }
 
+    const std::unique_ptr<OutputTensorInfo::OutputTensorInfoImpl>& get_tensor_data() const {
+        return m_tensor_info.m_impl;
+    }
+
     std::unique_ptr<PostProcessSteps::PostProcessStepsImpl>& get_postprocess() {
+        return m_postprocess.m_impl;
+    }
+
+    const std::unique_ptr<PostProcessSteps::PostProcessStepsImpl>& get_postprocess() const {
         return m_postprocess.m_impl;
     }
 
     std::unique_ptr<OutputModelInfo::OutputModelInfoImpl>& get_model_data() {
         return m_model_info.m_impl;
     }
+
+    const std::unique_ptr<OutputModelInfo::OutputModelInfoImpl>& get_model_data() const {
+        return m_model_info.m_impl;
+    }
+
+    void build(ov::ResultVector& results);
+
+    void dump(std::ostream& str) const;
+
 
     OutputTensorInfo m_tensor_info;
     PostProcessSteps m_postprocess;

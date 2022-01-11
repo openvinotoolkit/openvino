@@ -9,7 +9,7 @@ using namespace ov::preprocess;
 
 namespace {
     using namespace ov;
-    void dump_tensor (std::ostream& str, const PartialShape& shape, const Layout& layout, const element::Type& type,
+    static void dump_tensor (std::ostream& str, const PartialShape& shape, const Layout& layout, const element::Type& type,
                           const ColorFormat& color = ColorFormat::UNDEFINED) {
     str << shape << ", ";
     if (layout.empty()) {
@@ -85,7 +85,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
     for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
         auto plane_shape = color_info->shape(plane, new_param_shape);
         auto plane_param =
-                std::make_shared<op::v0::Parameter>(tensor_elem_type, plane_shape);
+                std::make_shared<opset8::Parameter>(tensor_elem_type, plane_shape);
         if (plane < get_tensor_data()->planes_sub_names().size()) {
             std::unordered_set<std::string> plane_tensor_names;
             std::string sub_name;
@@ -216,6 +216,15 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     context.target_layout() = data.m_model_layout;
     context.model_shape() = data.m_param->get_partial_shape();
     context.target_element_type() = data.m_param->get_element_type();
+    bool need_dump = nodes.size() > 1 ||
+            nodes[0].get_partial_shape() != context.model_shape() ||
+            data.m_param->get_layout() != context.target_layout() ||
+            nodes[0].get_element_type() != context.target_element_type() ||
+            !get_preprocess()->actions().empty();
+    if (!need_dump) {
+        return;
+    }
+    // Dump tensor and model shapes if any preprocessing is needed
     str << "Input ";
     if (!data.m_param->output(0).get_names().empty()) {
         str << "\"" << data.m_param->output(0).get_any_name() << "\"";
@@ -225,8 +234,8 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     }
     str << ":" << std::endl;
     if (nodes.size() == 1) {
-        str << "    User's data tensor: ";
-        dump_tensor(str, nodes[0].get_partial_shape(), data.m_param->get_layout(), nodes[0].get_element_type());
+        str << "    User's input tensor: ";
+        dump_tensor(str, nodes[0].get_partial_shape(), context.layout(), nodes[0].get_element_type());
         str << std::endl;
     } else {
         str << "    " << nodes.size() << " user's tensors expected for each plane:" << std::endl;
@@ -235,14 +244,15 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
             if (!nodes[i].get_names().empty()) {
                 str << nodes[i].get_any_name() << " ";
             }
-            dump_tensor(str, nodes[i].get_partial_shape(), data.m_param->get_layout(), nodes[i].get_element_type());
+            dump_tensor(str, nodes[i].get_partial_shape(), context.layout(), nodes[i].get_element_type());
             str << std::endl;
         }
     }
     str << "    Model's expected tensor: ";
     dump_tensor(str, context.model_shape(), context.target_layout(), context.target_element_type());
-    // 2. Apply preprocessing
     str << std::endl;
+
+    // Apply and dump preprocessing operations
     if (!get_preprocess()->actions().empty()) {
         str << "    Pre-processing steps (" << get_preprocess()->actions().size() << "):" << std::endl;
     }
@@ -270,4 +280,150 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
         dump_tensor(str, nodes[0].get_partial_shape(), context.layout(), nodes[0].get_element_type(), context.color_format());
         str << ")" << std::endl;
     }
+}
+
+//----------- OutputInfoImpl ----------
+void OutputInfo::OutputInfoImpl::build(ov::ResultVector &results) {
+    std::shared_ptr<opset8::Result> result;
+    auto node = m_output_node;
+    auto start_out_node_names = node.get_tensor().get_names();
+    node.get_tensor().set_names({});
+    result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
+    // Set result layout from 'model' information
+    if (get_model_data()->is_layout_set()) {
+        // Overwrite existing model's layout here (fix 74065)
+        result->set_layout(get_model_data()->get_layout());
+    }
+    PostprocessingContext context(result->get_layout());
+    if (get_tensor_data()->is_layout_set()) {
+        context.target_layout() = get_tensor_data()->get_layout();
+    }
+    if (get_tensor_data()->is_element_type_set()) {
+        context.target_element_type() = get_tensor_data()->get_element_type();
+    }
+    // Apply post-processing
+    node = result->get_input_source_output(0);
+    bool post_processing_applied = false;
+    for (const auto& action : get_postprocess()->actions()) {
+        auto action_result = action.m_op({node}, context);
+        node = std::get<0>(action_result);
+        post_processing_applied = true;
+    }
+    // Implicit: Convert element type + layout to user's tensor implicitly
+    PostStepsList implicit_steps;
+    if (node.get_element_type() != get_tensor_data()->get_element_type() &&
+        get_tensor_data()->is_element_type_set() && node.get_element_type() != element::dynamic) {
+        implicit_steps.add_convert_impl(get_tensor_data()->get_element_type());
+    }
+
+    if (!context.target_layout().empty() && context.target_layout() != context.layout()) {
+        implicit_steps.add_convert_layout_impl(context.target_layout());
+    }
+    for (const auto& action : implicit_steps.actions()) {
+        auto action_result = action.m_op({node}, context);
+        node = std::get<0>(action_result);
+        post_processing_applied = true;
+    }
+    node.get_node_shared_ptr()->set_friendly_name(
+            result->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
+
+    // Reset friendly name of input node to avoid names collision
+    // when there is at a new node inserted by post-processing steps
+    // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
+    // as it's required for old API correct work
+    if (post_processing_applied)
+        result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
+
+    // Create result
+    auto new_result = std::make_shared<opset8::Result>(node);
+    new_result->set_friendly_name(result->get_friendly_name());
+    node.get_tensor().set_names(start_out_node_names);
+
+    // Preserve runtime info of original result
+    new_result->get_rt_info() = result->get_rt_info();
+    new_result->input(0).get_rt_info() = result->input(0).get_rt_info();
+    new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
+
+    // Update layout
+    if (!context.layout().empty()) {
+        new_result->set_layout(context.layout());
+    }
+
+    for (auto& old_result : results) {
+        if (result == old_result) {
+            old_result = new_result;
+            break;
+        }
+    }
+}
+
+void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
+    std::shared_ptr<opset8::Result> result;
+    auto node = m_output_node;
+    auto start_out_node_names = node.get_tensor().get_names();
+    result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
+    auto model_layout = get_model_data()->is_layout_set() ? get_model_data()->get_layout() : result->get_layout();
+    PostprocessingContext context(model_layout);
+    if (get_tensor_data()->is_layout_set()) {
+        context.target_layout() = get_tensor_data()->get_layout();
+    }
+    if (get_tensor_data()->is_element_type_set()) {
+        context.target_element_type() = get_tensor_data()->get_element_type();
+    }
+
+    bool need_dump = (model_layout != context.target_layout() && get_tensor_data()->is_layout_set()) ||
+            (node.get_element_type() != context.target_element_type() && get_tensor_data()->is_element_type_set() ||
+                    !get_postprocess()->actions().empty());
+    if (!need_dump) {
+        return;
+    }
+
+    str << "Output ";
+    if (!start_out_node_names.empty()) {
+        str << "\"" << *start_out_node_names.begin() << "\"";
+    }
+    str << ":" << std::endl;
+    str << "    Model's data tensor: ";
+    dump_tensor(str, node.get_partial_shape(), model_layout, node.get_element_type());
+    str << std::endl;
+
+    if (!get_postprocess()->actions().empty()) {
+        str << "    Post-processing steps (" << get_postprocess()->actions().size() << "):" << std::endl;
+    }
+    // Apply post-processing
+    node = result->get_input_source_output(0);
+    for (const auto& action : get_postprocess()->actions()) {
+        str << "      " << action.m_name << ": (";
+        dump_tensor(str, node.get_partial_shape(), context.layout(), node.get_element_type());
+        auto action_result = action.m_op({node}, context);
+        node = std::get<0>(action_result);
+        str << ") -> (";
+        dump_tensor(str, node.get_partial_shape(), context.layout(), node.get_element_type());
+        str << ")" << std::endl;
+    }
+    // Implicit: Convert element type + layout to user's tensor implicitly
+    PostStepsList implicit_steps;
+    if (node.get_element_type() != get_tensor_data()->get_element_type() &&
+        get_tensor_data()->is_element_type_set() && node.get_element_type() != element::dynamic) {
+        implicit_steps.add_convert_impl(get_tensor_data()->get_element_type());
+    }
+
+    if (!context.target_layout().empty() && context.target_layout() != context.layout()) {
+        implicit_steps.add_convert_layout_impl(context.target_layout());
+    }
+    if (!implicit_steps.actions().empty()) {
+        str << "    Post-processing implicit steps (" << implicit_steps.actions().size() << "):" << std::endl;
+    }
+    for (const auto& action : implicit_steps.actions()) {
+        str << "      " << action.m_name << ": (";
+        dump_tensor(str, node.get_partial_shape(), context.layout(), node.get_element_type());
+        auto action_result = action.m_op({node}, context);
+        node = std::get<0>(action_result);
+        str << ") -> (";
+        dump_tensor(str, node.get_partial_shape(), context.layout(), node.get_element_type());
+        str << ")" << std::endl;
+    }
+
+    str << "    User's output tensor: ";
+    dump_tensor(str, node.get_partial_shape(), context.layout(), node.get_element_type());
 }

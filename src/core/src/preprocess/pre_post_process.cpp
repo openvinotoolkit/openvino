@@ -149,27 +149,27 @@ std::ostream& operator<<(std::ostream& str, const PrePostProcessor& prePostProce
 }
 
 void PrePostProcessor::dump(std::ostream& str) const {
-    auto function = m_impl->m_function;
+    auto model = m_impl->m_function;
     std::tuple<std::unordered_set<std::string>, bool> existing_names{std::unordered_set<std::string>{}, false};
     for (const auto& input_info : m_impl->m_inputs) {
-        const auto &input = input_info.m_impl;
-        input->dump(str, function, existing_names);
+        input_info.m_impl->dump(str, model, existing_names);
+    }
+    for (const auto& output_info : m_impl->m_outputs) {
+        output_info.m_impl->dump(str);
     }
 }
 
 std::shared_ptr<Model> PrePostProcessor::build() {
-    std::cout << *this << "\n";
     auto function = m_impl->m_function;
     std::tuple<std::unordered_set<std::string>, bool> existing_names{std::unordered_set<std::string>{}, false};
     FunctionGuard guard(function);
     bool tensor_data_updated = false;
     auto results = function->get_results();
-    auto parameters_list = std::list<std::shared_ptr<op::v0::Parameter>>(function->get_parameters().begin(),
+    auto parameters_list = std::list<std::shared_ptr<opset8::Parameter>>(function->get_parameters().begin(),
                                                                          function->get_parameters().end());
 
     for (const auto& input_info : m_impl->m_inputs) {
-        const auto& input = input_info.m_impl;
-        tensor_data_updated |= input->build(function, existing_names, parameters_list);
+        tensor_data_updated |= input_info.m_impl->build(function, existing_names, parameters_list);
     }
 
     // Add parameters with right order
@@ -187,79 +187,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
 
     // Post processing
     for (const auto& output_info : m_impl->m_outputs) {
-        const auto& output = output_info.m_impl;
-        std::shared_ptr<op::v0::Result> result;
-        Output<Node> node = output->m_output_node;
-        auto start_out_node_names = node.get_tensor().get_names();
-        node.get_tensor().set_names({});
-        result = std::dynamic_pointer_cast<op::v0::Result>(node.get_node_shared_ptr());
-        // Set result layout from 'model' information
-        if (output->get_model_data()->is_layout_set()) {
-            // Overwrite existing model's layout here (fix 74065)
-            result->set_layout(output->get_model_data()->get_layout());
-        }
-        auto parent = result->get_input_source_output(0);
-        PostprocessingContext context(result->get_layout());
-        if (output->get_tensor_data()->is_layout_set()) {
-            context.target_layout() = output->get_tensor_data()->get_layout();
-        }
-        if (output->get_tensor_data()->is_element_type_set()) {
-            context.target_element_type() = output->get_tensor_data()->get_element_type();
-        }
-        // Apply post-processing
-        node = result->get_input_source_output(0);
-        bool post_processing_applied = false;
-        for (const auto& action : output->get_postprocess()->actions()) {
-            auto action_result = action({node}, context);
-            node = std::get<0>(action_result);
-            post_processing_applied = true;
-        }
-        // Implicit: Convert element type + layout to user's tensor implicitly
-        PostStepsList implicit_steps;
-        if (node.get_element_type() != output->get_tensor_data()->get_element_type() &&
-            output->get_tensor_data()->is_element_type_set() && node.get_element_type() != element::dynamic) {
-            implicit_steps.add_convert_impl(output->get_tensor_data()->get_element_type());
-        }
-
-        if (!context.target_layout().empty() && context.target_layout() != context.layout()) {
-            implicit_steps.add_convert_layout_impl(context.target_layout());
-        }
-        for (const auto& action : implicit_steps.actions()) {
-            auto action_result = action({node}, context);
-            node = std::get<0>(action_result);
-            post_processing_applied = true;
-        }
-        node.get_node_shared_ptr()->set_friendly_name(
-            result->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
-
-        // Reset friendly name of input node to avoid names collision
-        // when there is at a new node inserted by post-processing steps
-        // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
-        // as it's required for old API correct work
-        if (post_processing_applied)
-            result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
-
-        // Create result
-        auto new_result = std::make_shared<ov::op::v0::Result>(node);
-        new_result->set_friendly_name(result->get_friendly_name());
-        node.get_tensor().set_names(start_out_node_names);
-
-        // Preserve runtime info of original result
-        new_result->get_rt_info() = result->get_rt_info();
-        new_result->input(0).get_rt_info() = result->input(0).get_rt_info();
-        new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
-
-        // Update layout
-        if (!context.layout().empty()) {
-            new_result->set_layout(context.layout());
-        }
-
-        for (auto& old_result : results) {
-            if (result == old_result) {
-                old_result = new_result;
-                break;
-            }
-        }
+        output_info.m_impl->build(results);
     }
     // Add results with right order
     while (!function->get_results().empty())
@@ -442,7 +370,7 @@ PostProcessSteps& PostProcessSteps::custom(const CustomPostprocessOp& postproces
     // 'true' indicates that custom postprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back([postprocess_cb](const Output<ov::Node>& node, PostprocessingContext&) {
         return std::make_tuple(postprocess_cb(node), true);
-    });
+    }, "custom");
     return *this;
 }
 

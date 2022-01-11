@@ -230,7 +230,7 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         // return false to avoid excess function revalidations as layout conversion
         // doesn't require shape or type propagation.
         return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
-    }, "convert_layout by values");
+    }, "convert layout by values");
 }
 
 std::tuple<PartialShape, Layout> PreStepsList::calculate_param_shape(const PartialShape& model_shape,
@@ -473,7 +473,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
             "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
         auto convert = std::make_shared<op::v0::Convert>(node, t);
         return std::make_tuple(Output<Node>(convert), true);
-    });
+    }, "convert type");
 }
 
 void PostStepsList::add_convert_layout_impl(const Layout& layout) {
@@ -491,7 +491,7 @@ void PostStepsList::add_convert_layout_impl(const Layout& layout) {
         auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
         context.layout() = dst_layout;  // Update context's current layout
         return std::make_tuple(Output<Node>(transpose), true);
-    });
+    }, "convert layout");
 }
 
 void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
@@ -505,7 +505,7 @@ void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         auto res = std::make_tuple(Output<Node>(transpose), true);
         context.layout() = std::move(new_layout);  // Update context's current layout
         return res;
-    });
+    }, "convert layout by values");
 }
 }  // namespace preprocess
 }  // namespace ov

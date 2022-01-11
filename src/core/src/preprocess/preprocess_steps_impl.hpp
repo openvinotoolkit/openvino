@@ -202,6 +202,12 @@ public:
 using InternalPostprocessOp = std::function<std::tuple<ov::Output<ov::Node>, bool>(const ov::Output<ov::Node>& node,
                                                                                    PostprocessingContext& context)>;
 
+struct InternalPostprocessAction {
+    InternalPostprocessAction(InternalPostprocessOp op, std::string name): m_op(std::move(op)), m_name(std::move(name)) {}
+    InternalPostprocessOp m_op;
+    std::string m_name;
+};
+
 /// \brief PostProcessStepsImpl - internal data structure
 class PostStepsList {
 public:
@@ -209,15 +215,15 @@ public:
     void add_convert_layout_impl(const Layout& layout);
     void add_convert_layout_impl(const std::vector<uint64_t>& dims);
 
-    const std::list<InternalPostprocessOp>& actions() const {
+    const std::list<InternalPostprocessAction>& actions() const {
         return m_actions;
     }
-    std::list<InternalPostprocessOp>& actions() {
+    std::list<InternalPostprocessAction>& actions() {
         return m_actions;
     }
 
 private:
-    std::list<InternalPostprocessOp> m_actions;
+    std::list<InternalPostprocessAction> m_actions;
 };
 
 class PostProcessSteps::PostProcessStepsImpl : public PostStepsList {};
