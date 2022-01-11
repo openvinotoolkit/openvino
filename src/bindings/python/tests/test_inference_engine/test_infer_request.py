@@ -175,6 +175,30 @@ def test_start_async(device):
     assert callbacks_info["finished"] == jobs
 
 
+def test_infer_list_as_inputs(device):
+    num_inputs = 4
+    input_shape = [2, 1]
+    dtype = np.float32
+    params = [ops.parameter(input_shape, dtype) for _ in range(num_inputs)]
+    model = Model(ops.relu(ops.concat(params, 1)), params)
+    core = Core()
+    compiled_model = core.compile_model(model, device)
+
+    def check_fill_inputs(request, inputs):
+        for input_idx in range(len(inputs)):
+            assert np.array_equal(request.get_input_tensor(input_idx).data, inputs[input_idx])
+
+    request = compiled_model.create_infer_request()
+
+    inputs = [np.random.normal(size=input_shape).astype(dtype)]
+    request.infer(inputs)
+    check_fill_inputs(request, inputs)
+
+    inputs = [np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)]
+    request.infer(inputs)
+    check_fill_inputs(request, inputs)
+
+
 def test_infer_mixed_keys(device):
     core = Core()
     func = core.read_model(test_net_xml, test_net_bin)
