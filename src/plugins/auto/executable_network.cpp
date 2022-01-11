@@ -696,11 +696,30 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 std::unique_lock<std::mutex> lock(_confMutex);
                 auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
                 lock.unlock();
+                bool bthroughput = false;
+                const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
+                if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
+                    bthroughput = true;
+                }
                 if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
                     const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
                     if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
                         // THROUGHPUT mode
-                        real = 4u;
+                        try {
+                            auto gpuStreams =
+                                _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(GPU_THROUGHPUT_STREAMS)).as<std::string>();
+                            int gpuStreamsInter = std::stoi(gpuStreams);
+                            LOG_DEBUG("[AUTOPLUGIN] gpuStreamsInter :%d", gpuStreamsInter);
+                            if (gpuStreamsInter > 0) {
+                                real = 2 * gpuStreamsInter;
+                            } else {
+                                real = 4u;
+                            }
+                        } catch (const std::exception&) {
+                            LOG_WARNING("[AUTOPLUGIN] get config GPU_THROUGHPUT_STREAMS failed");
+                            LOG_WARNING("[AUTOPLUGIN] use default value 4 for THROUGHPUT");
+                            real = 4u;
+                        }
                         // if enable auto-batch, use below code
                         // std::map<std::string, InferenceEngine::Parameter> options;
                         // options["MODEL_PTR"] = _network.getFunction(); // CNNntework
@@ -718,14 +737,21 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                         real = 1u;
                     }
                 } else if (deviceInfo.deviceName.find("VPUX") != std::string::npos) {
-                    real = 8u;
+                    if (bthroughput) {
+                        real = 8u;
+                    } else {
+                        real = 1u;
+                    }
                 } else if (deviceInfo.deviceName.find("MYRIAD") != std::string::npos) {
-                    real = 4u;
+                    if (bthroughput) {
+                        real = 4u;
+                    } else {
+                        real = 1u;
+                    }
                 } else if (deviceInfo.deviceName.find("CPU") != std::string::npos) {
                     LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for CPU_HELP,CPU case");
                     LOG_WARNING("[AUTOPLUGIN] use default value 4 for THROUGHPUT, 1 for else");
-                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
-                    if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
+                    if (bthroughput) {
                         real = 4u;
                     } else {
                         real = 1u;
@@ -733,8 +759,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 } else {
                     LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for device:%s,", deviceInfo.deviceName.c_str());
                     LOG_WARNING("[AUTOPLUGIN] use default value 4 for THROUGHPUT, 1 for else");
-                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
-                    if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
+                    if (bthroughput) {
                         real = 4u;
                     } else {
                         real = 1u;
