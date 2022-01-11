@@ -108,11 +108,9 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
-    findInputAndOutputBlobByName(name, foundInput, foundOutput);
+    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const auto input = findInputByNodeName(name);
     const auto output = findInputByNodeName(name);
-    IE_ASSERT((input && foundInput) || (output && foundOutput))
-        << "Failed to find input or output with name: \'" << name << "\'";
 
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
@@ -126,7 +124,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     const bool isOutputDynamic = output && output->get_output_partial_shape(0).is_dynamic();
 
     size_t dataSize = userBlob->size();
-    if (input) {
+    if (isInput) {
         // ilavreno: the condition below is obsolete, but we need an exact list of precisions
         // which are supports by G-API preprocessing
         if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
