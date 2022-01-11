@@ -57,10 +57,9 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
         // Find if some squeeze is needed between model and tensor
         // E.g. model=NCHW, tensor=HWC
         std::tie(new_param_shape, sq_layout) =
-                layout::utils::find_squeeze(res.m_model_layout, model_shape, res.m_tensor_layout);
+            layout::utils::find_squeeze(res.m_model_layout, model_shape, res.m_tensor_layout);
         // Find transpose between model and tensor layouts and update tensor shape
-        auto net_to_tensor =
-                layout::utils::find_permutation(sq_layout, new_param_shape, res.m_tensor_layout);
+        auto net_to_tensor = layout::utils::find_permutation(sq_layout, new_param_shape, res.m_tensor_layout);
         if (!net_to_tensor.empty() && new_param_shape.rank().is_static()) {
             std::vector<ov::Dimension> dims(new_param_shape.size());
             std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
@@ -200,7 +199,6 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
                     context.model_shape(),
                     ", input parameter: ",
                     data.m_param->get_friendly_name());
-
 
     // Replace parameter
     for (auto consumer : consumers) {

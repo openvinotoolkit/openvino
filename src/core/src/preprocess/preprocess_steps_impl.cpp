@@ -227,7 +227,8 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
             auto shape = node.get_partial_shape();
             size_t add_cnt;
             Layout unsqueeze_layout;
-            std::tie(shape, unsqueeze_layout, add_cnt) = layout::utils::find_unsqueeze(context.layout(), shape, dst_layout);
+            std::tie(shape, unsqueeze_layout, add_cnt) =
+                layout::utils::find_unsqueeze(context.layout(), shape, dst_layout);
             if (add_cnt) {
                 std::vector<size_t> dims;
                 dims.push_back(add_cnt);
