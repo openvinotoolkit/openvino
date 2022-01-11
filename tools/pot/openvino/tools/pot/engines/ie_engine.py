@@ -21,6 +21,7 @@ from ..utils.utils import create_tmp_dir, convert_output_key
 logger = get_logger(__name__)
 
 
+# pylint: disable=W0631
 class IEEngine(Engine):
 
     def __init__(self, config, data_loader=None, metric=None):
@@ -286,7 +287,7 @@ class IEEngine(Engine):
         :param requests_num: number of infer requests
         """
 
-        def completion_callback(request, additional_data):
+        def completion_callback(request, start_time):
             predictions = request.results
             self._process_infer_output(stats_layout, predictions,
                                        batch_annotations, batch_meta,
@@ -294,8 +295,8 @@ class IEEngine(Engine):
 
             # Print progress
             if self._print_inference_progress(progress_log_fn,
-                                              additional_data['batch_id'], len(sampler),
-                                              additional_data['start_time'], time()):
+                                              batch_id, len(sampler),
+                                              start_time, time()):
                 start_time = time()
 
         progress_log_fn = logger.info if print_progress else logger.debug
@@ -317,11 +318,7 @@ class IEEngine(Engine):
         infer_queue.set_callback(completion_callback)
         for batch_id, data_batch in sampler_iter:
             batch_annotations, image_batch, batch_meta = self._process_batch(data_batch)
-            additional_data = {
-                'start_time': start_time,
-                'batch_id': batch_id
-            }
-            infer_queue.start_async(self._fill_input(compiled_model, image_batch), additional_data)
+            infer_queue.start_async(self._fill_input(compiled_model, image_batch), start_time)
         infer_queue.wait_all()
         progress_log_fn('Inference finished')
 
