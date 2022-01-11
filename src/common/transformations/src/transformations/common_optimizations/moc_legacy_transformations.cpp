@@ -12,7 +12,7 @@
 bool ov::pass::MOCLegacyTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     ov::pass::Manager manager(get_pass_config());
 
-    manager.register_pass<ov::pass::ChangePlaceholderTypes>();
+    manager.register_pass<ov::pass::ChangePlaceholderTypes>(m_params_with_custom_types);
     manager.run_passes(f);
 
     return false;

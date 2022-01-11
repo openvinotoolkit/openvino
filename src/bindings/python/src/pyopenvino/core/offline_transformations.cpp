@@ -52,12 +52,13 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_moc_legacy_transformations",
-        [](std::shared_ptr<ov::Model> function) {
+        [](std::shared_ptr<ov::Model> function, const std::vector<std::string>& params_with_custom_types) {
             ov::pass::Manager manager;
-            manager.register_pass<ov::pass::MOCLegacyTransformations>();
+            manager.register_pass<ov::pass::MOCLegacyTransformations>(params_with_custom_types);
             manager.run_passes(function);
         },
-        py::arg("function"));
+        py::arg("function"),
+        py::arg("params_with_custom_types"));
 
     m_offline_transformations.def(
         "apply_pot_transformations",

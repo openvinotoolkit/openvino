@@ -159,7 +159,6 @@ openvino/tools/mo/front/caffe/slice_to_split.py
 openvino/tools/mo/front/caffe/softmax_ext.py
 openvino/tools/mo/front/caffe/split_to_identity.py
 openvino/tools/mo/front/caffe/tanh.py
-openvino/tools/mo/front/ChangePlaceholderTypes.py
 openvino/tools/mo/front/common/__init__.py
 openvino/tools/mo/front/common/custom_replacement_registry.py
 openvino/tools/mo/front/common/extractors/__init__.py
