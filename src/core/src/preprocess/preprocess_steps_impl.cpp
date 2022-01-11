@@ -142,6 +142,12 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
 
 void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width) {
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
+    std::string name;
+    if (dst_width > 0 && dst_height > 0) {
+        name = "resize to (" + std::to_string(dst_height) + " " + std::to_string(dst_width) + ")";
+    } else {
+        name = "resize to model width/height";
+    }
     m_actions.emplace_back(
         [alg, dst_width, dst_height](const std::vector<Output<Node>>& nodes,
                                      const std::shared_ptr<Model>& function,
@@ -192,8 +198,7 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
 
             auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
             return std::make_tuple(std::vector<Output<Node>>{interp}, true);
-        },
-        "resize to (" + std::to_string(dst_height) + "x" + std::to_string(dst_width) + ")");
+        }, name);
 }
 
 Layout PreStepsList::propagate_layout(const Layout& tensor_layout) const {
