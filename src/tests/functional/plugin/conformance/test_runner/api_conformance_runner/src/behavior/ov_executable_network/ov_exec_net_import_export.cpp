@@ -25,34 +25,34 @@ const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVExecNetworkImportExport,
+                         OVCompiledModelImportExport,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::ValuesIn(emptyConfig)),
-                         OVExecNetworkImportExport::getTestCaseName);
+                         OVCompiledModelImportExport::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         OVExecNetworkImportExport,
+                         OVCompiledModelImportExport,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                  ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
-                         OVExecNetworkImportExport::getTestCaseName);
+                         OVCompiledModelImportExport::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-         OVExecNetworkImportExport,
+         OVCompiledModelImportExport,
         ::testing::Combine(
                 ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
-        OVExecNetworkImportExport::getTestCaseName);
+        OVCompiledModelImportExport::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-         OVExecNetworkImportExport,
+         OVCompiledModelImportExport,
         ::testing::Combine(::testing::ValuesIn(ovExecGraphInfoElemTypes),
                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
-        OVExecNetworkImportExport::getTestCaseName);
+        OVCompiledModelImportExport::getTestCaseName);
 
 }  // namespace

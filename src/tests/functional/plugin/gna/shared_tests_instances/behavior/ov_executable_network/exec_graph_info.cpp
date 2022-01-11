@@ -18,11 +18,11 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVExecNetworkImportExport,
+                         OVCompiledModelImportExport,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                  ::testing::ValuesIn(configs)),
-                         OVExecNetworkImportExport::getTestCaseName);
+                         OVCompiledModelImportExport::getTestCaseName);
 
 }  // namespace
