@@ -141,17 +141,17 @@ macro(ov_add_frontend)
     # Disable all warnings for generated code
     set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED TRUE)
 
-    # Shutdown protobuf when unloading the front dynamic library
-    if(OV_FRONTEND_SHUTDOWN_PROTOBUF AND BUILD_SHARED_LIBS)
-        set(SHUTDOWN_PROTOBUF ${PROJECT_SOURCE_DIR}/src/frontends/common/shutdown_protobuf/shutdown_protobuf.cpp)
-    endif()
-
     # Create library
-    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS} ${SHUTDOWN_PROTOBUF})
+    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
         add_library(openvino::frontend::${OV_FRONTEND_NAME} ALIAS ${TARGET_NAME})
+    endif()
+
+    # Shutdown protobuf when unloading the front dynamic library
+    if(OV_FRONTEND_SHUTDOWN_PROTOBUF AND BUILD_SHARED_LIBS)
+        target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
     endif()
 
     if(NOT BUILD_SHARED_LIBS)
