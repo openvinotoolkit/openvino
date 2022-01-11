@@ -594,7 +594,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                 elif info.layout == Layout():
                     supposed_batch = info.partial_shape[0]
                     if supposed_batch.is_dynamic or supposed_batch in [0, 1]:
-                        logger.warning(f"Batch dimension is not specified in layout. "
+                        logger.warning(f"Batch dimension is not specified for input '{info.name}'. "
                                         "The first dimension will be interpreted as batch size.")
                         batch_index = 0
                         info.layout = Layout("N...")
