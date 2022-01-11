@@ -117,11 +117,13 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 
     return subgraph;
 }
-
-// We also can think of canonization as of pass to copy original subgraph and transforming it to canonical form suitable for code generation
-// pass actual parameters and results shapes to generate for as well as channel mapping,
-// Todo: we need to distinguish between 5d tensors that represents <N, C, H, W, c> and <N, C, D, H, W> somehow like locked dimensions
-//  ngraph::AxisVector to code
+///
+/// \brief  Canonization transforms original subgraph and to canonical form suitable for code generation. In particular,
+///         it handles supported layout conversions, broadcasts inputs and outputs to a single rank and layout. Canonicalization
+///         returns master-shape (max rank + max dimensions over all outputs) that can be used for scheduling.
+///         Canonicalization currently supports only the following layout conversions:
+///             * None: all inputs have the same layout
+///             * Planar + blocked: some inputs have blocked, and some have planar layouts, e.g. <N, C, H, W, c> + <N, C, H, W>
 Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
@@ -164,6 +166,11 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
             startOffset -= baseIsBlocked && baseOrder.back() != inOrder.back() ? 1 : 0;
             std::copy(inShape.begin(), inShape.end(), &newShape[startOffset]);
             inShape = move(newShape);
+        } else {
+            // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>
+            NODE_VALIDATION_CHECK(this,
+                                  equal(baseOrder.begin(), baseOrder.end(), inOrder.begin()),
+                                  "Snippets canonicalization got input shapes of equal ranks but different layouts, which is not supported");
         }
         ov::PartialShape tmpPShape(baseShape);
         NODE_VALIDATION_CHECK(this,
