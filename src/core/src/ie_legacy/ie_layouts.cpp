@@ -84,6 +84,12 @@ TensorDesc::TensorDesc() {
 void TensorDesc::setDims(const SizeVector& dims) {
     if (layout == Layout::BLOCKED) {
         auto newOrder = blockingDesc.getOrder();
+        auto oldDims = blockingDesc.getBlockDims();
+
+        // {0} shape is fully dynamic shape with default (BLOCKED) layout, order is dummy
+        if (oldDims.size() == 1 && oldDims[0] == 0)
+            newOrder.resize(0);
+
         if (newOrder.empty()) {
             for (size_t i = 0; i < newOrder.size(); i++) {
                 newOrder.push_back(i);
@@ -388,7 +394,8 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout) : offsetPaddin
 
 void BlockingDesc::fillDesc(const SizeVector& blocked_dims, const SizeVector& order) {
     if (order.size() != blocked_dims.size())
-        IE_THROW() << "Cannot fill descriptor. Size of dimensions and order vector don't match.";
+        IE_THROW() << "Cannot fill descriptor. Size of dimensions (" << blocked_dims.size()
+                   << ") and order (" << order.size() << ") vector don't match.";
     if (blocked_dims.empty() || order.empty())
         IE_THROW() << "Cannot fill descriptor. Dimensions and order vector are empty.";
     this->order = order;
