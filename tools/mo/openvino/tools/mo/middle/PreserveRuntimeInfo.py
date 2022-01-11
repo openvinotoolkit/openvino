@@ -118,7 +118,7 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                     transpose.name = in_node.name
                     in_node.name += "/prev"
 
-                    prev_node_out_port.get_connection().insert_node(transpose)
+                    op.in_port(0).get_connection().insert_node(transpose)
                 else:
                     continue
 
