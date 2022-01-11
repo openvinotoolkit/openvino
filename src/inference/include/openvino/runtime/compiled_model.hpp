@@ -57,16 +57,16 @@ public:
     CompiledModel() = default;
 
     /**
-     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @brief Destructor preserves unloading order of implementation object and reference to library
      */
     ~CompiledModel();
 
     /**
      * @brief Get executable model information from a device
-     * This model represents the internal device specific model which is optimized for particular
-     * accelerator. It contains device speicific nodes, runtime information and can be used only
+     * This object represents the internal device specific model which is optimized for particular
+     * accelerator. It contains device specific nodes, runtime information and can be used only
      * to understand how the source model is optimized and which kernels, element types and layouts
-     * are selected for inference
+     * are selected for optimal inference.
      *
      * @return Model containing Executable Graph Info
      */
@@ -74,13 +74,15 @@ public:
 
     /**
      * @brief Gets all inputs of a compiled model
-     * Inputs contain information about input tensors such as tensor shape, names and element type
+     * Inputs are represented as a vector of outputs of ov::op::v0::Parameter operations.
+     * They contain information about input tensors such as tensor shape, names and element type
      * @return std::vector of model inputs
      */
     std::vector<ov::Output<const ov::Node>> inputs() const;
 
     /**
      * @brief Gets a single input of a compiled model
+     * An input is represented as an output of ov::op::v0::Parameter operation.
      * An input contain information about input tensor such as tensor shape, names and element type
      * @return A compiled model input
      * @note If a model has more than one input, this method throws an ov::Exception
@@ -89,7 +91,7 @@ public:
 
     /**
      * @brief Gets input of a compiled model identified by an @p index
-     * An input contain information about input tensor such as tensor shape, names and element type
+     * An input contains information about input tensor such as tensor shape, names and element type
      * @param i An input index
      * @return A compiled model input
      * @note The method throws ov::Exception if input with specified index @p index is not found
@@ -107,6 +109,7 @@ public:
 
     /**
      * @brief Get all outputs of a compiled model
+     * Outputs are represented as a vector of output from ov::op::v0::Result operations.
      * Outputs contain information about output tensors such as tensor shape, names and element type
      * @return std::vector of model outputs
      */
@@ -114,6 +117,7 @@ public:
 
     /**
      * @brief Gets a single output of a compiled model
+     * An output is represented as an output from ov::op::v0::Result operation.
      * An output contain information about output tensor such as tensor shape, names and element type
      * @return A compiled model output
      * @note If a model has more than one output, this method throws an ov::Exception
@@ -168,10 +172,10 @@ public:
      * dynamically, e.g. DEVICE_ID cannot changed if a compiled model has already been compiled for particular
      * device.
      *
-     * @param name config key, can be found in ie_plugin_config.hpp
+     * @param key_name config key, can be found in ie_plugin_config.hpp
      * @return Configuration parameter value
      */
-    Any get_config(const std::string& name) const;
+    Any get_config(const std::string& key_name) const;
 
     /**
      * @brief Gets general runtime metric for a compiled model.
@@ -179,10 +183,10 @@ public:
      * It can be model name, actual device ID on
      * which compiled model is running or all other properties which cannot be changed dynamically.
      *
-     * @param name metric name to request
+     * @param metric_name metric name to request
      * @return Metric parameter value
      */
-    Any get_metric(const std::string& name) const;
+    Any get_metric(const std::string& metric_name) const;
 
     /**
      * @brief Returns pointer to device-specific shared context

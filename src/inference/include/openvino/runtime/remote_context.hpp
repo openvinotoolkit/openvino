@@ -50,37 +50,47 @@ protected:
     friend class ov::runtime::CompiledModel;
 
 public:
-    /// @brief Default constructor
+    /**
+     * @brief Default constructor
+     */
     RemoteContext() = default;
 
-    /// @brief Default copy constructor
-    /// @param other other RemoteContext object
+    /**
+     * @brief Default copy constructor
+     * @param other other RemoteContext object
+     */
     RemoteContext(const RemoteContext& other) = default;
 
-    /// @brief Default copy assignment operator
-    /// @param other other RemoteContext object
-    /// @return reference to the current object
+    /**
+     * @brief Default copy assignment operator
+     * @param other other RemoteContext object
+     * @return reference to the current object
+     */
     RemoteContext& operator=(const RemoteContext& other) = default;
 
-    /// @brief Default move constructor
-    /// @param other other RemoteContext object
+    /**
+     * @brief Default move constructor
+     * @param other other RemoteContext object
+     */
     RemoteContext(RemoteContext&& other) = default;
 
-    /// @brief Default move assignment operator
-    /// @param other other RemoteContext object
-    /// @return reference to current object
+    /**
+     * @brief Default move assignment operator
+     * @param other other RemoteContext object
+     * @return reference to current object
+     */
     RemoteContext& operator=(RemoteContext&& other) = default;
 
     /**
-     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @brief Destructor preserves unloading order of implementation object and reference to library
      */
     ~RemoteContext();
 
     /**
-     * @brief Checks openvino remote type
+     * @brief Internal method: Checks remote type
      * @param remote_context a remote context which type will be checked
      * @param type_info map with remote object runtime info
-     * @throw Exception if type check with specified paramters is not pass
+     * @throw Exception if type check with specified parameters failed
      */
     static void type_check(const RemoteContext& remote_context,
                            const std::map<std::string, std::vector<std::string>>& type_info = {});
@@ -120,7 +130,7 @@ public:
     /**
      * @brief Returns name of the device on which underlying object is allocated.
      * Abstract method.
-     * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]`.
+     * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]` (e.g. GPU.0.1).
      */
     std::string get_device_name() const;
 
