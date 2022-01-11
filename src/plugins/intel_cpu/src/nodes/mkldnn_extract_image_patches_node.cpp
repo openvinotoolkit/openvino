@@ -12,6 +12,7 @@
 #include "list.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "caseless.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -290,6 +291,40 @@ bool MKLDNNExtractImagePatchesNode::isSupportedOperation(const std::shared_ptr<c
     return true;
 }
 
+namespace {
+struct ExtractImagePatchesKey {
+    VectorDims inDims;
+    VectorDims outDims;
+    VectorDims kSizes;
+    VectorDims strides;
+    VectorDims rates;
+    MKLDNNExtractImagePatchesNode::ExtImgPatcherPadType padType;
+    size_t prcSize;
+    size_t hash() const;
+    bool operator==(const ExtractImagePatchesKey& rhs) const;
+};
+
+size_t ExtractImagePatchesKey::hash() const {
+    using namespace dnnl::impl::primitive_hashing;
+    using namespace dnnl::impl;
+    size_t seed = 0;
+    seed = get_vector_hash(seed, inDims);
+    seed = get_vector_hash(seed, outDims);
+    seed = get_vector_hash(seed, kSizes);
+    seed = get_vector_hash(seed, strides);
+    seed = get_vector_hash(seed, rates);
+    seed = hash_combine(seed, padType);
+    seed = hash_combine(seed, prcSize);
+    return seed;
+}
+
+bool ExtractImagePatchesKey::operator==(const ExtractImagePatchesKey& rhs) const {
+    bool result = inDims == rhs.inDims && outDims == rhs.outDims && kSizes == rhs.kSizes && strides == rhs.strides &&
+           rates == rhs.rates && padType == rhs.padType && prcSize == rhs.prcSize;
+    return result;
+}
+}  // namespace
+
 MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
         MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
@@ -340,11 +375,30 @@ void MKLDNNExtractImagePatchesNode::prepareParams() {
     const auto& in_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& out_dims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
     const auto prcSize = getOriginalInputPrecisionAtPort(0).size();
-    if (mayiuse(x64::sse41)) {
-        execPtr = std::make_shared<ExtractImagePatchesJitExecutor>(in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize);
-    } else {
-        execPtr = std::make_shared<ExtractImagePatchesRefExecutor>(in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize);
-    }
+    ExtractImagePatchesKey key = {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
+    const auto isJit = mayiuse(x64::sse41);
+    auto buildExecutor = [&isJit](const ExtractImagePatchesKey& key) -> executorPtr {
+        if (isJit) {
+            return std::make_shared<ExtractImagePatchesJitExecutor>(key.inDims,
+                                                                    key.outDims,
+                                                                    key.kSizes,
+                                                                    key.strides,
+                                                                    key.rates,
+                                                                    key.padType,
+                                                                    key.prcSize);
+        } else {
+            return std::make_shared<ExtractImagePatchesRefExecutor>(key.inDims,
+                                                                    key.outDims,
+                                                                    key.kSizes,
+                                                                    key.strides,
+                                                                    key.rates,
+                                                                    key.padType,
+                                                                    key.prcSize);
+        }
+    };
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, buildExecutor);
+    execPtr = result.first;
 }
 
 void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {

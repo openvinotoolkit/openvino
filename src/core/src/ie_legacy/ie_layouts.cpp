@@ -91,7 +91,7 @@ void TensorDesc::setDims(const SizeVector& dims) {
             newOrder.resize(0);
 
         if (newOrder.empty()) {
-            for (size_t i = 0; i < newOrder.size(); i++) {
+            for (size_t i = 0; i < dims.size(); i++) {
                 newOrder.push_back(i);
             }
         }
@@ -394,8 +394,8 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout) : offsetPaddin
 
 void BlockingDesc::fillDesc(const SizeVector& blocked_dims, const SizeVector& order) {
     if (order.size() != blocked_dims.size())
-        IE_THROW() << "Cannot fill descriptor. Size of dimensions (" << blocked_dims.size()
-                   << ") and order (" << order.size() << ") vector don't match.";
+        IE_THROW() << "Cannot fill descriptor. Size of dimensions (" << blocked_dims.size() << ") and order ("
+                   << order.size() << ") vector don't match.";
     if (blocked_dims.empty() || order.empty())
         IE_THROW() << "Cannot fill descriptor. Dimensions and order vector are empty.";
     this->order = order;
