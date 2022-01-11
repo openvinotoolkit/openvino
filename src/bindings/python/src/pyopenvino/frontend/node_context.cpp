@@ -28,7 +28,7 @@ struct is_std_vector<std::vector<T, A>> : std::true_type {};
             auto casted = (any).as<c_type>();                                      \
             if (!(py_type).is_none()) {                                            \
                 py::list py_list;                                                  \
-                for (const auto& el : casted) {                                    \
+                for (auto el : casted) {                                           \
                     py_list.append(py_type(el));                                   \
                 }                                                                  \
                 return py_list;                                                    \
