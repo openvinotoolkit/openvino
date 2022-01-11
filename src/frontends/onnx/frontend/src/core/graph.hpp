@@ -10,12 +10,12 @@
 #include <string>
 #include <vector>
 
-#include "common/extension_holder.hpp"
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/frontend/extension/extension_holder.hpp"
 
 namespace ngraph {
 namespace onnx_import {
