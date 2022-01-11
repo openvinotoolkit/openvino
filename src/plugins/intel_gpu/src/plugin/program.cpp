@@ -203,7 +203,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         try {
             program = cldnn::program::build_program(*m_engine, *m_topology, options);
         } catch (std::exception& e) {
-            IE_THROW() << "cldnn program build failed!" << e.what();
+            IE_THROW() << "cldnn program build failed! " << e.what();
         }
         CleanupBuild();
 
