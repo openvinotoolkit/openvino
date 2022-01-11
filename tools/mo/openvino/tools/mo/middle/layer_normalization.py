@@ -17,7 +17,7 @@ class LayerNormalization(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(op='LayerNorm'):
             node_name = node.soft_get('name', node.id)
-            assert node.has_valid('axis'), 'Incorrect axis value {} for the node {}'.format(node.axis, node_name)
+            assert node.has_valid('axis'), 'Incorrect axis value for the node {}'.format(node_name)
             axis = node.axis
 
             mvn = create_op_node_with_second_input(graph, MVN, int64_array([axis]),
