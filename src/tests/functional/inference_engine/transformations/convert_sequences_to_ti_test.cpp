@@ -56,6 +56,9 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 2, 16 });
         auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 1, 128 });
         auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 1, 128 });
+        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
+        auto squeeze_z = std::make_shared<opset5::Squeeze>(Z, squeeze_pattern);
 
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 1, 16 });
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 128 });
@@ -63,10 +66,7 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
         auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{ 1 });
 
         // Body
-        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
         auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
-        auto squeeze_z = std::make_shared<opset5::Squeeze>(Z, squeeze_pattern);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
@@ -151,6 +151,9 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
         auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 2, -1 });
         auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ 1, 1, 128 });
         auto Z = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ 1, 1, 128 });
+        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
+        auto squeeze_z = std::make_shared<opset5::Squeeze>(Z, squeeze_pattern);
 
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 1, -1 });
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ 1, 128 });
@@ -158,10 +161,7 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
         auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{ 1 });
 
         // Body
-        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
         auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
-        auto squeeze_z = std::make_shared<opset5::Squeeze>(Z, squeeze_pattern);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
@@ -244,15 +244,15 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIterator) {
     {
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 2, 16 });
         auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 1, 128 });
+        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
 
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 1, 16 });
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 128 });
         auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{ 1 });
 
         // Body
-        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
         auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
@@ -324,15 +324,15 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIteratorDynamic) {
     {
         auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 2, -1 });
         auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ 1, 1, 128 });
+        auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, axis_1);
 
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 1, -1 });
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ 1, 128 });
         auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{ 1 });
 
         // Body
-        auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
         auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, axis_1);
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, axis_1);
 
         auto w_val = std::vector<float>(128 * 16, 0);
         auto r_val = std::vector<float>(128 * 128, 0);
@@ -403,15 +403,15 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIterator) {
     {
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 2, 16 });
         auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 1, 128 });
+        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
 
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 1, 16 });
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{ 1, 128 });
         auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{ 1 });
 
         // Body
-        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
         auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
@@ -483,15 +483,15 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
     {
         auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 2, -1 });
         auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ 1, 1, 128 });
+        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
 
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ -1, 1, -1 });
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape{ 1, 128 });
         auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{ 1 });
 
         // Body
-        auto squeeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
         auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
-        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
 
         auto w_val = std::vector<float>(384 * 16, 0);
         auto r_val = std::vector<float>(384 * 128, 0);
