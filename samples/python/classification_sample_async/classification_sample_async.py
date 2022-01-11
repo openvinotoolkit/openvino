@@ -94,7 +94,7 @@ def main() -> int:
     ppp.input().tensor() \
         .set_element_type(Type.u8) \
         .set_layout(Layout('NHWC')) \
-        .set_spatial_dynamic_shape() # noqa: N400
+        .set_spatial_dynamic_shape()  # noqa: N400, ECE001
 
     # 2) Adding explicit preprocessing steps:
     # - apply linear resize from tensor spatial dims to model spatial dims
