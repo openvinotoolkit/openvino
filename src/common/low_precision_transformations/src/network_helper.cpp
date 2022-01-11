@@ -22,6 +22,7 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -31,17 +32,6 @@ namespace low_precision {
 bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types) {
     for (auto another : types) {
         if (type.is_castable(another)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool NetworkHelper::notAllChildrensAreFQ(const NodeVector& childrens) {
-    // NOTE: This check was added for models that don't have FQ after AvgPool
-    //       They will have transparent precision as it was in old LPT.
-    for (const auto& child : childrens) {
-        if (!ov::is_type<opset1::FakeQuantize>(child)) {
             return true;
         }
     }
@@ -72,7 +62,9 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
             ov::is_type<opset1::Convolution>(node) ||
             ov::is_type<opset1::GroupConvolution>(node) ||
             ov::is_type<opset1::MatMul>(node) ||
-            ov::is_type<opset1::ConvolutionBackpropData>(node);
+            ov::is_type<opset1::ConvolutionBackpropData>(node) ||
+            ov::is_type<opset3::ReadValue>(node) ||
+            ov::is_type<opset6::ReadValue>(node);
     };
 
     if (isNotConstantPathOperation(op)) {
@@ -197,15 +189,6 @@ size_t NetworkHelper::getGroupsCount(std::shared_ptr<Node> layer) {
     } else {
         THROW_TRANSFORMATION_EXCEPTION << "Invalid layer type of " << layer->get_friendly_name() << "; expected Convolution or GroupConvolution";
     }
-}
-
-// Assumin tensor in NC... layout, append necessary number of 1s to shape to align it to a give rank
-Shape NetworkHelper::alignShapeForChannelDim(const Shape& shape, Rank rank) {
-    assert(shape.size() == 1);
-    assert(rank.is_static());
-    Shape result = shape;
-    result.resize(rank.get_length() - 1, 1);
-    return result;
 }
 
 void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
@@ -1359,9 +1342,12 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
 
     const std::shared_ptr<opset1::Convert> convert = ov::as_type_ptr<opset1::Convert>(dataNode.get_node_shared_ptr());
     if (convert != nullptr) {
-        if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
-            (convert->input(0).get_element_type() != element::i4) && (convert->input(0).get_element_type() != element::u4) &&
-            (convert->output(0).get_element_type() != element::f32)) {
+        auto defaultPrecisions = LayerTransformation::getDefaultPrecisions();
+        auto el_type = convert->input(0).get_element_type();
+        auto foundIt = std::find(defaultPrecisions.begin(), defaultPrecisions.end(), el_type);
+        if (foundIt == defaultPrecisions.end() &&
+            el_type != element::i4  && el_type != element::u4 &&
+            el_type != element::f32 && el_type != element::f16) {
             return FakeQuantizeDequantization(dataNode, nullptr, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
         }
         dataNode = convert->get_input_source_output(0);
@@ -1747,8 +1733,8 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
         const auto intNode = ov::is_type<opset1::Convert>(parent) ? parent : node;
         const auto type = intNode->get_input_element_type(0);
         if (type == element::u8 || type == element::i8) {
-            min = DataPrecision::getMinValue(type, 256) - 0.5f;
-            max = DataPrecision::getMaxValue(type, 256) + 0.5f;
+            min = DataPrecision::getMinValue(type, levels::int8) - 0.5f;
+            max = DataPrecision::getMaxValue(type, levels::int8) + 0.5f;
         } else {
             return type == element::f32 || type == element::f16;
         }
