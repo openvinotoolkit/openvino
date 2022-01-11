@@ -23,6 +23,8 @@ namespace cldnn {
 
 /// @brief Format information helper class.
 struct format_traits {
+    /// @brief String representation of a format.
+    std::string str;
     /// @brief Number of batch dimensions in a format.
     size_t batch_num;
     /// @brief Number of feature map/channel dimensions in a format.
