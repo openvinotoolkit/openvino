@@ -78,6 +78,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                )");
     output.def("get_shape",
                &ov::Output<VT>::get_shape,
+               py::return_value_policy::copy,
                R"(
                 The shape of the output referred to by this output handle.
 
@@ -88,6 +89,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                )");
     output.def("get_partial_shape",
                &ov::Output<VT>::get_partial_shape,
+               py::return_value_policy::copy,
                R"(
                 The partial shape of the output referred to by this output handle.
 
