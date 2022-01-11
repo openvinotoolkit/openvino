@@ -100,6 +100,34 @@ class TestSelect(unittest.TestCase):
                                                       out_value=np.ones([15, 3, 5], dtype=np.float))
         self.assertTrue(flag, msg)
 
+    def test_select_infer_condition_true_then_and_else_are_scalars(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.array([True], dtype=bool),
+                                                      then_value=np.array(3, dtype=np.float),
+                                                      else_value=np.array(1, dtype=np.float),
+                                                      out_value=np.array([3], dtype=np.float))
+        self.assertTrue(flag, msg)
+
+    def test_select_infer_condition_true_then_and_else_are_scalars_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.array(True, dtype=bool),
+                                                      then_value=np.array(3, dtype=np.float),
+                                                      else_value=np.array(1, dtype=np.float),
+                                                      out_value=np.array(3, dtype=np.float))
+        self.assertTrue(flag, msg)
+
+    def test_select_infer_condition_false_then_and_else_are_scalars(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.array([False], dtype=bool),
+                                                      then_value=np.array(3, dtype=np.float),
+                                                      else_value=np.array(1, dtype=np.float),
+                                                      out_value=np.array([1], dtype=np.float))
+        self.assertTrue(flag, msg)
+
+    def test_select_infer_condition_false_then_and_else_are_scalars_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=np.array(False, dtype=bool),
+                                                      then_value=np.array(3, dtype=np.float),
+                                                      else_value=np.array(1, dtype=np.float),
+                                                      out_value=np.array(1, dtype=np.float))
+        self.assertTrue(flag, msg)
+
     def test_select_infer_condition_false_2(self):
         flag, msg = self.build_select_graph_and_infer(condition_value=np.array([False], dtype=bool),
                                                       then_value=np.ones([15, 3, 5], dtype=np.float),

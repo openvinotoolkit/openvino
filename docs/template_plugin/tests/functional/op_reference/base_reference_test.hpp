@@ -58,7 +58,10 @@ ov::runtime::Tensor CreateTensor(const ov::Shape& shape,
                                  const ov::element::Type& element_type,
                                  const std::vector<T>& values) {
     ov::runtime::Tensor tensor{element_type, shape};
-    std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
+    size_t size = sizeof(T) * values.size();
+    if (tensor.get_byte_size() < size)
+        size = tensor.get_byte_size();
+    std::memcpy(tensor.data(), values.data(), size);
 
     return tensor;
 }

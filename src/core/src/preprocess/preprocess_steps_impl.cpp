@@ -11,7 +11,7 @@
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "transformations/rt_info/reverse_input_channels.hpp"
+#include "transformations/rt_info/preprocessing_attribute.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -56,6 +56,7 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
         auto constant = op::v0::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
+        set_is_preprocessing_node(new_op);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
     });
 }
@@ -83,6 +84,7 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
         auto constant = op::v0::Constant::create(element_type, shape, values);
 
         auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
+        set_is_preprocessing_node(new_op);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
     });
 }
@@ -176,7 +178,24 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
                         "Can't convert layout for multi-plane input. Suggesting to convert current image to "
                         "RGB/BGR color format using 'convert_color'");
         Layout dst_layout = layout.empty() ? context.target_layout() : layout;
-        auto permutation = layout::utils::find_permutation(context.layout(), nodes[0].get_partial_shape(), dst_layout);
+        auto node = nodes[0];
+        auto shape = node.get_partial_shape();
+        size_t add_cnt;
+        Layout unsqueeze_layout;
+        std::tie(shape, unsqueeze_layout, add_cnt) = layout::utils::find_unsqueeze(context.layout(), shape, dst_layout);
+        if (add_cnt) {
+            std::vector<size_t> dims;
+            dims.push_back(add_cnt);
+            Shape const_shape(dims);
+            std::vector<int64_t> vals(add_cnt);
+            for (auto i = 0; i < add_cnt; i++) {
+                vals[i] = i;
+            }
+            auto axes = op::v0::Constant::create<int64_t>(element::i64, const_shape, vals);
+            // Add unsqueeze on top
+            node = std::make_shared<opset8::Unsqueeze>(node, axes);
+        }
+        auto permutation = layout::utils::find_permutation(unsqueeze_layout, shape, dst_layout);
         if (permutation.empty()) {
             // No transpose is needed, just update layout
             if (!layout.empty()) {
@@ -185,7 +204,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
             return std::make_tuple(nodes, false);
         }
         auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
-        auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
+        auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
         context.layout() = dst_layout;  // Update context's current layout
         // return false to avoid excess function revalidations as layout conversion
         // doesn't require shape or type propagation.
@@ -366,7 +385,7 @@ void PreStepsList::add_reverse_channels() {
         auto resp = reverse_channels(nodes, function, context);
         auto outputs = std::get<0>(resp);
         OPENVINO_ASSERT(outputs.size() == 1, "Internal error: reverse_channels returned unexpected number of outputs");
-        set_is_reverse_input_channels(outputs.at(0).get_node_shared_ptr());
+        set_is_preprocessing_node(outputs.at(0).get_node_shared_ptr());
         return resp;
     });
 }

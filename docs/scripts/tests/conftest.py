@@ -14,11 +14,10 @@ with errors can be skipped (--doxygen-skip) or excluded temporary
 Usage:
 pytest --doxygen doxygen.log --html doc-generation.html test_doc-generation.py
 """
-from inspect import getsourcefile
-from contextlib import contextmanager
-import os
+
+import re
+import copy
 import pytest
-from distutils.util import strtobool
 from utils.log import parse
 
 
@@ -126,7 +125,16 @@ def pytest_generate_tests(metafunc):
         exclude_links.remove('ovms')
 
     filtered_keys = filter(lambda line: not any([line.startswith(repo) for repo in exclude_links]), all_warnings)
-    files = {key: all_warnings[key] for key in filtered_keys}
+    files_with_errors = {key: all_warnings[key] for key in filtered_keys}
+    ref_pattern = "unable to resolve reference to '{}"
+    for file, errors in copy.deepcopy(files_with_errors).items():
+        for error in errors:
+            for ex_link in exclude_links:
+                if re.match(re.compile(ref_pattern.format(ex_link)), error):
+                    files_with_errors[file].remove(error)
+            if not len(errors):
+                files_with_errors.pop(file)
+
     # read mute lists
     marks = dict()
     marks.update(
@@ -141,6 +149,6 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize(
             'doxygen_errors', [
                 pytest.param(errors, marks=marks[file])
-                if file in marks else errors for file, errors in files.items()
+                if file in marks else errors for file, errors in files_with_errors.items()
             ],
-            ids=list(files.keys()))
+            ids=list(files_with_errors.keys()))

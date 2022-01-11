@@ -12,9 +12,7 @@
 #include "descriptions/gna_desc.hpp"
 #include "gna_plugin_log.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
-#if GNA_LIB_VER == 2
 #include "gna2-model-api.h"
-#endif
 
 
 /**
@@ -25,12 +23,8 @@ public:
     using MemoryType = std::vector<std::tuple<void*, uint32_t, std::string, float>>;
 
 private:
-#if GNA_LIB_VER == 2
     Gna2Model * gna2model_;
     MemoryType states, *pstates_ = nullptr;
-#else
-    intel_nnet_type_t *ptr_nnet_;
-#endif
     GNAPluginNS::GnaInputs inputs_;
     GNAPluginNS::GnaOutputs outputs_;
     TranspositionInfoMap inputs_transpose_info_;
