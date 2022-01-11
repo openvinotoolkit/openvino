@@ -35,8 +35,6 @@ protected:
     std::vector<Extension::Ptr> m_other_extensions;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
-
-private:
     ExtensionHolder m_extensions;
 };
 
