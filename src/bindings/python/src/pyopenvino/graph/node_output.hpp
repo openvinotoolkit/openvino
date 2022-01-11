@@ -137,8 +137,8 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def_property_readonly("any_name", &ov::Output<VT>::get_any_name);
     output.def_property_readonly("names", &ov::Output<VT>::get_names);
     output.def_property_readonly("element_type", &ov::Output<VT>::get_element_type);
-    output.def_property_readonly("shape", &ov::Output<VT>::get_shape);
-    output.def_property_readonly("partial_shape", &ov::Output<VT>::get_partial_shape);
+    output.def_property_readonly("shape", &ov::Output<VT>::get_shape, py::return_value_policy::copy);
+    output.def_property_readonly("partial_shape", &ov::Output<VT>::get_partial_shape, py::return_value_policy::copy);
     output.def_property_readonly("target_inputs", &ov::Output<VT>::get_target_inputs);
     output.def_property_readonly("tensor", &ov::Output<VT>::get_tensor);
     output.def_property_readonly("rt_info",
