@@ -12,7 +12,7 @@
 #include "pyopenvino/graph/axis_vector.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
 #include "pyopenvino/graph/coordinate_diff.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/node_factory.hpp"
 #include "pyopenvino/graph/node_input.hpp"
@@ -140,6 +140,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_frontend_TelemetryExtension(m);
     regclass_frontend_DecoderTransformationExtension(m);
     regclass_frontend_JsonConfigExtension(m);
+    regclass_frontend_ProgressReporterExtension(m);
 
     regmodule_offline_transformations(m);
 }

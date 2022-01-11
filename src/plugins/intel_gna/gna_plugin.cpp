@@ -55,6 +55,8 @@
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
+#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "transformations/remove_extra_reshapes.hpp"
@@ -79,7 +81,6 @@
 
 #include <ngraph/opsets/opset7.hpp>
 
-#if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
 
 inline uint32_t ToByteSize(const Gna2DataType type) {
@@ -102,7 +103,7 @@ inline uint32_t ToByteSize(const Gna2DataType type) {
 }
 
 constexpr uint32_t GNAPluginNS::GNAPlugin::FAKE_REQUEST_CONFIG_ID;
-#endif
+
 using namespace InferenceEngine;
 using namespace std;
 using namespace GNAPluginNS;
@@ -354,11 +355,6 @@ void GNAPlugin::Init() {
 
 void GNAPlugin::InitGNADevice() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InitGNADevice");
-#if GNA_LIB_VER == 1
-    gnadevice = std::make_shared<GNADeviceHelper>(gnaFlags->gna_lib_async_threads_num,
-                                                  gnaFlags->gna_openmp_multithreading,
-                                                  gnaFlags->performance_counting);
-#else
     gnadevice = std::make_shared<GNADeviceHelper>(config.gnaExecTarget,
                 config.gnaCompileTarget,
                 config.swExactMode,
@@ -367,7 +363,6 @@ void GNAPlugin::InitGNADevice() {
                 gnaFlags->performance_counting,
                 !config.dumpXNNPath.empty(),
                 GetDeviceVersionFromString(config.dumpXNNGeneration));
-#endif
     size_t page_size_bytes = 4096;
     gnamem = std::make_shared<gna_memory_type>(memory::make_polymorph<memory::GNAAllocator>(gnadevice), page_size_bytes);
     graphCompiler.setGNAMemoryPtr(gnamem);
@@ -723,6 +718,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         const auto& pass_config = manager.get_pass_config();
+
+        // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
+        pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+        pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
+
         pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
         pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
@@ -805,9 +805,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
-#if GNA_LIB_VER == 2
         passes->registerPass<ForbidActivationFusingPass>();
-#endif
         passes->registerPass<FuseMultipleIdentitiesPass>();
         passIdx = passes->run(passIdx);
     };
@@ -1003,31 +1001,18 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         dnn->InitActiveList(NULL);
     }
 
-#if GNA_LIB_VER == 2
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
-#else
-    nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
-#endif
 
     if (!gnaFlags->sw_fp32 && !graphCompiler.dnnComponents.components.empty()) {
         // number of layer gets calculated inside that InitGNAStruct function
-#if GNA_LIB_VER == 2
         dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, effectiveGnaCompileTarget);
-#else
-        dnn->InitGNAStruct(&std::get<0>(nnets.front())->obj);
-#endif
     }
 
     // creating same gna RW segment for parallel infer requests
     for (int i = 1; i != gnaFlags->gna_lib_async_threads_num; i++) {
-#if GNA_LIB_VER == 2
         gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
         // this can be improved by just copy all structures, but we are too lazy
         dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
-#else
-        nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
-        dnn->InitGNAStruct(&std::get<0>(nnets.back())->obj);
-#endif
         // relocate rw pointers to new offset
         auto basePtr = reinterpret_cast<uint8_t*>(pParallelExecutionData) + rwSegmentSize * (i - 1);
 
@@ -1049,18 +1034,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             relocate(output.ptrs[i], output.ptrs[0]);
         }
 
-#if GNA_LIB_VER == 2
         for (int j = 0; j != std::get<0>(gnaModels.front())->obj.NumberOfOperations; j++) {
             auto & gnaOperation = std::get<0>(gnaModels[i])->obj.Operations[j];
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[0])->Data, gnaOperation.Operands[0]->Data);
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[1])->Data, gnaOperation.Operands[1]->Data);
-#else
-        for (int j = 0; j != std::get<0>(nnets.front())->obj.nLayers; j++) {
-            auto & layer = std::get<0>(nnets[i])->obj.pLayers[j];
-            relocate(layer.pInputs, layer.pInputs);
-            relocate(layer.pOutputs, layer.pOutputs);
-            relocate(layer.pOutputsIntermediate, layer.pOutputsIntermediate);
-#endif
         }
     }
 
@@ -1134,12 +1111,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #ifdef PLOT
     dnn->WriteGraphWizModel("gna-blob.dot");
 #endif
-#if GNA_LIB_VER == 2
     createRequestConfigsForGnaModels();
-#endif
 }
 
-#if GNA_LIB_VER == 2
 void GNAPlugin::createRequestConfigsForGnaModels() {
     if (!gnadevice || trivialTopology) {
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(FAKE_REQUEST_CONFIG_ID, -1, InferenceEngine::BlobMap()));
@@ -1152,8 +1126,6 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(requestConfigId, -1, InferenceEngine::BlobMap()));
     }
 }
-
-#endif
 
 int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
     if (deviceString.empty())
@@ -1172,16 +1144,7 @@ void GNAPlugin::DumpXNNToFile() const {
         THROW_GNA_EXCEPTION << "Cannot generate XNNDump for float network";
     }
     std::ofstream dumpStream(config.dumpXNNPath, std::ios::out | std::ios::binary);
-#if GNA_LIB_VER == 1
-    if (versionInt != 0x10E)
-        THROW_GNA_EXCEPTION << "Wrong GNA version for embedded model dump: " << config.dumpXNNGeneration;
-    auto dump = gnadevice->dumpXnn(&std::get<0>(nnets.front())->obj, ptr_active_indices, num_active_indices);
-    dump.header.rw_region_size = gnamem->getRWBytes();
-    dump.header.input_scaling_factor = _inputs.begin()->second.scale_factor;
-    dump.header.output_scaling_factor =  outputs_.begin()->second.scale_factor;
-    dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(intel_gna_model_header));
-    dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.model_size);
-#else
+
     auto const modelId = gnadevice->createModel(std::get<0>(gnaModels.front())->obj);
     auto dump = gnadevice->dumpXnn(modelId);
     dump.header.RwRegionSize = gnamem->getRWBytes();
@@ -1190,13 +1153,10 @@ void GNAPlugin::DumpXNNToFile() const {
     dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
     dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
     gnadevice->releaseModel(modelId);
-#endif
 }
 
 uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, InferenceEngine::BlobMap &result) {
-#if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
-#endif
     auto freeNnet = std::find_if(std::begin(nnets), std::end(nnets), [](decltype(nnets.front()) & item) {
         return std::get<1>(item) == -1;
     });
@@ -1304,15 +1264,10 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             std::get<1>(*freeNnet) = 1;
         }
     } else {
-#if GNA_LIB_VER == 1
-        auto nnet = std::get<0>(*freeNnet).get();
-        std::get<1>(*freeNnet) = gnadevice->propagate(&nnet->obj, ptr_active_indices, num_active_indices, config.gna_proc_type);
-#else
         const auto reqConfigId = std::get<0>(*freeNnet);
         if (ptr_active_indices != nullptr && num_active_indices > 0 && activeLayerIndex != 0xffffffff)
             gnadevice->setUpActiveList(reqConfigId, activeLayerIndex, ptr_active_indices, num_active_indices);
         std::get<1>(*freeNnet) = gnadevice->propagate(reqConfigId, config.pluginGna2AccMode);
-#endif
     }
 
 #ifdef PLOT
@@ -1334,9 +1289,7 @@ bool GNAPlugin::Wait(uint32_t request_idx) {
 }
 
 GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
-#if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
-#endif
     // TODO: GNA2: check whether necessary
     if (nnets.size() <= request_idx) return GNA_REQUEST_COMPLETED;
     // already synced TODO: might be copy required ???
@@ -1359,11 +1312,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     if (dnn->num_components() != 0) {
         dnn->WriteInputAndOutputText();
     }
-#if GNA_LIB_VER == 1
-    dnn->WriteInputAndOutputTextGNA(&std::get<0>(nnets[request_idx])->obj);
-#else
     dnn->WriteInputAndOutputTextGNA(std::get<0>(gnaModels[request_idx])->obj);
-#endif
 #endif
     int output_idx = 0;
     for (auto && outputBlobIt : request) {
@@ -1564,18 +1513,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     void *basePtr = nullptr;
     gnamem->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
     gnamem->commit();
-#if GNA_LIB_VER == 2
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(header.layersCount)));
-#else
-    nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(header.layersCount), -1, InferenceEngine::BlobMap());
-    std::get<0>(nnets.back())->obj.nGroup = header.nGroup;
-#endif
     GNAModelSerial::MemoryType  mt;
-#if GNA_LIB_VER == 2
     auto serial = GNAModelSerial(&std::get<0>(gnaModels.back())->obj, mt);
-#else
-    auto serial = GNAModelSerial(&std::get<0>(nnets.back())->obj, mt);
-#endif
 
     serial.setHeader(header);
     serial.Import(basePtr,
@@ -1602,23 +1542,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         }
     }
 
-#if GNA_LIB_VER == 2
     auto getOrientation = [](Gna2Operation & gnaOperation) {
         return gnaOperation.Type == Gna2OperationTypeConvolution ?
             kDnnNonInterleavedOrientation : kDnnInterleavedOrientation;
     };
     (void)getOrientation;
-#else
-    auto getOrientation = [](intel_nnet_layer_t & layer) {
-        return layer.nLayerKind == INTEL_CONVOLUTIONAL ?
-           kDnnNonInterleavedOrientation : kDnnInterleavedOrientation;
-    };
-#endif
-
-#if GNA_LIB_VER == 1
-    (*inputs_ptr_)["input"].orientation = getOrientation(std::get<0>(nnets.back())->obj.pLayers[0]);
-    outputsDesc[0].orientation = getOrientation(std::get<0>(nnets.back())->obj.pLayers[std::get<0>(nnets.back())->obj.nLayers - 1]);
-#endif
 
     if (header.doRotateInput) {
         for (auto && input : inputs_data_map_) {
@@ -1643,12 +1571,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 #ifdef PLOT
     dnn->WriteGraphWizModel("gna-blob-imported.dot");
 #endif
-#if GNA_LIB_VER == 2
     trivialTopology = (std::get<0>(gnaModels.back())->obj.NumberOfOperations == 0);
     createRequestConfigsForGnaModels();
-#else
-    trivialTopology = (std::get<0>(nnets.back())->obj.nLayers == 0);
-#endif
     return {};
 }
 
@@ -1662,25 +1586,11 @@ void GNAPlugin::Export(std::ostream &outStream) {
         THROW_GNA_EXCEPTION << " network not loaded";
     }
 
-#if GNA_LIB_VER == 1
-    if (_inputs.size() != 1) {
-        THROW_GNA_EXCEPTION << " exporting network with multiple inputs not supported";
-    }
-#endif
-
     // TODO: nnet group parameter looks only used in application - so can we move this line into load network.
     IE_ASSERT(!inputs_data_map_.empty());
     auto inputDims = inputs_data_map_.begin()->second->getTensorDesc().getDims();
-    if (inputDims.size() == 2) {
-#if GNA_LIB_VER == 1
-        std::get<0>(nnets.front())->obj.nGroup = inputDims[0];
-#endif
-    }
-#if GNA_LIB_VER == 2
+
     Gna2Model* modelToSerial = &std::get<0>(gnaModels.front())->obj;
-#else
-    intel_nnet_type_t* modelToSerial = &std::get<0>(nnets.front())->obj;
-#endif
     auto serial = GNAModelSerial(modelToSerial,
                                  *(inputs_ptr_),
                                  outputs_)

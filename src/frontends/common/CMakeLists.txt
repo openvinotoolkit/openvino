@@ -69,17 +69,6 @@ add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 # Installation rules for shared version only
-
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::common)
-
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
-
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT core_dev)
-
-export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

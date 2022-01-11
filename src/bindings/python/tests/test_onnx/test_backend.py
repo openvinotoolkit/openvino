@@ -27,7 +27,6 @@ from tests import (
     xfail_issue_39658,
     xfail_issue_39662,
     xfail_issue_44858,
-    xfail_issue_44956,
     xfail_issue_44965,
     xfail_issue_44968,
     xfail_issue_45180,
@@ -264,12 +263,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_unsqueeze_three_axes_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_two_axes_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_unsorted_axes_cpu",
-    ),
-    (
-        xfail_issue_44956,
-        "OnnxBackendNodeModelTest.test_loop11_cpu",
-        "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_expanded_cpu",
     ),
     (
         xfail_issue_44965,

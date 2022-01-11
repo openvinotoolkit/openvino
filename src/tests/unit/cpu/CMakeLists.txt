@@ -8,11 +8,11 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
-            $<TARGET_PROPERTY:MKLDNNPlugin,SOURCE_DIR>
-            $<TARGET_PROPERTY:MKLDNNPlugin,SOURCE_DIR>/nodes
+            $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src
+            $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src/nodes
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
         OBJECT_FILES
-            $<TARGET_OBJECTS:MKLDNNPlugin_obj>
+            $<TARGET_OBJECTS:ov_intel_cpu_plugin_obj>
         LINK_LIBRARIES
             gtest
             gtest_main
@@ -35,6 +35,6 @@ ie_faster_build(${TARGET_NAME}
 )
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include)
+    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/common
+    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/cpu
+    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/include)

@@ -5,14 +5,13 @@ import hashlib
 import logging as log
 import os
 import sys
-
-from defusedxml import defuse_stdlib
-import defusedxml.ElementTree as ET
 from argparse import Namespace
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, OrderedDict
 from pathlib import Path
 
+import defusedxml.ElementTree as ET
 import numpy as np
+from defusedxml import defuse_stdlib
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from openvino.tools.mo.graph.graph import Node, Graph
@@ -59,7 +58,9 @@ class IREngine(object):
         self.graph.graph['hashes'] = {}
 
         self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get('version') is not None else None
-        self.graph.graph['layout'] = 'NCHW'
+        self.graph.graph['layout'] = 'NCHW' # We set layout to NCHW as default value and
+                                            # changing it in __rt_info_check_layout if it will be necessary
+
         self.graph.name = xml_root.attrib['name'] if xml_root.attrib.get('name') is not None else None
 
         # Parse XML
@@ -204,7 +205,7 @@ class IREngine(object):
         layer_id = layer.attrib['id']
 
         layer_attrs = layer.attrib
-        layer_attrs.update({'ports': {}, 'kind': 'op'})
+        layer_attrs.update({'ports': {}, 'restored_input_ports': {}, 'kind': 'op'})
 
         inputs_counter = 0
 
@@ -224,22 +225,50 @@ class IREngine(object):
                 layer_attrs.update(new_attrs)
             elif attr.tag == 'input':
                 inputs_counter = len(attr)
+
+                input = attr
+                for port in input:
+                    port_id = int(port.attrib['id'])
+                    input_shape = []
+                    port_rt_info = {}
+                    for dim in port:
+                        if dim.tag == "dim":
+                            input_shape.append(int(dim.text))
+                        if dim.tag == 'rt_info':
+                            for attr in dim:
+                                port_rt_info.update(self.__read_rt_info_common(attr))
+                                self.__rt_info_check_layout(attr)
+
+                    input_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in input_shape])
+
+                    in_tensor_names = None
+                    if 'names' in port.attrib:
+                        in_tensor_names = port.attrib['names']
+
+                    # special attribute to pass information about operation input ports
+                    layer_attrs['restored_input_ports'].update({port_id: (input_shape, in_tensor_names, port_rt_info)})
             elif attr.tag == 'output':
                 output = attr
                 for port in output:
                     port_id = int(port.attrib['id'])
                     output_shape = []
+                    port_rt_info = {}
                     for dim in port:
                         if dim.tag == "dim":
                             output_shape.append(int(dim.text))
+                        if dim.tag == 'rt_info':
+                            for attr in dim:
+                                port_rt_info.update(self.__read_rt_info_common(attr))
+                                self.__rt_info_check_layout(attr)
 
                     output_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in output_shape])
 
                     out_tensor_names = None
                     if 'names' in port.attrib:
                         out_tensor_names = port.attrib['names']
-
-                    layer_attrs['ports'].update({port_id: (output_shape, out_tensor_names)})
+                    # special attribute to pass information about operation input ports
+                    # NOTE: renaming or structure changing of this attribute may have big impact on tests
+                    layer_attrs['ports'].update({port_id: (output_shape, out_tensor_names, port_rt_info)})
             elif attr.tag == 'blobs':
                 in_port = inputs_counter
                 for blob_attr in attr:
@@ -460,8 +489,10 @@ class IREngine(object):
             attr_name = attr.attrib['name']
             if attr_name == 'old_api_map_order':
                 rt_info.info.update(self.__read_old_api_map_order(attr, layer.attrib['type']))
-            if attr_name == 'old_api_map_element_type':
+            elif attr_name == 'old_api_map_element_type':
                 rt_info.info.update(self.__read_old_api_map_element_type(attr, layer.attrib['type']))
+            else:
+                rt_info.info.update((self.__read_rt_info_common(attr)))
 
         layer_attrs.update({'rt_info': rt_info})
         return layer_attrs
@@ -487,3 +518,21 @@ class IREngine(object):
         old_api_map = OldAPIMapElementType(version=version)
         old_api_map.set_legacy_type(element_type)
         return {('old_api_map_element_type', version): old_api_map}
+
+    @staticmethod
+    def __read_rt_info_common(attr):
+        attr_name = attr.attrib['name']
+        version = int(attr.attrib['version'])
+        rt_info = OrderedDict()
+        for key in attr.attrib:
+            if key not in ('name', 'version'):
+                rt_info[key] = attr.attrib[key]
+        return {(attr_name, version): rt_info}
+
+    def __rt_info_check_layout(self, attr):
+        graph_layout = None
+        for key in attr.attrib:
+            if key == 'layout':
+                graph_layout = attr.attrib[key].replace(',', '').strip('[] ')# .strip(']').strip(',').strip(' ')
+        if graph_layout is not None:
+            self.graph.graph['layout'] = graph_layout

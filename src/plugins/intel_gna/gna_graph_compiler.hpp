@@ -129,11 +129,10 @@ public:
     void finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_width,
         uint32_t out_batch, uint32_t out_channels, uint32_t out_width);
-#if GNA_LIB_VER == 2
+
     void finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,
         uint32_t out_batch, uint32_t out_channels, uint32_t out_height, uint32_t out_width);
-#endif
 
     void Reset();
 };

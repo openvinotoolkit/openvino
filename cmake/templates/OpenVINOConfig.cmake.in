@@ -32,13 +32,7 @@
 #   `openvino::runtime::c`
 #   The OpenVINO C Inference Runtime
 #
-#   `openvino::core`
-#   The OpenVINO C++ Core Runtime
-#
 #  Frontend specific targets:
-#
-#   `openvino::frontend::common`
-#   OpenVINO frontend common
 #
 #   `openvino::frontend::onnx`
 #   ONNX FrontEnd target (optional)
