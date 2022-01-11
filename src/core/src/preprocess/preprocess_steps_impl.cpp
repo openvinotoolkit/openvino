@@ -37,6 +37,20 @@ static Shape construct_mean_scale_shape(const Output<Node>& node,
     return {v};
 }
 
+template <typename T>
+static std::string vector_to_string(const std::vector<T>& values) {
+    if (values.empty()) {
+        return {};
+    }
+    std::stringstream s;
+    s << "(" << values[0];
+    for (size_t i = 1; i < values.size(); i++) {
+        s << "," << values[i];
+    }
+    s << ")";
+    return s.str();
+}
+
 void PreStepsList::add_scale_impl(const std::vector<float>& values) {
     m_actions.emplace_back(
         [values](const std::vector<Output<Node>>& nodes,
@@ -64,7 +78,7 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
             set_is_preprocessing_node(new_op);
             return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
         },
-        "scale");
+        "scale " + vector_to_string(values));
 }
 
 void PreStepsList::add_mean_impl(const std::vector<float>& values) {
@@ -95,7 +109,7 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
             set_is_preprocessing_node(new_op);
             return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
         },
-        "mean");
+        "mean " + vector_to_string(values));
 }
 
 void PreStepsList::add_convert_impl(const element::Type& type) {
@@ -123,7 +137,7 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
             // doesn't require shape or type propagation.
             return std::make_tuple(res, false);
         },
-        "convert type");
+        "convert type (" + type.get_type_name() + ")");
 }
 
 void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width) {
@@ -179,7 +193,7 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
             auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
             return std::make_tuple(std::vector<Output<Node>>{interp}, true);
         },
-        "resize");
+        "resize to (" + std::to_string(dst_height) + "x" + std::to_string(dst_width) + ")");
 }
 
 Layout PreStepsList::propagate_layout(const Layout& tensor_layout) const {
@@ -220,7 +234,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
             // doesn't require shape or type propagation.
             return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
         },
-        "convert layout");
+        "convert layout " + layout.to_string());
 }
 
 void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
@@ -245,7 +259,7 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
             // doesn't require shape or type propagation.
             return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
         },
-        "convert layout by values");
+        "convert layout " + vector_to_string(dims));
 }
 
 std::tuple<PartialShape, Layout> PreStepsList::calculate_param_shape(const PartialShape& model_shape,
@@ -396,7 +410,7 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                             color_format_name(dst_format),
                             "'");
         },
-        "convert color");
+        "convert color (" + color_format_name(dst_format) + ")");
 }
 
 void PreStepsList::add_reverse_channels() {
@@ -500,7 +514,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
             auto convert = std::make_shared<op::v0::Convert>(node, t);
             return std::make_tuple(Output<Node>(convert), true);
         },
-        "convert type");
+        "convert type (" + type.get_type_name() + ")");
 }
 
 void PostStepsList::add_convert_layout_impl(const Layout& layout) {
@@ -521,7 +535,7 @@ void PostStepsList::add_convert_layout_impl(const Layout& layout) {
             context.layout() = dst_layout;  // Update context's current layout
             return std::make_tuple(Output<Node>(transpose), true);
         },
-        "convert layout");
+        "convert layout " + layout.to_string());
 }
 
 void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
@@ -537,7 +551,7 @@ void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
             context.layout() = std::move(new_layout);  // Update context's current layout
             return res;
         },
-        "convert layout by values");
+        "convert layout " + vector_to_string(dims));
 }
 }  // namespace preprocess
 }  // namespace ov

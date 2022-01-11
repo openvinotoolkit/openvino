@@ -1631,11 +1631,11 @@ TEST(pre_post_process, dump_preprocess) {
     EXPECT_TRUE(dump.find("input1") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Implicit pre-processing steps (1):") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Pre-processing steps (5):") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("mean:") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("scale:") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert type:") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert layout:") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert layout by values:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("mean") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("scale") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout (3,2,1,0)") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("custom:") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Model's expected tensor: " + shape_str + ", " + Layout("NCHW").to_string()) !=
                 std::string::npos)
@@ -1668,9 +1668,9 @@ TEST(pre_post_process, dump_preprocess_multiplane) {
     EXPECT_TRUE(dump.find("Pre-processing steps (2):") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find(shape_to_string(PartialShape{1, 20, 20, 1})) != std::string::npos) << dump;
     EXPECT_TRUE(dump.find(shape_to_string(PartialShape{1, 10, 10, 2})) != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert type:") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert color:") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert layout:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert color") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Model's expected tensor: " + shape_str + ", " + Layout("NCHW").to_string()) !=
                 std::string::npos)
         << dump;
@@ -1701,9 +1701,9 @@ TEST(pre_post_process, dump_postprocess) {
     EXPECT_TRUE(dump.find("output1") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Post-processing steps (3):") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Post-processing implicit steps (2):") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert type:") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert layout by values:") != std::string::npos) << dump;
-    EXPECT_TRUE(dump.find("convert layout:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout (3,2,1,0):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout " + Layout("NHWC").to_string()) != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("custom:") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Model's data tensor: " + shape_str + ", " + Layout("NCHW").to_string()) != std::string::npos)
         << dump;
