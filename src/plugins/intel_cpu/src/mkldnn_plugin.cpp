@@ -36,6 +36,7 @@
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_divides.hpp"
 #include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
@@ -176,6 +177,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     static const auto precisions = get_convert_precisions();
 
+    manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
     manager.register_pass<ngraph::pass::TransposeSinking>();

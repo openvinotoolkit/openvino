@@ -1,28 +1,23 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_divides.hpp"
 
 #include <memory>
 #include <vector>
 
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace std;
-
-bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    deque<shared_ptr<Node>> nodes;
-    unordered_set<shared_ptr<Node>> visited;
-    for (auto& r : f->get_results())
+bool ov::pass::MarkPrecisionSensitiveDivides::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    std::deque<std::shared_ptr<Node>> nodes;
+    std::unordered_set<std::shared_ptr<Node>> visited;
+    for (auto& r : m->get_results())
         nodes.push_back(r);
-    for (auto& r : f->get_sinks())
+    for (auto& r : m->get_sinks())
         nodes.emplace_back(r);
 
     while (!nodes.empty()) {
@@ -32,9 +27,9 @@ bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_p
             continue;
         for (auto& input : curr_node->inputs()) {
             if (ov::is_precision_sensitive(input)) {
-                auto markup_func = [](shared_ptr<Node> node) {
-                    if (ov::is_type<ov::opset8::Constant>(node)) {
-                        ov::disable_fp16_compression(node);
+                auto markup_func = [](std::shared_ptr<Node> node) {
+                    if (ov::is_type<ov::opset8::Divide>(node) && node->get_output_element_type(0) == ngraph::element::f16) {
+                        ov::disable_divide_conversion(node);
                     }
                 };
 
