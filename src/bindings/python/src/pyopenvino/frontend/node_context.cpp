@@ -79,7 +79,7 @@ void regclass_frontend_NodeContext(py::module m) {
 
             CAST_VEC_TO_PY(any, dtype, std::vector<int32_t>);
             CAST_VEC_TO_PY(any, dtype, std::vector<int64_t>);
-            CAST_VEC_TO_PY(any, dtype, std::vector<bool>);
+            // CAST_VEC_TO_PY(any, dtype, std::vector<bool>);
             CAST_VEC_TO_PY(any, dtype, std::vector<std::string>);
             CAST_VEC_TO_PY(any, dtype, std::vector<float>);
             CAST_VEC_TO_PY(any, dtype, std::vector<ov::element::Type>);
