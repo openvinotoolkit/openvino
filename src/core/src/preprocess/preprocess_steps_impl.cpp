@@ -62,7 +62,7 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
         auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
         set_is_preprocessing_node(new_op);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
-    });
+    }, "scale");
 }
 
 void PreStepsList::add_mean_impl(const std::vector<float>& values) {
@@ -90,7 +90,7 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
         auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
         set_is_preprocessing_node(new_op);
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
-    });
+    }, "mean");
 }
 
 void PreStepsList::add_convert_impl(const element::Type& type) {
@@ -116,7 +116,7 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
         // return false to avoid excess function revalidations as conversion of types
         // doesn't require shape or type propagation.
         return std::make_tuple(res, false);
-    });
+    }, "convert type");
 }
 
 void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width) {
@@ -170,7 +170,7 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
 
         auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
         return std::make_tuple(std::vector<Output<Node>>{interp}, true);
-    });
+    }, "resize");
 }
 
 Layout PreStepsList::propagate_layout(const Layout& tensor_layout) const {
@@ -207,7 +207,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
         // return false to avoid excess function revalidations as layout conversion
         // doesn't require shape or type propagation.
         return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
-    });
+    }, "convert layout");
 }
 
 void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
@@ -230,7 +230,7 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         // return false to avoid excess function revalidations as layout conversion
         // doesn't require shape or type propagation.
         return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
-    });
+    }, "convert_layout by values");
 }
 
 std::tuple<PartialShape, Layout> PreStepsList::calculate_param_shape(const PartialShape& model_shape,
@@ -373,8 +373,8 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
         OPENVINO_ASSERT(false,
                         "Source color format '",
                         color_format_name(context.color_format()),
-                        "' is not convertible to any other");
-    });
+                        "' is not convertible to '", color_format_name(dst_format), "'");
+    }, "convert color");
 }
 
 void PreStepsList::add_reverse_channels() {
@@ -386,7 +386,7 @@ void PreStepsList::add_reverse_channels() {
         OPENVINO_ASSERT(outputs.size() == 1, "Internal error: reverse_channels returned unexpected number of outputs");
         set_is_preprocessing_node(outputs.at(0).get_node_shared_ptr());
         return resp;
-    });
+    }, "reverse channels");
 }
 
 std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const std::vector<Output<Node>>& nodes,

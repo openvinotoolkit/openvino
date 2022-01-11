@@ -29,7 +29,7 @@ namespace preprocess {
 class OPENVINO_API PrePostProcessor final {
     class PrePostProcessorImpl;
     std::unique_ptr<PrePostProcessorImpl> m_impl;
-
+    friend OPENVINO_API std::ostream& operator<<(std::ostream&, const PrePostProcessor&);
 public:
     /// \brief Default constructor
     ///
@@ -94,7 +94,19 @@ public:
     ///
     /// \return Function with added pre/post-processing operations
     std::shared_ptr<Model> build();
+
+private:
+    void dump(std::ostream&) const;
 };
+
+/// \brief Inserts a human-readable representation of a PrePostProcessors into an output stream.
+/// \param str The output stream targeted for insertion.
+/// \param prePostProcessor The shape to be inserted into `str`.
+/// \return A reference to `str` after insertion.
+///
+/// The output to the stream is in "informal" notation and can be used for debugging purposes
+OPENVINO_API
+std::ostream& operator<<(std::ostream& str, const PrePostProcessor& prePostProcessor);
 
 }  // namespace preprocess
 }  // namespace ov

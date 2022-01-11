@@ -141,10 +141,15 @@ private:
     ColorFormat m_color_format = ColorFormat::UNDEFINED;
 };
 
-using InternalPreprocessOp =
-    std::function<std::tuple<std::vector<Output<Node>>, bool>(const std::vector<Output<Node>>& nodes,
-                                                              const std::shared_ptr<Model>& function,
-                                                              PreprocessingContext& context)>;
+using InternalPreprocessOp = std::function<std::tuple<std::vector<Output<Node>>, bool>(const std::vector<Output<Node>> &nodes,
+                                                                                      const std::shared_ptr<Model> &function,
+                                                                                      PreprocessingContext &context)>;
+
+struct InternalPreprocessAction {
+    InternalPreprocessAction(InternalPreprocessOp op, std::string name): m_op(std::move(op)), m_name(std::move(name)) {}
+    InternalPreprocessOp m_op;
+    std::string m_name;
+};
 
 /// \brief PreProcessStepsImpl - internal data structure
 class PreStepsList {
@@ -160,10 +165,10 @@ public:
     std::tuple<PartialShape, Layout> calculate_param_shape(const PartialShape& model_shape,
                                                            const Layout& model_layout) const;
 
-    const std::list<InternalPreprocessOp>& actions() const {
+    const std::list<InternalPreprocessAction>& actions() const {
         return m_actions;
     }
-    std::list<InternalPreprocessOp>& actions() {
+    std::list<InternalPreprocessAction>& actions() {
         return m_actions;
     }
 
@@ -179,7 +184,7 @@ private:
                                                                         PreprocessingContext& context);
 
 private:
-    std::list<InternalPreprocessOp> m_actions;
+    std::list<InternalPreprocessAction> m_actions;
     std::list<std::vector<uint64_t>> m_layout_converts;
     std::list<std::vector<uint64_t>> m_forward_layout_converts;
     Layout m_last_explicit_layout;
