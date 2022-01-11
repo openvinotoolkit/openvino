@@ -33,7 +33,7 @@ public:
     }
 
 private:
-    int64_t m_axis;
+    int64_t m_axis{0};
     template <class T>
     void friend shape_infer(const GatherElements* op,
                             const std::vector<T>& input_shapes,

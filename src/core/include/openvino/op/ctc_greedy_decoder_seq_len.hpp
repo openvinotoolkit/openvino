@@ -92,7 +92,7 @@ public:
     }
 
 private:
-    bool m_merge_repeated;
+    bool m_merge_repeated{true};
     element::Type m_classes_index_type{element::i32};
     element::Type m_sequence_length_type{element::i32};
 };

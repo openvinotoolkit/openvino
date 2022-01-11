@@ -191,7 +191,7 @@ public:
     }
 
 private:
-    direction m_direction;
+    direction m_direction{direction::FORWARD};
 };
 }  // namespace v5
 }  // namespace op

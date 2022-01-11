@@ -35,7 +35,7 @@ public:
     }
 
 private:
-    double m_alpha;
+    double m_alpha{0};
 };
 }  // namespace v0
 }  // namespace op

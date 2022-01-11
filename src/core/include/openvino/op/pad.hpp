@@ -74,7 +74,7 @@ public:
     bool has_evaluate() const override;
 
 private:
-    PadMode m_pad_mode;
+    PadMode m_pad_mode{PadMode::CONSTANT};
     bool evaluate_pad(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v1

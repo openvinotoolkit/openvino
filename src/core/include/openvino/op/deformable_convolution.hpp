@@ -166,7 +166,7 @@ public:
     }
 
 private:
-    bool m_bilinear_interpolation_pad;
+    bool m_bilinear_interpolation_pad{false};
 };
 }  // namespace v8
 }  // namespace op
