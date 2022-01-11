@@ -19,6 +19,7 @@
 
 #include <low_precision/common/ie_lpt_exception.hpp>
 #include <low_precision/network_helper.hpp>
+#include <low_precision/layer_transformation.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -162,7 +163,12 @@ bool QuantizationDetails::empty() const noexcept {
 }
 
 bool QuantizationDetails::isSupportedLevel(const size_t level) {
-    static const std::unordered_set<size_t> supported_levels = { 16, 255, 256, 65536, 65535, static_cast<size_t>(4294967296), 4294967295 };
+    static const std::unordered_set<size_t> supported_levels = {
+        levels::int4,  levels::int4_narrow_range,
+        levels::int8,  levels::int8_narrow_range,
+        levels::int16, levels::int16_narrow_range,
+        levels::int32, levels::int32_narrow_range
+    };
     return supported_levels.find(level) != supported_levels.end();
 }
 
