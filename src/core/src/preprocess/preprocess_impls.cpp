@@ -6,15 +6,15 @@
 
 #include "layout_utils.hpp"
 
-using namespace ov::preprocess;
+namespace ov {
+namespace preprocess {
 
 namespace {
-using namespace ov;
-static void dump_tensor(std::ostream& str,
-                        const PartialShape& shape,
-                        const Layout& layout,
-                        const element::Type& type,
-                        const ColorFormat& color = ColorFormat::UNDEFINED) {
+void dump_tensor(std::ostream& str,
+                 const PartialShape& shape,
+                 const Layout& layout,
+                 const element::Type& type,
+                 const ColorFormat& color = ColorFormat::UNDEFINED) {
     str << shape << ", ";
     if (layout.empty()) {
         str << "<no layout>";
@@ -457,3 +457,5 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
     str << "    User's output tensor: ";
     dump_tensor(str, node.get_partial_shape(), context.layout(), node.get_element_type());
 }
+}  // namespace preprocess
+}  // namespace ov
