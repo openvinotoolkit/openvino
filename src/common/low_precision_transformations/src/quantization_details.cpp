@@ -163,6 +163,7 @@ bool QuantizationDetails::empty() const noexcept {
 }
 
 bool QuantizationDetails::isSupportedLevel(const size_t level) {
+    using ngraph::pass::low_precision::levels;
     static const std::unordered_set<size_t> supported_levels = {
         levels::int4,  levels::int4_narrow_range,
         levels::int8,  levels::int8_narrow_range,
