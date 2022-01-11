@@ -20,22 +20,12 @@ public:
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
 
-    const ov::frontend::CreatorFunction& get_converter() {
+    const ov::frontend::CreatorFunction& get_converter() const {
         return m_converter;
-    }
-
-    ConversionExtension(const std::string& op_type,
-                        const ov::frontend::ConversionExtension::PyCreatorFunction& py_converter)
-        : ConversionExtensionBase(op_type),
-          m_py_converter(py_converter) {
-        m_converter = [&](const ov::frontend::NodeContext& node) -> OutputVector {
-            return m_py_converter((NodeContext*)&node);
-        };
     }
 
 private:
     ov::frontend::CreatorFunction m_converter;
-    std::function<OutputVector(NodeContext*)> m_py_converter;
 };
 }  // namespace onnx
 }  // namespace frontend

@@ -6,7 +6,7 @@
 #include <openvino/frontend/onnx/node_context.hpp>
 #include <utils/common.hpp>
 
-ov::frontend::onnx::NodeContext::NodeContext(const ov::frontend::onnx::Node& context)
+ov::frontend::onnx::NodeContext::NodeContext(const ngraph::onnx_import::Node& context)
     : ov::frontend::NodeContext(context.op_type()),
       m_context(context),
       m_inputs(context.get_ng_inputs()) {}

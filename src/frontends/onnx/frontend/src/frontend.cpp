@@ -16,6 +16,7 @@
 
 #include "onnx_common/onnx_model_validator.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "ops_bridge.hpp"
 #include "so_extension.hpp"
 
 using namespace ov;
@@ -161,22 +162,21 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
 
-        for (int i = 1; i < 13; ++i)
+        for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
             ngraph::onnx_import::register_operator(common_conv_ext->get_op_type(),
                                                    i,
                                                    "",
-                                                   [=](const ov::frontend::onnx::Node& context) -> OutputVector {
+                                                   [=](const ngraph::onnx_import::Node& context) -> OutputVector {
                                                        return common_conv_ext->get_converter()(NodeContext(context));
                                                    });
     } else if (const auto onnx_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(onnx_conv_ext);
 
-        // todo: register in all opsets?
-        for (int i = 1; i < 13; ++i)
+        for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
             ngraph::onnx_import::register_operator(onnx_conv_ext->get_op_type(),
                                                    i,
                                                    "",
-                                                   [=](const ov::frontend::onnx::Node& context) -> OutputVector {
+                                                   [=](const ngraph::onnx_import::Node& context) -> OutputVector {
                                                        return onnx_conv_ext->get_converter()(NodeContext(context));
                                                    });
     } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {

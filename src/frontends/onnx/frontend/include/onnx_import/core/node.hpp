@@ -192,11 +192,3 @@ inline std::ostream& operator<<(std::ostream& outs, const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
-
-namespace ov {
-namespace frontend {
-namespace onnx {
-using ngraph::onnx_import::Node;
-}
-}  // namespace frontend
-}  // namespace ov
