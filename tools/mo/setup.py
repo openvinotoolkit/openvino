@@ -40,7 +40,7 @@ py_modules.append(prefix.replace('/', '.') + 'subprocess_main')
 py_modules.append(prefix.replace('/', '.') + '__main__')
 
 # Minimal set of dependencies
-deps_whitelist = ['networkx', 'defusedxml', 'numpy']
+deps_whitelist = ['networkx', 'defusedxml', 'numpy', 'openvino-telemetry']
 
 # for py37 and less on Windows need importlib-metadata in order to use entry_point *.exe files
 if sys.platform == 'win32' and sys.version_info[1] < 8:

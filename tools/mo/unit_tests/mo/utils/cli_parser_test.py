@@ -16,9 +16,10 @@ from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value
 from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
-class TestingMeanScaleGetter(unittest.TestCase):
+class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
     def test_tuple_parser(self):
         tuple_values = "data(1.1,22.22,333.333),info[2.2,33.33,444.444]"
         result = parse_tuple_pairs(tuple_values)
@@ -381,7 +382,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         self.assertRaises(Error, parse_tuple_pairs, "input1,input2")
 
 
-class TestSingleTupleParsing(unittest.TestCase):
+class TestSingleTupleParsing(UnitTestWithMockedTelemetry):
     def test_get_values_ideal(self):
         values = "(1.11, 22.22, 333.333)"
         result = get_tuple_values(values)
@@ -443,7 +444,7 @@ class TestSingleTupleParsing(unittest.TestCase):
         self.assertEqual(exp_res, result)
 
 
-class TestShapesParsing(unittest.TestCase):
+class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_shapes(self):
         argv_input = "inp1,inp2"
         input_shapes = "(1,22,333,123), (-1,45,7,1)"

@@ -1,13 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 from argparse import Namespace
 
-from openvino.tools.mo.utils.error import Error
-
 import numpy as np
-
+from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 try:
     # pylint: disable=no-name-in-module,import-error
@@ -52,8 +50,9 @@ def process_function(ov_function: Model, argv: Namespace):
     apply_preprocessing(ov_function=ov_function, argv=argv)
 
 
-class TestPreprocessingMOC(unittest.TestCase):
+class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
     def setUp(self):
+        super(TestPreprocessingMOC, self).setUp()
         pass
 
     def check_constant(self, const_node, expected, shape=None):

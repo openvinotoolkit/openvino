@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
-
 import numpy.testing as npt
 
 from openvino.tools.mo.ops.gather import Gather
@@ -10,11 +8,12 @@ from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.middle.passes.infer import partial_infer
 from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, \
     shaped_parameter, build_graph
 
 
-class TestGatherPartialInfer(unittest.TestCase):
+class TestGatherPartialInfer(UnitTestWithMockedTelemetry):
 
     @staticmethod
     def build_and_test_value_inference(data, indices, axis, batch_dims, ref_value, negative_test_string=None):
