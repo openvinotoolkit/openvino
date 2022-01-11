@@ -116,6 +116,10 @@ struct data_type_traits {
         return (static_cast<uint32_t>(data_type) & float_type_mask) != 0;
     }
 
+    static bool is_i8_u8(data_types data_type) {
+        return data_type == data_types::i8 || data_type == data_types::u8;
+    }
+
     static size_t align_of(data_types data_type) {
         switch (data_type) {
             case data_types::bin:
