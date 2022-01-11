@@ -16,7 +16,7 @@ namespace CPULayerTestsDefinitions {
 
 using basicCpuMvnParams = std::tuple<
        InputShape, // Input shapes
-       InferenceEngine::Precision, // Input precision
+       ElementType, // Input precision
        ngraph::AxisSet, // Reduction axes
        bool, // Across channels
        bool, // Normalize variance
@@ -40,7 +40,7 @@ public:
        std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision) = obj.param;
 
        InputShape inputShapes;
-       InferenceEngine::Precision netPrecision;
+       ElementType netPrecision;
        ngraph::AxisSet axes;
        bool acrossChanels, normalizeVariance;
        double eps;
@@ -52,7 +52,7 @@ public:
        for (const auto& shape : inputShapes.second) {
            result << "(" << CommonTestUtils::vec2str(shape) << ")_";
        }
-       result << "Precision=" << netPrecision.name() << "_";
+       result << "Precision=" << netPrecision << "_";
        if (!axes.empty()) {
            result << "ReductionAccess=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
        } else {
@@ -84,7 +84,7 @@ protected:
        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
        InputShape inputShapes;
-       InferenceEngine::Precision netPrecision;
+       ElementType netPrecision;
        ngraph::AxisSet axes;
        bool acrossChanels, normalizeVariance;
        double eps;
@@ -92,8 +92,7 @@ protected:
 
        init_input_shapes({inputShapes});
 
-       auto netPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-       auto param = ngraph::builder::makeDynamicParams(netPrc, inputDynamicShapes);
+       auto param = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
        auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
        if (!axes.empty()) {
@@ -101,10 +100,10 @@ protected:
        }
 
        selectedType = getPrimitiveType();
-       selectedType = makeSelectedTypeStr(selectedType, outPrc);
+       selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
        rel_threshold = 0.015f;
-       function = makeNgraphFunction(netPrc, param, mvn, "mvn");
+       function = makeNgraphFunction(netPrecision, param, mvn, "mvn");
    }
 };
 
@@ -319,7 +318,7 @@ std::vector<fusingSpecificParams> fusingParamsSetStaticShape {
 const auto Mvn3D = ::testing::Combine(
        ::testing::Combine(
            ::testing::ValuesIn(inputShapes_3D),
-           ::testing::Values(InferenceEngine::Precision::FP32),
+           ::testing::Values(ElementType::f32),
            ::testing::ValuesIn(emptyReductionAxes),
            ::testing::ValuesIn(acrossChannels),
            ::testing::ValuesIn(normalizeVariance),
@@ -334,7 +333,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, Mv
 const auto Mvn4D = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_4D),
-               ::testing::Values(InferenceEngine::Precision::FP32),
+               ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes),
                ::testing::ValuesIn(acrossChannels),
                ::testing::ValuesIn(normalizeVariance),
@@ -349,7 +348,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerCPUTest, Mvn4D, Mv
 const auto Mvn5D = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_5D),
-               ::testing::Values(InferenceEngine::Precision::FP32),
+               ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes),
                ::testing::ValuesIn(acrossChannels),
                ::testing::ValuesIn(normalizeVariance),
@@ -373,7 +372,7 @@ std::vector<fusingSpecificParams> fusingUnaryEltwiseParamsSet {
 const auto Mvn1D = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_1D),
-               ::testing::Values(InferenceEngine::Precision::FP32),
+               ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes),
                ::testing::ValuesIn(acrossChannels),
                ::testing::ValuesIn(normalizeVariance),
@@ -389,7 +388,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerCPUTest, Mvn1D, Mv
 const auto Mvn2D = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_2D),
-               ::testing::Values(InferenceEngine::Precision::FP32),
+               ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes),
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
@@ -405,7 +404,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerCPUTest, Mvn2D, Mv
 const auto Mvn2DTrans = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_2D),
-               ::testing::Values(InferenceEngine::Precision::FP32),
+               ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes),
                ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),
@@ -446,7 +445,7 @@ const std::vector<ov::Shape> inputShapesStatic_5D = {
 const auto Mvn2DStatic = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapesStatic_2D),
-               ::testing::Values(InferenceEngine::Precision::FP32),
+               ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes),
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
@@ -459,7 +458,7 @@ const auto Mvn2DStatic = ::testing::Combine(
 const auto Mvn3DStatic = ::testing::Combine(
        ::testing::Combine(
            ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_3D)),
-           ::testing::Values(InferenceEngine::Precision::FP32),
+           ::testing::Values(ElementType::f32),
            ::testing::ValuesIn(emptyReductionAxes),
            ::testing::ValuesIn(acrossChannels),
            ::testing::ValuesIn(normalizeVariance),
@@ -474,7 +473,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsStatic_Mvn3D, MvnLayerCPUTest, Mvn
 const auto Mvn4DStatic = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_4D)),
-               ::testing::Values(InferenceEngine::Precision::FP32),
+               ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes),
                ::testing::ValuesIn(acrossChannels),
                ::testing::ValuesIn(normalizeVariance),
@@ -489,7 +488,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsStatic_Mvn4D, MvnLayerCPUTest, Mvn
 const auto Mvn5DStatic = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_5D)),
-               ::testing::Values(InferenceEngine::Precision::FP32),
+               ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes),
                ::testing::ValuesIn(acrossChannels),
                ::testing::ValuesIn(normalizeVariance),
