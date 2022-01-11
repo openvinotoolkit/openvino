@@ -199,7 +199,7 @@ PRC developers might encounter pip errors during OpenVINO™ installation. To re
 * Add the download source using the `-i` parameter with the Python `pip` command. For example: 
 
    ```
-   pip install numpy -i https://mirrors.aliyun.com/pypi/simple/
+   pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
    ```
 Use the `--trusted-host` parameter if the URL above is `http` instead of `https`.
 
