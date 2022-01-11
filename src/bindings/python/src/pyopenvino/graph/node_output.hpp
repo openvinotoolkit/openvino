@@ -85,7 +85,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 Returns
                 ----------
                 get_shape : Shape
-                    Shape of the output.
+                    Copy of Shape of the output.
                )");
     output.def("get_partial_shape",
                &ov::Output<VT>::get_partial_shape,
@@ -96,7 +96,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 Returns
                 ----------
                 get_partial_shape : PartialShape
-                    PartialShape of the output.
+                    Copy of PartialShape of the output.
                )");
     output.def("get_target_inputs",
                &ov::Output<VT>::get_target_inputs,
