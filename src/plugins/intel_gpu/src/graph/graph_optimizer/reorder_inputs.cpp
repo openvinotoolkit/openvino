@@ -595,7 +595,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto conv_layout = conv_node.get_output_layout();
             if (lo.get_optimization_attributes().use_onednn_impls
                     && conv_layout.format == wrong_format[i]
-                    && (old_layout.data_type == data_types::i8 || old_layout.data_type == data_types::u8)
+                    && data_type_traits::is_i8_u8(old_layout.data_type)
                     && (old_layout.format == wrong_format[i])
                     && !(old_layout.size.batch[0] == 1 && old_layout.size.feature[0] <= 4)) {
                 auto new_layout = old_layout;
