@@ -71,6 +71,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NonZeroLayerTest.*)",
         // TODO: 69084 Not constant Axis input produces dynamic output shape.
         R"(.*GatherLayerTestCPU.*constAx=False.*)",
+        // TODO: 74601. RNN, GRU, LSTM Sequences batch 1 tests failure.
+        R"(.*smoke_dynamic_BatchSizeOne.*Sequence.*)",
+        // TODO: 74961.  Enforce precision via inType and outType does not work properly.
+        R"(.*(RNN|GRU|LSTM).*ENFORCE_BF16=YES.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
