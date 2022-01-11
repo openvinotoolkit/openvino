@@ -28,6 +28,7 @@ protected:
 private:
     static void fillOptimizedDimsAndSrcStrides(const VectorDims &srcBlockedDims, const VectorDims &blockedRepeats,
             VectorDims &optimizedDims, VectorDims &optimizedSrcStrides);
+    static void broadcastScalar(const char *srcData, char *dstData, size_t elt_cnt, size_t data_size);
 
     static bool canBeExecutedInBlockedLayout(VectorDims srcDims, VectorDims repeats, const size_t elemsInBlock);
     static bool canBeExecutedInNSPCLayout(VectorDims srcDims, VectorDims repeats);
