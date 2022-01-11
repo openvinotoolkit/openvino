@@ -18,6 +18,14 @@
 #include "attribute_parameters.hpp"
 
 namespace ngraph {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief QuantizationAlignmentAttribute defines subgraph with the same quantization alignment.
+ * FakeQuantize operations are not included. The attribute is used by quantization operations.
+ *
+ * For more details about the attribute, refer to
+ * [QuantizationAlignmentAttribute](@ref openvino_docs_IE_DG_lpt_QuantizationAlignment) page in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API QuantizationAlignmentAttribute : public SharedAttribute<bool> {
 public:
     OPENVINO_RTTI("LowPrecision::QuantizationAlignment", "", ov::RuntimeAttribute, 0);

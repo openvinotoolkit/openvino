@@ -13,6 +13,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief WeightableLayerTransformation is base type for weightable operation transformation.
+ */
 class LP_TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransformation{
 public:
     WeightableLayerTransformation(const Params& params);

@@ -19,6 +19,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ConcatTransformation propagates dequantization operations through Concat operation.
+ *
+ * For more details about the transformation, refer to
+ * [ConcatTransformation](@ref openvino_docs_IE_DG_lpt_ConcatTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

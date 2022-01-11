@@ -19,6 +19,15 @@ class LP_TRANSFORMATIONS_API PullTransposeThroughDequantization;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PullTransposeThroughDequantization propagates dequantization operations through Transpose operations.
+ * The transformation is used on constant subgraph weights to prepare a model for the next low precision transformations.
+ *
+ * For more details about the transformation, refer to
+ * [PullTransposeThroughDequantization](@ref openvino_docs_IE_DG_lpt_PullTransposeThroughDequantization) page
+ * in the Inference Engine Developer Guide.
+ */
 class ngraph::pass::low_precision::PullTransposeThroughDequantization : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;

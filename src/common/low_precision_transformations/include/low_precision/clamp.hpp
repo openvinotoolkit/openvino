@@ -12,6 +12,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ClampTransformation propagates dequantization operations through Clamp operation.
+ *
+ * For more details about the transformation, refer to
+ * [ClampTransformation](@ref openvino_docs_IE_DG_lpt_ClampTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API ClampTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

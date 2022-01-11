@@ -39,6 +39,10 @@ public:
     MultiplyMultiplyFusion();
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief LinOpSequenceFusion transformation fuses linear operation sequence.
+ */
 class ngraph::pass::LinOpSequenceFusion: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;

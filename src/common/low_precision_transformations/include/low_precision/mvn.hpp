@@ -10,6 +10,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MVNTransformation propagates dequantization operations through MVN operation.
+ *
+ * For more details about the transformation, refer to
+ * [MVNTransformation](@ref openvino_docs_IE_DG_lpt_MVNTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API MVNTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

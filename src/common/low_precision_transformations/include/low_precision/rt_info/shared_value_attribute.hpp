@@ -18,6 +18,12 @@ template <class T>
 class LP_TRANSFORMATIONS_API SharedAttribute : public ov::RuntimeAttribute {
 public:
     virtual ~SharedAttribute() = default;
+
+    /**
+     * @ingroup ie_transformation_common_api
+     * @brief SharedValueAttribute type for shared value attributes.
+     * The attribute is used for attribute SharedValue value backward propagation.
+     */
     class LP_TRANSFORMATIONS_API SharedValueAttribute : public std::enable_shared_from_this<SharedValueAttribute> {
     public:
         struct LP_TRANSFORMATIONS_API SharedValue : public std::enable_shared_from_this<SharedValue> {

@@ -29,6 +29,15 @@ class CreatePrecisionsDependentAttribute;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief CreatePrecisionsDependentAttribute transformation marks OperationType operations by
+ * PrecisionPreservedAttribute and AttributeType attributes with the same shared part.
+ *
+ * For more details about the transformation, refer to
+ * [CreatePrecisionsDependentAttribute](@ref openvino_docs_IE_DG_lpt_CreatePrecisionsDependentAttribute) page
+ * in the Inference Engine Developer Guide.
+ */
 template <typename AttributeType, typename OperationType>
 class ngraph::pass::low_precision::CreatePrecisionsDependentAttribute : public ngraph::pass::MatcherPass {
 public:

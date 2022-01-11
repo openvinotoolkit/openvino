@@ -12,6 +12,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief FuseConvertTransformation fuses Convert operation with Multiply, Subtract or Add operations.
+ *
+ * For more details about the transformation, refer to
+ * [FuseConvertTransformation](@ref openvino_docs_IE_DG_lpt_FuseConvertTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API FuseConvertTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;
