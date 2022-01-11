@@ -1,0 +1,106 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <ngraph/validation_util.hpp>
+
+#include "itt.hpp"
+#include "ngraph/op/sparse_conv.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
+
+using namespace std;
+using namespace ngraph;
+
+BWDCMP_RTTI_DEFINITION(ov::op::v1::SparseConv);
+
+ov::op::v1::SparseConv::SparseConv(const Output<Node>& features,
+                               const Output<Node>& inp_pos,
+                               const Output<Node>& kernel,
+                               const Output<Node>& offset)
+    : Op({features, inp_pos, kernel, offset}) {
+    constructor_validate_and_infer_types();
+}
+
+bool op::v1::SparseConv::visit_attributes(AttributeVisitor& visitor) {
+    NGRAPH_OP_SCOPE(v1_SparseConv_visit_attributes);
+    return true;
+}
+
+shared_ptr<Node> op::v1::SparseConv::clone_with_new_inputs(const OutputVector& new_args) const {
+    NGRAPH_OP_SCOPE(v1_SparseConv_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<op::v1::SparseConv>(new_args.at(0), new_args.at(1),
+                                           new_args.at(2), new_args.at(3));
+}
+
+void op::v1::SparseConv::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v1_SparseConv_validate_and_infer_types);
+    auto outShape = get_input_partial_shape(0);
+    auto kernelShape = get_input_partial_shape(2);
+    outShape[1] = kernelShape[4];
+    set_output_type(0, get_input_element_type(0), outShape);
+}
+
+bool op::v1::SparseConv::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v1_SparseConv_evaluate);
+
+    const float* features = inputs[0]->get_data_ptr<float>();
+    const float* inpPos = inputs[1]->get_data_ptr<float>();
+    const float* kernel = inputs[2]->get_data_ptr<float>();
+    const float* offset = inputs[3]->get_data_ptr<float>();
+    float* out = outputs[0]->get_data_ptr<float>();
+
+    const Shape outDims = get_default_output().get_shape();
+    memset(out, 0, sizeof(float) * outDims[0] * outDims[1]);
+
+    const size_t numPoints = get_input_partial_shape(1).to_shape()[0];
+    Shape kernelDims = get_input_partial_shape(2).to_shape();
+
+    // Kernel layout is DxHxWxICxOH
+    const int kd = kernelDims[0];
+    const int kh = kernelDims[1];
+    const int kw = kernelDims[2];
+    const int IC = kernelDims[3];
+    const int OC = kernelDims[4];
+
+    // See https://github.com/isl-org/Open3D/blob/master/python/open3d/ml/torch/python/layers/convolutions.py
+    float rw = kw * 0.51f;
+    float rh = kh * 0.51f;
+    float rd = kd * 0.51f;
+
+    for (size_t i = 0; i < numPoints; ++i) {
+        const float xi = inpPos[i * 3] - offset[0];
+        const float yi = inpPos[i * 3 + 1] - offset[1];
+        const float zi = inpPos[i * 3 + 2] - offset[2];
+
+        // Accumulate features which inside the kernel
+        for (size_t j = 0; j < numPoints; ++j) {
+            const float xj = inpPos[j * 3];
+            const float yj = inpPos[j * 3 + 1];
+            const float zj = inpPos[j * 3 + 2];
+
+            if (xi - rw <= xj && xj <= xi + rw &&
+                yi - rh <= yj && yj <= yi + rh &&
+                zi - rd <= zj && zj <= zi + rd) {
+
+                const int w = std::min(static_cast<int>(xj - xi + kw * 0.5f), kw - 1);
+                const int h = std::min(static_cast<int>(yj - yi + kh * 0.5f), kh - 1);
+                const int d = std::min(static_cast<int>(zj - zi + kd * 0.5f), kd - 1);
+
+                const float* featuresOffset = features + j * IC;
+                for (size_t ic = 0; ic < IC; ++ic) {
+                    const float* kernelOffset = kernel + OC * (ic + IC * (w + kw * (h + kh * d)));
+                    for (size_t oc = 0; oc < OC; ++oc) {
+                        out[i * OC + oc] += kernelOffset[oc] * featuresOffset[ic];
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool op::v1::SparseConv::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v1_SparseConv_has_evaluate);
+    return true;
+}

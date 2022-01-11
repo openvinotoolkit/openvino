@@ -486,6 +486,7 @@ set(OP_EVAL_TEST_SRC
     op_eval/roi_pooling.cpp
     op_eval/round.cpp
     op_eval/softplus.cpp
+    op_eval/sparse_conv.cpp
     op_eval/split.cpp
     op_eval/swish.cpp
     op_eval/strided_slice.cpp

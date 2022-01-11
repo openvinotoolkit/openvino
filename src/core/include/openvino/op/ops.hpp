@@ -157,6 +157,7 @@
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/space_to_batch.hpp"
 #include "openvino/op/space_to_depth.hpp"
+#include "openvino/op/sparse_conv.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"
