@@ -207,10 +207,10 @@ const std::vector<InputShape> inputShapes4D = {
 
 const std::vector<InputShape> inputShapes5D = {
     {{-1, -1, -1, -1, -1},                                                            // dynamic
-     {{2, 2, 6, 12, 24}, {1, 4, 24, 24, 36}, {1, 7, 6, 30, 18}, {1, 7, 6, 30, 18}}},  // target
+     {{2, 2, 6, 12, 24}, {1, 4, 24, 24, 36}, {1, 7, 6, 30, 18}, {2, 2, 6, 12, 24}}},  // target
 
     {{{1, 3}, {5, 16}, {1, 60}, {1, 60}, {1, 60}},                // dynamic
-     {{3, 5, 12, 6, 24}, {1, 6, 24, 18, 6}, {1, 6, 24, 18, 6}}},  // target
+     {{3, 5, 12, 6, 24}, {1, 6, 24, 18, 6}, {3, 5, 12, 6, 24}}},  // target
 };
 
 const std::vector<InputShape> inputShapesBlocked5D = {

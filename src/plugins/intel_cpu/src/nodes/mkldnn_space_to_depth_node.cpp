@@ -24,7 +24,7 @@ using namespace mkldnn::impl;
 
 namespace {
 struct SpaceToDepthKey {
-    MKLDNNPlugin::MKLDNNSpaceToDepthNode::SpaceToDepthAttrs s2d_attrs;
+    MKLDNNPlugin::MKLDNNSpaceToDepthNode::SpaceToDepthAttrs attrs;
     VectorDims srcBlockedDims;
     VectorDims destBlockedDims;
     size_t hash() const;
@@ -36,12 +36,12 @@ size_t SpaceToDepthKey::hash() const {
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
-    seed = hash_combine(seed, s2d_attrs.layoutType);
-    seed = hash_combine(seed, s2d_attrs.mode);
-    seed = hash_combine(seed, s2d_attrs.blockSize);
-    seed = hash_combine(seed, s2d_attrs.blockStep);
-    seed = hash_combine(seed, s2d_attrs.dataSize);
-    seed = hash_combine(seed, s2d_attrs.nSpatialDims);
+    seed = hash_combine(seed, attrs.layoutType);
+    seed = hash_combine(seed, attrs.mode);
+    seed = hash_combine(seed, attrs.blockSize);
+    seed = hash_combine(seed, attrs.blockStep);
+    seed = hash_combine(seed, attrs.dataSize);
+    seed = hash_combine(seed, attrs.nSpatialDims);
     seed = get_vector_hash(seed, srcBlockedDims);
     seed = get_vector_hash(seed, destBlockedDims);
 
@@ -49,20 +49,11 @@ size_t SpaceToDepthKey::hash() const {
 }
 
 bool SpaceToDepthKey::operator==(const SpaceToDepthKey& rhs) const {
-    if (srcBlockedDims.size() != rhs.srcBlockedDims.size() || destBlockedDims.size() != rhs.destBlockedDims.size()) {
-        return false;
-    }
+    bool result = attrs.layoutType == rhs.attrs.layoutType && attrs.mode == rhs.attrs.mode &&
+                  attrs.blockSize == rhs.attrs.blockSize && attrs.blockStep == rhs.attrs.blockStep &&
+                  attrs.dataSize == rhs.attrs.dataSize && attrs.nSpatialDims == rhs.attrs.nSpatialDims &&
+                  srcBlockedDims == rhs.srcBlockedDims && destBlockedDims == rhs.destBlockedDims;
 
-    bool result = s2d_attrs.layoutType == rhs.s2d_attrs.layoutType && s2d_attrs.mode == rhs.s2d_attrs.mode &&
-                  s2d_attrs.blockSize == rhs.s2d_attrs.blockSize && s2d_attrs.blockStep == rhs.s2d_attrs.blockStep &&
-                  s2d_attrs.dataSize == rhs.s2d_attrs.dataSize && s2d_attrs.nSpatialDims == rhs.s2d_attrs.nSpatialDims;
-
-    for (size_t i = 0; i < srcBlockedDims.size() && result; ++i) {
-        result = result && (srcBlockedDims[i] == rhs.srcBlockedDims[i]);
-    }
-    for (size_t i = 0; i < destBlockedDims.size() && result; ++i) {
-        result = result && (destBlockedDims[i] == rhs.destBlockedDims[i]);
-    }
     return result;
 }
 
@@ -214,7 +205,7 @@ void MKLDNNSpaceToDepthNode::prepareParams() {
     const VectorDims& dstBlockedDims =
         getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
     auto builder = [](const SpaceToDepthKey& key) -> std::shared_ptr<SpaceToDepthExecutor> {
-        return std::make_shared<SpaceToDepthExecutor>(key.s2d_attrs, key.srcBlockedDims, key.destBlockedDims);
+        return std::make_shared<SpaceToDepthExecutor>(key.attrs, key.srcBlockedDims, key.destBlockedDims);
     };
 
     SpaceToDepthKey key = {attrs, srcBlockedDims, dstBlockedDims};

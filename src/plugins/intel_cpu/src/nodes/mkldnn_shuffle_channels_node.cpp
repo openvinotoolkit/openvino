@@ -51,21 +51,10 @@ size_t ShuffleChannelsKey::hash() const {
 }
 
 bool ShuffleChannelsKey::operator==(const ShuffleChannelsKey& rhs) const {
-    if (srcDims.size() != rhs.srcDims.size() || srcBlockedDims.size() != rhs.srcBlockedDims.size()) {
-        return false;
-    }
-
     bool result = attrs.layoutType == rhs.attrs.layoutType && attrs.dataRank == rhs.attrs.dataRank &&
                   attrs.axis == rhs.attrs.axis && attrs.spatialRank == rhs.attrs.spatialRank &&
-                  attrs.group == rhs.attrs.group && attrs.dataSize == rhs.attrs.dataSize;
-
-    for (size_t i = 0; i < srcDims.size() && result; ++i) {
-        result = result && (srcDims[i] == rhs.srcDims[i]);
-    }
-
-    for (size_t i = 0; i < srcBlockedDims.size() && result; ++i) {
-        result = result && (srcBlockedDims[i] == rhs.srcBlockedDims[i]);
-    }
+                  attrs.group == rhs.attrs.group && attrs.dataSize == rhs.attrs.dataSize && srcDims == rhs.srcDims &&
+                  srcBlockedDims == rhs.srcBlockedDims;
     return result;
 }
 
