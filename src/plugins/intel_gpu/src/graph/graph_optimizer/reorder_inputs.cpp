@@ -13,6 +13,7 @@
 #include "binary_convolution_inst.h"
 #include "mvn_inst.h"
 #include "to_string_utils.h"
+#include "reshape_inst.h"
 
 #include <vector>
 #include <memory>
@@ -575,14 +576,31 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         }
     };
 
+    const auto reorder_input_fully_connected = [&p, &lo, &rf](typed_program_node<fully_connected>& fc_node) {
+        auto& weights = fc_node.weights();
+        auto& input = fc_node.input();
+        auto input_layout = input.get_output_layout();
+        // Change input data of fully-connected node from bx to bf
+        if (format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
+            input_layout.size.feature[0] == 1 && input_layout.size.spatial[0] != 1 && input_layout.size.spatial[1] == 1) {
+            auto new_tensor = input_layout.size;
+            new_tensor.feature[0] = input_layout.size.spatial[0];
+            new_tensor.spatial[0] = 1;
+            auto new_reshape = std::make_shared<reshape>("reorder:Reshape_bf_" + fc_node.id() + "_for_input", input.id(), new_tensor);
+            auto& new_reorder_node = p.get_or_create(new_reshape);
+            p.add_intermediate(new_reorder_node, fc_node, 0);
+        }
+    };
+
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, binary_convolution, deconvolution, convolution>(
+        program_helpers::do_for_types<detection_output, binary_convolution, deconvolution, convolution, fully_connected>(
             *prim,
             reorder_input_detection_output,
             reorder_input_binary_convolution,
             reorder_input_and_weights_deconvolution,
-            reorder_weights_convolution);
-    }
+            reorder_weights_convolution,
+            reorder_input_fully_connected);
+   }
 
     for (auto n : p.get_processing_order()) {
         if (n->is_in_data_flow() && fmt_map.count(n) != 0) {
