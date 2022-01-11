@@ -245,6 +245,12 @@ public:
     static std::vector<int64_t> find_permutation(const Layout& src_layout,
                                                  const PartialShape& src_shape,
                                                  const Layout& dst_layout);
+    static std::tuple<PartialShape, Layout> find_squeeze(const Layout& src_layout,
+                                                         const PartialShape& src_shape,
+                                                         const Layout& dst_layout);
+    static std::tuple<PartialShape, Layout, size_t> find_unsqueeze(const Layout& src_layout,
+                                                                   const PartialShape& src_shape,
+                                                                   const Layout& dst_layout);
 };
 
 Layout LayoutUtils::apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
@@ -335,7 +341,10 @@ std::vector<int64_t> LayoutUtils::find_permutation(const Layout& src_layout,
     auto src_static = to_static(src_layout, rank);
     auto dst_static = to_static(dst, rank);
     OPENVINO_ASSERT(src_static.m_left_size == dst_static.m_left_size,
-                    "Conversion is not supported for layouts with different sizes");
+                    "Conversion is not supported for layouts with different sizes, ",
+                    src_layout.to_string(),
+                    " <-> ",
+                    dst.to_string());
     OPENVINO_ASSERT(rank.is_dynamic() || src_static.m_left_size == rank.get_length(),
                     "Conversion layout ",
                     src_layout.to_string(),
@@ -393,6 +402,121 @@ std::vector<int64_t> LayoutUtils::find_permutation(const Layout& src_layout,
     return check_trivial(res);
 }
 
+std::tuple<PartialShape, Layout> LayoutUtils::find_squeeze(const Layout& src_layout,
+                                                           const PartialShape& src_shape,
+                                                           const Layout& dst_layout) {
+    if (src_layout.m_dynamic || dst_layout.m_dynamic || src_layout.m_left_size <= dst_layout.m_left_size) {
+        return {src_shape, src_layout};
+    }
+
+    // Don't allow conversions like model_layout=NC??, tensor_layout=HWC
+    // Though in future such conversions may be possible to implement
+    OPENVINO_ASSERT(src_layout.m_left_size == src_layout.m_index_map.size(),
+                    "Layout conversion ",
+                    dst_layout.to_string(),
+                    " <-> ",
+                    src_layout.to_string(),
+                    " is not supported. Please use fully specified model layout, current is ",
+                    src_layout.to_string());
+
+    // Don't allow conversions like model_layout=NCHW, tensor_layout=?HW
+    OPENVINO_ASSERT(dst_layout.m_left_size == dst_layout.m_index_map.size(),
+                    "Layout conversion ",
+                    dst_layout.to_string(),
+                    " <-> ",
+                    src_layout.to_string(),
+                    " is not supported. Please use fully specified tensor layout, current is ",
+                    dst_layout.to_string());
+
+    bool rank_dynamic = src_shape.rank().is_dynamic();
+    OPENVINO_ASSERT(rank_dynamic || src_shape.rank().get_length() == src_layout.m_left_size,
+                    "Model input layout ",
+                    src_layout.to_string(),
+                    " is inconsistent with input shape ",
+                    src_shape,
+                    ". Layout and shape shall have same rank, got ",
+                    src_layout.m_left_size,
+                    " != ",
+                    src_shape.rank().get_length());
+    // At this point src_layout and dst_layout don't have '...' or '?'
+    std::vector<Dimension> res_dims(dst_layout.m_left_size);
+    Layout res;
+    res.m_dynamic = false;
+    res.m_left_size = dst_layout.m_left_size;
+    int64_t dst_idx = 0;
+    for (int64_t src_idx = 0; src_idx < src_layout.m_left_size; src_idx++) {
+        auto src_dim_name = src_layout.m_index_map.at(src_idx);
+        if (dst_layout.has_name(src_dim_name)) {
+            if (!rank_dynamic) {
+                res_dims[dst_idx] = src_shape[src_idx];
+            }
+            res.m_index_map[dst_idx] = src_dim_name;
+            res.m_names[src_dim_name] = dst_idx;
+            dst_idx++;
+        }
+    }
+    if (dst_idx != dst_layout.m_left_size) {
+        std::stringstream missing_names;
+        missing_names << "( ";
+        for (const auto& dst_item : dst_layout.m_names) {
+            const auto& key = dst_item.first;
+            if (!res.m_names.count(key)) {
+                missing_names << "'" << key << "' ";
+            }
+        }
+        missing_names << ")";
+        OPENVINO_ASSERT(dst_idx == dst_layout.m_left_size,
+                        "Layout conversion failed. Tensor layout",
+                        dst_layout.to_string(),
+                        " has dimensions missing in model layout ",
+                        src_layout.to_string(),
+                        ". Missing dimensions are ",
+                        missing_names.str());
+    }
+    if (rank_dynamic) {
+        return {PartialShape::dynamic(), res};
+    } else {
+        return {PartialShape(res_dims), res};
+    }
+}
+
+std::tuple<PartialShape, Layout, size_t> LayoutUtils::find_unsqueeze(const Layout& src_layout,
+                                                                     const PartialShape& src_shape,
+                                                                     const Layout& dst_layout) {
+    if (src_layout.m_dynamic || dst_layout.m_dynamic || src_layout.m_left_size >= dst_layout.m_left_size) {
+        return {src_shape, src_layout, {}};
+    }
+
+    // find_squeeze already performed necessary validation, no need to repeat here
+    bool rank_dynamic = src_shape.rank().is_dynamic();
+    auto dims_cnt = dst_layout.m_left_size - src_layout.m_left_size;
+    std::vector<Dimension> res_dims(dst_layout.m_left_size, 1);
+    Layout res;
+    res.m_dynamic = false;
+    res.m_left_size = dst_layout.m_left_size;
+    int64_t unset_idx = 0;
+    for (auto i = 0; i < dst_layout.m_left_size; i++) {
+        auto dim_name = dst_layout.m_index_map.at(i);
+        if (src_layout.has_name(dim_name)) {
+            auto src_idx = src_layout.get_index_by_name(dim_name);
+            res.m_names[dim_name] = src_idx + dims_cnt;
+            res.m_index_map[src_idx + dims_cnt] = dim_name;
+            if (!rank_dynamic) {
+                res_dims[src_idx + dims_cnt] = src_shape[src_idx];
+            }
+        } else {
+            res.m_names[dim_name] = unset_idx;
+            res.m_index_map[unset_idx] = dim_name;
+            unset_idx++;
+        }
+    }
+    if (rank_dynamic) {
+        return {PartialShape::dynamic(), res, dims_cnt};
+    } else {
+        return {PartialShape(res_dims), res, dims_cnt};
+    }
+}
+
 namespace layout {
 namespace utils {
 Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims) {
@@ -404,6 +528,19 @@ std::vector<int64_t> find_permutation(const Layout& src_layout,
                                       const Layout& dst_layout) {
     return LayoutUtils::find_permutation(src_layout, src_shape, dst_layout);
 }
+
+std::tuple<PartialShape, Layout> find_squeeze(const Layout& src_layout,
+                                              const PartialShape& src_shape,
+                                              const Layout& dst_layout) {
+    return LayoutUtils::find_squeeze(src_layout, src_shape, dst_layout);
+}
+
+std::tuple<PartialShape, Layout, size_t> find_unsqueeze(const Layout& src_layout,
+                                                        const PartialShape& src_shape,
+                                                        const Layout& dst_layout) {
+    return LayoutUtils::find_unsqueeze(src_layout, src_shape, dst_layout);
+}
+
 }  // namespace utils
 
 // Helper functions
