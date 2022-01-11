@@ -67,6 +67,9 @@ TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
     // concat output
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "X");
+    ASSERT_EQ(network.getFunction()->get_parameters()[1]->get_friendly_name(), "Y");
+    ASSERT_EQ(network.getFunction()->get_parameters()[2]->get_friendly_name(), "M");
 }
 
 TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
@@ -126,6 +129,9 @@ TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
     // concat output
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "X");
+    ASSERT_EQ(network.getFunction()->get_parameters()[1]->get_friendly_name(), "Y");
+    ASSERT_EQ(network.getFunction()->get_parameters()[2]->get_friendly_name(), "M");
 }
 
 TEST(SmartReshapeTests, LoopStaticParameters) {
@@ -191,6 +197,10 @@ TEST(SmartReshapeTests, LoopStaticParameters) {
     // concat output
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "X");
+    ASSERT_EQ(network.getFunction()->get_parameters()[1]->get_friendly_name(), "Y");
+    ASSERT_EQ(network.getFunction()->get_parameters()[2]->get_friendly_name(), "M");
 }
 
 TEST(SmartReshapeTests, LoopDynamicParameters) {
@@ -256,6 +266,9 @@ TEST(SmartReshapeTests, LoopDynamicParameters) {
     // concat output
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "X");
+    ASSERT_EQ(network.getFunction()->get_parameters()[1]->get_friendly_name(), "Y");
+    ASSERT_EQ(network.getFunction()->get_parameters()[2]->get_friendly_name(), "M");
 }
 
 TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
@@ -324,6 +337,9 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
     // concat output
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({4, 30, 2}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({4, 3, 2}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "X");
+    ASSERT_EQ(network.getFunction()->get_parameters()[1]->get_friendly_name(), "Y");
+    ASSERT_EQ(network.getFunction()->get_parameters()[2]->get_friendly_name(), "M");
 }
 
 TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
@@ -386,4 +402,7 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
     // concat output
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "X");
+    ASSERT_EQ(network.getFunction()->get_parameters()[1]->get_friendly_name(), "Y");
+    ASSERT_EQ(network.getFunction()->get_parameters()[2]->get_friendly_name(), "M");
 }

@@ -27,6 +27,7 @@ TEST(SmartReshapeTests, Reshape1d) {
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({270000}));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3, 300, 300}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "input");
 }
 
 TEST(SmartReshapeTests, Reshape1d_negative) {
@@ -49,4 +50,5 @@ TEST(SmartReshapeTests, Reshape1d_negative) {
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({270000}));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3, 300, 300}));
     ASSERT_FALSE(network.getFunction()->get_parameters()[1]->get_output_target_inputs(0).empty());
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), "input");
 }

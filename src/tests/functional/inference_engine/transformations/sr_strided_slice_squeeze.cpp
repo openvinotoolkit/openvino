@@ -64,6 +64,7 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({2, 768})) <<
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 128, 768}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), inputname);
 }
 
 
@@ -94,6 +95,7 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({2, 768})) <<
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 1, 768}));
+    ASSERT_EQ(network.getFunction()->get_parameters()[0]->get_friendly_name(), inputname);
 }
 
 TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
