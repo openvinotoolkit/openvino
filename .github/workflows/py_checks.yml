@@ -54,13 +54,13 @@ jobs:
           path: src_diff.diff
       - name: Run Flake on wheel
         run: python -m flake8 ./ --config=../setup.cfg
-        working-directory: inference-engine/ie_bridges/python/wheel
+        working-directory: src/bindings/python/wheel
       - name: Create code style diff for wheel
         if: failure()
         run: |
           python -m black -l 160 -S ./
           git diff > wheel_diff.diff
-        working-directory: inference-engine/ie_bridges/python/wheel
+        working-directory: src/bindings/python/wheel
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
