@@ -356,7 +356,7 @@ def test_reshape(device):
     param = ops.parameter(shape, dtype=np.float32)
     model = Model(ops.relu(param), [param])
     ref_shape = model.input().partial_shape
-    ref_shape[0] = Dimension(3)
+    ref_shape[0] = 3
     model.reshape(ref_shape)
     core = Core()
     compiled = core.compile_model(model, device)

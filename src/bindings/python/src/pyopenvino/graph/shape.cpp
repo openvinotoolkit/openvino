@@ -31,7 +31,7 @@ void regclass_graph_Shape(py::module m) {
     shape.def("__len__", [](const ov::Shape& v) {
         return v.size();
     });
-    shape.def("__setitem__", [](ov::Shape& self, size_t key, size_t d) {
+    shape.def("__setitem__", [](ov::Shape& self, size_t key, ov::Dimension::value_type d) {
         self[key] = d;
     });
     shape.def("__setitem__", [](ov::Shape& self, size_t key, ov::Dimension d) {
