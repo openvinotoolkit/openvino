@@ -28,7 +28,6 @@ temp/
 docs/template_plugin/html/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
-/src/bindings/python/wheel/.env
 
 *.project
 *.cproject
