@@ -41,7 +41,7 @@
         precision: FP32
 -
     - model:
-        name: octave-resnext-101-0.25
+        name: octave-resnet-26-0.25
         type: omz
         precision: FP32
 -
@@ -56,6 +56,6 @@
         precision: FP32
 -
     - model:
-        name: densenet-201
+        name: densenet-121
         type: omz
         precision: FP32
