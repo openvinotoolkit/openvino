@@ -117,7 +117,7 @@ def device():
     return os.environ.get("TEST_DEVICE") if os.environ.get("TEST_DEVICE") else "CPU"
 
 
-def create_encoder(input_shape, levels = 4):
+def create_encoder(input_shape, levels=4):
     # input
     input_node = ng.parameter(input_shape, np.float32, name="data")
 
@@ -128,7 +128,7 @@ def create_encoder(input_shape, levels = 4):
     last_output = input_node
 
     # convolution layers
-    for i in range(levels):
+    for _ in range(levels):
         input_c = input_channels[-1]
         output_c = input_c * 2
         conv_w = np.random.uniform(0, 1, [output_c, input_c, 5, 5]).astype(np.float32)
@@ -137,7 +137,7 @@ def create_encoder(input_shape, levels = 4):
         last_output = conv_node
 
     # deconvolution layers
-    for i in range(levels):
+    for _ in range(levels):
         input_c = input_channels[-2]
         output_c = input_channels.pop(-1)
         deconv_w = np.random.uniform(0, 1, [output_c, input_c, 5, 5]).astype(np.float32)
@@ -154,5 +154,5 @@ def create_relu(input_shape):
     input_shape = ng.impl.PartialShape(input_shape)
     param = ng.parameter(input_shape, dtype=np.float32, name="data")
     result = ng.relu(param, name="out")
-    function  = ng.Function(result, [param], "TestFunction")
+    function = ng.Function(result, [param], "TestFunction")
     return function

@@ -3,7 +3,6 @@
 
 import os
 import tempfile
-import ngraph as ng
 from copy import deepcopy
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
