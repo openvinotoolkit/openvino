@@ -230,7 +230,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     bool need_dump = nodes.size() > 1 || nodes[0].get_partial_shape() != context.model_shape() ||
                      data.m_param->get_layout() != context.target_layout() ||
                      nodes[0].get_element_type() != context.target_element_type() ||
-                     !get_preprocess()->actions().empty();
+                     get_tensor_data()->is_memory_type_set() || !get_preprocess()->actions().empty();
     if (!need_dump) {
         return;
     }
@@ -402,8 +402,8 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
 
     bool need_dump =
         (model_layout != context.target_layout() && get_tensor_data()->is_layout_set()) ||
-        (node.get_element_type() != context.target_element_type() && get_tensor_data()->is_element_type_set() ||
-         !get_postprocess()->actions().empty());
+        (node.get_element_type() != context.target_element_type() && get_tensor_data()->is_element_type_set()) ||
+        !get_postprocess()->actions().empty();
     if (!need_dump) {
         return;
     }

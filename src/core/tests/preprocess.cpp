@@ -1692,6 +1692,15 @@ TEST(pre_post_process, dump_empty) {
     EXPECT_EQ(str.str(), std::string());
 }
 
+TEST(pre_post_process, dump_non_empty) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_memory_type("some_memory_type");
+    std::stringstream str;
+    str << p;
+    EXPECT_NE(str.str(), std::string());
+}
+
 TEST(pre_post_process, dump_preprocess) {
     auto shape = PartialShape{1, 3, 2, 2};
     std::stringstream shape_stream;
