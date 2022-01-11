@@ -602,7 +602,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                     info.partial_shape[batch_index] = batch_size
                     reshape = True
                     batch_found = True
-                elif batch_index == -1 and not batch_found:
+                elif batch_index == -1 and not batch_found and i == len(inputs) - 1:
                     raise Exception(f"Batch dimension is not specified for this model!")
 
         # Data shape
