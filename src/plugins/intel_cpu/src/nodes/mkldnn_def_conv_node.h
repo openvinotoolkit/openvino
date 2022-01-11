@@ -112,21 +112,21 @@ private:
                                 const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
                                 const std::vector<ptrdiff_t> &padL);
 
-            // we need passing of reference to outer class to have access to preallocated sampledCoords and interpWeights
-            virtual void exec(MKLDNNDeformableConvolutionNode *node, const float* src, const float* offsets,
-                const float* weights, const float* modulation, float* dst) = 0;
+            virtual void exec(const float* src, const float* offsets,
+                const float* weights, const float* modulation, float* dst,
+                int *pSampledCoordsVector, float *pInterpWeightsVector) = 0;
             virtual ~DefConvExecutor() = default;
 
         protected:
-            void prepareSamplingWeights(MKLDNNDeformableConvolutionNode *node, const float* offsets,
-                const float* modulation = nullptr, bool enforceRef = false);
+            void prepareSamplingWeights(const float* offsets, const float* modulation = nullptr, bool enforceRef = false);
             jit_def_conv_params jcp = {};
             VectorDims srcStrides;
             VectorDims offStrides;
             VectorDims weiStrides;
             VectorDims modStrides;
             VectorDims dstStrides;
-            MKLDNNDeformableConvolutionNode *dcNode;
+            int *pSampledCoordsVector;
+            float *pInterpWeightsVector;
     };
 
     class DefConvRefExecutor : public DefConvExecutor {
@@ -136,8 +136,9 @@ private:
                             const std::vector<ptrdiff_t> &padL) :
                 DefConvExecutor(defConvAttr, descVector, padL) {}
 
-            void exec(MKLDNNDeformableConvolutionNode *node, const float* src, const float* offsets,
-                const float* weights, const float* modulation, float* dst) override;
+            void exec(const float* src, const float* offsets,
+                const float* weights, const float* modulation, float* dst,
+                int *pSampledCoordsVector, float *pInterpWeightsVector) override;
     };
 
     class DefConvJitExecutor : public DefConvExecutor {
@@ -147,8 +148,9 @@ private:
                             const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector,
                             const std::vector<ptrdiff_t> &padL);
 
-            void exec(MKLDNNDeformableConvolutionNode *node, const float* src, const float* offsets,
-                const float* weights, const float* modulation, float* dst) override;
+            void exec(const float* src, const float* offsets,
+                const float* weights, const float* modulation, float* dst,
+                int *pSampledCoordsVector, float *pInterpWeightsVector) override;
     };
 
     std::shared_ptr<DefConvExecutor> execPtr = nullptr;
