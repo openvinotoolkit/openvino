@@ -98,7 +98,7 @@ class ScatterNDUpdate(ScatterNDBase):
 
 class TFScatterND(Op):
     """
-    TFScatterND operation comes from tf and will be replaced by TFScatterNDDecomposition.
+    TFScatterND operation comes from TensorFlow and will be replaced by TFScatterNDDecomposition.
     """
     op = 'TFScatterND'
     enabled = False

@@ -33,66 +33,35 @@ class TestTFScatterND(CommonTFLayerTest):
             tf_updates = tf.constant(updates)
 
             scatter_nd = tf.scatter_nd(tf_indices, tf_updates, tf.shape(x), name="Operation")
-            rs = tf.add(x, scatter_nd)
-            tf.nn.relu(rs)
+            res = tf.add(x, scatter_nd)
             tf.compat.v1.global_variables_initializer()
 
             tf_net = sess.graph_def
 
         ref_net = None
-        indicies_np = int64_array(indices)
-        updates_np = float32_array(updates)
-        if check_ir_version(10, None, ir_version) and not use_new_frontend:
-            const_for_layer_tests = lambda name, value, shape, shape1: {
-                **{name + '_dd': {'kind': 'data', 'value': value, 'shape': shape1}},
-                **{name: {'kind': 'op', 'type': 'Const'}},
-                **shaped_data(name + '_d', shape)}
-
-            connect_const_for_layer_tests = lambda first_tensor_name, second_tensor_name: [
-                *connect_front(first_tensor_name + '_dd', first_tensor_name),
-                *connect(first_tensor_name, second_tensor_name)]
-
-            nodes_attributes = {
-                **regular_op_with_shaped_data('input', x_shape, {'type': 'Parameter'}),
-                **const_for_layer_tests('indices', indicies_np, indicies_np.shape, indicies_np.shape),
-                **const_for_layer_tests('updates', updates_np, updates_np.shape, updates_np.shape),
-                **const_for_layer_tests('zero_tensor', float32_array(0.0), int64_array([]), int64_array([])),
-                **regular_op_with_shaped_data('broadcast', x_shape, {'type': 'Broadcast'}),
-                **regular_op_with_shaped_data('shapeof', x_shape, {'type': 'Shapeof'}),
-                **regular_op_with_shaped_data('scatter_nd', x_shape, {'type': 'ScatterNDUpdate'}),
-                **regular_op_with_shaped_data('relu', x_shape, {'type': 'ReLU'}),
-                **regular_op_with_shaped_data('sum', x_shape, {'type': 'Add'}),
-                **regular_op_with_shaped_data('result', x_shape, {'type': 'Result'}),
-
-            }
-
-            ref_net = build_graph(nodes_attributes,
-                                  [*connect('input', '0:shapeof'),
-                                   *connect_const_for_layer_tests('zero_tensor', '0:broadcast'),
-                                   *connect('shapeof', '1:broadcast'),
-                                   *connect('broadcast', '0:scatter_nd'),
-                                   *connect_const_for_layer_tests('indices', '1:scatter_nd'),
-                                   *connect_const_for_layer_tests('updates', '2:scatter_nd'),
-                                   *connect('input', '0:sum'),
-                                   *connect('scatter_nd', '1:sum'),
-                                   *connect('sum', '0:relu'),
-                                   *connect('relu', '0:result')])
 
         return tf_net, ref_net
 
-    test_data = [pytest.param(
-        dict(x_shape=[8], indices=[[4], [3], [1], [7]], updates=[9.0, 10.0, 11.0, 12.0]),
-        marks=pytest.mark.precommit),
+    test_data = [
+        pytest.param(dict(x_shape=[8], indices=[[4], [3], [1], [7]], updates=[9.0, 10.0, 11.0, 12.0]),
+                     marks=pytest.mark.precommit),
         pytest.param(dict(x_shape=[4, 4, 4], indices=[[0], [2]], updates= \
             [[[5.0, 5.0, 5.0, 5.0], [6.0, 6.0, 6.0, 6.0], [7.0, 7.0, 7.0, 7.0], [8.0, 8.0, 8.0, 8.0]],
              [[1.0, 1.0, 1.0, 1.0], [2.0, 2.0, 2.0, 2.0], [3.0, 3.0, 3.0, 3.0], [4.0, 4.0, 4.0, 4.0]]])),
+        pytest.param(dict(x_shape=[2, 2], indices=[[0]], updates=[[5.0, 3.0]])),
+        pytest.param(dict(x_shape=[2, 2], indices=[[1, 1]], updates=[5.0])),
         dict(x_shape=[1], indices=[[0]], updates=[3.0]),
         dict(x_shape=[20], indices=[[0], [6], [9], [19], [13]], updates=[3.0, 7.0, -12.0, 4.0, -99.0]),
         dict(x_shape=[4, 2], indices=[[1], [2]], updates=[[9.0, 14.0], [-76.0, 0.0]]),
         dict(x_shape=[4, 4, 4], indices=[[0], [1], [3]], updates=[
             [[5.0, 1.0, 5.0, 13.0], [8.0, 6.0, 6.0, 8.0], [7.0, 0.0, 0.0, 7.0], [8.0, 8.0, 8.0, 8.0]],
             [[0.0, 0.0, 0.0, 0.0], [1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0], [9.0, 10.0, 11.0, 12.0]],
-            [[5.0, 5.0, 5.0, 5.0], [6.0, 6.0, 6.0, 6.0], [7.0, 7.0, 7.0, 7.0], [8.0, 8.0, 8.0, 8.0]]])]
+            [[5.0, 5.0, 5.0, 5.0], [6.0, 6.0, 6.0, 6.0], [7.0, 7.0, 7.0, 7.0], [8.0, 8.0, 8.0, 8.0]]]),
+        dict(x_shape=[2, 2, 2], indices=[[1, 1, 1], [0, 1, 0]], updates=[9.0, 6.3]),
+        dict(x_shape=[2, 2, 2], indices=[[0, 0], [0, 1]], updates=[[6.7, 9.0], [45.0, 8.3]]),
+        dict(x_shape=[2, 2, 2], indices=[[1]], updates=[[[6.7, 9.0], [45.0, 8.3]]]),
+
+    ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
