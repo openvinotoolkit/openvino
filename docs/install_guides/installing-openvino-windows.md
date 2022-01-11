@@ -1,14 +1,5 @@
 # Install and Configure Intel® Distribution of OpenVINO™ toolkit for Windows* 10 {#openvino_docs_install_guides_installing_openvino_windows}
 
-## Introduction
-
-The [OpenVINO™ Toolkit](https://docs.openvinotoolkit.org/latest/index.html) provides following components for installation:
-
-* [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) - This is the engine that runs the deep learning model. It includes a set of libraries for easy inference integration into your applications.
-* [Inference Engine Code Samples](../IE_DG/Samples_Overview.md) - A set of simple command-line applications demonstrating how to utilize OpenVINO capabilities.
-
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
-
 ## System Requirements
 
 @sphinxdirective
@@ -106,7 +97,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
-Among the developer tools you can find e.g. Model Optimizer which imports, converts, and optimizes models, and Model Downloader which gives you access to the collection of pre-trained deep learning public and intel-trained models.  
+Among the model developer tools you can find e.g. Model Optimizer which imports, converts, and optimizes models, and Model Downloader which gives you access to the collection of pre-trained deep learning public and intel-trained models.  
 
 For details, visit [pypi.org](https://pypi.org/project/openvino-dev/) site.
 
