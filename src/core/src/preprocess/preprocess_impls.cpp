@@ -235,6 +235,9 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     if (context.color_format() != ColorFormat::UNDEFINED) {
         str << " (color " << color_format_name(context.color_format()) << ")";
     }
+    if (get_tensor_data()->is_memory_type_set()) {
+        str << " memory type=" << get_tensor_data()->get_memory_type();
+    }
     str << ":" << std::endl;
     if (nodes.size() == 1) {
         str << "    User's input tensor: ";

@@ -1612,7 +1612,12 @@ TEST(pre_post_process, dump_preprocess) {
     auto shape_str = shape_stream.str();
     auto f = create_simple_function(element::f32, shape);
     auto p = PrePostProcessor(f);
-    p.input().tensor().set_element_type(element::u8).set_layout("NHWC").set_spatial_dynamic_shape();
+    p.input()
+        .tensor()
+        .set_element_type(element::u8)
+        .set_layout("NHWC")
+        .set_spatial_dynamic_shape()
+        .set_memory_type("test_memory_type");
     p.input()
         .preprocess()
         .convert_element_type(element::f32)
@@ -1628,9 +1633,9 @@ TEST(pre_post_process, dump_preprocess) {
     std::stringstream stream;
     stream << p;
     auto dump = stream.str();
-    std::cout << dump << std::endl;
     EXPECT_TRUE(dump.find("Input") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("input1") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("memory type=test_memory_type") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Pre-processing steps (7):") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("mean") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("scale") != std::string::npos) << dump;
@@ -1663,9 +1668,9 @@ TEST(pre_post_process, dump_preprocess_multiplane) {
     std::stringstream stream;
     stream << p;
     auto dump = stream.str();
-    std::cout << dump << std::endl;
     EXPECT_TRUE(dump.find("Input") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("input1") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("memory type=") == std::string::npos) << dump;
     EXPECT_TRUE(dump.find("NV12") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("RGB") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Implicit pre-processing steps (1):") != std::string::npos) << dump;
@@ -1700,7 +1705,6 @@ TEST(pre_post_process, dump_postprocess) {
     std::stringstream stream;
     stream << p;
     auto dump = stream.str();
-    std::cout << dump << std::endl;
     EXPECT_TRUE(dump.find("Output") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("output1") != std::string::npos) << dump;
     EXPECT_TRUE(dump.find("Post-processing steps (3):") != std::string::npos) << dump;
@@ -1722,6 +1726,5 @@ TEST(pre_post_process, dump_error) {
     std::stringstream stream;
     stream << p;
     auto dump = stream.str();
-    std::cout << dump << std::endl;
     EXPECT_TRUE(dump.find("Error occurred:") != std::string::npos) << dump;
 }
