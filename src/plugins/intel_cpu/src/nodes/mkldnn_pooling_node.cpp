@@ -219,8 +219,8 @@ void MKLDNNPoolingNode::prepareParams() {
 
     if (isDynamicNode()) {
         if (auto_pad) {
-            data_pad_begin = shaperInference->get_pads_begin();
-            data_pad_end = shaperInference->get_pads_end();
+            data_pad_begin = shapeInference->get_pads_begin();
+            data_pad_end = shapeInference->get_pads_end();
         }
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
@@ -329,8 +329,8 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &input
         auto outDims = shapeInferGeneric({Shape(inDesc->getShape().getStaticDims())});
         outDesc = outDesc->cloneWithNewDims(outDims[0]);
         if (auto_pad) {
-            data_pad_begin = shaperInference->get_pads_begin();
-            data_pad_end = shaperInference->get_pads_end();
+            data_pad_begin = shapeInference->get_pads_begin();
+            data_pad_end = shapeInference->get_pads_end();
         }
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }

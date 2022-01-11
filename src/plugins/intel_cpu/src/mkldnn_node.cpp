@@ -112,7 +112,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
                 std::any_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); });
 
     if (isDynamic) {
-        shaperInference = make_shape_inference(op);
+        shapeInference = make_shape_inference(op);
     }
 
     const auto& rtInfo = op->get_rt_info();
@@ -1427,14 +1427,14 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<ov::Stat
     // collect input values
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
     if (input_value_port_mask) {
-        const auto & iranks = shaperInference->get_input_ranks();
+        const auto & iranks = shapeInference->get_input_ranks();
         for (size_t port = 0; port < iranks.size(); port++) {
             if (input_value_port_mask & (1 << port)) {
                 const auto& memPtr = getParentEdgesAtPort(port)[0]->getMemory();
 
                 ov::Shape shape(memPtr.getStaticDims());
 
-                // use scalar shape {} instead of {1} if required by shaperInference
+                // use scalar shape {} instead of {1} if required by shapeInference
                 if (iranks[port] == 0) {
                     shape = ov::Shape();
                 }
@@ -1448,7 +1448,7 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<ov::Stat
     }
 
     // call shape inference API
-    std::vector<ov::StaticShape> output_shapes = shaperInference->infer(input_shapes, input_values);
+    std::vector<ov::StaticShape> output_shapes = shapeInference->infer(input_shapes, input_values);
 
     std::vector<VectorDims> result(output_shapes.size());
     std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s) {
@@ -1462,15 +1462,16 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
                                                       uint32_t input_value_port_mask) const {
     std::vector<ov::StaticShape> input_shapes;
 
+    input_shapes.reserve(shapes.size());
     for (size_t i = 0; i < shapes.size(); i++)
-        input_shapes.push_back(shapes[i].getStaticDims());
+        input_shapes.emplace_back(shapes[i].getStaticDims());
 
     return shapeInferGeneric(input_shapes, input_value_port_mask);
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(uint32_t input_value_port_mask) const {
     std::vector<ov::StaticShape> input_shapes;
-    const auto & iranks = shaperInference->get_input_ranks();
+    const auto & iranks = shapeInference->get_input_ranks();
 
     input_shapes.reserve(iranks.size());
 

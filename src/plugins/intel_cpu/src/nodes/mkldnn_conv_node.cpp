@@ -1069,8 +1069,8 @@ void MKLDNNConvolutionNode::executeDynamicImpl(mkldnn::stream strm) {
 void MKLDNNConvolutionNode::updatePadding() {
     //update padding.
     if (isDynamicNode() && autoPadding) {
-        paddingL = shaperInference->get_pads_begin();
-        paddingR = shaperInference->get_pads_end();
+        paddingL = shapeInference->get_pads_begin();
+        paddingR = shapeInference->get_pads_end();
     }
 }
 

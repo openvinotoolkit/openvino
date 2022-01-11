@@ -143,7 +143,7 @@ public:
     }
 };
 
-class entryFistPassthrough : public entryBase {
+class entryFirstPassthrough : public entryBase {
 public:
     using entryBase::entryBase;
 
@@ -401,7 +401,7 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return std::make_shared<entryCopy>(op);
     } else if (ov::is_type<ov::opset6::MVN>(op) || ov::is_type<ov::opset1::LRN>(op) ||
                ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset4::Swish>(op)) {
-        return std::make_shared<entryFistPassthrough>(op);
+        return std::make_shared<entryFirstPassthrough>(op);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseLogical>(op)) {

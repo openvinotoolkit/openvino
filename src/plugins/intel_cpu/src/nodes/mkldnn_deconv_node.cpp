@@ -257,8 +257,8 @@ std::pair<VectorDims, VectorDims> MKLDNNDeconvolutionNode::makeDummyInOutShape()
             inShape = Shape(inputDims);
         }
         outShape = Shape(shapeInferInternal(inShape.getStaticDims(), lastOutputSpatialDims));
-        paddingL = shaperInference->get_pads_begin();
-        paddingR = shaperInference->get_pads_end();
+        paddingL = shapeInference->get_pads_begin();
+        paddingR = shapeInference->get_pads_end();
     }
     return {inShape.getStaticDims(), outShape.getStaticDims()};
 }
@@ -445,7 +445,7 @@ VectorDims MKLDNNDeconvolutionNode::shapeInferInternal(const VectorDims &inDims,
                                                                               outSpDims.data())});
     }
 
-    std::vector<ov::StaticShape> outputShapes = shaperInference->infer(inputShapes, inputValues);
+    std::vector<ov::StaticShape> outputShapes = shapeInference->infer(inputShapes, inputValues);
 
     return outputShapes.back().to_shape();
 }
@@ -572,8 +572,8 @@ void MKLDNNDeconvolutionNode::prepareParams() {
         }
         pAttrLocal = pAttr;
         if (autoPad || externOutShape) {
-            paddingL = shaperInference->get_pads_begin();
-            paddingR = shaperInference->get_pads_end();
+            paddingL = shapeInference->get_pads_begin();
+            paddingR = shapeInference->get_pads_end();
         }
         initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());
     } else {

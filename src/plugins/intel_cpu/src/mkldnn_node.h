@@ -774,7 +774,7 @@ protected:
 
     std::vector<VectorDims> lastInputDims = {};
 
-    std::shared_ptr<IShapeInfer> shaperInference;
+    std::shared_ptr<IShapeInfer> shapeInference;
 
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
