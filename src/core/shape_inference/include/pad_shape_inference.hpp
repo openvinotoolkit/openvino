@@ -76,8 +76,8 @@ void shape_infer(const Pad* op,
         std::vector<int64_t> pads_begin_coord;
         std::vector<int64_t> pads_end_coord;
 
-        get_data_as_int64<T>(1, op, pads_begin_coord, constant_data);
-        get_data_as_int64<T>(2, op, pads_end_coord, constant_data);
+        OPENVINO_ASSERT(get_data_as_int64<T>(1, op, pads_begin_coord, constant_data));
+        OPENVINO_ASSERT(get_data_as_int64<T>(2, op, pads_end_coord, constant_data));
 
         // special check for static shape inference
         NODE_VALIDATION_CHECK(op,
