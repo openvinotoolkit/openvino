@@ -51,7 +51,7 @@ public:
 
 private:
     element::Type m_output_type;
-    bool m_with_right_bound;
+    bool m_with_right_bound{true};
 };
 }  // namespace v3
 }  // namespace op

@@ -63,6 +63,7 @@
 #include "detection_output_shape_inference.hpp"
 #include "select_shape_inference.hpp"
 #include "shuffle_channels_shape_inference.hpp"
+#include "broadcast_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "tile_shape_inference.hpp"
 #include "utils.hpp"
@@ -241,6 +242,10 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::SpaceToDepth>(op)) {
         shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset4::Broadcast>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Broadcast>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
