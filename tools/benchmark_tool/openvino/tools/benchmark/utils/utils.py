@@ -68,7 +68,10 @@ def get_element_type(precision):
     }
     if precision in format_map.keys():
         return format_map[precision]
-    raise Exception("Can't find openvino element type for precision: " + precision)
+    for element_type in format_map.values():
+        if element_type.get_type_name() == precision:
+            return element_type
+    raise Exception(f"Undefined precision: '{precision}' !")
 
 
 def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
@@ -128,34 +131,17 @@ def _parse_arg_map(arg_map: str):
     return parsed_map
 
 
-def get_precision(element_type: Type):
-    format_map = {
-      'f32' : 'FP32',
-      'i32'  : 'I32',
-      'i64'  : 'I64',
-      'f16' : 'FP16',
-      'i16'  : 'I16',
-      'u16'  : 'U16',
-      'i8'   : 'I8',
-      'u8'   : 'U8',
-      'boolean' : 'BOOL',
-    }
-    if element_type.get_type_name() in format_map.keys():
-        return format_map[element_type.get_type_name()]
-    raise Exception("Can't find  precision for openvino element type: " + str(element_type))
-
-
 def print_inputs_and_outputs_info(model: Model):
     inputs = model.inputs
     input_names = get_input_output_names(inputs)
     for i in range(len(inputs)):
-        logger.info(f"Model input '{input_names[i]}' precision {get_precision(inputs[i].element_type)}, "
+        logger.info(f"Model input '{input_names[i]}' precision {inputs[i].element_type.get_type_name()}, "
                                                     f"dimensions ({str(inputs[i].node.layout)}): "
                                                     f"{' '.join(str(x) for x in inputs[i].partial_shape)}")
     outputs = model.outputs
     output_names = get_input_output_names(outputs)
     for i in range(len(outputs)):
-        logger.info(f"Model output '{output_names[i]}' precision {get_precision(outputs[i].element_type)}, "
+        logger.info(f"Model output '{output_names[i]}' precision {outputs[i].element_type.get_type_name()}, "
                                         f"dimensions ({str(outputs[i].node.layout)}): "
                                         f"{' '.join(str(x) for x in  outputs[i].partial_shape)}")
 
