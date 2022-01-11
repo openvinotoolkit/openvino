@@ -360,6 +360,11 @@ def run(args):
         elif benchmark.inference_only and not allow_inference_only_or_sync:
             raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
 
+        if benchmark.inference_only:
+            logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
+        else:
+            logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
+
         # update batch size in case dynamic network with one data_shape
         if benchmark.inference_only and batch_size.is_dynamic:
             batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
