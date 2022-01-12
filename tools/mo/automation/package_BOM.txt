@@ -550,6 +550,7 @@ openvino/tools/mo/front/tf/faster_rcnn_support_api_v1.10.json
 openvino/tools/mo/front/tf/faster_rcnn_support_api_v1.13.json
 openvino/tools/mo/front/tf/faster_rcnn_support_api_v1.14.json
 openvino/tools/mo/front/tf/faster_rcnn_support_api_v1.15.json
+openvino/tools/mo/front/tf/faster_rcnn_support_api_v1.15_do_not_swap_input_of_detection_output.json
 openvino/tools/mo/front/tf/faster_rcnn_support_api_v1.7.json
 openvino/tools/mo/front/tf/faster_rcnn_support_api_v2.0.json
 openvino/tools/mo/front/tf/faster_rcnn_support_api_v2.4.json
