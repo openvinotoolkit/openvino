@@ -71,7 +71,7 @@ public:
     ExecutableNetwork& operator=(ExecutableNetwork&& other) = default;
 
     /**
-     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @brief Destructor preserves unloading order of implementation object and reference to library
      */
     ~ExecutableNetwork();
 

@@ -19,8 +19,6 @@ class RemoteContext;
 
 /**
  * @brief Remote memory access and interpretation API
- *
- * It can throw exceptions safely for the application, where it is properly handled.
  */
 class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
@@ -31,10 +29,16 @@ public:
      * @brief Checks openvino remote type
      * @param tensor tensor which type will be checked
      * @param type_info map with remote object runtime info
-     * @throw Exception if type check with specified paramters is not pass
+     * @throw Exception if type check with specified parameters failed
      */
     static void type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info = {});
 
+    /**
+     * @brief Access of host memory is not available for RemoteTensor
+     * To access a device specific memory, cast to specific RemoteTensor derived object and works with its
+     * properties or parse device memory properies via RemoteTensor::get_params
+     * @return Nothing, throws an exception
+     */
     void* data(const element::Type) = delete;
 
     template <typename T>

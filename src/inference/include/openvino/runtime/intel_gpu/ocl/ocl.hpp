@@ -38,7 +38,7 @@ using gpu_handle_param = void*;
 class ClBufferTensor : public RemoteTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
@@ -82,7 +82,7 @@ public:
 class ClImage2DTensor : public RemoteTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
@@ -126,7 +126,7 @@ public:
 class USMTensor : public RemoteTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
@@ -151,7 +151,7 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with OpenCL context object.
  * The plugin object derived from this class can be obtained either with
- * ExecutableNetwork::get_context() or Core::create_context() calls.
+ * CompiledModel::get_context() or Core::create_context() calls.
  */
 class ClContext : public RemoteContext {
 protected:
@@ -164,8 +164,8 @@ public:
     // Needed to make create_tensor overloads from base class visible for user
     using RemoteContext::create_tensor;
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
-     * @param remote_context remote context to check
+     * @brief Checks that type defined runtime parameters are presented in remote object
+     * @param remote_context A remote context to check
      */
     static void type_check(const RemoteContext& remote_context) {
         RemoteContext::type_check(remote_context,
