@@ -137,5 +137,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.telemetry = telemetry;
     } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
         m_extensions.progress_reporter = progress_reporter;
+    } else if (auto analysis_extension = std::dynamic_pointer_cast<ModelAnalysisExtension>(extension)) {
+        m_extensions.model_analysis = analysis_extension;
     }
 }

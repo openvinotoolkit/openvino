@@ -41,9 +41,11 @@ from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simpl
 from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.analysis.json_print_new_frontend import json_model_analysis_dump
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension
+from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, \
+    ModelAnalysisExtension, ModelAnalysisData
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -323,6 +325,7 @@ def prepare_ir(argv):
         t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
         moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
+        moc_front_end.add_extension(ModelAnalysisExtension(json_model_analysis_dump))
         ngraph_function = moc_pipeline(argv, moc_front_end)
     else:
         t.send_event("mo", "conversion_method", "mo_legacy")
