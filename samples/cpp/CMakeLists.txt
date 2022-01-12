@@ -231,7 +231,7 @@ macro(ie_add_sample)
     if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
         add_clang_format_target(${IE_SAMPLE_NAME}_clang FOR_SOURCES ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
     endif()
-    if(NOT c_sample)
+    if(COMMAND ov_ncc_naming_style AND NOT c_sample)
         ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
