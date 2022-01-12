@@ -163,13 +163,13 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     auto function = m_impl->m_function;
     std::tuple<std::unordered_set<std::string>, bool> existing_names{std::unordered_set<std::string>{}, false};
     FunctionGuard guard(function);
-    bool tensor_data_updated = false;
+    bool need_validate = false;
     auto results = function->get_results();
     auto parameters_list = std::list<std::shared_ptr<opset8::Parameter>>(function->get_parameters().begin(),
                                                                          function->get_parameters().end());
 
     for (const auto& input_info : m_impl->m_inputs) {
-        tensor_data_updated |= input_info.m_impl->build(function, existing_names, parameters_list);
+        need_validate |= input_info.m_impl->build(function, existing_names, parameters_list);
     }
 
     // Add parameters with right order
@@ -181,7 +181,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         function->add_parameters(parameters_vec);
     }
     // Validate nodes after preprocessing if needed (no need to repeat it after post-processing)
-    if (tensor_data_updated) {
+    if (need_validate) {
         function->validate_nodes_and_infer_types();
     }
 

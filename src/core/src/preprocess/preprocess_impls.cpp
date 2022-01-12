@@ -155,7 +155,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
                                      std::list<std::shared_ptr<opset8::Parameter>>& parameters_list) {
     auto data = create_new_params(existing_names, model);
     auto consumers = data.m_param->output(0).get_target_inputs();
-    bool tensor_data_updated = false;
+    bool need_validate = false;
 
     PreprocessingContext context(data.m_tensor_layout);
     context.color_format() = get_tensor_data()->get_color_format();
@@ -168,7 +168,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
     for (const auto& action : get_preprocess()->actions()) {
         auto action_result = action.m_op(nodes, model, context);
         nodes = std::get<0>(action_result);
-        tensor_data_updated |= std::get<1>(action_result);
+        need_validate |= std::get<1>(action_result);
     }
 
     OPENVINO_ASSERT(nodes.size() == 1,
@@ -191,7 +191,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
 
     auto node = nodes[0];
     if (node.get_partial_shape() != context.model_shape()) {
-        tensor_data_updated = true;  // Trigger revalidation if input parameter shape is changed
+        need_validate = true;  // Trigger revalidation if input parameter shape is changed
     }
     // Check final shape
     OPENVINO_ASSERT(node.get_partial_shape().compatible(context.model_shape()),
@@ -204,6 +204,10 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
 
     // Replace parameter
     for (auto consumer : consumers) {
+        if (dynamic_cast<ov::opset8::Result*>(consumer.get_node())) {
+            // Some result points to old parameter (Param->Result case), need to trigger revalidation
+            need_validate = true;
+        }
         consumer.replace_source_output(node);
     }
     {
@@ -215,7 +219,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
         param_it = parameters_list.erase(param_it);
         parameters_list.insert(param_it, data.m_new_params.begin(), data.m_new_params.end());
     }
-    return tensor_data_updated;
+    return need_validate;
 }
 
 void InputInfo::InputInfoImpl::dump(std::ostream& str,

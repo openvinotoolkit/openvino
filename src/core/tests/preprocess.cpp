@@ -24,6 +24,16 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
+static std::shared_ptr<Model> create_trivial(element::Type type, const PartialShape& shape) {
+    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+    data1->set_friendly_name("input1");
+    data1->get_output_tensor(0).set_names({"tensor_input1"});
+    auto res = std::make_shared<op::v0::Result>(data1);
+    res->set_friendly_name("Result1");
+    res->get_output_tensor(0).set_names({"tensor_output1"});
+    return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
+}
+
 template <int N>
 static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialShape& shape) {
     ResultVector res;
@@ -35,7 +45,7 @@ static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialS
         data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
         auto op1 = std::make_shared<op::v0::Relu>(data1);
         op1->set_friendly_name("Relu" + index_str);
-        auto res1 = std::make_shared<op::v0::Result>(op1);
+        auto res1 = std::make_shared<op::v0::Result>(data1);
         res1->set_friendly_name("Result" + index_str);
         res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
         params.push_back(data1);
@@ -1693,6 +1703,20 @@ TEST(pre_post_process, exception_safety) {
 
     EXPECT_EQ(f->output(1).get_node_shared_ptr()->get_friendly_name(), out_name1);
     EXPECT_EQ(f->output(1).get_tensor().get_names(), out_tensor_names1);
+}
+
+TEST(pre_post_process, layout_on_trivial) {
+    auto f = create_trivial(element::f32, Shape{1, 440});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NC").set_element_type(element::f32);
+    p.input().model().set_layout("NC");
+    p.output().tensor().set_element_type(element::f32);
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 440}));
+    f = p.build();
+    EXPECT_EQ(layout::get_layout(f->input()), "NC") << layout::get_layout(f->input()).to_string();
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 440}));
+    ov::set_batch(f, 2);
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{2, 440}));
 }
 
 TEST(pre_post_process, dump_empty) {
