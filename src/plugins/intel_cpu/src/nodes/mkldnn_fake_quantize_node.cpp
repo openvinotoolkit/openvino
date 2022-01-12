@@ -903,15 +903,9 @@ struct FakeQuantKey {
     }
 
     bool operator==(const FakeQuantKey& rhs) const {
-        bool result = jqp.c == rhs.jqp.c && jqp.is_planar == rhs.jqp.is_planar &&
-                      jqp.src_prc == rhs.jqp.src_prc && jqp.wei_prc == rhs.jqp.wei_prc &&
-                      jqp.dst_prc == rhs.jqp.dst_prc && jqp.op_type == rhs.jqp.op_type;
-        for (size_t i = 0; i < jqp.s_str.size(); i++) {
-            result = result && jqp.s_str[i] == rhs.jqp.s_str[i];
-        }
-        for (size_t i = 0; i < jqp.d_str.size(); i++) {
-            result = result && jqp.d_str[i] == rhs.jqp.d_str[i];
-        }
+        bool result = jqp.c == rhs.jqp.c && jqp.is_planar == rhs.jqp.is_planar && jqp.src_prc == rhs.jqp.src_prc &&
+                      jqp.wei_prc == rhs.jqp.wei_prc && jqp.dst_prc == rhs.jqp.dst_prc &&
+                      jqp.op_type == rhs.jqp.op_type && jqp.s_str == rhs.jqp.s_str && jqp.d_str == rhs.jqp.d_str;
         return result;
     }
 };
