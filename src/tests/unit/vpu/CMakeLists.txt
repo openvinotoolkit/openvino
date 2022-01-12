@@ -4,8 +4,6 @@
 
 set(TARGET_NAME vpuUnitTests)
 
-disable_deprecated_warnings()
-
 include(${XLINK_DIR}/XLink.cmake)
 
 addIeTargetTest(
