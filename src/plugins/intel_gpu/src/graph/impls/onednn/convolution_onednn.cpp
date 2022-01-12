@@ -147,12 +147,11 @@ protected:
 
         auto& input = arg.get_dependency(0);
         auto& weights = arg.get_dependency(1);
-        auto spatials_rank = cldnn::format::spatial_num(input.get_output_layout().format);
 
-        auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
-        auto dilation = onednn::convert_spatials(prim->dilation, spatials_rank);
-        auto pad_l = onednn::convert_spatials(prim->pad, spatials_rank);
-        auto pad_r = onednn::convert_spatials(prim->pad, spatials_rank);
+        dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
+        dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
+        dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
+        dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
         auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);

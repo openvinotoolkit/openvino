@@ -40,10 +40,10 @@ TEST(gpu_streams, can_create_networks_for_stream) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -69,7 +69,7 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
     topology topology(
             input_layout("input", input0_layout),
             data("weights", weights),
-            convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
+            convolution("conv", "input", { "weights" }, { 2, 1 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
     auto prog = program::build_program(engine, topology, build_options());
@@ -102,10 +102,10 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
 
     ASSERT_EQ(wmem0, wmem1);
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 2);
     EXPECT_EQ(x_size, 3);
@@ -133,7 +133,7 @@ TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
     topology topology(
             input_layout("input", input0_layout),
             mutable_data("weights", weights),
-            convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
+            convolution("conv", "input", { "weights" }, { 2, 1 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
     auto prog = program::build_program(engine, topology, build_options());
@@ -170,10 +170,10 @@ TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
     // check that initial memory is reused by the primary stream
     ASSERT_EQ(wmem0, weights);
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(y_size, 2);
     EXPECT_EQ(x_size, 3);

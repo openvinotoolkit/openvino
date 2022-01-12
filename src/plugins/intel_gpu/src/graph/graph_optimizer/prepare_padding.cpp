@@ -8,10 +8,11 @@
 #include "program_node.h"
 #include "pass_manager.h"
 #include "convolution_inst.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils.hpp"
 #include <algorithm>
 
 using namespace cldnn;
+using namespace ov::runtime::intel_gpu;
 
 void prepare_padding::run(program& p) {
     if (output_size_handling_enabled) {
@@ -28,7 +29,7 @@ void prepare_padding::run(program& p) {
                 continue;
 
             auto add_required_padding = [&p](program_node& node, padding& needed_padding) {
-                // Add extra reorder if a previous node or one of its user nodes is an onednn kernel not to add padding to the onednn kernel
+                // Add extra reorder for cldnn primitive to handle required padding if needed
                 auto& input = node.get_dependency(0);
                 bool is_usr_onednn = false;
                 for (auto& input_usr : input.get_users())
@@ -87,7 +88,7 @@ void prepare_padding::run(program& p) {
                                                                                filter_size,
                                                                                prim->pad,
                                                                                prim->stride,
-                                                                               {1, 1, 1, 1},
+                                                                               ov::Strides(prim->stride.size(), 1),
                                                                                true,
                                                                                1);
 
@@ -101,13 +102,18 @@ void prepare_padding::run(program& p) {
 
                 padding needed_padding;
                 // WA for this format. sliding window needs to be fixed --perf degradation for IncepctionV1 type models
+                tensor size(1);
+                for (size_t i = 0; i < prim->size.size(); i++) {
+                    size.spatial[i] = prim->size[prim->size.size() - i - 1];
+                }
+
                 if (node->get_output_layout().format == format::b_fs_yx_fsv16)
                     needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                               prim->output_size,
-                                                                              prim->size,
-                                                                              prim->pad,
+                                                                              size,
+                                                                              ov::CoordinateDiff(prim->pad.begin(), prim->pad.end()),
                                                                               prim->stride,
-                                                                              {1, 1, 1, 1},
+                                                                              ov::Strides(prim->size.size(), 1),
                                                                               false,
                                                                               1);
                 else
@@ -172,32 +178,43 @@ void prepare_padding::run(program& p) {
         auto& filter_node = node.as<convolution>().weights(0);
         auto filter_prim = filter_node.get_primitive();
 
-        layout filter_layout = filter_node.get_output_layout();
+        layout filter_layout = filter_node.get_output_layout().convert_to_weights_layout(conv->grouped_weights_shape);
 
         // Compute initial required paddings for primitive used as input for convolution.
         auto pad = conv->pad;
         auto stride = conv->stride;
         auto dilation = conv->dilation;
+        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
-        auto input_limit_x = -pad.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
-                             (filter_layout.size.spatial[0] - 1) * dilation.spatial[0] + 1;
-        auto input_limit_y = -pad.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
-                             (filter_layout.size.spatial[1] - 1) * dilation.spatial[1] + 1;
-        auto input_limit_z = -pad.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
-                             (filter_layout.size.spatial[2] - 1) * dilation.spatial[2] + 1;
+        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
 
-        auto padding_begin_x = std::max(pad.spatial[0], 0);
-        auto padding_begin_y = std::max(pad.spatial[1], 0);
-        auto padding_begin_z = std::max(pad.spatial[2], 0);
-        auto padding_end_x = std::max(input_limit_x - prev_prim_output_layout.size.spatial[0], 0);
-        auto padding_end_y = std::max(input_limit_y - prev_prim_output_layout.size.spatial[1], 0);
-        auto padding_end_z = std::max(input_limit_z - prev_prim_output_layout.size.spatial[2], 0);
+        tensor::value_type pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
+        tensor::value_type pad_y = pad.size() >= 2 ? pad[pad.size() - 2] : 0;
+        tensor::value_type pad_x = pad.size() >= 1 ? pad[pad.size() - 1] : 0;
+
+        auto input_limit_x = -pad_x + (conv_layout.spatial(0) - 1) * stride_x +
+                             (filter_layout.spatial(0) - 1) * dilation_x + 1;
+        auto input_limit_y = -pad_y + (conv_layout.spatial(1) - 1) * stride_y +
+                             (filter_layout.spatial(1) - 1) * dilation_y + 1;
+        auto input_limit_z = -pad_z + (conv_layout.spatial(2) - 1) * stride_z +
+                             (filter_layout.spatial(2) - 1) * dilation_z + 1;
+
+        auto padding_begin_x = std::max(pad_x, 0);
+        auto padding_begin_y = std::max(pad_y, 0);
+        auto padding_begin_z = std::max(pad_z, 0);
+        auto padding_end_x = std::max<tensor::value_type>(input_limit_x - prev_prim_output_layout.spatial(0), 0);
+        auto padding_end_y = std::max<tensor::value_type>(input_limit_y - prev_prim_output_layout.spatial(1), 0);
+        auto padding_end_z = std::max<tensor::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
 
         // Adjust right padding, so entire buffer size in X dimension is properly aligned.
         // TODO: NOTE: Will be reenabled with next check-in once heuristic for line-aligned algorithm will be added.
         // auto needed_buffer_size_x = static_cast<cldnn::tensor::value_type>(
-        //    round_up_to(left_padding + prev_prim_output_layout.size.spatial[0] + right_padding, 16));
-        // right_padding = needed_buffer_size_x - left_padding - prev_prim_output_layout.size.spatial[0];
+        //    round_up_to(left_padding + prev_prim_output_layout.spatial(0) + right_padding, 16));
+        // right_padding = needed_buffer_size_x - left_padding - prev_prim_output_layout.spatial(0);
 
         cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z}, {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
         needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
@@ -238,19 +255,31 @@ void prepare_padding::run(program& p) {
         auto stride = conv->stride;
         auto dilation = conv->dilation;
 
-        auto input_limit_x = -pad.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
-                             (filter_layout.size.spatial[0] - 1) * dilation.spatial[0] + 1;
-        auto input_limit_y = -pad.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
-                             (filter_layout.size.spatial[1] - 1) * dilation.spatial[1] + 1;
-        auto input_limit_z = -pad.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
-                             (filter_layout.size.spatial[2] - 1) * dilation.spatial[2] + 1;
+        auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+        auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+        auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
-        auto padding_begin_x = std::max(pad.spatial[0], 0);
-        auto padding_begin_y = std::max(pad.spatial[1], 0);
-        auto padding_begin_z = std::max(pad.spatial[2], 0);
-        auto padding_end_x = std::max(input_limit_x - prev_prim_output_layout.size.spatial[0], 0);
-        auto padding_end_y = std::max(input_limit_y - prev_prim_output_layout.size.spatial[1], 0);
-        auto padding_end_z = std::max(input_limit_z - prev_prim_output_layout.size.spatial[2], 0);
+        auto dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+        auto dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+        auto dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+
+        auto pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
+        auto pad_y = pad.size() >= 2 ? pad[pad.size() - 2] : 0;
+        auto pad_x = pad.size() >= 1 ? pad[pad.size() - 1] : 0;
+
+        auto input_limit_x = -pad_x + (conv_layout.spatial(0) - 1) * stride_x +
+                             (filter_layout.spatial(0) - 1) * dilation_x + 1;
+        auto input_limit_y = -pad_y + (conv_layout.spatial(1) - 1) * stride_y +
+                             (filter_layout.spatial(1) - 1) * dilation_y + 1;
+        auto input_limit_z = -pad_z + (conv_layout.spatial(2) - 1) * stride_z +
+                             (filter_layout.spatial(2) - 1) * dilation_z + 1;
+
+        auto padding_begin_x = std::max<tensor::value_type>(pad_x, 0);
+        auto padding_begin_y = std::max<tensor::value_type>(pad_y, 0);
+        auto padding_begin_z = std::max<tensor::value_type>(pad_z, 0);
+        auto padding_end_x = std::max<tensor::value_type>(input_limit_x - prev_prim_output_layout.spatial(0), 0);
+        auto padding_end_y = std::max<tensor::value_type>(input_limit_y - prev_prim_output_layout.spatial(1), 0);
+        auto padding_end_z = std::max<tensor::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
 
         cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z}, {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
         needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);

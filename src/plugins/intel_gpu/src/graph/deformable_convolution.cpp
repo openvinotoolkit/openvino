@@ -5,7 +5,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "deformable_convolution_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
@@ -90,10 +89,10 @@ std::string deformable_interp_inst::to_string(deformable_interp_node const& node
     std::stringstream primitive_description;
 
     json_composite interp_info;
-    interp_info.add("stride", strd.to_string());
-    interp_info.add("pad", desc->pad.to_string());
+    interp_info.add("stride", cldnn::to_string(strd));
+    interp_info.add("pad", cldnn::to_string(desc->pad));
     interp_info.add("split", split);
-    interp_info.add("dilation", dilation.to_string());
+    interp_info.add("dilation", cldnn::to_string(dilation));
     interp_info.add("deformable_groups", desc->deformable_groups);
     interp_info.add("groups", desc->groups);
     interp_info.add("bilinear_interpolation_pad", desc->bilinear_interpolation_pad);
