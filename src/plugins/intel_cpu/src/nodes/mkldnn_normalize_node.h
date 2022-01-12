@@ -39,6 +39,8 @@ struct jit_normalize_call_args {
     size_t dst_stride;
     size_t work_amount;
     size_t oc_off;
+    //ptr to array of post op inputs pointers (flat list)
+    const void* post_op_data;
 };
 
 struct jit_uni_normalize_modulo_kernel {
@@ -122,7 +124,7 @@ private:
     class NormalizeL2Executor {
     public:
         NormalizeL2Executor() = default;
-        virtual void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) = 0;
+        virtual void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void *post_ops_data) = 0;
         virtual ~NormalizeL2Executor() = default;
 
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
@@ -163,6 +165,8 @@ private:
     template <typename in_data_t, typename out_data_t> struct NormalizeL2ReferenceExecutor;
 
     mkldnn::primitive_attr kernel_attrs;
+
+    std::vector<const void*> postOpsDataPtrs;
 
     void setPostOps(mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights = false);
 
