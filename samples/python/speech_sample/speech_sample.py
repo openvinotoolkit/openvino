@@ -94,6 +94,7 @@ def main():
         for i in range(len(model.outputs)):
             ppp.output(i).tensor().set_element_type(Type.f32)
 
+        print(ppp) # Debug print, don't merge
         model = ppp.build()
 
         if args.context_window_left == args.context_window_right == 0:
