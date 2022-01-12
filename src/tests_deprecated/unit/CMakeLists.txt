@@ -53,7 +53,7 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
     endif()
 endif()
 
-if (ENABLE_MYRIAD)
+if (ENABLE_INTEL_VPU)
     include(${XLINK_DIR}/XLink.cmake)
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -107,7 +107,7 @@ endif()
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-error=inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-error=inconsistent-missing-override >)
 
-if (ENABLE_MYRIAD)
+if (ENABLE_INTEL_VPU)
     target_compile_definitions(${TARGET_NAME} PRIVATE __PC__)
     target_link_libraries(${TARGET_NAME} PRIVATE mvnc vpu_graph_transformer_test_static)
 endif ()
