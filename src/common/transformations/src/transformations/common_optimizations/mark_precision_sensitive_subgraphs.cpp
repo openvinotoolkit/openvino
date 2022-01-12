@@ -25,21 +25,20 @@ bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_p
     for (auto& r : f->get_sinks())
         nodes.emplace_back(r);
 
+    auto markup_func = [](shared_ptr<Node> node) {
+        if (ov::is_type<ov::opset8::Constant>(node)) {
+            ov::disable_fp16_compression(node);
+        }
+    };
+
     while (!nodes.empty()) {
         auto curr_node = nodes.front();
         nodes.pop_front();
         if (visited.count(curr_node))
             continue;
         for (auto& input : curr_node->inputs()) {
-            if (ov::is_precision_sensitive(input)) {
-                auto markup_func = [](shared_ptr<Node> node) {
-                    if (ov::is_type<ov::opset8::Constant>(node)) {
-                        ov::disable_fp16_compression(node);
-                    }
-                };
-
+            if (ov::is_precision_sensitive(input))
                 ngraph::op::util::visit_shape_path(input.get_source_output().get_node_shared_ptr(), visited, markup_func);
-            }
         }
         visited.insert(curr_node);
 
