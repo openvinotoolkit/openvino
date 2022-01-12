@@ -78,6 +78,9 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
         if (simd16_exception_1 || simd16_exception_2)
             tuning_data.sub_group_size = 16;
     }
+    if (output_feature == 1024 & output_batch == 128 && input_feature % 1024 == 0 && input_batch == 128) {
+        tuning_data.sub_group_size = 16;
+    }
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
 
@@ -230,9 +233,9 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        std::vector<std::string> idx_order = {"batch", "feature", "0", "0"};
+        std::vector<std::string> idx_order = { "batch", "feature", "0", "0" };
         if (output.GetLayout() == DataLayout::bfyx)
-            idx_order = {"batch", "skip_f", "feature", "0"};
+            idx_order = { "batch", "skip_f", "feature", "0" };
 
         FusedOpsConfiguration conf = { "", idx_order, "dequantized", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
@@ -264,6 +267,6 @@ KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params, const
 }
 
 KernelsPriority FullyConnectedKernelMMAD::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return FORCE_PRIORITY_7;
+    return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector
