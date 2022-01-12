@@ -188,10 +188,6 @@ TEST_F(LogUtilsFormatTest, logPrintFormat_trace) {
             });
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
     LOG_TRACE(true, "test", "TRACE");
-    std::cout << "=========" << printResult << std::endl;
     EXPECT_TRUE(std::regex_search(printResult, regex));
 }
-
-
-
 
