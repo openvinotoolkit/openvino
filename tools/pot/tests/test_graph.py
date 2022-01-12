@@ -252,13 +252,13 @@ def test_multibranch_propagation_without_fq_moving():
 MODELS_WITH_LSTM = [
     ('lstm_example', 'pytorch', {
         'LSTM_15/TensorIterator/22/variable_1':
-            ['Assign_304'],
+            ['Assign_298'],
         'LSTM_15/TensorIterator/24/variable_2':
-            ['Assign_311'],
+            ['Assign_305'],
         'LSTM_19/TensorIterator/22/variable_1':
-            ['Assign_333'],
+            ['Assign_327'],
         'LSTM_19/TensorIterator/24/variable_2':
-            ['Assign_340']
+            ['Assign_334']
     })
 ]
 
