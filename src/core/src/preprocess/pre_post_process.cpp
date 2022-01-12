@@ -392,16 +392,17 @@ std::shared_ptr<Model> PrePostProcessor::build() {
 
         auto net_shape = param->get_partial_shape();
         auto new_param_shape = net_shape;
-        if (input->get_tensor_data()->is_shape_set()) {
-            new_param_shape = input->get_tensor_data()->get_shape();
+        auto model_layout = param->get_layout();
+        if (model_layout.empty() && input->get_tensor_data()->is_layout_set()) {
+            model_layout = input->get_preprocess()->propagate_layout(input->get_tensor_data()->get_layout());
         }
-        if (input->get_tensor_data()->is_layout_set() && !param->get_layout().empty() &&
-            param->get_layout() != input->get_tensor_data()->get_layout()) {
+        if (input->get_tensor_data()->is_layout_set() && !model_layout.empty() &&
+            model_layout != input->get_tensor_data()->get_layout()) {
             auto sq_layout = Layout();
             // Find if some squeeze is needed between model and tensor
             // E.g. model=NCHW, tensor=HWC
             std::tie(new_param_shape, sq_layout) =
-                layout::utils::find_squeeze(param->get_layout(), net_shape, input->get_tensor_data()->get_layout());
+                layout::utils::find_squeeze(model_layout, net_shape, input->get_tensor_data()->get_layout());
             // Find transpose between model and tensor layouts and update tensor shape
             auto net_to_tensor =
                 layout::utils::find_permutation(sq_layout, new_param_shape, input->get_tensor_data()->get_layout());
@@ -415,14 +416,15 @@ std::shared_ptr<Model> PrePostProcessor::build() {
         } else {
             Layout new_layout;
             std::tie(new_param_shape, new_layout) =
-                input->get_preprocess()->calculate_param_shape(new_param_shape, param->get_layout());
+                input->get_preprocess()->calculate_param_shape(new_param_shape, model_layout);
             if (!input->get_tensor_data()->is_layout_set()) {
                 // Reusing param's layout according to converted calculated layout
                 input->get_tensor_data()->set_layout(new_layout);
             }
         }
-
-        if (input->get_tensor_data()->is_spatial_shape_set()) {
+        if (input->get_tensor_data()->is_shape_set()) {
+            new_param_shape = input->get_tensor_data()->get_shape();
+        } else if (input->get_tensor_data()->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->get_tensor_data()->get_layout(), new_param_shape);
             auto width_idx = get_and_check_width_idx(input->get_tensor_data()->get_layout(), new_param_shape);
             if (input->get_tensor_data()->is_spatial_shape_dynamic()) {
@@ -487,7 +489,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
 
         PreprocessingContext context(input->get_tensor_data()->get_layout());
         context.color_format() = input->get_tensor_data()->get_color_format();
-        context.target_layout() = param->get_layout();
+        context.target_layout() = model_layout;
         context.model_shape() = param->get_partial_shape();
         context.target_element_type() = param->get_element_type();
 
