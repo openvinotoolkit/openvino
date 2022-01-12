@@ -39,7 +39,7 @@ public:
     }
 
 private:
-    size_t m_max_rois;
+    size_t m_max_rois{0};
 
     template <class T>
     friend void shape_infer(ExperimentalDetectronTopKROIs* op,
