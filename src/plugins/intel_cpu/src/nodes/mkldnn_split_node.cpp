@@ -135,23 +135,23 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
         config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
-        config.inConfs[0].inPlace = -1;
-        config.inConfs[0].constant = false;
-        config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, srcShape));
-        config.inConfs[1].inPlace = -1;
-        config.inConfs[1].constant = true;
-        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{1}));
+        config.inConfs[0].inPlace(-1);
+        config.inConfs[0].constant(false);
+        config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, srcShape)));
+        config.inConfs[1].inPlace(-1);
+        config.inConfs[1].constant(true);
+        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{1})));
         if (INPUTS_NUM == 3) {
-            config.inConfs[2].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{outputShapes.size()}));
-            config.inConfs[2].constant = true;
+            config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{outputShapes.size()})));
+            config.inConfs[2].constant(true);
         }
 
         config.outConfs.resize(outputShapes.size());
 
         for (size_t i = 0; i < outputShapes.size(); i++) {
-            config.outConfs[i].inPlace = -1;
-            config.outConfs[i].constant = false;
-            config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, outputShapes[i]));
+            config.outConfs[i].inPlace(-1);
+            config.outConfs[i].constant(false);
+            config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, outputShapes[i])));
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
 
@@ -171,7 +171,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         for (auto refPdIndex : pdIndexesToReuse) {
             const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
             auto config = refConfig;
-            const auto inBlockingDesc = refConfig.inConfs[0].desc->as<CpuBlockedMemoryDesc>();
+            const auto inBlockingDesc = refConfig.inConfs[0].getMemDesc()->as<CpuBlockedMemoryDesc>();
             const auto& order = inBlockingDesc->getOrder();
             const auto& blkDims = inBlockingDesc->getBlockDims();
             auto numOfDim = blkDims.size();
@@ -189,17 +189,17 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
                 }
             }
 
-            config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(inpPrecision, srcShape, blkDims, order, offset, offsets, strides);
+            config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(inpPrecision, srcShape, blkDims, order, offset, offsets, strides));
 
             for (size_t i = 0; i < outputShapes.size(); i++) {
-                auto outBlockingDesc = refConfig.outConfs[i].desc->as<CpuBlockedMemoryDesc>();
+                auto outBlockingDesc = refConfig.outConfs[i].getMemDesc()->as<CpuBlockedMemoryDesc>();
                 const auto& outBlkDims = outBlockingDesc->getBlockDims();
                 const auto& shape = outBlockingDesc->getShape();
                 const auto& dims = shape.getStaticDims();
 
-                config.outConfs[i].inPlace = 0;
-                config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets,
-                                                                                 shape.hasZeroDims() ? SizeVector(numOfDim, 0) : strides);
+                config.outConfs[i].inPlace(0);
+                config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets,
+                                                                                 shape.hasZeroDims() ? SizeVector(numOfDim, 0) : strides));
             }
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
@@ -211,22 +211,22 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
         config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
-        config.inConfs[0].inPlace = -1;
-        config.inConfs[0].constant = false;
-        config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(inpPrecision, srcShape);
-        config.inConfs[1].inPlace = -1;
-        config.inConfs[1].constant = true;
-        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{1}));
+        config.inConfs[0].inPlace(-1);
+        config.inConfs[0].constant(false);
+        config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(inpPrecision, srcShape));
+        config.inConfs[1].inPlace(-1);
+        config.inConfs[1].constant(true);
+        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{1})));
         if (INPUTS_NUM == 3) {
-            config.inConfs[2].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{outputShapes.size()}));
-            config.inConfs[2].constant = true;
+            config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{outputShapes.size()})));
+            config.inConfs[2].constant(true);
         }
         config.outConfs.resize(outputShapes.size());
 
         for (size_t i = 0; i < outputShapes.size(); i++) {
-            config.outConfs[i].inPlace = -1;
-            config.outConfs[i].constant = false;
-            config.outConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(inpPrecision, outputShapes[i]);
+            config.outConfs[i].inPlace(-1);
+            config.outConfs[i].constant(false);
+            config.outConfs[i].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(inpPrecision, outputShapes[i]));
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
@@ -309,7 +309,7 @@ bool MKLDNNSplitNode::created() const {
 }
 
 bool MKLDNNSplitNode::isOptimized() const {
-    return getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace >= 0;
+    return getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace() >= 0;
 }
 
 void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
@@ -322,43 +322,43 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         MKLDNNNode::initOptimalPrimitiveDescriptor();
     } else if (!isConfigDefined(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
-            if (config.inConfs[i].desc->isDefined())
+            if (config.inConfs[i].getMemDesc()->isDefined())
                 continue;
 
             int num = getParentEdgeAt(i)->getOutputNum();
             if (getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()) {
                 if (num >= 0) {
                     const auto& parentConfig = getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
-                    if (!parentConfig.desc->isDefined() && parentConfig.inPlace >= 0)
+                    if (!parentConfig.getMemDesc()->isDefined() && parentConfig.inPlace() >= 0)
                         getParentEdgeAt(i)->getParent()->initOptimalPrimitiveDescriptor();
-                    if (parentConfig.desc->isDefined() && parentConfig.desc->isCompatible(*config.inConfs[i].desc)) {
-                        config.inConfs[i].desc = parentConfig.desc;
+                    if (parentConfig.getMemDesc()->isDefined() && parentConfig.getMemDesc()->isCompatible(*config.inConfs[i].getMemDesc())) {
+                        config.inConfs[i].setMemDesc(parentConfig.getMemDesc());
                         continue;
                     }
                 }
             }
 
             // reset undefined offsets
-            config.inConfs[i].desc = config.inConfs[i].desc->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
+            config.inConfs[i].setMemDesc(config.inConfs[i].getMemDesc()->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset());
         }
         if (config.outConfs.size() != outputShapes.size())
             THROW_ERROR << "has invalid config";
 
-        auto firstInBlockingDesc = config.inConfs[0].desc->as<BlockedMemoryDesc>();
+        auto firstInBlockingDesc = config.inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
         size_t offset = 0;
         for (size_t i = 0; i < outputShapes.size(); i++) {
-            auto oldDesc = config.outConfs[i].desc;
+            auto oldDesc = config.outConfs[i].getMemDesc();
             auto outBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
             const auto& shape = outBlockingDesc->getShape();
             const auto& blkDims = outBlockingDesc->getBlockDims();
-            config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
+            config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
                                                                              shape,
                                                                              blkDims,
                                                                              outBlockingDesc->getOrder(),
                                                                              firstInBlockingDesc->getOffsetPadding() + offset,
                                                                              firstInBlockingDesc->getOffsetPaddingToData(),
                                                                              (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
-                                                                              firstInBlockingDesc->getStrides()));
+                                                                              firstInBlockingDesc->getStrides())));
 
             size_t axisSize = 1;
             for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {
@@ -372,11 +372,11 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
     IE_ASSERT(config.inConfs.size() > 0);
-    const auto inConfDesc = config.inConfs[0].desc;
+    const auto inConfDesc = config.inConfs[0].getMemDesc();
     if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4, 5) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            if (!config.outConfs[i].desc->hasLayoutType(LayoutType::ncsp))
+            if (!config.outConfs[i].getMemDesc()->hasLayoutType(LayoutType::ncsp))
                 canUseOptimizedNspc2Ncsp = false;
         }
     }
@@ -389,7 +389,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
     if (!implPriorities.empty() && implPriorities[0] == impl_desc_type::ref) {
         for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
             auto& pd = supportedPrimitiveDescriptors[i];
-            if (pd.getConfig().inConfs[0].desc->hasLayoutType(LayoutType::ncsp) &&
+            if (pd.getConfig().inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
                 impl_desc_type::ref == pd.getImplementationType()) {
                     selectPrimitiveDescriptorByIndex(static_cast<int>(i));
                 return;
@@ -409,7 +409,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
             if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
                 inNum = 0;
             }
-            if (supportedPrimitiveDescriptors[i].getConfig().inConfs[0].desc->isCompatible(*parent_spd->getConfig().outConfs[inNum].desc)) {
+            if (supportedPrimitiveDescriptors[i].getConfig().inConfs[0].getMemDesc()->isCompatible(*parent_spd->getConfig().outConfs[inNum].getMemDesc())) {
                 canSelectPrimitive.push_back(i);
             }
         }
@@ -434,7 +434,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
             auto childEdge = getChildEdgeAt(i);
             auto childPtr = childEdge->getChild();
             auto& vecChildSpd = childPtr->getSupportedPrimitiveDescriptors();
-            const auto& outputDesc = supportedPrimitiveDescriptors[indx].getConfig().outConfs[childEdge->getInputNum()].desc;
+            const auto& outputDesc = supportedPrimitiveDescriptors[indx].getConfig().outConfs[childEdge->getInputNum()].getMemDesc();
 
             if (!vecChildSpd.empty()) {
                 int inNum = childEdge->getOutputNum();
@@ -446,7 +446,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
                     if (inNum >= childSpd.getConfig().inConfs.size()) {
                         inNum = 0;
                     }
-                    if (outputDesc->isCompatible(*childSpd.getConfig().inConfs[inNum].desc)) {
+                    if (outputDesc->isCompatible(*childSpd.getConfig().inConfs[inNum].getMemDesc())) {
                         hasMatchDesc = true;
                         break;
                     }

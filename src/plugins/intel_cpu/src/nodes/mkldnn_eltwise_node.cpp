@@ -1760,44 +1760,44 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             PortConfig portConfig;
             // TODO [DS]: inplace
             if (!isDynamicNode())
-                portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
-            portConfig.constant = false;
+                portConfig.inPlace((!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1);
+            portConfig.constant(false);
 
             const auto &srcShape = getInputShapeAtPort(i);
-            portConfig.desc = createMemoryDesc(srcShape, inputPrecisions[i], offset);
+            portConfig.setMemDesc(createMemoryDesc(srcShape, inputPrecisions[i], offset));
             if (!isDynamicNode() && srcShape.getDims()[0] == 1) {
-                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                const auto denseDesc = portConfig.getMemDesc()->as<BlockedMemoryDesc>();
                 auto strides = denseDesc->getStrides();
                 strides[0] = Shape::UNDEFINED_DIM;
-                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                portConfig.setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
                                                                          denseDesc->getShape(),
                                                                          denseDesc->getBlockDims(),
                                                                          denseDesc->getOrder(),
                                                                          denseDesc->getOffsetPadding(),
                                                                          denseDesc->getOffsetPaddingToData(),
-                                                                         strides);
+                                                                         strides));
             }
 
             config.inConfs.push_back(portConfig);
         }
 
         PortConfig portConfig;
-        portConfig.inPlace = -1;
-        portConfig.constant = false;
+        portConfig.inPlace(-1);
+        portConfig.constant(false);
 
         const auto &dstShape = getOutputShapeAtPort(0);
-        portConfig.desc = createMemoryDesc(dstShape, outputPrecision, offset);
+        portConfig.setMemDesc(createMemoryDesc(dstShape, outputPrecision, offset));
         if (!isDynamicNode() && dstShape.getDims()[0] == 1) {
-            const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+            const auto denseDesc = portConfig.getMemDesc()->as<BlockedMemoryDesc>();
             auto strides = denseDesc->getStrides();
             strides[0] = Shape::UNDEFINED_DIM;
-            portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+            portConfig.setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
                                                                      denseDesc->getShape(),
                                                                      denseDesc->getBlockDims(),
                                                                      denseDesc->getOrder(),
                                                                      denseDesc->getOffsetPadding(),
                                                                      denseDesc->getOffsetPaddingToData(),
-                                                                     strides);
+                                                                     strides));
         }
 
         config.outConfs.push_back(portConfig);
@@ -1966,11 +1966,11 @@ void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (!isConfigDefined(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].desc = getDefinedInputDesc(config, i);
+            config.inConfs[i].setMemDesc(getDefinedInputDesc(config, i));
         }
 
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].desc = getDefinedOutputDesc(config, i);
+            config.outConfs[i].setMemDesc(getDefinedOutputDesc(config, i));
         }
 
         initDescriptor(config);

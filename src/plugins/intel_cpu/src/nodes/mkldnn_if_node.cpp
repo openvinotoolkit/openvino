@@ -171,14 +171,14 @@ void MKLDNNIfNode::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < inputShapes.size(); i++) {
         PortConfig dataConf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConf.desc = descCreator->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i));
+        dataConf.setMemDesc(descCreator->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
         config.inConfs.emplace_back(dataConf);
     }
 
     for (size_t i = 0; i < outputShapes.size(); i++) {
         PortConfig dataConf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConf.desc = descCreator->createSharedDesc(getOriginalOutputPrecisionAtPort(i), getOutputShapeAtPort(i));
+        dataConf.setMemDesc(descCreator->createSharedDesc(getOriginalOutputPrecisionAtPort(i), getOutputShapeAtPort(i)));
         config.outConfs.push_back(dataConf);
     }
 

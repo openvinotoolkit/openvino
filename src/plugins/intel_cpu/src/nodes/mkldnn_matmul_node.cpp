@@ -412,18 +412,18 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = -1;
-                portConfig.constant = false;
-                portConfig.desc = getSrcMemDesc(itpd, i);
+                portConfig.inPlace(-1);
+                portConfig.constant(false);
+                portConfig.setMemDesc(getSrcMemDesc(itpd, i));
 
                 config.inConfs.push_back(portConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = canBeInPlace() ? 0 : -1;
-                portConfig.constant = false;
-                portConfig.desc = getDstMemDesc(itpd, i);
+                portConfig.inPlace(canBeInPlace() ? 0 : -1);
+                portConfig.constant(false);
+                portConfig.setMemDesc(getDstMemDesc(itpd, i));
 
                 config.outConfs.push_back(portConfig);
             }
