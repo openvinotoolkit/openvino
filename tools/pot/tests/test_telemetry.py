@@ -30,7 +30,7 @@ TOOL_CONFIG_NAME = ['mobilenet-v2-pytorch.json', 'mobilenet-v2-pytorch_aa.json',
 # pylint: disable=W0221
 class TelemetryTest(Telemetry):
     def __init__(self):
-        super().__init__()
+        super().__init__(app_name='pot', app_version=None, tid=None)
         self.value = set()
 
     def send_event(self, event_category, event_label, event_value):
