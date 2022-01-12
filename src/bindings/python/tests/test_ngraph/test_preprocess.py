@@ -431,3 +431,33 @@ def test_ngraph_preprocess_model():
     output = computation(input_data, input_data)
 
     assert np.equal(output, expected_output).all()
+
+
+def test_ngraph_preprocess_dump():
+    shape = [1, 3, 224, 224]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    p = PrePostProcessor(function)
+    p.input().tensor()\
+        .set_layout(ov.Layout("NHWC"))\
+        .set_element_type(Type.u8)\
+        .set_spatial_dynamic_shape()
+    p.input().preprocess()\
+        .convert_element_type(Type.f32)\
+        .reverse_channels()\
+        .mean([1, 2, 3])\
+        .scale([4, 5, 6])\
+        .resize(ResizeAlgorithm.RESIZE_LINEAR)
+    p.input().model().set_layout(ov.Layout("NCHW"))
+    p_str = str(p)
+    print(p)
+    assert "Pre-processing steps (5):" in p_str
+    assert "convert type (f32):" in p_str
+    assert "reverse channels:" in p_str
+    assert "mean (1,2,3):" in p_str
+    assert "scale (4,5,6):" in p_str
+    assert "resize to model width/height:" in p_str
+    assert "Implicit pre-processing steps (1):" in p_str
+    assert "convert layout " + ov.Layout("NCHW").to_string() in p_str
