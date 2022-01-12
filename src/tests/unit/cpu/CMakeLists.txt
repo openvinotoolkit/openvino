@@ -4,7 +4,7 @@
 
 set(TARGET_NAME cpuUnitTests)
 
-if(NOT DEFINED BUILD_SHARED_LIBS OR BUILD_SHARED_LIBS)
+if(BUILD_SHARED_LIBS)
     set (OBJ_LIB $<TARGET_OBJECTS:ov_intel_cpu_plugin_obj>)
 endif()
 

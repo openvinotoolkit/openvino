@@ -66,7 +66,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #  add test object library
 
-if(NOT DEFINED BUILD_SHARED_LIBS OR BUILD_SHARED_LIBS)
+if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
     link_system_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
 
