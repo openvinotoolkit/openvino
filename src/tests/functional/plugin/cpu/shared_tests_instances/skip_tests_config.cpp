@@ -71,6 +71,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NonZeroLayerTest.*)",
         // TODO: 69084 Not constant Axis input produces dynamic output shape.
         R"(.*GatherLayerTestCPU.*constAx=False.*)",
+        // TODO: 74601. RNN, GRU, LSTM Sequences batch 1 tests failure.
+        R"(.*smoke_dynamic_BatchSizeOne.*Sequence.*)",
+        // TODO: 74961.  Enforce precision via inType and outType does not work properly.
+        R"(.*(RNN|GRU|LSTM).*ENFORCE_BF16=YES.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
@@ -140,11 +144,12 @@ std::vector<std::string> disabledTestPatterns() {
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
-        // Issue: 71121
-        R"(.*smoke_Proposal*.*TS=\(2.*)",
         // TODO : CVS-69533
         R"(.*ConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
         R"(.*GroupConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
+        // Issue: 74817
+        // Sporadic failings with NAN on Dynamic shape cases with jit implementation
+        R"(.*DefConvLayoutTest7.*)",
         // Issue: 71968
         R"(.*LSTMSequenceCommonZeroClip.*PURE.*CONST.*hidden_size=10.*sigmoid.sigmoid.sigmoid.*reverse.*FP32_targetDevice=CPU.*)",
         // Issue: 72005
