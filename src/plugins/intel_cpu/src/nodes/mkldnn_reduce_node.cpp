@@ -78,7 +78,7 @@ struct ReduceKey {
     impl_desc_type implType;
     mkldnn::memory::data_type src_dt;
     mkldnn::memory::data_type dst_dt;
-    mkldnn::primitive_attr attr;
+    mkldnn::post_ops postOps;
 
     size_t hash() const;
     bool operator==(const ReduceKey& rhs) const;
@@ -94,14 +94,14 @@ size_t ReduceKey::hash() const {
     seed = hash_combine(seed, implType);
     seed = hash_combine(seed, src_dt);
     seed = hash_combine(seed, dst_dt);
-    seed = hash_combine(seed, get_attr_hash(*attr.get()));
+    seed = get_post_op_hash(seed, *postOps.get());
 
     return seed;
 }
 
 bool ReduceKey::operator==(const ReduceKey &rhs) const {
     return layout == rhs.layout && reduce_mode == rhs.reduce_mode && implType == rhs.implType &&
-           src_dt == rhs.src_dt && dst_dt == rhs.dst_dt && *attr.get() == *rhs.attr.get();
+           src_dt == rhs.src_dt && dst_dt == rhs.dst_dt && *postOps.get() == *rhs.postOps.get();
 }
 } // namespace
 
@@ -1122,8 +1122,10 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         mov(reg_divisor, ptr[reg_params + GET_OFF_POST(divisor)]);
         if (!planar_layout)
             mov(reg_reduce_c, ptr[reg_params + GET_OFF_POST(reduce_c)]);
-        if (attr_.post_ops_.len() != 0)
+        if (attr_.post_ops_.len() != 0) {
+            mov(reg_post_ops_data, ptr[reg_params + GET_OFF_POST(post_op_data)]);
             mov(reg_oc_off, ptr[reg_params + GET_OFF_POST(oc_off)]);
+        }
 
         if (isa == cpu::x64::avx512_common)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
@@ -1188,6 +1190,7 @@ private:
     Xbyak::Reg64 reg_oc_off = rax;
     Xbyak::Reg64 reg_d_weights = rbx;
     Xbyak::Reg64 reg_d_bias = rdx;
+    Xbyak::Reg64 reg_post_ops_data = r15;
 
     Vmm vmm_aux = Vmm(0);
     Xmm xmm_aux = Xmm(0);
@@ -1408,16 +1411,19 @@ private:
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
+        int post_ops_data_offset = 0;
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
+                mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
+                post_ops_data_offset += sizeof(float*);
+                mov(reg_d_bias, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_bias, reg_oc_off);
+                post_ops_data_offset += sizeof(float*);
                 depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
@@ -1426,17 +1432,18 @@ private:
 
                 int s_idx = vmm_dst.getIdx();
 
-                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_post_ops_data + post_ops_data_offset, reg_oc_off);
                 quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0, 0, is_broadcast);
 
-                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_post_ops_data + post_ops_data_offset, reg_oc_off);
                 quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding, 0, is_broadcast);
 
                 if (do_dequantization) {
-                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_post_ops_data + post_ops_data_offset, reg_oc_off);
                     quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0, 0, is_broadcast);
                 }
 
+                post_ops_data_offset += quantization_injectors[quantization_inj_idx]->memoryStep();
                 quantization_inj_idx++;
             }
         }
@@ -1894,11 +1901,11 @@ void MKLDNNReduceNode::prepareParams() {
         post_jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(post_jcp.dst_dt);
 
         if (mayiuse(cpu::x64::avx512_common)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(post_jcp, *key.attr.get()));
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(post_jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(post_jcp, *key.attr.get()));
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(post_jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(post_jcp, *key.attr.get()));
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(post_jcp, *attr.get()));
         }
         if (post_kernel)
             post_kernel->create_ker();
@@ -1910,7 +1917,7 @@ void MKLDNNReduceNode::prepareParams() {
         setPostOps(attr, dst_dims, true);
 
         auto selected_pd = getSelectedPrimitiveDescriptor();
-        ReduceKey key = {jcp.layout, jcp.reduce_mode, selected_pd->getImplementationType(), jcp.src_dt, jcp.dst_dt, attr};
+        ReduceKey key = {jcp.layout, jcp.reduce_mode, selected_pd->getImplementationType(), jcp.src_dt, jcp.dst_dt, attr.get_post_ops()};
         auto cache = getRuntimeCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
@@ -2372,6 +2379,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.channel_size = layout == ReduceLayoutType::reduce_nspc ? OW : OC; // OW is related to nspc-ncsp dimension reinterpret
             arg.work_amount = OD * OH * OW;
             arg.divisor = &divisor;
+            arg.post_op_data = static_cast<const void*>(&postOpsDataPtrs[0]);
             (*reduce_post_kernel)(&arg);
         });
     } else {
@@ -2384,6 +2392,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.oc_off = ocb * blk_size * sizeof(float);
             arg.work_amount = OD * OH * OW * blk_size;
             arg.divisor = &divisor;
+            arg.post_op_data = static_cast<const void*>(&postOpsDataPtrs[0]);
             (*reduce_post_kernel)(&arg);
         });
     }
@@ -2842,6 +2851,23 @@ void MKLDNNReduceNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+    }
+
+    postOpsDataPtrs.clear();
+    for (int i = 0; i < ops.len(); ++i) {
+        auto &post_op = ops.get()->entry_[i];
+        if (post_op.is_quantization()) {
+            auto &data = post_op.quantization.data;
+            postOpsDataPtrs.insert(postOpsDataPtrs.end(), std::begin(data), std::end(data));
+            memset(data, 0, sizeof(data));
+        } else if (post_op.is_depthwise()) {
+            auto &weights = post_op.depthwise.weights_data;
+            auto &biases = post_op.depthwise.biases_data;
+            postOpsDataPtrs.push_back(weights);
+            postOpsDataPtrs.push_back(biases);
+            weights = 0;
+            biases = 0;
+        }
     }
     attr.set_post_ops(ops);
 }
