@@ -74,20 +74,31 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
         while (inputs.size() > i + 1) {
             auto curr = inputs[i].get_node_shared_ptr(), next = inputs[i + 1].get_node_shared_ptr();
             if (curr->get_type_info() != next->get_type_info() ||
-                (!ov::is_type<opset1::Gather>(curr) && !ov::is_type<opset7::Gather>(curr)) ||
+                (!ov::is_type<opset1::Gather>(curr) && !ov::is_type<opset7::Gather>(curr) && !ov::is_type<opset8::Gather>(curr)) ||
                 (curr->input_value(0) != next->input_value(0))) {
                 ++i;
                 continue;
             } // curr and next are the same type of gather which takes data from the same source
-            bool is_opset1 = ov::is_type<opset1::Gather>(curr);
             auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(OutputVector{curr->input_value(1), next->input_value(1)}, 0);
             std::shared_ptr<Node> new_gather;
-            if (is_opset1)
+            if (ov::is_type<opset1::Gather>(curr)) {
                 new_gather = register_new_node<ngraph::opset1::Gather>(
-                    curr->input_value(0), joint_indices->output(0), ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
-            else
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+            } else if (ov::is_type<opset7::Gather>(curr)) {
                 new_gather = register_new_node<ngraph::opset7::Gather>(
-                        curr->input_value(0), joint_indices->output(0), ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+            } else if (ov::is_type<opset8::Gather>(curr)) {
+                new_gather = register_new_node<ngraph::opset8::Gather>(
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+            } else {
+                OPENVINO_UNREACHABLE("Unexpected Gather version");
+            }
             new_ops.push_back(joint_indices);
             new_ops.push_back(new_gather);
             inputs.erase(inputs.begin() + i);
@@ -239,8 +250,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
         auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
             auto shape_of = gather->get_input_node_shared_ptr(0);
-            if ((!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) ||
-                (shape_of->get_output_target_inputs(0).size() > 1)) {
+            if (!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) {
                 return false;
             }
             return shape_of->input_value(0) == data;
