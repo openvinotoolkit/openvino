@@ -788,6 +788,17 @@ TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
                  p.build(), ov::AssertFailure);
 }
 
+TEST(pre_post_process, tensor_set_shape_for_resize) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_shape({1, 720, 1280, 3}).set_layout("NHWC");
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    p.build();
+    EXPECT_EQ(f->input().get_partial_shape(), (Shape{1, 720, 1280, 3}));
+    EXPECT_EQ(f->output().get_partial_shape(), (Shape{1, 3, 224, 224}));
+}
+
 TEST(pre_post_process, tensor_set_shape_incompatible) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);

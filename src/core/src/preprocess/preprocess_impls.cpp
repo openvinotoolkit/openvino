@@ -77,7 +77,9 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
         }
     }
 
-    if (get_tensor_data()->is_spatial_shape_set()) {
+    if (get_tensor_data()->is_shape_set()) {
+        new_param_shape = get_tensor_data()->get_shape();
+    } else if (get_tensor_data()->is_spatial_shape_set()) {
         auto height_idx = get_and_check_height_idx(res.m_tensor_layout, new_param_shape);
         auto width_idx = get_and_check_width_idx(res.m_tensor_layout, new_param_shape);
         if (get_tensor_data()->is_spatial_shape_dynamic()) {
