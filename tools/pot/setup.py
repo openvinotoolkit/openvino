@@ -7,7 +7,7 @@ import sys
 
 from setuptools import setup, find_packages
 
-
+UNKNOWN_VERSION = "unknown version"
 here = os.path.abspath(os.path.dirname(__file__))
 
 with open(os.path.join(here, 'README.md'), 'r') as fh:
@@ -16,19 +16,18 @@ with open(os.path.join(here, 'README.md'), 'r') as fh:
 
 def generate_pot_version():
     try:
-        pot_dir = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))),
-                                                "openvino", "tools"))
+        pot_dir = os.path.normpath(os.path.join(here, "openvino", "tools"))
         branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=pot_dir)
         commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=pot_dir)
         return "custom_{}_{}".format(branch_name.strip().decode(), commit_hash.strip().decode())
     except Exception: # pylint:disable=W0703
-        return "unknown version"
+        return UNKNOWN_VERSION
 
 
 def get_version():
     version = generate_pot_version()
     version_txt = os.path.join(os.path.dirname(os.path.realpath(__file__)), "version.txt")
-    if version != "unknown version":
+    if version != UNKNOWN_VERSION:
         with open(version_txt, 'w') as f:
             f.write(version + '\n')
     else:
