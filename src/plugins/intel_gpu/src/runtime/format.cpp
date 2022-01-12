@@ -157,12 +157,15 @@ const format_traits& format::traits(type fmt) {
             FMT_TRAITS(giy_xs_os_xsv2_osv16__ao32,                   1, 1, 2, 1, {0, 2, 3, 4, 1},    "giyxo",  "oixy??g",  {{2, 2}, {0, 16}}),
     };
     if (traits.find(fmt) == traits.end()) {
-        throw std::runtime_error("[clDNN] Format description is missing in fmt traits");
+        throw std::runtime_error("[GPU] Format description is missing in fmt traits");
     }
     return traits.at(fmt);
 }
 
 std::string format::to_string() const {
+    if (value == any) {
+        return "any";
+    }
     return traits(value).str;
 }
 
