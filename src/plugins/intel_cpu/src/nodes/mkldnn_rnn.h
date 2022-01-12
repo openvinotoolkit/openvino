@@ -98,8 +98,8 @@ private:
     const size_t L = 1;   /**< What is it??. Constant for mkldnn impl */
     const size_t D = 1;   /**< Num of direction. 1 or 2 */
 
-    std::vector<DnnlBlockedMemoryDescCPtr> inDataDescs;
-    std::vector<DnnlBlockedMemoryDescCPtr> outDataDescs;
+    std::vector<DnnlBlockedMemoryDescPtr> inDataDescs;
+    std::vector<DnnlBlockedMemoryDescPtr> outDataDescs;
     std::vector<mkldnn::memory::desc> wDescs;
 
     enum RNNInOutKind {

@@ -113,8 +113,8 @@ const std::map<Precision, Precision> MKLDNNRNN::weightsByLayerPrec {
 
 
 struct RNNKey {
-    const std::vector<DnnlBlockedMemoryDescCPtr> inDataDescs;
-    const std::vector<DnnlBlockedMemoryDescCPtr> outDataDescs;
+    const std::vector<DnnlBlockedMemoryDescPtr> inDataDescs;
+    const std::vector<DnnlBlockedMemoryDescPtr> outDataDescs;
     const std::vector<mkldnn::memory::desc> wDescs;
     mkldnn::algorithm cellType;
 
@@ -479,7 +479,7 @@ void MKLDNNRNN::fillSequenceDesc() {
     outCandidate.reserve(3);
 
     if (nativeOrder) {
-        outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(*outDataDescs[RNNInOutKind::Layer]));
+        outCandidate.emplace_back(outDataDescs[RNNInOutKind::Layer]);
     } else if (N.isStatic() && N.maxVal == 1) {
         // WA to avoid reorder after sequence for some models
         outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeNTSC, dataType, memory::format_tag::tnc));

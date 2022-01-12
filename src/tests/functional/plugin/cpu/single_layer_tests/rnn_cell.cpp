@@ -152,9 +152,9 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
       { { {1, 10}, {1, 11} },                  // Dynamic shape 1
         { {2, 10}, {5, 10}, {8, 10} } } },     // Target shapes
     { { { {1, 10}, -1 },                       // Dynamic shape 0
-        { {2, 30}, {5, 30}, {5, 30}, {5, 30}, {8, 30}, {8, 30} } },  // Target shapes
+        { {2, 30}, {5, 30}, {2, 30}, {8, 30}, {5, 30}, {8, 30} } },  // Target shapes
       { { {1, 10}, {1, 11} },                  // Dynamic shape 1
-        { {2, 10}, {5, 10}, {5, 10}, {5, 10}, {8, 10}, {8, 10} } } } // Target shapes
+        { {2, 10}, {5, 10}, {2, 10}, {8, 10}, {5, 10}, {8, 10} } } } // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, RNNCellCPUTest,

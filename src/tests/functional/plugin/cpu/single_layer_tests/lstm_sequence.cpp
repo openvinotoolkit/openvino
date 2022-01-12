@@ -324,21 +324,13 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
       { {3, -1, {0, 12}},                           // Dynamic shape 2
         { {3, 1, 10}, {3, 1, 10}, {3, 1, 10} } } }, // Target shapes
     { { {{0, 11}, -1, {5, 15}},                     // #7. Dynamic shape 0
-        { {10, 2, 10}, {10, 2, 10}, {3, 4, 10}, {5, 5, 10}, {5, 5, 10} } },  // Target shapes
+        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10}, {10, 2, 10}, {5, 5, 10} } },  // Target shapes
       { {-1, 1, -1},                                // Dynamic shape 1
-        { {10, 1, 10}, {10, 1, 10}, {3, 1, 10}, {5, 1, 10}, {5, 1, 10} } },  // Target shapes
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10}, {10, 1, 10}, {5, 1, 10} } },  // Target shapes
       { {-1, 1, -1},                                // Dynamic shape 2
-        { {10, 1, 10}, {10, 1, 10}, {3, 1, 10}, {5, 1, 10}, {5, 1, 10} } },  // Target shapes
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10}, {10, 1, 10}, {5, 1, 10} } },  // Target shapes
       { {-1},                                       // Dynamic shape 3
-        { {10}, {10}, {3}, {5}, {5} } } },          // Target shapes
-    { { {{0, 11}, -1, {5, 15}},                     // #8. Dynamic shape 0
-        { {10, 2, 10}, {3, 4, 10}, {10, 2, 10}, {5, 5, 10}, {10, 2, 10} } },  // Target shapes
-      { {-1, 1, -1},                                // Dynamic shape 1
-        { {10, 1, 10}, {3, 1, 10}, {10, 1, 10}, {5, 1, 10}, {10, 1, 10} } },  // Target shapes
-      { {-1, 1, -1},                                // Dynamic shape 2
-        { {10, 1, 10}, {3, 1, 10}, {10, 1, 10}, {5, 1, 10}, {10, 1, 10} } },  // Target shapes
-      { {-1},                                       // Dynamic shape 3
-        { {10}, {3}, {10}, {5}, {10} } } }          // Target shapes
+        { {10}, {3}, {5}, {10}, {5} } } }           // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMSequenceCPUTest,
@@ -364,7 +356,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, LSTMSequenceCPUTest,
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic, LSTMSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn({dynamicShapes[5], dynamicShapes[7], dynamicShapes[8]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[5], dynamicShapes[7]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
