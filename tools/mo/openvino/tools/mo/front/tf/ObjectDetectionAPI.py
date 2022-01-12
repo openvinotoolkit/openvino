@@ -1021,7 +1021,8 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
             swapped_offsets = add_convolution_to_swap_xy_coordinates(graph, scaled_offsets, 4)
             flattened_offsets = Reshape(graph, dict(name='do_reshape_locs')).create_node([swapped_offsets])
         else:
-            swap_weights_xy(graph, matmul_or_conv_nodes)
+            if not custom_attributes.get('do_not_swap_input', False):
+                swap_weights_xy(graph, matmul_or_conv_nodes)
             flattened_offsets = Reshape(graph, dict(name='do_reshape_locs')).create_node([scaled_offsets])
 
         # IE DetectionOutput layer consumes flattened tensors so need add a Reshape layer.
