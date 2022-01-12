@@ -290,6 +290,7 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | Round |  |
 | Pow |  |
 | Rsqrt |  |
+| ScatterNd |  |
 | Select |  |
 | SelectV2 |  |
 | Shape |  |
