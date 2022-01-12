@@ -45,7 +45,7 @@ static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialS
         data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
         auto op1 = std::make_shared<op::v0::Relu>(data1);
         op1->set_friendly_name("Relu" + index_str);
-        auto res1 = std::make_shared<op::v0::Result>(data1);
+        auto res1 = std::make_shared<op::v0::Result>(op1);
         res1->set_friendly_name("Result" + index_str);
         res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
         params.push_back(data1);
