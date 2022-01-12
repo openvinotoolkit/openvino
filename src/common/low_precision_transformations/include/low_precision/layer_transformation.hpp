@@ -333,6 +333,13 @@ protected:
         const bool updatePrecision,
         const bool moveSubtract = true) const;
 
+    std::shared_ptr<ngraph::Node> moveDequantizationBefore(
+        TransformationContext& context,
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool updatePrecision,
+        const bool moveSubtract = true) const;
+
     void updateOutput(
         TransformationContext &context,
         std::shared_ptr<ngraph::Node> lastNode,
