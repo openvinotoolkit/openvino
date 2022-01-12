@@ -243,7 +243,7 @@ def test_ngraph_preprocess_set_memory_type():
     p.input().tensor().set_memory_type("some_memory_type")
     function = p.build()
 
-    assert any(key for key in function.input().rt_info if 'memory_type' in key)
+    assert any(key for key in function.input().rt_info if "memory_type" in key)
 
 
 @pytest.mark.parametrize(
