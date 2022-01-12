@@ -324,6 +324,8 @@ size_t RoiPoolingKey::hash() const {
     seed = hash_combine(seed, refParams.mb);
     seed = hash_combine(seed, refParams.c);
     seed = hash_combine(seed, refParams.nb_c);
+    seed = hash_combine(seed, refParams.c_block);
+    seed = hash_combine(seed, refParams.nb_c_blocking);
     seed = hash_combine(seed, refParams.ih);
     seed = hash_combine(seed, refParams.iw);
     seed = hash_combine(seed, refParams.oh);
