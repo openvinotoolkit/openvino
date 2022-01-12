@@ -38,7 +38,6 @@ struct jit_topk_config_params {
     int work_amount;         // how many elements are processed when call jit kernel once
     int axis_dim;            // size of topk axis
     int sort_stride;         // memory stride of adjacent elements in sorting
-    int blk_stride;          // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
     int bitonic_idx_cnt;     // the repeatedly counted total number of elements in sorting, which equal the total number of comparison x 2
     int bitonic_k_idx_cnt;   // the counterpart of bitonic_idx_cnt, when sort_index == true
 };
@@ -55,6 +54,7 @@ struct jit_topk_call_args {
     const int *idx_seq_buf;  // original idx sequence (eg. 01234567), only used in bubble sort and heap sort
     size_t axis_dim;         // point to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
     size_t work_amount;
+    size_t sort_stride;
 };
 
 struct jit_uni_topk_kernel {
@@ -103,7 +103,6 @@ private:
     inline void bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val = true);
     void calc_bitonic_idx(size_t n, int &cnt, bool cmp_val);
     void calc_dims_size(const InferenceEngine::SizeVector &layout_dims);
-    bool check_axis_dim(const InferenceEngine::SizeVector &new_dims);
     void topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx,
                    const InferenceEngine::SizeVector &in_dims, std::function<float(float, float)> compare) const;
 
@@ -124,7 +123,7 @@ private:
     int dim, before_num;
     bool is_last_dim = false;
     bool bubble_inplace = false;
-    bool only_axis_dim_changed = false;
+    bool top_k_changed = false;
 
     InferenceEngine::SizeVector src_dims, dst_dims;
     TopKLayoutType layout;
