@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_MYRIAD)
+if(ENABLE_INTEL_VPU)
     add_subdirectory(movidius)
 endif()
 
