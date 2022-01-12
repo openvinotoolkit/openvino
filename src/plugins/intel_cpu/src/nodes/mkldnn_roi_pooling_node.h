@@ -25,10 +25,10 @@ struct jit_roi_pooling_params {
 
     InferenceEngine::Precision src_prc;
     InferenceEngine::Precision dst_prc;
-    int src_data_size = 0;
-    int dst_data_size = 0;
 
     Algorithm alg;
+
+    bool operator==(const jit_roi_pooling_params& rhs) const noexcept;
 };
 
 struct jit_roi_pooling_call_args {
@@ -82,9 +82,6 @@ private:
 
     template<typename T> void execute();
     template<typename T> struct ROIPoolingExecute;
-
-    size_t src_data_size = 0;
-    size_t dst_data_size = 0;
 
     jit_roi_pooling_params refParams = {};
 
