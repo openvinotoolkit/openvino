@@ -67,8 +67,10 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     if (IsReady())
         ForgetGraphData();
-    // disable caching if graph was created only once
+    // disable weights caching if graph was created only once
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
+
+    rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
 
     Replicate(net, extMgr);
     InitGraph();
@@ -83,7 +85,7 @@ template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Funct
 template void MKLDNNGraph::CreateGraph(const CNNNetwork&,
         const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 
-void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr) {
+void MKLDNNGraph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr) {
     this->_name = "subgraph";
     this->reuse_io_tensors = false;
 
@@ -91,7 +93,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
                       ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(subgraph);
 
     // Map data object onto producer node
-    std::map<std::shared_ptr<ngraph::Node>, std::pair<MKLDNNNodePtr, int>> op2node;
+    std::map<std::shared_ptr<ov::Node>, MKLDNNNodePtr> op2node;
 
     // nodes which has no consumers (output or just unused). But doesn't marked as graph output.
     // Will be stored as fake output separately.
@@ -113,6 +115,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
+        node->setRuntimeCache(rtParamsCache);
 
         graphNodes.push_back(node);
 
@@ -127,13 +130,13 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
             outputNodesMap[inputID] = node;
         }
 
+        op2node[op] = node;
+
         for (size_t port = 0; port < op->get_input_size(); port++) {
             auto parentOp = op->get_input_node_shared_ptr(port);
+            auto parentNode = op2node[parentOp];
 
-            auto portInfo = op2node[parentOp];
-            auto parentNode = portInfo.first;
-
-            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentOutputPort(op, parentOp, port), port));
+            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port)));
             node->addEdge(edge);
             graphEdges.push_back(edge);
         }
@@ -142,9 +145,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
-            int outPortIdx = 0;
             for (int oi = 0; oi < op->get_output_size(); oi++) {
-                op2node[op->output(oi).get_node_shared_ptr()] = {node, outPortIdx++};
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -154,9 +155,8 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
 
     // Add stub output node for unused data
     for (auto unusedOutput : unusedOutputs) {
-        auto portInfo = op2node[unusedOutput.get_node_shared_ptr()];
-        auto parentNode = portInfo.first;
-        auto port = portInfo.second;
+        auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
+        const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const MKLDNNNodePtr outNode = std::make_shared<MKLDNNInputNode>(parentNode->outputShapes[port],
                                                                         parentNode->getOriginalOutputPrecisionAtPort(port),
@@ -209,6 +209,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
+        node->setRuntimeCache(rtParamsCache);
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
@@ -810,7 +811,11 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
         if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
-            auto outBlobDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
+            // User can initialize output via SetOutput API using tensorDesc with ANY layout.
+            // For these cases we create planar memory descriptor.
+            auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
+                                ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
+                                : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
             auto outBloMem = MKLDNNMemory(eng);
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
@@ -1187,6 +1192,7 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
     if (isQuantized()) {
         node->setQuantizedGraphFlag(true);
     }
+    node->setRuntimeCache(rtParamsCache);
 
     if (initNode) {
         node->getSupportedDescriptors();

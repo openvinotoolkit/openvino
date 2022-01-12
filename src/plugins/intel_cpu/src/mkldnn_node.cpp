@@ -543,8 +543,6 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
             newOutputShape.push_back(1);
         }
 
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
-
         const auto &currDesc = edges[0]->getMemory().getDesc();
         if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
             continue;
@@ -559,6 +557,8 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
                 break;
             }
         }
+
+        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
         edges[sharedEdgeNum]->getMemoryPtr()->redefineDesc(*memDesc);
         void *data = edges[sharedEdgeNum]->getMemoryPtr()->GetData();
         for (size_t j = 0; j < edges.size(); j++) {
@@ -648,8 +648,7 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNNode::initDescriptor(const NodeConfig& config) {
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD) {
+    if (!getSelectedPrimitiveDescriptor()) {
         return;
     }
     std::vector<MemoryDescPtr> inDescs;
@@ -662,6 +661,7 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
 
     AttrPtr attr = initPrimitiveAttr();
 
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     NodeConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {
@@ -1376,8 +1376,9 @@ bool MKLDNNNode::hasEmptyOutputTensors() const {
 
 bool MKLDNNNode::inputShapesDefined() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined())
+        if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined()) {
             return false;
+        }
     }
     return true;
 }
@@ -1419,8 +1420,9 @@ bool MKLDNNNode::needShapeInfer() const {
 
 std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
     std::vector<Shape> shapes;
-    for (size_t i = 0; i < inputShapes.size(); i++) {
-        shapes.push_back(getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
+    for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+        shapes.push_back(opToShapeInfer->get_input_partial_shape(i).rank().get_length() == 0 ? Shape{} :
+                         getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
     }
 
     auto newOutputShapes = shapeInferGeneric(shapes);
@@ -1448,8 +1450,18 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     for (size_t i = 0; i < newOutputShapes.size(); i++) {
         const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
         if (partShape.is_dynamic()) {
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for node " << getTypeStr()
-                                     << " with internal dynamism. Operation name: " << getName();
+            std::ostringstream errorMessage;
+            errorMessage << "Can't compute static output shape on " << i << " port for node with name: " << getName();
+            errorMessage << ". Input shapes = ( ";
+            for (size_t in = 0; in < opToShapeInfer->get_input_size(); in++) {
+                errorMessage << in << " port = " << opToShapeInfer->get_input_partial_shape(in) << ", ";
+            }
+            errorMessage << "). Output shapes = ( ";
+            for (size_t out = 0; out < opToShapeInfer->get_output_size(); out++) {
+                errorMessage << out << " port = " << opToShapeInfer->get_output_partial_shape(out) << ", ";
+            }
+            errorMessage << ")";
+            IE_THROW(NotImplemented) << errorMessage.str();
         }
 
         newOutputShapes[i] = partShape.get_shape();

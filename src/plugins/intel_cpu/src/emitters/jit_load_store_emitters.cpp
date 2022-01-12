@@ -18,9 +18,9 @@ using namespace Xbyak::util;
 namespace MKLDNNPlugin {
 
 /// LOAD ///
-jit_load_emitter::jit_load_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node,
+jit_load_emitter::jit_load_emitter(jit_generator *host, cpu_isa_t host_isa,
     Precision exec_prc, emitter_in_out_map in_out_type)
-: jit_emitter(host, host_isa, node, exec_prc, in_out_type), name(node ? node->getName() : "unknown") {
+: jit_emitter(host, host_isa, exec_prc, in_out_type), name("unknown") {
     prepare_table();
     v_len_elt = get_vec_length() / exec_prc.size();
 }
@@ -486,12 +486,12 @@ void jit_load_emitter::register_table_entries() {
 }
 
 /// STORE ///
-jit_store_emitter::jit_store_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node,
+jit_store_emitter::jit_store_emitter(jit_generator *host, cpu_isa_t host_isa,
     Precision exec_prc, emitter_in_out_map in_out_type)
-: jit_emitter(host, host_isa, node, exec_prc, in_out_type), name(node ? node->getName() : "unknown") {
+: jit_emitter(host, host_isa, exec_prc, in_out_type), name("unknown") {
     v_len_elt = get_vec_length() / exec_prc.size();
     if (!mayiuse(cpu::x64::avx512_core_bf16) && mayiuse(cpu::x64::avx512_core)) {
-        emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(host, host_isa, nullptr));
+        emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(host, host_isa));
     }
 }
 
@@ -763,7 +763,9 @@ template <typename Vmm>
                 if (is_signed) {
                     h->vpmovsdb(addr(0), vmm);
                 } else {
-                    h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
+                    Vmm zero(aux_vec_idxs[0]);
+                    h->uni_vpxor(zero, zero, zero);
+                    h->vpmaxsd(vmm, vmm, zero);
                     h->vpmovusdb(addr(0), vmm);
                 }
             } else {
@@ -774,7 +776,9 @@ template <typename Vmm>
                 if (is_signed) {
                     h->vpmovsdb(addr(0), vmm | k_mask);
                 } else {
-                    h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
+                    Vmm zero(aux_vec_idxs[0]);
+                    h->uni_vpxor(zero, zero, zero);
+                    h->vpmaxsd(vmm, vmm, zero);
                     h->vpmovusdb(addr(0), vmm | k_mask);
                 }
             }
@@ -845,7 +849,9 @@ template <typename Vmm>
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], vmm);  // singed int32 saturate to signed int16.
                     } else {
-                        h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);        // if singed bit is 1, set value as 0.
+                        Vmm zero(aux_vec_idxs[0]);
+                        h->uni_vpxor(zero, zero, zero);
+                        h->vmaxsd(vmm, zero, vmm);        // if singed bit is 1, set value as 0.
                         h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
                     }
                 } else {
@@ -856,7 +862,9 @@ template <typename Vmm>
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
                     } else {
-                        h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);
+                        Vmm zero(aux_vec_idxs[0]);
+                        h->uni_vpxor(zero, zero, zero);
+                        h->vmaxsd(vmm, zero, vmm);
                         h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
                     }
                 }

@@ -75,7 +75,10 @@ Framework-agnostic parameters:
                         shape to the layout required by Inference Engine
                         (N,C,H,W). The shape should not contain undefined
                         dimensions (? or -1) and should fit the dimensions
-                        defined in the input operation of the graph. If there
+                        defined in the input operation of the graph. Boundaries 
+                        of undefined dimension can be specified with ellipsis, 
+                        for example [1,1..10,128,128]. One boundary can be undefined, 
+                        for example [1,..100] or [1,3,1..,1..]. If there
                         are multiple inputs in the model, --input_shape should
                         contain definition of shape for each input separated
                         by a comma, for example: [1,3,227,227],[2,4] for a
@@ -101,18 +104,24 @@ Framework-agnostic parameters:
                         Parameter -> ReverseInputChannels -> Mean/Scale apply -> the original body of the model.                        
   --log_level {CRITICAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
                         Logger level
-  --input INPUT         Quoted list of comma-separated input nodes names with
-                        shapes, data types, and values for freezing. The shape
-                        and value are specified as space-separated lists. The
-                        data type of input node is specified in braces and can
-                        have one of the values: f64 (float64), f32 (float32),
-                        f16 (float16), i64 (int64), i32 (int32), u8 (uint8),
-                        boolean. For example, use the following format to set
-                        input port 0 of the node `node_name1` with the shape
-                        [3 4] as an input node and freeze output port 1 of the
-                        node `node_name2` with the value [20 15] of the int32
-                        type and shape [2]: "0:node_name1[3
-                        4],node_name2:1[2]{i32}->[20 15]".
+  --input INPUT         Quoted list of comma-separated input nodes names with shapes, 
+                        data types, and values for freezing. The shape and value are 
+                        specified as space-separated lists. The data type of input 
+                        node is specified in braces and can have one of the values: 
+                        f64 (float64), f32 (float32), f16 (float16), i64 (int64), 
+                        i32 (int32), u8 (uint8), boolean (bool). Data type is optional. 
+                        If it's not specified explicitly then there are two options: 
+                        if input node is a parameter, data type is taken from the 
+                        original node dtype, if input node is not a parameter, data type 
+                        is set to f32. Example, to set `input_1` with shape [1 100], 
+                        and Parameter node `sequence_len` with scalar input with value `150`, 
+                        and boolean input `is_training` with `False` value use the 
+                        following format: "input_1[1 10],sequence_len->150,is_training->False". 
+                        Another example, use the following format to set input port 0 
+                        of the node `node_name1` with the shape [3 4] as an input node 
+                        and freeze output port 1 of the node `node_name2` with the 
+                        value [20 15] of the int32 type and shape [2]: 
+                        "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".
   --output OUTPUT       The name of the output operation of the model. For
                         TensorFlow*, do not add :0 to this name.
   --mean_values MEAN_VALUES, -ms MEAN_VALUES

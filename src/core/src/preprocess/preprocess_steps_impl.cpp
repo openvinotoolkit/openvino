@@ -28,7 +28,11 @@ static Shape construct_mean_scale_shape(const Output<Node>& node,
                     "Number of channels and mean/values size mismatch: Channels = ",
                     node_shape[channels_index].get_length(),
                     ", mean/scale = ",
-                    values_size);
+                    values_size,
+                    ", shape = ",
+                    node_shape,
+                    ", layout = ",
+                    context.layout().to_string());
     v[channels_index] = values_size;
     return {v};
 }
@@ -169,7 +173,18 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
     });
 }
 
+Layout PreStepsList::propagate_layout(const Layout& tensor_layout) const {
+    auto res = m_last_explicit_layout_set ? m_last_explicit_layout : tensor_layout;
+    for (const auto& convert : m_forward_layout_converts) {
+        res = layout::utils::apply_permutation(res, convert);
+    }
+    return res;
+}
+
 void PreStepsList::add_convert_layout_impl(const Layout& layout) {
+    m_forward_layout_converts.clear();
+    m_last_explicit_layout = layout;
+    m_last_explicit_layout_set = true;
     m_actions.emplace_back([layout](const std::vector<Output<Node>>& nodes,
                                     const std::shared_ptr<Model>& function,
                                     PreprocessingContext& context) {
@@ -178,7 +193,24 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
                         "Can't convert layout for multi-plane input. Suggesting to convert current image to "
                         "RGB/BGR color format using 'convert_color'");
         Layout dst_layout = layout.empty() ? context.target_layout() : layout;
-        auto permutation = layout::utils::find_permutation(context.layout(), nodes[0].get_partial_shape(), dst_layout);
+        auto node = nodes[0];
+        auto shape = node.get_partial_shape();
+        size_t add_cnt;
+        Layout unsqueeze_layout;
+        std::tie(shape, unsqueeze_layout, add_cnt) = layout::utils::find_unsqueeze(context.layout(), shape, dst_layout);
+        if (add_cnt) {
+            std::vector<size_t> dims;
+            dims.push_back(add_cnt);
+            Shape const_shape(dims);
+            std::vector<int64_t> vals(add_cnt);
+            for (auto i = 0; i < add_cnt; i++) {
+                vals[i] = i;
+            }
+            auto axes = op::v0::Constant::create<int64_t>(element::i64, const_shape, vals);
+            // Add unsqueeze on top
+            node = std::make_shared<opset8::Unsqueeze>(node, axes);
+        }
+        auto permutation = layout::utils::find_permutation(unsqueeze_layout, shape, dst_layout);
         if (permutation.empty()) {
             // No transpose is needed, just update layout
             if (!layout.empty()) {
@@ -187,7 +219,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
             return std::make_tuple(nodes, false);
         }
         auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
-        auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
+        auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
         context.layout() = dst_layout;  // Update context's current layout
         // return false to avoid excess function revalidations as layout conversion
         // doesn't require shape or type propagation.
@@ -200,6 +232,7 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         return;
     }
     m_layout_converts.emplace_front(dims);
+    m_forward_layout_converts.emplace_back(dims);
     m_actions.emplace_back([dims](const std::vector<Output<Node>>& nodes,
                                   const std::shared_ptr<Model>& function,
                                   PreprocessingContext& context) {
