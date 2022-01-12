@@ -90,16 +90,16 @@ public:
     ov::Output<const ov::Node> input() const;
 
     /**
-     * @brief Gets input of a compiled model identified by an @p index
+     * @brief Gets input of a compiled model identified by an @p i
      * An input contains information about input tensor such as tensor shape, names and element type
      * @param i An input index
      * @return A compiled model input
-     * @note The method throws ov::Exception if input with specified index @p index is not found
+     * @note The method throws ov::Exception if input with specified index @p i is not found
      */
     ov::Output<const ov::Node> input(size_t i) const;
 
     /**
-     * @brief Gets input of a compiled model identified by an @p tensor_name
+     * @brief Gets input of a compiled model identified by a @p tensor_name
      * An input contain information about input tensor such as tensor shape, names and element type
      * @param tensor_name The input tensor name
      * @return A compiled model input
@@ -134,7 +134,7 @@ public:
     ov::Output<const ov::Node> output(size_t i) const;
 
     /**
-     * @brief Gets output of a compiled model identified by an @p tensor_name
+     * @brief Gets output of a compiled model identified by a @p tensor_name
      * An output contain information about output tensor such as tensor shape, names and element type
      * @param tensor_name The output tensor name
      * @return A compiled model output
