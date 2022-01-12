@@ -467,13 +467,26 @@ int main(int argc, char* argv[]) {
             next_step();
             auto preproc = ov::preprocess::PrePostProcessor(model);
 
-            processPrecision(*model, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            ov::runtime::ConfigMap user_precisions_map;
+            if (!FLAGS_iop.empty()) {
+                user_precisions_map = parseArgMap(FLAGS_iop);
+            }
+
+            const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
+            const auto output_precision = FLAGS_op.empty() ? ov::element::undefined : getPrecision2(FLAGS_op);
+
             for (auto& item : model->inputs()) {
                 // if precision for input set by user, then set it to app_inputs
                 const auto& name = item.get_any_name();
-                if (!FLAGS_ip.empty() || FLAGS_iop.find(name) != std::string::npos) {
+                if (user_precisions_map.count(name)) {
+                    const auto precision = getPrecision2(user_precisions_map.at(name));
                     for (auto& info : app_inputs_info) {
-                        info.at(name).type = item.get_element_type();
+                        info.at(name).type = precision;
+                    }
+                }
+                else if (input_precision != ov::element::undefined) {
+                    for (auto& info : app_inputs_info) {
+                        info.at(name).type = input_precision;
                     }
                 } else if (app_inputs_info[0].at(name).isImage()) {
                     // image input, set U8
@@ -486,6 +499,17 @@ int main(int argc, char* argv[]) {
 
                 // Explicitly set inputs layout.
                 in.model().set_layout(app_inputs_info[0].at(name).layout);
+            }
+
+            for (auto& item : model->outputs()) {
+                // if precision for input set by user, then set it to app_inputs
+                const auto& name = item.get_any_name();
+                if (user_precisions_map.count(name)) {
+                    const auto precision = getPrecision2(user_precisions_map.at(name));
+                    preproc.output(name).tensor().set_element_type(precision);
+                } else if (output_precision != ov::element::undefined) {
+                    preproc.output(name).tensor().set_element_type(output_precision);
+                } 
             }
 
             model = preproc.build();
