@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,9 +113,9 @@ const std::map<Precision, Precision> MKLDNNRNN::weightsByLayerPrec {
 
 
 struct RNNKey {
-    std::vector<DnnlBlockedMemoryDescPtr>& inDataDescs;
-    std::vector<DnnlBlockedMemoryDescPtr>& outDataDescs;
-    std::vector<mkldnn::memory::desc>& wDescs;
+    const std::vector<DnnlBlockedMemoryDescCPtr> inDataDescs;
+    const std::vector<DnnlBlockedMemoryDescCPtr> outDataDescs;
+    const std::vector<mkldnn::memory::desc> wDescs;
     mkldnn::algorithm cellType;
 
     size_t hash() const;
@@ -129,10 +129,12 @@ size_t RNNKey::hash() const {
     size_t seed = 0lu;
 
     for (auto& desc : inDataDescs) {
-        seed = hash_combine(seed, get_md_hash(desc->getDnnlDesc().data));
+        if (desc != nullptr)
+            seed = hash_combine(seed, get_md_hash(desc->getDnnlDesc().data));
     }
     for (auto& desc : outDataDescs) {
-        seed = hash_combine(seed, get_md_hash(desc->getDnnlDesc().data));
+        if (desc != nullptr)
+            seed = hash_combine(seed, get_md_hash(desc->getDnnlDesc().data));
     }
     for (auto& desc : wDescs) {
         seed = hash_combine(seed, get_md_hash(desc.data));
@@ -824,11 +826,11 @@ void MKLDNNRNN::prepareParams() {
         wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
     }
 
-    fillDescs();
-
     RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type };
 
     auto builder = [this](const RNNKey& key) -> std::shared_ptr<mkldnn::primitive> {
+        fillDescs();
+
         if (key.cellType == mkldnn::algorithm::vanilla_rnn) {
             std::shared_ptr<vanilla_rnn_forward::desc> desc = descs[0];
             return std::make_shared<vanilla_rnn_forward>(vanilla_rnn_forward::primitive_desc(*desc, getEngine()));
