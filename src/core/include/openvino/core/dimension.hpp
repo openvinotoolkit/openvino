@@ -132,6 +132,18 @@ public:
     /// \return Smallest interval dimension enclosing inputs
     Dimension operator-(const Dimension& dim) const;
 
+    /// \brief Division operator for Dimension divided by a value_type parameter.
+    /// \param divisor Right operand for division.
+    /// \return Smallest interval dimension enclosing inputs
+    Dimension operator/(const value_type divisor) const;
+
+    /// \brief Divided-into operator for Dimension.
+    /// \param divisor Right operand for multiplication.
+    /// \return A reference to `*this`, after updating `*this` to the value `*this * dim`.
+    Dimension& operator/=(const value_type divisor) {
+        return (*this = *this / divisor);
+    }
+
     /// \brief Multiplication operator for Dimension.
     /// \param dim Right operand for multiplicaiton.
     /// \return Smallest interval containing all "produces" which are 0 if either of `this` or

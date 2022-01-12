@@ -120,3 +120,35 @@ inline bool get_data_as_shape<ov::PartialShape>(
         return ov::evaluate_as_partial_shape(op->input_value(idx), shape);
     }
 }
+
+template <class T>
+inline void check_divided_result(const ov::Node* op,
+                                 const T& res,
+                                 const T& divided,
+                                 const typename T::value_type& divisor) {
+    NODE_VALIDATION_CHECK(op,
+                          res != T{},
+                          "Dimension value: [ ",
+                          divided.get_min_length(),
+                          ", ",
+                          divided.get_max_length(),
+                          "]",
+                          " must be a multiple of divisor: ",
+                          divisor);
+}
+
+template <>
+inline void check_divided_result<ov::Dimension>(const ov::Node* op,
+                                                const ov::Dimension& res,
+                                                const ov::Dimension& divided,
+                                                const typename ov::Dimension::value_type& divisor) {
+    NODE_VALIDATION_CHECK(op,
+                          !res.get_interval().empty(),
+                          "Dimension value: [ ",
+                          divided.get_min_length(),
+                          ", ",
+                          divided.get_max_length(),
+                          "]",
+                          " must be a multiple of divisor: ",
+                          divisor);
+}
