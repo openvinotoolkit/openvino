@@ -22,11 +22,11 @@ struct InputGenerateData {
 
 static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> inputRanges = {
         // NodeTypeInfo: {IntRanges{}, RealRanges{}}
-        { ov::op::v0::Erf::type_info, {{{6, -3}}, {{6, -3, 10}} }},
-        { ov::op::v1::Divide::type_info, {{{100, 101}}, {{2, 2, 128}} }},
-        { ov::op::v1::FloorMod::type_info, {{{4, 2}}, {{2, 2, 128}} }},
-        { ov::op::v1::Mod::type_info, {{{4, 2}}, {{2, 2, 128}} }},
-        { ov::op::v1::Power::type_info, {{{4, 2}}, {{2, 2, 128}} }},
+        { ov::op::v0::Erf::get_type_info_static(), {{{6, -3}}, {{6, -3, 10}} }},
+        { ov::op::v1::Divide::get_type_info_static(), {{{100, 101}}, {{2, 2, 128}} }},
+        { ov::op::v1::FloorMod::get_type_info_static(), {{{4, 2}}, {{2, 2, 128}} }},
+        { ov::op::v1::Mod::get_type_info_static(), {{{4, 2}}, {{2, 2, 128}} }},
+        { ov::op::v1::Power::get_type_info_static(), {{{4, 2}}, {{2, 2, 128}} }},
 };
 
 } // namespace utils
