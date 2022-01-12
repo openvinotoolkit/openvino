@@ -489,8 +489,60 @@ TEST(pre_post_process, convert_layout_implicit_several_time) {
     preprocessor.output().tensor().set_layout("NHCW");
     preprocessor.output().tensor().set_layout("NCHW");
     f = preprocessor.build();
-    EXPECT_EQ(f->get_parameters().front()->get_layout().to_string(), "[N,H,W,C]");
-    EXPECT_EQ(f->get_results().front()->get_layout().to_string(), "[N,C,H,W]");
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), Layout("[N,H,W,C]"));
+    EXPECT_EQ(f->get_results().front()->get_layout(), Layout("[N,C,H,W]"));
+}
+
+TEST(pre_post_process, tensor_set_layout) {
+    auto f = create_n_inputs<6>(element::f32, Shape{1, 3, 480, 640});
+    PrePostProcessor preprocessor(f);
+    preprocessor.input(0).tensor().set_layout("NCHW");
+    preprocessor.input(0).preprocess().mean({1.0, 2.0, 3.0});
+
+    preprocessor.input(1).tensor().set_layout("NHWC");
+    preprocessor.input(1).preprocess().mean({1.0, 2.0, 3.0}).convert_layout("NCHW");
+
+    preprocessor.input(2).tensor().set_layout("NHWC");
+    preprocessor.input(2).model().set_layout("NCHW");
+
+    preprocessor.input(3).model().set_layout("NCHW");
+
+    preprocessor.input(4).tensor().set_layout("NHWC");
+    // Model layout will be calculated as "HWCN" -> "3,2,0,1" = NCHW
+    preprocessor.input(4)
+        .preprocess()
+        .mean({1.0, 2.0, 3.0})
+        .convert_layout({3, 2, 1, 0})
+        .convert_layout("HWCN")
+        .convert_layout({3, 2, 0, 1});
+
+    preprocessor.input(5).tensor().set_layout("NHWC");
+    preprocessor.input(5)
+        .preprocess()
+        .mean({1.0, 2.0, 3.0})
+        .convert_layout({3, 2, 1, 0})   // NHWC -> CWHN
+        .convert_layout({3, 0, 2, 1});  // CWHN -> NCHW
+
+    f = preprocessor.build();
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (Shape{1, 3, 480, 640}));
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (Shape{1, 480, 640, 3}));
+    EXPECT_EQ(f->get_parameters()[2]->get_partial_shape(), (Shape{1, 480, 640, 3}));
+    EXPECT_EQ(f->get_parameters()[3]->get_partial_shape(), (Shape{1, 3, 480, 640}));
+    EXPECT_EQ(f->get_parameters()[4]->get_partial_shape(), (Shape{1, 480, 640, 3}));
+    EXPECT_EQ(f->get_parameters()[5]->get_partial_shape(), (Shape{1, 480, 640, 3}));
+}
+
+TEST(pre_post_process, postprocess_set_model_layout) {
+    auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 224, 224});
+    PrePostProcessor p(f);
+    p.output(0).model().set_layout("NCHW");
+    p.output(0).postprocess().convert_layout("NHWC");
+
+    p.output(1).model().set_layout("NCHW");
+
+    f = p.build();
+    EXPECT_EQ(f->get_results()[0]->get_shape(), (Shape{1, 224, 224, 3}));
+    EXPECT_EQ(f->get_results()[1]->get_shape(), (Shape{1, 3, 224, 224}));
 }
 
 TEST(pre_post_process, unsupported_model_color_format) {
@@ -715,14 +767,15 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
 
-// Error cases for 'resize'
 TEST(pre_post_process, resize_no_model_layout) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
-    EXPECT_THROW(p.input().tensor().set_layout("NHWC"); p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
-                 p.build(), ov::AssertFailure);
+    p.input().tensor().set_layout("NHWC");
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
+    EXPECT_NO_THROW(p.build());
 }
 
+// Error cases for 'resize'
 TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
@@ -733,6 +786,17 @@ TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
     EXPECT_THROW(p.input().tensor().set_layout("NCH?").set_spatial_static_shape(480, 640);
                  p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
                  p.build(), ov::AssertFailure);
+}
+
+TEST(pre_post_process, tensor_set_shape_for_resize) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_shape({1, 720, 1280, 3}).set_layout("NHWC");
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    p.build();
+    EXPECT_EQ(f->input().get_partial_shape(), (Shape{1, 720, 1280, 3}));
+    EXPECT_EQ(f->output().get_partial_shape(), (Shape{1, 3, 224, 224}));
 }
 
 TEST(pre_post_process, tensor_set_shape_incompatible) {

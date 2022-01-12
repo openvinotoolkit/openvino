@@ -4,6 +4,7 @@
 
 ov_add_frontend(NAME tensorflow
                 LINKABLE_FRONTEND
+                SHUTDOWN_PROTOBUF
                 SKIP_INSTALL
                 FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format"
                 LINK_LIBRARIES openvino::util)
