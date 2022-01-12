@@ -9,6 +9,9 @@ include(${XLINK_DIR}/XLink.cmake)
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        ADDITIONAL_SOURCE_DIRS
+            # because ngraphFunctions sources need to be compiled with LTO as well
+            "${IE_TESTS_ROOT}/ngraph_helpers/ngraph_functions/src"
         INCLUDES
             "${XLINK_INCLUDE}"
             "${XLINK_PLATFORM_INCLUDE}"

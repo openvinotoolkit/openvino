@@ -305,11 +305,8 @@ public:
     const_reverse_iterator crend() const noexcept { return _base.crend(); }
 
     bool empty() const noexcept { return _base.empty(); }
-#ifdef ENABLE_INTEL_VPU
+
     int size() const noexcept { return static_cast<int>(_base.size()); }
-#else
-    size_t size() const noexcept { return _base.size(); }
-#endif
 
     void reserve(size_type cap) { _base.reserve(cap); }
 
