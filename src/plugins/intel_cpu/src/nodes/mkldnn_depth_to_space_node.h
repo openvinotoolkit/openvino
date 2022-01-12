@@ -24,15 +24,7 @@ public:
 
     void prepareParams() override;
 
-protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
-
-private:
-    enum Mode {
-        BLOCKS_FIRST = 0,
-        DEPTH_FIRST = 1
-    };
-
+    enum Mode { BLOCKS_FIRST = 0, DEPTH_FIRST = 1 };
     struct DepthToSpaceAttrs {
         LayoutType layoutType;
         Mode mode;
@@ -41,8 +33,15 @@ private:
         size_t dataSize = 1lu;
         size_t nSpatialDims = 0lu;
         VectorDims srcBlockedDims;
-    } attrs;
+        size_t hash() const;
+        bool operator==(const DepthToSpaceAttrs& rhs) const;
+    };
 
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+private:
+    DepthToSpaceAttrs attrs;
     struct DepthToSpaceExecutor {
         DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
         void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB);
