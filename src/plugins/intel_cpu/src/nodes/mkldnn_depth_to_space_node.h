@@ -33,19 +33,15 @@ public:
         size_t dataSize = 1lu;
         size_t nSpatialDims = 0lu;
         VectorDims srcBlockedDims;
-    };
-
-    struct DepthToSpaceKey {
-        DepthToSpaceAttrs attrs;
         size_t hash() const;
-        bool operator==(const DepthToSpaceKey& rhs) const;
+        bool operator==(const DepthToSpaceAttrs& rhs) const;
     };
 
 protected:
     void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
-    DepthToSpaceKey key;
+    DepthToSpaceAttrs attrs;
     struct DepthToSpaceExecutor {
         DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
         void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB);
