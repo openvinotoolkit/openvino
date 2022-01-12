@@ -19,7 +19,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL,  // handle to DLL module
     }
     return TRUE;  // Successful DLL_PROCESS_ATTACH.
 }
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 extern "C" __attribute__((destructor)) void library_unload();
 void library_unload() {
     google::protobuf::ShutdownProtobufLibrary();
