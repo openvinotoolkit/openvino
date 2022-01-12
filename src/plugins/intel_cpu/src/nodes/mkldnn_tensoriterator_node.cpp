@@ -33,7 +33,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 
         PortConfig data_conf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        data_conf.desc = descCreator->createSharedDesc(prec, shape);
+        data_conf.setMemDesc(descCreator->createSharedDesc(prec, shape));
         config.inConfs.push_back(data_conf);
     }
 
@@ -44,7 +44,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 
         PortConfig data_conf {};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        data_conf.desc = descCreator->createSharedDesc(prec, shape);
+        data_conf.setMemDesc(descCreator->createSharedDesc(prec, shape));
         config.outConfs.push_back(data_conf);
     }
 

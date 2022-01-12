@@ -271,8 +271,8 @@ void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_typ
                         if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
                             inNum = 0;
                         }
-                        auto& curDesc = getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].desc;
-                        auto& parentDesc = parent_spd->getConfig().outConfs[inNum].desc;
+                        auto curDesc = getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].getMemDesc();
+                        auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
 
                         if (curDesc->isCompatible(*parentDesc)) {
                             equalsLocalFormatCount++;
@@ -332,24 +332,24 @@ void MKLDNNNode::resolveInPlaceEdges() {
     for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
 
-        if (parentEdge->getStatus() != MKLDNNEdge::Status::NotAllocated || selected_pd->getConfig().inConfs[i].inPlace < 0)
+        if (parentEdge->getStatus() != MKLDNNEdge::Status::NotAllocated || selected_pd->getConfig().inConfs[i].inPlace() < 0)
             continue;
 
         auto * memPtr = reinterpret_cast<char*>(parentEdge->getMemory().GetData());
         parentEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
-        parentEdge->getMemoryPtr()->Create(*selected_pd->getConfig().inConfs[i].desc, memPtr);
+        parentEdge->getMemoryPtr()->Create(*selected_pd->getConfig().inConfs[i].getMemDesc(), memPtr);
 
         parentEdge->changeStatus(MKLDNNEdge::Status::Allocated);
     }
     for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
         auto childEdge = getChildEdgeAt(i);
 
-        if (childEdge->getStatus() != MKLDNNEdge::Status::NotAllocated || selected_pd->getConfig().outConfs[i].inPlace < 0)
+        if (childEdge->getStatus() != MKLDNNEdge::Status::NotAllocated || selected_pd->getConfig().outConfs[i].inPlace() < 0)
             continue;
 
         auto * memPtr = reinterpret_cast<char*>(childEdge->getMemory().GetData());
         childEdge->getMemoryPtr().reset(new MKLDNNMemory(getEngine()));
-        childEdge->getMemoryPtr()->Create(*selected_pd->getConfig().outConfs[i].desc, memPtr);
+        childEdge->getMemoryPtr()->Create(*selected_pd->getConfig().outConfs[i].getMemDesc(), memPtr);
 
         childEdge->changeStatus(MKLDNNEdge::Status::Allocated);
     }
@@ -361,7 +361,7 @@ MemoryDescPtr MKLDNNNode::getBaseMemDescAtInputPort(size_t portNum) const {
         if (inConfs.size() < portNum) {
             IE_THROW() << "Can't get input memory desc at port: " << portNum << ", incorrect port number";
         }
-        return inConfs[portNum].desc;
+        return inConfs[portNum].getMemDesc();
     }
     IE_THROW() << "Can't get input memory desc, primitive descriptor is not selected";
 }
@@ -372,7 +372,7 @@ MemoryDescPtr MKLDNNNode::getBaseMemDescAtOutputPort(size_t portNum) const {
         if (outConfs.size() < portNum) {
             IE_THROW() << "Can't get output memory desc at port: " << portNum << ", incorrect port number";
         }
-        return outConfs[portNum].desc;
+        return outConfs[portNum].getMemDesc();
     }
     IE_THROW() << "Can't get output memory desc, primitive descriptor is not selected";
 }
@@ -429,14 +429,14 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
     // it is mixed precision.
     if (selectedPrimitiveDesc) {
         if (!selectedPrimitiveDesc->getConfig().inConfs.empty()) {
-            if (selectedPrimitiveDesc->getConfig().inConfs[0].desc->getPrecision() != InferenceEngine::Precision::U8) {
-                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().inConfs[0].desc->getPrecision().name());
+            if (selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision() != InferenceEngine::Precision::U8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision().name());
             } else {
                 str_type += "_I8";
             }
         } else {
-            if (selectedPrimitiveDesc->getConfig().outConfs[0].desc->getPrecision() != InferenceEngine::Precision::U8) {
-                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].desc->getPrecision().name());
+            if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != InferenceEngine::Precision::U8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().name());
             } else {
                 str_type += "_I8";
             }
@@ -582,26 +582,26 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = -1;
-                portConfig.constant = false;
+                portConfig.inPlace(-1);
+                portConfig.constant(false);
                 auto desc = getSrcMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    portConfig.setMemDesc(desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset());
                 } else {
-                    portConfig.desc = std::move(desc);
+                    portConfig.setMemDesc(std::move(desc));
                 }
                 config.inConfs.push_back(portConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig portConfig;
-                portConfig.inPlace = canBeInPlace() ? 0 : -1;
-                portConfig.constant = false;
+                portConfig.inPlace(canBeInPlace() ? 0 : -1);
+                portConfig.constant(false);
                 auto desc = getDstMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                    portConfig.setMemDesc(desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset());
                 } else {
-                    portConfig.desc = std::move(desc);
+                    portConfig.setMemDesc(std::move(desc));
                 }
                 config.outConfs.push_back(portConfig);
             }
@@ -632,11 +632,11 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
 
             bool isSuitableDesc = true;
             for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.inConfs[i].desc, inputMemoryFormatsFilter[i]);
+                const bool matched = areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i]);
                 isSuitableDesc &= matched;
             }
             for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.outConfs[i].desc, outputMemoryFormatsFilter[i]);
+                const bool matched = areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i]);
                 isSuitableDesc &= matched;
             }
             if (!isSuitableDesc) {
@@ -654,10 +654,10 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
     }
     std::vector<MemoryDescPtr> inDescs;
     for (const auto& inConf : config.inConfs)
-        inDescs.emplace_back(inConf.desc);
+        inDescs.emplace_back(inConf.getMemDesc());
     std::vector<MemoryDescPtr> outDescs;
     for (const auto& outConf : config.outConfs)
-        outDescs.emplace_back(outConf.desc);
+        outDescs.emplace_back(outConf.getMemDesc());
     createDescriptor(inDescs, outDescs);
 
     AttrPtr attr = initPrimitiveAttr();
@@ -678,17 +678,17 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
             cfg.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(itpd, i);
+                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
                 cfg.inConfs.push_back(dataConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(itpd, i);
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
                 cfg.outConfs.push_back(dataConfig);
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -715,12 +715,12 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
             return;
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
-            if (!selectedConfig.inConfs[i].desc->isCompatible(*config.inConfs[i].desc))
+            if (!selectedConfig.inConfs[i].getMemDesc()->isCompatible(*config.inConfs[i].getMemDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " intput port";
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
-            if (!selectedConfig.outConfs[i].desc->isCompatible(*config.outConfs[i].desc))
+            if (!selectedConfig.outConfs[i].getMemDesc()->isCompatible(*config.outConfs[i].getMemDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " output port";
         }
         rightConfig = config;
@@ -791,13 +791,13 @@ bool MKLDNNNode::isInPlace() {
         inplace = InPlaceType::NoInPlace;
         auto config = selected_pd->getConfig();
         for (auto &in : config.inConfs) {
-            if (in.inPlace >= 0) {
+            if (in.inPlace() >= 0) {
                 inplace = InPlaceType::InPlace;
                 break;
             }
         }
         for (auto &out : config.outConfs) {
-            if (out.inPlace >= 0) {
+            if (out.inPlace() >= 0) {
                 inplace = InPlaceType::InPlace;
                 break;
             }
@@ -921,26 +921,26 @@ MemoryDescPtr MKLDNNNode::getDefinedInputDesc(const NodeConfig &config, size_t i
     if (!selectedPD)
         IE_THROW() << "Cannot get selected primitive descriptor for node: " << getParentEdgeAt(idx)->getParent()->getName();
 
-    if (config.inConfs[idx].desc->isDefined()) {
-        return config.inConfs[idx].desc;
+    if (config.inConfs[idx].getMemDesc()->isDefined()) {
+        return config.inConfs[idx].getMemDesc();
     }
 
-    if (config.inConfs[idx].inPlace >= 0) {
-        return getDefinedOutputDesc(config, static_cast<size_t>(config.inConfs[idx].inPlace));
+    if (config.inConfs[idx].inPlace() >= 0) {
+        return getDefinedOutputDesc(config, static_cast<size_t>(config.inConfs[idx].inPlace()));
     }
 
     if (num >= 0) {
         auto parentConf = selectedPD->getConfig().outConfs[num];
-        parentConf.desc = parentConf.desc->cloneWithNewPrecision(config.inConfs[idx].desc->getPrecision());
-        if (!parentConf.desc->isDefined() && parentConf.inPlace >= 0)
+        parentConf.setMemDesc(parentConf.getMemDesc()->cloneWithNewPrecision(config.inConfs[idx].getMemDesc()->getPrecision()));
+        if (!parentConf.getMemDesc()->isDefined() && parentConf.inPlace() >= 0)
             getParentEdgeAt(idx)->getParent()->initOptimalPrimitiveDescriptor();
         parentConf = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
-        if (parentConf.desc->isDefined() && parentConf.desc->isCompatible(*config.inConfs[idx].desc)) {
-            return parentConf.desc;
+        if (parentConf.getMemDesc()->isDefined() && parentConf.getMemDesc()->isCompatible(*config.inConfs[idx].getMemDesc())) {
+            return parentConf.getMemDesc();
         }
     }
 
-    return config.inConfs[idx].desc->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
+    return config.inConfs[idx].getMemDesc()->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
 }
 
 MemoryDescPtr MKLDNNNode::getDefinedOutputDesc(const NodeConfig &config, size_t idx) const {
@@ -949,26 +949,26 @@ MemoryDescPtr MKLDNNNode::getDefinedOutputDesc(const NodeConfig &config, size_t 
     if (!selectedPD)
         IE_THROW() << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
 
-    if (config.outConfs[idx].desc->isDefined()) {
-        return config.outConfs[idx].desc;
+    if (config.outConfs[idx].getMemDesc()->isDefined()) {
+        return config.outConfs[idx].getMemDesc();
     }
 
-    if (config.outConfs[idx].inPlace >= 0) {
-        return getDefinedInputDesc(config, static_cast<size_t>(config.outConfs[idx].inPlace));
+    if (config.outConfs[idx].inPlace() >= 0) {
+        return getDefinedInputDesc(config, static_cast<size_t>(config.outConfs[idx].inPlace()));
     }
 
     if (num >= 0) {
         auto childConf = selectedPD->getConfig().inConfs[num];
-        childConf.desc = childConf.desc->cloneWithNewPrecision(config.outConfs[idx].desc->getPrecision());
-        if (!childConf.desc->isDefined() && childConf.inPlace >= 0)
+        childConf.setMemDesc(childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[idx].getMemDesc()->getPrecision()));
+        if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
             getChildEdgeAt(idx)->getChild()->initOptimalPrimitiveDescriptor();
         childConf = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-        if (childConf.desc->isDefined() && childConf.desc->isCompatible(*config.outConfs[idx].desc)) {
-            return childConf.desc;
+        if (childConf.getMemDesc()->isDefined() && childConf.getMemDesc()->isCompatible(*config.outConfs[idx].getMemDesc())) {
+            return childConf.getMemDesc();
         }
     }
 
-    return config.outConfs[idx].desc->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
+    return config.outConfs[idx].getMemDesc()->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
 }
 
 void MKLDNNNode::initOptimalPrimitiveDescriptor() {
@@ -978,11 +978,11 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (!isConfigDefined(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].desc = getDefinedInputDesc(config, i);
+            config.inConfs[i].setMemDesc(getDefinedInputDesc(config, i));
         }
 
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].desc = getDefinedOutputDesc(config, i);
+            config.outConfs[i].setMemDesc(getDefinedOutputDesc(config, i));
         }
 
         initDescriptor(config);
@@ -994,7 +994,7 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
 bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
     for (const auto& configs : {config.inConfs, config.outConfs}) {
         for (const auto &dc : configs) {
-            if (!dc.desc->isDefined())
+            if (!dc.getMemDesc()->isDefined())
                 return false;
         }
     }

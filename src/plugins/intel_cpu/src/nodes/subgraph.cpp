@@ -143,40 +143,40 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             PortConfig portConfig;
-            portConfig.inPlace = (!i && canBeInPlace()) ? 0 : -1;
-            portConfig.constant = false;
-            portConfig.desc = createMemoryDesc(inputShapes[i], supportedPrecision, offset);
+            portConfig.inPlace((!i && canBeInPlace()) ? 0 : -1);
+            portConfig.constant(false);
+            portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset));
             if (inputShapes[i].getDims()[0] == 1) {
-                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                const auto denseDesc = portConfig.getMemDesc()->as<BlockedMemoryDesc>();
                 auto strides = denseDesc->getStrides();
                 strides[0] = Shape::UNDEFINED_DIM;
-                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                         denseDesc->getShape(),
-                                                                         denseDesc->getBlockDims(),
-                                                                         denseDesc->getOrder(),
-                                                                         denseDesc->getOffsetPadding(),
-                                                                         denseDesc->getOffsetPaddingToData(),
-                                                                         strides);
+                portConfig.setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                                                                             denseDesc->getShape(),
+                                                                             denseDesc->getBlockDims(),
+                                                                             denseDesc->getOrder(),
+                                                                             denseDesc->getOffsetPadding(),
+                                                                             denseDesc->getOffsetPaddingToData(),
+                                                                             strides));
             }
             config.inConfs[i] = portConfig;
         }
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
             PortConfig portConfig;
-            portConfig.inPlace = -1;
-            portConfig.constant = false;
-            portConfig.desc = createMemoryDesc(outputShapes[i], supportedPrecision, offset);
+            portConfig.inPlace(-1);
+            portConfig.constant(false);
+            portConfig.setMemDesc(createMemoryDesc(outputShapes[i], supportedPrecision, offset));
             if (outputShapes[i].getDims()[0] == 1) {
-                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                const auto denseDesc = portConfig.getMemDesc()->as<BlockedMemoryDesc>();
                 auto strides = denseDesc->getStrides();
                 strides[0] = Shape::UNDEFINED_DIM;
-                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                         denseDesc->getShape(),
-                                                                         denseDesc->getBlockDims(),
-                                                                         denseDesc->getOrder(),
-                                                                         denseDesc->getOffsetPadding(),
-                                                                         denseDesc->getOffsetPaddingToData(),
-                                                                         strides);
+                portConfig.setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                                                                             denseDesc->getShape(),
+                                                                             denseDesc->getBlockDims(),
+                                                                             denseDesc->getOrder(),
+                                                                             denseDesc->getOffsetPadding(),
+                                                                             denseDesc->getOffsetPaddingToData(),
+                                                                             strides));
             }
             config.outConfs[i] = portConfig;
         }
@@ -295,7 +295,7 @@ static auto collapseLastDims(std::vector<int64_t>& dims, int dimsToCollapse) -> 
 
 void MKLDNNSnippetNode::define_schedule() {
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    const auto dataSize = config.inConfs[0].desc->getPrecision().size();
+    const auto dataSize = config.inConfs[0].getMemDesc()->getPrecision().size();
     // store to use as an execution domain
     max_rank_out_desc_idx = argmax_rank(getChildEdges());
     const auto outBlockingDesc_maxRank = getChildEdgeAt(max_rank_out_desc_idx)->getMemory().GetDescWithType<BlockedMemoryDesc>();

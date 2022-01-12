@@ -113,17 +113,17 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
         return;
 
     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
-            (config.inConfs[0].desc->isDefined() &&
-                    config.outConfs[0].desc->isDefined() && !config.inConfs[0].desc->isCompatible(*config.outConfs[0].desc)))
+            (config.inConfs[0].getMemDesc()->isDefined() &&
+                    config.outConfs[0].getMemDesc()->isDefined() && !config.inConfs[0].getMemDesc()->isCompatible(*config.outConfs[0].getMemDesc())))
         IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
-    if (config.inConfs[0].desc->isDefined()) {
-        config.outConfs[0].desc = config.inConfs[0].desc;
-    } else if (config.outConfs[0].desc->isDefined()) {
-        config.inConfs[0].desc = config.outConfs[0].desc;
+    if (config.inConfs[0].getMemDesc()->isDefined()) {
+        config.outConfs[0].setMemDesc(config.inConfs[0].getMemDesc());
+    } else if (config.outConfs[0].getMemDesc()->isDefined()) {
+        config.inConfs[0].setMemDesc(config.outConfs[0].getMemDesc());
     } else {
-        config.inConfs[0].desc = getDefinedInputDesc(config, 0);
-        config.outConfs[0].desc = config.inConfs[0].desc;
+        config.inConfs[0].setMemDesc(getDefinedInputDesc(config, 0));
+        config.outConfs[0].setMemDesc(config.inConfs[0].getMemDesc());
     }
 
     initDescriptor(config);

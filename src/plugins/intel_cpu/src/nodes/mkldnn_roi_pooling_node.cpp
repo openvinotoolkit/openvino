@@ -468,8 +468,8 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     refParams.alg = getAlgorithm();
 
     const auto& config = selectedPD->getConfig();
-    refParams.src_prc = config.inConfs[0].desc->getPrecision();
-    refParams.dst_prc = config.outConfs[0].desc->getPrecision();
+    refParams.src_prc = config.inConfs[0].getMemDesc()->getPrecision();
+    refParams.dst_prc = config.outConfs[0].getMemDesc()->getPrecision();
 
     if (inputShapesDefined()) {
         if (needPrepareParams() && isExecutable())

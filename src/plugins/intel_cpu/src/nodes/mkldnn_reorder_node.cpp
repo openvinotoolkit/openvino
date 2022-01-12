@@ -77,21 +77,21 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
+    config.inConfs[0].inPlace(-1);
+    config.inConfs[0].constant(false);
+    config.outConfs[0].inPlace(-1);
+    config.outConfs[0].constant(false);
     if (isOptimized) {
-        config.inConfs[0].inPlace = 0;
-        config.outConfs[0].inPlace = 0;
+        config.inConfs[0].inPlace(0);
+        config.outConfs[0].inPlace(0);
     }
     if (input && output) {
-        config.inConfs[0].desc = input;
-        config.outConfs[0].desc = output;
+        config.inConfs[0].setMemDesc(input);
+        config.outConfs[0].setMemDesc(output);
     } else if (parent->getSelectedPrimitiveDescriptor() != nullptr &&
                child->getSelectedPrimitiveDescriptor() != nullptr) {
-        config.inConfs[0].desc = parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
-        config.outConfs[0].desc = child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+        config.inConfs[0].setMemDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc());
+        config.outConfs[0].setMemDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc());
     } else {
         IE_THROW() << "Cannot initialize supported PDs for Reorder node with name `" << getName() << "`";
     }
@@ -99,25 +99,25 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder);
 
     // must be to initialize here since shapes are unknown at the time of Reorder node creation
-    isDynamic = !(config.inConfs[0].desc->isDefined() && config.outConfs[0].desc->isDefined());
+    isDynamic = !(config.inConfs[0].getMemDesc()->isDefined() && config.outConfs[0].getMemDesc()->isDefined());
 
-    if (isDynamic && (config.inConfs[0].desc->getShape().getRank() != config.outConfs[0].desc->getShape().getRank()))
+    if (isDynamic && (config.inConfs[0].getMemDesc()->getShape().getRank() != config.outConfs[0].getMemDesc()->getShape().getRank()))
         IE_THROW() << "Reorder node doesn't support case when input and output shapes have different rank and dynamic";
     if (!isOptimized) {
         const auto &inShape = getInputShapeAtPort(0);
         if (MKLDNNPlugin::one_of(inShape.getRank(), 4, 5) &&
-                config.inConfs[0].desc->hasLayoutType(LayoutType::nspc) &&
-                config.outConfs[0].desc->hasLayoutType(LayoutType::ncsp) &&
-                config.inConfs[0].desc->getPrecision() == Precision::FP32 &&
-                config.outConfs[0].desc->getPrecision() == Precision::FP32) {
+                config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
+                config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
+                config.inConfs[0].getMemDesc()->getPrecision() == Precision::FP32 &&
+                config.outConfs[0].getMemDesc()->getPrecision() == Precision::FP32) {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
             isNspc2NcspCase = true;
         } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
                    MKLDNNPlugin::one_of(inShape.getRank(), 4, 5) &&
-                   config.inConfs[0].desc->hasLayoutType(LayoutType::ncsp) &&
-                   config.outConfs[0].desc->hasLayoutType(LayoutType::nspc) &&
-                   config.inConfs[0].desc->getPrecision() == config.outConfs[0].desc->getPrecision() &&
-                   config.inConfs[0].desc->getPrecision().size() == 1) {
+                   config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
+                   config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
+                   config.inConfs[0].getMemDesc()->getPrecision() == config.outConfs[0].getMemDesc()->getPrecision() &&
+                   config.inConfs[0].getMemDesc()->getPrecision().size() == 1) {
             // oneDNN doesn't provide JIT reorder impl for non-avx2 targets so we fallback on simple c++ implementation which shows better perf
             isNcsp2NspcCase = true;
         }

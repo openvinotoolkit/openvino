@@ -617,7 +617,7 @@ void MKLDNNColorConvertNode::createPrimitive() {
 
     if (!_impl) {
         const auto & cfg = desc->getConfig();
-        const auto precision = cfg.inConfs[0].desc->getPrecision();
+        const auto precision = cfg.inConfs[0].getMemDesc()->getPrecision();
         const bool isSinglePlane = cfg.inConfs.size() == 1;
 
         _impl = std::unique_ptr<Converter>(_supportedImpls

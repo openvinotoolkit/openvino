@@ -113,15 +113,15 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(getParentEdges().size());
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        config.inConfs[i].inPlace = -1;
-        config.inConfs[i].constant = false;
-        config.inConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i));
+        config.inConfs[i].inPlace(-1);
+        config.inConfs[i].constant(false);
+        config.inConfs[i].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
     }
     config.outConfs.resize(1);
     // TODO [DS]: inplace
-    config.outConfs[0].inPlace = isDynamicNode() ? -1 : 0;
-    config.outConfs[0].constant = false;
-    config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0));
+    config.outConfs[0].inPlace(isDynamicNode() ? -1 : 0);
+    config.outConfs[0].constant(false);
+    config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0)));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 

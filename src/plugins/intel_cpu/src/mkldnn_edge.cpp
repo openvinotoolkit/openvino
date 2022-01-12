@@ -78,7 +78,7 @@ bool MKLDNNEdge::enforceReorder() {
     bool in_place = inPlace();
     bool childCanChangeMem = childSPD->getConfig().outConfs.empty();
     for (const auto& conf : childSPD->getConfig().outConfs) {
-        if (conf.inPlace == outNumber && outNumber >= 0)
+        if (conf.inPlace() == outNumber && outNumber >= 0)
             childCanChangeMem = true;
     }
 
@@ -90,7 +90,7 @@ bool MKLDNNEdge::enforceReorder() {
             if (childSPD->getConfig().outConfs.empty())
                 count++;
             for (const auto& conf : childSPD->getConfig().outConfs) {
-                if (conf.inPlace == outNumber)
+                if (conf.inPlace() == outNumber)
                     count++;
             }
         }
@@ -110,8 +110,8 @@ bool MKLDNNEdge::enforceReorder() {
     }
 
     if (in_place) {
-        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() && parentSPD->getConfig().outConfs[inNumber].inPlace >= 0 &&
-            outNumber >= 0 && outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace >= 0)
+        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() && parentSPD->getConfig().outConfs[inNumber].inPlace() >= 0 &&
+            outNumber >= 0 && outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace() >= 0)
             canBeInPlaceConflicts = true;
     }
 
@@ -332,7 +332,7 @@ const MemoryDesc& MKLDNNEdge::getInputDesc() const {
     if (inputIdx >= outConfs.size())
         inputIdx = 0;
 
-    return *(outConfs[inputIdx].desc);
+    return *(outConfs[inputIdx].getMemDesc());
 }
 
 const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
@@ -352,7 +352,7 @@ const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
     if (outputIdx >= inConfs.size())
         outputIdx = 0;
 
-    return *(inConfs[outputIdx].desc);
+    return *(inConfs[outputIdx].getMemDesc());
 }
 
 const MemoryDesc& MKLDNNEdge::getDesc() const {
@@ -452,15 +452,15 @@ MKLDNNEdgePtr MKLDNNEdge::getBaseEdge(int look) {
     int inputNum = getInputNum();
     int outputNum = getOutputNum();
 
-    if (childConfig.inConfs[outputNum].inPlace >= 0 && parentConfig.outConfs[inputNum].inPlace >= 0) {
+    if (childConfig.inConfs[outputNum].inPlace() >= 0 && parentConfig.outConfs[inputNum].inPlace() >= 0) {
         inputNum = getInputNum();
         return getParent()->getChildEdgeAt(inputNum);
     }
 
-    if (childConfig.inConfs[outputNum].inPlace >= 0 && (look & LOOK_DOWN)) {
-        int next_port_idx = childConfig.inConfs[outputNum].inPlace;
-        if (childConfig.outConfs[next_port_idx].inPlace >= 0) {
-            childConfig.outConfs[next_port_idx].inPlace = -1;
+    if (childConfig.inConfs[outputNum].inPlace() >= 0 && (look & LOOK_DOWN)) {
+        int next_port_idx = childConfig.inConfs[outputNum].inPlace();
+        if (childConfig.outConfs[next_port_idx].inPlace() >= 0) {
+            childConfig.outConfs[next_port_idx].inPlace(-1);
             getChild()->initDescriptor(childConfig);
         }
 
@@ -472,14 +472,14 @@ MKLDNNEdgePtr MKLDNNEdge::getBaseEdge(int look) {
         for (auto &ch_edge : ch_edges) {
             auto &chch_conf = ch_edge->getChild()->getSelectedPrimitiveDescriptor()->getConfig();
 
-            if (chch_conf.inConfs[ch_edge->getOutputNum()].inPlace >= 0)
+            if (chch_conf.inConfs[ch_edge->getOutputNum()].inPlace() >= 0)
                 next_ch_edge = ch_edge;
         }
         return next_ch_edge->getBaseEdge(LOOK_DOWN);
-    } else if (parentConfig.outConfs[inputNum].inPlace >= 0 && (look & LOOK_UP)) {
-        int next_port_idx = parentConfig.outConfs[inputNum].inPlace;
-        if (parentConfig.inConfs[next_port_idx].inPlace >= 0) {
-            parentConfig.inConfs[next_port_idx].inPlace = -1;
+    } else if (parentConfig.outConfs[inputNum].inPlace() >= 0 && (look & LOOK_UP)) {
+        int next_port_idx = parentConfig.outConfs[inputNum].inPlace();
+        if (parentConfig.inConfs[next_port_idx].inPlace() >= 0) {
+            parentConfig.inConfs[next_port_idx].inPlace(-1);
             getParent()->initDescriptor(parentConfig);
         }
         return getParent()->getParentEdgesAtPort(next_port_idx)[0]->getBaseEdge(LOOK_UP);
@@ -510,11 +510,11 @@ bool MKLDNNEdge::inPlace(LOOK look) {
         outputNum = 0;
 
     if (look & LOOK_UP) {
-        if (parentSPD->getConfig().outConfs[inputNum].inPlace >= 0)
+        if (parentSPD->getConfig().outConfs[inputNum].inPlace() >= 0)
             return true;
     }
     if (look & LOOK_DOWN) {
-        if (childSPD->getConfig().inConfs[outputNum].inPlace >= 0)
+        if (childSPD->getConfig().inConfs[outputNum].inPlace() >= 0)
             return true;
     }
     return false;

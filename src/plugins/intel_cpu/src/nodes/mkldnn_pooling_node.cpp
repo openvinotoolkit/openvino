@@ -463,18 +463,18 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(itpd, i);
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
 
                 config.inConfs.push_back(dataConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(itpd, i);
+                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
 
                 config.outConfs.push_back(dataConfig);
             }
@@ -483,9 +483,10 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
             if (isMaxPool8) {
                 auto& creatorsMap = BlockedDescCreator::getCommonCreators();
                 PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(config.outConfs.front().desc->getPrecision(), getOutputShapeAtPort(1));
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(config.outConfs.front().getMemDesc()->getPrecision(),
+                                                                                         getOutputShapeAtPort(1)));
 
                 config.outConfs.push_back(dataConfig);
             }
@@ -506,10 +507,10 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
     }
     std::vector<MemoryDescPtr> inDescs;
     for (const auto& inConf : config.inConfs)
-        inDescs.push_back(inConf.desc);
+        inDescs.push_back(inConf.getMemDesc());
     std::vector<MemoryDescPtr> outDescs;
     for (const auto& outConf : config.outConfs)
-        outDescs.push_back(outConf.desc);
+        outDescs.push_back(outConf.getMemDesc());
     createDescriptor(inDescs, outDescs);
 
     mkldnn::primitive_attr attr;
@@ -528,17 +529,17 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
             cfg.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(itpd, i);
+                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
                 cfg.inConfs.push_back(dataConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(itpd, i);
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
                 cfg.outConfs.push_back(dataConfig);
             }
 
@@ -546,9 +547,10 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
             if (isMaxPool8) {
                 auto& creatorsMap = BlockedDescCreator::getCommonCreators();
                 PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(cfg.outConfs.front().desc->getPrecision(), getOutputShapeAtPort(1));
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(cfg.outConfs.front().getMemDesc()->getPrecision(),
+                                                                                         getOutputShapeAtPort(1)));
 
                 cfg.outConfs.push_back(dataConfig);
             }
@@ -577,12 +579,12 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
             return;
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
-            if (!selectedConfig.inConfs[i].desc->isCompatible(*config.inConfs[i].desc))
+            if (!selectedConfig.inConfs[i].getMemDesc()->isCompatible(*config.inConfs[i].getMemDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
-            if (!selectedConfig.outConfs[i].desc->isCompatible(*config.outConfs[i].desc))
+            if (!selectedConfig.outConfs[i].getMemDesc()->isCompatible(*config.outConfs[i].getMemDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
         rightConfig = config;
