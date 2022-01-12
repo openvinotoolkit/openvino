@@ -562,16 +562,54 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         }
     };
 
-    const auto reorder_weights_convolution = [&p, &lo, &rf](typed_program_node<convolution>& conv_node) {
-        auto& weights = conv_node.weights();
-        auto weights_layout = weights.get_output_layout();
-        if (!format::is_simple_data_format(weights_layout.format) && !weights.is_type<data>() && !weights.is_constant()) {
-            auto dims = weights_layout.format.dimension();
-            auto preferred_format = dims <= 4 ? format::bfyx : dims == 5 ? format::bfzyx : format::bfwzyx;
-            auto reorder = rf.get_reorder(weights.id(), weights_layout,
-                layout{ weights_layout.data_type, preferred_format, weights_layout.size });
-            if (reorder.first) {
-                p.add_intermediate(reorder.first, conv_node, 1, !reorder.second);
+    const auto reorder_convolution = [&p, &lo, &rf](typed_program_node<convolution>& conv_node) {
+        {
+            // reorder weights convolution
+            auto& weights = conv_node.weights();
+            auto weights_layout = weights.get_output_layout();
+            if (!format::is_simple_data_format(weights_layout.format) && !weights.is_type<data>() && !weights.is_constant()) {
+                auto dims = weights_layout.format.dimension();
+                auto preferred_format = dims <= 4 ? format::bfyx : dims == 5 ? format::bfzyx : format::bfwzyx;
+                auto reorder = rf.get_reorder(weights.id(), weights_layout,
+                    layout{ weights_layout.data_type, preferred_format, weights_layout.size });
+                if (reorder.first) {
+                    p.add_intermediate(reorder.first, conv_node, 1, !reorder.second);
+                }
+            }
+        }
+
+        std::vector<format> wrong_format = {format::b_fs_yx_fsv16, format::bs_fs_yx_bsv32_fsv16};
+        std::vector<format> correct_format = {format::b_fs_yx_fsv32, format::bs_fs_yx_bsv32_fsv32};
+        for (int i = 0; i < wrong_format.size(); i++) {
+            // reorder for onednn mixed-precision conv
+            // If the layouts are like below, change input layout to fsv32.
+            // From:
+            //   (bsv32_fsv16.u8) --> conv --> (bsv32_fsv16.fp16)
+            // To:
+            //   (bsv32_fsv16.u8) --> reorder --> (bsv32_fsv32.u8) --> conv --> (bsv32_fsv16.fp16)
+            //
+            // Do not apply such change for b=1 first conv
+
+            auto prev_node = conv_node.get_dependencies().front();
+            auto old_layout = prev_node->get_output_layout();
+            auto conv_layout = conv_node.get_output_layout();
+            if (lo.get_optimization_attributes().use_onednn_impls
+                    && conv_layout.format == wrong_format[i]
+                    && data_type_traits::is_i8_u8(old_layout.data_type)
+                    && (old_layout.format == wrong_format[i])
+                    && !(old_layout.size.batch[0] == 1 && old_layout.size.feature[0] <= 4)) {
+                auto new_layout = old_layout;
+                new_layout.format = correct_format[i];
+                auto new_input = rf.get_reorder(prev_node->id(),
+                                                old_layout,
+                                                new_layout);
+
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
+                }
+
+                // Prevent layout propagation as we are using mixed precision for conv
+                conv_node.get_dependencies().front()->set_output_layout(new_layout, false);
             }
         }
     };
@@ -598,7 +636,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             reorder_input_detection_output,
             reorder_input_binary_convolution,
             reorder_input_and_weights_deconvolution,
-            reorder_weights_convolution,
+            reorder_convolution,
             reorder_input_fully_connected);
    }
 
