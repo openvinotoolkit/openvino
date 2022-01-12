@@ -625,6 +625,12 @@ void IInferRequestInternal::SetUserData(void* userData) noexcept {
     _userData = userData;
 }
 
+void IInferRequestInternal::setModelInputsOutputs(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    _parameters = inputs;
+    _results = outputs;
+}
+
 const std::vector<std::shared_ptr<const ov::Node>>& IInferRequestInternal::GetInputs() const {
     return _parameters;
 }
