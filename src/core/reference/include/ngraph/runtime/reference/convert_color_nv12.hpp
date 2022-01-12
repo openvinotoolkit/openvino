@@ -110,8 +110,8 @@ void color_convert_i420(const T* arg_y,
 
 template <ov::element::Type_t ET>
 inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
-                               const HostTensorVector& outputs,
-                               const HostTensorVector& inputs,
+                               const ov::HostTensorVector& outputs,
+                               const ov::HostTensorVector& inputs,
                                ov::op::util::ConvertColorNV12Base::ColorConversion type) {
     static const size_t N_DIM = 0;
     static const size_t H_DIM = 1;
@@ -121,7 +121,6 @@ inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
                  op->get_input_size());
     auto single_plane = op->get_input_size() == 1;
 
-    using namespace ov::op::util;
     const auto& y_tensor = inputs[0];
     auto batch_size = y_tensor->get_shape()[N_DIM];
     auto image_w = y_tensor->get_shape()[W_DIM];
