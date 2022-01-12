@@ -483,8 +483,7 @@ int main(int argc, char* argv[]) {
                     for (auto& info : app_inputs_info) {
                         info.at(name).type = precision;
                     }
-                }
-                else if (input_precision != ov::element::undefined) {
+                } else if (input_precision != ov::element::undefined) {
                     for (auto& info : app_inputs_info) {
                         info.at(name).type = input_precision;
                     }
@@ -509,7 +508,7 @@ int main(int argc, char* argv[]) {
                     preproc.output(name).tensor().set_element_type(precision);
                 } else if (output_precision != ov::element::undefined) {
                     preproc.output(name).tensor().set_element_type(output_precision);
-                } 
+                }
             }
 
             model = preproc.build();
