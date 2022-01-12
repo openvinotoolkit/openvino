@@ -662,11 +662,11 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
                 new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
             fq_node['orig_fq_name'] = copy(fq_node.name)
-            rename_node(fq_node, new_fq_name)
 
             if 'orig_node_name' not in input_node:
                 input_node['orig_node_name'] = copy(input_node.name)
                 rename_node(input_node, f'{input_node.name}/pre_fq_input')
+            rename_node(fq_node, new_fq_name)
 
         pattern = get_fq_result_pattern()
         apply_pattern(
