@@ -27,6 +27,7 @@ TEST_MODEL = ('mobilenet-v2-pytorch', 'pytorch')
 TOOL_CONFIG_NAME = ['mobilenet-v2-pytorch.json', 'mobilenet-v2-pytorch_aa.json', 'mobilenet-v2-pytorch_sparsity.json']
 
 
+# pylint: disable=W0221
 class TelemetryTest(Telemetry):
     def __init__(self):
         super().__init__()
