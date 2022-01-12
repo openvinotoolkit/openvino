@@ -25,6 +25,11 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
+const std::vector<bool> isConvertOnConstants = {
+    false,
+    true
+};
+
 const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
     {
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
@@ -82,6 +87,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeTransformation,
         ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(fakeQuantizeOnDataValues)),
+        ::testing::ValuesIn(fakeQuantizeOnDataValues),
+        ::testing::ValuesIn(isConvertOnConstants)),
     FakeQuantizeTransformation::getTestCaseName);
 }  // namespace
