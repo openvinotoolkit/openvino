@@ -5,7 +5,6 @@ import unittest
 
 import numpy as np
 from generator import generator, generate
-
 from openvino.tools.mo.front.common.partial_infer.utils import strict_compare_tensors
 from openvino.tools.mo.front.extractor import input_user_data_repack, output_user_data_repack, update_ie_fields, add_input_op, \
     get_node_id_with_ports
@@ -14,6 +13,7 @@ from openvino.tools.mo.front.extractor import spatial_attr_getter, add_input_ops
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import build_graph, build_graph_with_edge_attrs, build_graph_with_attrs
 
@@ -174,7 +174,7 @@ class TestAddInputOp(unittest.TestCase):
         self.assertTrue(flag, resp)
 
 
-class TestInputAddition(unittest.TestCase):
+class TestInputAddition(UnitTestWithMockedTelemetry):
     # Tests for input
     nodes = {'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
              'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
@@ -480,7 +480,7 @@ class TestOutputCut(unittest.TestCase):
         self.assertEqual(len(graph.nodes()), 2)
 
 
-class TestUserDataRepack(unittest.TestCase):
+class TestUserDataRepack(UnitTestWithMockedTelemetry):
     nodes = {'A': {'name': 'Aa', 'op': 'Parameter', 'kind': 'op'},
              'B': {'name': 'Bb', 'op': 'Parameter', 'kind': 'op'},
              'C': {'name': 'Cc', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Identity'},
@@ -537,11 +537,11 @@ class TestUserDataRepack(unittest.TestCase):
 
     def test_error(self):
         graph = build_graph(self.nodes, self.edges)
-        self.assertRaises(Error, input_user_data_repack, graph, np.array([1, 227, 227, 3]), None)
+        self.assertRaises(Error, input_user_data_repack, graph, tuple([1, 227, 227, 3]), None)
 
     def test_error_2(self):
         graph = build_graph(self.nodes, self.edges)
-        self.assertRaises(Error, input_user_data_repack, graph, np.array([1, 227, 227, 3]), None)
+        self.assertRaises(Error, input_user_data_repack, graph, tuple([1, 227, 227, 3]), None)
 
     def test_error_3(self):
         graph = build_graph(self.nodes, self.edges)
@@ -549,7 +549,7 @@ class TestUserDataRepack(unittest.TestCase):
 
     def test_input_and_freeze(self):
         graph = build_graph(self.nodes, self.edges)
-        shape_1 = np.array([1, 160, 160, 3])
+        shape_1 = tuple([1, 160, 160, 3])
         input, freeze_placeholder = input_user_data_repack(graph, shape_1, {'Bb': True})
         self.assertDictEqual(input, {'A': [{'shape': shape_1, 'port': None}], 'B': [{'shape': None, 'port': None}]})
         self.assertDictEqual(freeze_placeholder, {'B': True})

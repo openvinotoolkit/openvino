@@ -7,7 +7,6 @@
 #include <istream>
 #include <memory>
 
-#include "ir_frontend/utility.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "utils.hpp"
 

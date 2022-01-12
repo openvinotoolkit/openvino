@@ -28,9 +28,13 @@
 
 namespace InferenceEngine {
 
-VariableState::VariableState(const std::shared_ptr<void>& so, const IVariableStateInternal::Ptr& impl)
-    : _so(so),
-      _impl(impl) {
+VariableState::~VariableState() {
+    _impl = {};
+}
+
+VariableState::VariableState(const IVariableStateInternal::Ptr& impl, const std::shared_ptr<void>& so)
+    : _impl(impl),
+      _so(so) {
     if (_impl == nullptr)
         IE_THROW() << "VariableState was not initialized.";
 }
@@ -58,9 +62,13 @@ void VariableState::SetState(Blob::Ptr state) {
 namespace ov {
 namespace runtime {
 
-VariableState::VariableState(const std::shared_ptr<void>& so, const ie::IVariableStateInternal::Ptr& impl)
-    : _so{so},
-      _impl{impl} {
+VariableState::~VariableState() {
+    _impl = {};
+}
+
+VariableState::VariableState(const ie::IVariableStateInternal::Ptr& impl, const std::shared_ptr<void>& so)
+    : _impl{impl},
+      _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized.");
 }
 
@@ -73,7 +81,7 @@ std::string VariableState::get_name() const {
 }
 
 Tensor VariableState::get_state() const {
-    OV_VARIABLE_CALL_STATEMENT(return {_so, std::const_pointer_cast<ie::Blob>(_impl->GetState())});
+    OV_VARIABLE_CALL_STATEMENT(return {std::const_pointer_cast<ie::Blob>(_impl->GetState()), _so});
 }
 
 void VariableState::set_state(const Tensor& state) {

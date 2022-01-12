@@ -6,6 +6,7 @@
 
 #include <ie_layouts.h>
 #include "intel_gpu/runtime/layout.hpp"
+#include "openvino/core/layout.hpp"
 
 #include "ngraph/type/element_type.hpp"
 
@@ -185,6 +186,21 @@ inline std::vector<uint16_t> ConvertPermuteOrder(const std::vector<uint16_t>& ie
     }
 
     return cldnn_order;
+}
+
+inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
+    if (l == ov::Layout("C")) return InferenceEngine::Layout::C;
+    if (l == ov::Layout("CN")) return InferenceEngine::Layout::CN;
+    if (l == ov::Layout("HW")) return InferenceEngine::Layout::HW;
+    if (l == ov::Layout("NC")) return InferenceEngine::Layout::NC;
+    if (l == ov::Layout("CHW")) return InferenceEngine::Layout::CHW;
+    if (l == ov::Layout("HWC")) return InferenceEngine::Layout::HWC;
+    if (l == ov::Layout("NCHW")) return InferenceEngine::Layout::NCHW;
+    if (l == ov::Layout("NC??")) return InferenceEngine::Layout::NCHW;
+    if (l == ov::Layout("NHWC")) return InferenceEngine::Layout::NHWC;
+    if (l == ov::Layout("NCDHW")) return InferenceEngine::Layout::NCDHW;
+    if (l == ov::Layout("NDHWC")) return InferenceEngine::Layout::NDHWC;
+    IE_THROW() << "The plugin does not support " << l.to_string() << " layout";
 }
 
 }  // namespace intel_gpu

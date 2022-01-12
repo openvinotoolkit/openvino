@@ -34,23 +34,46 @@ class CompiledModel;
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class OPENVINO_RUNTIME_API InferRequest {
-    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IInferRequestInternal> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
      * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is
      * destroyed.
-     * @param impl Initialized shared pointer
      */
-    InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl);
+    InferRequest(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& impl, const std::shared_ptr<void>& so);
     friend class ov::runtime::CompiledModel;
 
 public:
-    /**
-     * @brief Default constructor
-     */
+    /// @brief Default constructor
     InferRequest() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other InferRequest object
+    InferRequest(const InferRequest& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other InferRequest object
+    /// @return reference to the current object
+    InferRequest& operator=(const InferRequest& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other InferRequest object
+    InferRequest(InferRequest&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other InferRequest object
+    /// @return reference to the current object
+    InferRequest& operator=(InferRequest&& other) = default;
+
+    /**
+     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @note To preserve destruction order inside default generated assignment operator we store `_impl` before `_so`.
+     *       And use destructor to remove implementation object before reference to library explicitly
+     */
+    ~InferRequest();
 
     /**
      * @brief Sets input/output data to infer
@@ -80,27 +103,71 @@ public:
     void set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor);
 
     /**
+     * @brief Sets batch of tensors for input data to infer by input name
+     * Model input shall have batch dimension and number of 'tensors' shall match with batch size
+     * Current version supports set tensors to model inputs only. In case if `name` is associated
+     * with output (or any other non-input node) - exception will be thrown
+     *
+     * @param name Name of input tensor.
+     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
+     * input precision and size (except batch dimension). Total size of tensors shall match with input's size
+     */
+    void set_tensors(const std::string& name, const std::vector<Tensor>& tensors);
+
+    /**
+     * @brief Sets batch of tensors for input data to infer by input name
+     * Model input shall have batch dimension and number of 'tensors' shall match with batch size
+     * Current version supports set tensors to model inputs only. In case if `name` is associated
+     * with output (or any other non-input node) - exception will be thrown
+     *
+     * @param port Port of input tensor.
+     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
+     * input precision and size (except batch dimension). Total size of tensors shall match with input's size
+     */
+    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors);
+
+    /**
      * @brief Sets input tensor to infer
      *
      * @param idx Index of input tensor.
      * @param tensor Reference to input tensor. The type of a tensor must match the model input precision and size.
      */
     void set_input_tensor(size_t idx, const Tensor& tensor);
+
     /**
      * @brief Sets input tensor to infer models with single input
      *
      * @param tensor Reference to input tensor. If model has several inputs, an exception is thrown.
      */
-
     void set_input_tensor(const Tensor& tensor);
+
+    /**
+     * @brief Sets batch of tensors for single input data
+     * Model input shall have batch dimension and number of 'tensors' shall match with batch size
+     *
+     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
+     * input precision and size (except batch dimension). Total size of tensors shall match with input's size
+     */
+    void set_input_tensors(const std::vector<Tensor>& tensors);
+
+    /**
+     * @brief Sets batch of tensors for input data to infer by input name
+     * Model input shall have batch dimension and number of 'tensors' shall match with batch size
+     *
+     * @param idx Name of input tensor.
+     * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
+     * input precision and size (except batch dimension). Total size of tensors shall match with input's size
+     */
+    void set_input_tensors(size_t idx, const std::vector<Tensor>& tensors);
+
     /**
      * @brief Sets output tensor to infer
      *
      * @param idx Index of output tensor.
      * @param tensor Reference to output tensor. The type of a tensor must match the model output precision and size.
      */
-
     void set_output_tensor(size_t idx, const Tensor& tensor);
+
     /**
      * @brief Sets output tensor to infer models with single output
      *

@@ -118,7 +118,7 @@ public:
     const std::string& operator[](const std::string& key) const;
 
     InferenceEngine::Parameter asParameter(const std::string& key) const;
-
+    std::unordered_map<std::string, std::string> getValues() const {return values;}
     virtual void validate() const;
 
 private:

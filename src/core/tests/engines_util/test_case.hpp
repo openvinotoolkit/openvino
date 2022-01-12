@@ -17,6 +17,16 @@
 
 namespace ngraph {
 namespace test {
+inline std::string backend_name_to_device(const std::string& backend_name) {
+    if (backend_name == "INTERPRETER")
+        return "TEMPLATE";
+    if (backend_name == "IE_CPU")
+        return "CPU";
+    if (backend_name == "IE_GPU")
+        return "GPU";
+    throw ngraph_error("Unsupported backend name");
+}
+
 std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const std::string& bin_path = {});
 
 class TestCase {
@@ -24,7 +34,7 @@ public:
     TestCase(const std::shared_ptr<Function>& function, const std::string& dev = "TEMPLATE") : m_function{function} {
         try {
             // Register template plugin
-            m_core.register_plugin(std::string("templatePlugin") + IE_BUILD_POSTFIX, "TEMPLATE");
+            m_core.register_plugin(std::string("ov_template_plugin") + IE_BUILD_POSTFIX, "TEMPLATE");
         } catch (...) {
         }
         m_request = m_core.compile_model(function, dev).create_infer_request();
@@ -44,10 +54,31 @@ public:
                      " for input ",
                      m_input_index);
 
-        auto tensor = m_request.get_input_tensor(m_input_index);
+        auto t_shape = m_request.get_input_tensor(m_input_index).get_shape();
+        bool is_dynamic = false;
+        for (const auto& dim : t_shape) {
+            if (!dim) {
+                is_dynamic = true;
+                break;
+            }
+        }
 
-        NGRAPH_CHECK(tensor.get_size() == values.size());
-        std::copy(values.begin(), values.end(), tensor.data<T>());
+        if (is_dynamic) {
+            ov::runtime::Tensor tensor(params.at(m_input_index)->get_element_type(), shape);
+
+            std::copy(values.begin(), values.end(), tensor.data<T>());
+            m_request.set_input_tensor(m_input_index, tensor);
+        } else {
+            auto tensor = m_request.get_input_tensor(m_input_index);
+            NGRAPH_CHECK(tensor.get_size() >= values.size(),
+                         "Tensor and values have different sizes. Tensor (",
+                         tensor.get_shape(),
+                         ") size: ",
+                         tensor.get_size(),
+                         " and values size is ",
+                         values.size());
+            std::copy(values.begin(), values.end(), tensor.data<T>());
+        }
 
         ++m_input_index;
     }

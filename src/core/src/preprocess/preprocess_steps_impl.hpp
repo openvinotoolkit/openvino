@@ -167,6 +167,8 @@ public:
         return m_actions;
     }
 
+    Layout propagate_layout(const Layout& tensor_layout) const;
+
 private:
     static std::tuple<std::vector<Output<Node>>, bool> reverse_channels(const std::vector<Output<Node>>& nodes,
                                                                         const std::shared_ptr<Model>& function,
@@ -179,6 +181,9 @@ private:
 private:
     std::list<InternalPreprocessOp> m_actions;
     std::list<std::vector<uint64_t>> m_layout_converts;
+    std::list<std::vector<uint64_t>> m_forward_layout_converts;
+    Layout m_last_explicit_layout;
+    bool m_last_explicit_layout_set = false;
 };
 
 class PreProcessSteps::PreProcessStepsImpl : public PreStepsList {};
