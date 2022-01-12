@@ -28,10 +28,6 @@ target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
-# Add include path to so_extension.hpp
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/json_extension/json_config.cpp
-        PROPERTIES INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
-
 # developer package
 
 openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
