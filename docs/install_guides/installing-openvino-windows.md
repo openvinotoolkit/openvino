@@ -5,7 +5,7 @@
 @sphinxdirective
 .. tab:: Operating Systems
 
-  * Microsoft Windows* 10, 64-bit
+  Microsoft Windows* 10, 64-bit
 
 .. tab:: Hardware
 
@@ -59,7 +59,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Windows*](https://software.intel.com/en-us/openvino-toolkit/choose-download).
    Select the Intel® Distribution of OpenVINO™ toolkit for Windows* package from the dropdown menu.
    
-2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. In the opened window, you can select the folder where installer files will be placed. The directory will be referred to as <INSTALL_DIR> elsewhere in the documentation. Once the files extracted, you should see the following dialog box open up:
+2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. In the opened window, you can select the folder where installer files will be placed. The directory will be referred to as <INSTALL_DIR> elsewhere in the documentation. Once the files are extracted, you should see the following dialog box open up:
 
    @sphinxdirective
    
@@ -69,7 +69,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    
    @endsphinxdirective
    
-3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue. Check out the installation process on the image below:<br>
+3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. The acceptance is required to continue. Check out the installation process in the image below:<br>
    ![](../img/openvino-install-win-run-boostrapper-script-2.gif)
    Click on the image to see the details.
 
@@ -87,9 +87,9 @@ You must update several environment variables before you can compile and run Ope
 
 > **IMPORTANT**: Windows PowerShell* is not recommended to run the configuration commands. Please use the command prompt (cmd) instead.
 
-**Optional**: OpenVINO toolkit environment variables are removed when you close the command prompt window. As an option, you can permanently set the environment variables manually.
+**Optional**: OpenVINO toolkit environment variables are removed when you close the command prompt window. You can permanently set the environment variables manually.
 
-> **NOTE**: If you see an error indicating Python is not installed when you know you installed it, your computer might not be able to find the program. For the instructions to add Python to your system environment variables, see <a href="#Update-Path">Update Your Windows Environment Variables</a>.
+> **NOTE**: If you see an error indicating Python is not installed when you know you installed it, your computer might not be able to find the program. Check your system environment variables, and add Python if necessary.
 
 The environment variables are set. Next, you can download some additional tools.
 
@@ -97,7 +97,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
-Among the model developer tools you can find e.g. Model Optimizer which imports, converts, and optimizes models, and Model Downloader which gives you access to the collection of pre-trained deep learning public and intel-trained models.  
+Among the model developer tools you can find e.g. Model Optimizer which imports, converts, and optimizes models, and Model Downloader which gives you access to a collection of pre-trained deep learning public and intel-trained models.  
 
 For details, visit [pypi.org](https://pypi.org/project/openvino-dev/) site.
 
@@ -108,7 +108,7 @@ For details, visit [pypi.org](https://pypi.org/project/openvino-dev/) site.
 @sphinxdirective
 .. tab:: GPU
 
-   Only if you want to enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
+   Only do this if you want to enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
 
 .. tab:: VPU
 
@@ -142,7 +142,7 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 - Convert models for use with OpenVINO™: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - Write your own OpenVINO™ applications: [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 - Information on sample applications: [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
-- Information on a supplied set of models: [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel)
+- Information on a supplied set of models: [Overview of OpenVINO™ Toolkit Pre-Trained Models](../model_zoo.md)
 - IoT libraries and code samples: [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit)
 
 To learn more about converting models from specific frameworks, go to:
