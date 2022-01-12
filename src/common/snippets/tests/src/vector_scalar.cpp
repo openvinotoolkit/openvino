@@ -17,6 +17,8 @@
 using namespace testing;
 using namespace ngraph;
 
+//  todo: Rewrite this test using Snippets test infrastructure. See ./include/canonicalization.hpp for example
+
 TEST(TransformationTests, ReplaceLoadsWithScalarLoads) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {

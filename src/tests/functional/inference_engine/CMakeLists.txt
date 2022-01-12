@@ -15,7 +15,6 @@ set(LINK_LIBRARIES
     openvino::util
     openvino::conditional_compilation
     sharedTestClasses
-    inference_engine_snippets
     offline_transformations
     pugixml::static
     openvino::runtime::dev
