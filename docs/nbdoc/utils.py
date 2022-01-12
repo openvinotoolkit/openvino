@@ -73,7 +73,7 @@ def verify_notebook_name(notebook_name: str) -> bool:
     :type notebook_name: str
     :returns: Return if notebook meets requirements
     :rtype: bool
-ł
+
     """
     return notebook_name[:3].isdigit() and notebook_name[-4:] == ".rst"
 
