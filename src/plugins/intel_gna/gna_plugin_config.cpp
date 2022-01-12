@@ -15,13 +15,21 @@ using namespace InferenceEngine::details;
 
 namespace GNAPluginNS {
 
-static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
-                {GNAConfigParams::GNA_AUTO,             {Gna2AccelerationModeAuto,                         false}},
-                {GNAConfigParams::GNA_HW,               {Gna2AccelerationModeHardware,                     false}},
-                {GNAConfigParams::GNA_HW_WITH_SW_FBACK, {Gna2AccelerationModeHardwareWithSoftwareFallback, false}},
-                {GNAConfigParams::GNA_SW,               {Gna2AccelerationModeSoftware,                     false}},
-                {GNAConfigParams::GNA_SW_EXACT,         {Gna2AccelerationModeSoftware,                     true}},
-        };
+static const caseless_unordered_map<std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
+    {GNAConfigParams::GNA_AUTO,                 {Gna2AccelerationModeAuto,                          false}},
+    {GNAConfigParams::GNA_HW,                   {Gna2AccelerationModeHardware,                      false}},
+    {GNAConfigParams::GNA_HW_WITH_SW_FBACK,     {Gna2AccelerationModeHardwareWithSoftwareFallback,  false}},
+    {GNAConfigParams::GNA_SW,                   {Gna2AccelerationModeSoftware,                      false}},
+    {GNAConfigParams::GNA_SW_EXACT,             {Gna2AccelerationModeSoftware,                      true}},
+    {GNAConfigParams::GNA_GEN,                  {Gna2AccelerationModeGeneric,                       false}},
+    {GNAConfigParams::GNA_GEN_EXACT,            {Gna2AccelerationModeGeneric,                       true}},
+    {GNAConfigParams::GNA_SSE,                  {Gna2AccelerationModeSse4x2,                        false}},
+    {GNAConfigParams::GNA_SSE_EXACT,            {Gna2AccelerationModeSse4x2,                        true}},
+    {GNAConfigParams::GNA_AVX1,                 {Gna2AccelerationModeAvx1,                          false}},
+    {GNAConfigParams::GNA_AVX1_EXACT,           {Gna2AccelerationModeAvx1,                          true}},
+    {GNAConfigParams::GNA_AVX2,                 {Gna2AccelerationModeAvx2,                          false}},
+    {GNAConfigParams::GNA_AVX2_EXACT,           {Gna2AccelerationModeAvx2,                          true}},
+};
 
 static const std::set<std::string> supportedTargets = {
     GNAConfigParams::GNA_TARGET_2_0,
@@ -72,6 +80,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             inputScaleFactors[input_index] = InferenceEngine::CNNLayer::ie_parse_float(value);
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)) {
             dumpXNNPath = value;
+        } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)) {
+            dumpXNNGeneration = value;
         } else if (key == GNA_CONFIG_KEY(DEVICE_MODE)) {
             auto procType = supported_values.find(value);
             if (procType == supported_values.end()) {
@@ -224,6 +234,7 @@ void Config::AdjustKeyMapValues() {
                 std::to_string(inputScaleFactors[n]);
     }
     keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)] = dumpXNNPath;
+    keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)] = dumpXNNGeneration;
 
     std::string device_mode;
     if (gnaFlags.sw_fp32) {
