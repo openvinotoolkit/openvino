@@ -185,7 +185,9 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "MatrixNms", MatrixNms},
         { "MulticlassNms", MulticlassNms},
         { "Reference", Reference},
-        { "Subgraph", Subgraph}
+        { "Subgraph", Subgraph},
+        { "PriorBox", PriorBox},
+        { "PriorBoxClustered", PriorBoxClustered},
 };
 
 Type TypeFromName(const std::string& type) {
