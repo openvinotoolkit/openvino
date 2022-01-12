@@ -12,17 +12,17 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-
+//  todo: Rewrite this test using Snippets test infrastructure. See add_convert or conv_eltwise for example
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         InferenceEngine::Precision,  // Network Precision
-        InferenceEngine::SizeVector, // Input Shape,
-        bool,
+        InferenceEngine::SizeVector, // Input 0 Shape
+        InferenceEngine::SizeVector, // Input 1 Shape
         std::string                  // Target Device
 > multiInputParams;
 
-class CodegenGelu : public testing::WithParamInterface<LayerTestsDefinitions::multiInputParams>,
+class CodegenBert : public testing::WithParamInterface<LayerTestsDefinitions::multiInputParams>,
 virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::multiInputParams> obj);
