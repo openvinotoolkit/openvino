@@ -40,7 +40,7 @@ class MaxPool(BackReplacementPattern):
                                          'keep_output_port': node.has_and_set('remove_values_output')}).create_node()
             node.out_port(0).get_connection().set_destination(output.in_port(0))
 
-        if node.out_port(1).disconnected():
+        if 1 in node.out_ports() and node.out_port(1).disconnected():
             output = Result(node.graph, {'name': node.name + '/Result_port_1/',
                                          'keep_output_port': node.has_and_set('remove_values_output')}).create_node()
             node.out_port(1).get_connection().set_destination(output.in_port(0))
