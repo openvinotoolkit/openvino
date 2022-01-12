@@ -92,7 +92,8 @@ ov_install_static_lib(${TARGET_NAME}_dev core)
 # Install OpenVINO runtime
 
 set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME openvino
-                                                SOVERSION ${OpenVINO_VERSION})
+                                                SOVERSION ${OpenVINO_VERSION_MAJOR}
+                                                VERSION ${OpenVINO_VERSION})
 
 list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 

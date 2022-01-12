@@ -178,7 +178,8 @@ macro(ov_add_frontend)
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-    set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION ${OpenVINO_VERSION})
+    # 202202
+    set_target_properties(${TARGET_NAME} PROPERTIES SOVERSION ${OpenVINO_VERSION_MAJOR} VERSION ${OpenVINO_VERSION})
 
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${OV_FRONTEND_LINK_LIBRARIES})
 
