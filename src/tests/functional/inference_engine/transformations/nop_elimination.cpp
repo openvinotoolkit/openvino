@@ -972,6 +972,7 @@ std::vector<ShapeParams> shape_params = {
     { PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()}, Shape{3, 1}, false, true },
     { PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()}, Shape{1, 3, 1}, false, true },
     // negative cases
+    { Shape{}, Shape{1}, false, false },
     { Shape{}, Shape{2, 3}, false, false },
     { Shape{5}, Shape{1, 1}, false, false },
     { Shape{4, 1, 3}, Shape{2, 3}, false, false },

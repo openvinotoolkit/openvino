@@ -518,10 +518,9 @@ pass::EliminateEltwise::EliminateEltwise() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
+        auto non_const_input = pattern_map.at(input);
         auto constant = pattern_map.at(constant_pattern);
 
-        size_t idx = eltwise->input_value(1) == constant ? 0 : 1;
-        auto non_const_input = eltwise->input_value(idx);
         if (!op::util::can_eliminate_eltwise_node(eltwise, constant, non_const_input)) {
             return false;
         }
