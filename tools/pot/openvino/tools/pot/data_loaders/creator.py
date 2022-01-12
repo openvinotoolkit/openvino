@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.pot.data_loaders.image_loader import ImageLoader
+from openvino.tools.pot.data_loaders.synthetic_image_loader import SyntheticImageLoader
 from openvino.tools.pot.graph.model_utils import get_nodes_by_type
 
 
@@ -22,10 +23,15 @@ def create_data_loader(config, model):
                            'Actual inputs number: {}'.format(len(inputs)))
 
     data_loader = None
+    assert len(inputs) == 1 or config.type == 'simplified'
     for in_node in inputs:
         if tuple(in_node.shape) != (1, 3):
-            data_loader = ImageLoader(config)
-            data_loader.shape = in_node.shape
+            if config.type == 'simplified':
+                data_loader = ImageLoader(config)
+                data_loader.shape = in_node.shape
+            elif config.type == 'data_free':
+                config.input_shape = in_node.shape
+                data_loader = SyntheticImageLoader(config)
             data_loader.get_layout(in_node)
             return data_loader
 

@@ -10,9 +10,12 @@ import tarfile
 from copy import deepcopy
 from joblib import Parallel, delayed
 
-from openvino.tools.pot.utils import logger
+from openvino.tools.pot.utils.logger import get_logger
 from openvino.tools.pot.data_loaders.image_loader import ImageLoader
-from openvino.tools.pot.graph.model_utils import get_nodes_by_type
+from .utils import collect_img_files
+
+logger = get_logger(__name__)
+
 
 class IFSFunction:
     def __init__(self, prev_x, prev_y):
@@ -22,7 +25,7 @@ class IFSFunction:
         self.cum_proba = 0.0
 
     def set_param(self, params, proba, weights=None):
-        if weights:
+        if weights is not None:
             params = list(np.array(params) * np.array(weights))
 
         self.function.append(params)
@@ -77,32 +80,18 @@ class IFSFunction:
 
     def draw(self, draw_type, image_x, image_y, pad_x=6, pad_y=6):
         self.rescale(image_x, image_y, pad_x, pad_y)
-        image = np.empty((image_x, image_y, 3 if draw_type == 'color' else 1))
+        image = np.empty((image_x, image_y))
 
         for i in range(len(self.xs)):
-            mask_pattern = '{:09b}'.format(np.random.randint(1, 512))
-            if draw_type == 'color':
-                patch = self.make_patch3_3(mask_pattern, [self.convert_color(i, 128)])
-            elif draw_type == 'point':
-                patch = np.array([127, 127, 127])
-            else:
-                patch = self.make_patch3_3(mask_pattern, [127, 127, 127])
-
-            # why + 1????
             if draw_type == 'point':
-                image = np.array(image)
-                image[self.ys[i] + 1, self.xs[i] + 1, :] = 127, 127, 127
-                # image.paste(patch, (self.xs[i], self.ys[i]))
+                image[self.ys[i], self.xs[i]] = 127
             else:
-                H, W, C = patch.shape
+                mask = '{:09b}'.format(np.random.randint(1, 512))
+                patch = 127 * np.array(list(map(int, list(mask))), dtype=np.uint8).reshape(3, 3)
                 x_start = self.xs[i] + 1
                 y_start = self.ys[i] + 1
-                image[x_start : x_start + H, y_start : y_start + W, :] = patch
-                # Image.fromarray(patch)
-                # image.paste(patch, (self.xs[i] + 1, self.ys[i] + 1))
+                image[x_start:x_start+3, y_start:y_start+3] = patch
 
-        image = np.array(image, dtype='uint8')
-        image = cv.cvtColor(image, cv.COLOR_RGB2BGR)
         return image
 
     def make_patch3_3(self, mask, patch_color):
@@ -114,11 +103,15 @@ class IFSFunction:
         return patch
 
 
-class SynteticImageLoader(ImageLoader):
+class SyntheticImageLoader(ImageLoader):
     def __init__(self, config):
-        np.random.seed(seed=42)
+        super().__init__(config)
+        np.random.seed(seed=1)
         self._cpu_count = os.cpu_count()
-        self._weights = [
+        self._shape = config.input_shape
+        self.data_source = config.data_source
+        self.subset_size = config.subset_size
+        self._weights = np.array([
             0.2, 1, 1, 1, 1, 1,
             0.6, 1, 1, 1, 1, 1,
             1, 1, 1, 1, 1, 1,
@@ -143,43 +136,35 @@ class SynteticImageLoader(ImageLoader):
             1, 1, 1, 1, 1, 0.2,
             1, 1, 1, 1, 1, 0.6,
             1, 1, 1, 1, 1, 1.4,
-            1, 1, 1, 1, 1, 1.8
-        ]
-
-        if not self.shape:
-            inputs = get_nodes_by_type(self.model, ['Parameter'], recursively=False)
-            if len(inputs) > 1:
-                raise RuntimeError('SynteticImageLoader supports networks with single image input'
-                                   'Actual inputs number: {}'.format(len(inputs)))
-            self.shape = inputs[0].shape
-
-        # how to check dynamic shape like min...max?
-        assert len(self.shape) == 3 or len(self.shape) == 4 and self.shape[-1] != -1 and self.shape[-2] != -1
+            1, 1, 1, 1, 1, 1.8,
+        ]).reshape(-1, 6)
 
         self._net = cv.dnn.readNetFromCaffe('colorization_deploy_v2.prototxt', 'colorization_release_v2.caffemodel')
         pts_in_hull = np.load('pts_in_hull.npy').transpose().reshape(2, 313, 1, 1)
         self._net.getLayer(self._net.getLayerId('class8_ab')).blobs = [pts_in_hull.astype(np.float32)]
         self._net.getLayer(self._net.getLayerId('conv8_313_rh')).blobs = [np.full([1, 313], 2.606, np.float32)]
 
-        if not os.path.exists(self.dataset_dir):
-            logger.info(f'Syntetic dataset will be stored in {config.dataset_dir}')
-            os.mkdir(self.dataset_dir)
+        if not os.path.exists(self.data_source):
+            logger.info(f'synthetic dataset will be stored in {self.data_source}')
+            os.mkdir(self.data_source)
+        else:
+            logger.info(f'Dataset was found in {self.data_source}')
 
+        assert os.path.isdir(self.data_source)
+        if not os.listdir(self.data_source): # folder is empty
             if config.generate_data:
                 # progress bar?
                 self.generate_dataset()
             else:
                 # self.download_images()
                 raise NotImplementedError
-        else:
-            logger.info(f'Dataset was found in {config.dataset_dir}')
 
-        super().__init__(config)
+        self._img_files = collect_img_files(self.data_source)
 
     def download_images(self):
         URL = ''
         response  = requests.get(URL, stream=True)
-        archive_path = os.path.join(self.dataset_dir, 'FractalDB-1k.tar.gz')
+        archive_path = os.path.join(self.data_source, 'synthetic_images.tar.gz')
         with open(archive_path, 'wb') as f:
             f.write(response.raw.read())
 
@@ -187,41 +172,43 @@ class SynteticImageLoader(ImageLoader):
         tar.extractall(path=archive_path.replace('.tar.gz', ''))
         tar.close()
 
-    def initialize_fractalDB_params(self):
+    def initialize_params(self):
         self._threshold = 0.2
         self._iterations = 200000
 
-        height, width = self.shape[-2], self.shape[-1]
+        height, width = self._shape[-2], self._shape[-1]
         default_img_size = 362 * 362
-        points_coeff = np.max(1, np.round(height * width / default_img_size))
-        self._num_of_points = 100000 * int(points_coeff)
+        points_coeff = max(1, int(np.round(height * width / default_img_size)))
+        self._num_of_points = 100000 * points_coeff
 
         if self.subset_size < len(self._weights):
             self._instances = 1
             self._categories = 1
-            self._weights = self._weights[:self.subset_size]
+            self._weights = self._weights[:self.subset_size, :]
         else:
-            self._instances = np.ceil(0.25 * self.subset_size / len(self._weights))
-            self._categories = np.ceil(self.subset_size / (self._instances * len(self._weights)))
+            self._instances = np.ceil(0.25 * self.subset_size / self._weights.shape[0]).astype(int)
+            self._categories = np.ceil(self.subset_size / (self._instances * self._weights.shape[0])).astype(int)
 
     def generate_dataset(self):
-        height, width = self.shape[-2], self.shape[-1]
-        n_jobs = min(self._cat_num, self._cpu_count)
-        params = Parallel(n_jobs=n_jobs)(delayed(self._generate_category)() for _ in range(self._cat_num))
+        height, width = self._shape[-2], self._shape[-1]
+        self.initialize_params()
+        n_jobs = min(self._categories, self._cpu_count)
+        params = Parallel(n_jobs=1)(delayed(self._generate_category)() for _ in range(self._categories))
 
-        instances_weights = np.repeat(self._weights, self._instances)
-        weight_per_img = np.tile(instances_weights, len(params))
-        repeated_params = np.repeat(params, len(self._weights) * len(self._instances))
-        assert len(weight_per_img) == len(repeated_params)
+        instances_weights = np.repeat(self._weights, self._instances, axis=0)
+        weight_per_img = np.tile(instances_weights, (self._categories, 1))
+        repeated_params = np.repeat(params, self._weights.shape[0] * self._instances)
+        assert weight_per_img.shape[0] == len(repeated_params)
 
-        Parallel(n_jobs=self._cpu_count)(delayed(self.generate_image)(param, w, height, width, i)
-                                   for i, param, w in enumerate(zip(repeated_params, weight_per_img)))
+        # Parallel(n_jobs=self._cpu_count)(delayed(self.generate_image)(param, w, height, width, i)
+        Parallel(n_jobs=1)(delayed(self.generate_image)(param, w, height, width, i)
+                                   for i, (param, w) in enumerate(zip(repeated_params, weight_per_img)))
 
     def generate_image(self, param, weight, height, width, i):
         image = self._generator(param, 'gray', self._iterations, height, width, weight)
         color_image = self._colorize(image)
         aug_image = self._augment(color_image)
-        cv.imwrite(os.path.join(self.dataset_dir, "{:06d}.png".format(i)), aug_image)
+        cv.imwrite(os.path.join(self.data_source, "{:06d}.png".format(i)), aug_image)
 
     @staticmethod
     def _generator(params, draw_type, iterations, height=512, width=512, weight=None):
@@ -247,26 +234,29 @@ class SynteticImageLoader(ImageLoader):
             params[:, 6] /= sum_proba
 
             fracral_img = self._generator(params, 'point', self._num_of_points, height, width)
-            pixels = np.count_nonzero(fracral_img[:,:,0]) / (height * width)
+            pixels = np.count_nonzero(fracral_img) / (height * width)
 
         return params
 
     def _colorize(self, frame):
         # -----------preprocessing-----------
-        img_rgb = (frame[:, :, [2, 1, 0]] * 1.0 / 255).astype(np.float32)
-        (H_orig, W_orig) = img_rgb.shape[:2] # original image size
-        img_rs = cv.resize(img_rgb, (224, 224)) # resize image to network input size
-        img_lab_rs = cv.cvtColor(img_rs, cv.COLOR_RGB2Lab)
-        img_l_rs = img_lab_rs[:,:,0]
-        img_l_rs -= 50 # subtract 50 for mean-centering
+        H_orig, W_orig = frame.shape[:2] # original image size
+        if len(frame.shape) == 2 or frame.shape[-1] == 1:
+            frame = np.tile(frame.reshape(H_orig, W_orig, 1), (1, 1, 3))
+            # cv.cvtColor(frame, cv.COLOR_GRAY2BGR)
+
+        frame = frame.astype(np.float32) / 255
+        img_lab = cv.cvtColor(frame, cv.COLOR_BGR2Lab)
+        img_rs = cv.resize(img_lab, (224, 224)) # resize image to network input size
+        img_l_rs = img_rs[:,:,0] - 50  # subtract 50 for mean-centering
 
         # -----------run network-----------
-        net = deepcopy(self._net)
+        # net = deepcopy(self._net)
+        net = self._net
         net.setInput(cv.dnn.blobFromImage(img_l_rs))
         ab_dec = net.forward()[0,:,:,:].transpose((1,2,0))
 
         # -----------postprocessing-----------
-        img_lab = cv.cvtColor(img_rgb, cv.COLOR_RGB2Lab)
         img_l = img_lab[:,:,0] # pull out L channel
         ab_dec_us = cv.resize(ab_dec, (W_orig, H_orig))
         img_lab_out = np.concatenate((img_l[:,:,np.newaxis],ab_dec_us),axis=2) # concatenate with original image L
@@ -283,7 +273,7 @@ class SynteticImageLoader(ImageLoader):
         if np.random.random(1) >= 0.5:
             image = cv.flip(image, 0)
 
-        k_size = np.random.randint(1, 16)
+        k_size = np.random.choice(list(range(1, 16, 2)))
         image = cv.GaussianBlur(image, (k_size, k_size), 0)
 
         height, width, _ = image.shape

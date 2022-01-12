@@ -113,10 +113,10 @@ def get_common_argument_parser():
         help='Keep Convolution, Deconvolution and FullyConnected weights uncompressed')
 
     parser.add_argument(
-        '--dataset-dir',
+        '--data-source',
         default='../../../pot_dataset',
         help='Valid only for DataFreeEngine or SimplifiedEngine. For SimplifiedEngine specify path to dataset dir. '
-             'For DataFreeEngine specify path to directory where syntetic dataset will be downloaded or generated and saved. '
+             'For DataFreeEngine specify path to directory where synthetic dataset will be downloaded or generated and saved. '
              'Default: `../../../pot_dataset`')
 
     parser.add_argument(
@@ -134,7 +134,7 @@ def get_common_argument_parser():
     data_free_opt.add_argument(
         '--generate-data',
         action='store_true',
-        help='Generate syntetic dataset on first run and store to `dataset-dir`. If not specified, dataset will be downloaded.')
+        help='Generate synthetic dataset on first run and store to `dataset-dir`. If not specified, dataset will be downloaded.')
 
     return parser
 

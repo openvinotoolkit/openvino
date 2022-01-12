@@ -63,10 +63,12 @@ class Config(Dict):
         self.model['output_dir'] = args.output_dir
         self.model['direct_dump'] = args.direct_dump
         self.engine['evaluate'] = args.evaluate
+        self.engine['type'] = args.engine
+        self.engine['data_source'] = args.data_source
+        self.engine['input_shape'] = args.shape
         if args.engine == 'data_free':
             self.engine['generate_data'] = args.generate_data
-            self.engine['dataset_dir'] = args.dataset_dir
-            self.engine['input_shape'] = args.shape
+            self.engine['data_type'] = args.data_type
             if args.generate_data:
                 subset_size = 0
                 for algo in self.compression['algorithms']:
@@ -302,9 +304,6 @@ class Config(Dict):
         """ Converts engine config section into engine params dict
         """
         engine = self.engine
-        if not engine or engine.type == 'data_free':
-            self.engine.type = 'data_free'
-
         if 'type' not in engine or engine.type == 'accuracy_checker':
             self._configure_ac_params()
             self.engine.type = 'accuracy_checker'
