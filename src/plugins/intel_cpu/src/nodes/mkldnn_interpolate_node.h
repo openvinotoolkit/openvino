@@ -244,9 +244,7 @@ private:
     bool isAxesSpecified = false;
     std::vector<int> axes;
 
-    mkldnn::primitive_attr attr;
-
-    // six ptrs for each quantization, 2 ptrs for each depth_wise
+    // 6 ptrs for each quantization, 2 ptrs for each depth_wise
     std::vector<const void*> postOpsDataPtrs;
 
     std::vector<float> lastScales;

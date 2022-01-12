@@ -1619,8 +1619,7 @@ struct InterpolateKey {
     VectorDims srcDims;
     VectorDims dstDims;
     std::vector<float> dataScales;
-    mkldnn::post_ops postOps;
-    impl_desc_type implType;
+    mkldnn::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const InterpolateKey& rhs) const;
@@ -1650,9 +1649,7 @@ size_t InterpolateKey::hash() const {
     seed = get_vector_hash(seed, dstDims);
     seed = get_vector_hash(seed, dataScales);
 
-    // seed = hash_combine(seed, get_attr_hash(*attr.get()));
-    seed = get_post_op_hash(seed, *postOps.get());
-    seed = hash_combine(seed, implType);
+    seed = hash_combine(seed, get_attr_hash(*attr.get()));
     return seed;
 }
 
@@ -1686,9 +1683,7 @@ bool InterpolateKey::operator==(const InterpolateKey &rhs) const {
         return false;
     if (dataScales != rhs.dataScales)
         return false;
-    if (!(*postOps.get() == *rhs.postOps.get()))
-        return false;
-    if (implType != rhs.implType)
+    if (!(*attr.get() == *rhs.attr.get()))
         return false;
 
     return true;
@@ -2124,41 +2119,26 @@ void MKLDNNInterpolateNode::prepareParams() {
 
     const auto &srcDims = srcMemPtr->getStaticDims();
     const auto &dstDims = dstMemPtr->getStaticDims();
-    setPostOps(attr, dstDims, true);
 
     std::vector<float> dataScales = getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
         IE_THROW() << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
 
-    InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, mkldnn::post_ops(), selected_pd->getImplementationType()};
-
-    for (const auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
-        if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(key.postOps);
-            continue;
-        }
-
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode) {
-            eltwiseNode->appendPostOps(key.postOps, dstDims);
-            continue;
-        }
-
-        IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' has unexpected fused op of type '" << node->getTypeStr() << "'";
-    }
+    InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, mkldnn::primitive_attr()};
+    setPostOps(key.attr, dstDims, true);
 
     postOpsDataPtrs.clear();
-    for (int i = 0; i < key.postOps.len(); ++i) {
-        auto &post_op = key.postOps.get()->entry_[i];
-        if (post_op.is_quantization()) {
-            auto &data = post_op.quantization.data;
+    auto &postOps = (*key.attr.get()).post_ops_;
+    for (int i = 0; i < postOps.len(); ++i) {
+        auto &postOp = postOps.entry_[i];
+        if (postOp.is_quantization()) {
+            auto &data = postOp.quantization.data;
             postOpsDataPtrs.insert(postOpsDataPtrs.end(), std::begin(data), std::end(data));
             memset(data, 0, sizeof(data));
-        } else if (post_op.is_depthwise()) {
-            auto &weights = post_op.depthwise.weights_data;
-            auto &biases = post_op.depthwise.biases_data;
+        } else if (postOp.is_depthwise()) {
+            auto &weights = postOp.depthwise.weights_data;
+            auto &biases = postOp.depthwise.biases_data;
             postOpsDataPtrs.push_back(weights);
             postOpsDataPtrs.push_back(biases);
             weights = 0;
@@ -2167,23 +2147,23 @@ void MKLDNNInterpolateNode::prepareParams() {
     }
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutor> {
-        std::shared_ptr<InterpolateExecutor> exector;
+        std::shared_ptr<InterpolateExecutor> executor;
         if ((key.nodeAttrs.mode == InterpolateMode::nearest || key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
             key.nodeAttrs.mode == InterpolateMode::cubic) &&
             ((key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
                 (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == Precision::FP32))) {
-            exector = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
+            executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                key.srcDims,
                                                                key.dstDims,
                                                                key.dataScales,
-                                                               attr);
+                                                               key.attr);
         } else {
-            exector = std::make_shared<InterpolateRefExecutor>(key.nodeAttrs,
+            executor = std::make_shared<InterpolateRefExecutor>(key.nodeAttrs,
                                                                key.srcDims,
                                                                key.dstDims,
                                                                key.dataScales);
         }
-        return exector;
+        return executor;
     };
 
     auto cache = getRuntimeCache();
@@ -2191,12 +2171,6 @@ void MKLDNNInterpolateNode::prepareParams() {
     execPtr = result.first;
 
     lastOutputDims = dstDims;
-
-    // if (result.second == CacheEntryBase::LookUpStatus::Hit) {
-    //     std::cout << "Interpolate: LookUpStatus::Hit" << std::endl;
-    // } else {
-    //     std::cout << "Interpolate: LookUpStatus::Miss" << std::endl;
-    // }
 }
 
 void MKLDNNInterpolateNode::createPrimitive() {
