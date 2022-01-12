@@ -21,14 +21,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
 
-namespace {
-struct DepthToSpaceKey {
-    MKLDNNPlugin::MKLDNNDepthToSpaceNode::DepthToSpaceAttrs attrs;
-    size_t hash() const;
-    bool operator==(const DepthToSpaceKey& rhs) const;
-};
-
-size_t DepthToSpaceKey::hash() const {
+size_t MKLDNNDepthToSpaceNode::DepthToSpaceKey::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
@@ -44,7 +37,7 @@ size_t DepthToSpaceKey::hash() const {
     return seed;
 }
 
-bool DepthToSpaceKey::operator==(const DepthToSpaceKey& rhs) const {
+bool MKLDNNDepthToSpaceNode::DepthToSpaceKey::operator==(const DepthToSpaceKey& rhs) const {
     bool result = attrs.layoutType == rhs.attrs.layoutType && attrs.mode == rhs.attrs.mode &&
                   attrs.blockSize == rhs.attrs.blockSize && attrs.blockStep == rhs.attrs.blockStep &&
                   attrs.dataSize == rhs.attrs.dataSize && attrs.nSpatialDims == rhs.attrs.nSpatialDims &&
@@ -52,8 +45,6 @@ bool DepthToSpaceKey::operator==(const DepthToSpaceKey& rhs) const {
 
     return result;
 }
-
-} // namespace
 
 bool MKLDNNDepthToSpaceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -88,15 +79,15 @@ MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Nod
 
     const auto modeNgraph = depthToSpace->get_mode();
     if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
-        attrs.mode = Mode::BLOCKS_FIRST;
+        key.attrs.mode = Mode::BLOCKS_FIRST;
     } else if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST) {
-        attrs.mode = Mode::DEPTH_FIRST;
+        key.attrs.mode = Mode::DEPTH_FIRST;
     } else {
         THROW_ERROR << "doesn't support mode: " << ngraph::as_string(modeNgraph);
     }
 
-    attrs.blockSize = depthToSpace->get_block_size();
-    if (attrs.blockSize == 0)
+    key.attrs.blockSize = depthToSpace->get_block_size();
+    if (key.attrs.blockSize == 0)
         THROW_ERROR << "has incorrect block_size parameter is zero!";
 
     const size_t srcRank = getInputShapeAtPort(0).getRank();
@@ -110,7 +101,7 @@ MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Nod
         THROW_ERROR << "has incorrect number of input/output dimensions";
 
     const size_t nSpatialDims = srcRank - 2;
-    attrs.blockStep = static_cast<size_t>(std::pow(attrs.blockSize, nSpatialDims));
+    key.attrs.blockStep = static_cast<size_t>(std::pow(key.attrs.blockSize, nSpatialDims));
 }
 
 void MKLDNNDepthToSpaceNode::getSupportedDescriptors() {}
@@ -146,8 +137,8 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     if (inputDataShape.getRank() > 2) {
         const auto& srcDims = inputDataShape.getDims();
         auto canUseBlocked = [=](const size_t block) {
-            return srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % block == 0 && (srcDims[1] / block) % attrs.blockStep == 0 &&
-                   (attrs.mode == Mode::DEPTH_FIRST ? block % attrs.blockStep == 0 : true);
+            return srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % block == 0 && (srcDims[1] / block) % key.attrs.blockStep == 0 &&
+                   (key.attrs.mode == Mode::DEPTH_FIRST ? block % key.attrs.blockStep == 0 : true);
         };
 
         supportedTypes.push_back(LayoutType::nspc);
@@ -178,9 +169,9 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
         THROW_ERROR << "has unidentified preferable primitive descriptor";
 
     const auto& memoryDesc = srcMemPtr->getDesc();
-    attrs.dataSize = memoryDesc.getPrecision().size();
-    attrs.nSpatialDims = memoryDesc.getShape().getRank() - 2;
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c) ? LayoutType::nCsp16c :
+    key.attrs.dataSize = memoryDesc.getPrecision().size();
+    key.attrs.nSpatialDims = memoryDesc.getShape().getRank() - 2;
+    key.attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c) ? LayoutType::nCsp16c :
                        memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c :
                        memoryDesc.hasLayoutType(LayoutType::nspc) ? LayoutType::nspc : LayoutType::ncsp;
 
@@ -192,12 +183,11 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
 }
 
 void MKLDNNDepthToSpaceNode::prepareParams() {
-    attrs.srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    key.attrs.srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
     auto builder = [](const DepthToSpaceKey& key) -> std::shared_ptr<DepthToSpaceExecutor> {
         return std::make_shared<DepthToSpaceExecutor>(key.attrs);
     };
 
-    DepthToSpaceKey key = {attrs};
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
