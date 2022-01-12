@@ -24,6 +24,16 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
+static std::shared_ptr<Model> create_trivial(element::Type type, const PartialShape& shape) {
+    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+    data1->set_friendly_name("input1");
+    data1->get_output_tensor(0).set_names({"tensor_input1"});
+    auto res = std::make_shared<op::v0::Result>(data1);
+    res->set_friendly_name("Result1");
+    res->get_output_tensor(0).set_names({"tensor_output1"});
+    return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
+}
+
 template <int N>
 static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialShape& shape) {
     ResultVector res;
@@ -1693,4 +1703,159 @@ TEST(pre_post_process, exception_safety) {
 
     EXPECT_EQ(f->output(1).get_node_shared_ptr()->get_friendly_name(), out_name1);
     EXPECT_EQ(f->output(1).get_tensor().get_names(), out_tensor_names1);
+}
+
+TEST(pre_post_process, layout_on_trivial) {
+    auto f = create_trivial(element::f32, Shape{1, 440});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NC").set_element_type(element::f32);
+    p.input().model().set_layout("NC");
+    p.output().tensor().set_element_type(element::f32);
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 440}));
+    f = p.build();
+    EXPECT_EQ(layout::get_layout(f->input()), "NC") << layout::get_layout(f->input()).to_string();
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 440}));
+    ov::set_batch(f, 2);
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{2, 440}));
+}
+
+TEST(pre_post_process, dump_empty) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    std::stringstream str;
+    str << p;
+    EXPECT_EQ(str.str(), std::string());
+}
+
+TEST(pre_post_process, dump_non_empty) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_memory_type("some_memory_type");
+    std::stringstream str;
+    str << p;
+    EXPECT_NE(str.str(), std::string());
+}
+
+TEST(pre_post_process, dump_preprocess) {
+    auto shape = PartialShape{1, 3, 2, 2};
+    std::stringstream shape_stream;
+    shape_stream << shape;
+    auto shape_str = shape_stream.str();
+    auto f = create_simple_function(element::f32, shape);
+    auto p = PrePostProcessor(f);
+    p.input()
+        .tensor()
+        .set_element_type(element::u8)
+        .set_layout("NHWC")
+        .set_spatial_dynamic_shape()
+        .set_memory_type("test_memory_type");
+    p.input()
+        .preprocess()
+        .convert_element_type(element::f32)
+        .mean(1.f)
+        .scale(2.f)
+        .convert_layout({3, 2, 1, 0})
+        .resize(ResizeAlgorithm::RESIZE_LINEAR, 480, 640)
+        .resize(ResizeAlgorithm::RESIZE_LINEAR)
+        .custom([](const Output<Node>& node) {
+            return node;
+        });
+    p.input().model().set_layout("NCHW");
+    std::stringstream stream;
+    stream << p;
+    auto dump = stream.str();
+    EXPECT_TRUE(dump.find("Input") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("input1") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("memory type=test_memory_type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Pre-processing steps (7):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("mean") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("scale") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout (3,2,1,0):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("resize to (480, 640):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("resize to model width/height:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("custom:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Implicit pre-processing steps (1):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Model's expected tensor: " + shape_str + ", " + Layout("NCHW").to_string()) !=
+                std::string::npos)
+        << dump;
+    EXPECT_TRUE(dump.find("output1") == std::string::npos) << dump;
+}
+
+TEST(pre_post_process, dump_preprocess_multiplane) {
+    auto shape_to_string = [](const PartialShape& shape) {
+        std::stringstream shape_stream;
+        shape_stream << shape;
+        return shape_stream.str();
+    };
+    auto shape = PartialShape{1, 3, 20, 20};
+    auto shape_str = shape_to_string(shape);
+    auto f = create_simple_function(element::f32, shape);
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_element_type(element::u8).set_color_format(ColorFormat::NV12_TWO_PLANES);
+    p.input().preprocess().convert_element_type(element::f32).convert_color(ColorFormat::RGB);
+    p.input().model().set_layout("NCHW");
+    std::stringstream stream;
+    stream << p;
+    auto dump = stream.str();
+    EXPECT_TRUE(dump.find("Input") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("input1") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("memory type=") == std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("NV12") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("RGB") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Implicit pre-processing steps (1):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Pre-processing steps (2):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find(shape_to_string(PartialShape{1, 20, 20, 1})) != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find(shape_to_string(PartialShape{1, 10, 10, 2})) != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert color") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Model's expected tensor: " + shape_str + ", " + Layout("NCHW").to_string()) !=
+                std::string::npos)
+        << dump;
+    EXPECT_TRUE(dump.find("output1") == std::string::npos) << dump;
+}
+
+TEST(pre_post_process, dump_postprocess) {
+    auto shape = PartialShape{1, 3, 2, 2};
+    std::stringstream shape_stream;
+    shape_stream << shape;
+    auto shape_str = shape_stream.str();
+    auto f = create_simple_function(element::f32, shape);
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NCHW");
+    p.output()
+        .postprocess()
+        .convert_element_type(element::i32)
+        .convert_layout({3, 2, 1, 0})
+        .custom([](const Output<Node>& node) {
+            return node;
+        });
+    p.output().tensor().set_element_type(element::u8).set_layout("NHWC");
+    std::stringstream stream;
+    stream << p;
+    auto dump = stream.str();
+    EXPECT_TRUE(dump.find("Output") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("output1") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Post-processing steps (3):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Post-processing implicit steps (2):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert type") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout (3,2,1,0):") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("convert layout " + Layout("NHWC").to_string()) != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("custom:") != std::string::npos) << dump;
+    EXPECT_TRUE(dump.find("Model's data tensor: " + shape_str + ", " + Layout("NCHW").to_string()) != std::string::npos)
+        << dump;
+    EXPECT_TRUE(dump.find("input1") == std::string::npos) << dump;
+}
+
+TEST(pre_post_process, dump_error) {
+    auto f = create_simple_function(element::f32, Shape{2, 2});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NC");
+    p.input().model().set_layout("HW");
+    std::stringstream stream;
+    stream << p;
+    auto dump = stream.str();
+    EXPECT_TRUE(dump.find("Error occurred:") != std::string::npos) << dump;
 }
