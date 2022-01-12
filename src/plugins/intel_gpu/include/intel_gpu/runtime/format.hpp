@@ -60,13 +60,13 @@ struct format_traits {
 };
 
 /// @brief Represents memory formats (orders).
-/// @n In CNN most of data is described as 4 dimensional blocks. In Intel(R) clDNN library we describe memory with 4 letters
+/// @n In CNN most of data is described as 4 dimensional blocks. In GPU plugin we describe memory with 4 letters
 /// - b - number of blocks in batch. For weights formats: output features - conv, neurons - inner product
 /// - f - number of feature maps, features or channels. For weights formats: input features - conv, inputs, inner product
 /// - x - spatial, width
 /// - y - spatial, height
 /// /n
-/// For explanation how each format type is implemented in memory we will use naming shown bellow (b=2,f=3,y=3,x=3):
+/// For explanation how each format type is implemented in memory we will use naming shown bellow:
 struct format {
     enum type : int32_t {
         // Data formats

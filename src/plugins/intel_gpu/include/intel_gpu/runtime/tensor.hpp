@@ -472,6 +472,7 @@ public:
             auto c = val_order[i];
             // skip f and y, z for the formats that do not have it
             if (((new_fmt == format::bs_xs_xsv8_bsv8) ||
+                 (new_fmt == format::bs_xs_xsv8_bsv16) ||
                  (new_fmt == format::os_i_osv8__ai8) ||
                  (new_fmt == format::os_i_osv16__ai8) ||
                  (new_fmt == format::bs_x_bsv16)) &&

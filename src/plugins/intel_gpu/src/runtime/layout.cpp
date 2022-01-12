@@ -25,7 +25,7 @@ tensor::value_type layout::get_dim(size_t idx) const {
 
 tensor::value_type layout::batch() const {
     auto dims = get_dims();
-    size_t dim_idx = 0;
+    const size_t dim_idx = 0;
     if (!format::is_weights_format(format) && dims[dim_idx] != size.batch[0]) {
         throw std::runtime_error("batch mismatch: " + std::to_string(dims[dim_idx]) + " vs " + std::to_string(size.batch[0]));
     }
@@ -34,7 +34,7 @@ tensor::value_type layout::batch() const {
 
 tensor::value_type layout::feature() const {
     auto dims = get_dims();
-    size_t dim_idx = 1;
+    const size_t dim_idx = 1;
     if (!format::is_weights_format(format) && dims[dim_idx] != size.feature[0]) {
         throw std::runtime_error("feature mismatch: " + std::to_string(dims[dim_idx]) + " vs " + std::to_string(size.feature[0]));
     }
@@ -45,7 +45,7 @@ tensor::value_type layout::spatial(size_t spatial_idx) const {
     if (spatial_idx >= format.spatial_num() )
         return 1;
     auto dims = get_dims();
-    size_t dim_idx = (format::is_grouped(format) ? 3 : 2) + (format.spatial_num() - 1 - spatial_idx);
+    const size_t dim_idx = (format::is_grouped(format) ? 3 : 2) + (format.spatial_num() - 1 - spatial_idx);
     if (dims[dim_idx] != size.spatial[spatial_idx]) {
         throw std::runtime_error("spatials mismatch: " + std::to_string(dims[dim_idx]) + " vs " + std::to_string(size.spatial[spatial_idx]));
     }
@@ -72,7 +72,7 @@ tensor::value_type layout::ofm() const {
         throw std::logic_error("[GPU] can't get OFM dimension for data layout");
     }
     auto dims = get_dims();
-    size_t dim_idx = format::is_grouped(format) ? 1 : 0;
+    const size_t dim_idx = format::is_grouped(format) ? 1 : 0;
 
     return dims[dim_idx];
 }
@@ -82,7 +82,7 @@ tensor::value_type layout::ifm() const {
         throw std::logic_error("[GPU] can't get IFM dimension for data layout");
     }
     auto dims = get_dims();
-    size_t dim_idx = format::is_grouped(format) ? 2 : 1;
+    const size_t dim_idx = format::is_grouped(format) ? 2 : 1;
     return dims[dim_idx];
 }
 
@@ -166,7 +166,7 @@ std::vector<size_t> layout::get_dims_order() const {
 }
 
 std::string layout::to_string() const {
-    // TODO: Extend with format/data-type into
+    // TODO: Extend with format/data-type info
     return size.to_string();
 }
 }  // namespace cldnn

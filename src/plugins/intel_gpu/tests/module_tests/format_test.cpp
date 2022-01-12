@@ -10,7 +10,7 @@ TEST(format, to_string) {
     typedef std::underlying_type<cldnn::format::type>::type format_underlying_type;
     for (format_underlying_type i = 0; i < static_cast<format_underlying_type>(cldnn::format::format_num); i++) {
         cldnn::format fmt = static_cast<cldnn::format::type>(i);
-        ASSERT_NO_THROW(fmt.to_string()) << "Can't covnert to string format " << i;
+        ASSERT_NO_THROW(fmt.to_string()) << "Can't convert to string format " << i;
     }
 }
 
