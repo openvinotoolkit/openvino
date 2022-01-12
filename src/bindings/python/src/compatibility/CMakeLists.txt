@@ -3,4 +3,4 @@
 #
 
 add_subdirectory(pyngraph)
-add_subdirectory(openvino)
+#add_subdirectory(openvino)
