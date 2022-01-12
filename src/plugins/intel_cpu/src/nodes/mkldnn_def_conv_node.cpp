@@ -578,10 +578,6 @@ private:
 
 bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (!one_of(op->get_type_info(),
                 ngraph::op::v1::DeformableConvolution::get_type_info_static(),
                 ngraph::op::v8::DeformableConvolution::get_type_info_static())) {
@@ -600,53 +596,53 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
+    errorPrefix = "Deformable convolution with name '" + op->get_friendly_name() + "'";
     auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(op);
     if (defConvNodeBase == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of DeformableConvolutionBase.";
+        IE_THROW() << errorPrefix << " is not an instance of DeformableConvolutionBase.";
 
-    group = defConvNodeBase->get_group();
-    deformable_group = defConvNodeBase->get_deformable_group();
+    defConvAttr.group = defConvNodeBase->get_group();
+    defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
     auto& strides = defConvNodeBase->get_strides();
     for (int i = 0; i < strides.size(); i++) {
-        stride.push_back(strides[i]);
+        defConvAttr.stride.push_back(strides[i]);
     }
 
     auto& dilations = defConvNodeBase->get_dilations();
     for (int i = 1; i <= dilations.size(); i++) {
-        dilation.push_back(dilations[dilations.size() - i] - 1);
+        defConvAttr.dilation.push_back(dilations[dilations.size() - i] - 1);
     }
 
-    paddingL = defConvNodeBase->get_pads_begin();
+    defConvAttr.padL = defConvNodeBase->get_pads_begin();
+
+    autoPadding = one_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
 
     if (op->get_type_info() == ngraph::op::v8::DeformableConvolution::get_type_info_static()) {
         auto defConvNode = std::dynamic_pointer_cast<ngraph::op::v8::DeformableConvolution>(op);
         if (defConvNode == nullptr)
-            IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-                "' is not an instance of DeformableConvolution from opset8.";
-        with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
+            IE_THROW() << errorPrefix << " is not an instance of DeformableConvolution from opset8.";
+        defConvAttr.with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
     } else {
-        with_bilinear_pad = false;
+        defConvAttr.with_bilinear_pad = false;
     }
 }
 
 void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
-    std::string errorPrefix = "DeformableConvolution layer with name '" + getName() + "' ";
     if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges";
+        IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges";
-    if (getInputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
+        IE_THROW() << errorPrefix << " has incorrect number of output edges";
+    if (getInputShapeAtPort(DATA_ID).getRank() != 4) {
+        IE_THROW() << errorPrefix << " has unsupported mode. Only 4D blobs are supported as input.";
     }
-    if (getInputShapeAtPort(1).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
+    if (getInputShapeAtPort(OFF_ID).getRank() != 4) {
+        IE_THROW() << errorPrefix << " doesn't support 1st input with rank: " << getInputShapeAtPort(OFF_ID).getRank();
     }
-    if (getInputShapeAtPort(2).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getInputShapeAtPort(2).getRank();
+    if (getInputShapeAtPort(WEI_ID).getRank() != 4) {
+        IE_THROW() << errorPrefix << " doesn't support 2nd input with rank: " << getInputShapeAtPort(WEI_ID).getRank();
     }
-    if (getOutputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
+    if (getOutputShapeAtPort(DATA_ID).getRank() != 4) {
+        IE_THROW() << errorPrefix << " doesn't support output with rank: " << getOutputShapeAtPort(DATA_ID).getRank();
     }
 }
 
@@ -675,9 +671,15 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
 
     impl_desc_type impl_type;
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
-    if (group != 1 || (((getInputShapeAtPort(0).getStaticDims()[1] / group) % simd_w != 0)
-    || ((getOutputShapeAtPort(0).getStaticDims()[1] / group) % simd_w != 0))) {
+
+    auto &weiDims = getInputShapeAtPort(WEI_ID).getDims();
+    if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
+        defConvAttr.group != 1 ||  // temporary workaround until jit impl. will correctly handle multigroup cases
+        (weiDims[1] % simd_w != 0)  // in_channels_per_gr !% simd_w
+        || ((weiDims[0] / defConvAttr.group) % simd_w != 0)) {  // out_channels_per_gr !% simd_w
         enforceRef = true;
+    } else {
+        enforceRef = false;
     }
 
     if (enforceRef) {
@@ -697,51 +699,41 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
         auto weiFormat = mayiuse(avx512_common) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
-        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0),
+        config.inConfs[DATA_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID),
                                                                               memory::data_type::f32, dataFormat);
-        config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1),
+        config.inConfs[OFF_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID),
                                                                               memory::data_type::f32, offFormat);
-        auto& wDims = getInputShapeAtPort(2).getStaticDims();
-        if (group > 1 && wDims.size() != 5) {
-            auto new_dims = InferenceEngine::SizeVector({group, div_up(wDims[0], group)});
-            for (int i = 1; i < wDims.size(); i++) {
-                new_dims.push_back(wDims[i]);
-            }
-            config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2),
-                                                                                 memory::data_type::f32, weiFormat);
-        } else {
-            config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2),
-                                                                                 memory::data_type::f32, weiFormat);
-        }
+
+        config.inConfs[WEI_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID),
+                                                                                memory::data_type::f32, weiFormat);
 
         if (inputsNumber > 3) {
-            config.inConfs[3].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(3),
+            config.inConfs[MOD_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID),
                                                                                  memory::data_type::f32, memory::format_tag::nchw);
         }
-        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0),
+        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID),
                                                                               memory::data_type::f32, dataFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     } else {
         // reference implementation
-        config.inConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), memory::data_type::f32,
+        config.inConfs[DATA_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID), memory::data_type::f32,
                                                                memory::format_tag::nchw);
-        config.inConfs[1].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1), memory::data_type::f32,
+        config.inConfs[OFF_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID), memory::data_type::f32,
                                                                memory::format_tag::nchw);
-        config.inConfs[2].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2), memory::data_type::f32,
+        config.inConfs[WEI_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID), memory::data_type::f32,
                                                                memory::format_tag::oihw);
         if (inputsNumber > 3) {
-            config.inConfs[3].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(3), memory::data_type::f32,
+            config.inConfs[MOD_ID].desc = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID), memory::data_type::f32,
                                                                                  memory::format_tag::nchw);
         }
-        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), memory::data_type::f32,
+        config.outConfs[0].desc = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID), memory::data_type::f32,
                                                                 memory::format_tag::nchw);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     }
 }
 
-void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
-        const std::vector<size_t>& src_strides, const float* offsets, const std::vector<size_t>& off_strides,
-        const float* modulation, const std::vector<size_t>& modulation_strides) {
+void MKLDNNDeformableConvolutionNode::DefConvExecutor::prepareSamplingWeights(
+        const float* offsets, const float* modulation, bool enforceRef) {
     const int MB = jcp.mb;
     const int OH = jcp.oh;
     const int OW = jcp.ow;
@@ -766,9 +758,6 @@ void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
 
     const bool with_bi_pad = jcp.with_bi_pad;
 
-    // prepare weights and indices
-    sampledCoordsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
-    interpWeightsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
     auto precompKer = [&](int mb, int dg, int oh, int ow) {
         int sampledCoordIndex = (mb * DG * OH * OW + dg * OH * OW + oh * OW + ow) * KH * KW * sampledPointsPerPixel;
         const int h_in = oh * KSH - padT;
@@ -777,22 +766,22 @@ void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
         const int waOffsetH = (enforceRef ? 0 : h_in);
         const int waOffsetW = (enforceRef ? 0 : w_in);
 
-        const float *data_offset_ptr = offsets + mb * off_strides[0] + (dg * 2 * KH * KW) * off_strides[1];
+        const float *data_offset_ptr = offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1];
         const float *modulation_offset_ptr = nullptr;
         if (modulation != nullptr) {
-            modulation_offset_ptr = modulation + mb * modulation_strides[0] + (dg * ker_size) * modulation_strides[1];
+            modulation_offset_ptr = modulation + mb * modStrides[0] + (dg * ker_size) * modStrides[1];
         }
 
         for (int kh = 0; kh < KH; kh++) {
             for (int kw = 0; kw < KW; kw++) {
-                const size_t data_offset_h_index = 2 * ((size_t) kh * KW + kw) * off_strides[1] + oh * off_strides[2] + ow * off_strides[3];
-                const size_t data_offset_w_index = (2 * ((size_t) kh * KW + kw) + 1) * off_strides[1] + oh * off_strides[2] + ow * off_strides[3];
+                const size_t data_offset_h_index = 2 * ((size_t) kh * KW + kw) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
+                const size_t data_offset_w_index = (2 * ((size_t) kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
                 const float offset_h = data_offset_ptr[data_offset_h_index];
                 const float offset_w = data_offset_ptr[data_offset_w_index];
                 float map_h = h_in + kh * (KDH + 1) + offset_h;
                 float map_w = w_in + kw * (KDW + 1) + offset_w;
                 bool skip_compute;
-                if (with_bilinear_pad) {
+                if (with_bi_pad) {
                     skip_compute = !(static_cast<int>(map_w) > -1 &&
                                      static_cast<int>(map_w) < IW &&
                                      static_cast<int>(map_h) > -1 &&
@@ -806,7 +795,7 @@ void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
                     float modulation_scalar = 1.0f;
 
                     if (modulation_offset_ptr != nullptr) {
-                        size_t modulation_index = (kh * KW + kw) * modulation_strides[1] + oh * modulation_strides[2] + ow * modulation_strides[3];
+                        size_t modulation_index = (kh * KW + kw) * modStrides[1] + oh * modStrides[2] + ow * modStrides[3];
                         modulation_scalar = modulation_offset_ptr[modulation_index];
                     }
                     // interpolation precomp.
@@ -833,28 +822,28 @@ void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
                     lh = (h_high < cur_h_end ? lh : 0);
                     lw = (w_high < cur_w_end ? lw : 0);
 
-                    const int h_off_low = h_ind_low * src_strides[2] / src_strides[3];
-                    const int h_off_high = h_ind_high * src_strides[2] / src_strides[3];
+                    const int h_off_low = h_ind_low * srcStrides[2] / srcStrides[3];
+                    const int h_off_high = h_ind_high * srcStrides[2] / srcStrides[3];
                     const int w_off_low  = w_ind_low;
                     const int w_off_high = w_ind_high;
-                    sampledCoordsVector[sampledCoordIndex] = h_off_high + w_off_high;
-                    sampledCoordsVector[sampledCoordIndex + 1] = h_off_high + w_off_low;
-                    sampledCoordsVector[sampledCoordIndex + 2] = h_off_low + w_off_high;
-                    sampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
+                    pSampledCoordsVector[sampledCoordIndex] = h_off_high + w_off_high;
+                    pSampledCoordsVector[sampledCoordIndex + 1] = h_off_high + w_off_low;
+                    pSampledCoordsVector[sampledCoordIndex + 2] = h_off_low + w_off_high;
+                    pSampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
 
                     float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
                             w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
 
-                    interpWeightsVector[sampledCoordIndex] = w11;
-                    interpWeightsVector[sampledCoordIndex + 1] = w12;
-                    interpWeightsVector[sampledCoordIndex + 2] = w21;
-                    interpWeightsVector[sampledCoordIndex + 3] = w22;
+                    pInterpWeightsVector[sampledCoordIndex] = w11;
+                    pInterpWeightsVector[sampledCoordIndex + 1] = w12;
+                    pInterpWeightsVector[sampledCoordIndex + 2] = w21;
+                    pInterpWeightsVector[sampledCoordIndex + 3] = w22;
                 } else {
-                    sampledCoordsVector[sampledCoordIndex] = 0;
-                    interpWeightsVector[sampledCoordIndex] = 0;
-                    interpWeightsVector[sampledCoordIndex + 1] = 0;
-                    interpWeightsVector[sampledCoordIndex + 2] = 0;
-                    interpWeightsVector[sampledCoordIndex + 3] = 0;
+                    pSampledCoordsVector[sampledCoordIndex] = 0;
+                    pInterpWeightsVector[sampledCoordIndex] = 0;
+                    pInterpWeightsVector[sampledCoordIndex + 1] = 0;
+                    pInterpWeightsVector[sampledCoordIndex + 2] = 0;
+                    pInterpWeightsVector[sampledCoordIndex + 3] = 0;
                 }
                 sampledCoordIndex += sampledPointsPerPixel;
             }
@@ -866,19 +855,36 @@ void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
     });
 }
 
-void MKLDNNDeformableConvolutionNode::createPrimitive() {
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
-    auto config = selectedPrimitiveDescriptor->getConfig();
+MKLDNNDeformableConvolutionNode::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
+                                const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) {
+    if (descVector.size() != 4 && descVector.size() != 5) {
+        IE_THROW() << "Deformable Convolution executor got incorrect desc's count (" << descVector.size() << ")";
+    }
+    bool withModulation = descVector.size() == 5;
 
-    auto srcDims = getParentEdgeAt(0)->getMemory().getStaticDims();
-    auto weiDims = getParentEdgeAt(2)->getMemory().getStaticDims();
-    auto dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    auto &srcDesc = descVector[DATA_ID];
+    auto &dstDesc = descVector[descVector.size() - 1];
+    srcStrides = std::vector<size_t>(srcDesc->getStrides().size());
+    offStrides = descVector[OFF_ID]->getStrides();
+    weiStrides = descVector[WEI_ID]->getStrides();
+    dstStrides = std::vector<size_t>(dstDesc->getStrides().size());
+    for (int i = 0; i < srcDesc->getStrides().size(); i++) {
+        srcStrides[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
+    }
+    for (int i = 0; i < dstDesc->getStrides().size(); i++) {
+        dstStrides[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
+    }
 
-    jcp.dg = deformable_group;
+    if (withModulation) {
+        modStrides = descVector[MOD_ID]->getStrides();
+    }
 
-    jcp.ngroups = group;
+    const VectorDims srcDims = descVector[DATA_ID]->getShape().getStaticDims();
+    const VectorDims weiDims = descVector[WEI_ID]->getShape().getStaticDims();
+    const VectorDims dstDims = descVector[descVector.size() - 1]->getShape().getStaticDims();
+
+    jcp.dg = defConvAttr.deformable_group;
+    jcp.ngroups = defConvAttr.group;
 
     jcp.mb = srcDims[0];
 
@@ -893,19 +899,18 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
     jcp.kh = weiDims[2];
     jcp.kw = weiDims[3];
 
-    jcp.t_pad = paddingL[0];
-    jcp.l_pad = paddingL[1];
+    jcp.t_pad = defConvAttr.padL[0];
+    jcp.l_pad = defConvAttr.padL[1];
 
-    jcp.stride_h = stride[0];
-    jcp.stride_w = stride[1];
+    jcp.stride_h = defConvAttr.stride[0];
+    jcp.stride_w = defConvAttr.stride[1];
 
-    jcp.dilate_h = dilation[0];
-    jcp.dilate_w = dilation[1];
+    jcp.dilate_h = defConvAttr.dilation[0];
+    jcp.dilate_w = defConvAttr.dilation[1];
 
     jcp.with_bias = false;
-    jcp.with_bi_pad = with_bilinear_pad;
-    jcp.with_modulation = getParentEdges().size() > 3;
-
+    jcp.with_bi_pad = defConvAttr.with_bilinear_pad;
+    jcp.with_modulation = withModulation;
     const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     jcp.ic_block = simd_w;
     jcp.nb_ic = div_up(jcp.ic, jcp.ic_block);
@@ -924,23 +929,33 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
     jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
 
     jcp.nthr = dnnl_get_max_threads();
+}
 
-    if (enforceRef) {
-        return;
-    } else if (mayiuse(cpu::x64::avx512_common)) {
+MKLDNNDeformableConvolutionNode::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
+                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) :
+                DefConvExecutor(defConvAttr, descVector) {
+    if (mayiuse(cpu::x64::avx512_common)) {
         def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {
         def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
+    } else {
+        IE_THROW() << "Can't create DefConvJitExecutor";
     }
-
-    if (def_conv_kernel)
+    if (def_conv_kernel) {
         def_conv_kernel->create_ker();
+    } else {
+        IE_THROW() << "Can't compile DefConvJitExecutor";
+    }
 }
 
-void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
-                                                       const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides) {
+void MKLDNNDeformableConvolutionNode::DefConvRefExecutor::exec(const float* src, const float* offsets,
+        const float* weights, const float* modulation, float* dst,
+        int *pSampledCoordsVector, float *pInterpWeightsVector) {
+    this->pSampledCoordsVector = pSampledCoordsVector;
+    this->pInterpWeightsVector = pInterpWeightsVector;
+    prepareSamplingWeights(offsets, modulation, true);
     const int G = jcp.ngroups;
     const int MB = jcp.mb;
     const int OH = jcp.oh;
@@ -958,26 +973,26 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
     const int HW = OH * OW;
 
     const int channel_per_deformable_group = (IC * G) / DG;
-    const size_t group_wei_stride = wei_strides[0] * OC;
+    const size_t group_wei_stride = weiStrides[0] * OC;
     auto compKer = [=](int g, int mb, int oc, int oh, int ow) {
         float d = 0;
         for (int ic = 0; ic < IC; ic++) {
-            const float *data_im_ptr = src + mb * src_strides[0] + (g * IC + ic) * src_strides[1];
+            const float *data_im_ptr = src + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
             int sampledCoordIndex = (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
-            size_t weiIndex = (size_t) g * group_wei_stride + oc * wei_strides[0] + ic * wei_strides[1];
-            for (int kh_off = 0; kh_off < KH * wei_strides[2]; kh_off += wei_strides[2]) {
-                for (int kw_off = 0; kw_off < KW * wei_strides[3]; kw_off += wei_strides[3]) {
+            size_t weiIndex = (size_t) g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
+            for (int kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
+                for (int kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
                     // check if current addendum marked as equal zero
-                    if (sampledCoordsVector[sampledCoordIndex] != -1) {
-                        const int v11 = sampledCoordsVector[sampledCoordIndex];
-                        const int v12 = sampledCoordsVector[sampledCoordIndex + 1];
-                        const int v21  = sampledCoordsVector[sampledCoordIndex + 2];
-                        const int v22 = sampledCoordsVector[sampledCoordIndex + 3];
-                        float val = interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                        val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];  // v12
-                        val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];  // v21
-                        val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
+                    if (pSampledCoordsVector[sampledCoordIndex] != -1) {
+                        const int v11 = pSampledCoordsVector[sampledCoordIndex];
+                        const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
+                        const int v21  = pSampledCoordsVector[sampledCoordIndex + 2];
+                        const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
+                        float val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
+                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];  // v12
+                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];  // v21
+                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
                         d += val * weights[weiIndex + kh_off + kw_off];
                     } else {
                         sampledCoordIndex += sampledPointsPerPixel;
@@ -990,14 +1005,81 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
 
     parallel_nd(G, MB, OC, OH, OW,
                 [&](int g, int mb, int oc, int oh, int ow)  {
-                    dst[mb * dst_strides[0] + (g * OC + oc) * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]] = compKer(g, mb, oc, oh, ow);
+                    dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] = compKer(g, mb, oc, oh, ow);
                 });
 }
 
+void MKLDNNDeformableConvolutionNode::prepareParams() {
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
+    auto& weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
 
-void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const float* weights, float* dst,
-                                                       const std::vector<size_t>& src_strides,
-                                                       const std::vector<size_t>& dst_strides) {
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " did not allocate destination memory";
+    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " did not allocate input memory";
+    if (!offMemPtr || !offMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " did not allocate offsets shape memory";
+    if (!weiMemPtr || !weiMemPtr->GetPrimitivePtr())
+        IE_THROW() << errorPrefix << " did not allocate weights memory";
+
+    if (getOriginalInputsNumber() > 3) {
+        auto& modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
+        if (!modMemPtr || !modMemPtr->GetPrimitivePtr())
+            IE_THROW() << errorPrefix << " did not allocate modulations memory";
+    }
+
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        IE_THROW() << errorPrefix << "' doesn't have primitive descriptors.";
+    auto config = selectedPrimitiveDescriptor->getConfig();
+
+    bool withModulation = getParentEdges().size() > 3;
+
+    updatePadding();
+
+    std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector {
+        getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(OFF_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(WEI_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>()
+    };
+
+    if (withModulation) {
+        descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>());
+    }
+    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>());
+
+    const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
+    const int OH = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[2];
+    const int OW = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[3];
+
+    const int KH = getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[2];
+    const int KW = getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[3];
+
+    const int DG = defConvAttr.deformable_group;
+
+    // allocate sampling weights and indices
+    sampledCoordsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
+    interpWeightsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
+
+    if (enforceRef) {
+        execPtr = std::make_shared<DefConvRefExecutor>(defConvAttr, descVector);
+    } else {
+        execPtr = std::make_shared<DefConvJitExecutor>(defConvAttr, descVector);
+    }
+}
+
+void MKLDNNDeformableConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
+}
+
+void MKLDNNDeformableConvolutionNode::DefConvJitExecutor::exec(const float* src, const float* offsets,
+        const float* weights, const float* modulation, float* dst,
+        int *pSampledCoordsVector, float *pInterpWeightsVector) {
+    this->pSampledCoordsVector = pSampledCoordsVector;
+    this->pInterpWeightsVector = pInterpWeightsVector;
+    prepareSamplingWeights(offsets, modulation, false);
     size_t buffer_size = (size_t)jcp.nthr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic * jcp.typesize_in;
     std::vector<float> input_buffer(buffer_size, 0);
     float* input_buffer_ptr = input_buffer.data();
@@ -1010,12 +1092,12 @@ void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const f
         const size_t _oc = g * jcp.nb_oc;
         const size_t _ic = g * jcp.nb_ic;
 
-        par_conv.src = &src[n * src_strides[0] + _ic*jcp.ic_block * src_strides[1] +
-                            (oh * jcp.stride_h - jcp.t_pad) * src_strides[2] - jcp.l_pad * src_strides[3]];
-        par_conv.sampledWei = &interpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel];
-        par_conv.sampledCoords = &sampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel];
+        par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1] +
+                            (oh * jcp.stride_h - jcp.t_pad) * srcStrides[2] - jcp.l_pad * srcStrides[3]];
+        par_conv.sampledWei = &(pInterpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+        par_conv.sampledCoords = &(pSampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
         par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
-        par_conv.dst = &dst[n * dst_strides[0] + _oc * jcp.oc_block * dst_strides[1] + oh * dst_strides[2]];
+        par_conv.dst = &dst[n * dstStrides[0] + _oc * jcp.oc_block * dstStrides[1] + oh * dstStrides[2]];
         par_conv.buf = input_buffer_ptr + ithr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic;
 
         par_conv.oh_pos = oh;
@@ -1044,34 +1126,21 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << "Deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    auto src_block_desc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    std::vector<size_t> src_strides(src_block_desc->getStrides().size());
-    for (int i = 0; i < src_strides.size(); i++) {
-        src_strides[src_block_desc->getOrder()[i]] = src_block_desc->getStrides()[i];
-    }
-
-    auto dst_block_desc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    std::vector<size_t> dst_strides(dst_block_desc->getStrides().size());
-    for (int i = 0; i < dst_strides.size(); i++) {
-        dst_strides[dst_block_desc->getOrder()[i]] = dst_block_desc->getStrides()[i];
-    }
-
-    auto off_strides =  getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    auto wei_strides =  getParentEdgeAt(2)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    InferenceEngine::SizeVector modulation_strides;
-    if (inputsNumber > 3) {
-        modulation_strides = getParentEdgeAt(3)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    }
-
-    prepareSamplingWeights(src_strides, offsets, off_strides, modulation, modulation_strides);
-
-    if (def_conv_kernel) {
-        executeOptimized(src, weights, dst, src_strides, dst_strides);
+    if (execPtr) {
+        execPtr->exec(src, offsets, weights, modulation, dst, sampledCoordsVector.data(), interpWeightsVector.data());
     } else {
-        executeReference(src, weights, dst, src_strides, wei_strides, dst_strides);
+        IE_THROW() << "Deformable Convolution executor doesn't exist";
+    }
+}
+
+void MKLDNNDeformableConvolutionNode::updatePadding() {
+    //update padding. TODO [DS] : rewrite when the final shape inference interface is available
+    if (isDynamicNode() && autoPadding) {
+        auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(opToShapeInfer);
+        defConvAttr.padL = defConvNodeBase->get_pads_begin();
     }
 }
 

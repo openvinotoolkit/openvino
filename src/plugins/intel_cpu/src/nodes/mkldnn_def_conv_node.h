@@ -73,7 +73,6 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
-    void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
@@ -86,29 +85,73 @@ public:
     InferenceEngine::Precision getRuntimePrecision() const override;
 
 private:
-    size_t group = 1;
-    bool with_bilinear_pad = false;
-    std::vector<ptrdiff_t> stride = {};
-    std::vector<ptrdiff_t> dilation = {};
-    std::vector<ptrdiff_t> paddingL = {};
-
-    int deformable_group = 1;
-
-    jit_def_conv_params jcp = {};
+    struct DefConvAttr {
+        size_t group = 1;
+        int deformable_group = 1;
+        bool with_bilinear_pad = false;
+        std::vector<ptrdiff_t> stride = {};
+        std::vector<ptrdiff_t> dilation = {};
+        std::vector<ptrdiff_t> padL;
+    } defConvAttr;
 
     std::vector<int> sampledCoordsVector;
     std::vector<float> interpWeightsVector;
 
-    std::shared_ptr<jit_uni_def_conv_kernel> def_conv_kernel = nullptr;
+    void prepareParams() override;
+    void updatePadding();
 
-    void prepareSamplingWeights(const std::vector<size_t>& src_strides, const float* offsets, const std::vector<size_t>& off_strides,
-                                const float* modulation = nullptr, const std::vector<size_t>& modulation_strides = {});
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t OFF_ID = 1;
+    static constexpr size_t WEI_ID = 2;
+    static constexpr size_t MOD_ID = 3;
+    std::string errorPrefix;
+    class DefConvExecutor {
+        public:
+            DefConvExecutor(const DefConvAttr &defConvAttr,
+                                const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector);
 
-    void executeReference(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
-                          const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides);
-    void executeOptimized(const float* src, const float* weights, float* dst,
-                          const std::vector<size_t>& src_strides, const std::vector<size_t>& dst_strides);
+            virtual void exec(const float* src, const float* offsets,
+                const float* weights, const float* modulation, float* dst,
+                int *pSampledCoordsVector, float *pInterpWeightsVector) = 0;
+            virtual ~DefConvExecutor() = default;
+
+        protected:
+            void prepareSamplingWeights(const float* offsets, const float* modulation = nullptr, bool enforceRef = false);
+            jit_def_conv_params jcp = {};
+            VectorDims srcStrides;
+            VectorDims offStrides;
+            VectorDims weiStrides;
+            VectorDims modStrides;
+            VectorDims dstStrides;
+            int *pSampledCoordsVector;
+            float *pInterpWeightsVector;
+    };
+
+    class DefConvRefExecutor : public DefConvExecutor {
+        public:
+            DefConvRefExecutor(const DefConvAttr &defConvAttr,
+                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) :
+                DefConvExecutor(defConvAttr, descVector) {}
+
+            void exec(const float* src, const float* offsets,
+                const float* weights, const float* modulation, float* dst,
+                int *pSampledCoordsVector, float *pInterpWeightsVector) override;
+    };
+
+    class DefConvJitExecutor : public DefConvExecutor {
+            std::shared_ptr<jit_uni_def_conv_kernel> def_conv_kernel = nullptr;
+        public:
+            DefConvJitExecutor(const DefConvAttr &defConvAttr,
+                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector);
+
+            void exec(const float* src, const float* offsets,
+                const float* weights, const float* modulation, float* dst,
+                int *pSampledCoordsVector, float *pInterpWeightsVector) override;
+    };
+
+    std::shared_ptr<DefConvExecutor> execPtr = nullptr;
+    bool autoPadding = false;
 };
-
 }  // namespace MKLDNNPlugin
 
