@@ -1,15 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import numpy as np
-
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.elementwise import Mul, Add
 from openvino.tools.mo.ops.mvn import MVN
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 
 class LayerNormalization(MiddleReplacementPattern):

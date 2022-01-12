@@ -36,6 +36,10 @@ class LayerNormalizationTest(unittest.TestCase):
                 **regular_op_with_empty_data('mvn', {'eps': 0.001, 'across_channels': 1, 'normalize_variance': 1,
                                                      'eps_mode': 'inside_sqrt', 'op': 'MVN', 'type': 'MVN'}),
                 **shaped_const_with_data('gamma', None),
+                **regular_op_with_empty_data('gamma_unsqueeze', {'op': 'Unsqueeze', 'type': 'Unsqueeze'}),
+                **shaped_const_with_data('gamma_unsqueeze_const', None),
+                **regular_op_with_empty_data('beta_unsqueeze', {'op': 'Unsqueeze', 'type': 'Unsqueeze'}),
+                **shaped_const_with_data('beta_unsqueeze_const', None),
                 **regular_op_with_empty_data('mul', {'op': 'Mul', 'type': 'Multiply'}),
                 **shaped_const_with_data('beta', None),
                 **regular_op_with_empty_data('add', {'op': 'Add', 'type': 'Add'}),
@@ -45,13 +49,19 @@ class LayerNormalizationTest(unittest.TestCase):
                 *connect('input', '0:mvn'),
                 *connect('mvn_const', '1:mvn'),
                 *connect('mvn', '0:mul'),
-                *connect('gamma', '1:mul'),
+                *connect('gamma', 'gamma_unsqueeze'),
+                *connect('gamma_unsqueeze_const', '1:gamma_unsqueeze'),
+                *connect('gamma_unsqueeze', '1:mul'),
                 *connect('mul', '0:add'),
-                *connect('beta', '1:add'),
+                *connect('beta', 'beta_unsqueeze'),
+                *connect('beta_unsqueeze_const', '1:beta_unsqueeze'),
+                *connect('beta_unsqueeze', '1:add'),
                 *connect('add', 'result')
             ],
             update_attributes={
-                'mvn_const': {'value': int64_array([-1]), 'shape': int64_array([1])}
+                'mvn_const': {'value': int64_array([-1]), 'shape': int64_array([1])},
+                'gamma_unsqueeze_const': {'value': int64_array([0, 1, 2]), 'shape': int64_array([3])},
+                'beta_unsqueeze_const': {'value': int64_array([0, 1, 2]), 'shape': int64_array([3])}
             }
         )
         LayerNormalization().find_and_replace_pattern(graph)
@@ -82,6 +92,10 @@ class LayerNormalizationTest(unittest.TestCase):
                 **regular_op_with_empty_data('mvn', {'eps': 0.001, 'across_channels': 1, 'normalize_variance': 1,
                                                      'eps_mode': 'inside_sqrt', 'op': 'MVN', 'type': 'MVN'}),
                 **shaped_const_with_data('gamma', None),
+                **regular_op_with_empty_data('gamma_unsqueeze', {'op': 'Unsqueeze', 'type': 'Unsqueeze'}),
+                **shaped_const_with_data('gamma_unsqueeze_const', None),
+                **regular_op_with_empty_data('beta_unsqueeze', {'op': 'Unsqueeze', 'type': 'Unsqueeze'}),
+                **shaped_const_with_data('beta_unsqueeze_const', None),
                 **regular_op_with_empty_data('mul', {'op': 'Mul', 'type': 'Multiply'}),
                 **shaped_const_with_data('beta', None),
                 **regular_op_with_empty_data('add', {'op': 'Add', 'type': 'Add'}),
@@ -91,13 +105,19 @@ class LayerNormalizationTest(unittest.TestCase):
                 *connect('input', '0:mvn'),
                 *connect('mvn_const', '1:mvn'),
                 *connect('mvn', '0:mul'),
-                *connect('gamma', '1:mul'),
+                *connect('gamma', 'gamma_unsqueeze'),
+                *connect('gamma_unsqueeze_const', '1:gamma_unsqueeze'),
+                *connect('gamma_unsqueeze', '1:mul'),
                 *connect('mul', '0:add'),
-                *connect('beta', '1:add'),
+                *connect('beta', 'beta_unsqueeze'),
+                *connect('beta_unsqueeze_const', '1:beta_unsqueeze'),
+                *connect('beta_unsqueeze', '1:add'),
                 *connect('add', 'result')
             ],
             update_attributes={
-                'mvn_const': {'value': int64_array([1]), 'shape': int64_array([1])}
+                'mvn_const': {'value': int64_array([1]), 'shape': int64_array([1])},
+                'gamma_unsqueeze_const': {'value': int64_array([0, 2, 3]), 'shape': int64_array([3])},
+                'beta_unsqueeze_const': {'value': int64_array([0, 2, 3]), 'shape': int64_array([3])}
             }
         )
         LayerNormalization().find_and_replace_pattern(graph)
