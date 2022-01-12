@@ -787,8 +787,7 @@ def test_rnn_sequence():
 
 
 def test_loop():
-    bool_val = np.array([1], dtype=np.bool)
-    bool_val[0] = True
+    bool_val = [True]  # np.array([1], dtype=np.bool)
     condition = ov.constant(bool_val)
     trip_count = ov.constant(16, dtype=np.int32)
     #  Body parameters

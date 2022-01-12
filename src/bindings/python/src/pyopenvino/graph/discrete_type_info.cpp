@@ -8,7 +8,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "ngraph/type.hpp"
+#include "openvino/core/type.hpp"
 
 namespace py = pybind11;
 
@@ -24,11 +24,17 @@ void regclass_graph_DiscreteTypeInfo(py::module m) {
     discrete_type_info.def(py::self == py::self);
     discrete_type_info.def(py::self != py::self);
 
-    discrete_type_info.def_readonly("name", &ngraph::DiscreteTypeInfo::name);
-    discrete_type_info.def_readonly("version", &ngraph::DiscreteTypeInfo::version);
-    discrete_type_info.def_readonly("parent", &ngraph::DiscreteTypeInfo::parent);
+    discrete_type_info.def_readonly("name", &ov::DiscreteTypeInfo::name);
+    discrete_type_info.def_readonly("version", &ov::DiscreteTypeInfo::version);
+    discrete_type_info.def_readonly("version_id", &ov::DiscreteTypeInfo::version_id);
+    discrete_type_info.def_readonly("parent", &ov::DiscreteTypeInfo::parent);
 
-    discrete_type_info.def("__repr__", [](const ngraph::DiscreteTypeInfo& self) {
+    discrete_type_info.def("get_version", &ov::DiscreteTypeInfo::get_version);
+    discrete_type_info.def("hash", [](const ov::DiscreteTypeInfo& self) {
+        return self.hash();
+    });
+
+    discrete_type_info.def("__repr__", [](const ov::DiscreteTypeInfo& self) {
         std::string name = std::string(self.name);
         std::string version = std::to_string(self.version);
         if (self.parent != nullptr) {
