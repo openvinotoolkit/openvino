@@ -1,4 +1,4 @@
-## Less <a name="Less"></a> {#openvino_docs_ops_comparison_Less_1}
+# Less {#openvino_docs_ops_comparison_Less_1}
 
 **Versioned name**: *Less-1*
 

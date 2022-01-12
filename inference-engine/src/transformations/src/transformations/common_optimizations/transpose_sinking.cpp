@@ -212,8 +212,9 @@ ngraph::pass::TransposeFuse::TransposeFuse() {
             auto new_order = ngraph::opset7::Constant::create(element::i64, {order2.size()}, order2);
             auto new_transpose = register_new_node<ngraph::opset7::Transpose>(input, new_order);
 
+            new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::copy_runtime_info({ transpose1, transpose2 }, new_transpose);
-            ngraph::replace_node(transpose2, new_transpose);
+            ngraph::replace_node(m.get_match_root(), new_transpose);
         }
 
         return true;

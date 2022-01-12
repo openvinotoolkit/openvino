@@ -1,4 +1,4 @@
-## Unsqueeze <a name="Unsqueeze"></a> {#openvino_docs_ops_shape_Unsqueeze_1}
+# Unsqueeze {#openvino_docs_ops_shape_Unsqueeze_1}
 
 **Versioned name**: *Unsqueeze-1*
 

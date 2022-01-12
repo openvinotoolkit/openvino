@@ -12,7 +12,7 @@ Representation (IR) for this model.
 This guide illustrates the workflow for running inference on topologies featuring custom operations, allowing you to
 plug in your own implementation for existing or completely new operation.
 
-> **NOTE:** *Layer* — The legacy term for an *operation* which came from Caffe\* framework. Currently it is not used.
+> **NOTE**: *Layer* — The legacy term for an *operation* which came from Caffe\* framework. Currently it is not used.
 > Refer to the [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../MO_DG/IR_and_opsets.md)
 > for more information on the topic.
 
@@ -44,7 +44,7 @@ plugins to support inference of this operation using a particular target hardwar
 To see the operations that are supported by each device plugin for the Inference Engine, refer to the
 [Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md).
 
-> **NOTE:** If a device doesn't support a particular operation, an alternative to creating a new operation is to target
+> **NOTE**: If a device doesn't support a particular operation, an alternative to creating a new operation is to target
 > an additional device using the HETERO plugin. The [Heterogeneous Plugin](../IE_DG/supported_plugins/HETERO.md) may be
 > used to run an inference model on multiple devices allowing the unsupported operations on one device to "fallback" to
 > run on another device (e.g., CPU) that does support those operations.
@@ -63,7 +63,7 @@ operation and uses corresponding operation class to update graph node attributes
 operation. Refer to the "Operation Extractor" section of
 [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for detailed instructions on how to implement it.
 
-> **NOTE:** In some cases you may need to implement some transformation to support the operation. This topic is covered in the "Graph Transformation Extensions" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
+> **NOTE**: In some cases you may need to implement some transformation to support the operation. This topic is covered in the "Graph Transformation Extensions" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 
 ## Custom Operations Extensions for the Inference Engine
 
@@ -131,15 +131,26 @@ Firstly, open the model in the TensorBoard or other TensorFlow* model visualizat
 batch dimension because the value for the batch dimension is not hardcoded in the model. Model Optimizer need to set all
 dynamic dimensions to some specific value to create the IR, therefore specify the command line parameter `-b 1` to set
 the batch dimension equal to 1. The actual batch size dimension can be changed at runtime using the Inference Engine API
-described in the [Using Shape Inference](../IE_DG/ShapeInference.md). Also refer to
-[Converting a Model Using General Conversion Parameters](../MO_DG/prepare_model/convert_model/Converting_Model_General.md)
-and [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+described in the [Using Shape Inference](../IE_DG/ShapeInference.md). Also refer to the General Conversion Parameters section in [Converting a Model to Intermediate Representation (IR)](../MO_DG/prepare_model/convert_model/Converting_Model.md) and [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 for more details and command line parameters used for the model conversion.
 
-```bash
-./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
-```
-> **NOTE:** This conversion guide is applicable for the 2021.3 release of OpenVINO and that starting from 2021.4
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+      python3 mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
+
+@endsphinxdirective
+
+> **NOTE**: This conversion guide is applicable for the 2021.3 release of OpenVINO and that starting from 2021.4
 > the OpenVINO supports this model out of the box.
 
 Model Optimizer produces the following error:
@@ -221,7 +232,7 @@ following snippet provides two extractors: one for "IFFT2D", another one for "FF
 
 @snippet FFT_ext.py fft_ext:extractor
 
-> **NOTE:** The graph is in inconsistent state after extracting node attributes because according to original operation
+> **NOTE**: The graph is in inconsistent state after extracting node attributes because according to original operation
 > "IFFT2D" semantic it should have an input consuming a tensor of complex numbers, but the extractor instantiated an
 > operation "FFT" which expects a real tensor with specific layout. But the inconsistency will be resolved during
 > applying front phase transformations discussed below.
@@ -239,7 +250,7 @@ information on how this type of transformation works. The code snippet should be
 
 @snippet Complex.py complex:transformation
 
-> **NOTE:** The graph is in inconsistent state because the "ComplexAbs" operation consumes complex value tensor but
+> **NOTE**: The graph is in inconsistent state because the "ComplexAbs" operation consumes complex value tensor but
 >  "FFT" produces real value tensor.
 
 Now lets implement a transformation which replace a "ComplexAbs" operation with a sub-graph of primitive operations
@@ -257,15 +268,27 @@ The implementation should be saved to the file `mo_extensions/front/tf/ComplexAb
 @snippet ComplexAbs.py complex_abs:transformation
 
 Now it is possible to convert the model using the following command line:
-```bash
-./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+      python3 mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
+
+@endsphinxdirective
 
 The sub-graph corresponding to the originally non-supported one is depicted in the image below:
 
 ![Converted sub-graph](img/converted_subgraph.png)
 
-> **NOTE:** Model Optimizer performed conversion of the model from NHWC to NCHW layout that is why the dimension with
+> **NOTE**: Model Optimizer performed conversion of the model from NHWC to NCHW layout that is why the dimension with
 > the value 2 moved to another position.
 
 ### Inference Engine Extension Implementation
@@ -350,7 +373,7 @@ python3 mri_reconstruction_demo.py \
 ## Converting Models:
 
 - [Convert Your Caffe* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
-- [Convert Your Kaldi* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
 - [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 - [Convert Your MXNet* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
+- [Convert Your Kaldi* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
 - [Convert Your ONNX* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)

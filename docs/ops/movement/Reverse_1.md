@@ -1,4 +1,4 @@
-## Reverse <a name="Reverse"></a> {#openvino_docs_ops_movement_Reverse_1}
+# Reverse {#openvino_docs_ops_movement_Reverse_1}
 
 **Versioned name**: *Reverse-1*
 

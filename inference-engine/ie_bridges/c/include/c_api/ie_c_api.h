@@ -14,6 +14,12 @@
  * is allocated and manage inference flow.
 **/
 
+/**
+ *  @defgroup ie_c_api Inference Engine C API
+ *  Inference Engine C API
+ */
+
+
 #ifndef IE_C_API_H
 #define IE_C_API_H
 
@@ -329,6 +335,7 @@ INFERENCE_ENGINE_C_API(void) ie_param_free(ie_param_t *param);
 
 /**
  * @defgroup Core Core
+ * @ingroup ie_c_api
  * Set of functions dedicated to working with registered plugins and loading
  * network to the registered devices.
  * @{
@@ -372,7 +379,7 @@ INFERENCE_ENGINE_C_API(void) ie_core_versions_free(ie_core_versions_t *vers);
 /**
  * @brief Reads the model from the .xml and .bin files of the IR. Use the ie_network_free() method to free memory.
  * @ingroup Core
- * @param core A pointer to ie_core_t instance.
+ * @param core A pointer to the ie_core_t instance.
  * @param xml .xml file's path of the IR.
  * @param weights_file .bin file's path of the IR, if path is empty, will try to read bin file with the same name as xml and
  * if bin file with the same name was not found, will load IR without weights.
@@ -384,7 +391,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network(ie_core_t
 /**
  * @brief Reads the model from an xml string and a blob of the bin part of the IR. Use the ie_network_free() method to free memory.
  * @ingroup Core
- * @param core A pointer to ie_core_t instance.
+ * @param core A pointer to the ie_core_t instance.
  * @param xml_content Xml content of the IR.
  * @param xml_content_size Number of bytes in the xml content of the IR.
  * @param weight_blob Blob containing the bin part of the IR.
@@ -395,12 +402,50 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network_from_memo
     const ie_blob_t *weight_blob, ie_network_t **network);
 
 /**
- * @brief Creates an executable network from a network object. Users can create as many networks as they need and use
+* @brief Creates an executable network from a network previously exported to a file. Users can create as many networks as they need and use
+* them simultaneously (up to the limitation of the hardware resources). Use the ie_exec_network_free() method to free memory.
+* @ingroup Core
+* @param core A pointer to the ie_core_t instance.
+* @param file_name A path to the location of the exported file.
+* @param device_name A name of the device to load the network to.
+* @param config Device configuration.
+* @param exe_network A pointer to the newly created executable network.
+* @return Status code of the operation: OK(0) for success.
+*/
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network(ie_core_t *core, const char *file_name, const char *device_name, \
+        const ie_config_t *config, ie_executable_network_t **exe_network);
+
+/**
+* @brief Creates an executable network from a network previously exported to memory. Users can create as many networks as they need and use
+* them simultaneously (up to the limitation of the hardware resources). Use the ie_exec_network_free() method to free memory.
+* @ingroup Core
+* @param core A pointer to the ie_core_t instance.
+* @param content A pointer to content of the exported network.
+* @param content_size Number of bytes in the exported network.
+* @param device_name A name of the device to load the network to.
+* @param config Device configuration.
+* @param exe_network A pointer to the newly created executable network.
+* @return Status code of the operation: OK(0) for success.
+*/
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *content, size_t content_size,
+        const char *device_name, const ie_config_t *config, ie_executable_network_t **exe_network);
+
+/**
+* @brief Exports an executable network to a .bin file.
+* @ingroup Core
+* @param exe_network A pointer to the newly created executable network.
+* @param file_name Path to the file to export the network to.
+* @return Status code of the operation: OK(0) for success.
+*/
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_export_network(ie_executable_network_t *exe_network, const char *file_name);
+
+/**
+ * @brief Creates an executable network from a given network object. Users can create as many networks as they need and use
  * them simultaneously (up to the limitation of the hardware resources). Use the ie_exec_network_free() method to free memory.
  * @ingroup Core
- * @param core A pointer to ie_core_t instance.
- * @param network A pointer to ie_network instance.
- * @param device_name Name of device to load network to.
+ * @param core A pointer to the ie_core_t instance.
+ * @param network A pointer to the input ie_network instance to create the executable network from.
+ * @param device_name Name of the device to load the network to.
  * @param config Device configuration.
  * @param exe_network A pointer to the newly created executable network.
  * @return Status code of the operation: OK(0) for success.
@@ -412,7 +457,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network(ie_core_t
 * @brief Reads model and creates an executable network from IR or ONNX file. Users can create as many networks as they need and use
 * them simultaneously (up to the limitation of the hardware resources). Use the ie_exec_network_free() method to free memory.
 * @ingroup Core
-* @param core A pointer to ie_core_t instance.
+* @param core A pointer to the ie_core_t instance.
 * @param xml .xml file's path of the IR. Weights file name will be calculated automatically
 * @param device_name Name of device to load network to.
 * @param config Device configuration.
@@ -520,6 +565,7 @@ INFERENCE_ENGINE_C_API(void) ie_core_available_devices_free(ie_available_devices
 
 /**
  * @defgroup ExecutableNetwork ExecutableNetwork
+ * @ingroup ie_c_api
  * Set of functions representing of neural networks been loaded to device.
  * @{
  */
@@ -581,6 +627,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_get_config(con
 
 /**
  * @defgroup InferRequest InferRequest
+ * @ingroup ie_c_api
  * Set of functions responsible for dedicated inference for certain
  * ExecutableNetwork.
  * @{
@@ -665,6 +712,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_request_set_batch(ie_
 
 /**
  * @defgroup Network Network
+ * @ingroup ie_c_api
  * Set of functions managing network been read from the IR before loading
  * of it to the device.
  * @{
@@ -905,6 +953,7 @@ INFERENCE_ENGINE_C_API(void) ie_network_name_free(char **name);
 
 /**
  * @defgroup Blob Blob
+ * @ingroup ie_c_api
  * Set of functions allowing to research memory from infer requests or make new
  * memory objects to be passed to InferRequests.
  * @{

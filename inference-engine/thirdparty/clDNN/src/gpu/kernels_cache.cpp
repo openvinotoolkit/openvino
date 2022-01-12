@@ -15,10 +15,7 @@
 #include <utility>
 #include "kernel_selector_helper.h"
 #include "cldnn_itt.h"
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-#include <tbb/parallel_for.h>
-#include <tbb/blocked_range.h>
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
+#if(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
 #include <thread>
 #include <future>
 #include <queue>
@@ -402,9 +399,10 @@ void kernels_cache::build_all() {
         get_program_source(_kernels_code, &batches);
         _one_time_kernels.clear();
 #if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-        int n_threads = _context.get_configuration().n_threads;
-        arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
-        arena->initialize(n_threads);
+        const auto core_type = _context.get_configuration().core_type;
+        const auto n_threads = _context.get_configuration().n_threads;
+        arena.reset(new cldnn::custom::task_arena{
+                            cldnn::custom::task_arena::constraints{}.set_core_type(core_type).set_max_concurrency(n_threads)});
 #elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
         int n_threads = _context.get_configuration().n_threads;
         pool = std::unique_ptr<thread_pool>(new thread_pool(n_threads));

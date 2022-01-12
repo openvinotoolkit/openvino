@@ -130,14 +130,24 @@ Running the application with the empty list of options yields the usage message 
 
 ### Model Preparation
 
-You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
+Run Model Optimizer to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
 
-```sh
-python mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
 
-Assuming that the model optimizer (`mo.py`), Kaldi-trained neural network, `wsj_dnn5b.nnet`, and Kaldi class counts file, `wsj_dnn5b.counts`, are in the working directory this produces
-the IE IR network consisting of `wsj_dnn5b.xml` and `wsj_dnn5b.bin`.
+   .. code-block:: sh
+
+      python3 --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
+@endsphinxdirective
+
+
+Assuming that the model optimizer (`mo.py`), Kaldi-trained neural network, `wsj_dnn5b.nnet`, and Kaldi class counts file, `wsj_dnn5b.counts`, are in the working directory this produces the IE IR network consisting of `wsj_dnn5b.xml` and `wsj_dnn5b.bin`.
 
 The following pre-trained models are available:
 

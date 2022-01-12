@@ -51,7 +51,7 @@ IE_SUPPRESS_DEPRECATED_START
 
         ie::MYRIAD_TENSOR_STRIDES,
 
-        ie::MYRIAD_IR_WITH_SCALES_DIRECTORY,
+        ie::MYRIAD_SCALES_PATTERN,
         ie::MYRIAD_DETECT_NETWORK_BATCH,
         ie::MYRIAD_COPY_OPTIMIZATION,
         ie::MYRIAD_HW_INJECT_STAGES,
@@ -190,7 +190,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.enableEarlyEltwiseReLUFusion,   switches, config, ie::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
     setOption(_compileConfig.enableCustomReshapeParam,       switches, config, ie::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
 
-    setOption(_compileConfig.irWithVpuScalesDir,                       config, ie::MYRIAD_IR_WITH_SCALES_DIRECTORY);
+    setOption(_compileConfig.VPUScalesOption,                          config, ie::MYRIAD_SCALES_PATTERN);
     setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);
     setOption(_compileConfig.hwWhiteList,                              config, ie::MYRIAD_HW_WHITE_LIST, parseStringSet);
     setOption(_compileConfig.hwBlackList,                              config, ie::MYRIAD_HW_BLACK_LIST, parseStringSet);

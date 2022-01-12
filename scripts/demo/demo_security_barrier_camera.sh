@@ -119,7 +119,7 @@ fi
 if [[ $DISTRO == "macos" ]]; then
     "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 else
-    sudo -E "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
+    sudo -E "$pip_binary" install --ignore-installed -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 fi
 
 if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then

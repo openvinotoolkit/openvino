@@ -13,18 +13,17 @@
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
 
-/// @brief message for images argument
+/// @brief message for input data argument
 static const char input_message[] = "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
-/// @brief message for assigning cnn calculation to device
+/// @brief message for assigning calculation to device
 static const char target_device_message[] = "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
-                                            "GNA_SW_FP32, "
+                                            "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
                                             "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
-                                            " as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown "
-                                            "below. "
+                                            " as a secondary (e.g. HETERO:GNA,CPU) are supported. "
                                             "The sample will look for a suitable plugin for device specified.";
 
 /// @brief message for execution target
@@ -34,7 +33,7 @@ static const char execution_target_message[] = "Optional. Specify GNA execution 
                                                "or the latest fully supported generation by the software. "
                                                "See the GNA Plugin's GNA_EXEC_TARGET config option description.";
 
-/// @brief message for execution target
+/// @brief message for compile target
 static const char compile_target_message[] = "Optional. Specify GNA compile target generation. "
                                              "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
                                              "By default, generation corresponds to the GNA HW available in the system "

@@ -965,16 +965,20 @@ Config MKLDNNGraph::getProperty() const {
     return config;
 }
 
-void MKLDNNGraph::getInputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : inputNodesMap) {
-        resp[it.first] = it.second->getChildEdgeAt(0)->getBlob();
+Blob::Ptr MKLDNNGraph::getInputBlob(const std::string& name) {
+    auto itr = inputNodesMap.find(name);
+    if (itr != inputNodesMap.end()) {
+        return itr->second->getChildEdgeAt(0)->getBlob();
     }
+    return nullptr;
 }
 
-void MKLDNNGraph::getOutputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : outputNodesMap) {
-        resp[it.first] = it.second->getParentEdgeAt(0)->getBlob();
+Blob::Ptr MKLDNNGraph::getOutputBlob(const std::string& name) {
+    auto itr = outputNodesMap.find(name);
+    if (itr != outputNodesMap.end()) {
+        return itr->second->getParentEdgeAt(0)->getBlob();
     }
+    return nullptr;
 }
 
 void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
@@ -1043,6 +1047,8 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
     if (!parentConvEdge) return;
     auto parentConv = parentConvEdge->getParent();
     if (!parentConv) return;
+
+    parentConv->outDims[0] = node->outDims[0];
 
     for (size_t i = 0; i < 1; i++) {
         auto p_edge = parents[i].lock();

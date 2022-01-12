@@ -165,11 +165,6 @@ CompiledGraph::Ptr compileImpl(const ie::CNNNetwork& network, const ie::ICore* c
 
     middleEnd->run(model);
 
-    if (!env.config.irWithVpuScalesDir.empty()) {
-        network.serialize(env.config.irWithVpuScalesDir + "/" + network.getName() + "_scales.xml",
-                          env.config.irWithVpuScalesDir + "/" + network.getName() + "_scales.bin");
-    }
-
     return backEnd->build(model, frontEnd->origLayers());
 }
 

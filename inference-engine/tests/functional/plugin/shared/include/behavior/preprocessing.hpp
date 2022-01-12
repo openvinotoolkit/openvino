@@ -25,7 +25,7 @@ using  PreprocessingPrecisionConvertParams = std::tuple<
 
 struct PreprocessingPrecisionConvertTest :
         public testing::WithParamInterface<PreprocessingPrecisionConvertParams>,
-        LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PreprocessingPrecisionConvertParams> obj) {
         InferenceEngine::Precision  inPrc;

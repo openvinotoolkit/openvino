@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import argparse
 import logging as log
+import os
 import sys
 
 import cv2
@@ -146,7 +147,10 @@ def main():  # noqa
             cv2.rectangle(output_image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
 
     cv2.imwrite('out.bmp', output_image)
-    log.info('Image out.bmp created!')
+    if os.path.exists('out.bmp'):
+        log.info('Image out.bmp created!')
+    else:
+        log.error('Image out.bmp was not created. Check your permissions.')
 
     # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n')

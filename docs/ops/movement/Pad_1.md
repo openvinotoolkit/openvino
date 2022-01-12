@@ -1,4 +1,4 @@
-## Pad <a name="Pad"></a> {#openvino_docs_ops_movement_Pad_1}
+# Pad {#openvino_docs_ops_movement_Pad_1}
 
 **Versioned name**: *Pad-1*
 

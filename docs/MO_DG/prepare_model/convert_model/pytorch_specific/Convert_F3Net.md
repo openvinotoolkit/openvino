@@ -28,6 +28,17 @@ The script generates the ONNX\* model file f3net.onnx. This model conversion was
 
 ## Convert ONNX* F3Net Model to IR
 
-```sh
-./mo.py --input_model <MODEL_DIR>/f3net.onnx
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model <MODEL_DIR>/f3net.onnx
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model <MODEL_DIR>/f3net.onnx
+
+@endsphinxdirective

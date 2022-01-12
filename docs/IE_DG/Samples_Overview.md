@@ -1,5 +1,36 @@
 # Inference Engine Samples {#openvino_docs_IE_DG_Samples_Overview}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_inference_engine_samples_classification_sample_async_README
+   openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README
+   openvino_inference_engine_samples_hello_classification_README
+   openvino_inference_engine_ie_bridges_c_samples_hello_classification_README
+   openvino_inference_engine_ie_bridges_python_sample_hello_classification_README
+   openvino_inference_engine_samples_hello_reshape_ssd_README
+   openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README
+   openvino_inference_engine_samples_hello_nv12_input_classification_README
+   openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README
+   openvino_inference_engine_samples_hello_query_device_README
+   openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README
+   openvino_inference_engine_samples_ngraph_function_creation_sample_README
+   openvino_inference_engine_ie_bridges_python_sample_ngraph_function_creation_sample_README
+   openvino_inference_engine_samples_object_detection_sample_ssd_README
+   openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README
+   openvino_inference_engine_ie_bridges_c_samples_object_detection_sample_ssd_README
+   openvino_inference_engine_samples_speech_sample_README
+   openvino_inference_engine_ie_bridges_python_sample_speech_sample_README
+   openvino_inference_engine_samples_style_transfer_sample_README
+   openvino_inference_engine_ie_bridges_python_sample_style_transfer_sample_README
+   openvino_inference_engine_samples_benchmark_app_README
+   openvino_inference_engine_tools_benchmark_tool_README
+
+@endsphinxdirective
+
 The Inference Engine sample applications are simple console applications that show how to utilize specific Inference Engine capabilities within an application, assist developers in executing specific tasks such as loading a model, running inference, querying specific device capabilities and etc.
 
 After installation of Intel® Distribution of OpenVINO™ toolkit, С, C++ and Python* sample applications are available in the following directories, respectively:

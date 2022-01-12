@@ -31,7 +31,7 @@ typedef std::tuple<
 > FcConvFcParams;
 
 class FcAfterConvTest : public testing::WithParamInterface<FcConvFcParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FcConvFcParams> obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
@@ -41,7 +41,7 @@ protected:
 };
 
 class FcBeforeConvTest : public testing::WithParamInterface<FcConvFcParams>,
-                         public LayerTestsUtils::LayerTestsCommon {
+                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FcConvFcParams> obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
@@ -51,7 +51,7 @@ protected:
 };
 
 class FcBetweenConvsTest : public testing::WithParamInterface<FcConvFcParams>,
-                           public LayerTestsUtils::LayerTestsCommon {
+                           virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FcConvFcParams> obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;

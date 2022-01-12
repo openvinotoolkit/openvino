@@ -26,7 +26,7 @@ using loadNetworkCacheParams = std::tuple<
 namespace LayerTestsDefinitions {
 
 class LoadNetworkCacheTestBase : public testing::WithParamInterface<loadNetworkCacheParams>,
-                                 public LayerTestsUtils::LayerTestsCommon {
+                                 virtual public LayerTestsUtils::LayerTestsCommon {
     std::string           m_cacheFolderName;
     std::string           m_functionName;
     ngraph::element::Type m_precision;

@@ -1,4 +1,4 @@
-## NonMaxSuppression<a name="NonMaxSuppression"></a> {#openvino_docs_ops_sort_NonMaxSuppression_5}
+# NonMaxSuppression {#openvino_docs_ops_sort_NonMaxSuppression_5}
 
 **Versioned name**: *NonMaxSuppression-5*
 

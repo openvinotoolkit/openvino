@@ -1,4 +1,4 @@
-## Einsum <a name="Einsum"></a> {#openvino_docs_ops_matrix_Einsum_7}
+# Einsum {#openvino_docs_ops_matrix_Einsum_7}
 
 **Versioned name**: *Einsum-7*
 

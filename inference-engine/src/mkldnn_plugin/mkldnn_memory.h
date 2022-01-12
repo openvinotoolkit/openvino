@@ -116,7 +116,7 @@ public:
      */
     void* GetData() const {
         void* data = prim->get_data_handle();
-        if (data == nullptr)
+        if (data == nullptr && !prim->get_desc().is_zero())
             IE_THROW() << "Cannot get memory!";
         return data;
     }

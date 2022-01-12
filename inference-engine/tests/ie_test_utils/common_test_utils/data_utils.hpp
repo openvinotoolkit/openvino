@@ -94,7 +94,11 @@ size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
 template<InferenceEngine::Precision::ePrecision PRC>
 inline void
 fill_data_roi(InferenceEngine::Blob::Ptr &blob, const uint32_t range, const int height, const int width, const float omega,
-              const bool is_roi_max_mode, const int seed = 1) {
+              const bool is_roi_max_mode, const int seed = 1, void (*propGenerator)(InferenceEngine::Blob::Ptr &) = nullptr) {
+    if (propGenerator != nullptr) {
+        propGenerator(blob);
+        return;
+    }
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     auto *data = blob->buffer().as<dataType *>();
     std::default_random_engine random(seed);

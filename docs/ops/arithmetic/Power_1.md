@@ -1,4 +1,4 @@
-## Power <a name="Power"></a> {#openvino_docs_ops_arithmetic_Power_1}
+# Power  {#openvino_docs_ops_arithmetic_Power_1}
 
 **Versioned name**: *Power-1*
 

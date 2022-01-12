@@ -65,6 +65,7 @@ DECLARE_GNA_CONFIG_KEY(DEVICE_MODE);
 
 DECLARE_GNA_CONFIG_VALUE(AUTO);
 DECLARE_GNA_CONFIG_VALUE(HW);
+DECLARE_GNA_CONFIG_VALUE(HW_WITH_SW_FBACK);
 DECLARE_GNA_CONFIG_VALUE(SW);
 DECLARE_GNA_CONFIG_VALUE(SW_EXACT);
 DECLARE_GNA_CONFIG_VALUE(SW_FP32);
@@ -83,9 +84,7 @@ DECLARE_GNA_CONFIG_VALUE(AVX2_EXACT);
 * If GNA HW is present, use the option corresponding to this HW.
 * If HW is not present, use the option corresponding to the latest fully supported GNA HW generation.
 * A fully supported GNA HW generation means it must be supported by booth the OV GNA Plugin and the core GNA Library.
-* For the GNA Library 2.0.X.Y, the latest supported GNA HW generation corresponds to GNA_TARGET_2_0.
-* For the GNA Library 2.1.X.Y, the latest supported GNA HW generation corresponds to GNA_TARGET_3_0.
-* For the OV GNA Plugin 2021.4, the latest supported GNA HW generation corresponds to GNA_TARGET_3_0.
+* For the OV GNA Plugin 2021.4.2, the latest supported GNA HW generation corresponds to GNA_TARGET_3_0.
 */
 DECLARE_GNA_CONFIG_KEY(EXEC_TARGET);
 

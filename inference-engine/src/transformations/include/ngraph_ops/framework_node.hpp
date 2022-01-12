@@ -36,12 +36,12 @@ public:
 
     attrs_t::const_iterator end() const { return m_attrs.end(); }
 
-    std::string operator[](const std::string & key) { return m_attrs[key]; }
+    std::string& operator[](const std::string & key) { return m_attrs[key]; }
 
     std::string at(const std::string & key) const { return m_attrs.at(key); }
 
     bool operator== (const FrameworkNodeAttrs & other) const {
-        return m_type_name == other.m_type_name && m_opset_name == other.m_opset_name && m_attrs == m_attrs;
+        return m_type_name == other.m_type_name && m_opset_name == other.m_opset_name && m_attrs == other.m_attrs;
     }
 
 private:

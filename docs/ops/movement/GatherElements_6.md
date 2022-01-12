@@ -1,4 +1,4 @@
-## GatherElements <a name="GatherElements"></a> {#openvino_docs_ops_movement_GatherElements_6}
+# GatherElements {#openvino_docs_ops_movement_GatherElements_6}
 
 **Versioned name**: *GatherElements-6*
 

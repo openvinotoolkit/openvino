@@ -6,6 +6,8 @@ This API provides a simplified interface for Inference Engine functionality that
 * Load and configure Inference Engine plugins based on device names
 * Perform inference in synchronous and asynchronous modes with arbitrary number of infer requests (the number of infer requests may be limited by target device capabilities)
 
+For a guide to using the Inference Engine in your Python application, see the Python section of [Integrate the Inference Engine](../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md).
+
 ## Supported OSes
 
 Inference Engine Python\* API is supported on Ubuntu\* 18.04 and 20.04, CentOS\* 7.3 OSes, Raspbian\* 9, Windows\* 10
@@ -37,4 +39,4 @@ If you want to use certain version of Python\*, set the environment variable `PY
 after running the environment configuration script.
 
 ## API Reference
-For the complete API Reference, see  [Inference Engine Python* API Reference](ie_python_api/annotated.html)
+For the complete Python API Reference, see  [Inference Engine Python* API Reference](ie_python_api/annotated.html)

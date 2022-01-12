@@ -390,6 +390,7 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                 << " type: " << GetOperandType(operand.Type) <<
                 " shape: " << GetSimpleString(operand.Shape) <<
+                " data: " << operand.Data <<
                 " layout: ";
 
             DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);

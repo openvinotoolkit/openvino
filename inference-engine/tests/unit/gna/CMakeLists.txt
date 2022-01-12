@@ -9,6 +9,8 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
             unitTestUtils
+            PRIVATE
+                ngraphFunctions
             GNAPlugin_test_static
         ADD_CPPLINT
         LABELS

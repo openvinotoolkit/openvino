@@ -6,6 +6,11 @@
 // The public API for ngraph++
 //
 
+/**
+ *  @defgroup ngraph_cpp_api nGraph C++ API
+ *  nGraph C++ API
+ */
+
 #pragma once
 
 #include <string>
@@ -18,6 +23,9 @@
 
 extern "C" NGRAPH_API const char* get_ngraph_version_string();
 
+/** @ingroup ngraph_cpp_api
+ * @brief nGraph C++ API
+ */
 namespace ngraph
 {
     /// \brief Function to query parsed version information of the version of ngraph which

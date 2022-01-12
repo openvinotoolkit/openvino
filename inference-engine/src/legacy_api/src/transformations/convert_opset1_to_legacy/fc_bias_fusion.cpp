@@ -43,7 +43,9 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         Shape bias_shape(bias->get_shape());
         Shape output_shape(fc->get_shape());
         size_t bias_size = std::accumulate(bias_shape.begin(), bias_shape.end(), size_t{1}, std::multiplies<int64_t>());
-        if (bias_shape.empty() || bias_shape.back() != output_shape.back() || bias_shape.back() != bias_size) {
+        if (bias_shape.empty() ||
+            (bias_shape.back() != output_shape.back() && bias_shape.back() != 1) ||
+            bias_shape.back() != bias_size) {
             return false;
         }
 

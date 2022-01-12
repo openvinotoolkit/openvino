@@ -1,4 +1,4 @@
-# Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit 2020.4 and the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA SG2 (IEI's Mustang-F100-A10) on Linux* {#openvino_docs_install_guides_VisionAcceleratorFPGA_Configure}
+# [DEPRECATED] Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit 2020.4 and the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA SG2 (IEI's Mustang-F100-A10) on Linux* {#openvino_docs_install_guides_VisionAcceleratorFPGA_Configure}
 
 ## Product Change Notice
 Intel® Distribution of OpenVINO™ toolkit for Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA

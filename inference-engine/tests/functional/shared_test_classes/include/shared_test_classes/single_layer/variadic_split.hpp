@@ -27,7 +27,7 @@ typedef std::tuple<
 > VariadicSplitParams;
 
 class VariadicSplitLayerTest : public testing::WithParamInterface<VariadicSplitParams>,
-                           public LayerTestsUtils::LayerTestsCommon {
+                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<VariadicSplitParams> obj);
 

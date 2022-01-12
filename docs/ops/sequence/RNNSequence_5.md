@@ -1,4 +1,4 @@
-## RNNSequence <a name="RNNSequence"></a> {#openvino_docs_ops_sequence_RNNSequence_5}
+# RNNSequence {#openvino_docs_ops_sequence_RNNSequence_5}
 
 **Versioned name**: *RNNSequence-5*
 

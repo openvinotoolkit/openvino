@@ -16,8 +16,11 @@
 extern "C"
 {
 #endif
-
+#ifdef XLINK_MAX_STREAM_RES
+#define MAX_POOLS_ALLOC XLINK_MAX_STREAM_RES
+#else
 #define MAX_POOLS_ALLOC 32
+#endif
 #define PACKET_LENGTH (64*1024)
 
 typedef enum {

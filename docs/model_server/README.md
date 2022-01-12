@@ -72,7 +72,7 @@ For more detailed guides on using the Model Server in various scenarios, visit t
 
 OpenVINO&trade; Model Server gRPC API is documented in the proto buffer files in [tensorflow_serving_api](https://github.com/tensorflow/serving/tree/r2.2/tensorflow_serving/apis).
 
-> **NOTE:** The implementations for `Predict`, `GetModelMetadata`, and `GetModelStatus` function calls are currently available.
+> **NOTE**: The implementations for `Predict`, `GetModelMetadata`, and `GetModelStatus` function calls are currently available.
 > These are the most generic function calls and should address most of the usage scenarios.
 
 [Predict proto](https://github.com/tensorflow/serving/blob/r2.2/tensorflow_serving/apis/predict.proto) defines two message specifications: `PredictRequest` and `PredictResponse` used while calling Prediction endpoint.

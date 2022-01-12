@@ -24,6 +24,7 @@
 namespace InferenceEngine {
 
 /**
+ * @ingroup ie_cpp
  * @brief This class represents Inference Engine Core entity.
  *
  * It can throw exceptions safely for the application, where it is properly handled.

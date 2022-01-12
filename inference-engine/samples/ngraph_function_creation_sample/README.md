@@ -50,7 +50,7 @@ To run the sample, you need specify a model wights and ubyte image:
 
 Running the application with the `-h` option yields the following usage message:
 
-```sh
+```
 ngraph_function_creation_sample -h
 [ INFO ] InferenceEngine:
         API version ............<version>
@@ -75,8 +75,8 @@ Running the application with the empty list of options yields the usage message 
 
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
-```sh
-./ngraph_function_creation_sample -m <path_to_weights_file>/lenet.bin -i <path_to_image> -d GPU
+```
+<path_to_sample>/ngraph_function_creation_sample -m <path_to_weights_file>/lenet.bin -i <path_to_image> -d GPU
 ```
 
 ## Sample Output

@@ -19,10 +19,11 @@ typedef std::tuple<
 namespace FuncTestUtils {
 
 class ImportNetworkTestBase : public testing::WithParamInterface<exportImportNetworkParams>,
-                              public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj);
     void Run() override;
+    void TestRun(bool isModelChanged);
 
 protected:
     std::map<std::string, std::string> exportConfiguration;

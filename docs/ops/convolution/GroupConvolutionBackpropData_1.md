@@ -1,4 +1,4 @@
-## GroupConvolutionBackpropData<a name="GroupConvolutionBackpropData"></a> {#openvino_docs_ops_convolution_GroupConvolutionBackpropData_1}
+# GroupConvolutionBackpropData {#openvino_docs_ops_convolution_GroupConvolutionBackpropData_1}
 
 **Versioned name**: *GroupConvolutionBackpropData-1*
 

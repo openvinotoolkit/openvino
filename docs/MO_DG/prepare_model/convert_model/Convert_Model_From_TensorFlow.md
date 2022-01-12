@@ -1,5 +1,29 @@
 # Converting a TensorFlow* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_RetinaNet_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_AttentionOCR_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_DeepSpeech_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Slim_Library_Models
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models
+
+@endsphinxdirective
+
 A summary of the steps for optimizing and deploying a model that was trained with the TensorFlow\* framework:
 
 1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for TensorFlow\* (TensorFlow was used to train your model).
@@ -259,10 +283,10 @@ python3 mo_tf.py --input_model <INPUT_MODEL>.pb --output_dir <OUTPUT_MODEL_DIR>
 
 Two groups of parameters are available to convert your model:
 
-* [Framework-agnostic parameters](Converting_Model_General.md): These parameters are used to convert any model trained in any supported framework.
+* Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 * [TensorFlow-specific parameters](#tensorflow_specific_conversion_params): Parameters used to convert only TensorFlow models.
 
-> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](Converting_Model_General.md).
+> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](Converting_Model.md).
 
 ### Using TensorFlow\*-Specific Conversion Parameters  <a name="tensorflow_specific_conversion_params"></a>
 The following list provides the TensorFlow\*-specific parameters.
@@ -302,7 +326,7 @@ TensorFlow*-specific parameters:
                         Disables default translation from NHWC to NCHW
 ```
 
-> **NOTE:** Models produces with TensorFlow\* usually have not fully defined shapes (contain `-1` in some dimensions). It is necessary to pass explicit shape for the input using command line parameter `--input_shape` or `-b` to override just batch dimension. If the shape is fully defined, then there is no need to specify either `-b` or `--input_shape` options.
+> **NOTE**: Models produces with TensorFlow\* usually have not fully defined shapes (contain `-1` in some dimensions). It is necessary to pass explicit shape for the input using command line parameter `--input_shape` or `-b` to override just batch dimension. If the shape is fully defined, then there is no need to specify either `-b` or `--input_shape` options.
 
 #### Command-Line Interface (CLI) Examples Using TensorFlow\*-Specific Parameters
 
@@ -382,7 +406,7 @@ tf.saved_model.save(model,'model')
 
 Then follow the above instructions for the SavedModel format.
 
-> **NOTE:** Do not use other hacks to resave TensorFlow* 2 models into TensorFlow* 1 formats.
+> **NOTE**: Do not use other hacks to resave TensorFlow* 2 models into TensorFlow* 1 formats.
 
 
 ## Custom Layer Definition
@@ -406,7 +430,15 @@ The Model Optimizer provides explanatory messages if it is unable to run to comp
 
 ## Video: Converting a TensorFlow Model
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/QW6532LtiTc" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+@sphinxdirective
+
+.. raw:: html
+
+    <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315"
+    src="https://www.youtube.com/embed/QW6532LtiTc">
+    </iframe>
+
+@endsphinxdirective
 
 ## Summary
 In this document, you learned:

@@ -108,6 +108,11 @@ TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardware);
     EXPECT_EQ(config.swExactMode, false);
 #endif
+#if GNA_LIB_VER == 2
+    SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW_WITH_SW_FBACK);
+    EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardwareWithSoftwareFallback);
+    EXPECT_EQ(config.swExactMode, false);
+#endif
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW);
 #if GNA_LIB_VER == 1
     EXPECT_EQ(config.gna_proc_type, static_cast<intel_gna_proc_t>(GNA_SOFTWARE));
