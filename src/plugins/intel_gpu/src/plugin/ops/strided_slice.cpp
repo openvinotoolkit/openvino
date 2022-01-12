@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/strided_slice.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/strided_slice.hpp"
-#include "cldnn/primitives/reshape.hpp"
-#include "cldnn/primitives/crop.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/crop.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::StridedSlice>& op) {
     p.ValidateInputs(op, {4});
@@ -187,7 +189,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         auto inPrimitive = inputPrimitives[0];
         // Reshape in case of new axis
         if (!new_axis_mask.empty()) {
-            auto targetShape = CldnnTensorFromIEDims(reshape_pattern);
+            auto targetShape = tensor_from_dims(reshape_pattern);
             auto reshapeInName = op->get_friendly_name() + "/Reshape_before";
             auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
@@ -211,8 +213,8 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         }
 
 
-        cldnn::tensor refSize = CldnnTensorFromIEDims(crop_shape);
-        cldnn::tensor offSize = CldnnTensorFromIEDims(offset, 0);
+        cldnn::tensor refSize = tensor_from_dims(crop_shape);
+        cldnn::tensor offSize = tensor_from_dims(offset, 0);
 
 
         auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize, op->get_friendly_name());
@@ -221,7 +223,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
         // Reshape in case of deleting of axis
         if (!shrink_axis_mask.empty()) {
-            auto targetShape = CldnnTensorFromIEDims(output_shape);
+            auto targetShape = tensor_from_dims(output_shape);
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
             auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
@@ -249,7 +251,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         e = 1 - e;
     }
 
-    auto out_size = CldnnTensorFromIEDims(op->get_output_shape(0));
+    auto out_size = tensor_from_dims(op->get_output_shape(0));
 
     auto stridedSlicePrim = cldnn::strided_slice(layerName,
                                                  inputPrimitives[0],
@@ -269,4 +271,6 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
 REGISTER_FACTORY_IMPL(v1, StridedSlice);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

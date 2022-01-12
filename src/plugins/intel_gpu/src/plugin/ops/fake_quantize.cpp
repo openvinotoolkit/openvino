@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/fake_quantize.hpp"
 
-#include "cldnn/primitives/quantize.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v0::FakeQuantize>& op) {
     p.ValidateInputs(op, {5});
@@ -40,4 +42,6 @@ static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v
 
 REGISTER_FACTORY_IMPL(v0, FakeQuantize);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

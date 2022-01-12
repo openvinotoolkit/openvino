@@ -41,7 +41,7 @@ python3 tf_models/research/slim/export_inference_graph.py \
 Model Optimizer comes with the summarize graph utility, which identifies graph input and output nodes. Run the utility to determine input/output nodes of the Inception V1 model:
     
 ```sh
-python3 <MODEL_OPTIMIZER_INSTALL_DIR>/mo/utils/summarize_graph.py --input_model ./inception_v1_inference_graph.pb
+python3 <PYTHON_SITE_PACKAGES>/openvino/tools/mo/utils/summarize_graph.py --input_model ./inception_v1_inference_graph.pb
 ```
 
 The output looks as follows:<br>
@@ -56,7 +56,7 @@ The tool finds one input node with name `input`, type `float32`, fixed image siz
 Step 4. Convert the model with the Model Optimizer:
 
 ```sh
-<MODEL_OPTIMIZER_INSTALL_DIR>/mo_tf.py --input_model ./inception_v1_inference_graph.pb --input_checkpoint ./inception_v1.ckpt -b 1 --mean_value [127.5,127.5,127.5] --scale 127.5
+mo --input_model ./inception_v1_inference_graph.pb --input_checkpoint ./inception_v1.ckpt -b 1 --mean_value [127.5,127.5,127.5] --scale 127.5
 ```
 
 The `-b` command line parameter is required because the Model Optimizer cannot convert a model with undefined input size.
@@ -72,6 +72,7 @@ The [inception_preprocessing.py](https://github.com/tensorflow/models/blob/maste
 
 ```python3
     ...
+    import tensorflow as tf
     if image.dtype != tf.float32:
       image = tf.image.convert_image_dtype(image, dtype=tf.float32)
     ...

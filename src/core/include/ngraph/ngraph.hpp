@@ -6,6 +6,11 @@
 // The public API for ngraph++
 //
 
+/**
+ *  @defgroup ngraph_cpp_api nGraph C++ API
+ *  nGraph C++ API
+ */
+
 #pragma once
 
 #include <string>
@@ -13,7 +18,7 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/version.hpp"
 
-#ifdef IN_NGRAPH_LIBRARY
+#ifdef IN_OV_CORE_LIBRARY
 #    error("ngraph.hpp is for external use only")
 #endif
 

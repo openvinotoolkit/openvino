@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/proposal.hpp"
 
-#include "cldnn/primitives/proposal.hpp"
-#include "cldnn/primitives/mutable_data.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/primitives/proposal.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
     p.ValidateInputs(op, {3});
@@ -61,7 +63,7 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 
         cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
                                                     DefaultFormatForDims(op->get_output_shape(1).size()),
-                                                    CldnnTensorFromIEDims(op->get_output_shape(1)));
+                                                    tensor_from_dims(op->get_output_shape(1)));
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -153,4 +155,6 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 REGISTER_FACTORY_IMPL(v0, Proposal);
 REGISTER_FACTORY_IMPL(v4, Proposal);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

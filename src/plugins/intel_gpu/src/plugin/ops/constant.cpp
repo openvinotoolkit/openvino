@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convolution.hpp"
@@ -17,10 +17,12 @@
 #include "ngraph/op/variadic_split.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-#include "cldnn/primitives/data.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
     cldnn::tensor constTensor;
@@ -216,4 +218,6 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
 
 REGISTER_FACTORY_IMPL(v0, Constant);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

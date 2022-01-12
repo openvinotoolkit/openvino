@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 
 #include <set> // set
 #include <map> // map
@@ -32,6 +32,14 @@ void putData(GSerialized& s, const cv::gimpl::GModel::ConstGraph& cg, const ade:
         });
     if (s.m_datas.end() == it) {
         s.m_datas.push_back(gdata);
+
+        if (cg.metadata(nh).contains<gimpl::ConstValue>()) {
+            size_t datas_num = s.m_datas.size() - 1;
+            GAPI_DbgAssert(datas_num <= static_cast<size_t>(std::numeric_limits<GSerialized::data_tag_t>::max()));
+            GSerialized::data_tag_t tag = static_cast<GSerialized::data_tag_t>(datas_num);
+            s.m_const_datas.emplace(tag,
+                                    cg.metadata(nh).get<gimpl::ConstValue>());
+        }
     }
 }
 
@@ -42,11 +50,20 @@ void putOp(GSerialized& s, const cv::gimpl::GModel::ConstGraph& cg, const ade::N
     s.m_ops.push_back(op);
 }
 
-void mkDataNode(ade::Graph& g, const cv::gimpl::Data& data) {
+ade::NodeHandle mkDataNode(ade::Graph& g, const cv::gimpl::Data& data) {
     cv::gimpl::GModel::Graph gm(g);
     auto nh = gm.createNode();
     gm.metadata(nh).set(cv::gimpl::NodeType{cv::gimpl::NodeType::DATA});
     gm.metadata(nh).set(data);
+    return nh;
+}
+
+ade::NodeHandle mkConstDataNode(ade::Graph& g, const cv::gimpl::Data& data, const cv::gimpl::ConstValue& const_data) {
+    auto nh = mkDataNode(g, data);
+
+    cv::gimpl::GModel::Graph gm(g);
+    gm.metadata(nh).set(const_data);
+    return nh;
 }
 
 void mkOpNode(ade::Graph& g, const cv::gimpl::Op& op) {
@@ -71,7 +88,7 @@ void linkNodes(ade::Graph& g) {
     for (const auto& nh : g.nodes()) {
         if (gm.metadata(nh).get<cv::gimpl::NodeType>().t == cv::gimpl::NodeType::OP) {
             const auto& op = gm.metadata(nh).get<gimpl::Op>();
-            for (const auto& in : ade::util::indexed(op.args)) {
+            for (const auto in : ade::util::indexed(op.args)) {
                 const auto& arg = ade::util::value(in);
                 if (arg.kind == cv::detail::ArgKind::GOBJREF) {
                     const auto idx = ade::util::index(in);
@@ -82,9 +99,9 @@ void linkNodes(ade::Graph& g) {
                 }
             }
 
-            for (const auto& out : ade::util::indexed(op.outs)) {
-                const auto idx = ade::util::index(out);
-                const auto rc  = ade::util::value(out);
+            for (const auto out : ade::util::indexed(op.outs)) {
+                const auto  idx = ade::util::index(out);
+                const auto& rc  = ade::util::value(out);
                 const auto& out_nh = dataNodes.at(rc);
                 const auto& out_eh = g.link(nh, out_nh);
                 gm.metadata(out_eh).set(cv::gimpl::Output{idx});
@@ -184,18 +201,20 @@ IOStream& operator<< (IOStream& os, const cv::RMat& mat) {
     return os;
 }
 IIStream& operator>> (IIStream& is, cv::RMat&) {
-    util::throw_error(std::logic_error("operator>> for RMat should never be called"));
+    util::throw_error(std::logic_error("operator>> for RMat should never be called. "
+                                        "Instead, cv::gapi::deserialize<cv::GRunArgs, AdapterTypes...>() "
+                                        "should be used"));
     return is;
 }
 
-IOStream& operator<< (IOStream& os, const cv::MediaFrame &) {
-    // Stub
-    GAPI_Assert(false && "cv::MediaFrame serialization is not supported!");
+IOStream& operator<< (IOStream& os, const cv::MediaFrame &frame) {
+    frame.serialize(os);
     return os;
 }
 IIStream& operator>> (IIStream& is, cv::MediaFrame &) {
-    // Stub
-    GAPI_Assert(false && "cv::MediaFrame serialization is not supported!");
+    util::throw_error(std::logic_error("operator>> for MediaFrame should never be called. "
+                                        "Instead, cv::gapi::deserialize<cv::GRunArgs, AdapterTypes...>() "
+                                        "should be used"));
     return is;
 }
 
@@ -624,6 +643,10 @@ IOStream& operator<< (IOStream& os, const cv::gimpl::Data &d) {
     return os << d.shape << d.rc << d.meta << d.storage << d.kind;
 }
 
+IOStream& operator<< (IOStream& os, const cv::gimpl::ConstValue &cd) {
+    return os << cd.arg;
+}
+
 namespace
 {
 template<typename Ref, typename T, typename... Ts>
@@ -667,6 +690,9 @@ IIStream& operator>> (IIStream& is, cv::gimpl::Data &d) {
     return is;
 }
 
+IIStream& operator>> (IIStream& is, cv::gimpl::ConstValue &cd) {
+    return is >> cd.arg;
+}
 
 IOStream& operator<< (IOStream& os, const cv::gimpl::DataObjectCounter &c) {
     return os << c.m_next_data_id;
@@ -709,18 +735,34 @@ void serialize( IOStream& os
     }
     s.m_counter = cg.metadata().get<cv::gimpl::DataObjectCounter>();
     s.m_proto   = p;
-    os << s.m_ops << s.m_datas << s.m_counter << s.m_proto;
+    os << s.m_ops << s.m_datas << s.m_counter << s.m_proto << s.m_const_datas;
 }
 
 GSerialized deserialize(IIStream &is) {
     GSerialized s;
-    is >> s.m_ops >> s.m_datas >> s.m_counter >> s.m_proto;
+    is >> s.m_ops >> s.m_datas >> s.m_counter >> s.m_proto >> s.m_const_datas;
     return s;
 }
 
 void reconstruct(const GSerialized &s, ade::Graph &g) {
     GAPI_Assert(g.nodes().empty());
-    for (const auto& d  : s.m_datas) cv::gapi::s11n::mkDataNode(g, d);
+
+    GSerialized::data_tag_t tag = 0;
+    for (const auto& d  : s.m_datas) {
+        if (d.storage == gimpl::Data::Storage::CONST_VAL) {
+            auto cit = s.m_const_datas.find(tag);
+            if (cit == s.m_const_datas.end()) {
+                util::throw_error(std::logic_error("Cannot reconstruct graph: Data::Storage::CONST_VAL by tag: " +
+                                  std::to_string(tag) + " requires ConstValue"));
+            }
+
+            mkConstDataNode(g, d, cit->second);
+        } else {
+            cv::gapi::s11n::mkDataNode(g, d);
+        }
+
+        tag ++;
+    }
     for (const auto& op : s.m_ops)   cv::gapi::s11n::mkOpNode(g, op);
     cv::gapi::s11n::linkNodes(g);
 
@@ -886,7 +928,7 @@ IIStream& ByteMemoryInStream::operator>> (std::string& str) {
     if (sz == 0u) {
         str.clear();
     } else {
-        str.resize(sz);
+        str.resize(static_cast<std::size_t>(sz));
         for (auto &&i : ade::util::iota(sz)) { *this >> str[i]; }
     }
     return *this;
@@ -906,6 +948,9 @@ GAPI_EXPORTS void serialize(IOStream& os, const cv::GMetaArgs &ma) {
 GAPI_EXPORTS void serialize(IOStream& os, const cv::GRunArgs &ra) {
     os << ra;
 }
+GAPI_EXPORTS void serialize(IOStream& os, const std::vector<std::string> &vs) {
+    os << vs;
+}
 GAPI_EXPORTS GMetaArgs meta_args_deserialize(IIStream& is) {
     GMetaArgs s;
     is >> s;
@@ -913,6 +958,11 @@ GAPI_EXPORTS GMetaArgs meta_args_deserialize(IIStream& is) {
 }
 GAPI_EXPORTS GRunArgs run_args_deserialize(IIStream& is) {
     GRunArgs s;
+    is >> s;
+    return s;
+}
+GAPI_EXPORTS std::vector<std::string> vector_of_strings_deserialize(IIStream& is) {
+    std::vector<std::string> s;
     is >> s;
     return s;
 }

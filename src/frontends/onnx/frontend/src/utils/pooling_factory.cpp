@@ -28,11 +28,6 @@ std::shared_ptr<default_opset::Constant> transposition_axis_order(const Rank& in
 
     return std::make_shared<default_opset::Constant>(element::i32, Shape{rank}, axes);
 }
-
-std::shared_ptr<ngraph::Node> identity(Output<ngraph::Node> node_output) {
-    const auto zero = default_opset::Constant::create(node_output.get_element_type(), {}, {0});
-    return std::make_shared<default_opset::Add>(node_output, zero);
-}
 }  // namespace
 
 PoolingFactory::PoolingFactory(const Node& node)
@@ -89,7 +84,7 @@ OutputVector PoolingFactory::make_max_pool_with_indices() const {
 
         return {max_pool->output(0), transposed_indices};
     } else {
-        return {identity(max_pool->output(0)), identity(max_pool->output(1))};
+        return {max_pool->output(0), max_pool->output(1)};
     }
 }
 }  // namespace pooling

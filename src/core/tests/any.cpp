@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/any.hpp"
+#include "openvino/core/deprecated.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+#include "openvino/core/any.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+#include <ngraph/variant.hpp>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -407,54 +412,68 @@ TEST_F(AnyTests, PrintToMapOfAnysDoesNothing) {
     ASSERT_EQ(stream.str(), std::string{});
 }
 
-TEST_F(AnyTests, constructFromRuntimeAttributeImpl) {
+TEST_F(AnyTests, constructFromVariantImpl) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto parameter = Any{4};
     auto get_impl = [&] {
-        return std::make_shared<RuntimeAttributeImpl<int>>();
+        return std::make_shared<ngraph::VariantImpl<int>>();
     };
     auto other_parameter = Any{get_impl()};
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(AnyTests, dynamicPointerCastToRuntimeAttribute) {
-    Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
-    auto str_variant = std::dynamic_pointer_cast<RuntimeAttributeWrapper<std::string>>(p);
+TEST_F(AnyTests, dynamicPointerCastToVariantWrapper) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
+    auto str_variant = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(p);
     ASSERT_EQ("42", str_variant->get());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(AnyTests, asTypePtrToRuntimeAttribute) {
-    Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
-    auto str_variant = ov::as_type_ptr<RuntimeAttributeWrapper<std::string>>(p);
+TEST_F(AnyTests, asTypePtrToVariantWrapper) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
+    auto str_variant = ov::as_type_ptr<ngraph::VariantWrapper<std::string>>(p);
     ASSERT_EQ("42", str_variant->get());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(AnyTests, castToRuntimeAttribute) {
+TEST_F(AnyTests, castToVariantWrapper) {
     {
-        Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
-        std::shared_ptr<RuntimeAttributeWrapper<std::string>> str_variant = p;
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
+        std::shared_ptr<ngraph::VariantWrapper<std::string>> str_variant = p;
         ASSERT_EQ("42", str_variant->get());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     {
-        Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
-        auto f = [](const std::shared_ptr<RuntimeAttributeWrapper<std::string>>& str_variant) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
+        auto f = [](const std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
             ASSERT_EQ("42", str_variant->get());
         };
         f(p);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     {
-        Any p = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
-        auto f = [](std::shared_ptr<RuntimeAttributeWrapper<std::string>>& str_variant) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
+        auto f = [](std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
             ASSERT_EQ("42", str_variant->get());
         };
         f(p);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     {
-        std::shared_ptr<RuntimeAttribute> v = std::make_shared<RuntimeAttributeWrapper<std::string>>("42");
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        std::shared_ptr<RuntimeAttribute> v = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
         Any p = v;
-        auto f = [](std::shared_ptr<RuntimeAttributeWrapper<std::string>>& str_variant) {
+        auto f = [](std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
             ASSERT_NE(nullptr, str_variant);
             ASSERT_EQ("42", str_variant->get());
         };
         f(p);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 

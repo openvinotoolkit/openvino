@@ -5,7 +5,7 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
-from mo.graph.graph import rename_node
+from openvino.tools.mo.graph.graph import rename_node
 
 from .utils import get_composite_model
 from ..utils import load_hardware_config

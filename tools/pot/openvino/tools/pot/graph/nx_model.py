@@ -5,7 +5,7 @@ import os
 from copy import deepcopy
 from addict import Dict
 import networkx as nx
-from mo.graph.graph import rename_node
+from openvino.tools.mo.graph.graph import rename_node
 
 from openvino.tools.pot.graph.graph_utils import load_graph, save_graph
 from openvino.tools.pot.graph import editor as ge
@@ -186,7 +186,7 @@ class NXModel:
             for model_dict in self._models:
                 model_name, model = model_dict['name'], model_dict['model']
                 for node in ge.get_all_operation_nodes(model, recursively=False):
-                    rename_node(node, f'{model_name}_{node.name}')
+                    node.name = f'{model_name}_{node.name}'
 
     def _remove_models_prefix(self):
         """Removes model name prefix from node names"""

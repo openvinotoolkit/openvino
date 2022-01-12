@@ -21,7 +21,7 @@ from common.common_utils import parse_avg_err
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 test_data_nthreads = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.ark')],
-                                           'm': [os.path.join('FP32', 'wsj_dnn5b.xml')],
+                                           'm': [os.path.join('wsj', 'FP32', 'wsj_dnn5b.xml')],
                                            'bs': [1, 2],
                                            'o': ['res_output.ark'],
                                            'r': [os.path.join('ark', 'dev93_scores_10.ark')],
@@ -32,7 +32,7 @@ test_data_nthreads = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.a
                                )
 
 test_data_nthreads_negative = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.ark')],
-                                                    'm': [os.path.join('FP32', 'wsj_dnn5b.xml')],
+                                                    'm': [os.path.join('wsj', 'FP32', 'wsj_dnn5b.xml')],
                                                     'bs': [1],
                                                     'o': ['res_output.ark'],
                                                     'r': [os.path.join('ark', 'dev93_scores_10.ark')],

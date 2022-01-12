@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import subprocess
 import sys
-import re
 
-import codecs
 from setuptools import setup, find_packages
 
 
@@ -15,18 +14,23 @@ with open(os.path.join(here, 'README.md'), 'r') as fh:
     long_description = fh.read()
 
 
-def read(*parts):
-    with codecs.open(os.path.join(here, *parts), 'r') as fp:
-        return fp.read()
+def generate_pot_version():
+    try:
+        branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
+        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode()
+        return "custom_{}_{}".format(branch_name, commit_hash)
+    except Exception: # pylint:disable=W0703
+        return "unknown version"
 
 
-def find_version(*file_paths):
-    version_file = read(*file_paths)
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
-                              version_file, re.M)
-    if version_match:
-        return version_match.group(1)
-    raise RuntimeError('Unable to find version string.')
+def get_version():
+    version = generate_pot_version()
+    if version == "unknown version":
+        version_txt = os.path.join(os.path.dirname(os.path.realpath(__file__)), "version.txt")
+        if os.path.isfile(version_txt):
+            with open(version_txt) as f:
+                version = f.readline().replace('\n', '')
+    return version
 
 
 INSTALL_EXTRAS = False
@@ -41,14 +45,15 @@ if '--install-dev-extras' in sys.argv:
     sys.argv.remove('--install-dev-extras')
 
 INSTALL_REQUIRES = [
-    'scipy~=1.5.4',
-    'jstyleson~=0.0.2',
-    'numpy>=1.16.6,<1.20',
-    'addict>=2.4.0',
-    'networkx~=2.5',
-    'tqdm>=4.54.1',
-    'texttable~=1.6.3',
-    'pandas~=1.1.5',
+    "scipy~=1.5.4",
+    "jstyleson~=0.0.2",
+    "numpy>=1.16.6,<1.20",
+    "addict>=2.4.0",
+    "networkx~=2.5;python_version<='3.6'",
+    "networkx~=2.6;python_version>'3.6'",
+    "tqdm>=4.54.1",
+    "texttable~=1.6.3",
+    "pandas~=1.1.5",
 ]
 
 ALGO_EXTRAS = [
@@ -103,7 +108,7 @@ DEPENDENCY_LINKS = [torch_source_url]
 
 setup(
     name='pot',
-    version=find_version(os.path.join(here, 'openvino/tools/pot/version.py')),
+    version=get_version(),
     author='Intel',
     author_email='alexander.kozlov@intel.com',
     description='Post-training Optimization Toolkit',
@@ -111,7 +116,6 @@ setup(
     long_description_content_type='text/markdown',
     url='https://software.intel.com/openvino-toolkit',
     packages=find_packages(exclude=["tests", "tests.*",
-                                    "thirdparty", "thirdparty.*",
                                     "tools", "tools.*"]),
     package_data={"openvino.tools.pot.configs.hardware": ['*.json'],
                   "openvino.tools.pot.api.samples": ['*.md', '*/*.md']},

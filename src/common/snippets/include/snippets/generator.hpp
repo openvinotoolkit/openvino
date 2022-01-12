@@ -3,26 +3,25 @@
 //
 
 /**
- * @brief A file contains public interface for target indepenent code generator.
+ * @brief A file contains public interface for target independent code generator.
  * @file generator.hpp
  */
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
 
 namespace ngraph {
 namespace snippets {
 
-TRANSFORMATIONS_API auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo;
+auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo;
 
 /**
  * @interface TargetMachine
  * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emittors
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API TargetMachine {
+class TargetMachine {
 public:
     /**
      * @brief checks if target is natively supported
@@ -71,7 +70,7 @@ protected:
  * @brief Return scheduling information and pointer to generated kernel code
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API Schedule {
+class Schedule {
 public:
     /**
      * @brief Default constructor
@@ -101,7 +100,7 @@ public:
  * @brief Target independent code generator interface
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API Generator {
+class Generator {
 public:
     /**
      * @brief Default constructor
@@ -113,10 +112,10 @@ public:
     virtual ~Generator() = default;
     /**
      * @brief virtual method any specific implementation should implement
-     * @param f runction in canonical for for table-based code generation
+     * @param m model in canonical for for table-based code generation
      * @return pointer to generated code
      */
-    code generate(std::shared_ptr<Function>& f) const;
+    code generate(std::shared_ptr<ov::Model>& m, const void* compile_params = nullptr) const;
 
 protected:
     std::shared_ptr<TargetMachine> target;

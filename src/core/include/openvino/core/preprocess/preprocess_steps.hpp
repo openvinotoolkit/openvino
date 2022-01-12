@@ -81,7 +81,7 @@ public:
     PreProcessSteps& mean(const std::vector<float>& values);
 
     /// \brief Signature for custom preprocessing operation. Custom preprocessing operation takes one input node and
-    /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
+    /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Model
     /// directly
     ///
     /// \param node Input node for custom preprocessing operation (output of previous preprocessing operation)
@@ -108,7 +108,7 @@ public:
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
     PreProcessSteps& resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width);
 
-    /// \brief Add resize operation to network's dimensions.
+    /// \brief Add resize operation to model's dimensions.
     ///
     /// \param alg Resize algorithm.
     ///
@@ -120,23 +120,23 @@ public:
     /// \details Adds appropriate 'transpose' operation between user layout and target layout.
     /// Current implementation requires source and destination layout to have same number of dimensions
     ///
-    /// \example Example: when user data has 'NHWC' layout (example is RGB image, [1, 224, 224, 3]) but network expects
+    /// \example Example: when user data has 'NHWC' layout (example is RGB image, [1, 224, 224, 3]) but model expects
     /// planar input image ('NCHW', [1, 3, 224, 224]). Preprocessing may look like this:
     ///
     /// \code{.cpp} auto proc = PrePostProcessor(function);
     /// proc.input().tensor().set_layout("NHWC"); // User data is NHWC
-    /// proc.input().preprocess().convert_layout("NCHW")) // Network expects input as NCHW
+    /// proc.input().preprocess().convert_layout("NCHW")) // model expects input as NCHW
     /// \endcode
     ///
     /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from
-    /// appropriate network input properties.
+    /// appropriate model input properties.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
     PreProcessSteps& convert_layout(const Layout& dst_layout = {});
 
     /// \brief Add convert layout operation by direct specification of transposed dimensions.
     ///
-    /// \example Example: when user data has input RGB image {1x480x640x3} but network expects
+    /// \example Example: when user data has input RGB image {1x480x640x3} but model expects
     /// planar input image ('NCHW', [1, 3, 480, 640]). Preprocessing may look like this:
     ///
     /// \code{.cpp}
@@ -154,7 +154,7 @@ public:
     /// \details Adds appropriate operation which reverses channels layout. Operation requires layout having 'C'
     /// dimension Operation convert_color (RGB<->BGR) does reversing of channels also, but only for NHWC layout
     ///
-    /// \example Example: when user data has 'NCHW' layout (example is [1, 3, 224, 224] RGB order) but network expects
+    /// \example Example: when user data has 'NCHW' layout (example is [1, 3, 224, 224] RGB order) but model expects
     /// BGR planes order. Preprocessing may look like this:
     ///
     /// \code{.cpp}

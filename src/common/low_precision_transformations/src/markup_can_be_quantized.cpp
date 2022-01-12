@@ -18,7 +18,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupCanBeQuantized, "MarkupCanBeQuantized", 0);
 
-bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     auto setEmptyPrecisions = [](const std::shared_ptr<ngraph::Node>& node) {
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();

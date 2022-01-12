@@ -26,6 +26,9 @@ public:
     const ie::InputsDataMap& getNetworkInputs() const { return _networkInputs; }
     const ie::OutputsDataMap& getNetworkOutputs() const { return _networkOutputs; }
 
+    const std::vector<std::shared_ptr<const ov::Node>>& getNetworkParemeters() const { return _parameters; }
+    const std::vector<std::shared_ptr<const ov::Node>>& getNetworkResults() const { return _results; }
+
     uint32_t getStageCount() const { return _blobHeader.stages_count; }
 
     uint32_t getMagicNumber() const { return _blobHeader.magic_number; }
@@ -35,6 +38,8 @@ public:
 
     uint32_t getNumberOfShaves() const { return _blobHeader.number_of_shaves; }
     uint32_t getNumberOfSlices() const { return _blobHeader.number_of_cmx_slices; }
+
+    uint32_t getFileSize() const { return _blobHeader.file_size; }
 
     const DataInfo& getInputInfo()  const { return _inputInfo; }
     const DataInfo& getOutputInfo() const { return _outputInfo; }
@@ -48,6 +53,9 @@ private:
 
     ie::InputsDataMap  _networkInputs;
     ie::OutputsDataMap _networkOutputs;
+
+    std::vector<std::shared_ptr<const ov::Node>> _parameters = {};
+    std::vector<std::shared_ptr<const ov::Node>> _results = {};
 
     DataInfo _inputInfo;
     DataInfo _outputInfo;

@@ -5,6 +5,8 @@ import os
 import sys
 from datetime import datetime
 
+from openvino.runtime import Dimension
+
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
@@ -15,8 +17,8 @@ from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, pre_post_processing, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, get_inputs_info, \
-    print_inputs_and_outputs_info, get_batch_size, load_config, dump_config, get_latency_groups, \
-    check_for_static
+    print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
+    check_for_static, can_measure_as_static
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
@@ -78,6 +80,14 @@ def run(args):
             cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
             benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
+        if not args.perf_hint:
+            for device in devices:
+                supported_config_keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                if 'PERFORMANCE_HINT' in supported_config_keys:
+                    logger.warning(f"-hint default value is determined as 'THROUGHPUT' automatically for {device} device" +
+                                    "For more detailed information look at README.")
+                    args.perf_hint = "throughput"
+
         version = benchmark.get_version_info()
 
         logger.info(version)
@@ -126,7 +136,7 @@ def run(args):
             perf_counts = True if config[device]['PERF_COUNT'] == 'YES' else perf_counts
 
             ## high-level performance hints
-            if is_flag_set_in_command_line('hint'):
+            if is_flag_set_in_command_line('hint') or args.perf_hint:
                 config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
                 if is_flag_set_in_command_line('nireq'):
                     config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
@@ -216,7 +226,7 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.core.compile_model(args.path_to_model)
+            compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
@@ -224,17 +234,15 @@ def run(args):
                                           [
                                               ('load network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
-            batch_size = get_batch_size(app_inputs_info)
-            if batch_size.is_dynamic and benchmark.api_type == 'sync':
-                raise Exception("Dynamic batch size is supported only in async mode")
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
+            batch_size = get_network_batch_size(app_inputs_info)
         elif not is_network_compiled:
             # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
             next_step()
 
             start_time = datetime.utcnow()
-            function = benchmark.read_model(args.path_to_model)
-            topology_name = function.get_name()
+            model = benchmark.read_model(args.path_to_model)
+            topology_name = model.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Read model took {duration_ms} ms")
             if statistics:
@@ -246,13 +254,13 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.get_parameters())
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, model.inputs)
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.partial_shape for info in app_inputs_info }
                 logger.info(
                     'Reshaping model: {}'.format(', '.join("'{}': {}".format(k, str(v)) for k, v in shapes.items())))
-                function.reshape(shapes)
+                model.reshape(shapes)
                 duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
                 logger.info(f"Reshape model took {duration_ms} ms")
                 if statistics:
@@ -262,23 +270,20 @@ def run(args):
                                               ])
 
             # use batch size according to provided layout and shapes
-            batch_size = get_batch_size(app_inputs_info)
-            if batch_size.is_dynamic and benchmark.api_type == 'sync':
-                raise Exception("Dynamic batch size is supported only in async mode")
-
+            batch_size = get_network_batch_size(app_inputs_info)
             logger.info(f'Network batch size: {batch_size}')
 
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
 
-            pre_post_processing(function, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
-            print_inputs_and_outputs_info(function)
+            pre_post_processing(model, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
+            print_inputs_and_outputs_info(model)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.core.compile_model(function, benchmark.device)
+            compiled_model = benchmark.core.compile_model(model, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
@@ -298,7 +303,7 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.core.import_model(args.path_to_model)
+            compiled_model = benchmark.core.import_model(args.path_to_model)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Import model took {duration_ms} ms")
             if statistics:
@@ -306,21 +311,21 @@ def run(args):
                                           [
                                               ('import network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
-            batch_size = get_batch_size(app_inputs_info)
-            if batch_size.is_dynamic and benchmark.api_type == 'sync':
-                raise Exception("Dynamic batch size is supported only in async mode")
-
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
+            batch_size = get_network_batch_size(app_inputs_info)
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
-        if is_flag_set_in_command_line('hint'):
-            ## actual device-deduced settings for the hint
-            for device in devices:
-                keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
-                logger.info(f'DEVICE: {device}')
-                for k in keys:
-                    logger.info(f'  {k}  , {exe_network.get_config(k)}')
+        ## actual device-deduced settings
+        for device in devices:
+            keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+            logger.info(f'DEVICE: {device}')
+            for k in keys:
+                try:
+                    logger.info(f'  {k}  , {benchmark.core.get_config(device, k)}')
+                except:
+                    pass
+
 
         # Update number of streams
         for device in device_number_streams.keys():
@@ -332,7 +337,7 @@ def run(args):
 
         # Create infer requests
         start_time = datetime.utcnow()
-        requests = benchmark.create_infer_requests(exe_network)
+        requests = benchmark.create_infer_requests(compiled_model)
         duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
         logger.info(f"Create {benchmark.nireq} infer requests took {duration_ms} ms")
         if statistics:
@@ -353,7 +358,8 @@ def run(args):
         data_queue = get_input_data(paths_to_input, app_inputs_info)
 
         static_mode = check_for_static(app_inputs_info)
-        if not static_mode and benchmark.api_type == 'sync':
+        allow_inference_only_or_sync = can_measure_as_static(app_inputs_info)
+        if not allow_inference_only_or_sync and benchmark.api_type == 'sync':
             raise Exception("Benchmarking of the model with dynamic shapes is available for async API only."
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior.")
 
@@ -362,8 +368,12 @@ def run(args):
                 benchmark.inference_only = True
             else:
                 benchmark.inference_only = False
-        elif benchmark.inference_only and not static_mode:
+        elif benchmark.inference_only and not allow_inference_only_or_sync:
             raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
+
+        # update batch size in case dynamic network with one data_shape
+        if benchmark.inference_only and batch_size.is_dynamic:
+            batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
 
         benchmark.latency_groups = get_latency_groups(app_inputs_info)
 
@@ -436,7 +446,7 @@ def run(args):
             logger.info(f"Inference Engine configuration settings were dumped to {args.dump_config}")
 
         if args.exec_graph_path:
-            dump_exec_graph(exe_network, args.exec_graph_path)
+            dump_exec_graph(compiled_model, args.exec_graph_path)
 
         if perf_counts:
             perfs_count_list = []
@@ -524,7 +534,7 @@ def run(args):
 
         print(f'Throughput: {fps:.2f} FPS')
 
-        del exe_network
+        del compiled_model
 
         next_step.step_id = 0
     except Exception as e:

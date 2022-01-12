@@ -1,7 +1,7 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.middle.passes.infer import type_infer
+from openvino.tools.mo.middle.passes.infer import type_infer
 
 from .editor import add_fullname_for_nodes
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS

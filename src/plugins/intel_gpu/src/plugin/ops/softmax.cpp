@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/softmax.hpp"
 #include "ngraph/op/log_softmax.hpp"
 
-#include "cldnn/primitives/softmax.hpp"
-#include "cldnn/primitives/activation.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/primitives/activation.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static cldnn::softmax::dimension_t GetSoftmaxAxis(int64_t axis, size_t rank) {
     switch (axis) {
@@ -73,4 +75,6 @@ static void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5:
 REGISTER_FACTORY_IMPL(v1, Softmax);
 REGISTER_FACTORY_IMPL(v5, LogSoftmax);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

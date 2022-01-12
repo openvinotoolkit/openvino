@@ -14,9 +14,13 @@ namespace runtime {
 
 Allocator::Allocator() : _impl{std::make_shared<BlobAllocator>()} {}
 
-Allocator::Allocator(const std::shared_ptr<void>& so, const std::shared_ptr<AllocatorImpl>& impl)
-    : _so{so},
-      _impl{impl} {
+Allocator::~Allocator() {
+    _impl = {};
+}
+
+Allocator::Allocator(const std::shared_ptr<AllocatorImpl>& impl, const std::shared_ptr<void>& so)
+    : _impl{impl},
+      _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "Allocator was not initialized.");
 }
 

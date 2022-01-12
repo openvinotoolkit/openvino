@@ -14,6 +14,8 @@ using namespace ::testing;
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 class RenameReLU : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;

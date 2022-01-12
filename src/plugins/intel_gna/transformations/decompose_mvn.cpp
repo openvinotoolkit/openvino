@@ -75,6 +75,8 @@ static bool GetVerifiedMVNData(const std::shared_ptr<opset8::MVN> mvn, MVNData& 
         mvn_data.C = mvn_shape[0];
         mvn_data.H = mvn_shape[1];
         mvn_data.W = mvn_shape[2];
+    } else {
+        THROW_GNA_EXCEPTION << "Unsupported MVN shape size: " << mvn_shape_size;
     }
 
     // Check if average must be split
@@ -224,7 +226,7 @@ static void Decompose(const std::shared_ptr<opset8::MVN> mvn, const MVNData& mvn
 
 static bool Convert(std::shared_ptr<Node> mvn_node) {
     const auto mvn = std::dynamic_pointer_cast<opset8::MVN>(mvn_node);
-    MVNData mvn_data;
+    MVNData mvn_data = {};
 
     if (!GetVerifiedMVNData(mvn, mvn_data))
         return false;

@@ -247,7 +247,7 @@ private:
 };
 
 
-HWPoolingTiler::HWPoolingTiler(ConvolutionOptions convolutionOptions, const Direction& direction,
+HWPoolingTiler::HWPoolingTiler(const ConvolutionOptions& convolutionOptions, const Direction& direction,
                                std::size_t maxTilingOptions) :
     _convolutionOptions(std::move(convolutionOptions)),
     _searcher(_convolutionOptions, direction, maxTilingOptions) {

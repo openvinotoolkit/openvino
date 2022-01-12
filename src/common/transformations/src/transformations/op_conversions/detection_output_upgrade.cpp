@@ -48,13 +48,13 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
 
         std::shared_ptr<opset8::DetectionOutput> detection_output_v8_node = nullptr;
         if (detection_output_v1_node->get_input_size() == 3) {
-            auto detection_output_v8_node =
+            detection_output_v8_node =
                 make_shared<opset8::DetectionOutput>(detection_output_v1_node->input_value(0),
                                                      detection_output_v1_node->input_value(1),
                                                      detection_output_v1_node->input_value(2),
                                                      attributes_v8);
         } else if (detection_output_v1_node->get_input_size() == 5) {
-            auto detection_output_v8_node =
+            detection_output_v8_node =
                 make_shared<opset8::DetectionOutput>(detection_output_v1_node->input_value(0),
                                                      detection_output_v1_node->input_value(1),
                                                      detection_output_v1_node->input_value(2),

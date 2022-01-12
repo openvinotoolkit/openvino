@@ -28,7 +28,7 @@ ngraph::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantiz
     }
 }
 
-bool ngraph::pass::low_precision::MarkupPerTensorQuantization::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::low_precision::MarkupPerTensorQuantization::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     auto setRestriction = [](const std::shared_ptr<Node>& node, const std::vector<size_t>& restrictedPorts) {
         auto createAttribute = [](Input<Node>& input){
             auto &rt = input.get_rt_info();

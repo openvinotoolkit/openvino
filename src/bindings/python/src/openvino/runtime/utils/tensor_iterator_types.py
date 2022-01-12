@@ -5,8 +5,8 @@
 
 from typing import List
 
-from openvino.runtime.impl import Node
-from openvino.runtime.impl.op import Parameter
+from openvino.runtime import Node
+from openvino.runtime.op import Parameter
 
 
 class GraphBody(object):

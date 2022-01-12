@@ -125,6 +125,9 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     }
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        clone->get_output_tensor(i).set_name(get_output_tensor(i).get_name());
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
     return clone;
 }

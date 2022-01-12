@@ -207,7 +207,7 @@ endif()
 macro(ov_install_static_lib target comp)
     if(NOT BUILD_SHARED_LIBS)
         install(TARGETS ${target} EXPORT OpenVINOTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp})
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp} ${ARGN})
     endif()
 endmacro()
 
@@ -255,6 +255,10 @@ function(ie_mark_target_as_cc TARGET_NAME)
 
     get_target_property(sources ${TARGET_NAME} SOURCES)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+endfunction()
+
+function(ov_mark_target_as_cc)
+    ie_mark_target_as_cc(${ARGN})
 endfunction()
 
 # check python package

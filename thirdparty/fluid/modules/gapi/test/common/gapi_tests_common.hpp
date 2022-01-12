@@ -58,23 +58,6 @@ namespace
         return o;
     }
 
-    inline void initTestDataPath()
-    {
-#ifndef WINRT
-        static bool initialized = false;
-        if (!initialized)
-        {
-            // Since G-API has no own test data (yet), it is taken from the common space
-            const char* testDataPath = getenv("OPENCV_TEST_DATA_PATH");
-            GAPI_Assert(testDataPath != nullptr &&
-            "OPENCV_TEST_DATA_PATH environment variable is either not set or set incorrectly.");
-
-            cvtest::addDataSearchPath(testDataPath);
-            initialized = true;
-        }
-#endif // WINRT
-    }
-
     template <typename T> inline void initPointRandU(cv::RNG &rng, cv::Point_<T>& pt)
     {
         GAPI_Assert(std::is_integral<T>::value);
@@ -282,7 +265,6 @@ public:
 
     void initMatFromImage(int type, const std::string& fileName)
     {
-        initTestDataPath();
 
         int channels = (type >> CV_CN_SHIFT) + 1;
         GAPI_Assert(channels == 1 || channels == 3 || channels == 4);
@@ -306,7 +288,6 @@ public:
 
     void initMatsFromImages(int channels, const std::string& pattern, int imgNum)
     {
-        initTestDataPath();
         GAPI_Assert(channels == 1 || channels == 3 || channels == 4);
         const int flags = (channels == 1) ? cv::IMREAD_GRAYSCALE : cv::IMREAD_COLOR;
 
@@ -324,7 +305,7 @@ public:
     }
 
     template <typename T>
-    inline void initPointRandU(cv::RNG& rng, T& pt)
+    inline void initPointRandU(cv::RNG& rng, T& pt) const
     { ::initPointRandU(rng, pt); }
 
 // Disable unreachable code warning for MSVS 2015
@@ -334,7 +315,7 @@ public:
 #endif
     // initialize std::vector<cv::Point_<T>>/std::vector<cv::Point3_<T>>
     template <typename T, template <typename> class Pt>
-    void initPointsVectorRandU(const int sz_in, std::vector<Pt<T>> &vec_)
+    void initPointsVectorRandU(const int sz_in, std::vector<Pt<T>> &vec_) const
     {
         cv::RNG& rng = theRNG();
 
@@ -525,6 +506,7 @@ struct TestWithParamsSpecific : public TestWithParamsBase<ParamsSpecific<Specifi
  * @param ...       list of names of user-defined parameters. if there are no parameters, the list
  *                  must be empty.
  */
+ //TODO: Consider to remove `Number` and use `std::tuple_size<decltype(std::make_tuple(__VA_ARGS__))>::value`
 #define GAPI_TEST_FIXTURE(Fixture, InitF, API, Number, ...) \
     struct Fixture : public TestWithParams API { \
         static_assert(Number == AllParams::specific_params_size, \
@@ -593,6 +575,8 @@ using compare_vec_f = std::function<bool(const cv::Vec<Elem, cn> &a, const cv::V
 template<typename T1, typename T2>
 struct CompareF
 {
+    CompareF() = default;
+
     using callable_t = std::function<bool(const T1& a, const T2& b)>;
     CompareF(callable_t&& cmp, std::string&& cmp_name) :
         _comparator(std::move(cmp)), _name(std::move(cmp_name)) {}

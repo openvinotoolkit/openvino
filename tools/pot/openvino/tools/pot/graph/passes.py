@@ -10,18 +10,18 @@ from typing import Dict
 from typing import List, Set
 
 import numpy as np
-from extensions.back.ForceStrictPrecision import ForceStrictPrecision
-from extensions.back.compress_quantized_weights import CompressQuantizeWeights
-from extensions.ops.elementwise import Add
-from extensions.ops.Cast import Cast
-from extensions.ops.fakequantize import FakeQuantize
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, Node, rename_node
-from mo.graph.port import Port
-from mo.middle.pattern_match import apply_pattern
-from mo.ops.const import Const
-from mo.middle.passes.convert_data_type import convert_blob
+from openvino.tools.mo.back.ForceStrictPrecision import ForceStrictPrecision
+from openvino.tools.mo.back.compress_quantized_weights import CompressQuantizeWeights
+from openvino.tools.mo.ops.elementwise import Add
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.fakequantize import FakeQuantize
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph, Node, rename_node
+from openvino.tools.mo.graph.port import Port
+from openvino.tools.mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.middle.passes.convert_data_type import convert_blob
 
 from . import editor as ge
 from . import node_utils as nu
@@ -662,11 +662,11 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
                 new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
             fq_node['orig_fq_name'] = copy(fq_node.name)
-            rename_node(fq_node, new_fq_name)
 
             if 'orig_node_name' not in input_node:
                 input_node['orig_node_name'] = copy(input_node.name)
                 rename_node(input_node, f'{input_node.name}/pre_fq_input')
+            rename_node(fq_node, new_fq_name)
 
         pattern = get_fq_result_pattern()
         apply_pattern(

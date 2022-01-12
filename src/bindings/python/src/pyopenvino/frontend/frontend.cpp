@@ -7,10 +7,10 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/frontend_exceptions.hpp"
-#include "common/telemetry_extension.hpp"
-#include "manager.hpp"
-#include "pyopenvino/graph/function.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "pyopenvino/graph/model.hpp"
 
 namespace py = pybind11;
 
@@ -41,7 +41,7 @@ void regclass_frontend_FrontEnd(py::module m) {
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ov::Function> (FrontEnd::*)(InputModel::Ptr) const>(&FrontEnd::convert),
+            static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const InputModel::Ptr&) const>(&FrontEnd::convert),
             py::arg("model"),
             R"(
                 Completely convert and normalize entire function, throws if it is not possible.
@@ -53,24 +53,24 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Returns
                 ----------
-                convert : Function
+                convert : Model
                     Fully converted nGraph function.
              )");
 
     fem.def("convert",
-            static_cast<void (FrontEnd::*)(std::shared_ptr<ov::Function>) const>(&FrontEnd::convert),
+            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Model>&) const>(&FrontEnd::convert),
             py::arg("function"),
             R"(
                 Completely convert the remaining, not converted part of a function.
 
                 Parameters
                 ----------
-                function : Function
+                function : Model
                     Partially converted nGraph function.
 
                 Returns
                 ----------
-                convert : Function
+                convert : Model
                     Fully converted nGraph function.
              )");
 
@@ -89,7 +89,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Returns
                 ----------
-                convert_partially : Function
+                convert_partially : Model
                     Partially converted nGraph function.
              )");
 
@@ -108,7 +108,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Returns
                 ----------
-                decode : Function
+                decode : Model
                     nGraph function after decoding.
              )");
 
@@ -120,7 +120,7 @@ void regclass_frontend_FrontEnd(py::module m) {
 
                 Parameters
                 ----------
-                function : Function
+                function : Model
                     Partially converted nGraph function.
              )");
 
@@ -142,27 +142,4 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def("__repr__", [](const FrontEnd& self) -> std::string {
         return "<FrontEnd '" + self.get_name() + "'>";
     });
-}
-
-void regclass_frontend_Extension(py::module m) {
-    py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext(m, "Extension", py::dynamic_attr());
-}
-
-void regclass_frontend_TelemetryExtension(py::module m) {
-    {
-        py::class_<TelemetryExtension, std::shared_ptr<TelemetryExtension>, ov::Extension> ext(m,
-                                                                                               "TelemetryExtension",
-                                                                                               py::dynamic_attr());
-
-        ext.def(py::init([](const std::string& event_category,
-                            const TelemetryExtension::event_callback& send_event,
-                            const TelemetryExtension::error_callback& send_error,
-                            const TelemetryExtension::error_callback& send_stack_trace) {
-            return std::make_shared<TelemetryExtension>(event_category, send_event, send_error, send_stack_trace);
-        }));
-
-        ext.def("send_event", &TelemetryExtension::send_event);
-        ext.def("send_error", &TelemetryExtension::send_error);
-        ext.def("send_stack_trace", &TelemetryExtension::send_stack_trace);
-    }
 }

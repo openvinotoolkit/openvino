@@ -18,7 +18,6 @@ features:
 * [API](openvino/tools/pot/api/README.md) that helps to apply optimization methods within a custom inference script written with OpenVINO Python* API.
 * Symmetric and asymmetric quantization schemes. For details, see the [Quantization](openvino/tools/pot/algorithms/quantization/README.md) section.
 * Per-channel quantization for Convolutional and Fully-Connected layers.
-* Global optimization of post-training quantization parameters using the [Tree-Structured Parzen Estimator](openvino/tools/pot/optimization/tpe/README.md).
 
 The tool is aimed to fully automate the model transformation process without a need to change the model on the user's side.
 The POT is available only in the Intel&reg; distribution of OpenVINO&trade; toolkit and is not opensourced. For details

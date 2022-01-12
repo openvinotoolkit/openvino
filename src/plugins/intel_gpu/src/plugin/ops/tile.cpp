@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/tile.hpp"
 
-#include "cldnn/primitives/tile.hpp"
+#include "intel_gpu/primitives/tile.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>& op) {
     p.ValidateInputs(op, {2});
@@ -18,7 +20,7 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
 
     auto tilePrim = cldnn::tile(layerName,
                                 inputPrimitives[0],
-                                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                tensor_from_dims(op->get_output_shape(0)),
                                 op->get_friendly_name());
 
     p.AddPrimitive(tilePrim);
@@ -27,4 +29,6 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
 
 REGISTER_FACTORY_IMPL(v0, Tile);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

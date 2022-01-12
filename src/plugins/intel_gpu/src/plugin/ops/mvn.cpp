@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/mvn.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/mvn.hpp"
+#include "intel_gpu/primitives/mvn.hpp"
 
 #include <algorithm>
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                               bool across_channels, bool normalize_variance, float eps, bool eps_inside_sqrt = true) {
@@ -65,4 +67,6 @@ static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& 
 REGISTER_FACTORY_IMPL(v0, MVN);
 REGISTER_FACTORY_IMPL(v6, MVN);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

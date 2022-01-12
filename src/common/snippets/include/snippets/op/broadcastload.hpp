@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
 #include <snippets/op/broadcastmove.hpp>
 
 #include "ngraph/op/op.hpp"
@@ -18,7 +17,7 @@ namespace op {
  * @brief Is generated for broadcasting by least varying dimension for non-blocked cases and the second varying dimension for blocked
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API BroadcastLoad : public BroadcastMove {
+class BroadcastLoad : public BroadcastMove {
 public:
     OPENVINO_OP("BroadcastLoad", "SnippetsOpset", ngraph::snippets::op::BroadcastMove);
 

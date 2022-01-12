@@ -30,7 +30,7 @@ public:
 
 } // namespace
 
-static std::shared_ptr<Function> create_simple_function(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1", "input1"});
@@ -40,10 +40,10 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1", "Result1", "Add0"});
-    return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-static std::shared_ptr<Function> create_simple_function_yuv(const PartialShape& shape) {
+static std::shared_ptr<Model> create_simple_function_yuv(const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(element::u8, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1", "input1"});
@@ -52,7 +52,7 @@ static std::shared_ptr<Function> create_simple_function_yuv(const PartialShape& 
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1", "Result1", "Convert1"});
-    return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
+    return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
 TEST_F(ReferencePreprocessLegacyTest, mean) {
@@ -103,7 +103,7 @@ TEST_F(ReferencePreprocessLegacyTest, resize) {
     auto p = PrePostProcessor(function);
     p.input().tensor().set_layout("NCHW").set_spatial_static_shape(42, 30);
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
-    p.input().network().set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     p.build();
 
     auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
@@ -126,7 +126,7 @@ TEST_F(ReferencePreprocessLegacyTest, bgrx_to_bgr) {
     auto& input = p.input();
     input.tensor().set_color_format(ColorFormat::BGRX).set_element_type(element::u8);
     input.preprocess().convert_color(ColorFormat::BGR);
-    input.network().set_layout("NCHW");
+    input.model().set_layout("NCHW");
     function = p.build();
     inputData.emplace_back(element::u8, Shape{1, h, w, 4}, rgbx_input.data());
 
@@ -156,7 +156,7 @@ TEST_F(ReferencePreprocessLegacyTest, rgbx_to_bgr) {
     auto& input = p.input();
     input.tensor().set_color_format(ColorFormat::RGBX).set_element_type(element::u8);
     input.preprocess().convert_color(ColorFormat::BGR);
-    input.network().set_layout("NCHW");
+    input.model().set_layout("NCHW");
     function = p.build();
     inputData.emplace_back(element::u8, Shape{1, h, w, 4}, rgbx_input.data());
 
@@ -184,7 +184,7 @@ public:
         auto p = PrePostProcessor(function);
         p.input().tensor().set_color_format(ColorFormat::NV12_SINGLE_PLANE);
         p.input().preprocess().convert_color(ColorFormat::BGR);
-        p.input().network().set_layout("NCHW");
+        p.input().model().set_layout("NCHW");
         p.build();
 
         const auto &param = function->get_parameters()[0];
@@ -261,7 +261,7 @@ public:
         auto& input_info = p.input();
         input_info.tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
         input_info.preprocess().convert_color(ColorFormat::BGR);
-        input_info.network().set_layout("NCHW");
+        input_info.model().set_layout("NCHW");
         function = p.build();
 
         const auto &param = function->get_parameters()[0];

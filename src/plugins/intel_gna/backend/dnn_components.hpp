@@ -17,7 +17,7 @@ struct DnnComponentExtra {
     intel_dnn_component_t dnnComponent;
     bool isDelayed;
     DnnComponentExtra(std::string name,
-                      intel_dnn_component_t dnnComponent,
+                      const intel_dnn_component_t& dnnComponent,
                       bool isDelayed) :
                       name(name), dnnComponent(dnnComponent), isDelayed(isDelayed) {}
 };

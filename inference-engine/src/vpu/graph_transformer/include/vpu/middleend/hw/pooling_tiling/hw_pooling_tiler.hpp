@@ -50,7 +50,7 @@ public:
         _maxTilingOptions(other._maxTilingOptions),
         _dirTiling(PoolGraphDataTilingFactory::makeDirTiling(*other._dirTiling)),
         _tilingOptions(other._tilingOptions) {}
-    HWPoolingTilingSearcher(ConvolutionOptions convolutionOptions, const Direction& direction,
+    HWPoolingTilingSearcher(const ConvolutionOptions& convolutionOptions, const Direction& direction,
                             std::size_t maxTilingOptions) :
         _convolutionOptions(std::move(convolutionOptions)),
         _dirTiling(PoolGraphDataTilingFactory::makeDirTiling(_convolutionOptions, direction)),
@@ -83,7 +83,7 @@ public:
     HWPoolingTiler() = delete;
 
     HWPoolingTiler(const HWPoolingTiler&) = default;
-    HWPoolingTiler(ConvolutionOptions convolutionOptions, const Direction& direction, std::size_t maxTilingOptions);
+    HWPoolingTiler(const ConvolutionOptions& convolutionOptions, const Direction& direction, std::size_t maxTilingOptions);
 
     bool isTilingPossible() const {
         return _tilingPossible;

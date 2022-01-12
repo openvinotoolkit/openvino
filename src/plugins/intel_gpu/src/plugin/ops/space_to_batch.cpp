@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn_program.h"
-#include "cldnn_common_utils.h"
+#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "ngraph/op/space_to_batch.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/space_to_batch.hpp"
+#include "intel_gpu/primitives/space_to_batch.hpp"
 
-namespace CLDNNPlugin {
+namespace ov {
+namespace runtime {
+namespace intel_gpu {
 
 static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v1::SpaceToBatch>& op) {
     p.ValidateInputs(op, {4});
@@ -35,7 +37,7 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
         }
         inputs.emplace_back(format, sizes, default_size);
     }
-    auto out_size = CldnnTensorFromIEDims(op->get_output_shape(0));
+    auto out_size = tensor_from_dims(op->get_output_shape(0));
 
     auto batchToSpacePrim = cldnn::space_to_batch(layerName,
                                                   inputPrimitives[0], // input
@@ -51,4 +53,6 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
 
 REGISTER_FACTORY_IMPL(v1, SpaceToBatch);
 
-}  // namespace CLDNNPlugin
+}  // namespace intel_gpu
+}  // namespace runtime
+}  // namespace ov

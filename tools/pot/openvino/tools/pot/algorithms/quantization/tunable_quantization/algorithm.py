@@ -54,14 +54,9 @@ class TunableQuantization(MinMaxQuantization):
 
         return activations_stats_layout
 
-    def get_parameter_meta(self, model, optimizer_state):
+    def get_parameter_meta(self, model):
         param_grid = []
-        if 'range_estimator' in self._config.tuning_scope:
-            for variable in self._config.estimator_tuning_scope:
-                self._config.tuning_scope.append('estimator_' + variable)
         config = deepcopy(self._config)
-        if optimizer_state['first_iteration'] or optimizer_state['fully_quantized']:
-            config['tuning_scope'] = []
 
         hardware_config = load_hardware_config(config)
         model = deepcopy(model)
@@ -82,17 +77,14 @@ class TunableQuantization(MinMaxQuantization):
             if 'activations' in node_config:
                 node_config['activations'] = ut.append_estimator_configs(
                     node_config['activations'], False, config,
-                    self.params[node_name] if not optimizer_state['fully_quantized']
-                    and node_name in self.params else None)
+                    self.params[node_name] if node_name in self.params else None)
             if 'weights' in node_config:
                 node_config['weights'] = ut.append_estimator_configs(
                     node_config['weights'], True, config,
-                    self.params[node_name] if not optimizer_state['fully_quantized']
-                    and node_name in self.params else None)
+                    self.params[node_name] if node_name in self.params else None)
 
         for node_name, node_config in nodes_config.items():
             op_config = ut.get_quantize_op_config(node_config, config,
-                                                  self.params[node_name] if not optimizer_state['fully_quantized']
-                                                  and node_name in self.params else None)
+                                                  self.params[node_name] if node_name in self.params else None)
             param_grid.append((node_name, 'choice', op_config))
         return param_grid

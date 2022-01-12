@@ -19,8 +19,17 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief AlignQuantizationParameters transformation marks precision preserved operations subgraph by `QuantizationAlignmentAttribute`
+ * attribute after FakeQuantize operations.
+ *
+ * For more details about the transformation, refer to
+ * [AlignQuantizationParameters](@ref openvino_docs_IE_DG_lpt_AlignQuantizationParameters) page
+ * in the Inference Engine Developer Guide.
+ */
 class ngraph::pass::low_precision::AlignQuantizationParameters : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

@@ -15,7 +15,7 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes) {
         for (const auto& item : node->get_rt_info()) {
             bool copy = item.first != "opset";
             if (item.second.is<ov::RuntimeAttribute>()) {
-                copy &= item.second.as<ov::RuntimeAttribute>().is_copyable();
+                copy = copy && item.second.as<ov::RuntimeAttribute>().is_copyable();
             }
             if (copy) {
                 attrs[item.first].push_back(item.second);
@@ -67,7 +67,7 @@ void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_p
     for (const auto& item : from->get_rt_info()) {
         bool copy = item.first != "opset";
         if (item.second.is<ov::RuntimeAttribute>()) {
-            copy &= item.second.as<ov::RuntimeAttribute>().is_copyable();
+            copy = copy && item.second.as<ov::RuntimeAttribute>().is_copyable();
         }
         if (copy) {
             attrs[item.first] = item.second;

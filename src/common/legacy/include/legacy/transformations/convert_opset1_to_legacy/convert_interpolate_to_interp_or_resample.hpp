@@ -17,7 +17,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertInterpolateToInterpOrResampleMatcher);
+class ConvertInterpolateToInterpOrResampleMatcher;
 
 }  // namespace pass
 }  // namespace ngraph

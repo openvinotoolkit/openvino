@@ -12,7 +12,7 @@ using namespace ngraph;
 // template_function_transformation.cpp
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MyFunctionTransformation, "MyFunctionTransformation", 0);
 
-bool pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool pass::MyFunctionTransformation::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MyFunctionTransformation);
     // Example transformation code
     NodeVector nodes;

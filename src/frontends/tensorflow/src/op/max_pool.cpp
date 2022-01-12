@@ -8,11 +8,11 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::frontend::tf::detail;
+using namespace ov::frontend::tensorflow::detail;
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
 namespace op {
 
 OutputVector translate_max_pool_op(const NodeContext& node) {
@@ -68,6 +68,6 @@ OutputVector translate_max_pool_op(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

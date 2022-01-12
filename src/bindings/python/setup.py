@@ -52,10 +52,9 @@ packages = [
     "openvino.runtime.opset7",
     "openvino.runtime.opset8",
     "openvino.runtime.utils",
-    "openvino.runtime.impl",
-    "openvino.runtime.impl.op",
-    "openvino.runtime.impl.op.util",
-    "openvino.runtime.impl.passes",
+    "openvino.runtime.op",
+    "openvino.runtime.op.util",
+    "openvino.runtime.passes",
 ]
 
 
@@ -178,7 +177,7 @@ class BuildCMakeExt(build_ext):
                     f"-DCMAKE_BUILD_TYPE={self.config}",
                     f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
                     "-DENABLE_PYTHON=ON",
-                    "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
+                    "-DENABLE_OV_ONNX_FRONTEND=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 

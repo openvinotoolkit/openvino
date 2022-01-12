@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/op/op.hpp>
 
 namespace ngraph {
@@ -21,7 +19,7 @@ namespace op {
  * BlockedLoad == vector instruction - post increment
  * @ingroup snippets
  */
-class TRANSFORMATIONS_API Load : public ngraph::op::Op {
+class Load : public ngraph::op::Op {
 public:
     OPENVINO_OP("Load", "SnippetsOpset");
 

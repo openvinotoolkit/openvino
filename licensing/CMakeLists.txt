@@ -8,8 +8,8 @@
 
 ie_cpack_add_component(licensing)
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        DESTINATION .
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
+        DESTINATION licensing
         COMPONENT licensing
         PATTERN CMakeLists.txt EXCLUDE
         PATTERN dev-third-party-programs.txt EXCLUDE

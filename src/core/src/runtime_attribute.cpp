@@ -32,8 +32,4 @@ std::ostream& operator<<(std::ostream& os, const RuntimeAttribute& attrubute) {
     return os << attrubute.to_string();
 }
 
-template class ov::RuntimeAttributeImpl<std::string>;
-template class ov::RuntimeAttributeImpl<int64_t>;
-template class ov::RuntimeAttributeImpl<bool>;
-
 }  // namespace ov

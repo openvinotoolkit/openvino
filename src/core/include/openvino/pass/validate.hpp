@@ -21,12 +21,12 @@ namespace pass {
 /// pass does not break the shape and data type requirement on a computation node.
 /// This default validation run can be changed via calling the
 /// \link ov::pass::Manager::set_per_pass_validation(bool) \endlink function.
-class OPENVINO_API Validate : public FunctionPass {
+class OPENVINO_API Validate : public ModelPass {
 public:
     OPENVINO_RTTI("ov::pass::Validate");
 
-    Validate() : FunctionPass() {}
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    Validate() : ModelPass() {}
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };
 }  // namespace pass
 }  // namespace ov

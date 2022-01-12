@@ -65,11 +65,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const MatrixNmsParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const MatrixNmsParams& params) {
         const auto boxes = std::make_shared<opset1::Parameter>(params.boxes.type, PartialShape::dynamic());
         const auto scores = std::make_shared<opset1::Parameter>(params.scores.type, PartialShape::dynamic());
         const auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, params.attrs);
-        const auto f = std::make_shared<Function>(nms->outputs(), ParameterVector{boxes, scores});
+        const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
 };

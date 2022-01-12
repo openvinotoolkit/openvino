@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GARG_HPP
@@ -171,7 +171,7 @@ using GRunArgs = std::vector<GRunArg>;
  * It's an ordinary overload of addition assignment operator.
  *
  * Example of usage:
- * @snippet dynamic_graph.cpp GRunArgs usage
+ * @snippet samples/cpp/tutorial_code/gapi/doc_snippets/dynamic_graph_snippets.cpp GRunArgs usage
  *
  */
 inline GRunArgs& operator += (GRunArgs &lhs, const GRunArgs &rhs)
@@ -223,7 +223,7 @@ using GRunArgsP = std::vector<GRunArgP>;
  * It's an ordinary overload of addition assignment operator.
  *
  * Example of usage:
- * @snippet dynamic_graph.cpp GRunArgsP usage
+ * @snippet samples/cpp/tutorial_code/gapi/doc_snippets/dynamic_graph_snippets.cpp GRunArgsP usage
  *
  */
 inline GRunArgsP& operator += (GRunArgsP &lhs, const GRunArgsP &rhs)
@@ -235,8 +235,39 @@ inline GRunArgsP& operator += (GRunArgsP &lhs, const GRunArgsP &rhs)
 
 namespace gapi
 {
-    GAPI_EXPORTS cv::GRunArgsP bind(cv::GRunArgs &results);
-    GAPI_EXPORTS cv::GRunArg   bind(cv::GRunArgP &out);     // FIXME: think more about it
+/**
+ * \addtogroup gapi_serialization
+ * @{
+ *
+ * @brief G-API functions and classes for serialization and deserialization.
+ */
+/** @brief Wraps deserialized output GRunArgs to GRunArgsP which can be used by GCompiled.
+ *
+ * Since it's impossible to get modifiable output arguments from deserialization
+ * it needs to be wrapped by this function.
+ *
+ * Example of usage:
+ * @snippet samples/cpp/tutorial_code/gapi/doc_snippets/api_ref_snippets.cpp bind after deserialization
+ *
+ * @param out_args deserialized GRunArgs.
+ * @return the same GRunArgs wrapped in GRunArgsP.
+ * @see deserialize
+ */
+GAPI_EXPORTS cv::GRunArgsP bind(cv::GRunArgs &out_args);
+/** @brief Wraps output GRunArgsP available during graph execution to GRunArgs which can be serialized.
+ *
+ * GRunArgsP is pointer-to-value, so to be serialized they need to be binded to real values
+ * which this function does.
+ *
+ * Example of usage:
+ * @snippet samples/cpp/tutorial_code/gapi/doc_snippets/api_ref_snippets.cpp bind before serialization
+ *
+ * @param out output GRunArgsP available during graph execution.
+ * @return the same GRunArgsP wrapped in serializable GRunArgs.
+ * @see serialize
+ */
+GAPI_EXPORTS cv::GRunArg   bind(cv::GRunArgP &out);     // FIXME: think more about it
+/** @} */
 }
 
 template<typename... Ts> inline GRunArgs gin(const Ts&... args)
@@ -248,6 +279,30 @@ template<typename... Ts> inline GRunArgsP gout(Ts&... args)
 {
     return GRunArgsP{ GRunArgP(detail::wrap_host_helper<Ts>::wrap_out(args))... };
 }
+
+struct GTypeInfo;
+using GTypesInfo = std::vector<GTypeInfo>;
+
+// FIXME: Needed for python bridge, must be moved to more appropriate header
+namespace detail {
+struct ExtractArgsCallback
+{
+    cv::GRunArgs operator()(const cv::GTypesInfo& info) const { return c(info); }
+    using CallBackT = std::function<cv::GRunArgs(const cv::GTypesInfo& info)>;
+    CallBackT c;
+};
+
+struct ExtractMetaCallback
+{
+    cv::GMetaArgs operator()(const cv::GTypesInfo& info) const { return c(info); }
+    using CallBackT = std::function<cv::GMetaArgs(const cv::GTypesInfo& info)>;
+    CallBackT c;
+};
+
+void constructGraphOutputs(const cv::GTypesInfo &out_info,
+                           cv::GRunArgs         &args,
+                           cv::GRunArgsP        &outs);
+} // namespace detail
 
 } // namespace cv
 

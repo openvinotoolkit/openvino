@@ -3,7 +3,7 @@
 
 import numpy as np
 import openvino.runtime.opset8 as ov
-from openvino.runtime.impl import Shape, Type
+from openvino.runtime import Shape, Type
 
 
 def test_proposal_props():

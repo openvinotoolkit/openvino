@@ -62,7 +62,7 @@ bool validateStaticShapes(const ngraph::Function& function) {
     return true;
 }
 
-bool propagateUpperBoundFromExistingDSR(std::shared_ptr<ngraph::Function>& function) {
+bool propagateUpperBoundFromExistingDSR(const std::shared_ptr<ngraph::Function>& function) {
     bool function_changed = false;
     for (const auto& op : function->get_ordered_ops()) {
         if (const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(op)) {
@@ -173,7 +173,7 @@ DynamicToStaticShape::DynamicToStaticShape(const Transformations& specificTransf
     transformations.emplace(ngraph::opset3::Result::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>&){});
 }
 
-bool DynamicToStaticShape::run_on_function(std::shared_ptr<ngraph::Function> function) {
+bool DynamicToStaticShape::run_on_model(const std::shared_ptr<ngraph::Function>& function) {
     bool function_changed = false;
 
     // Ensure that existing DSRs in function propagate upper-bound shapes, not dynamism.

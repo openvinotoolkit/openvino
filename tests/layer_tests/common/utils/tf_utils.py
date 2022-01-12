@@ -7,7 +7,7 @@ import re
 import tensorflow as tf
 import numpy as np
 
-from mo.ops.op import PermuteAttrs
+from openvino.tools.mo.ops.op import PermuteAttrs
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
