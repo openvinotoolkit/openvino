@@ -83,7 +83,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     const auto concat_axis = concatNode->get_concatenation_axis();
     for (size_t i = 0; i < 4; i++) {
         currConstants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
-        if (!multi_chanels && currConstants[i]->get_shape().size() > (concat_axis + 1) && currConstants[i]->get_shape()[concat_axis] != 1) {
+        if (!multi_chanels && currConstants[i]->get_shape().size() > (concat_axis + 1ul) && currConstants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
         }
     }
@@ -151,7 +151,11 @@ bool MoveFakeQuantize::canBeTransformed(const TransformationContext& context, st
     if (!ConcatTransformation::isQuantizedStatic(concat)) {
         return false;
     }
-    auto convert_q = layer->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+    const auto convert_q_target_inputs = layer->output(0).get_target_inputs();
+    if (convert_q_target_inputs.empty()) {
+        return false;
+    }
+    const auto convert_q = convert_q_target_inputs.begin()->get_node()->shared_from_this();
     bool q_dq = is_type<opset1::Convert>(convert_q);
     if (q_dq && (convert_q->get_output_size() != 1 || layer->get_output_size() != 1)) {
         return false;
