@@ -75,6 +75,49 @@ struct PoolingKey {
         return result;
     }
 };
+
+std::shared_ptr<pooling_v2_forward::desc> createDescriptorHelper(const mkldnn::memory::desc& in_candidate,
+                                                                 const mkldnn::memory::desc& out_candidate,
+                                                                 const mkldnn::algorithm alg,
+                                                                 const std::vector<ptrdiff_t>& stride,
+                                                                 const std::vector<ptrdiff_t>& kernel,
+                                                                 const std::vector<ptrdiff_t>& effective_pad_begin,
+                                                                 const std::vector<ptrdiff_t>& effective_pad_end,
+                                                                 const std::vector<ptrdiff_t>& effective_dilation,
+                                                                 const std::vector<ptrdiff_t>& data_pad_end) {
+    if (alg == mkldnn::algorithm::undef) {
+        IE_THROW() << "Unsupported pooling type";
+    }
+
+    auto convert = [](std::vector<ptrdiff_t> orig_dims) {
+        return memory::dims(orig_dims.begin(), orig_dims.end());
+    };
+    std::shared_ptr<pooling_v2_forward::desc> desc_ptr(new pooling_v2_forward::desc(prop_kind::forward_scoring,
+                                                                                    alg,
+                                                                                    in_candidate,
+                                                                                    out_candidate,
+                                                                                    convert(stride),
+                                                                                    convert(kernel),
+                                                                                    convert(effective_dilation),
+                                                                                    convert(effective_pad_begin),
+                                                                                    convert(effective_pad_end)));
+
+    if (alg == mkldnn::algorithm::pooling_avg_include_padding) {
+        // In case of AVG including paddings the norm coeff should be calculated
+        // with tacking into account original pads. So we need to restore
+        // original values for end paddings.
+        //
+        // WA. Because mkldnn uses different formula to calculate AVG norm coeff
+        //     in compare with Caffe. In mkldnn coeff is always 1/(KH*KW)
+        for (int i = 0; i < data_pad_end.size(); i++) {
+            if (data_pad_end[i] != effective_pad_end[i])
+                desc_ptr->data.padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
+        }
+    }
+
+    return desc_ptr;
+}
+
 }  // namespace
 
 bool MKLDNNPoolingNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -319,35 +362,15 @@ void MKLDNNPoolingNode::prepareParams() {
                       selected_pd->getImplementationType()};
     auto engine = getEngine();
     auto builder = [&engine](const PoolingKey& key) -> std::shared_ptr<mkldnn::primitive> {
-        if (key.alg == mkldnn::algorithm::undef) {
-            IE_THROW() << "Unsupported pooling type";
-        }
-
-        auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
-            return memory::dims(orig_dims.begin(), orig_dims.end());
-        };
-        std::shared_ptr<pooling_v2_forward::desc> desc_ptr(
-            new pooling_v2_forward::desc(prop_kind::forward_scoring, key.alg,
-                                         key.inp->getDnnlDesc(), key.out->getDnnlDesc(),
-                                         convert(key.stride),
-                                         convert(key.kernel),
-                                         convert(key.effective_dilation),
-                                         convert(key.effective_pad_begin),
-                                         convert(key.effective_pad_end)));
-
-        if (key.alg == mkldnn::algorithm::pooling_avg_include_padding) {
-            // In case of AVG including paddings the norm coeff should be calculated
-            // with tacking into account original pads. So we need to restore
-            // original values for end paddings.
-            //
-            // WA. Because mkldnn uses different formula to calculate AVG norm coeff
-            //     in compare with Caffe. In mkldnn coeff is always 1/(KH*KW)
-            for (int i = 0; i < key.data_pad_end.size(); i++) {
-                if (key.data_pad_end[i] != key.effective_pad_end[i])
-                    desc_ptr->data.padding[1][i] = static_cast<ptrdiff_t>(key.data_pad_end[i]);
-            }
-        }
-
+        auto desc_ptr = createDescriptorHelper(key.inp->getDnnlDesc(),
+                                               key.out->getDnnlDesc(),
+                                               key.alg,
+                                               key.stride,
+                                               key.kernel,
+                                               key.effective_pad_begin,
+                                               key.effective_pad_end,
+                                               key.effective_dilation,
+                                               key.data_pad_end);
         MKLDNNDescriptor desc{desc_ptr};
         pooling_v2_forward::primitive_desc prim_desc;
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
@@ -413,39 +436,19 @@ mkldnn::algorithm MKLDNNPoolingNode::getPoolingAlgorithm() const {
     }
 }
 
-std::shared_ptr<pooling_v2_forward::desc> MKLDNNPoolingNode::createDescriptorInternal(const mkldnn::memory::desc& in_candidate,
-                                                                                      const mkldnn::memory::desc& out_candidate,
-                                                                                      const mkldnn::algorithm alg) const {
-    if (alg == mkldnn::algorithm::undef) {
-        IE_THROW() << "Unsupported pooling type";
-    }
-
-    auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
-        return memory::dims(orig_dims.begin(), orig_dims.end());
-    };
-    std::shared_ptr<pooling_v2_forward::desc> desc_ptr(
-            new pooling_v2_forward::desc(prop_kind::forward_scoring, alg,
-                                         in_candidate, out_candidate,
-                                         convert(stride),
-                                         convert(kernel),
-                                         convert(effective_dilation),
-                                         convert(effective_pad_begin),
-                                         convert(effective_pad_end)));
-
-    if (alg == mkldnn::algorithm::pooling_avg_include_padding) {
-        // In case of AVG including paddings the norm coeff should be calculated
-        // with tacking into account original pads. So we need to restore
-        // original values for end paddings.
-        //
-        // WA. Because mkldnn uses different formula to calculate AVG norm coeff
-        //     in compare with Caffe. In mkldnn coeff is always 1/(KH*KW)
-        for (int i = 0; i < data_pad_end.size(); i++) {
-            if (data_pad_end[i] != effective_pad_end[i])
-            desc_ptr->data.padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
-        }
-    }
-
-    return desc_ptr;
+std::shared_ptr<pooling_v2_forward::desc> MKLDNNPoolingNode::createDescriptorInternal(
+    const mkldnn::memory::desc& in_candidate,
+    const mkldnn::memory::desc& out_candidate,
+    const mkldnn::algorithm alg) const {
+    return createDescriptorHelper(in_candidate,
+                                  out_candidate,
+                                  alg,
+                                  stride,
+                                  kernel,
+                                  effective_pad_begin,
+                                  effective_pad_end,
+                                  effective_dilation,
+                                  data_pad_end);
 }
 
 void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,

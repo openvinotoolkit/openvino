@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -55,7 +54,7 @@ public:
 
         std::ostringstream result;
 
-        result << "IS=" << shapes.first << "_";
+        result << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
         result << "TS=";
         for (const auto& shape : shapes.second) {
             result << "(" << CommonTestUtils::vec2str(shape) << ")_";
@@ -130,6 +129,19 @@ protected:
         function = makeNgraphFunction(ngInPrec, params, fq, "FakeQuantizeCPU");
     }
 
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        ASSERT_EQ(funcInputs.size(), 1);
+        const auto& funcInput = funcInputs[0];
+        ov::runtime::Tensor tensor;
+        tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                         targetInputStaticShapes[0],
+                                                         inDataHighBounds - inDataLowBounds,
+                                                         inDataLowBounds);
+        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+    }
+
 private:
     const size_t RANGES_INPUT_NUMBER = 4;
 
@@ -180,7 +192,7 @@ std::vector<inputShapes> rangesShapes4D_jit = {
         {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
     inputShapes{
-        InputShape{{-1, -1, -1, -1}, {{4, 5, 6, 7}, {1, 12, 1, 1}, {4, 1, 8, 2}, {1, 16, 6, 1}, {4, 16, 6, 7}}},
+        InputShape{{-1, -1, -1, -1}, {{4, 5, 6, 7}, {1, 12, 1, 1}, {4, 1, 8, 2}, {1, 16, 6, 1}, {4, 5, 6, 7}}},
         {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
     inputShapes{

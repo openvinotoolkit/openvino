@@ -887,37 +887,30 @@ bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ng
 }
 
 namespace {
-struct FakeQuantKernelKey {
-    int c;
-    bool is_planar;
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision wei_prc;
-    InferenceEngine::Precision dst_prc;
-    std::vector<size_t> s_str;
-    std::vector<size_t> d_str;
-    Algorithm op_type;
-
+struct FakeQuantKey {
+    jit_quantize_params jqp;
     size_t hash() const {
         size_t seed = 0;
-        seed = hash_combine(seed, c);
-        seed = hash_combine(seed, is_planar);
-        seed = hash_combine(seed, src_prc.getPrecVal());
-        seed = hash_combine(seed, wei_prc.getPrecVal());
-        seed = hash_combine(seed, dst_prc.getPrecVal());
-        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, s_str);
-        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, d_str);
-        seed = hash_combine(seed, op_type);
+        seed = hash_combine(seed, jqp.c);
+        seed = hash_combine(seed, jqp.is_planar);
+        seed = hash_combine(seed, jqp.src_prc.getPrecVal());
+        seed = hash_combine(seed, jqp.wei_prc.getPrecVal());
+        seed = hash_combine(seed, jqp.dst_prc.getPrecVal());
+        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, jqp.s_str);
+        seed = dnnl::impl::primitive_hashing::get_vector_hash(seed, jqp.d_str);
+        seed = hash_combine(seed, jqp.op_type);
         return seed;
     }
 
-    bool operator==(const FakeQuantKernelKey& rhs) const {
-        bool result = c == rhs.c && is_planar == rhs.is_planar && src_prc == rhs.src_prc && wei_prc == rhs.wei_prc &&
-                      dst_prc == rhs.dst_prc && op_type == rhs.op_type;
-        for (size_t i = 0; i < s_str.size(); i++) {
-            result = result && s_str[i] == rhs.s_str[i];
+    bool operator==(const FakeQuantKey& rhs) const {
+        bool result = jqp.c == rhs.jqp.c && jqp.is_planar == rhs.jqp.is_planar &&
+                      jqp.src_prc == rhs.jqp.src_prc && jqp.wei_prc == rhs.jqp.wei_prc &&
+                      jqp.dst_prc == rhs.jqp.dst_prc && jqp.op_type == rhs.jqp.op_type;
+        for (size_t i = 0; i < jqp.s_str.size(); i++) {
+            result = result && jqp.s_str[i] == rhs.jqp.s_str[i];
         }
-        for (size_t i = 0; i < d_str.size(); i++) {
-            result = result && d_str[i] == rhs.d_str[i];
+        for (size_t i = 0; i < jqp.d_str.size(); i++) {
+            result = result && jqp.d_str[i] == rhs.jqp.d_str[i];
         }
         return result;
     }
@@ -1404,32 +1397,23 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
         const auto& inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
         //Form FakeQuanKey
-        FakeQuantKernelKey key = {};
-        key.c = inDims.size() > 1 ? inDims[1] : 1;
-        key.src_prc = config.inConfs[0].desc->getPrecision();
-        key.wei_prc = Precision::FP32;
-        key.dst_prc = config.outConfs[0].desc->getPrecision();
+        FakeQuantKey key = {};
+        key.jqp.c = inDims.size() > 1 ? inDims[1] : 1;
+        key.jqp.src_prc = config.inConfs[0].desc->getPrecision();
+        key.jqp.wei_prc = Precision::FP32;
+        key.jqp.dst_prc = config.outConfs[0].desc->getPrecision();
 
         auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        key.s_str = srcDesc->getStrides();
+        key.jqp.s_str = srcDesc->getStrides();
         auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
 
-        key.d_str = dstDesc->getStrides();
-        key.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
-        key.op_type = getAlgorithm();
+        key.jqp.d_str = dstDesc->getStrides();
+        key.jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
+        key.jqp.op_type = getAlgorithm();
 
         auto cache = getRuntimeCache();
-        auto buildExecutor = [](const FakeQuantKernelKey& key) {
-            jit_quantize_params jqp = {};
-            jqp.c = key.c;
-            jqp.src_prc = key.src_prc;
-            jqp.wei_prc = key.wei_prc;
-            jqp.dst_prc = key.dst_prc;
-            jqp.s_str = key.s_str;
-            jqp.d_str = key.d_str;
-            jqp.is_planar = key.is_planar;
-            jqp.op_type = key.op_type;
-            return std::make_shared<FakeQuantizeJitExecutor>(jqp);
+        auto buildExecutor = [](const FakeQuantKey& key) {
+            return std::make_shared<FakeQuantizeJitExecutor>(key.jqp);
         };
         auto result = cache->getOrCreate(key, buildExecutor);
         execPtr = result.first;
