@@ -242,7 +242,11 @@ std::vector<ie::CNNNetwork> FrontEnd::checkSupportedNetworks(const ie::CNNNetwor
         try {
             convertNetwork(copyNetwork);
         } catch(vpu::details::VPUException e) {
+            // Parsing the error message in order to get name of the node that caused the exeption.
+            // Error message should be in the following format:
+            // ".* node {name} of type {type} .*"
             std::string name = e.what();
+            std::cout << name << "\n";
             std::string nameDelimiter("node ");
             name.erase(0, name.find(nameDelimiter) + nameDelimiter.length());
             nameDelimiter = " of";
