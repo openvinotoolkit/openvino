@@ -1119,9 +1119,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             isSuitableParent2 = isSuitableParent2 && canFuseSum(binConvNode2, graphNode);
         }
 
-        auto checkFusedWith = [](MKLDNNConvolutionNode* conv) -> bool {
+        auto checkFusedWithSum = [](MKLDNNConvolutionNode* conv) -> bool {
             for (const auto& node : conv->getFusedWith()) {
-                if (node->getAlgorithm() == EltwiseAdd)
+                const auto eltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(node);
+                if (eltwise && eltwise->isSpecialConvolutionAddFusing())
                     return true;
             }
             return false;
@@ -1132,7 +1133,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             if (!convNode1->canBeExecutedInInt8()) {
                 isSuitableParent1 = isSuitableParent1 && convNode1->getFusedWith().empty();
             } else {
-                isSuitableParent1 = isSuitableParent1 && !checkFusedWith(convNode1);
+                isSuitableParent1 = isSuitableParent1 && !checkFusedWithSum(convNode1);
             }
         }
 
@@ -1141,7 +1142,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             if (!convNode2->canBeExecutedInInt8()) {
                 isSuitableParent2 = isSuitableParent2 && convNode2->getFusedWith().empty();
             } else {
-                isSuitableParent2 = isSuitableParent2 && !checkFusedWith(convNode2);
+                isSuitableParent2 = isSuitableParent2 && !checkFusedWithSum(convNode2);
             }
         }
 
