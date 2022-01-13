@@ -9,7 +9,6 @@
 namespace ov {
 namespace frontend {
 void ModelAnalysisExtension::report_model_analysis(const ModelAnalysisData& data) const {
-    std::cout << "------: " << data.inputs_shape_map.begin()->second << "\n";
     m_callback(data);
 }
 }  // namespace frontend

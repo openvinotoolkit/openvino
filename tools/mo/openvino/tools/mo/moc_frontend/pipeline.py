@@ -4,9 +4,12 @@
 import argparse
 import logging as log
 from typing import List
+from os import environ
+import sys
 
 from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
 from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
+from openvino.tools.mo.analysis.json_print_new_frontend import json_model_analysis_dump
 
 from openvino.runtime import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, Place # pylint: disable=no-name-in-module,import-error
@@ -53,6 +56,13 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 # some frontends might not implement this method
                 log.warn('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
                     new_input['input_name'], str(e)))
+
+    if environ.get('MO_ENABLED_TRANSFORMS') == 'ANALYSIS_JSON_PRINT':
+        # NOTE that model analysis is performed before applying user's settings (inputs's shapes etc.)
+        framework_model = moc_front_end.decode(input_model)
+        json_model_analysis_dump(framework_model)
+        # a model is not processed further in json analysis mode
+        sys.exit(0)
 
     inputs_equal = True
     if user_shapes:
