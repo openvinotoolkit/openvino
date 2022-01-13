@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
 #include <utility>
@@ -705,6 +706,44 @@ void load_config(const std::string& filename, std::map<std::string, std::map<std
         for (auto iit = device.begin(); iit != device.end(); ++iit) {
             auto item = *iit;
             config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
+        }
+    }
+}
+#else
+void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
+    nlohmann::json jsonConfig;
+    for (const auto& item : config) {
+        std::string deviceName = item.first;
+        for (const auto& option : item.second) {
+            jsonConfig[deviceName][option.first] = option.second;
+        }
+    }
+
+    std::ofstream ofs(filename);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+    }
+
+    ofs << jsonConfig;
+}
+
+void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
+    std::ifstream ifs(filename);
+    if (!ifs.is_open()) {
+        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+    }
+
+    nlohmann::json jsonConfig;
+    try {
+        ifs >> jsonConfig;
+    } catch (const nlohmann::json::parse_error& e) {
+        throw std::runtime_error("Can't parse config file \"" + filename + "\".\n" + e.what());
+    }
+
+    for (const auto& item : jsonConfig.items()) {
+        std::string deviceName = item.key();
+        for (const auto& option : item.value().items()) {
+            config[deviceName][option.key()] = option.value().get<std::string>();
         }
     }
 }
