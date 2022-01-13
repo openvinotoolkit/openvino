@@ -17,7 +17,6 @@
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "openvino/frontend/extension/model_analysis_extension.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph {
@@ -73,7 +72,6 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
     : m_model{common::make_unique<Model>(model_proto)},
       m_cache{std::move(cache)},
       m_extensions{std::move(extensions)} {
-    ov::frontend::ModelAnalysisData model_analysis;
     std::map<std::string, Tensor> initializers;
 
     // Process all initializers in the graph
@@ -112,8 +110,6 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
         ValueInfo value_info{input};
         auto ng_node = value_info.get_ng_node(m_parameters, initializers);
         m_cache->emplace_node(input.name(), std::move(ng_node));
-        model_analysis.inputs_shape_map[input.name()] = ng_node->get_output_partial_shape(0);
-        model_analysis.inputs_type_map[input.name()] = ng_node->get_element_type();
     }
 
     // Verify that ONNX graph contains only nodes of available operator types
@@ -150,10 +146,6 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
     NGRAPH_CHECK(unknown_operators.empty(),
                  "nGraph does not support the following ONNX operations: ",
                  detail::to_string(unknown_operators));
-
-    if (m_extensions.model_analysis) {
-        m_extensions.model_analysis->report_model_analysis(model_analysis);
-    }
 }
 
 void Graph::convert_to_ngraph_nodes() {

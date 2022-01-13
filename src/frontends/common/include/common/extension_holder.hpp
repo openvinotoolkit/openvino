@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/frontend/extension/model_analysis_extension.hpp"
 #include "openvino/frontend/extension/progress_reporter_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 
@@ -14,7 +13,6 @@ struct ExtensionHolder {
     ExtensionHolder() : progress_reporter{std::make_shared<ProgressReporterExtension>()} {}
     std::shared_ptr<ProgressReporterExtension> progress_reporter;
     std::shared_ptr<TelemetryExtension> telemetry;
-    std::shared_ptr<ModelAnalysisExtension> model_analysis;
 };
 }  // namespace frontend
 }  // namespace ov

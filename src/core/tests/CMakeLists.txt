@@ -515,8 +515,7 @@ endif()
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/frontend/decoder_transformation_extension.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/progress_reporter.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/model_analysis_extension.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/frontend/progress_reporter.cpp)
 list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC OP_EVAL_TEST_SRC)

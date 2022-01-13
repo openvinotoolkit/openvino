@@ -43,8 +43,7 @@ from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, \
-    ModelAnalysisExtension, ModelAnalysisData
+from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension
 
 
 def replace_ext(name: str, old: str, new: str):

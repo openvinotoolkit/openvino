@@ -11,7 +11,6 @@
 #include "manager.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
-#include "openvino/frontend/extension/model_analysis_extension.hpp"
 #include "openvino/frontend/extension/progress_reporter_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "pyopenvino/graph/model.hpp"
@@ -78,34 +77,4 @@ void regclass_frontend_ProgressReporterExtension(py::module m) {
     }));
 
     ext.def("report_progress", &ProgressReporterExtension::report_progress);
-}
-
-void regclass_frontend_ModelAnalysisData(py::module m) {
-    py::class_<ModelAnalysisData, std::shared_ptr<ModelAnalysisData>> data(m, "ModelAnalysisData");
-    data.doc() = "Holder for model parameters";
-    data.def(py::init<>()).def_readwrite("inputs_shape_map", &ModelAnalysisData::inputs_shape_map);
-    data.def(py::init<>()).def_readwrite("inputs_type_map", &ModelAnalysisData::inputs_type_map);
-}
-
-void regclass_frontend_ModelAnalysisExtension(py::module m) {
-    py::class_<ModelAnalysisExtension, std::shared_ptr<ModelAnalysisExtension>, ov::Extension> ext{
-        m,
-        "ModelAnalysisExtension",
-        py::dynamic_attr()};
-
-    ext.doc() = "An extension class intended to collect informations about models";
-
-    ext.def(py::init([]() {
-        return std::make_shared<ModelAnalysisExtension>();
-    }));
-
-    ext.def(py::init([](const ModelAnalysisExtension::model_analysis_callback& callback) {
-        return std::make_shared<ModelAnalysisExtension>(callback);
-    }));
-
-    ext.def(py::init([](ModelAnalysisExtension::model_analysis_callback&& callback) {
-        return std::make_shared<ModelAnalysisExtension>(std::move(callback));
-    }));
-
-    ext.def("report_model_analysis", &ModelAnalysisExtension::report_model_analysis);
 }

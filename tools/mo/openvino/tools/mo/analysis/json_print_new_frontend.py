@@ -4,7 +4,6 @@
 import json
 from openvino.runtime import PartialShape, Model, Type        # pylint: disable=no-name-in-module,import-error
 from openvino.runtime.utils.types import get_dtype
-#from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_precision
 
 def json_model_analysis_dump(framework_model: Model):
 
