@@ -94,7 +94,21 @@ public:
     ///
     /// \return Function with added pre/post-processing operations
     std::shared_ptr<Model> build();
+
+private:
+    friend OPENVINO_API std::ostream& operator<<(std::ostream& str, const PrePostProcessor& prePostProcessor);
+    void dump(std::ostream&) const;
 };
+
+/// \brief Inserts a human-readable representation of a PrePostProcessors into an output stream. The output to the
+/// stream is in "informal" notation and can be used for debugging purposes
+///
+/// \param str The output stream targeted for insertion.
+///
+/// \param prePostProcessor The shape to be inserted into output stream.
+///
+/// \return A reference to same output stream after insertion.
+OPENVINO_API std::ostream& operator<<(std::ostream& str, const PrePostProcessor& prePostProcessor);
 
 }  // namespace preprocess
 }  // namespace ov

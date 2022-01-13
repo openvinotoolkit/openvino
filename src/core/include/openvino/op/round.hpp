@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    RoundMode m_mode;
+    RoundMode m_mode{RoundMode::HALF_TO_EVEN};
 };
 }  // namespace v5
 }  // namespace op

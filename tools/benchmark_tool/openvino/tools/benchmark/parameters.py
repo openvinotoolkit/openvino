@@ -138,12 +138,12 @@ def parse_args():
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
     args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
                       help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
-    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['U8', 'FP16', 'FP32'],
+    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
                       help='Optional. Specifies precision for all input layers of the network.')
-    args.add_argument('-op', '--output_precision', type=str, required=False, choices=['U8', 'FP16', 'FP32'],
+    args.add_argument('-op', '--output_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
                       help='Optional. Specifies precision for all output layers of the network.')
     args.add_argument('-iop', '--input_output_precision', type=str, required=False,
-                      help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
+                      help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
     args.add_argument('-cdir', '--cache_dir', type=str, required=False, default='',
                       help="Optional. Enable model caching to specified directory")
     args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,

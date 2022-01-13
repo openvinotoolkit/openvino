@@ -261,11 +261,12 @@ class BiasCorrection(Algorithm):
         inputs_data = []
         for input_node in input_nodes:
             input_node_name = nu.create_node_name(input_node)
+            input_node_data_type = nu.get_node_data_type(input_node)
             c_input_shape = outputs_shapes[input_node_name]
             c_input_shape[0] = 1
             parameter_name = input_node_name + '/parameter'
             param_node = ge.create_node(input_node.graph, parameter_name, 'Parameter',
-                                        {'shape': c_input_shape})
+                                        {'shape': c_input_shape, 'data_type': input_node_data_type})
             for _, port in input_node.out_ports().items():
                 for in_port in port.get_destinations():
                     in_port.disconnect()

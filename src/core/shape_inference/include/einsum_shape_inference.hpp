@@ -71,7 +71,7 @@ void shape_infer(const Einsum* op, const std::vector<T>& input_shapes, std::vect
                                               label_to_shape[label].compatible(T{pshape[label_ind]}),
                                               "Different input dimensions indicated by the same labels for Einsum "
                                               "must be compatible.");
-                        T::merge_into(label_to_shape[label], T{pshape[dim_ind]});
+                        OPENVINO_ASSERT(T::merge_into(label_to_shape[label], T{pshape[dim_ind]}));
                     }
                     ++dim_ind;
                 }

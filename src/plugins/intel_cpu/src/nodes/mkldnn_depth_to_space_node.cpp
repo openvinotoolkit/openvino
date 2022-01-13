@@ -4,20 +4,47 @@
 
 #include "mkldnn_depth_to_space_node.h"
 
-#include <cpu/x64/jit_generator.hpp>
 #include <mkldnn_extension_utils.h>
-#include "common/blocked_desc_creator.h"
 #include <utils/general_utils.h>
-#include <ngraph/opsets/opset1.hpp>
 
-#include <string>
 #include <cmath>
+#include <common/primitive_hashing_utils.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <string>
+
+#include "common/blocked_desc_creator.h"
 
 #define THROW_ERROR IE_THROW() << "DepthToSpace layer with name '" << getName() << "' "
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
+
+size_t MKLDNNDepthToSpaceNode::DepthToSpaceAttrs::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, layoutType);
+    seed = hash_combine(seed, mode);
+    seed = hash_combine(seed, blockSize);
+    seed = hash_combine(seed, blockStep);
+    seed = hash_combine(seed, dataSize);
+    seed = hash_combine(seed, nSpatialDims);
+    seed = get_vector_hash(seed, srcBlockedDims);
+
+    return seed;
+}
+
+bool MKLDNNDepthToSpaceNode::DepthToSpaceAttrs::operator==(const DepthToSpaceAttrs& rhs) const {
+    bool result = layoutType == rhs.layoutType && mode == rhs.mode &&
+                  blockSize == rhs.blockSize && blockStep == rhs.blockStep &&
+                  dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
+                  srcBlockedDims == rhs.srcBlockedDims;
+
+    return result;
+}
 
 bool MKLDNNDepthToSpaceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -157,7 +184,17 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
 
 void MKLDNNDepthToSpaceNode::prepareParams() {
     attrs.srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    execPtr = std::make_shared<DepthToSpaceExecutor>(attrs);
+    auto builder = [](const DepthToSpaceAttrs& key) -> std::shared_ptr<DepthToSpaceExecutor> {
+        return std::make_shared<DepthToSpaceExecutor>(key);
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(attrs, builder);
+    if (!result.first) {
+        IE_THROW() << "DepthToSpaceExecutor was not found for node " << getName() << ".";
+    }
+
+    execPtr = result.first;
 }
 
 MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs) {

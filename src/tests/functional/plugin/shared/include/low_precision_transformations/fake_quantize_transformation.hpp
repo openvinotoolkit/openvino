@@ -23,7 +23,8 @@ typedef std::tuple<
     ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    FakeQuantizeTransformationParam> FakeQuantizeTransformationParams;
+    FakeQuantizeTransformationParam,
+    bool> FakeQuantizeTransformationParams;
 
 class FakeQuantizeTransformation :
     public testing::WithParamInterface<FakeQuantizeTransformationParams>,
