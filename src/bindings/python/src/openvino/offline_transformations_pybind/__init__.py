@@ -2,6 +2,8 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# flake8: noqa
+
 from openvino.utils import add_openvino_libs_to_path
 
 add_openvino_libs_to_path()

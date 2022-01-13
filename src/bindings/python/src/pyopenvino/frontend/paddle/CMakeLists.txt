@@ -36,5 +36,5 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
         EXCLUDE_PATTERNS ".*\\.cxx")
 
 install(TARGETS ${TARGET_NAME}
-        DESTINATION python/${PYTHON_VERSION}/openvino
+        DESTINATION python/${PYTHON_VERSION}/openvino/frontend/paddle
         COMPONENT pyopenvino_${PYTHON_VERSION})

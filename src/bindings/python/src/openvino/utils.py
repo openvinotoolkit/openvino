@@ -4,7 +4,9 @@
 import os
 import sys
 
+
 def add_openvino_libs_to_path():
+    """Adds OpenVINO libs to path on Win OS."""
     if sys.platform == "win32":
         # Installer, yum, pip installs openvino dlls to the different directories
         # and those paths need to be visible to the openvino modules
