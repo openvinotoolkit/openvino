@@ -174,6 +174,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
         // Issue:
         R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
+        // Issue: encounter the sporadic crash in CI
+        R"(.*smoke_LoadNetworkToDefaultDeviceNoThrow*)"
     };
 
 #define FIX_62820 0
