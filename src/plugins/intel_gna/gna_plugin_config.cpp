@@ -80,7 +80,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             inputScaleFactors[input_index] = InferenceEngine::CNNLayer::ie_parse_float(value);
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)) {
             dumpXNNPath = value;
-        } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)) {
+        } else if (key == "GNA_FIRMWARE_MODEL_IMAGE_GENERATION") {
             dumpXNNGeneration = value;
         } else if (key == GNA_CONFIG_KEY(DEVICE_MODE)) {
             auto procType = supported_values.find(value);
@@ -236,7 +236,7 @@ void Config::AdjustKeyMapValues() {
                 std::to_string(inputScaleFactors[n]);
     }
     keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)] = dumpXNNPath;
-    keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)] = dumpXNNGeneration;
+    keyConfigMap["GNA_FIRMWARE_MODEL_IMAGE_GENERATION"] = dumpXNNGeneration;
 
     std::string device_mode;
     if (gnaFlags.sw_fp32) {
