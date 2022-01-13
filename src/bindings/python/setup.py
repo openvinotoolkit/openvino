@@ -40,7 +40,6 @@ packages = [
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
     "openvino",
-    # TODO: change the module name according to the description in 69196
     "openvino.frontend",
     "openvino.offline_transformations",
     "openvino.runtime.opset1",
