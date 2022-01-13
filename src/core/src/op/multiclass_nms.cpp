@@ -18,8 +18,6 @@
 
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v8::MulticlassNms);
-
 op::v8::MulticlassNms::MulticlassNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 
 op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)

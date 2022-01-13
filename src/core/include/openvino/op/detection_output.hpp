@@ -70,7 +70,6 @@ public:
     using Attributes = op::util::DetectionOutputBase::AttributesBase;
 
     OPENVINO_OP("DetectionOutput", "opset8", op::util::DetectionOutputBase);
-    BWDCMP_RTTI_DECLARATION;
 
     DetectionOutput() = default;
     /// \brief Constructs a DetectionOutput operation

@@ -17,7 +17,6 @@
 #include "ngraph/util.hpp"
 
 using namespace ngraph;
-BWDCMP_RTTI_DEFINITION(ov::op::v8::MatrixNms);
 
 op::v8::MatrixNms::MatrixNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 

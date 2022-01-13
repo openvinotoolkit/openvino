@@ -101,7 +101,6 @@ bool op::v1::Softmax::has_evaluate() const {
 }
 
 // *** SOFTMAX OP SET V8 ***
-BWDCMP_RTTI_DEFINITION(op::v8::Softmax);
 
 op::v8::Softmax::Softmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
