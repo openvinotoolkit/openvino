@@ -33,9 +33,13 @@ namespace InferenceEngine {
         OPENVINO_ASSERT(false, "Unexpected exception");                          \
     }
 
-ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so, const IExecutableNetworkInternal::Ptr& impl)
-    : _so(so),
-      _impl(impl) {
+ExecutableNetwork::~ExecutableNetwork() {
+    _impl = {};
+}
+
+ExecutableNetwork::ExecutableNetwork(const IExecutableNetworkInternal::Ptr& impl, const std::shared_ptr<void>& so)
+    : _impl(impl),
+      _so(so) {
     IE_ASSERT(_impl != nullptr);
 }
 
@@ -66,7 +70,7 @@ ExecutableNetwork::operator IExecutableNetwork::Ptr() {
 }
 
 InferRequest ExecutableNetwork::CreateInferRequest() {
-    EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
+    EXEC_NET_CALL_STATEMENT(return {_impl->CreateInferRequest(), _so});
 }
 
 InferRequest::Ptr ExecutableNetwork::CreateInferRequestPtr() {
@@ -90,11 +94,11 @@ void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config
 }
 
 Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetConfig(name)});
+    EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), _so});
 }
 
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetMetric(name)});
+    EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), _so});
 }
 
 RemoteContext::Ptr ExecutableNetwork::GetContext() const {
@@ -112,10 +116,15 @@ ExecutableNetwork::operator bool() const noexcept {
 
 namespace ov {
 namespace runtime {
-CompiledModel::CompiledModel(const std::shared_ptr<void>& so,
-                             const std::shared_ptr<ie::IExecutableNetworkInternal>& impl)
-    : _so{so},
-      _impl{impl} {
+
+CompiledModel::~CompiledModel() {
+    _impl = {};
+}
+
+CompiledModel::CompiledModel(const std::shared_ptr<ie::IExecutableNetworkInternal>& impl,
+                             const std::shared_ptr<void>& so)
+    : _impl{impl},
+      _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized.");
 }
 
@@ -191,7 +200,7 @@ ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name)
 }
 
 InferRequest CompiledModel::create_infer_request() {
-    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->CreateInferRequest(), _so});
 }
 
 void CompiledModel::export_model(std::ostream& networkModel) {
@@ -203,15 +212,15 @@ void CompiledModel::set_config(const ie::ParamMap& config) {
 }
 
 ie::Parameter CompiledModel::get_config(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetConfig(name)});
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), _so});
 }
 
 ie::Parameter CompiledModel::get_metric(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetMetric(name)});
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), _so});
 }
 
 RemoteContext CompiledModel::get_context() const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetContext()});
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), _so});
 }
 
 bool CompiledModel::operator!() const noexcept {

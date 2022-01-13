@@ -13,7 +13,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 
 # Create library file from sources.
-add_library(${TARGET_NAME} SHARED EXCLUDE_FROM_ALL ${MAIN_SRC} ${LIBRARY_HEADERS})
+add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${LIBRARY_HEADERS})
 
 # Find OpenCV components if exist
 find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)

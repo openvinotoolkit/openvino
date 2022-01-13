@@ -159,7 +159,6 @@ openvino/tools/mo/front/caffe/slice_to_split.py
 openvino/tools/mo/front/caffe/softmax_ext.py
 openvino/tools/mo/front/caffe/split_to_identity.py
 openvino/tools/mo/front/caffe/tanh.py
-openvino/tools/mo/front/ChangePlaceholderTypes.py
 openvino/tools/mo/front/common/__init__.py
 openvino/tools/mo/front/common/custom_replacement_registry.py
 openvino/tools/mo/front/common/extractors/__init__.py
@@ -604,6 +603,7 @@ openvino/tools/mo/front/tf/placeholder_ext.py
 openvino/tools/mo/front/tf/placeholder_with_default_ext.py
 openvino/tools/mo/front/tf/pooling_ext.py
 openvino/tools/mo/front/tf/prelu.py
+openvino/tools/mo/front/tf/QueueDequeue_ext.py
 openvino/tools/mo/front/tf/random_uniform_ext.py
 openvino/tools/mo/front/tf/random_uniform_int_ext.py
 openvino/tools/mo/front/tf/range_ext.py
@@ -623,6 +623,7 @@ openvino/tools/mo/front/tf/rfcn_support_api_v1.13.json
 openvino/tools/mo/front/tf/rfcn_support_api_v1.14.json
 openvino/tools/mo/front/tf/roll_ext.py
 openvino/tools/mo/front/tf/RollRealImagPack.py
+openvino/tools/mo/front/tf/scatter_nd_ext.py
 openvino/tools/mo/front/tf/select_ext.py
 openvino/tools/mo/front/tf/sign_ext.py
 openvino/tools/mo/front/tf/slice_ext.py
@@ -655,6 +656,7 @@ openvino/tools/mo/front/tf/TensorArrayGatherV3.py
 openvino/tools/mo/front/tf/tensorflow_custom_operations_config_update.py
 openvino/tools/mo/front/tf/TFFFTToDFT.py
 openvino/tools/mo/front/tf/TFResizeToInterpolate.py
+openvino/tools/mo/front/tf/TFScatterNDDecomposition.py
 openvino/tools/mo/front/tf/TFSliceToSlice.py
 openvino/tools/mo/front/tf/tile_ext.py
 openvino/tools/mo/front/tf/topk_ext.py
@@ -1083,6 +1085,7 @@ openvino/tools/mo/utils/telemetry_params.py
 openvino/tools/mo/utils/telemetry_stub.py
 openvino/tools/mo/utils/telemetry_utils.py
 openvino/tools/mo/utils/tensorboard_util.py
+openvino/tools/mo/utils/type_utils.py
 openvino/tools/mo/utils/unsupported_ops.py
 openvino/tools/mo/utils/utils.py
 openvino/tools/mo/utils/version.py

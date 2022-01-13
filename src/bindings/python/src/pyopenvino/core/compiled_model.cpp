@@ -38,7 +38,7 @@ void regclass_CompiledModel(py::module m) {
         },
         py::arg("inputs"));
 
-    cls.def("export_model", &ov::runtime::CompiledModel::export_model, py::arg("network_model"));
+    cls.def("export_model", &ov::runtime::CompiledModel::export_model, py::arg("model_stream"));
 
     cls.def(
         "get_config",
@@ -64,7 +64,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "input",
         (ov::Output<const ov::Node>(ov::runtime::CompiledModel::*)(size_t) const) & ov::runtime::CompiledModel::input,
-        py::arg("i"));
+        py::arg("index"));
 
     cls.def("input",
             (ov::Output<const ov::Node>(ov::runtime::CompiledModel::*)(const std::string&) const) &
@@ -79,7 +79,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "output",
         (ov::Output<const ov::Node>(ov::runtime::CompiledModel::*)(size_t) const) & ov::runtime::CompiledModel::output,
-        py::arg("i"));
+        py::arg("index"));
 
     cls.def("output",
             (ov::Output<const ov::Node>(ov::runtime::CompiledModel::*)(const std::string&) const) &

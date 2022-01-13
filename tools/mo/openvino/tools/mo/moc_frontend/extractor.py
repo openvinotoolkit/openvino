@@ -11,7 +11,7 @@ from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,im
 import numpy as np
 
 
-def decode_name_with_port(input_model: InputModel, node_name: str):
+def decode_name_with_port(input_model: InputModel, node_name: str, framework=""):
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
     TODO: in future node_name can specify input/output port groups as well as indices (58562)
@@ -27,13 +27,24 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
         found_node_names.append('Tensor:' + node_name)
         found_nodes.append(node)
 
+
+    def try_get_node(model, name, framework):
+        node = model.get_place_by_operation_name(name)
+        if node:
+            return node
+        if framework == "onnx":
+            tensor = model.get_place_by_tensor_name(name)
+            if tensor:
+                return tensor.get_producing_operation()
+        return None
+
+
     regexp_post = r'(.+):(\d+)'
     match_post = re.search(regexp_post, node_name)
     if match_post:
-        node_post = input_model.get_place_by_operation_name(match_post.group(1))
+        node_post = try_get_node(input_model, match_post.group(1), framework)
         if node_post:
-            node_post = node_post.get_output_port(
-                outputPortIndex=int(match_post.group(2)))
+            node_post = node_post.get_output_port(output_port_index=int(match_post.group(2)))
             if node_post:
                 found_node_names.append(match_post.group(1))
                 found_nodes.append(node_post)
@@ -41,10 +52,9 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     regexp_pre = r'(\d+):(.+)'
     match_pre = re.search(regexp_pre, node_name)
     if match_pre:
-        node_pre = input_model.get_place_by_operation_name(match_pre.group(2))
+        node_pre = try_get_node(input_model, match_pre.group(2), framework)
         if node_pre:
-            node_pre = node_pre.get_input_port(
-                inputPortIndex=int(match_pre.group(1)))
+            node_pre = node_pre.get_input_port(input_port_index=int(match_pre.group(1)))
             if node_pre:
                 found_node_names.append(match_pre.group(2))
                 found_nodes.append(node_pre)
@@ -56,19 +66,13 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
     if not all([n.is_equal_data(found_nodes[0]) for n in found_nodes]):
         raise_node_name_collision(node_name, found_node_names)
 
-    # TODO: ONNX specific (59408)
-    # To comply with legacy behavior, for ONNX-only there shall be considered additional 2 possibilities
-    # 1) "abc:1" - get_place_by_tensor_name("abc").get_producing_operation().get_output_port(1)
-    # 2) "1:abc" - get_place_by_tensor_name("abc").get_producing_operation().get_input_port(1)
-    # This logic is not going to work with other frontends
-
     # TODO: Add support for input/output group name and port index here (58562)
     # For new frontends logic shall be extended to additionally support input and output group names
     return found_nodes[0]
 
 
 def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None, list, dict, np.ndarray],
-                              freeze_placeholder: dict, input_user_data_types=dict()):
+                              freeze_placeholder: dict, framework: str, input_user_data_types=dict(), ):
     """
     Restructures user input cutting request. Splits ports out of node names.
         Transforms node names to node ids.
@@ -109,15 +113,15 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
     _input_shapes = []
     if isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
         for input_name in input_user_shapes:
-            node = decode_name_with_port(input_model, input_name)
+            node = decode_name_with_port(input_model, input_name, framework)
             if node is None:
                 raise Error('Cannot find location {} in the input model'.format(input_name))
             shape = None if isinstance(input_user_shapes, list) else input_user_shapes[input_name]
             if input_user_data_types.get(input_name) is not None:
                 data_type = input_user_data_types[input_name]
-                _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
+                _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type, 'input_name': input_name})
             else:
-                _input_shapes.append({'node': node, 'shape': shape})
+                _input_shapes.append({'node': node, 'shape': shape, 'input_name': input_name})
     elif isinstance(input_user_shapes, tuple):
         model_inputs = input_model.get_inputs()
         assert len(model_inputs) == 1
@@ -128,7 +132,7 @@ def fe_input_user_data_repack(input_model: InputModel, input_user_shapes: [None,
     return _input_shapes, dict()
 
 
-def fe_output_user_data_repack(input_model: InputModel, outputs: list):
+def fe_output_user_data_repack(input_model: InputModel, outputs: list, framework: str):
     """
 
     :param input_model: Input Model to operate on
@@ -155,7 +159,7 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list):
     _outputs = []
     if outputs is not None:
         for output in outputs:
-            node = decode_name_with_port(input_model, output)
+            node = decode_name_with_port(input_model, output, framework)
             if node is None:
                 raise Error('Cannot find location {} in the graph'.format(output))
             _outputs.append({'node': node})
@@ -163,7 +167,7 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list):
 
 
 def fe_user_data_repack(input_model: InputModel, input_user_shapes: [None, list, dict, np.array],
-                        input_user_data_types: dict, outputs: list, freeze_placeholder: dict):
+                        input_user_data_types: dict, outputs: list, freeze_placeholder: dict, framework: str):
     """
     :param input_model: Input Model to operate on
     :param input_user_shapes: data structure representing user input cutting request
@@ -173,7 +177,7 @@ def fe_user_data_repack(input_model: InputModel, input_user_shapes: [None, list,
     :return: restructured input, output and freeze placeholder dictionaries or None values
     """
     _input_shapes, _freeze_placeholder = fe_input_user_data_repack(
-        input_model, input_user_shapes, freeze_placeholder, input_user_data_types=input_user_data_types)
-    _outputs = fe_output_user_data_repack(input_model, outputs)
+        input_model, input_user_shapes, freeze_placeholder,  framework, input_user_data_types=input_user_data_types,)
+    _outputs = fe_output_user_data_repack(input_model, outputs, framework)
 
     return _input_shapes, _outputs, _freeze_placeholder

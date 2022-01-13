@@ -1,5 +1,334 @@
 # Installing Model Optimizer Pre-Requisites {#openvino_docs_MO_DG_prepare_model_Config_Model_Optimizer}
 
+@sphinxdirective
+
+.. tab:: Using configuration scripts
+
+   .. tab:: Linux
+
+      .. tab:: All frameworks
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               ./install_prerequisites.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               ./install_prerequisites.shs
+
+      .. tab:: Caffe
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisitess
+               install_prerequisites_caffe.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_caffe.shs
+
+      .. tab:: Tensorflow 1.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 2.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: MXNet
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: ONNX
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Kaldi
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+   .. tab:: Windows
+
+      .. tab:: All frameworks
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Caffe
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 1.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 2.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            tests
+
+      .. tab:: MXNet
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: ONNX
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Kaldi
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+   .. tab:: macOS
+
+      .. tab:: All frameworks
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Caffe
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 1.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 2.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            tests
+
+      .. tab:: MXNet
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: ONNX
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Kaldi
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+.. tab:: Using manual configuration process
+
+   .. tab:: Linux
+
+      .. tab:: All frameworks
+      
+         test
+
+      .. tab:: Caffe
+      
+         test
+
+      .. tab:: Tensorflow 1.x
+      
+         test
+
+      .. tab:: Tensorflow 2.x
+      
+         test
+
+      .. tab:: MXNet
+      
+         test
+
+      .. tab:: ONNX
+      
+         test
+
+      .. tab:: Kaldi
+      
+         test
+
+
+   .. tab:: Windows
+
+      .. tab:: All frameworks
+      
+         test
+
+      .. tab:: Caffe
+      
+         test
+
+      .. tab:: Tensorflow 1.x
+      
+         test
+
+      .. tab:: Tensorflow 2.x
+      
+         test
+
+      .. tab:: MXNet
+      
+         test
+
+      .. tab:: ONNX
+      
+         test
+
+      .. tab:: Kaldi
+      
+         test
+
+   .. tab:: macOS
+
+      .. tab:: All frameworks
+      
+         test
+
+      .. tab:: Caffe
+      
+         test
+
+      .. tab:: Tensorflow 1.x
+      
+         test
+
+      .. tab:: Tensorflow 2.x
+      
+         test
+
+      .. tab:: MXNet
+      
+         test
+
+      .. tab:: ONNX
+      
+         test
+
+      .. tab:: Kaldi
+      
+         test
+
+@endsphinxdirective
+
 Before running the Model Optimizer, you must install the Model Optimizer pre-requisites for the framework that was used to train the model. This section tells you how to install the pre-requisites either through scripts or by using a manual process.
 
 ## Using Configuration Scripts
@@ -46,21 +375,13 @@ install_prerequisites_caffe.sh
 ```
 install_prerequisites_caffe.bat
 ```
-*   For TensorFlow\* 1.x on Linux:
+*   For TensorFlow\* on Linux:
 ```
 install_prerequisites_tf.sh
 ```
-*   For TensorFlow 1.x on Windows:
+*   For TensorFlow on Windows:
 ```
 install_prerequisites_tf.bat
-```
-*   For TensorFlow\* 2.x on Linux:
-```
-install_prerequisites_tf2.sh
-```
-*   For TensorFlow 2.x on Windows:
-```
-install_prerequisites_tf2.bat
 ```
 *   For MXNet\* on Linux:
 ```
@@ -124,19 +445,15 @@ virtualenv -p /usr/bin/python3.6 .env3/bin/activate
 ```shell
 pip3 install -r requirements.txt
 ```
-> **NOTE**: TensorFlow 1.x and 2.x are incompatible. Use separate virtual environments if you want to install multiple TensorFlow versions.
+> **NOTE**: Support of MO in TensorFlow 1.x environment is deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models. Use separate virtual environments if you want to install multiple TensorFlow versions.
 
     *   To install dependencies only for Caffe:
 ```shell
 pip3 install -r requirements_caffe.txt
 ```
-    *   To install dependencies only for TensorFlow 1.x:
+    *   To install dependencies only for TensorFlow:
 ```shell
 pip3 install -r requirements_tf.txt
-```
-    *   To install dependencies only for TensorFlow 2.x:
-```shell
-pip3 install -r requirements_tf2.txt
 ```
     *   To install dependencies only for MXNet:
 ```shell
@@ -152,8 +469,18 @@ pip3 install -r requirements_onnx.txt
 ```
 
 ## Using the protobuf Library in the Model Optimizer for Caffe\*
-<details>
-    <summary>Click to expand</summary>
+
+
+
+
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="Click to expand">
+
+@endsphinxdirective
 
 
 
@@ -264,7 +591,15 @@ python3 -m easy_install dist/protobuf-3.6.1-py3.6-win-amd64.egg
 set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 ```
 
-</details>
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ## See Also
 

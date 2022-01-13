@@ -4,8 +4,6 @@
 
 #pragma once
 
-#if GNA_LIB_VER == 2
-
 #include <gna2-common-api.h>
 #include <gna2-model-api.h>
 #include "backend/dnn_types.h"
@@ -124,5 +122,3 @@ void HelperGna2OperationInitDeInterleave(
     Gna2Operation * operation,
     Gna2UserAllocator userAllocator, GnaUserFree userFree,
     Gna2Tensor * inputs, Gna2Tensor * outputs);
-
-#endif

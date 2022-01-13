@@ -61,12 +61,9 @@ public:
             // Remote tensor
             data2 = nullptr;
         }
-        return t1.get_element_type() == t2.get_element_type() &&
-            t1.get_shape() == t2.get_shape() &&
-            t1.get_byte_size() == t2.get_byte_size() &&
-            t1.get_size() == t2.get_size() &&
-            t1.get_strides() == t2.get_strides() &&
-            data1 == data2;
+        return t1.get_element_type() == t2.get_element_type() && t1.get_shape() == t2.get_shape() &&
+               t1.get_byte_size() == t2.get_byte_size() && t1.get_size() == t2.get_size() &&
+               t1.get_strides() == t2.get_strides() && data1 == data2;
     }
 
 protected:
@@ -78,6 +75,12 @@ protected:
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function, targetDevice, configuration));
+}
+
+TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
+    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeConvPoolRelu();
+    EXPECT_NO_THROW(auto execNet = core->compile_model(function));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
@@ -542,8 +545,8 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
         result1->set_friendly_name("result1");
         auto result2 = std::make_shared<ov::opset8::Result>(split->output(1));
         result2->set_friendly_name("result2");
-        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
-                                                      ngraph::ParameterVector{param1});
+        function =
+            std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2}, ngraph::ParameterVector{param1});
         function->set_friendly_name("SingleSplit");
     }
     execNet = core->compile_model(function, targetDevice, configuration);
@@ -650,6 +653,51 @@ TEST_P(OVExecutableNetworkBaseTest, getCompiledModelFromInferRequest) {
         ASSERT_NO_THROW(another_req.infer());
     }
 }
+
+TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV10Model) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(10);
+        function->set_friendly_name("SimpleReLU");
+    }
+    EXPECT_THROW(core->compile_model(function, targetDevice, configuration), ov::Exception);
+}
+
+TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV11Model) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::CompiledModel execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("data1");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result = std::make_shared<ov::opset8::Result>(relu);
+        result->set_friendly_name("result");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+        function->get_rt_info()["version"] = int64_t(11);
+        function->set_friendly_name("SimpleReLU");
+    }
+    EXPECT_NO_THROW(core->compile_model(function, targetDevice, configuration));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

@@ -50,7 +50,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Hetero Executable Network GetMetric
 //
 
-#ifdef ENABLE_MKL_DNN
+#ifdef ENABLE_INTEL_CPU
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
@@ -68,5 +68,5 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
-#endif  // ENABLE_MKL_DNN
+#endif  // ENABLE_INTEL_CPU
 } // namespace
