@@ -174,29 +174,6 @@ InferenceEngine::Precision getPrecision(const std::string& value) {
     return getPrecision(value, supported_precisions);
 }
 
-void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string& iop) {
-    const auto user_precisions_map = parseArgMap(iop);
-
-    auto inputs = network.getInputsInfo();
-    auto outputs = network.getOutputsInfo();
-
-    for (auto&& item : user_precisions_map) {
-        const auto& layer_name = item.first;
-        const auto& user_precision = item.second;
-
-        const auto input = inputs.find(layer_name);
-        const auto output = outputs.find(layer_name);
-
-        if (input != inputs.end()) {
-            input->second->setPrecision(getPrecision(user_precision));
-        } else if (output != outputs.end()) {
-            output->second->setPrecision(getPrecision(user_precision));
-        } else {
-            throw std::logic_error(layer_name + " is not an input neither output");
-        }
-    }
-}
-
 using supported_type_t = std::unordered_map<std::string, ov::element::Type>;
 ov::element::Type getType(std::string value, const supported_type_t& supported_precisions) {
     std::transform(value.begin(), value.end(), value.begin(), ::toupper);
@@ -224,29 +201,6 @@ ov::element::Type getType(const std::string& value) {
 }
 
 }  // namespace
-
-void processPrecision(InferenceEngine::CNNNetwork& network,
-                      const std::string& ip,
-                      const std::string& op,
-                      const std::string& iop) {
-    if (!ip.empty()) {
-        const auto user_precision = getPrecision(ip);
-        for (auto&& layer : network.getInputsInfo()) {
-            layer.second->setPrecision(user_precision);
-        }
-    }
-
-    if (!op.empty()) {
-        auto user_precision = getPrecision(op);
-        for (auto&& layer : network.getOutputsInfo()) {
-            layer.second->setPrecision(user_precision);
-        }
-    }
-
-    if (!iop.empty()) {
-        setPrecisions(network, iop);
-    }
-}
 
 namespace {
 using supported_layouts_t = std::unordered_map<std::string, InferenceEngine::Layout>;
@@ -295,79 +249,8 @@ bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
     return dimension == dims->second;
 }
 
-void setLayouts(const InferenceEngine::CNNNetwork& network, const std::string iol) {
-    const auto user_layouts_map = parseArgMap(iol);
-
-    auto inputs = network.getInputsInfo();
-    auto outputs = network.getOutputsInfo();
-
-    for (auto&& item : user_layouts_map) {
-        const auto& layer_name = item.first;
-        const auto& user_layout = getLayout(item.second);
-
-        const auto input = inputs.find(layer_name);
-        const auto output = outputs.find(layer_name);
-
-        if (input != inputs.end()) {
-            if (!isMatchLayoutToDims(user_layout, input->second->getTensorDesc().getDims().size())) {
-                throw std::logic_error(item.second + " layout is not applicable to " + layer_name);
-            }
-
-            input->second->setLayout(user_layout);
-        } else if (output != outputs.end()) {
-            if (!isMatchLayoutToDims(user_layout, output->second->getTensorDesc().getDims().size())) {
-                throw std::logic_error(item.second + " layout is not applicable to " + layer_name);
-            }
-
-            output->second->setLayout(user_layout);
-        } else {
-            throw std::logic_error(layer_name + " is not an input neither output");
-        }
-    }
-}
 }  // namespace
 
-void processLayout(InferenceEngine::CNNNetwork& network,
-                   const std::string& il,
-                   const std::string& ol,
-                   const std::string& iol) {
-    if (!il.empty()) {
-        const auto layout = getLayout(il);
-        for (auto&& layer : network.getInputsInfo()) {
-            if (isMatchLayoutToDims(layout, layer.second->getTensorDesc().getDims().size())) {
-                layer.second->setLayout(layout);
-            }
-        }
-    }
-
-    if (!ol.empty()) {
-        const auto layout = getLayout(ol);
-        for (auto&& layer : network.getOutputsInfo()) {
-            if (isMatchLayoutToDims(layout, layer.second->getTensorDesc().getDims().size())) {
-                layer.second->setLayout(layout);
-            }
-        }
-    }
-
-    if (!iol.empty()) {
-        setLayouts(network, iol);
-    }
-}
-
-void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network) {
-    std::cout << "Network inputs:" << std::endl;
-    for (auto&& layer : network.getInputsInfo()) {
-        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / "
-                  << layer.second->getLayout() << std::endl;
-    }
-    std::cout << "Network outputs:" << std::endl;
-    for (auto&& layer : network.getOutputsInfo()) {
-        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / "
-                  << layer.second->getLayout() << std::endl;
-    }
-}
-
-//--- API 2.0 -------------------------------------------------------------------------------------
 void printInputAndOutputsInfoShort(const ov::Model& network) {
     std::cout << "Network inputs:" << std::endl;
     for (auto&& param : network.get_parameters()) {

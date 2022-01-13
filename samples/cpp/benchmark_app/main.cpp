@@ -11,6 +11,7 @@
 #include <vector>
 
 // clang-format off
+#include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
 
 #include "gna/gna_config.hpp"
@@ -173,10 +174,8 @@ int main(int argc, char* argv[]) {
         ov::runtime::Core core;
 
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
-            // pointer to base extension
-            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
-            core.add_extension(extension_ptr);
+            // CPU (MKLDNN) extensions is loaded as a shared library
+            core.add_extension(FLAGS_l);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
 

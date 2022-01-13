@@ -13,7 +13,6 @@
 #include <string>
 #include <vector>
 
-#include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
 // clang-format on
 
@@ -31,17 +30,6 @@ void readInputFilesArguments(std::vector<std::string>& files, const std::string&
  */
 void parseInputFilesArguments(std::vector<std::string>& files);
 
-void processPrecision(InferenceEngine::CNNNetwork& network,
-                      const std::string& ip,
-                      const std::string& op,
-                      const std::string& iop);
-
-void processLayout(InferenceEngine::CNNNetwork& network,
-                   const std::string& il,
-                   const std::string& ol,
-                   const std::string& iol);
-
-void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network);
 void printInputAndOutputsInfo(const ov::Model& network);
 
 void configurePrePostProcessing(std::shared_ptr<ov::Model>& function,
@@ -55,7 +43,6 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& function,
                                 const std::string& oml,
                                 const std::string& ioml);
 
-//--- API 2.0 -------------------------------------------------------------------------
 void printInputAndOutputsInfo(const ov::Model& network);
 void printInputAndOutputsInfoShort(const ov::Model& network);
 void processPrecision(const ov::Model& network, const std::string& ip, const std::string& op, const std::string& iop);
