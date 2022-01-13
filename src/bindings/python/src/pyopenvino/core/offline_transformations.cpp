@@ -13,6 +13,7 @@
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
 #include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
+#include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/serialize.hpp>
 
@@ -48,6 +49,16 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("function"),
         py::arg("cf"));
+
+    m_offline_transformations.def(
+        "apply_moc_legacy_transformations",
+        [](std::shared_ptr<ov::Model> function, const std::vector<std::string>& params_with_custom_types) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::MOCLegacyTransformations>(params_with_custom_types);
+            manager.run_passes(function);
+        },
+        py::arg("function"),
+        py::arg("params_with_custom_types"));
 
     m_offline_transformations.def(
         "apply_pot_transformations",

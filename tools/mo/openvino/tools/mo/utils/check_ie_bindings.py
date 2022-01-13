@@ -48,7 +48,8 @@ def import_core_modules(silent: bool, path_to_module: str):
     :return: True if all imports were successful and False otherwise
     """
     try:
-        from openvino.offline_transformations_pybind import apply_moc_transformations, apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations_pybind import apply_moc_transformations, apply_moc_legacy_transformations, \
+            apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
         from openvino.offline_transformations_pybind import apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
         from openvino.offline_transformations_pybind import generate_mapping_file, apply_make_stateful_transformation, serialize  # pylint: disable=import-error,no-name-in-module
 
