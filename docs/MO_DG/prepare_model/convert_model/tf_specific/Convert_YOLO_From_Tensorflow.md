@@ -24,12 +24,12 @@ git clone https://github.com/david8862/keras-YOLOv3-model-set
 ```
 
 3. Convert the model to the TensorFlow 2\* format:
-    - for YOLOv4:
+    -- for YOLOv4:
     ```sh
     python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4.cfg <path_to_weights>/yolov4.weights <saved_model_dir>
     ```
 
-    - for YOLOv4-tiny:
+    -- for YOLOv4-tiny:
     ```sh
     python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4-tiny.cfg <path_to_weights>/yolov4-tiny.weights <saved_model_dir>
     ```
