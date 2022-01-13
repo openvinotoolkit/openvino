@@ -11,6 +11,7 @@ import traceback
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
+import json
 
 try:
     import openvino_telemetry as tm
@@ -333,6 +334,36 @@ def check_fallback(argv : argparse.Namespace):
             return False
         return True
 
+    def is_new_json_config(json_file_path: Path):
+        with open(json_file_path) as stream:
+            config_content = json.load(stream)
+            if len(config_content) == 0: # empty case
+                return False
+            if isinstance(config_content, dict): # single transformation
+                return 'library' in config_content.keys()
+            # many transformations in single file
+            library_counter = 0
+            for transform in config_content:
+                if any(key == 'library' for key in transform.keys()):
+                    library_counter+=1
+            if len(config_content) == library_counter: # all transformations has 'library' attribute
+                return True
+            elif library_counter == 0: # all transformations are legacy type
+                return False
+            else:
+                raise Error('Mixed types of transformations configurations were used')
+
+    def legacy_transformations_config_used(argv):
+        any_transform_used = hasattr(argv, 'transformations_config') \
+            and argv.transformations_config is not None and len(argv.transformations_config)
+        if not any_transform_used:
+            return False
+        path = Path(argv.transformations_config)
+        new_config_used = path.is_file() and path.suffix == '.json' and is_new_json_config(path)
+        if new_config_used:
+            return False
+        return True
+
     # Some frontend such as PDPD does not have legacy path so it has no reasons to fallback
     if not any(deduce_framework_by_namespace(argv)):
         return fallback_reasons
@@ -342,8 +373,7 @@ def check_fallback(argv : argparse.Namespace):
         return fallback_reasons
 
     fallback_reasons['extensions'] = legacy_extensions_used
-    fallback_reasons['transformations_config'] = \
-        lambda argv: hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config) > 0
+    fallback_reasons['transformations_config'] = legacy_transformations_config_used
 
     reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons
