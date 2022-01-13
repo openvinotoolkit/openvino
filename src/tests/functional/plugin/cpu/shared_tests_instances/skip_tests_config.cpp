@@ -174,6 +174,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
         // Issue:
         R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
+        // Issue: 75022
+        R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
+        R"(.*IEClassBasicTest.*smoke_LoadNetworkToDefaultDeviceNoThrow.*)",
     };
 
 #define FIX_62820 0
