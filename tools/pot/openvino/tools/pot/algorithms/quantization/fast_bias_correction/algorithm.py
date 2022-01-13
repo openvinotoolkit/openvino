@@ -211,7 +211,7 @@ class FastBiasCorrection(Algorithm):
             input_node = nu.get_node_input(op_node, 0)
             if input_node.type == 'FakeQuantize':
                 input_node = nu.get_node_input(input_node, 0)
-            calculate_input_shape[input_node.name] = {'shape_node': lambda x: x.shape}
+            calculate_input_shape[input_node.fullname] = {'shape_node': lambda x: x.shape}
         _, inputs_shape = self._engine.predict(calculate_input_shape, sampler)
         for node_name, shape_node in inputs_shape.items():
             inputs_shape[node_name] = shape_node['shape_node'][0]
