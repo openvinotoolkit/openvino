@@ -4,6 +4,10 @@
 
 set(TARGET_NAME cpuUnitTests)
 
+if(BUILD_SHARED_LIBS)
+    set (OBJ_LIB $<TARGET_OBJECTS:ov_intel_cpu_plugin_obj>)
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -12,7 +16,7 @@ addIeTargetTest(
             $<TARGET_PROPERTY:ov_intel_cpu_plugin,SOURCE_DIR>/src/nodes
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
         OBJECT_FILES
-            $<TARGET_OBJECTS:ov_intel_cpu_plugin_obj>
+            ${OBJ_LIB}
         LINK_LIBRARIES
             gtest
             gtest_main

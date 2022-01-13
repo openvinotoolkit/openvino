@@ -858,6 +858,28 @@ static RefPreprocessParams set_shape_custom_crop() {
     return res;
 }
 
+static RefPreprocessParams set_shape_with_resize() {
+    RefPreprocessParams res("set_shape_with_resize");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 3, 1, 1});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_shape({1, 2, 2, 3}).set_layout("NHWC");
+        p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+        p.input().model().set_layout("NCHW");
+        p.build();
+        return f;
+    };
+    auto input_size = 1 * 2 * 2 * 3;
+    std::vector<float> input_values(input_size);
+    std::iota(input_values.begin(), input_values.end(), 0);
+    res.inputs.emplace_back(element::f32, Shape{1, 2, 2, 3}, std::vector<float> {1, 2, 3,
+                                                                                 1, 2, 3,
+                                                                                 1, 2, 3,
+                                                                                 1, 2, 3});
+    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{ 1,  2,  3});
+    return res;
+}
+
 static RefPreprocessParams postprocess_2_inputs_basic() {
     RefPreprocessParams res("postprocess_2_inputs_basic");
     res.function = []() {
@@ -1133,6 +1155,7 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
             convert_color_i420_to_bgr_three_planes(),
             convert_color_i420_single_plane(),
             set_shape_custom_crop(),
+            set_shape_with_resize(),
             postprocess_2_inputs_basic(),
             post_convert_layout_by_dims(),
             post_convert_layout_by_dims_multi(),

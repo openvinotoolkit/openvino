@@ -302,10 +302,15 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_i
 
     // const axes mapping
     const auto axes_mapping_const = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 2, 1, 3});
-    bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
-    ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_shape(), (Shape{1, 1, 5, 10}));
+    try {
+        auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
+        FAIL() << "Broadcast: Broadcast axes_mapping shape doesn't match rank of input tensor";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Broadcast axes_mapping shape {4} doesn't match rank of input tensor 3"));
+    } catch (...) {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_input_shape) {
