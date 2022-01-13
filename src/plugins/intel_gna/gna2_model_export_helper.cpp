@@ -96,7 +96,9 @@ void ExportGnaDescriptorPartiallyFilled(uint32_t number_of_layers, std::ostream&
     outStream.write(gd, sizeof(gd));
     outStream.write(gd2, sizeof(gd2));
     // TODO: GNA2: Scratchpad
-    outStream.fill(constScratchFill);
-    outStream.width(scratchPadSize);
+    auto previousCharacter = outStream.fill(constScratchFill);
+    auto previousWidth = outStream.width(scratchPadSize);
     outStream << constScratchFill;
+    outStream.width(previousWidth);
+    outStream.fill(previousCharacter);
 }

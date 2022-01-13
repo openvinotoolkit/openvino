@@ -24,7 +24,7 @@ namespace low_precision {
 constexpr char LayerTransformation::originalLayerPostfix[];
 
 // order defines default precision
-std::vector<ngraph::element::Type> LayerTransformation::defaultPrecisions = { ngraph::element::u8,  ngraph::element::i8 };
+std::vector<ngraph::element::Type> LayerTransformation::defaultPrecisions = precision_set::int8_support;
 std::mutex LayerTransformation::defaultPrecisionsMutex;
 
 LayerTransformation::LayerTransformation(const Params& params) :
@@ -210,6 +210,9 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
 
     bool hasZeroPoint = false;
     bool thereIsAtLeastOneNormalValue = false;
+
+    std::vector<size_t> fullRangeLevels = { levels::int4, levels::int8, levels::int16, levels::int32 };
+
     for (size_t i = 0; i < outputLowValues.size(); ++i) {
         if ((std::fabs(outputLowValues[i]) < zeroThreshold) && (std::fabs(outputHighValues[i]) < zeroThreshold)) {
             // both values are too small to identify preferable precision
@@ -226,9 +229,8 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
             hasNegative = true;
 
             if (outputHighValues[i] != 0.f) {
-                const float expectedRatio =
-                        (quantizationLevels == 16 || quantizationLevels == 256 ||
-                         quantizationLevels == 65536 || quantizationLevels == 4294967296) ? asymmetricIntervalSideRatio : -1.f;
+                auto it = std::find(fullRangeLevels.begin(), fullRangeLevels.end(), quantizationLevels);
+                const float expectedRatio = it != fullRangeLevels.end() ? asymmetricIntervalSideRatio : -1.f;
                 const float actualRatio = outputLowValues[i] / outputHighValues[i];
                 const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
                 if (actual > quantizationIntervalAsymmetryThreshold) {
@@ -272,37 +274,35 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     if (!hasZeroPoint) {
         if (signedPrecision && (!unsignedPrecision)) {
             switch (quantizationLevels) {
-                case 256:
-                case 255:
-                case 16:
+                case levels::int4:
+                case levels::int8:
+                case levels::int8_narrow_range:
                     resultPrecision = element::i8;
                     break;
-                case 65536:
-                case 65535:
+                case levels::int16:
+                case levels::int16_narrow_range:
                     resultPrecision = element::i16;
                     break;
-                case static_cast<size_t>(4294967296):
-                case 4294967295:
+                case levels::int32:
+                case levels::int32_narrow_range:
                     resultPrecision = element::i32;
-                    break;
             }
         }
 
         if ((!signedPrecision) && unsignedPrecision) {
             switch (quantizationLevels) {
-                case 256:
-                case 255:
-                case 16:
+                case levels::int4:
+                case levels::int8:
+                case levels::int8_narrow_range:
                     resultPrecision = element::u8;
                     break;
-                case 65536:
-                case 65535:
+                case levels::int16:
+                case levels::int16_narrow_range:
                     resultPrecision = element::u16;
                     break;
-                case static_cast<size_t>(4294967296):
-                case 4294967295:
+                case levels::int32:
+                case levels::int32_narrow_range:
                     resultPrecision = element::u32;
-                    break;
             }
         }
     }
@@ -337,16 +337,16 @@ DataPrecision LayerTransformation::getDataPrecision(
     std::vector<element::Type> resultPrecisions = precisions;
     std::vector<element::Type> FQPrecisions;
     switch (quantizationDetails.levels) {
-        case 255:
-        case 256:
+        case levels::int8:
+        case levels::int8_narrow_range:
             FQPrecisions = {element::u8, element::i8};
             break;
-        case 65535:
-        case 65536:
+        case levels::int16:
+        case levels::int16_narrow_range:
             FQPrecisions = {element::u16, element::i16};
             break;
-        case 4294967295:
-        case static_cast<size_t>(4294967296):
+        case levels::int32:
+        case levels::int32_narrow_range:
             FQPrecisions = {element::u32, element::i32};
     }
     resultPrecisions = NetworkHelper::precisionIntersection(precisions, FQPrecisions);
@@ -384,6 +384,17 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     const bool moveSubtract) const {
     const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision, moveSubtract);
     updateOutput(context, result.lastDequantization, result.newOperation);
+    return result.newOperation;
+}
+
+std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationBefore(
+    TransformationContext& context,
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization,
+    const bool updatePrecision,
+    const bool moveSubtract) const {
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation, dequantization, updatePrecision, moveSubtract);
+    updateOutput(context, result.newOperation, result.lastDequantization);
     return result.newOperation;
 }
 
