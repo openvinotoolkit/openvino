@@ -1392,6 +1392,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             bool valid_params = valid_ic && valid_groups && onednn_valid_post_ops && valid_batch;
             if (!valid_params)
                 impl_candidate = impl_types::ocl;
+            if (input_layout.data_type != deconv.get_output_layout().data_type)
+                impl_candidate = impl_types::ocl;
         }
 
         // [WA] oneDNN doesn't support > 32 post-ops. Remove once oneDNN improve post-ops for GPU.
