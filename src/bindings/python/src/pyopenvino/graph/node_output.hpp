@@ -26,7 +26,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.doc() = docs;
 
     output.def("get_node",
-               &ov::Output<VT>::get_node,
+               &ov::Output<VT>::get_node_shared_ptr,
                R"(
                 Get node referenced by this output handle.
 
@@ -134,7 +134,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
              )");
 
 
-    output.def_property_readonly("node", &ov::Output<VT>::get_node);
+    output.def_property_readonly("node", &ov::Output<VT>::get_node_shared_ptr);
     output.def_property_readonly("index", &ov::Output<VT>::get_index);
     output.def_property_readonly("any_name", &ov::Output<VT>::get_any_name);
     output.def_property_readonly("names", &ov::Output<VT>::get_names);
