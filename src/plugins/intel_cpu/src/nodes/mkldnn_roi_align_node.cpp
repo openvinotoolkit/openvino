@@ -883,7 +883,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
         }
     }
 
-    for (int n = 0; n < realRois; ++n) {
+    parallel_for(realRois, [&](size_t n) {
         int roiOff = n * 4;
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
@@ -1080,7 +1080,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
                 }
             });
         }
-    }
+    });
 }
 
 bool MKLDNNROIAlignNode::created() const {
