@@ -10,6 +10,7 @@ import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
+from pathlib import Path
 
 try:
     import openvino_telemetry as tm
@@ -321,6 +322,17 @@ def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mx
 def check_fallback(argv : argparse.Namespace):
     fallback_reasons = {}
 
+    def legacy_extensions_used(argv):
+        any_extension_used = hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0 \
+            and argv.extensions != import_extensions.default_path() # extensions arg has default value
+        if not any_extension_used:
+            return False
+        path = Path(argv.extensions)
+        new_ext_used = path.is_file() and (path.suffix == '.so' or path.suffix == '.dll')
+        if new_ext_used:
+            return False
+        return True
+
     # Some frontend such as PDPD does not have legacy path so it has no reasons to fallback
     if not any(deduce_framework_by_namespace(argv)):
         return fallback_reasons
@@ -329,9 +341,7 @@ def check_fallback(argv : argparse.Namespace):
     if argv.use_new_frontend:
         return fallback_reasons
 
-    fallback_reasons['extensions'] = \
-        lambda argv : hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0 \
-            and argv.extensions != import_extensions.default_path() # extensions arg has default value
+    fallback_reasons['extensions'] = legacy_extensions_used
     fallback_reasons['transformations_config'] = \
         lambda argv: hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config) > 0
 
