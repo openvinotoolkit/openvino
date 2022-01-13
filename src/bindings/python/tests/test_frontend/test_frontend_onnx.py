@@ -8,7 +8,7 @@ from onnx.helper import make_graph, make_model, make_tensor_value_info
 import pytest
 
 from openvino.frontend import FrontEndManager
-#from tests.runtime import get_runtime
+from tests.runtime import get_runtime
 
 
 def create_onnx_model():
@@ -422,9 +422,3 @@ def test_onnx_conversion_extension():
     assert model
     teardown_module()
     assert invoked
-
-test_onnx_conversion_extension_check_attributes()
-test_onnx_conversion_extension_common()
-test_onnx_conversion_extension()
-test_onnx_conversion_extension_cast_attributes()
-test_onnx_conversion_extension_attribute_with_default_value()
