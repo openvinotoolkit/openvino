@@ -154,8 +154,6 @@ ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_dependent_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
-ie_dependent_option(ENABLE_SHUTDOWN_PROTOBUF "Shutdown protobuf when unload the frontend shared libraries" ON
-    "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
 ie_dependent_option(ENABLE_OV_CORE_BACKEND_UNIT_TESTS "Control the building of unit tests using backends" ON
     "ENABLE_OV_CORE_UNIT_TESTS" OFF)
@@ -166,6 +164,12 @@ if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
 else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
+endif()
+
+if(BUILD_SHARED_LIBS AND (ENABLE_OV_TF_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND))
+    set(ENABLE_SHUTDOWN_PROTOBUF ON)
+else()
+    set(ENABLE_SHUTDOWN_PROTOBUF OFF)
 endif()
 
 # WA for ngraph python build on Windows debug
