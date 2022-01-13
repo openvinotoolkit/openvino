@@ -55,7 +55,7 @@ DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
 
 /**
  * @brief Generation of GNA embedded device to export the model.
- * This is deprecated and will be removed in 2022.2.
+ * @deprecated Key is deprecated and will be removed in 2022.2.
  */
 INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
@@ -73,23 +73,66 @@ DECLARE_GNA_CONFIG_VALUE(SW_EXACT);
 DECLARE_GNA_CONFIG_VALUE(SW_FP32);
 
 /**
- * @brief Specific software acceleration modes.
- * Modes are deprecated and will be removed in 2022.2.
+ * @brief Specific software acceleration mode.
+ * @deprecated Mode is deprecated and will be removed in 2022.2.
+ * Use InferenceEngine::GNAConfigParams::SW instead.
  */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
 DECLARE_GNA_CONFIG_VALUE(GEN);
+
+/**
+ * @brief Specific software acceleration mode.
+ * @deprecated Mode is deprecated and will be removed in 2022.2.
+ * Use InferenceEngine::GNAConfigParams::SW_EXACT instead.
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(GEN_EXACT);
+
+/**
+ * @brief Specific software acceleration mode.
+ * @deprecated Mode is deprecated and will be removed in 2022.2.
+ * Use InferenceEngine::GNAConfigParams::SW instead.
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
 DECLARE_GNA_CONFIG_VALUE(SSE);
+
+/**
+ * @brief Specific software acceleration mode.
+ * @deprecated Mode is deprecated and will be removed in 2022.2.
+ * Use InferenceEngine::GNAConfigParams::SW_EXACT instead.
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(SSE_EXACT);
+
+/**
+ * @brief Specific software acceleration mode.
+ * @deprecated Mode is deprecated and will be removed in 2022.2.
+ * Use InferenceEngine::GNAConfigParams::SW instead.
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
 DECLARE_GNA_CONFIG_VALUE(AVX1);
+
+/**
+ * @brief Specific software acceleration mode.
+ * @deprecated Mode is deprecated and will be removed in 2022.2.
+ * Use InferenceEngine::GNAConfigParams::SW_EXACT instead.
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(AVX1_EXACT);
+
+/**
+ * @brief Specific software acceleration mode.
+ * @deprecated Mode is deprecated and will be removed in 2022.2.
+ * Use InferenceEngine::GNAConfigParams::SW instead.
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
 DECLARE_GNA_CONFIG_VALUE(AVX2);
+
+/**
+ * @brief Specific software acceleration mode.
+ * @deprecated Mode is deprecated and will be removed in 2022.2.
+ * Use InferenceEngine::GNAConfigParams::SW_EXACT instead.
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(AVX2_EXACT);
 
@@ -123,6 +166,7 @@ DECLARE_GNA_CONFIG_KEY(COMPACT_MODE);
  * the Optimal Minimax Piecewise Linear Approximation of Convex Functions is used.
  * If value is YES then simple uniform distribution used to create PWL approximation of activation functions
  * Uniform distribution usually gives poor approximation with same number of segments
+ * @deprecated The config key is deprecated and will be removed in 2022.2.
  */
 INFERENCE_ENGINE_DEPRECATED("The config key is deprected and will be removed")
 DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
@@ -131,6 +175,7 @@ DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
  * @brief The option to allow to specify the maximum error percent that the optimized algorithm finding
  * will use to find PWL functions.
  * By default (in case of NO value set), 1.0 value is used.
+ * @deprecated The config key is deprecated and will be removed in 2022.2.
  */
 INFERENCE_ENGINE_DEPRECATED("The config key is deprected and will be removed")
 DECLARE_GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT);

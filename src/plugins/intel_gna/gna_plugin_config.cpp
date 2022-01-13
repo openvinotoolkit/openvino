@@ -21,14 +21,14 @@ static const caseless_unordered_map<std::string, std::pair<Gna2AccelerationMode,
     {GNAConfigParams::GNA_HW_WITH_SW_FBACK,     {Gna2AccelerationModeHardwareWithSoftwareFallback,  false}},
     {GNAConfigParams::GNA_SW,                   {Gna2AccelerationModeSoftware,                      false}},
     {GNAConfigParams::GNA_SW_EXACT,             {Gna2AccelerationModeSoftware,                      true}},
-    {GNAConfigParams::GNA_GEN,                  {Gna2AccelerationModeGeneric,                       false}},
-    {GNAConfigParams::GNA_GEN_EXACT,            {Gna2AccelerationModeGeneric,                       true}},
-    {GNAConfigParams::GNA_SSE,                  {Gna2AccelerationModeSse4x2,                        false}},
-    {GNAConfigParams::GNA_SSE_EXACT,            {Gna2AccelerationModeSse4x2,                        true}},
-    {GNAConfigParams::GNA_AVX1,                 {Gna2AccelerationModeAvx1,                          false}},
-    {GNAConfigParams::GNA_AVX1_EXACT,           {Gna2AccelerationModeAvx1,                          true}},
-    {GNAConfigParams::GNA_AVX2,                 {Gna2AccelerationModeAvx2,                          false}},
-    {GNAConfigParams::GNA_AVX2_EXACT,           {Gna2AccelerationModeAvx2,                          true}},
+    {"GNA_GEN",                                 {Gna2AccelerationModeGeneric,                       false}},
+    {"GNA_GEN_EXACT",                           {Gna2AccelerationModeGeneric,                       true}},
+    {"GNA_SSE",                                 {Gna2AccelerationModeSse4x2,                        false}},
+    {"GNA_SSE_EXACT",                           {Gna2AccelerationModeSse4x2,                        true}},
+    {"GNA_AVX1",                                {Gna2AccelerationModeAvx1,                          false}},
+    {"GNA_AVX1_EXACT",                          {Gna2AccelerationModeAvx1,                          true}},
+    {"GNA_AVX2",                                {Gna2AccelerationModeAvx2,                          false}},
+    {"GNA_AVX2_EXACT",                          {Gna2AccelerationModeAvx2,                          true}},
 };
 
 static const std::set<std::string> supportedTargets = {
@@ -131,7 +131,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                                     << value;
             }
             gnaPrecision = precision;
-        } else if (key == GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)) {
+        } else if (key == "GNA_PWL_UNIFORM_DESIGN") {
+            // This key is deprecated and will be removed in 2022.1
             if (value == PluginConfigParams::YES) {
                 gnaFlags.uniformPwlDesign = true;
             } else if (value == PluginConfigParams::NO) {
@@ -142,7 +143,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 THROW_GNA_EXCEPTION << "GNA pwl uniform algorithm parameter "
                                     << "should be equal to YES/NO, but not" << value;
             }
-        } else if (key == GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)) {
+        } else if (key == "GNA_PWL_MAX_ERROR_PERCENT") {
+            // This key is deprecated and will be removed in 2022.1
             float max_error;
             try {
                 max_error = InferenceEngine::CNNLayer::ie_parse_float(value);
@@ -257,9 +259,9 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
             gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
-    keyConfigMap[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
+    keyConfigMap["GNA_PWL_UNIFORM_DESIGN"] =
             gnaFlags.uniformPwlDesign ? PluginConfigParams::YES: PluginConfigParams::NO;
-    keyConfigMap[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(gnaFlags.pwlMaxErrorPercent);
+    keyConfigMap["GNA_PWL_MAX_ERROR_PERCENT"] = std::to_string(gnaFlags.pwlMaxErrorPercent);
     keyConfigMap[CONFIG_KEY(PERF_COUNT)] =
             gnaFlags.performance_counting ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);
