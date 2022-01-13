@@ -269,9 +269,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionMatMulAndBias(MKLDNNGraph &graph) {
                 graphEdges.push_back(newEdge);
                 parent->addEdge(newEdge);
 
-                auto partialShape = { parentEltwise->outputShapes[0].toPartialShape()[parentEltwise->getFusingAxis()] };
-                parent->outputShapes[inNum] = Shape(partialShape);
-                parentEltwise->inputShapes.push_back(parent->outputShapes[0]);
+                const auto fusingAxis = parentEltwise->getFusingAxis();
+                const auto& outShape = parentEltwise->getOutputShapeAtPort(0);
+
+                parent->outputShapes[inNum] = Shape({outShape.getMinDims()[fusingAxis]}, {outShape.getMaxDims()[fusingAxis]});
+                parentEltwise->inputShapes.push_back(parent->getOutputShapeAtPort(0));
             }
         }
 
