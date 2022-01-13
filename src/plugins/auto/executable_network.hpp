@@ -17,6 +17,7 @@
 #include "threading/ie_itask_executor.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "ie_icore.hpp"
+#include <ie_performance_hints.hpp>
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -157,6 +158,7 @@ private:
     const InferenceEngine::CNNNetwork                                   _network;
     DeviceName                                                          _deviceNameWithBatching = {};
     mutable unsigned int                                                _optimalBatchingRequestNum{0};
+    mutable unsigned int                                                _optimalBatchSize{0};
     mutable std::once_flag                                              _ocBatchNumQuery;
 };
 
