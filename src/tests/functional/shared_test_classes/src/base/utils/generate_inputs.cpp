@@ -107,35 +107,33 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Cosh> node,
     return Activation::generate(elemType, targetShape);
 }
 
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    InferenceEngine::Blob::Ptr blob;
-//    blob = make_blob_with_precision(info.getTensorDesc());
-//    blob->allocate();
-//
-//    int32_t resolution = 1;
-//    uint32_t range = 1;
-//    switch (port) {
-//        case 1:
-//        case 3:
-//            resolution = 1000;
-//            break;
-//        case 2:
-//            if (node->get_attrs().normalized) {
-//                resolution = 1000;
-//            } else {
-//                range = 10;
-//            }
-//            break;
-//        default:
-//            resolution = 10;
-//            break;
-//    }
-//    CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, 0, resolution);
-//    return blob;
-//}
-//
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    InputGenerateData inGenData;
+    inGenData.range = 1;
+    inGenData.start_from = 0;
+
+    switch (port) {
+        case 1:
+        case 3:
+            inGenData.resolution = 1000;
+            break;
+        case 2:
+            if (node->get_attrs().normalized) {
+                inGenData.resolution = 1000;
+            } else {
+                inGenData.range = 10;
+            }
+            break;
+        default:
+            inGenData.resolution = 10;
+            break;
+    }
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+}
+
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Elu> node,
                              size_t port,
@@ -185,64 +183,71 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid> 
 
     return Activation::generate(elemType, targetShape);
 }
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    auto constShapes = node->get_input_shape(0);
-//    int seed = 1;
-//    size_t constDataSize = ngraph::shape_size(constShapes);
-//    std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
-//    inputLowData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
-//    if (node->get_levels() != 2) {
-//        inputHighData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
-//        outputLowData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
-//        outputHighData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
-//    } else {
-//        inputHighData = inputLowData;
-//        outputLowData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
-//        outputHighData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
-//
-//        for (int i = 0; i < constDataSize; i++) {
-//            if (outputLowData[i] > outputHighData[i]) {
-//                outputLowData[i] = 1;
-//                outputHighData[i] = 0;
-//            } else {
-//                outputLowData[i] = 0;
-//                outputHighData[i] = 1;
-//            }
-//        }
-//    }
-//
-//    for (int i = 0; i < constDataSize; i++) {
-//        inputLowData[i] = std::min(inputLowData[i], inputHighData[i]);
-//        inputHighData[i] = std::max(inputLowData[i], inputHighData[i]);
-//        if (inputLowData[i] == inputHighData[i])
-//            inputHighData[i] += 1;
-//    }
-//
-//    for (int i = 0; i < constDataSize; i++) {
-//        outputLowData[i] = std::min(outputLowData[i], outputHighData[i]);
-//        outputHighData[i] = std::max(outputLowData[i], outputHighData[i]);
-//        if (outputLowData[i] == outputHighData[i])
-//            outputHighData[i] += 1;
-//    }
-//    switch (port) {
-//        case 1:
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), inputLowData.data(), inputLowData.size());
-//        case 2:
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), inputHighData.data(), inputHighData.size());
-//        case 3:
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), outputLowData.data(), outputLowData.size());
-//        case 4:
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), outputHighData.data(), outputHighData.size());
-//        default: {
-//            float resolution = 1.0f, min = +5.f, max = +25.f;
-//            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), max - min, min, resolution, seed);
-//        }
-//    }
-//}
-//
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    auto constShapes = node->get_input_shape(0);
+    int seed = 1;
+    size_t constDataSize = ngraph::shape_size(constShapes);
+    std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
+    inputLowData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
+    if (node->get_levels() != 2) {
+        inputHighData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        outputLowData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        outputHighData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
+    } else {
+        inputHighData = inputLowData;
+        outputLowData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        outputHighData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
+
+        for (int i = 0; i < constDataSize; i++) {
+            if (outputLowData[i] > outputHighData[i]) {
+                outputLowData[i] = 1;
+                outputHighData[i] = 0;
+            } else {
+                outputLowData[i] = 0;
+                outputHighData[i] = 1;
+            }
+        }
+    }
+
+    for (int i = 0; i < constDataSize; i++) {
+        inputLowData[i] = std::min(inputLowData[i], inputHighData[i]);
+        inputHighData[i] = std::max(inputLowData[i], inputHighData[i]);
+        if (inputLowData[i] == inputHighData[i])
+            inputHighData[i] += 1;
+    }
+
+    for (int i = 0; i < constDataSize; i++) {
+        outputLowData[i] = std::min(outputLowData[i], outputHighData[i]);
+        outputHighData[i] = std::max(outputLowData[i], outputHighData[i]);
+        if (outputLowData[i] == outputHighData[i])
+            outputHighData[i] += 1;
+    }
+    switch (port) {
+        case 1:
+            return ov::test::utils::create_tensor<float>(elemType, targetShape, inputLowData, inputLowData.size());
+        case 2:
+            return ov::test::utils::create_tensor<float>(elemType, targetShape, inputHighData, inputHighData.size());
+        case 3:
+            return ov::test::utils::create_tensor<float>(elemType, targetShape, outputLowData, outputLowData.size());
+        case 4:
+            return ov::test::utils::create_tensor<float>(elemType, targetShape, outputHighData, outputHighData.size());
+        default: {
+            float min = +5.f, max = +25.f;
+
+            InputGenerateData inGenData;
+            inGenData.range = max - min;
+            inGenData.resolution = 1.0f;
+            inGenData.seed = seed;
+
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+        }
+    }
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Log> node,
                              size_t port,
                              const ov::element::Type& elemType,
@@ -403,20 +408,25 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Tanh> node,
     return Activation::generate(elemType, targetShape);
 }
 
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::GatherTree> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    auto &shape = node->get_input_shape(0);
-//    auto maxBeamIndx = shape.at(2) - 1;
-//
-//    switch (port) {
-//        case 2:
-//        case 3:
-//            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx, maxBeamIndx / 2);
-//        default:
-//            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx);
-//    }
-//}
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::GatherTree> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    auto &shape = node->get_input_shape(0);
+    auto maxBeamIndx = shape.at(2) - 1;
+
+    switch (port) {
+        case 2:
+        case 3: {
+            InputGenerateData inGenData;
+            inGenData.range = maxBeamIndx;
+            inGenData.start_from = maxBeamIndx / 2;
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+        }
+        default:
+            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+    }
+}
 //
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::LogicalAnd> node,
 //                                    const InferenceEngine::InputInfo &info,

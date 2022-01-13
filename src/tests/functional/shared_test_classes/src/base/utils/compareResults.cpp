@@ -22,6 +22,36 @@ void compare(const std::shared_ptr<ov::Node> node,
     ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
 }
 
+void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> node,
+             size_t port,
+             const ov::runtime::Tensor &expected,
+             const ov::runtime::Tensor &actual,
+             double absThreshold,
+             double relThreshold) {
+        ASSERT_EQ(expected.get_size(), actual.get_size());
+
+        size_t expSize = 0;
+        size_t actSize = 0;
+
+        const float* expBuf = expected.data<const float>();
+        const float* actBuf = actual.data<const float>();
+        ASSERT_NE(expBuf, nullptr);
+        ASSERT_NE(actBuf, nullptr);
+
+        for (size_t i = 0; i < actual.get_size(); i+=7) {
+            if (expBuf[i] == -1)
+                break;
+            expSize += 7;
+        }
+        for (size_t i = 0; i < actual.get_size(); i+=7) {
+            if (actBuf[i] == -1)
+                break;
+            actSize += 7;
+        }
+        ASSERT_EQ(expSize, actSize);
+        ov::test::utils::compare(expected, actual, 1e-2f, relThreshold);
+}
+
 template<typename T>
 void compareResults(const std::shared_ptr<ov::Node> node,
                     size_t port,
