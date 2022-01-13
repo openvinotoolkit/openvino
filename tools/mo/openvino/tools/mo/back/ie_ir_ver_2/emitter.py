@@ -429,19 +429,23 @@ def serialize_network(graph, net_element, unsupported):
             ordered_results.append(node.soft_get('name'))
             continue
 
-        if len(node.out_nodes()) > 1:
-            log.warning("Node that expected to be output with name {} has more than one output.".format(output_name))
-            continue
-
+        # Here output data node count is checked. Each port cannot have more than one data node.
         assert len(node.out_nodes()) == 1, "Incorrect graph. Non-Result node with name {} " \
-                                           "has no output node.".format(output_name)
+                                           "has no output data node.".format(output_name)
 
-        # After port renumbering port/connection API is not applicable
-        result_node = node.out_node(len(node.in_nodes())).out_node()
+        # After port renumbering port/connection API is not applicable, and output port numbering
+        # starts from len(node.in_nodes()).
+        data_node = node.out_node(len(node.in_nodes()))
 
-        # In this case Result node name has format <output_name>/sink_port_<port_number>
-        if result_node.soft_get('type') == 'Result':
-            ordered_results.append(result_node.soft_get('name'))
+        found_result = False
+        for op_node in data_node.out_nodes():
+            if op_node.soft_get('type') == 'Result':
+                found_result = True
+                ordered_results.append(op_node.soft_get('name'))
+                break
+
+        if not found_result:
+            log.warning("Node that expected to be output with name {} is not connected with Result node.".format(output_name))
 
     for input_name in graph.inputs_order:
         node = graph.get_op_nodes(name=input_name)

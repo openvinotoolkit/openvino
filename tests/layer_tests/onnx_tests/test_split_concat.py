@@ -55,6 +55,31 @@ test_multiple_out = [
          output_names=['inp4', 'inp1', 'inp3', 'inp2'])
 ]
 
+test_multiple_out_with_and = [
+    dict(input_shape=[3, 10, 10],
+         output_shapes=[[1, 10, 10],
+                        [1, 10, 10],
+                        [1, 10, 10]],
+         axis=0,
+         output_names=['h', 'b', 'l', 'c', 'p']
+         ),
+    dict(input_shape=[1, 50, 50, 80, 60],
+         output_shapes=[[1, 50, 10, 80, 60],
+                        [1, 50, 10, 80, 60],
+                        [1, 50, 10, 80, 60],
+                        [1, 50, 10, 80, 60],
+                        [1, 50, 10, 80, 60]],
+         axis=2,
+         output_names=['k', 'p', 'a', 'r', 's', 'l', 'w']),
+    dict(input_shape=[1, 4, 3],
+         output_shapes=[[1, 1, 3],
+                        [1, 1, 3],
+                        [1, 1, 3],
+                        [1, 1, 3],
+                        [1, 1, 3]],
+         axis=1,
+         output_names=['inp4', 'inp1', 'inp5', 'inp2', 'inp3', 'inp33'])
+]
 
 class TestSplitConcat(Caffe2OnnxLayerTest):
     # TODO Add test with default values (axis=0)
@@ -355,6 +380,140 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         return onnx_net, ref_net
 
+    def create_split_net_ordered_outputs_with_and(self, input_shape, output_shapes, axis, output_names, ir_version):
+        """
+        This test checks the case when graph has a node that is connected with Result and some other operation
+        from single output port.
+
+            ONNX net                                           IR net
+
+                 Input                                          Input
+                  |                                               |
+                Split                                           Split
+              |       |           ... |                         |   |     ....   |
+            Ouput1    Output2      OutputN                     |    |           Result_N
+              \      /                                        /\   / \
+               And                                          /   And   \
+                                                        Result_0 |     Result_1
+                                                                Result_N+1
+
+        """
+        #
+        #   Create ONNX model
+        #
+        import onnx
+        from onnx import helper
+        from onnx import TensorProto
+
+        shape = input_shape
+
+        input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
+
+        and_output_name1 = output_names[len(output_names)-2]
+        and_output_name2 = output_names[len(output_names)-1]
+        outputs_without_add = output_names[:len(output_names)-2]
+
+        output_list = []
+        for i, output_name in enumerate(outputs_without_add):
+            output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
+
+        node = onnx.helper.make_node('Split', inputs=['input'], outputs=outputs_without_add, axis=axis)
+        node_and1 = helper.make_node(
+            'Add',
+            inputs=[outputs_without_add[1], outputs_without_add[2]],
+            outputs=[and_output_name1]
+        )
+        node_and2 = helper.make_node(
+            'Add',
+            inputs=[and_output_name1, outputs_without_add[2]],
+            outputs=[and_output_name2]
+        )
+
+        output_list = output_list + [helper.make_tensor_value_info(and_output_name1, TensorProto.FLOAT, output_shapes[0])] + [helper.make_tensor_value_info(and_output_name2, TensorProto.FLOAT, output_shapes[0])]
+
+        # Create the graph (GraphProto)
+        graph_def = helper.make_graph(
+            [node, node_and1, node_and2],
+            'split_model',
+            [input],
+            output_list,
+        )
+
+        # Create the model (ModelProto)
+        onnx_net = helper.make_model(graph_def, producer_name='test_split_model_outputs_order')
+
+        ref_net = None
+
+        return onnx_net, ref_net
+
+    def create_split_net_ordered_outputs_with_and(self, input_shape, output_shapes, axis, output_names, ir_version):
+        """
+        This test checks the case when graph has a node that is connected with Result and some other operation
+        from single output port.
+
+            ONNX net                                           IR net
+
+                 Input                                          Input
+                  |                                               |
+                Split                                           Split
+              |       |           ... |                         |   |     ....   |
+            Ouput1    Output2      OutputN                     |    |           Result_N
+              \      /                                        /\   / \
+               And                                          /   And   \
+                                                        Result_0 |     Result_1
+                                                                Result_N+1
+
+        """
+        #
+        #   Create ONNX model
+        #
+        import onnx
+        from onnx import helper
+        from onnx import TensorProto
+
+        shape = input_shape
+
+        input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
+
+        and_output_name1 = output_names[len(output_names) - 2]
+        and_output_name2 = output_names[len(output_names) - 1]
+        outputs_without_add = output_names[:len(output_names) - 2]
+
+        output_list = []
+        for i, output_name in enumerate(outputs_without_add):
+            output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
+
+        node = onnx.helper.make_node('Split', inputs=['input'], outputs=outputs_without_add, axis=axis)
+        node_and1 = helper.make_node(
+            'Add',
+            inputs=[outputs_without_add[1], outputs_without_add[2]],
+            outputs=[and_output_name1]
+        )
+        node_and2 = helper.make_node(
+            'Add',
+            inputs=[and_output_name1, outputs_without_add[2]],
+            outputs=[and_output_name2]
+        )
+
+        output_list = output_list + [
+            helper.make_tensor_value_info(and_output_name1, TensorProto.FLOAT, output_shapes[0])] + [
+                          helper.make_tensor_value_info(and_output_name2, TensorProto.FLOAT, output_shapes[0])]
+
+        # Create the graph (GraphProto)
+        graph_def = helper.make_graph(
+            [node, node_and1, node_and2],
+            'split_model',
+            [input],
+            output_list,
+        )
+
+        # Create the model (ModelProto)
+        onnx_net = helper.make_model(graph_def, producer_name='test_split_model_outputs_order')
+
+        ref_net = None
+
+        return onnx_net, ref_net
+
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
     def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir):
@@ -376,4 +535,15 @@ class TestSplit(Caffe2OnnxLayerTest):
     @pytest.mark.parametrize("params", test_multiple_out)
     def test_split_outputs_order(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_split_net_ordered_outputs(**params, ir_version=ir_version), ie_device, precision,
+                   ir_version, temp_dir=temp_dir, output_names=params['output_names'])
+
+
+    @pytest.mark.parametrize("params", test_multiple_out_with_and)
+    def test_split_outputs_order_multiple_connection_before_result_case(self,
+                                                                        params,
+                                                                        ie_device,
+                                                                        precision,
+                                                                        ir_version,
+                                                                        temp_dir):
+        self._test(*self.create_split_net_ordered_outputs_with_and(**params, ir_version=ir_version), ie_device, precision,
                    ir_version, temp_dir=temp_dir, output_names=params['output_names'])
