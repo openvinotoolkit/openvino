@@ -232,6 +232,20 @@ def test_ngraph_preprocess_set_shape():
     assert np.equal(output, expected_output).all()
 
 
+def test_ngraph_preprocess_set_memory_type():
+    shape = [1, 1, 1]
+    parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
+    op = ops.relu(parameter_a)
+    model = op
+    function = Model(model, [parameter_a], "TestFunction")
+
+    p = PrePostProcessor(function)
+    p.input().tensor().set_memory_type("some_memory_type")
+    function = p.build()
+
+    assert any(key for key in function.input().rt_info if "memory_type" in key)
+
+
 @pytest.mark.parametrize(
     "algorithm, color_format1, color_format2, is_failing",
     [(ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.BGR, True),

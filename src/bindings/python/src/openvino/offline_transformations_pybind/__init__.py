@@ -7,6 +7,7 @@ from openvino.utils import add_openvino_libs_to_path
 add_openvino_libs_to_path()
 
 from openvino.pyopenvino.offline_transformations_pybind import apply_moc_transformations
+from openvino.pyopenvino.offline_transformations_pybind import apply_moc_legacy_transformations
 from openvino.pyopenvino.offline_transformations_pybind import apply_pot_transformations
 from openvino.pyopenvino.offline_transformations_pybind import apply_low_latency_transformation
 from openvino.pyopenvino.offline_transformations_pybind import apply_pruning_transformation
