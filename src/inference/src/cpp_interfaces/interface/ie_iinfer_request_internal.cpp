@@ -24,6 +24,8 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
+
 IInferRequestInternal::~IInferRequestInternal() {}
 
 IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs)
