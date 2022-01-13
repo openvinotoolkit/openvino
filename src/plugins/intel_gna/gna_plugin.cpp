@@ -358,8 +358,6 @@ void GNAPlugin::InitGNADevice() {
     gnadevice = std::make_shared<GNADeviceHelper>(config.gnaExecTarget,
                 config.gnaCompileTarget,
                 config.swExactMode,
-                gnaFlags->gna_lib_async_threads_num,
-                gnaFlags->gna_openmp_multithreading,
                 gnaFlags->performance_counting,
                 !config.dumpXNNPath.empty(),
                 GetDeviceVersionFromString(config.dumpXNNGeneration));
