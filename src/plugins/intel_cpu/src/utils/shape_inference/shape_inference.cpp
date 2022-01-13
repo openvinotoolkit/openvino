@@ -37,6 +37,24 @@
 #include "interpolate_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
+#include "read_value_shape_inference.hpp"
+#include "reduce_shape_inference.hpp"
+#include "reverse_sequence_shape_inference.hpp"
+#include "scatter_elements_update_shape_inference.hpp"
+#include "scatter_nd_base_shape_inference.hpp"
+#include "ctc_loss_shape_inference.hpp"
+#include "fft_base_shape_inference.hpp"
+#include "shape_inference.hpp"
+#include "shape_nodes.hpp"
+#include "fake_quantize.hpp"
+#include "batch_to_space_shape_inference.hpp"
+#include "depth_to_space_shape_inference.hpp"
+#include "space_to_batch_shape_inference.hpp"
+#include "space_to_depth_shape_inference.hpp"
+#include "experimental_detectron_detection_output_shape_inference.hpp"
+#include "bucketize_shape_inference.hpp"
+#include "embedding_segments_sum_shape_inference.hpp"
+#include "embeddingbag_offsets_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
 #include "range_shape_inference.hpp"
@@ -54,6 +72,7 @@
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
 #include "split_shape_inference.hpp"
+#include "broadcast_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "strided_slice_shape_inference.hpp"
 #include "tile_shape_inference.hpp"
@@ -514,12 +533,28 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::ShuffleChannels>(op)) {
         return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset2::BatchToSpace>(op)) {
+        return make_shared_entryIOC(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset2::SpaceToBatch>(op)) {
+        return make_shared_entryIOC(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::DepthToSpace>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::SpaceToDepth>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset4::Broadcast>(op)) {
+        return make_shared_entryIOC(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::Broadcast>(op)) {
+        return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v8::MaxPool>(op)) {
         return std::make_shared<entryFallbackWithPadding<ov::op::v8::MaxPool>>(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v1::MaxPool>(op)) {
         return std::make_shared<entryFallbackWithPadding<ov::op::v1::MaxPool>>(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v1::AvgPool>(op)) {
         return std::make_shared<entryFallbackWithPadding<ov::op::v1::AvgPool>>(node);
+    } else if (auto node = ov::as_type_ptr<ov::op::v1::DeformableConvolution>(op)) {
+        return std::make_shared<entryFallbackWithPadding<ov::op::v1::DeformableConvolution>>(node);
+    } else if (auto node = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op)) {
+        return std::make_shared<entryFallbackWithPadding<ov::op::v8::DeformableConvolution>>(node);
     } else {
         return std::make_shared<entryFallback>(op);
     }
