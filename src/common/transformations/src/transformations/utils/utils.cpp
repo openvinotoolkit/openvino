@@ -8,6 +8,7 @@
 
 #include <functional>
 #include <memory>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/op/broadcast.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/op/reshape.hpp>
@@ -162,9 +163,44 @@ std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node
 }
 
 std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(const ngraph::Output<ngraph::Node>& shape_source,
-                                                                                   const std::vector<size_t>& indices) {
-    const auto & shape_node = make_try_fold<v3::ShapeOf>(shape_source);
+    const std::vector<size_t>& indices) {
+    const auto& shape_node = make_try_fold<v3::ShapeOf>(shape_source);
     return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices);
+}
+
+bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected, const ngraph::PartialShape& actual) {
+    if (expected[0].is_static()) {
+        return actual == expected;
+    } else {
+        auto actual_with_dynamic_batch = actual;
+        actual_with_dynamic_batch[0] = expected[0];
+        return actual_with_dynamic_batch == expected;
+    }
+}
+
+void visit_shape_path(const std::shared_ptr<ov::Node>& node,
+                      std::unordered_set<std::shared_ptr<ov::Node>>& visited,
+                      std::function<void(std::shared_ptr<ov::Node>)> func) {
+    if (!node)
+        return;
+    visited.insert(node);
+    std::deque<std::shared_ptr<ov::Node>> nodes{node};
+    while (!nodes.empty()) {
+        auto curr_node = nodes.front();
+        nodes.pop_front();
+        // Do not check if already visited
+        if (ngraph::is_type<ngraph::opset1::ShapeOf>(curr_node) || ngraph::is_type<ngraph::opset3::ShapeOf>(curr_node)) {
+            continue;
+        }
+
+        visited.insert(curr_node);
+        func(curr_node);
+        for (auto& input_value : curr_node->input_values()) {
+            // continue searching
+            const auto& input_node = input_value.get_node_shared_ptr();
+            nodes.push_front(input_node);
+        }
+    }
 }
 
 }  // namespace util

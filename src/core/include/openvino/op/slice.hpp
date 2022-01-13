@@ -15,6 +15,8 @@ class OPENVINO_API Slice : public Op {
 public:
     OPENVINO_OP("Slice", "opset8");
 
+    BWDCMP_RTTI_DECLARATION;
+
     Slice() = default;
 
     ///

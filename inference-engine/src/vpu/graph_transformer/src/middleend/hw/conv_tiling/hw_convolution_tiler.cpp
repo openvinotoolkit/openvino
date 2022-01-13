@@ -257,7 +257,7 @@ public:
     }
 };
 
-HWConvolutionTiler::HWConvolutionTiler(ConvolutionOptions convolutionOptions, const Direction& direction,
+HWConvolutionTiler::HWConvolutionTiler(const ConvolutionOptions& convolutionOptions, const Direction& direction,
                                        std::size_t maxTilingOptions) :
     _convolutionOptions(std::move(convolutionOptions)),
     _searcher(_convolutionOptions, direction, maxTilingOptions) {

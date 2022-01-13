@@ -616,19 +616,6 @@ You need to specify values for each input of the model. For more information, re
 
 It means that you trying to convert the topology which contains '_contrib_box_nms' operation which is not supported directly. However the sub-graph of operations including the '_contrib_box_nms' could be replaced with DetectionOutput layer if your topology is one of the gluoncv topologies. Specify '--enable_ssd_gluoncv' command line parameter for the Model Optimizer to enable this transformation.
 
-\htmlonly
-
-<script>
-  window.addEventListener('load', function(){
-    var questionID = getURLParameter('question'); /* this function is defined in openvino-layout.js */
-    if (questionID) {
-      window.location = window.location.pathname + '#' + encodeURI(questionID);
-    }
-  });
-</script>
-
-\endhtmlonly
-
 #### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-103"></a>
 
 If a '*.caffemodel' file exists and it is correct, the error possibly occured due to the use of Python protobuf implementation. In some cases, it shows error message during model parsing, for example: "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.6/3.7 or build 'cpp' implementation of protobuf yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
@@ -639,4 +626,12 @@ The issue "SyntaxError: 'yield' inside list comprehension" might occur during co
 The following workarounds are suggested to resolve this issue:
 1. Use Python 3.6/3.7 to convert MXNet\* models on Windows
 2. Update MXNet: pip install mxnet=1.7.0.post2
-Note that you might have conflicts between previously installed PyPI dependencies.
+Note that you might have conflicts between previously installed PyPI dependencies.m
+
+#### 105. What does the message "The IR preparation was executed by the legacy MO path. ..." mean? <a name="question-105"></a>
+
+For the models in ONNX* format, there are two available paths of IR conversion. 
+The old one is handled by the old Python* implementation, while the new one uses new C++ frontends. 
+Starting from the 2022.1 version, the default IR conversion path for ONNX models is processed using the new ONNX frontend. 
+Certain features, such as `--extensions` and `--transformations_config`, are not yet supported on the new frontends. 
+The IR conversion falls back to the old path if a user does not select any expected path of conversion explicitly (by `--use_new_frontend` or `--use_legacy_frontend` MO arguments) and unsupported pre-defined scenario is detected on the new frontend path.

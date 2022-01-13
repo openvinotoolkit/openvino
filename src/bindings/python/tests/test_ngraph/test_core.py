@@ -131,7 +131,7 @@ def test_partial_shape():
     assert list(ps.get_max_shape()) == []
     assert repr(ps) == "<PartialShape: ...>"
 
-    ps = PartialShape.dynamic(r=Dimension(2))
+    ps = PartialShape.dynamic(rank=Dimension(2))
     assert not ps.is_static
     assert ps.is_dynamic
     assert ps.rank == 2
@@ -220,6 +220,16 @@ def test_partial_shape_equals():
     shape = Shape([1, 2, 3])
     ps = PartialShape([1, 2, 3])
     assert shape == ps
+    assert shape == ps.to_shape()
+
+
+def test_input_shape_read_only():
+    shape = Shape([1, 10])
+    param = ov.parameter(shape, dtype=np.float32)
+    model = Model(ov.relu(param), [param])
+    ref_shape = model.input().shape
+    ref_shape[0] = Dimension(3)
+    assert model.input().shape == shape
 
 
 def test_repr_dynamic_shape():

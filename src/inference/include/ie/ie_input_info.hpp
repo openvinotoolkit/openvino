@@ -145,7 +145,7 @@ public:
      * @return PartialShape object describing input shape.
      */
     INFERENCE_ENGINE_DEPRECATED("Use OpenVINO 2.0 API for dynamic shapes support")
-    ngraph::PartialShape getPartialShape() {
+    ngraph::PartialShape getPartialShape() const {
         if (!_inputData) {
             IE_THROW() << "Data is empty!";
         }

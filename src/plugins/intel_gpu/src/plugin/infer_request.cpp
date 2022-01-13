@@ -13,6 +13,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
 #include <ie_algorithm.hpp>
 #include <debug.h>
 
@@ -218,6 +219,9 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
     if (0 == dataSize) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
+    if (inputTensorsMap.find(name) != inputTensorsMap.end()) {
+        inputTensorsMap.erase(name);
+    }
     const bool compoundBlobPassed = data->is<CompoundBlob>();
 
     InputInfo::Ptr foundInput;
@@ -238,8 +242,14 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
     size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
+    bool preProcResize = false;
+    if (is_input) {
+        preProcResize = foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE;
+        const auto inputColorFormat = foundInput->getPreProcess().getColorFormat();
+        preProcResize |= (inputColorFormat != ColorFormat::RAW) && (inputColorFormat != ColorFormat::BGR);
+    }
 
-    if (dataBinSize != netReqBinSize && !compoundBlobPassed) {
+    if (dataBinSize != netReqBinSize && !compoundBlobPassed && !preProcResize) {
         IE_THROW() << "Incorrect binary data size for " << (is_input ? "input" : "output") <<
                       " blob with name: \'" << name <<  "\' " <<
                       "Current: " << dataBinSize << " Required: " << netReqBinSize;
@@ -307,7 +317,6 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
                 // during pre-processing
                 if (_inputs[name]->is<gpu::ClBlob>()) {
                     Blob::Ptr inputHostBlob = create_host_blob(desc);
-                    inputHostBlob->allocate();
                     _inputs[name] = inputHostBlob;
                 }
                 _preProcData[name] = CreatePreprocDataHelper();
@@ -350,6 +359,94 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
         }
         _outputs[name] = data;
     }
+}
+
+void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
+    if (blobs.size() == 1) {
+        SetBlob(name, blobs[0]);
+        return;
+    }
+
+    if (name.empty()) {
+        IE_THROW(NotFound) << "Failed to set blobs with empty name";
+    }
+    if (blobs.empty()) {
+        IE_THROW(NotAllocated) << "Failed to set empty blobs with name: \'" << name << "\'";
+    }
+    bool empty_data = std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->size() == 0;
+    });
+    if (empty_data) {
+        IE_THROW() << "At least one of the input blobs is empty. Input name: \'" << name << "\'";
+    }
+
+    bool is_compound = std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->is<CompoundBlob>();
+    });
+    if (is_compound) {
+        IE_THROW(NotImplemented) << cannot_set_compound;
+    }
+
+    bool is_buffer = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->is<gpu::ClBufferBlob>();
+    });
+    bool is_surface = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->is<gpu::ClImage2DBlob>();
+    });
+    bool is_remote = is_buffer || is_surface;
+
+    bool is_host = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+        return blob->is<InferenceEngine::MemoryBlob>();
+    });
+    is_host &= !is_remote;
+
+    if (!is_host && !is_remote) {
+        IE_THROW() << "Incorrect input blobs. All blobs must be of the same type";
+    }
+
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    bool is_input = findInputAndOutputBlobByName(name, foundInput, foundOutput);
+
+    if (!is_input) {
+        IE_THROW() << "SetBlobs method doesn't support outputs";
+    }
+
+    if (is_buffer) {
+        IE_THROW(NotImplemented) << "SetBlobs method doesn't support buffer blobs";
+    }
+
+    const TensorDesc& desc = foundInput->getTensorDesc();
+
+    size_t dataBinSize = blobs.front()->size() * blobs.front()->element_size() * blobs.size();
+    size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
+                                           desc.getPrecision().size(),
+                                           std::multiplies<size_t>());
+    bool preProcResize = false;
+    if (is_input) {
+        preProcResize = foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE;
+        const auto inputColorFormat = foundInput->getPreProcess().getColorFormat();
+        preProcResize |= (inputColorFormat != ColorFormat::RAW) && (inputColorFormat != ColorFormat::BGR);
+    }
+    if (dataBinSize != netReqBinSize && !preProcResize) {
+        IE_THROW() << "Incorrect binary data size for input blobs with name: \'" << name <<  "\' " <<
+                      "Current: " << dataBinSize << " Required: " << netReqBinSize;
+    }
+
+    if (_inputs.find(name) != _inputs.end()) {
+        _inputs.erase(name);
+    }
+
+    if (is_remote) {
+        for (auto& blob : blobs) {
+            auto impl = getBlobImpl(blob->as<gpu::ClBlob>());
+            if (!impl->is_allocated()) {
+                impl->allocate();
+            }
+        }
+    }
+
+    inputTensorsMap.insert({ name, blobs });
 }
 
 void InferRequest::checkBlobs() {
@@ -519,6 +616,24 @@ void InferRequest::enqueue() {
     // set input and output memory from request blob maps
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
+
+    for (const auto& inputTensor : inputTensorsMap) {
+        const auto& blobs = inputTensor.second;
+        auto blobsDesc = blobs.front()->getTensorDesc();
+
+        bool is_surface = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+            return blob->is<gpu::ClImage2DBlob>();
+        });
+
+        if (is_surface) {
+            for (size_t i = 0; i < blobs.size(); ++i) {
+                std::string new_name = inputTensor.first + "_" + std::to_string(i);
+                _inputs[new_name] = blobs[i];
+                _deviceInputs[new_name] = blobs[i];
+            }
+        }
+    }
+
     for (auto& item : _inputs) {
         std::string inputName = item.first;
         Blob::Ptr& inputBlob = item.second;
@@ -557,6 +672,13 @@ void InferRequest::enqueue() {
 
     internal_outputs.clear();
     internal_outputs = m_graph->GetNetwork()->execute(dependencies);
+
+    // If dump layers path is set, only runs first inference.
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
+        GPU_DEBUG_COUT << "Only run first inference to dump layers." << std::endl;
+        exit(0);
+    }
 }
 
 void InferRequest::wait_notify() {
@@ -664,59 +786,27 @@ void InferRequest::setup_stream_graph() {
     m_graph = streamGraphs[streamID];
 }
 
-Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, uint8_t* mem_ptr) {
+Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, std::shared_ptr<InferenceEngine::IAllocator> alloc) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::create_host_blob");
-    const Precision& p = desc.getPrecision();
+    auto blob = make_blob_with_precision(desc, alloc ? alloc : CreateDefaultAllocator());
+    blob->allocate();
+    return blob;
+}
 
-    switch (p) {
-    case Precision::FP32:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<float>(desc, reinterpret_cast<float*>(mem_ptr));
-        else
-            return make_shared_blob<float>(desc);
-    case Precision::FP16:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<uint16_t>(desc, reinterpret_cast<uint16_t*>(mem_ptr));
-        else
-            return make_shared_blob<uint16_t>(desc);
-    case Precision::I16:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<int16_t>(desc, reinterpret_cast<int16_t*>(mem_ptr));
-        else
-            return make_shared_blob<int16_t>(desc);
-    case Precision::U16:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<uint16_t>(desc, reinterpret_cast<uint16_t*>(mem_ptr));
-        else
-            return make_shared_blob<uint16_t>(desc);
-    case Precision::I32:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<int32_t>(desc, reinterpret_cast<int32_t*>(mem_ptr));
-        else
-            return make_shared_blob<int32_t>(desc);
-    case Precision::I64:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<int64_t>(desc, reinterpret_cast<int64_t*>(mem_ptr));
-        else
-            return make_shared_blob<int64_t>(desc);
-    case Precision::I8:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<int8_t>(desc, reinterpret_cast<int8_t*>(mem_ptr));
-        else
-            return make_shared_blob<int8_t>(desc);
-    case Precision::U8:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<uint8_t>(desc, reinterpret_cast<uint8_t*>(mem_ptr));
-        else
-            return make_shared_blob<uint8_t>(desc);
-    case Precision::BOOL:
-        if (mem_ptr != nullptr)
-            return make_shared_blob<uint8_t>(desc, reinterpret_cast<uint8_t*>(mem_ptr));
-        else
-            return make_shared_blob<uint8_t>(desc);
-    default:
-        IE_THROW(NotImplemented) << "The plugin does not support " << p.name() << " blob precision";
-    }
+Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem) {
+    auto blob = std::make_shared<RemoteUSMbuffer>(m_graph->GetContext(),
+                                                  m_graph->GetNetwork()->get_stream(),
+                                                  desc,
+                                                  layout,
+                                                  usm_host_mem,
+                                                  0,
+                                                  0,
+                                                  RemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
+    if (!blob)
+        IE_THROW(NotAllocated) << "Failed to allocate shared host <-> device blob";
+    blob->allocate();
+
+    return blob;
 }
 
 void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst, buf_info* bi) {
@@ -784,32 +874,33 @@ void InferRequest::copy_input_data(std::shared_ptr<cldnn::network> network,
     }
 }
 
-Blob::Ptr InferRequest::host_blob_from_device_blob(Blob::Ptr blobPtr) {
-    uint8_t* bufferMem = nullptr;
-    auto clblobPtr = std::dynamic_pointer_cast<InferenceEngine::gpu::ClBlob>(blobPtr);
-    if (clblobPtr) {
-        const auto memPtr = getBlobImpl(clblobPtr.get())->getMemory();
-        if (memPtr->get_allocation_type() == cldnn::allocation_type::usm_host) {
-            bufferMem = reinterpret_cast<uint8_t*>(memPtr->get_internal_params().mem);
-        }
-    }
-    Blob::Ptr hostBlob = create_host_blob(blobPtr->getTensorDesc(), bufferMem);
-    hostBlob->allocate();
-
-    return hostBlob;
-}
-
 void InferRequest::allocate_inputs() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::allocate_inputs");
     auto inputLayouts = m_graph->GetInputLayouts();
+
     // allocate inputs
     for (auto& ni : _networkInputs) {
         std::string name = ni.first;
         const TensorDesc& desc = ni.second->getTensorDesc();
 
-        if (ColorFormat::NV12 == ni.second->getPreProcess().getColorFormat() &&
-            m_graph->getConfig().nv12_two_inputs) {
-        } else {
+        bool is_nv12_input = ColorFormat::NV12 == ni.second->getPreProcess().getColorFormat() &&
+                             m_graph->getConfig().nv12_two_inputs;
+
+        auto parameter = std::find_if(_parameters.begin(), _parameters.end(), [&](const std::shared_ptr<const ov::Node>& node) {
+            return node->get_friendly_name() == name;
+        });
+
+        if (parameter != _parameters.end()) {
+            if (parameter->get()->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
+                std::string mem_type = parameter->get()->output(0).get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
+                                                                                .as<ov::preprocess::TensorInfoMemoryType>().value;
+                if (mem_type.find(GPU_CONFIG_KEY(SURFACE)) != std::string::npos) {
+                    is_nv12_input = true;
+                }
+            }
+        }
+
+        if (!is_nv12_input) {
             auto litr = inputLayouts.find(name);
             if (litr == inputLayouts.end()) {
                 IE_THROW() << "Input layout for " << name << " is not found";
@@ -825,12 +916,18 @@ void InferRequest::allocate_inputs() {
                 auto blobPtr = create_device_blob(desc_fp32, litr->second);
                 _deviceInputs[name] = blobPtr;
                 Blob::Ptr inputBlob = create_host_blob(desc);
-                inputBlob->allocate();
                 _inputs[name] = inputBlob;
             } else {
-                auto blobPtr = create_device_blob(desc, litr->second);
-                _deviceInputs[name] = blobPtr;
-                _inputs[name] = host_blob_from_device_blob(blobPtr);
+                if (m_graph->GetEngine()->use_unified_shared_memory()) {
+                    // For USM case we create host blob using custom USM host allocator
+                    // and then create shared device blob on top of this buffer
+                    auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->GetContext().get()));
+                    _inputs[name] = host_blob;
+                    _deviceInputs[name] = create_shared_device_blob(desc, litr->second, host_blob->buffer().as<void*>());
+                } else {
+                    _inputs[name] = create_host_blob(desc);
+                    _deviceInputs[name] = create_device_blob(desc, litr->second);
+                }
             }
         }
     }
@@ -857,7 +954,6 @@ void InferRequest::allocate_inputs_dynamic() {
             fp32inputBlob->allocate();
             _inputs[input.first + fp32_suffix] = fp32inputBlob;
         }
-        inputBlob->allocate();
         _inputs[input.first] = inputBlob;
     }
 }
@@ -874,10 +970,18 @@ void InferRequest::allocate_outputs() {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << no.first << ": output blob]" << std::endl;
         }
-        auto blobPtr = create_device_blob(desc, output_layout);
-        _deviceOutputs[no.first] = blobPtr;
-        _outputs[no.first] = host_blob_from_device_blob(blobPtr);
+
         outputsMap[no.first] = outputID;
+        if (m_graph->GetEngine()->use_unified_shared_memory()) {
+            // For USM case we create host blob using custom USM host allocator
+            // and then create shared device blob on top of this buffer
+            auto host_blob = create_host_blob(desc, std::make_shared<USMHostAllocator>(m_graph->GetContext().get()));
+            _outputs[no.first] = host_blob;
+            _deviceOutputs[no.first] = create_shared_device_blob(desc, output_layout, host_blob->buffer().as<void*>());
+        } else {
+            _outputs[no.first] = create_host_blob(desc);
+            _deviceOutputs[no.first] = create_device_blob(desc, output_layout);
+        }
     }
 }
 
@@ -897,7 +1001,6 @@ void InferRequest::allocate_outputs_dynamic() {
         }
 
         Blob::Ptr outputBlob = create_host_blob(desc);
-        outputBlob->allocate();
         _outputs[no.first] = outputBlob;
         outputsMap[no.first] = outputID;
     }
