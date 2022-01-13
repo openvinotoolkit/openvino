@@ -45,6 +45,7 @@ struct jit_reduce_post_call_args {
     size_t oc_off;          // offset in byte along channel on output tensor
     size_t channel_size;    // only for post ops fusion of nspc layout
     const float *divisor;   // mean = sum / divisor
+    const void** post_op_data;
 };
 
 struct jit_uni_reduce_kernel {
@@ -145,6 +146,8 @@ private:
     jit_reduce_config_params jcp;
 
     mkldnn::primitive_attr attr;
+
+    std::vector<const void*> postOpsDataPtrs;
 
     std::shared_ptr<mkldnn::memory> prc_mem;
 
