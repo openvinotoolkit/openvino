@@ -372,6 +372,16 @@ int main(int argc, char* argv[]) {
             core.set_config(item.second, item.first);
         }
 
+        const std::string key = "GPU_THROUGHPUT_STREAMS";
+        auto gpuThroughputStreamers =  core.get_config("GPU", key).as<std::string>();
+        slog::info << "====before load{" << "nstreams:" << gpuThroughputStreamers << " }";
+
+        // print THROUGHPUT STR
+        for (auto&& ds : device_nstreams) {
+            const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
+            slog::info << "before load{" << "nstreams:" << ds.first << " , " << device_nstreams[ds.first] << " }";
+        }
+
         size_t batchSize = FLAGS_b;
         ov::element::Type type = ov::element::undefined;
         std::string topology_name = "";
