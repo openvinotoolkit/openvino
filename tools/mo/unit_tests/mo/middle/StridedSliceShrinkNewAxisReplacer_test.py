@@ -108,7 +108,7 @@ class TestStridedSliceShrinkNewAxisReplacer(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-    def test_replace_shrink_new_axis_with_squeeze_unsqueeze(self):
+    def test_replace_shrink_new_axis_with_squeeze_unsqueeze_1(self):
         graph = build_graph(
             nodes_attrs=nodes,
             edges=pattern_edges,
@@ -143,6 +143,49 @@ class TestStridedSliceShrinkNewAxisReplacer(unittest.TestCase):
 
         ReplaceStridedSliceShrinkNewAxisWithSqueezeUnsqueeze().find_and_replace_pattern(graph)
         graph = partial_infer(graph)
+        graph.clean_up()
+
+        (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_replace_shrink_new_axis_with_squeeze_unsqueeze_2(self):
+        graph = build_graph(
+            nodes_attrs=nodes,
+            edges=pattern_edges,
+            update_attributes={
+                # input_shape = (1, 3, 5, 5), output_value = input[None, :, 0, None]
+                # output_shae = (1, 1, 1, 5, 5)
+                'strided_slice': {'shrink_axis_mask': [0, 0, 1, 0], 'new_axis_mask': [1, 0, 0, 1],
+                                  'begin_mask': [0, 0, 1, 0], 'end_mask': [0, 0, 1, 0]},
+                'strided_slice_d': {'shape': [1, 1, 1, 5, 5]}
+            },
+            nodes_with_edges_only=True
+        )
+
+        ref_graph = build_graph(
+            nodes_attrs=nodes,
+            edges=[
+                *connect('input', '0:strided_slice'),
+                *connect('begin', '1:strided_slice'),
+                *connect('end', '2:strided_slice'),
+                *connect('strided_slice', '0:squeeze'),
+                *connect('squeeze_axes', '1:squeeze'),
+                *connect('squeeze', '0:unsqueeze'),
+                *connect('unsqueeze_axes', '1:unsqueeze'),
+                *connect('unsqueeze', 'result')
+            ],
+            update_attributes={
+                'squeeze_axes_d': {'value': [1]},
+                'squeeze_d': {'shape': [1, 5, 5]},
+                'unsqueeze_axes_d': {'value': [0, 2]},
+                'unsqueeze_d': {'shape': [1, 1, 1, 5, 5]}
+            },
+            nodes_with_edges_only=True
+        )
+
+        graph = partial_infer(graph)
+        ReplaceStridedSliceShrinkNewAxisWithSqueezeUnsqueeze().find_and_replace_pattern(graph)
+        graph = partial_infer(graph)
 
         (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -152,7 +195,8 @@ class TestStridedSliceShrinkNewAxisReplacer(unittest.TestCase):
             nodes_attrs=nodes,
             edges=pattern_edges,
             update_attributes={
-                'strided_slice_d': {'shape': [1, 3, 3, 3]}
+                'strided_slice': {'shrink_axis_mask': [0, 0, 0, 0], 'new_axis_mask': [0, 0, 0, 0],},
+                'strided_slice_d': {'shape': [1, 3, 5, 5]}
             },
             nodes_with_edges_only=True
         )
