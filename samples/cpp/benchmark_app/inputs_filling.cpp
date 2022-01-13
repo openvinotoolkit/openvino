@@ -455,11 +455,16 @@ std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string
         }
     }
 
+    std::vector<size_t> batchSizes;
+    for (const auto& info : app_inputs_info) {
+        batchSizes.push_back(getBatchSize(info));
+    }
+
     for (const auto& files : inputFiles) {
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
         size_t n_shape = 0, m_file = 0;
         while (n_shape < app_inputs_info.size() || m_file < filesNum) {
-            size_t batchSize = getBatchSize(app_inputs_info[n_shape % app_inputs_info.size()]);
+            size_t batchSize = batchSizes[n_shape % app_inputs_info.size()];
             size_t inputId = m_file % files.second.size();
             auto input_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
 
