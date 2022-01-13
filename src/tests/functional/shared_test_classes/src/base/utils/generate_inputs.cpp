@@ -464,22 +464,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::ROIAlign> node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-//    if (port == 1) {
-//        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
-//        LayerTestsDefinitions::PSROIPoolingLayerTest::fillROITensor(tensor.data<float>(),
-//                                                                    tensor.get_size() / 5,
-//                                                                    inputShape[0],
-//                                                                    inputShape[2],
-//                                                                    inputShape[3],
-//                                                                    node->get_group_size(),
-//                                                                    node->get_spatial_scale(),
-//                                                                    node->get_spatial_bins_x(),
-//                                                                    node->get_spatial_bins_y(),
-//                                                                    node->get_mode());
-//        return tensor;
-//    }
-//    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
-
     switch (port) {
         case 1: {
             if (node->get_sampling_ratio() != 0) {
