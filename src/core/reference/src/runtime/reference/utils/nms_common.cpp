@@ -8,6 +8,8 @@
 #include <cstring>
 #include <numeric>
 
+#include "ngraph/check.hpp"
+
 namespace ngraph {
 namespace runtime {
 namespace reference {
@@ -39,7 +41,8 @@ void nms_common_postprocessing(void* prois,
         float* ptr = static_cast<float*>(prois);
         memcpy(ptr, selected_outputs.data(), total_num * sizeof(float) * 6);
     } break;
-    default:;
+    default:
+        NGRAPH_UNREACHABLE("unsupported element type, should be [bf16, f16, f32]");
     }
 
     if (pscores) {
