@@ -2366,7 +2366,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.channel_size = layout == ReduceLayoutType::reduce_nspc ? OW : OC; // OW is related to nspc-ncsp dimension reinterpret
             arg.work_amount = OD * OH * OW;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void **>(&postOpsDataPtrs[0]);
+            arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
         });
     } else {
@@ -2379,7 +2379,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.oc_off = ocb * blk_size * sizeof(float);
             arg.work_amount = OD * OH * OW * blk_size;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void **>(&postOpsDataPtrs[0]);
+            arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
         });
     }

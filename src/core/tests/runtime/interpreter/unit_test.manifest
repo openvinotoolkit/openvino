@@ -73,9 +73,6 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
 INTERPRETER.onnx_if_inside_if
 INTERPRETER.onnx_if_inside_loop
 
-# Assertion failed: vector subscript out of range. Fails with Windows debug build only
-IE_CPU.onnx_if_inside_if
-
 # Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
 # Peepholes input unsupported
 onnx_model_lstm_fwd_with_clip_peepholes

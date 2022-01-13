@@ -2341,7 +2341,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         src_data = src_data_origin;
     }
 
-    execPtr->exec(src_data, dst_data, static_cast<const void*>(&postOpsDataPtrs[0]));
+    execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
 }
 
 // for ndhwc and nCdhw8c[16c]
