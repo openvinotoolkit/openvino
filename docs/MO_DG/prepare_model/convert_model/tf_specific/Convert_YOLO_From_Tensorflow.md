@@ -15,8 +15,8 @@ Depending on a YOLO model version, the Model Optimizer converts it differently:
 This section explains how to convert the YOLOv4 Keras\* model from the [https://github.com/david8862/keras-YOLOv3-model-set](https://github.com/david8862/keras-YOLOv3-model-set) repository to an IR. To convert the YOLOv4 model, follow the instructions below:
 
 1. Download YOLOv4 weights and associated with it cfg file:
-- for YOLOv4([weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights)/[config file](https://github.com/david8862/keras-YOLOv3-model-set/raw/6c9aff7bb0c1660704ad07c85739e95885676e5b/cfg/yolov4.cfg)
-- for YOLOv4-tiny([weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.weights)/[config file](https://raw.githubusercontent.com/david8862/keras-YOLOv3-model-set/6b4a0ee63771262363e8224b0ee915cad6c5e93e/cfg/yolov4-tiny.cfg)
+- for YOLOv4 ([weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights)/[config file](https://github.com/david8862/keras-YOLOv3-model-set/raw/6c9aff7bb0c1660704ad07c85739e95885676e5b/cfg/yolov4.cfg))
+- for YOLOv4-tiny ([weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.weights)/[config file](https://raw.githubusercontent.com/david8862/keras-YOLOv3-model-set/6b4a0ee63771262363e8224b0ee915cad6c5e93e/cfg/yolov4-tiny.cfg))
 
 2. Clone the repository with the YOLOv4 model.
 ```sh
@@ -26,12 +26,12 @@ git clone https://github.com/david8862/keras-YOLOv3-model-set
 3. Convert the model to the TensorFlow 2\* format:
 - for YOLOv4:
 ```sh
-python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4-tiny.cfg <path_to_weights>/yolov4-tiny.weights <saved_model_dir>
+python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4.cfg <path_to_weights>/yolov4.weights <saved_model_dir>
 ```
 
 - for YOLOv4-tiny:
 ```sh
-python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4.cfg <path_to_weights>/yolov4.weights <saved_model_dir>
+python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4-tiny.cfg <path_to_weights>/yolov4-tiny.weights <saved_model_dir>
 ```
 
 4. Run Model Optimizer to converter the model from the TensorFlow 2 format to an IR:
