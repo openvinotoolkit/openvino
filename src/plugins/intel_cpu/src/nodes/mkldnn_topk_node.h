@@ -53,6 +53,7 @@ struct jit_topk_call_args {
     const int *idx_block_buf;// original idx sequence, repeated by block (eg. 00000000,11111111,...,77777777), only used in bubble sort
     const int *idx_seq_buf;  // original idx sequence (eg. 01234567), only used in bubble sort and heap sort
     size_t axis_dim;         // point to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
+    size_t top_k;
     size_t work_amount;
     size_t sort_stride;
 };
@@ -123,7 +124,7 @@ private:
     int dim, before_num;
     bool is_last_dim = false;
     bool bubble_inplace = false;
-    bool top_k_changed = false;
+    bool compile_kernel = true;
 
     InferenceEngine::SizeVector src_dims, dst_dims;
     TopKLayoutType layout;
