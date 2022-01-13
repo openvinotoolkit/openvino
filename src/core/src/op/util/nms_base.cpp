@@ -59,7 +59,7 @@ void ov::op::util::NmsBase::validate() {
                           "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0) == get_input_element_type(1),
+                          get_input_element_type(0).compatible(get_input_element_type(1)),
                           "Expected 'boxes', 'scores' type is same.");
 
     NODE_VALIDATION_CHECK(this,
