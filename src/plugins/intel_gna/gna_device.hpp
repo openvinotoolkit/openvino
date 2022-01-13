@@ -65,6 +65,8 @@ public:
     explicit GNADeviceHelper(std::string executionTargetIn = "",
          std::string compileTargetIn = "",
          bool swExactModeIn = false,
+         uint8_t lib_async_n_threads = 1,
+         bool use_openmp = false,
          bool isPerformanceMeasuring = false,
          bool deviceEmbedded = false,
          int deviceVersionParsed = 0) :
@@ -75,7 +77,7 @@ public:
          nGnaDeviceIndex{selectGnaDevice()},
          useDeviceEmbeddedExport(deviceEmbedded),
          exportGeneration(static_cast<Gna2DeviceVersion>(deviceVersionParsed)) {
-        open();
+        open(lib_async_n_threads);
         initGnaPerfCounters();
 
         // check GNA Library version
@@ -85,6 +87,11 @@ public:
         }
         if (gnaLibVersion.rfind("3.0", 0) == 0) {
             isGnaLibVersion3_0 = true;
+        }
+
+        if (use_openmp) {
+            uint8_t num_cores = std::thread::hardware_concurrency();
+            setOMPThreads((num_cores != 0) ? num_cores : 1);
         }
     }
 
@@ -142,7 +149,7 @@ public:
     std::string getEffectiveGnaCompileTarget() const;
 
  private:
-    void open();
+    void open(uint8_t const n_threads);
 
     void close();
     static std::string getGnaLibraryVersionPrivate();
@@ -160,6 +167,7 @@ public:
 
     void createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose = "");
     void updateGnaDeviceVersion();
+    void setOMPThreads(uint8_t const n_threads);
 
     void initGnaPerfCounters() {
         std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
