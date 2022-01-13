@@ -12,4 +12,4 @@ from openvino.utils import add_openvino_libs_to_path
 
 add_openvino_libs_to_path()
 
-from openvino.pyopenvino import ConversionExtensionONNX as ConversionExtension
+from openvino.frontend.onnx.py_onnx_frontend import ConversionExtensionONNX as ConversionExtension

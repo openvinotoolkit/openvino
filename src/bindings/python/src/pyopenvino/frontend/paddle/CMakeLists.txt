@@ -35,18 +35,6 @@ add_custom_command(TARGET ${TARGET_NAME}
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
         EXCLUDE_PATTERNS ".*\\.cxx")
 
-# install
-
-#ie_python_minimal_api(${TARGET})
-#add_clang_format_target(${TARGET}_clang FOR_TARGETS ${TARGET})
-
-#ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})
-
-install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../openvino/frontend/paddle
-        DESTINATION python/${PYTHON_VERSION}
-        COMPONENT pyopenvino_${PYTHON_VERSION}
-        USE_SOURCE_PERMISSIONS)
-
-install(TARGETS ${TARGET}
-        DESTINATION python/${PYTHON_VERSION}/openvino/frontend/paddle
+install(TARGETS ${TARGET_NAME}
+        DESTINATION python/${PYTHON_VERSION}/openvino
         COMPONENT pyopenvino_${PYTHON_VERSION})

@@ -12,4 +12,4 @@ from openvino.utils import add_openvino_libs_to_path
 
 add_openvino_libs_to_path()
 
-from openvino.pyopenvino import ConversionExtensionTensorflow as ConversionExtension
+from openvino.frontend.tensorflow.py_tensorflow_frontend import ConversionExtensionTensorflow as ConversionExtension
