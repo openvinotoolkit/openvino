@@ -50,6 +50,10 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
+    const BroadcastModeSpec& get_broadcast_spec() const {
+        return m_mode;
+    }
+
 protected:
     BroadcastModeSpec m_mode;
 

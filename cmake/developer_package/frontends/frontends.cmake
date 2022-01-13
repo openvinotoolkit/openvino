@@ -90,7 +90,7 @@ unset(protobuf_installed CACHE)
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
-    set(options LINKABLE_FRONTEND PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
+    set(options LINKABLE_FRONTEND SHUTDOWN_PROTOBUF PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
     set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -148,6 +148,11 @@ macro(ov_add_frontend)
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
         add_library(openvino::frontend::${OV_FRONTEND_NAME} ALIAS ${TARGET_NAME})
+    endif()
+
+    # Shutdown protobuf when unloading the front dynamic library
+    if(ENABLE_SHUTDOWN_PROTOBUF AND OV_FRONTEND_SHUTDOWN_PROTOBUF AND BUILD_SHARED_LIBS)
+        target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
     endif()
 
     if(NOT BUILD_SHARED_LIBS)
