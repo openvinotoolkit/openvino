@@ -53,36 +53,36 @@ void regclass_graph_op_TensorIterator(py::module m) {
             py::arg("initial_value"),
             py::arg("successive_value"));
 
-    cls.def("get_body", [](ov::op::v0::TensorIterator& self) {
-        return self.get_body();
+    cls.def("get_body", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) {
+        return self->get_body();
     });
 
-    cls.def("get_function", [](ov::op::v0::TensorIterator& self) {
-        return self.get_function();
+    cls.def("get_function", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) {
+        return self->get_function();
     });
 
     cls.def(
         "set_function",
-        [](ov::op::v0::TensorIterator& self, const std::shared_ptr<ov::Model>& func) {
-            self.set_function(func);
+        [](const std::shared_ptr<ov::op::v0::TensorIterator>& self, const std::shared_ptr<ov::Model>& func) {
+            self->set_function(func);
         },
         py::arg("func"));
 
-    cls.def("get_output_descriptions", [](ov::op::v0::TensorIterator& self) -> py::list {
+    cls.def("get_output_descriptions", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) -> py::list {
         py::list result;
 
-        for (const auto& out_desc : self.get_output_descriptions()) {
-            result.append(out_desc.get());
+        for (const auto& out_desc : self->get_output_descriptions()) {
+            result.append(out_desc);
         }
 
         return result;
     });
 
-    cls.def("get_input_descriptions", [](ov::op::v0::TensorIterator& self) -> py::list {
+    cls.def("get_input_descriptions", [](const std::shared_ptr<ov::op::v0::TensorIterator>& self) -> py::list {
         py::list result;
 
-        for (const auto& in_desc : self.get_input_descriptions()) {
-            result.append(in_desc.get());
+        for (const auto& in_desc : self->get_input_descriptions()) {
+            result.append(in_desc);
         }
 
         return result;
@@ -90,15 +90,15 @@ void regclass_graph_op_TensorIterator(py::module m) {
 
     cls.def(
         "set_input_descriptions",
-        [](ov::op::v0::TensorIterator& self, py::list& inputs) {
-            self.set_input_descriptions(0, MultiSubgraphOp::list_to_input_descriptor(inputs));
+        [](const std::shared_ptr<ov::op::v0::TensorIterator>& self, py::list& inputs) {
+            self->set_input_descriptions(0, MultiSubgraphHelpers::list_to_input_descriptor(inputs));
         },
         py::arg("inputs"));
 
     cls.def(
         "set_output_descriptions",
-        [](ov::op::v0::TensorIterator& self, py::list outputs) {
-            self.set_output_descriptions(0, MultiSubgraphOp::list_to_output_descriptor(outputs));
+        [](const std::shared_ptr<ov::op::v0::TensorIterator>& self, py::list outputs) {
+            self->set_output_descriptions(0, MultiSubgraphHelpers::list_to_output_descriptor(outputs));
         },
         py::arg("outputs"));
 }

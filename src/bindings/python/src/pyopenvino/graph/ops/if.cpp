@@ -18,10 +18,9 @@ void regclass_graph_op_If(py::module m) {
     cls.doc() = "openvino.impl.op.If wraps ov::op::v0::If";
     cls.def(py::init<>());
     cls.def(py::init<const ov::Output<ov::Node>&>(), py::arg("execution_condition"));
-    cls.def(py::init([](ov::Node& execution_condition) {
-                auto name = std::string(execution_condition.get_type_name());
-                if (name == "Constant" || name == "Parameter") {
-                    return std::make_shared<ov::op::v8::If>(execution_condition.output(0));
+    cls.def(py::init([](const std::shared_ptr<ov::Node>& execution_condition) {
+                if (MultiSubgraphHelpers::is_constant_or_parameter(execution_condition)) {
+                    return std::make_shared<ov::op::v8::If>(execution_condition->output(0));
                 } else {
                     NGRAPH_WARN << "Please specify execution_condition as Constant or Parameter. Default If() "
                                    "constructor was applied.";
@@ -43,27 +42,27 @@ void regclass_graph_op_If(py::module m) {
 
     cls.def(
         "set_input_descriptions",
-        [](ov::op::v8::If& self, int& index, py::list& inputs) {
-            self.set_input_descriptions(index, MultiSubgraphOp::list_to_input_descriptor(inputs));
+        [](const std::shared_ptr<ov::op::v8::If>& self, int index, const py::list& inputs) {
+            self->set_input_descriptions(index, MultiSubgraphHelpers::list_to_input_descriptor(inputs));
         },
         py::arg("index"),
         py::arg("inputs"));
 
     cls.def(
         "set_output_descriptions",
-        [](ov::op::v8::If& self, int& index, py::list outputs) {
-            self.set_output_descriptions(index, MultiSubgraphOp::list_to_output_descriptor(outputs));
+        [](const std::shared_ptr<ov::op::v8::If>& self, int index, const py::list& outputs) {
+            self->set_output_descriptions(index, MultiSubgraphHelpers::list_to_output_descriptor(outputs));
         },
         py::arg("index"),
         py::arg("outputs"));
 
     cls.def(
         "get_output_descriptions",
-        [](ov::op::v8::If& self, int& index) {
+        [](const std::shared_ptr<ov::op::v8::If>& self, int index) {
             py::list result;
 
-            for (const auto& out_desc : self.get_output_descriptions(index)) {
-                result.append(out_desc.get());
+            for (const auto& out_desc : self->get_output_descriptions(index)) {
+                result.append(out_desc);
             }
 
             return result;
@@ -72,11 +71,11 @@ void regclass_graph_op_If(py::module m) {
 
     cls.def(
         "get_input_descriptions",
-        [](ov::op::v8::If& self, int& index) -> py::list {
+        [](const std::shared_ptr<ov::op::v8::If>& self, int index) {
             py::list result;
 
-            for (const auto& in_desc : self.get_input_descriptions(index)) {
-                result.append(in_desc.get());
+            for (const auto& in_desc : self->get_input_descriptions(index)) {
+                result.append(in_desc);
             }
 
             return result;

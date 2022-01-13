@@ -9,10 +9,15 @@
 
 namespace py = pybind11;
 
-MultiSubgraphInputDescriptionVector MultiSubgraphOp::list_to_input_descriptor(const py::list& inputs) {
+bool MultiSubgraphHelpers::is_constant_or_parameter(const std::shared_ptr<ov::Node>& node) {
+    const auto type_name = std::string{node->get_type_name()};
+    return type_name == "Constant" || type_name == "Parameter";
+}
+
+MultiSubgraphInputDescriptionVector MultiSubgraphHelpers::list_to_input_descriptor(const py::list& inputs) {
     std::vector<ov::op::util::MultiSubGraphOp::InputDescription::Ptr> result;
 
-    for (auto& in_desc : inputs) {
+    for (const auto& in_desc : inputs) {
         if (py::isinstance<ov::op::util::MultiSubGraphOp::SliceInputDescription>(in_desc)) {
             auto casted = in_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::SliceInputDescription>>();
             result.emplace_back(casted);
@@ -31,10 +36,10 @@ MultiSubgraphInputDescriptionVector MultiSubgraphOp::list_to_input_descriptor(co
     return result;
 }
 
-MultiSubgraphOutputDescriptionVector MultiSubgraphOp::list_to_output_descriptor(py::list& outputs) {
+MultiSubgraphOutputDescriptionVector MultiSubgraphHelpers::list_to_output_descriptor(const py::list& outputs) {
     std::vector<ov::op::util::MultiSubGraphOp::OutputDescription::Ptr> result;
 
-    for (auto& out_desc : outputs) {
+    for (const auto& out_desc : outputs) {
         if (py::isinstance<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(out_desc)) {
             auto casted = out_desc.cast<std::shared_ptr<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>>();
             result.emplace_back(casted);
@@ -91,7 +96,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
         slice(m, "SliceInputDescription");
     slice.doc() = "openvino.impl.op.util.SliceInputDescription wraps ov::op::util::SliceInputDescription";
     slice.def(py::init<>());
-    slice.def(py::init<uint64_t&, uint64_t&, int64_t&, int64_t&, int64_t&, int64_t&, int64_t&>(),
+    slice.def(py::init<uint64_t, uint64_t, int64_t, int64_t, int64_t, int64_t, int64_t>(),
               py::arg("input_index"),
               py::arg("body_parameter_index"),
               py::arg("start"),
@@ -116,7 +121,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
         merged(m, "MergedInputDescription");
     merged.doc() = "openvino.impl.op.util.MergedInputDescription wraps ov::op::util::MergedInputDescription";
     merged.def(py::init<>());
-    merged.def(py::init<uint64_t&, uint64_t&, uint64_t&>(),
+    merged.def(py::init<uint64_t, uint64_t, uint64_t>(),
                py::arg("input_index"),
                py::arg("body_parameter_index"),
                py::arg("body_value_index"));
@@ -133,7 +138,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
         invariant(m, "InvariantInputDescription");
     invariant.doc() = "openvino.impl.op.util.InvariantInputDescription wraps ov::op::util::InvariantInputDescription";
     invariant.def(py::init<>());
-    invariant.def(py::init<uint64_t&, uint64_t&>(), py::arg("input_index"), py::arg("body_parameter_index"));
+    invariant.def(py::init<uint64_t, uint64_t>(), py::arg("input_index"), py::arg("body_parameter_index"));
     invariant.def("copy", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::copy);
     invariant.def("get_type_info", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::get_type_info);
     invariant.def_readonly("input_index", &ov::op::util::MultiSubGraphOp::InvariantInputDescription::m_input_index);
@@ -152,7 +157,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
         concat(m, "ConcatOutputDescription");
     concat.doc() = "openvino.impl.op.util.ConcatOutputDescription wraps ov::op::util::ConcatOutputDescription";
     concat.def(py::init<>());
-    concat.def(py::init<uint64_t&, uint64_t&, int64_t&, int64_t&, int64_t&, int64_t&, int64_t&>(),
+    concat.def(py::init<uint64_t, uint64_t, int64_t, int64_t, int64_t, int64_t, int64_t>(),
                py::arg("body_value_index"),
                py::arg("output_index"),
                py::arg("start"),
@@ -177,7 +182,7 @@ void regclass_graph_op_util_MultiSubgraphOp(py::module m) {
         body(m, "BodyOutputDescription");
     body.doc() = "openvino.impl.op.util.BodyOutputDescription wraps ov::op::util::BodyOutputDescription";
     body.def(py::init<>());
-    body.def(py::init<uint64_t&, uint64_t&, int64_t&>(),
+    body.def(py::init<uint64_t, uint64_t, int64_t>(),
              py::arg("body_value_index"),
              py::arg("output_index"),
              py::arg("iteration") = -1);
