@@ -57,7 +57,6 @@ function(ov_generate_frontends_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for frontend_common
     add_custom_target(_ov_frontends_hpp DEPENDS ${ov_frontends_hpp})
-    add_dependencies(frontend_common _ov_frontends_hpp)
     add_dependencies(frontend_common_obj _ov_frontends_hpp)
 
     # add dependency for object files
