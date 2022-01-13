@@ -10,6 +10,8 @@ class DataFreeEngine(SimplifiedEngine):
         super().__init__(config)
         if not data_loader:
             self._data_loader = self.get_data_loader(config)
+        else:
+            self._data_loader = data_loader
 
     def get_data_loader(self, config):
         if config.data_type == 'image':

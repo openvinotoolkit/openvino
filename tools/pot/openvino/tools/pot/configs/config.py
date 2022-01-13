@@ -307,7 +307,7 @@ class Config(Dict):
         if 'type' not in engine or engine.type == 'accuracy_checker':
             self._configure_ac_params()
             self.engine.type = 'accuracy_checker'
-        elif engine.type == 'simplified':
+        elif engine.type == 'simplified' or engine.type == 'data_free':
             if 'data_source' not in engine:
                 raise KeyError('Missed data dir for sample engine')
             self.engine.device = engine.device if engine.device else 'CPU'
