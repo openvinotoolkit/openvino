@@ -75,7 +75,7 @@ class FastBiasCorrection(Algorithm):
                 input_node = nu.get_node_input(input_node, 0)
                 quantized_node = nu.get_node_input(op_node, 0)
 
-            input_shape = inputs_shape_nodes_with_bias[input_node.name]
+            input_shape = inputs_shape_nodes_with_bias[input_node.fullname]
             op_model = mu.build_model_for_node(model, input_node.fullname, input_shape, op_node,
                                                remove_bias=True, target_device=self._config['target_device'])
 
