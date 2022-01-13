@@ -14,7 +14,6 @@ namespace v8 {
 class OPENVINO_API MulticlassNms : public util::NmsBase {
 public:
     OPENVINO_OP("MulticlassNms", "opset8", op::util::NmsBase);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

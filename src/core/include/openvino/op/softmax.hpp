@@ -51,7 +51,6 @@ namespace v8 {
 class OPENVINO_API Softmax : public Op {
 public:
     OPENVINO_OP("Softmax", "opset8");
-    BWDCMP_RTTI_DECLARATION;
 
     Softmax() = default;
     /// \brief Constructs a softmax operation.
