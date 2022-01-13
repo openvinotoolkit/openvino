@@ -170,7 +170,7 @@ void MKLDNNShuffleChannelsNode::prepareParams() {
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        IE_THROW() << "DepthToSpaceExecutor was not found for node " << getName() << ".";
+        IE_THROW() << "ShuffleChannelsExecutor was not found for node " << getName() << ".";
     }
 
     execPtr = result.first;

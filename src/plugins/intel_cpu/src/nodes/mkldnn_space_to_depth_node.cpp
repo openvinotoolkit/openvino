@@ -212,7 +212,7 @@ void MKLDNNSpaceToDepthNode::prepareParams() {
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        IE_THROW() << "DepthToSpaceExecutor was not found for node " << getName() << ".";
+        IE_THROW() << "SpaceToDepthExecutor was not found for node " << getName() << ".";
     }
 
     execPtr = result.first;
@@ -226,7 +226,7 @@ MKLDNNSpaceToDepthNode::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceTo
                               LayoutType::nCsp8c,
                               LayoutType::nspc,
                               LayoutType::ncsp))
-        IE_THROW() << "DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', "
+        IE_THROW() << "SpaceToDepth executor supports only 'nCsp16c', 'nCsp8c', "
                       "'nspc' or 'ncsp' layouts.";
 
     const bool isBlocked = MKLDNNPlugin::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
