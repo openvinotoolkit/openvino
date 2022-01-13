@@ -83,9 +83,9 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
-    auto st = config.get<EnableMXBootOption>() == false;
-    if (st) {
-        return ncStatus_t(st);
+    auto stat = config.get<EnableMXBootOption>() == false;
+    if (stat) {
+        return ncStatus_t(stat);
     }
 // #-17972, #-16790
 #if defined(NO_BOOT)
@@ -262,22 +262,17 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
     // In case, then there is no another not booted device, use already booted with minimum number of executors
     if (booted != NC_OK) {
         std::vector<DevicePtr> availableDevices;
+        // Get all suitable devices
         if (config.get<EnableMXBootOption>() == true) {
-            // Get all suitable devices
             std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
                 [&config](const DevicePtr &device) {
                     return device->isBooted() && device->isNotFull()
                         && device->isSuitableForConfig(config);
                 });
-            // Return mock device. If try infer with it, exception will be thrown
-            if (availableDevices.empty()) {
-                DeviceDesc device;
-                device._protocol = config.get<ProtocolOption>();
-                return std::make_shared<DeviceDesc>(device);
-            }
-        } else {
+        }
+        // Return mock device. If try infer with it, exception will be thrown
+        if (availableDevices.empty()) {
             DeviceDesc device;
-            device._deviceHandle = new ncDeviceHandle_t;
             device._protocol = config.get<ProtocolOption>();
             return std::make_shared<DeviceDesc>(device);
         }
