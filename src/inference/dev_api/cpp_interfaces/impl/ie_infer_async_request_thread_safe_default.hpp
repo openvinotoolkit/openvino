@@ -292,6 +292,13 @@ public:
         }
     }
 
+    void setModelInputsOutputs(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                               const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
+        _parameters = inputs;
+        _results = outputs;
+        _syncRequest->setModelInputsOutputs(inputs, outputs);
+    }
+
 protected:
     /**
      * @brief Each pipeline stage is a @ref Task that is executed by specified ITaskExecutor implementation
