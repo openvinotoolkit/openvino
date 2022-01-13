@@ -38,7 +38,7 @@ namespace ocl {
 class VASurfaceTensor : public ClImage2DTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
@@ -68,7 +68,7 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with VA display object.
  * The plugin object derived from this class can be obtained either with
- * ExecutableNetwork::get_context() or Core::create_context() calls.
+ * CompiledModel::get_context() or Core::create_context() calls.
  * @note User can also obtain OpenCL context handle from this class.
  */
 class VAContext : public ClContext {
@@ -77,8 +77,8 @@ public:
     using ClContext::create_tensor;
 
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
-     * @param remote_context remote context to check
+     * @brief Checks that type defined runtime parameters are presented in remote object
+     * @param remote_context A remote context to check
      */
     static void type_check(const RemoteContext& remote_context) {
         RemoteContext::type_check(
@@ -105,7 +105,7 @@ public:
         ParamMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
                                    {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)},
                                    {GPU_PARAM_KEY(TILE_ID), target_tile_id}};
-        *this = core.create_context(device_name, context_params);
+        *this = core.create_context(device_name, context_params).as<VAContext>();
     }
 
     /**
@@ -125,7 +125,7 @@ public:
         auto y_tensor = create_tensor(element::u8, {1, 1, height, width}, tensor_params);
         tensor_params[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
         auto uv_tensor = create_tensor(element::u8, {1, 2, height / 2, width / 2}, tensor_params);
-        return std::make_pair(y_tensor, uv_tensor);
+        return std::make_pair(y_tensor.as<VASurfaceTensor>(), uv_tensor.as<VASurfaceTensor>());
     }
 
     /**
@@ -143,7 +143,7 @@ public:
         ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
                            {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), surface},
                            {GPU_PARAM_KEY(VA_PLANE), plane}};
-        return create_tensor(type, shape, params);
+        return create_tensor(type, shape, params).as<VASurfaceTensor>();
     }
 };
 }  // namespace ocl

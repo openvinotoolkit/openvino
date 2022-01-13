@@ -4,6 +4,8 @@
 
 #include "ngraph/op/detection_output.hpp"
 
+#include <detection_output_shape_inference.hpp>
+
 #include "itt.hpp"
 
 using namespace std;
@@ -33,7 +35,16 @@ ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
 void ov::op::v0::DetectionOutput::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, m_attrs.num_classes > 0, "Number of classes must be greater than zero");
-    validate_and_infer_types_base(m_attrs, m_attrs.num_classes);
+    validate_base(m_attrs);
+    std::vector<ov::PartialShape> input_shapes;
+    for (auto input_idx = 0; input_idx < get_input_size(); input_idx++)
+        input_shapes.push_back(get_input_partial_shape(input_idx));
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+
+    shape_infer(this, input_shapes, output_shapes);
+
+    set_output_size(1);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -86,8 +97,17 @@ ov::op::v8::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
 }
 
 void ov::op::v8::DetectionOutput::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
-    validate_and_infer_types_base(m_attrs, Dimension::dynamic());
+    NGRAPH_OP_SCOPE(v8_DetectionOutput_validate_and_infer_types);
+    validate_base(m_attrs);
+    std::vector<ov::PartialShape> input_shapes;
+    for (auto input_idx = 0; input_idx < get_input_size(); input_idx++)
+        input_shapes.push_back(get_input_partial_shape(input_idx));
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+
+    shape_infer(this, input_shapes, output_shapes);
+
+    set_output_size(1);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {

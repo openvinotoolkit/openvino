@@ -202,6 +202,96 @@ TEST_F(RTInfoDeserialization, NodeV10) {
     }
 }
 
+TEST_F(RTInfoDeserialization, NamesCollisionV10) {
+    std::string model = R"V0G0N(
+<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f16" shape="1,3,22,22"/>
+            <rt_info>
+                <attribute name="fused_names" version="0" value="in1"/>
+                <attribute name="old_api_map_order" version="0" value="0,2,3,1" />
+                <attribute name="old_api_map_element_type" version="0" value="f16"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP16" names="input_tensor">
+                    <rt_info>
+                        <attribute name="layout" version="0" layout="[N,C,H,W]"/>
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="input_tensor" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <rt_info>
+                <attribute name="fused_names" version="0" value="Round1,Round2"/>
+            </rt_info>
+            <input>
+                <port id="1" precision="FP16">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP16" names="output_tensor">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <input>
+                <port id="0" precision="FP16">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
+
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int version_ref) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), version_ref);
+    };
+    check_version(f, 10);
+
+    // read IR v10 with old API
+    {
+        InferenceEngine::Core core;
+        auto f_10 = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+        ASSERT_NE(nullptr, f_10.getFunction());
+
+        auto res = compare_functions(f, f_10.getFunction());
+        EXPECT_TRUE(res.first) << res.second;
+    }
+
+    // read IR v10 with new API and check that CNNNetwork precision conversions are applied
+    {
+        ov::runtime::Core core;
+        EXPECT_THROW(core.read_model(model, ov::runtime::Tensor()), ov::Exception);
+    }
+}
+
 TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
@@ -394,6 +484,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             </input>
             <output>
                 <port id="2" precision="FP32" names="output_tensor">
+                    <rt_info>
+                        <attribute name="layout" version="0" layout="[N,H,W,C]"/>
+                    </rt_info>
                     <dim>1</dim>
                     <dim>22</dim>
                     <dim>22</dim>
@@ -407,9 +500,6 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             </rt_info>
             <input>
                 <port id="0" precision="FP32">
-                    <rt_info>
-                        <attribute name="layout" version="0" layout="[N,H,W,C]"/>
-                    </rt_info>
                     <dim>1</dim>
                     <dim>22</dim>
                     <dim>22</dim>
@@ -819,6 +909,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
                 <port id="2" precision="FP32">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test4,test5"/>
+                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -832,7 +923,6 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
                 <port id="0" precision="FP32">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test5,test6"/>
-                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>

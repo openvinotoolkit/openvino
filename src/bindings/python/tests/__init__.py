@@ -60,8 +60,6 @@ xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node 
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Momentum")
-xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop "
-                                      "Not constant termination condition body output is not supported")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
                                       "tf_crop_and_resize - this type of coordinate transformation mode "
                                       "is not supported. Choose one of the following modes: "
@@ -77,7 +75,6 @@ xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mo
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44851 = xfail_test(reason="Expected: Unsupported dynamic op: Broadcast")
 xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsqueeze")
-xfail_issue_44956 = xfail_test(reason="Expected: Unsupported dynamic op: Loop")
 xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero")
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")

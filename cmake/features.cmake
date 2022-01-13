@@ -100,6 +100,8 @@ ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
 ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
 
+ie_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
+
 ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 
 ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
@@ -151,6 +153,8 @@ ie_dependent_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON 
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_dependent_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
+    "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
+ie_dependent_option(ENABLE_SHUTDOWN_PROTOBUF "Shutdown protobuf when unload the frontend shared libraries" ON
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
 ie_dependent_option(ENABLE_OV_CORE_BACKEND_UNIT_TESTS "Control the building of unit tests using backends" ON

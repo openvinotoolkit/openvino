@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_impl_check/op_impl_check.hpp"
-#include "op_impl_check/single_op_graph.hpp"
+#include "single_layer_tests/op_impl_check/op_impl_check.hpp"
+#include "single_layer_tests/op_impl_check/single_op_graph.hpp"
 #include "conformance.hpp"
 
 namespace ConformanceTests {

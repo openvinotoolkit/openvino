@@ -35,6 +35,7 @@
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
+#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
@@ -77,6 +78,7 @@
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/disable_decompression_convert_constant_folding.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
@@ -356,6 +358,11 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             });
 
     // List of enabled/disabled transformations
+
+    // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
+    pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
+    pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+
     pass_config->disable<ngraph::pass::ConvertGELU>();
     pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
     pass_config->disable<ngraph::pass::Gelu7Downgrade>();
@@ -439,14 +446,11 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         bool updatePrecision = true;
         bool hasINT16orINT32Levels = ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
                 nGraphFunc,
-                {65535, 65536, 4294967295, 4294967296});
+                {levels::int16, levels::int16_narrow_range,
+                 levels::int32, levels::int32_narrow_range});
         if (hasINT16orINT32Levels) {
             updatePrecision = false;
-            LowPrecision::setDefaultPrecisions({
-                ngraph::element::u8,  ngraph::element::i8,
-                ngraph::element::u16, ngraph::element::i16,
-                ngraph::element::u32, ngraph::element::i32,
-            });
+            LowPrecision::setDefaultPrecisions(precision_set::int8_int16_int32_support);
 
             supportedPrecisions = std::vector<OperationPrecisionRestriction>({});
         }
@@ -609,11 +613,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
                 const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED/isaSpecificThreshold;
                 const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
-                const float L3_cache_size = mkldnn::utils::get_cache_size(3, false);
                 ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
                         clonedNetwork.getFunction(),
-                        L2_cache_size, L3_cache_size,
-                        memThresholdAssumeLimitedForISA);
+                        L2_cache_size, memThresholdAssumeLimitedForISA);
                 // num of phys CPU cores (most aggressive value for #streams)
                 const auto num_cores = getNumberOfCPUCores();
                 // less aggressive

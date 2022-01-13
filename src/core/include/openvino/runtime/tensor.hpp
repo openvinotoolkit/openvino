@@ -75,7 +75,7 @@ public:
     Tensor& operator=(Tensor&& other) = default;
 
     /**
-     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @brief Destructor preserves unloading order of implementation object and reference to library
      */
     ~Tensor();
 
@@ -206,17 +206,6 @@ public:
     const typename std::enable_if<std::is_base_of<Tensor, T>::value, T>::type as() const {
         T::type_check(*this);
         return *static_cast<const T*>(this);
-    }
-
-    /**
-     * @brief Casts this Tensor object to the type T.
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the Tensor
-     * @return T object
-     */
-    template <typename T, typename = typename std::enable_if<std::is_base_of<Tensor, T>::value>::type>
-    operator T() const {
-        return as<T>();
     }
 };
 
