@@ -3,7 +3,7 @@
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
-from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
 from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.elementwise import Div
 from openvino.tools.mo.ops.reshape import Reshape
@@ -26,7 +26,7 @@ def find_max_frame_time(node: Node):
             continue
         in_node = node.in_port(inp).get_source().node
         if in_node.time_dim == -1:
-            raise Error("Parent node {} have not set time_dim".format(in_node.id))
+            raise Error("Parent node {} does not have set time_dim".format(in_node.id))
         if in_node.time_dim > in_frame_time_max:
             in_frame_time_max = in_node.time_dim
 
@@ -163,11 +163,11 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
             # change layout from NHWC to NCHW
             # should be replaced by common Permute logic in future
             direct_transpose = create_op_node_with_second_input(graph, Transpose, int64_array([0, 3, 1, 2]),
-                                                                {'name': node.name + '/Transpose',
+                                                                {'name': node_name + '/Transpose',
                                                                 'time_dime': time_dim - 1}, reshape_in)
             # after convolution/pooling time_dim becomes 0
             inverse_transpose = create_op_node_with_second_input(graph, Transpose, int64_array([0, 2, 3, 1]),
-                                                                 {'name': node.name + '/Transpose_back',
+                                                                 {'name': node_name + '/Transpose_back',
                                                                   'time_dim': 0})
 
             # create Reshape after Convolution
@@ -183,6 +183,7 @@ class AddReshapeTransposeAroundConvPool(FrontReplacementPattern):
             node.out_port(0).get_connection().set_source(reshape_out.out_port(0))
             node.out_port(0).connect(inverse_transpose.in_port(0))
             reshape_out.in_port(0).connect(inverse_transpose.out_port(0))
+            rename_nodes([(node, node_name + '/' + node.op), (reshape_out, node_name)])
 
         for node in graph.get_op_nodes():
             if 'time_dim' in node:
