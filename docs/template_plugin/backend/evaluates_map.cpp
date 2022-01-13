@@ -78,6 +78,7 @@
 
 #include "backend.hpp"
 #include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/convert_color_nv12.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -2761,6 +2762,26 @@ bool evaluate(const shared_ptr<op::v8::Gather>& op, const HostTensorVector& outp
         throw ngraph_error("Unexpected indices type for Gather operation");
     }
     return true;
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::NV12toRGB>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_nv12<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_RGB);
+}
+
+template <ov::element::Type_t ET>
+inline bool evaluate(const shared_ptr<op::v8::NV12toBGR>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    return runtime::reference::color_convert_nv12<ET>(op,
+                                                      outputs,
+                                                      inputs,
+                                                      ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR);
 }
 
 template <typename T>
