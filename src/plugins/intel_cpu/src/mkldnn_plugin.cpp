@@ -142,7 +142,7 @@ Engine::~Engine() {
 }
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
-                                               const bool _enableSnippets) {
+                                               const bool _enableSnippets, const bool isNewApi) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -189,9 +189,13 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
-    manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-    manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+
+    if (!isNewApi) {
+        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+        manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+    }
+
     manager.register_pass<ngraph::pass::TransposeMatMul>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
@@ -528,9 +532,9 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     }
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets) {
+static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets, const bool isNewApi) {
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets, isNewApi);
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
@@ -576,7 +580,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             || engConfig.enableDynamicBatch;
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets, GetCore()->isNewAPI());
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
@@ -786,7 +790,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
         const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16 && with_cpu_x86_avx512_core()));
-        Transformation(clonedNetwork, enableLPT, enableSnippets);
+        Transformation(clonedNetwork, enableLPT, enableSnippets, GetCore()->isNewAPI());
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
