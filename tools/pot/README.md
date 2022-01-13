@@ -19,11 +19,12 @@ features:
 * Symmetric and asymmetric quantization schemes. For details, see the [Quantization](openvino/tools/pot/algorithms/quantization/README.md) section.
 * Per-channel quantization for Convolutional and Fully-Connected layers.
 
-The tool is aimed to fully automate the model transformation process without a need to change the model on the user's side.
-The POT is available only in the Intel&reg; distribution of OpenVINO&trade; toolkit and is not opensourced. For details
-about the low-precision flow in OpenVINO&trade;, see the [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md).
+The tool is aimed to fully automate the model transformation process without a need to change the model on the user's side. For details about 
+the low-precision flow in OpenVINO&trade;, see the [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md).
 
 For benchmarking results collected for the models optimized with POT tool, see [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
+
+POT is opensourced on GitHub as a part of https://github.com/openvinotoolkit/openvino.
 
 Further documentation presumes that you are familiar with the basic Deep Learning concepts, such as model inference,
 dataset preparation, model optimization, as well as with the OpenVINO&trade; toolkit and its components such 
