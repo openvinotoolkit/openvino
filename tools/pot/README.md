@@ -55,4 +55,4 @@ To get started with POT, follow the [Installation Guide](docs/InstallationGuide.
 * [Low Precision Optimization Guide](docs/LowPrecisionOptimizationGuide.md)
 * [Post-Training Optimization Best Practices](docs/BestPractices.md)
 * [POT Frequently Asked Questions](docs/FrequentlyAskedQuestions.md) 
-* [INT8 Quantization by Using Web-Based Interface of the DL Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Int_8_Quantization.html)
+* [INT8 Quantization by Using Web-Based Interface of the DL Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Int_8_Quantization.html)

@@ -1,2 +1,49 @@
 undefined label: doxid-
 content block expected for the "raw"
+unexpected character '.'
+unexpected command endxmlonly
+unsupported xml/html tag
+invalid list item found
+found </tt> tag without matching <tt>
+title level inconsistent
+found ';' while parsing initializer list!
+preprocessing issue while doing constant expression evaluation: syntax
+detected potential recursive class relation between class ov::valueaccessor and base class ov::valueaccessor
+the name \'.+?\' supplied as the argument
+warning: while setting up extension conf.py: csv directory not found
+argument \'.+?\' of command
+no uniquely matching class member found for
+example example was already documented\. ignoring documentation found here\.
+documentation for unknown define
+detected potential recursive class relation between class
+no matching file member found for
+documented empty return type of
+documented symbol
+explicit link request to \'.+\'
+the following parameters? of
+end of comment block while expecting command </u>
+argument \'.+\' from
+found paragraph command
+inline interpreted text or phrase reference start-string without end-string
+duplicate explicit target name:
+inline literal start-string without end-string
+duplicate label
+block quote ends without a blank line; unexpected unindent.
+inline emphasis start-string without end-string
+include file .+? not found
+included file example is not found\. check your example_path
+toctree contains reference to nonexisting document 'notebooks/notebooks'
+'.+' at line [0-9]+? of file
+possible candidates
+handle_t openvino::itt::handle
+parameter \'.+?\'
+const .+
+template .+
+openvino_suppress_deprecated_start template class openvino_api ngraph::variantimpl
+@copybrief or @copydoc target
+while setting up extension conf.py: csv directory not found
+autosummary: failed to import openvino.inference_engine
+unknown target name:
+undefined substitution referenced
+detailed documentation
+~~~~~~~~~~~~~~~~~~~~~~

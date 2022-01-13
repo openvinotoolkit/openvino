@@ -41,7 +41,7 @@ To convert a Paddle\* model:
 
 Parameters to convert your model:
 
-* [Framework-agnostic parameters](Converting_Model_General.md): These parameters are used to convert a model trained with any supported framework.
+* [Framework-agnostic parameters](Converting_Model.md): These parameters are used to convert a model trained with any supported framework.
 > **NOTE:** `--scale`, `--scale_values`, `--mean_values` are not supported in the current version of mo_paddle.
 
 ### Example of Converting a Paddle* Model

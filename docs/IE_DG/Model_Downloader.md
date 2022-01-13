@@ -31,7 +31,7 @@ python3 -mpip install --user -r ./requirements.in
 
 For the model converter, you will also need to install the OpenVINO&trade;
 toolkit and the prerequisite libraries for Model Optimizer. See the
-[OpenVINO toolkit documentation](https://docs.openvinotoolkit.org/) for details.
+[OpenVINO toolkit documentation](https://docs.openvino.ai/) for details.
 
 To convert models from certain frameworks, you will also need to install
 additional dependencies.
@@ -215,7 +215,7 @@ the script.
 Before you run the model quantizer, you must prepare a directory with
 the datasets required for the quantization process. This directory will be
 referred to as `<DATASET_DIR>` below. You can find more detailed information
-about dataset preparation in the [Dataset Preparation Guide](../../data/datasets.md).
+about dataset preparation in the [Dataset Preparation Guide](@ref omz_data_datasets).
 
 The basic usage is to run the script like this:
 

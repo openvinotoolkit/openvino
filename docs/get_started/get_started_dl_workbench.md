@@ -63,4 +63,3 @@ Congratulations, you have installed DL Workbench. Your next step is to [Get Star
 * [Get Started with DL Workbench](@ref workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets)
 * [DL Workbench Overview](@ref workbench_docs_Workbench_DG_Introduction)
 * [DL Workbench Educational Resources](@ref workbench_docs_Workbench_DG_Additional_Resources)
-* [OpenVINO™ Toolkit Overview](../index.md)

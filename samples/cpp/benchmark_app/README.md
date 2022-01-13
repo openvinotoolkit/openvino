@@ -19,7 +19,7 @@ Upon start-up, the application reads command-line parameters and loads a network
   If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application
   or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified.
   For more information about the argument, refer to **When to Reverse Input Channels** section of
-  [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+  [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 
 Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
 or left default. In the last case, the sample logic will select the values for the optimal throughput.

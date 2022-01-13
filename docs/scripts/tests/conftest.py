@@ -15,10 +15,8 @@ Usage:
 pytest --doxygen doxygen.log --html doc-generation.html test_doc-generation.py
 """
 
-import re
-import copy
 import pytest
-from utils.log import parse
+from utils.log import LogParser
 
 
 def pytest_addoption(parser):
@@ -97,23 +95,9 @@ def read_lists(configs):
 def pytest_generate_tests(metafunc):
     """ Generate tests depending on command line options
     """
-
-    # warnings to ignore
-    suppress_warnings = read_lists(metafunc.config.getoption('suppress_warnings'))
-    # read doxygen log
-    with open(metafunc.config.getoption('doxygen'), 'r') as log:
-        doxygen_warnings = parse(log.read(), metafunc.config.getoption('doxygen_strip'), suppress_warnings)
-
-    # read sphinx log
-    with open(metafunc.config.getoption('sphinx'), 'r', encoding='windows-1252') as log:
-        sphinx_warnings = parse(log.read(), metafunc.config.getoption('sphinx_strip'), suppress_warnings)
-
-    all_warnings = dict()
-    all_warnings.update(doxygen_warnings)
-    all_warnings.update(sphinx_warnings)
-
-    exclude_links = {'open_model_zoo', 'workbench', 'pot',  'gst', 'omz', 'ovms'}
+    exclude_links = {'open_model_zoo', 'workbench', 'pot', 'gst', 'omz', 'ovms'}
     if metafunc.config.getoption('include_omz'):
+        exclude_links.remove('open_model_zoo')
         exclude_links.remove('omz')
     if metafunc.config.getoption('include_wb'):
         exclude_links.remove('workbench')
@@ -124,16 +108,33 @@ def pytest_generate_tests(metafunc):
     if metafunc.config.getoption('include_ovms'):
         exclude_links.remove('ovms')
 
+    # warnings to ignore
+    suppress_warnings = read_lists(metafunc.config.getoption('suppress_warnings'))
+    for link in exclude_links:
+        doxy_ref_pattern = "unable to resolve reference to '{}".format(link)
+        sphinx_ref_pattern = "toctree contains reference to nonexisting document '{}".format(link)
+        suppress_warnings.append(doxy_ref_pattern)
+        suppress_warnings.append(sphinx_ref_pattern)
+
+    # read doxygen log
+    doxy_parser = LogParser(metafunc.config.getoption('doxygen'))
+    doxy_parser.parse()
+    doxygen_warnings = doxy_parser.filter(strip=metafunc.config.getoption('doxygen_strip'),
+                                          xfail_list=metafunc.config.getoption('doxygen_xfail'),
+                                          suppress_warnings=suppress_warnings)
+
+    sphinx_parser = LogParser(metafunc.config.getoption('sphinx'))
+    sphinx_parser.parse()
+    sphinx_warnings = sphinx_parser.filter(strip=metafunc.config.getoption('sphinx_strip'),
+                                           xfail_list=metafunc.config.getoption('doxygen_xfail'),
+                                           suppress_warnings=suppress_warnings)
+
+    all_warnings = dict()
+    all_warnings.update(doxygen_warnings)
+    all_warnings.update(sphinx_warnings)
+
     filtered_keys = filter(lambda line: not any([line.startswith(repo) for repo in exclude_links]), all_warnings)
     files_with_errors = {key: all_warnings[key] for key in filtered_keys}
-    ref_pattern = "unable to resolve reference to '{}"
-    for file, errors in copy.deepcopy(files_with_errors).items():
-        for error in errors:
-            for ex_link in exclude_links:
-                if re.match(re.compile(ref_pattern.format(ex_link)), error):
-                    files_with_errors[file].remove(error)
-            if not len(errors):
-                files_with_errors.pop(file)
 
     # read mute lists
     marks = dict()

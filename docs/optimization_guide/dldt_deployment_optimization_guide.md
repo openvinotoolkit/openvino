@@ -72,7 +72,7 @@ There are important performance caveats though: for example, the tasks that run 
 
 Also, if the inference is performed on the graphics processing unit (GPU), it can take little gain to do the encoding, for instance, of the resulting video, on the same GPU in parallel, because the device is already busy.
 
-Refer to the [Object Detection SSD Demo](@ref omz_demos_object_detection_demo_ssd_async_README) (latency-oriented Async API showcase) and [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) (which has both latency and throughput-oriented modes) for complete examples of the Async API in action.
+Refer to the [Object Detection SSD Demo](@ref omz_demos_object_detection_demo_ssd_async_README) (latency-oriented Async API showcase) and [Benchmark App Sample](../../samples/benchmark_app/README.md) (which has both latency and throughput-oriented modes) for complete examples of the Async API in action.
 
 ### Request-Based API and “GetBlob” Idiom <a name="new-request-based-api"></a>
 
@@ -168,7 +168,7 @@ This feature usually provides much better performance for the networks than batc
 Compared with the batching, the parallelism is somewhat transposed (i.e. performed over inputs, and much less within CNN ops):
 ![](../img/cpu_streams_explained.png)
 
-Try the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample and play with number of streams running in parallel. The rule of thumb is tying up to a number of CPU cores on your machine.
+Try the [Benchmark App](../../samples/cpp/benchmark_app/README.md) sample and play with number of streams running in parallel. The rule of thumb is tying up to a number of CPU cores on your machine.
 For example, on an 8-core CPU, compare the `-nstreams 1` (which is a legacy, latency-oriented scenario) to the 2, 4, and 8 streams.
 
 In addition, you can play with the batch size to find the throughput sweet spot.
@@ -187,13 +187,13 @@ Inference Engine relies on the [Compute Library for Deep Neural Networks (clDNN)
 -	If your application is simultaneously using the inference on the CPU or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. You can use [CPU configuration options](../IE_DG/supported_plugins/CPU.md) to limit number of inference threads for the CPU plugin.
 -	In the GPU-only scenario, a GPU driver might occupy a CPU core with spin-looped polling for completion. If the _CPU_ utilization is a concern, consider the `KEY_CLDND_PLUGIN_THROTTLE` configuration option.
 
-> **NOTE**: See the [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) code for a usage example. 
-Notice that while disabling the polling, this option might reduce the GPU performance, so usually this option is used with multiple [GPU streams](../IE_DG/supported_plugins/CL_DNN.md). 
+> **NOTE**: See the [Benchmark App Sample](../../samples/cpp/benchmark_app/README.md) code for a usage example. 
+Notice that while disabling the polling, this option might reduce the GPU performance, so usually this option is used with multiple [GPU streams](../IE_DG/supported_plugins/GPU.md). 
 
 
 ### Intel&reg; Movidius&trade; Myriad&trade; X Visual Processing Unit and Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs  <a name="myriad"></a>
 
-Since Intel&reg; Movidius&trade; Myriad&trade; X Visual Processing Unit (Intel&reg; Movidius&trade; Myriad&trade; 2 VPU) communicates with the host over USB, minimum four infer requests in flight are recommended to hide the data transfer costs. See <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a> and [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) for more information.
+Since Intel&reg; Movidius&trade; Myriad&trade; X Visual Processing Unit (Intel&reg; Movidius&trade; Myriad&trade; 2 VPU) communicates with the host over USB, minimum four infer requests in flight are recommended to hide the data transfer costs. See <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a> and [Benchmark App Sample](../../samples/cpp/benchmark_app/README.md) for more information.
 
 Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs requires to keep at least 32 inference requests in flight to fully saturate the device.  
 
@@ -270,7 +270,7 @@ The following tips are provided to give general guidance on optimizing execution
 
 ### Analyzing Heterogeneous Execution <a name="analyzing-heterogeneous-execution"></a>
 
-There is a dedicated configuration option that enables dumping the visualization of the subgraphs created by the heterogeneous plugin, please see code example in the [HETERO plugin documentation](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution)
+There is a dedicated configuration option that enables dumping the visualization of the subgraphs created by the heterogeneous plugin, please see code example in the [HETERO plugin documentation](https://docs.openvino.ai/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution)
 
 After enabling the configuration key, the heterogeneous plugin generates two files:
 
@@ -279,7 +279,7 @@ After enabling the configuration key, the heterogeneous plugin generates two fil
 
 You can use GraphViz\* utility or `.dot` converters (for example, to `.png` or `.pdf`), like xdot\*, available on Linux\* OS with `sudo apt-get install xdot`. 
 
-You can also use performance data (in the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
+You can also use performance data (in the [Benchmark App](../../samples/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](https://docs.openvino.ai/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
 
 ## Multi-Device Execution <a name="multi-device-optimizations"></a>
 OpenVINO&trade; toolkit supports automatic multi-device execution, please see [MULTI-Device plugin description](../IE_DG/supported_plugins/MULTI.md).
@@ -290,9 +290,9 @@ for the multi-device execution:
     (e.g. the number of request in the flight is not enough to saturate all devices).
 - It is highly recommended to query the optimal number of inference requests directly from the instance of the ExecutionNetwork 
   (resulted from the LoadNetwork call with the specific multi-device configuration as a parameter). 
-Please refer to the code of the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample for details.    
+Please refer to the code of the [Benchmark App](../../samples/benchmark_app/README.md) sample for details.    
 -   Notice that for example CPU+GPU execution performs better with certain knobs 
-    which you can find in the code of the same [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample.
+    which you can find in the code of the same [Benchmark App](../../samples/benchmark_app/README.md) sample.
     One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams (which is already a default for the GPU) to amortize slower 
     inference completion from the device to the host.
 -	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 

@@ -3,9 +3,9 @@
 ## Prerequisites
 
 * Python* 3.6 or higher
-* [OpenVINO&trade;](@ref index)
+* [OpenVINO&trade;](https://docs.openvino.ai/latest/index.html)
 
-The minimum and the recommended requirements to run the Post-training Optimization Tool (POT) are the same as in [OpenVINO&trade;](@ref index).
+The minimum and the recommended requirements to run the Post-training Optimization Tool (POT) are the same as in [OpenVINO&trade;](https://docs.openvino.ai/latest/index.html).
 
 There are two ways how to install the POT on your system:
 - Installation from PyPI repository

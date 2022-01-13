@@ -18,13 +18,13 @@ You need to build your performance conclusions on reproducible data. Do the perf
 -	If the warm-up run does not help or execution time still varies, you can try running a large number of iterations and then average or find a mean of the results.
 -	 For time values that range too much, use geomean.
 
-Refer to the [Inference Engine Samples](../IE_DG/Samples_Overview.md) for code examples for the performance measurements. Almost every sample, except interactive demos, has a `-ni` option to specify the number of iterations.
+Refer to the [Inference Engine Samples](../../IE_DG/Samples_Overview.md) for code examples for the performance measurements. Almost every sample, except interactive demos, has a `-ni` option to specify the number of iterations.
 
 ## Getting performance numbers using OpenVINO tool 
 
 To get performance numbers use our Benchmark app.  
 
-[Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample is the best performance reference.
+[Benchmark App](../../../samples/cpp/benchmark_app/README.md) sample is the best performance reference.
 It has a lot of device-specific knobs, but the primary usage is as simple as: 
 ```bash
 $ ./benchmark_app –d GPU –m <model> -i <input>
@@ -47,7 +47,7 @@ Instead, it is possible to keep a separate infer request per camera or another s
 
 When comparing the Inference Engine performance with the framework or another reference code, make sure that both versions are as similar as possible:
 
--	Wrap exactly the inference execution (refer to the [Inference Engine Samples](../IE_DG/Samples_Overview.md) for examples).
+-	Wrap exactly the inference execution (refer to the [Inference Engine Samples](../../IE_DG/Samples_Overview.md) for examples).
 -	Do not include model loading time.
 -	Ensure the inputs are identical for the Inference Engine and the framework. For example, Caffe\* allows to auto-populate the input with random values. Notice that it might give different performance than on real images.
 -	Similarly, for correct performance comparison, make sure the access pattern, for example, input layouts, is optimal for Inference Engine (currently, it is NCHW).
@@ -64,7 +64,7 @@ Alternatively, you can gather the raw profiling data that samples report, the se
 
 ### Internal Inference Performance Counters <a name="performance-counters"></a>
 
-Almost every sample (inspect command-line options for a specific sample with `-h`) supports a `-pc` command that outputs internal execution breakdown. Refer to the [samples code](../IE_DG/Samples_Overview.md) for the actual Inference Engine API behind that.
+Almost every sample (inspect command-line options for a specific sample with `-h`) supports a `-pc` command that outputs internal execution breakdown. Refer to the [samples code](../../IE_DG/Samples_Overview.md) for the actual Inference Engine API behind that.
 
 Below is example of CPU plugin output for a network (since the device is CPU, the layers wall clock `realTime` and the `cpu` time are the same):
 
