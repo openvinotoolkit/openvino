@@ -40,7 +40,7 @@ def apply_moc_transformations(func: object):
 
 
 def apply_moc_legacy_transformations(func: object, params_with_custom_types: List[str]):
-    from openvino.offline_transformations_pybind import apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
     apply_moc_legacy_transformations(func, params_with_custom_types)
 
 
