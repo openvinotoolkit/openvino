@@ -124,6 +124,7 @@ DECLARE_GNA_CONFIG_KEY(COMPACT_MODE);
  * If value is YES then simple uniform distribution used to create PWL approximation of activation functions
  * Uniform distribution usually gives poor approximation with same number of segments
  */
+INFERENCE_ENGINE_DEPRECATED("The config key is deprected and will be removed")
 DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
 
 /**
@@ -131,6 +132,7 @@ DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
  * will use to find PWL functions.
  * By default (in case of NO value set), 1.0 value is used.
  */
+INFERENCE_ENGINE_DEPRECATED("The config key is deprected and will be removed")
 DECLARE_GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT);
 
 /**
