@@ -29,7 +29,6 @@ static const std::set<std::string> supportedTargets = {
     ""
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
     for (auto&& item : config) {
         auto key = item.first;
@@ -211,7 +210,6 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
 
     AdjustKeyMapValues();
 }
- OPENVINO_SUPPRESS_DEPRECATED_END
 
 void Config::AdjustKeyMapValues() {
     std::lock_guard<std::mutex> lockGuard{ mtx4keyConfigMap };
@@ -253,11 +251,9 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(gnaFlags.pwlMaxErrorPercent);
     keyConfigMap[CONFIG_KEY(PERF_COUNT)] =
             gnaFlags.performance_counting ? PluginConfigParams::YES: PluginConfigParams::NO;
-OPENVINO_SUPPRESS_DEPRECATED_START
     keyConfigMap[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);
     keyConfigMap[CONFIG_KEY(SINGLE_THREAD)] =
             gnaFlags.gna_openmp_multithreading ? PluginConfigParams::NO: PluginConfigParams::YES;
-OPENVINO_SUPPRESS_DEPRECATED_END
     keyConfigMap[CONFIG_KEY(LOG_LEVEL)] = gnaFlags.log_level;
 }
 
