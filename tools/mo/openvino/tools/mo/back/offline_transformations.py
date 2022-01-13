@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+from typing import List
 
-from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.front.extractor import create_params_with_custom_types
 from openvino.tools.mo.utils.cli_parser import parse_transform
+from openvino.tools.mo.utils.error import Error
 
 
 def get_available_transformations():
@@ -36,6 +38,12 @@ def apply_moc_transformations(func: object):
     from openvino.offline_transformations_pybind import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
     apply_moc_transformations(func, False)
 
+
+def apply_moc_legacy_transformations(func: object, params_with_custom_types: List[str]):
+    from openvino.offline_transformations_pybind import apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
+    apply_moc_legacy_transformations(func, params_with_custom_types)
+
+
 def compress_model(func: object):
     from openvino.offline_transformations_pybind import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
     compress_model_transformation(func)
@@ -47,7 +55,7 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
 
     from openvino.offline_transformations_pybind import generate_mapping_file, serialize  # pylint: disable=import-error,no-name-in-module
-    from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
+    from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
     fem = FrontEndManager()
@@ -88,6 +96,9 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
 
     apply_user_transformations(func, parse_transform(argv.transform))
     apply_moc_transformations(func)
+
+    params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes)
+    apply_moc_legacy_transformations(func, params_with_custom_types)
 
     if "compress_fp16" in argv and argv.compress_fp16:
         compress_model(func)
