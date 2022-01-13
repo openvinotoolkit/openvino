@@ -411,10 +411,6 @@ set(SRC
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
-# Add include path to so_extension.hpp
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
-                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
-
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
@@ -581,8 +577,7 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads
                                         openvino::conditional_compilation
-                                        openvino::util
-                                        frontend_common)
+                                        openvino::runtime::dev)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
