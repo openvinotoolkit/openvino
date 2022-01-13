@@ -595,7 +595,7 @@ class ngraph::pass::mask_propagation::Reduce : public MatcherPass {
 public:
     Reduce() {
         auto inputs = pattern::any_input();
-        auto weights = pattern::any_input(pattern::has_static_shape());
+        auto weights = pattern::wrap_type<opset6::Constant>();
         auto pooling_by_reduce = pattern::wrap_type<opset6::ReduceMin, opset6::ReduceMax, opset6::ReduceMean>({inputs, weights});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -604,13 +604,12 @@ public:
             const auto & m_input = pattern_map.at(inputs);
             const auto & m_output = pattern_map.at(pooling_by_reduce);
 
-            const auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
-            if (!constant) return false;
 
             // Check reduce operation reduces only dimension without masks
             if (auto input_mask = getMask(m_input)) {
                 auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
-                const auto reduce_dims = constant->cast_vector<int>();
+                const auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
+                const auto reduce_dims = constant->cast_vector<int64_t>();
 
                 auto input_mask_row = input_mask.get();
                 auto output_mask_row = output_mask.get();
