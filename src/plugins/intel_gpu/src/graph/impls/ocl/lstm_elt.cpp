@@ -43,7 +43,7 @@ public:
             const auto& cell_layout = arg.cell().get_output_layout();
             lstm_elt_params.SetCell(convert_data_tensor(cell_layout));
             // TODO: make a generic function to get the direction
-            if (cell_layout.size.spatial[1] > 1) {
+            if (cell_layout.spatial(1) > 1) {
                 lstm_elt_params.cell_direction = arg.direction();
             }
         }

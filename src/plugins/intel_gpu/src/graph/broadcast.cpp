@@ -55,24 +55,11 @@ std::string broadcast_inst::to_string(broadcast_node const& node) {
 broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
-    const auto& input_sizes = input_layout.size;
     const auto& output_sizes = argument.broadcast_sizes;
     const auto format = input_layout.format;
 
-    std::vector<tensor::value_type> input_dims;
-    size_t max_axes_num;
-
-    if (format == format::bfzyx) {
-        max_axes_num = 5;
-        input_dims = {input_sizes.batch[0],
-                      input_sizes.feature[0],
-                      input_sizes.spatial[2],
-                      input_sizes.spatial[1],
-                      input_sizes.spatial[0]};
-    } else {
-        max_axes_num = 4;
-        input_dims = {input_sizes.batch[0], input_sizes.feature[0], input_sizes.spatial[1], input_sizes.spatial[0]};
-    }
+    std::vector<tensor::value_type> input_dims = input_layout.get_dims();
+    size_t max_axes_num = input_layout.get_rank();
 
     std::vector<tensor::value_type> reordered_input_dims(5, 0);
     std::set<uint16_t> existing;

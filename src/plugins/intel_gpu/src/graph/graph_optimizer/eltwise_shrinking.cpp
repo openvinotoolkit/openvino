@@ -88,11 +88,11 @@ void eltwise_shrinking::run(program& p) {
                         auto dep_stride_x = stride_x;
                         auto dep_stride_y = stride_y;
                         // don't shrink if input is broadcasted
-                        if (node->get_dependency(dep).get_output_layout().size.spatial[0] == 1) {
+                        if (node->get_dependency(dep).get_output_layout().spatial(0) == 1) {
                             dep_stride_x = 1;
                         }
 
-                        if (node->get_dependency(dep).get_output_layout().size.spatial[1] == 1) {
+                        if (node->get_dependency(dep).get_output_layout().spatial(1) == 1) {
                             dep_stride_y = 1;
                         }
 

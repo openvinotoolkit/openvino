@@ -25,8 +25,8 @@ layout pyramid_roi_align_inst::calc_output_layout(pyramid_roi_align_node const& 
     auto boxes_layout = node.input().get_output_layout();
     auto P2_layout = node.P2().get_output_layout();
 
-    int32_t output_b = boxes_layout.size.batch[0];
-    int32_t output_f = P2_layout.size.feature[0];
+    int32_t output_b = boxes_layout.batch();
+    int32_t output_f = P2_layout.feature();
 
     int32_t output_x = desc->output_size;
     int32_t output_y = desc->output_size;

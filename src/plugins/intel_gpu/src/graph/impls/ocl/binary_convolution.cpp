@@ -74,7 +74,7 @@ public:
         const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
         const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
 
-        assert(arg.get_output_layout().size.feature[0] / primitive->split() == weights_layout.size.batch[0]);
+        assert(arg.get_output_layout().feature() / primitive->split() == weights_layout.batch());
 
         auto conv_params =
             get_weights_bias_default_params<kernel_selector::binary_convolution_params>(arg, actual_split);

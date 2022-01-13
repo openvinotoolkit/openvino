@@ -297,12 +297,11 @@ TEST(one_hot_gpu_i32_to_f32, bfyx_ax4) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
-    int z_size = output_tensor.spatial[2];
-    int y_size = output_tensor.spatial[1];
-    int x_size = output_tensor.spatial[0];
-    int f_size = output_tensor.feature[0];
-    int b_size = output_tensor.batch[0];
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(z_size, 2);
     EXPECT_EQ(y_size, 1);
     EXPECT_EQ(x_size, 5);
@@ -787,12 +786,11 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int64_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
-    int z_size = output_tensor.spatial[2];
-    int y_size = output_tensor.spatial[1];
-    int x_size = output_tensor.spatial[0];
-    int f_size = output_tensor.feature[0];
-    int b_size = output_tensor.batch[0];
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(z_size, 1);
     EXPECT_EQ(y_size, 3);
     EXPECT_EQ(x_size, 2);

@@ -125,37 +125,37 @@ gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     cl_channel_order order = CL_R;
     switch (layout.format) {
         case format::image_2d_weights_c1_b_fyx:
-            _width = layout.size.batch[0];
-            _height = layout.size.spatial[0] * layout.size.feature[0] * layout.size.spatial[1];
+            _width = layout.batch();
+            _height = layout.spatial(0) * layout.feature() * layout.spatial(1);
             break;
         case format::image_2d_weights_winograd_6x3_s1_fbxyb:
-            _height = layout.size.feature[0];
-            _width = layout.size.spatial[0] * layout.size.batch[0] * layout.size.spatial[1] * 8 / 3;
+            _height = layout.feature();
+            _width = layout.spatial(0) * layout.batch() * layout.spatial(1) * 8 / 3;
             break;
         case format::image_2d_weights_winograd_6x3_s1_xfbyb:
-            _height = layout.size.feature[0] * layout.size.spatial[0] * 8 / 3;
-            _width = layout.size.batch[0] * layout.size.spatial[1];
+            _height = layout.feature() * layout.spatial(0) * 8 / 3;
+            _width = layout.batch() * layout.spatial(1);
             break;
         case format::image_2d_weights_c4_fyx_b:
-            _width = layout.size.batch[0];
-            _height = layout.size.spatial[0] * layout.size.feature[0] * layout.size.spatial[1];
+            _width = layout.batch();
+            _height = layout.spatial(0) * layout.feature() * layout.spatial(1);
             order = CL_RGBA;
             break;
         case format::image_2d_rgba:
-            _width = layout.size.spatial[0];
-            _height = layout.size.spatial[1];
+            _width = layout.spatial(0);
+            _height = layout.spatial(1);
             order = CL_RGBA;
-            if (layout.size.feature[0] != 3 && layout.size.feature[0] != 4) {
+            if (layout.feature() != 3 && layout.feature() != 4) {
                 CLDNN_ERROR_MESSAGE("2D image allocation", "invalid number of channels in image_2d_rgba input image (should be 3 or 4)!");
             }
             type = CL_UNORM_INT8;
             break;
         case format::nv12:
-            _width = layout.size.spatial[1];
-            _height = layout.size.spatial[0];
-            if (layout.size.feature[0] == 2) {
+            _width = layout.spatial(1);
+            _height = layout.spatial(0);
+            if (layout.feature() == 2) {
                 order = CL_RG;
-            } else if (layout.size.feature[0] > 2) {
+            } else if (layout.feature() > 2) {
                 CLDNN_ERROR_MESSAGE("2D image allocation", "invalid number of channels in NV12 input image!");
             }
             type = CL_UNORM_INT8;

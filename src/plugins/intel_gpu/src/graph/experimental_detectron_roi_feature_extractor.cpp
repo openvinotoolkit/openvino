@@ -35,8 +35,8 @@ layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(exp
            "Output data type forcing is not supported for roi_pooling_node!");
     layout rois_layout = node.input(0).get_output_layout();
     layout data_layout = node.input(1).get_output_layout();
-    int num_rois = rois_layout.size.batch[0];
-    int num_channels = data_layout.size.feature[0];
+    int num_rois = rois_layout.batch();
+    int num_channels = data_layout.feature();
     auto desc = node.get_primitive();
 
     return layout(data_layout.data_type, format::bfyx, {num_rois, num_channels, desc->output_dim, desc->output_dim});

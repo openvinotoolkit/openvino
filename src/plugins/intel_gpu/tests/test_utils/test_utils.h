@@ -270,13 +270,13 @@ template<typename T>
 void set_values_per_batch_and_feature(cldnn::memory::ptr mem, std::vector<T> args) {
     cldnn::mem_lock<T> mem_ptr(mem, get_test_stream());
     auto&& pitches = mem->get_layout().get_pitches();
-    auto&& size = mem->get_layout().size;
-    for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
-        for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
-            for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
-                for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
+    auto&& l = mem->get_layout();
+    for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
+        for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
+            for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
+                for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
                     unsigned int input_it = b*pitches.batch[0] + f*pitches.feature[0] + y*pitches.spatial[1] + x*pitches.spatial[0];
-                    mem_ptr[input_it] = args[b*size.feature[0] + f];
+                    mem_ptr[input_it] = args[b*l.feature() + f];
                 }
             }
         }

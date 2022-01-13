@@ -23,7 +23,7 @@ layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node
     auto input_type = input_layout.data_type;
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
 
-    tensor output_size(input_layout.size.batch[0],
+    tensor output_size(input_layout.batch(),
                        desc->output_size.feature[0],
                        desc->output_size.spatial[0],
                        desc->output_size.spatial[1],
@@ -70,8 +70,8 @@ layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& 
     auto input_type = input_layout.data_type;
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
 
-    tensor output_size(input_layout.size.batch[0],
-                       input_layout.size.feature[0]*kernel_size.spatial[0]*kernel_size.spatial[1],
+    tensor output_size(input_layout.batch(),
+                       input_layout.feature()*kernel_size.spatial[0]*kernel_size.spatial[1],
                        desc->output_size.spatial[0],
                        desc->output_size.spatial[1],
                        desc->output_size.spatial[2]);

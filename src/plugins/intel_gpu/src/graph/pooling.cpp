@@ -147,8 +147,8 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                                        0,
                                        "User-defined size of output layout (spatial Z) must be positive (>= 1)");
 
-        tensor output_size(input_layout.size.batch[0],
-                           input_layout.size.feature[0],
+        tensor output_size(input_layout.batch(),
+                           input_layout.feature(),
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
@@ -168,8 +168,8 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                                                                                       true,
                                                                                       1);
 
-    tensor output_size(input_layout.size.batch[0],
-                       input_layout.size.feature[0],
+    tensor output_size(input_layout.batch(),
+                       input_layout.feature(),
                        output_range.spatial[0],
                        output_range.spatial[1],
                        output_range.spatial[2]);
@@ -185,11 +185,13 @@ std::string pooling_inst::to_string(pooling_node const& node) {
 
     std::stringstream primitive_description;
 
+    bool is_global = desc->global_pooling;
+
     json_composite pooling_info;
     pooling_info.add("mode", mode);
     pooling_info.add("stride", cldnn::to_string(strd));
     pooling_info.add("kernel size", cldnn::to_string(kernel_size));
-    pooling_info.add("pad", cldnn::to_string(desc->pad));
+    pooling_info.add("is global", is_global ? "true" : "false");
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
         ud_out_size_info.add("size", desc->output_size.to_string());

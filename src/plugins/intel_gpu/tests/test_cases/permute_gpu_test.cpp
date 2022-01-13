@@ -69,11 +69,11 @@ TEST(permute_gpu_f32, output_ordering_test)
                 auto output_mem = output.get_memory();
                 EXPECT_EQ(outputs.size(), size_t(1));
                 auto ref_tensor = get_permutation(inp_t, perm);
-                auto out_tensor = output_mem->get_layout().size;
-                EXPECT_EQ(out_tensor.batch[0], ref_tensor[0]);
-                EXPECT_EQ(out_tensor.feature[0], ref_tensor[1]);
-                EXPECT_EQ(out_tensor.spatial[0], ref_tensor[2]);
-                EXPECT_EQ(out_tensor.spatial[1], ref_tensor[3]);
+                auto l = output_mem->get_layout();
+                EXPECT_EQ(l.batch(), ref_tensor[0]);
+                EXPECT_EQ(l.feature(), ref_tensor[1]);
+                EXPECT_EQ(l.spatial(0), ref_tensor[2]);
+                EXPECT_EQ(l.spatial(1), ref_tensor[3]);
             }
         }
     }
@@ -350,11 +350,11 @@ TEST(permute_gpu_f32, basic_yxfb_permute_batch_with_feature)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 2);
-    EXPECT_EQ(out_tensor.feature[0], 8);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 1);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 2);
+    EXPECT_EQ(l.feature(), 8);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 1);
 
     float answers[16] = {
         1.0f, 3.0f,
@@ -405,11 +405,11 @@ TEST(permute_gpu_f32, basic_bfyx_permute_batch_with_feature)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 8);
-    EXPECT_EQ(out_tensor.feature[0], 2);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 1);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 8);
+    EXPECT_EQ(l.feature(), 2);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 1);
 
     float answers[16] = {
         1.0f, 3.0f,
@@ -614,11 +614,11 @@ TEST(fc_permute_crop_gpu, basic_permute_yxfb)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 5);
-    EXPECT_EQ(out_tensor.feature[0], 1);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 512);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 5);
+    EXPECT_EQ(l.feature(), 1);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 512);
     EXPECT_EQ(output->get_layout().format, cldnn::format::yxfb);
 }
 
@@ -649,11 +649,11 @@ TEST(fc_permute_crop_gpu, basic_0)
     EXPECT_EQ(outputs.begin()->first, "crop");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 1);
-    EXPECT_EQ(out_tensor.feature[0], 1);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 512);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 1);
+    EXPECT_EQ(l.feature(), 1);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 512);
     EXPECT_EQ(output->get_layout().format, cldnn::format::yxfb);
 }
 
@@ -679,11 +679,11 @@ TEST(fc_permute_gpu, basic_permute_bfyx)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 5);
-    EXPECT_EQ(out_tensor.feature[0], 1);
-    EXPECT_EQ(out_tensor.spatial[0], 1);
-    EXPECT_EQ(out_tensor.spatial[1], 256);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 5);
+    EXPECT_EQ(l.feature(), 1);
+    EXPECT_EQ(l.spatial(0), 1);
+    EXPECT_EQ(l.spatial(1), 256);
     EXPECT_EQ(output->get_layout().format, cldnn::format::bfyx);
 
     cldnn::mem_lock<float> input_ptr(input_mem, get_test_stream());
@@ -739,13 +739,13 @@ TEST(permute_gpu_f32, permute_bfwzyx)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 2);
-    EXPECT_EQ(out_tensor.feature[0], 1);
-    EXPECT_EQ(out_tensor.spatial[0], 6);
-    EXPECT_EQ(out_tensor.spatial[1], 5);
-    EXPECT_EQ(out_tensor.spatial[2], 4);
-    EXPECT_EQ(out_tensor.spatial[3], 3);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 2);
+    EXPECT_EQ(l.feature(), 1);
+    EXPECT_EQ(l.spatial(0), 6);
+    EXPECT_EQ(l.spatial(1), 5);
+    EXPECT_EQ(l.spatial(2), 4);
+    EXPECT_EQ(l.spatial(3), 3);
     EXPECT_EQ(output->get_layout().format, cldnn::format::bfwzyx);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -882,12 +882,12 @@ TEST(permute_gpu_f32, basic_bfzyx_permute_0_2_3_4_1)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-    auto out_tensor = output->get_layout().size;
-    EXPECT_EQ(out_tensor.batch[0], 2);
-    EXPECT_EQ(out_tensor.feature[0], 3);
-    EXPECT_EQ(out_tensor.spatial[0], 2);
-    EXPECT_EQ(out_tensor.spatial[1], 2);
-    EXPECT_EQ(out_tensor.spatial[2], 2);
+    auto l = output->get_layout();
+    EXPECT_EQ(l.batch(), 2);
+    EXPECT_EQ(l.feature(), 3);
+    EXPECT_EQ(l.spatial(0), 2);
+    EXPECT_EQ(l.spatial(1), 2);
+    EXPECT_EQ(l.spatial(2), 2);
 
     EXPECT_EQ(output->get_layout().format, cldnn::format::bfzyx);
 

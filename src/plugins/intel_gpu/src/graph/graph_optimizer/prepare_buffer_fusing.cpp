@@ -137,20 +137,20 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         // TODO: Below condition should be moved to program_node::supports_padding.
         // This hovewer will need updating the algorithm as it may make cascade adjustment impossible in some cases.
         // It hovewer would make normal optimizations possible in others, so this is a trade-off to be investigated.
-        if (l.format == format::b_fs_yx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != 1))
+        if (l.format == format::b_fs_yx_fsv16 && (l.feature() % 16 != 0 || node.get_primitive()->axis != 1))
             return false;
 
-        if (l.format == format::b_fs_zyx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != 1))
+        if (l.format == format::b_fs_zyx_fsv16 && (l.feature() % 16 != 0 || node.get_primitive()->axis != 1))
             return false;
 
         if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
-            (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != 1))
+            (l.feature() % 32 != 0 || node.get_primitive()->axis != 1))
             return false;
 
         if (l.format == format::bs_fs_yx_bsv16_fsv16)
             return false;
 
-        if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] != 8 || node.get_primitive()->axis != 1))
+        if (l.format == format::b_fs_yx_fsv4 && (l.feature() != 8 || node.get_primitive()->axis != 1))
             return false;
     }
 
@@ -346,7 +346,7 @@ void prepare_buffer_fusing::run(program& p) {
                 const auto& crop_size = crop_layout.size;
                 const auto& out_padd = crop_layout.data_padding;
                 const auto opt_lower_pad = crop_prim->offsets.feature[0];
-                const auto opt_upper_pad = input_layout.size.feature[0] - crop_prim->offsets.feature[0] - crop_size.feature[0];
+                const auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
 
                 // do not optimize crop if paddings are not properly aligned
                 for (auto& usr : node.get_users()) {
@@ -363,9 +363,9 @@ void prepare_buffer_fusing::run(program& p) {
                         return;
                 }
 
-                if (format == format::bfyx && crop_size.batch[0] == input_layout.size.batch[0] &&
-                    crop_size.spatial[0] == input_layout.size.spatial[0] &&
-                    crop_size.spatial[1] == input_layout.size.spatial[1] && out_padd.lower_size().feature[0] == 0 &&
+                if (format == format::bfyx && crop_size.batch[0] == input_layout.batch() &&
+                    crop_size.spatial[0] == input_layout.spatial(0) &&
+                    crop_size.spatial[1] == input_layout.spatial(1) && out_padd.lower_size().feature[0] == 0 &&
                     out_padd.upper_size().feature[0] == 0 && out_padd.lower_size().batch[0] == 0 &&
                     out_padd.upper_size().batch[0] == 0 && out_padd.lower_size().spatial[0] == 0 &&
                     out_padd.lower_size().spatial[1] == 0 && out_padd.upper_size().spatial[0] == 0 &&

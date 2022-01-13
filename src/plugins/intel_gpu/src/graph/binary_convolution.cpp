@@ -51,7 +51,6 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;
-
     json_composite conv_info;
     conv_info.add("stride", cldnn::to_string(strd));
     conv_info.add("pad", cldnn::to_string(desc->pad));
@@ -97,7 +96,6 @@ binary_convolution_inst::typed_primitive_inst(network& network, binary_convoluti
     for (decltype(split) j = 0; j < split; j++) {
         auto filter_inst = node.weights(j).get_output_layout();  // convolution filter
 
-        auto pad = argument.pad;
 
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights number of dimensions",
@@ -123,11 +121,11 @@ binary_convolution_inst::typed_primitive_inst(network& network, binary_convoluti
                               "expected output size",
                               1,
                               "Only one-dimensional batch size are supported");
-        CLDNN_ERROR_LESS_THAN(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights feature maps number",
-                              input_layout.size.feature[0],
+                              input_layout.feature(),
                               "input feature maps number",
-                              filter_inst.size.feature[0],
+                              filter_inst.feature(),
                               "Weights/ifm mismatch");
     }
 }

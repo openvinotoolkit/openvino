@@ -248,12 +248,12 @@ bool program::analyze_output_size_handling_need() {
 
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(prim_node.input().get_output_layout().size,
-                                                                 filter_size,
-                                                                 prim->pad,
-                                                                 prim->stride,
-                                                                 prim->dilation,
-                                                                 true,
-                                                                 1);
+                                                                                       filter_size,
+                                                                                       prim->pad,
+                                                                                       prim->stride,
+                                                                                       prim->dilation,
+                                                                                       true,
+                                                                                       1);
 
             if (specified_output_range != calc_output_range)
                 handling_needed = true;
@@ -274,7 +274,7 @@ bool program::analyze_output_size_handling_need() {
                                                                             filter_size,
                                                                             prim->pad,
                                                                             prim->stride,
-                                                                            {1, 1, 1, 1},
+                                                                            ov::Strides(prim->stride.size(), 1),
                                                                             true,
                                                                             1);
 
