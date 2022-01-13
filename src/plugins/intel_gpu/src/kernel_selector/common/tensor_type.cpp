@@ -53,6 +53,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::ioyx,                                        {  0,  1, -1,   3,   2, -1 } },
     { WeightsLayout::oyxi,                                        {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::iyxo,                                        {  1,  2, -1,   3,   0, -1 } },
+    { WeightsLayout::oyxi,                                        {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::yxio,                                        {  2,  3, -1,   1,   0, -1 } },
     { WeightsLayout::os_iyx_osv16,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv32,                                {  0,  1, -1,   2,   3, -1 } },
