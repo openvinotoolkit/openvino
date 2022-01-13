@@ -8,6 +8,23 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <cpp/ie_cnn_network.h>
 
+#include <ngraph/pass/manager.hpp>
+#include "graph_comparator.hpp"
+
+namespace {
+
+    void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+        manager.run_passes(f);
+    }
+
+    void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::CheckUniqueNames>(unh, true);
+        manager.run_passes(f);
+    }
+} // namespace
 
 TEST(SmartReshapeTests, SS_Squeeze) {
     std::shared_ptr<ngraph::Function> f(nullptr);
@@ -30,7 +47,10 @@ TEST(SmartReshapeTests, SS_Squeeze) {
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
 
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3})) <<
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
@@ -58,8 +78,11 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 128, 768}));
 
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     auto inputname = network.getFunction()->get_parameters()[0]->get_friendly_name();
     ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{inputname, {2, 128, 768}}}));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({2, 768})) <<
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
@@ -88,8 +111,11 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 1, 768}));
 
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     auto inputname = network.getFunction()->get_parameters()[0]->get_friendly_name();
     ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{inputname, {2, 1, 768}}}));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({2, 768})) <<
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
@@ -118,7 +144,10 @@ TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
 
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_ANY_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
 }
 
 
@@ -144,7 +173,10 @@ TEST(SmartReshapeTests, SS_Squeeze_negative_stride_negative) {
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
 
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_ANY_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
 }
 
 TEST(SmartReshapeTests, SS_SharedSqueezes) {
@@ -169,7 +201,10 @@ TEST(SmartReshapeTests, SS_SharedSqueezes) {
                     network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
 
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3})) <<
                     network.getFunction()->get_results()[0]->get_output_partial_shape(0);
@@ -198,7 +233,10 @@ TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
                 network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3, 1, 8, 1, 2}));
 
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2})) <<
                 network.getFunction()->get_results()[0]->get_output_partial_shape(0);
@@ -226,7 +264,10 @@ TEST(SmartReshapeTests, Squeeze_SSNegativeAxes) {
                 network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3, 1, 8, 1, 2}));
 
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2})) <<
                 network.getFunction()->get_results()[0]->get_output_partial_shape(0);

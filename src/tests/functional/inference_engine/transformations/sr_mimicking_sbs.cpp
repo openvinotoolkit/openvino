@@ -8,6 +8,23 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <cpp/ie_cnn_network.h>
 
+#include <ngraph/pass/manager.hpp>
+#include "graph_comparator.hpp"
+
+namespace {
+
+    void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+        manager.run_passes(f);
+    }
+
+    void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::CheckUniqueNames>(unh, true);
+        manager.run_passes(f);
+    }
+} // namespace
 
 TEST(SmartReshapeTests, MimickingSBS) {
     std::shared_ptr<ngraph::Function> f(nullptr);
@@ -18,7 +35,11 @@ TEST(SmartReshapeTests, MimickingSBS) {
     }
 
     InferenceEngine::CNNNetwork network(f);
+
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({12, 4}));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 2, 3, 4}));
@@ -33,7 +54,11 @@ TEST(SmartReshapeTests, MimickingSBS_1) {
     }
 
     InferenceEngine::CNNNetwork network(f);
+
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({2, 24}));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({2, 2, 3, 4}));
@@ -48,7 +73,11 @@ TEST(SmartReshapeTests, MimickingSBS_2) {
     }
 
     InferenceEngine::CNNNetwork network(f);
+
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(1));
+    check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({6, 4}));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 2, 3, 4}));
