@@ -225,12 +225,15 @@ macro(ov_add_frontend)
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 set(export_set EXPORT OpenVINOTargets)
                 set(archive_dest ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core)
+                set(namelink NAMELINK_COMPONENT core_dev)
+            else()
+                set(namelink NAMELINK_SKIP)
             endif()
             install(TARGETS ${TARGET_NAME} ${export_set}
                     RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
                     ${archive_dest}
                     LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-                    NAMELINK_COMPONENT core_dev)
+                    ${namelink})
         else()
             ov_install_static_lib(${TARGET_NAME} core)
         endif()

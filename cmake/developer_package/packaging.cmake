@@ -18,19 +18,17 @@ function(ie_cpack_set_library_dir)
         set(IE_CPACK_ARCHIVE_PATH lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
         set(IE_CPACK_PLUGIN_PATH lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
     else()
-        # if(CPACK_GENERATOR STREQUAL "DEB")
-            set(IE_CPACK_LIBRARY_PATH ${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE} PARENT_SCOPE)
-            set(IE_CPACK_RUNTIME_PATH ${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE} PARENT_SCOPE)
-            set(IE_CPACK_ARCHIVE_PATH ${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE} PARENT_SCOPE)
-            set(IE_CPACK_PLUGIN_PATH
-                ${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE}/openvino${OpenVINO_VERSION}
-                PARENT_SCOPE)
-        # else()
-        #     set(IE_CPACK_LIBRARY_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
-        #     set(IE_CPACK_RUNTIME_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
-        #     set(IE_CPACK_ARCHIVE_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
-        #     set(IE_CPACK_PLUGIN_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
-        # endif()
+        if(CPACK_GENERATOR STREQUAL "DEB")
+            set(IE_CPACK_LIBRARY_PATH ${CMAKE_INSTALL_LIBDIR} PARENT_SCOPE)
+            set(IE_CPACK_RUNTIME_PATH ${CMAKE_INSTALL_LIBDIR} PARENT_SCOPE)
+            set(IE_CPACK_ARCHIVE_PATH ${CMAKE_INSTALL_LIBDIR} PARENT_SCOPE)
+            set(IE_CPACK_PLUGIN_PATH ${CMAKE_INSTALL_LIBDIR}/openvino${OpenVINO_VERSION} PARENT_SCOPE)
+        else()
+            set(IE_CPACK_LIBRARY_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(IE_CPACK_RUNTIME_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(IE_CPACK_ARCHIVE_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
+            set(IE_CPACK_PLUGIN_PATH lib/${ARCH_FOLDER} PARENT_SCOPE)
+        endif()
     endif()
 endfunction()
 
@@ -191,7 +189,7 @@ macro(ie_cpack)
         # proper way is to use -l (path to libs) and -L (path to shlibs) for other already installed components
         # but it require CMake source code changes
         # with current WA automatic deps detection via dpkg-shlibdeps for "our libraries"
-        # is ignored; but dependnencies between our components are here because of
+        # is ignored; but dependencies between our components are here because of
         # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
         # More proper WA is try to enable INSTALL_RPATH
         set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
@@ -266,7 +264,7 @@ macro(ie_cpack)
         set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "OpenVINO C / C++ Runtime development files")
         set(CPACK_COMPONENT_CORE_DEV_DEPENDS "core")
         set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino${cpack_ver_mm}-dev")
-        # set(CPACK_DEBIAN_CORE_DEV_PACKAGE_CONFLICTS "")
+        set(CPACK_DEBIAN_CORE_DEV_PACKAGE_CONFLICTS "libopenvino2021.3-dev, libopenvino2021.4-dev")
         ov_add_lintian_suppression(core_dev)
 
         #
@@ -280,6 +278,15 @@ macro(ie_cpack)
             set(CPACK_DEBIAN_HETERO_PACKAGE_NAME "libopenvino-hetero${cpack_ver_mm}")
             set(CPACK_DEBIAN_HETERO_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
             list(APPEND installed_plugins "hetero")
+        endif()
+
+        # auto batch
+        if(ENABLE_AUTO_BATCH)
+            set(CPACK_COMPONENT_BATCH_DESCRIPTION "OpenVINO Auto Batch plugin")
+            set(CPACK_COMPONENT_BATCH_DEPENDS "core")
+            set(CPACK_DEBIAN_BATCH_PACKAGE_NAME "libopenvino-auto-batch${cpack_ver_mm}")
+            set(CPACK_DEBIAN_BATCH_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+            list(APPEND installed_plugins "batch")
         endif()
 
         # multi / auto plugins
