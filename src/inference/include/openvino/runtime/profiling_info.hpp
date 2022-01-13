@@ -17,9 +17,9 @@ namespace ov {
 namespace runtime {
 /**
  * @struct ProfilingInfo
- * @brief Represents basic inference profiling information per node.
+ * @brief Represents basic inference profiling information per operation.
  *
- * If the node is executed using tiling, the sum time per each tile is indicated as the total execution time.
+ * If the operation is executed using tiling, the sum time per each tile is indicated as the total execution time.
  * Due to parallel execution, the total execution time for all nodes might be greater than the total inference time.
  */
 struct ProfilingInfo {

@@ -38,6 +38,10 @@
 #include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "fake_quantize.hpp"
+#include "batch_to_space_shape_inference.hpp"
+#include "depth_to_space_shape_inference.hpp"
+#include "space_to_batch_shape_inference.hpp"
+#include "space_to_depth_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
 #include "embedding_segments_sum_shape_inference.hpp"
@@ -59,6 +63,7 @@
 #include "detection_output_shape_inference.hpp"
 #include "select_shape_inference.hpp"
 #include "shuffle_channels_shape_inference.hpp"
+#include "broadcast_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "tile_shape_inference.hpp"
 #include "utils.hpp"
@@ -229,6 +234,18 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset1::ShuffleChannels>(op)) {
         shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset2::BatchToSpace>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset2::SpaceToBatch>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::DepthToSpace>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::SpaceToDepth>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset4::Broadcast>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Broadcast>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
     } else {
         ngraph::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
