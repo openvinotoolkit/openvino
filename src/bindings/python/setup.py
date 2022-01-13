@@ -42,7 +42,7 @@ packages = [
     "openvino",
     # TODO: change the module name according to the description in 69196
     "openvino.frontend",
-    "openvino.offline_transformations_pybind",
+    "openvino.offline_transformations",
     "openvino.runtime.opset1",
     "openvino.runtime.opset2",
     "openvino.runtime.opset3",
