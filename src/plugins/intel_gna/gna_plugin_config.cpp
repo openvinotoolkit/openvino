@@ -14,22 +14,23 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace GNAPluginNS {
-
+IE_SUPPRESS_DEPRECATED_START
 static const caseless_unordered_map<std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
     {GNAConfigParams::GNA_AUTO,                 {Gna2AccelerationModeAuto,                          false}},
     {GNAConfigParams::GNA_HW,                   {Gna2AccelerationModeHardware,                      false}},
     {GNAConfigParams::GNA_HW_WITH_SW_FBACK,     {Gna2AccelerationModeHardwareWithSoftwareFallback,  false}},
     {GNAConfigParams::GNA_SW,                   {Gna2AccelerationModeSoftware,                      false}},
     {GNAConfigParams::GNA_SW_EXACT,             {Gna2AccelerationModeSoftware,                      true}},
-    {"GNA_GEN",                                 {Gna2AccelerationModeGeneric,                       false}},
-    {"GNA_GEN_EXACT",                           {Gna2AccelerationModeGeneric,                       true}},
-    {"GNA_SSE",                                 {Gna2AccelerationModeSse4x2,                        false}},
-    {"GNA_SSE_EXACT",                           {Gna2AccelerationModeSse4x2,                        true}},
-    {"GNA_AVX1",                                {Gna2AccelerationModeAvx1,                          false}},
-    {"GNA_AVX1_EXACT",                          {Gna2AccelerationModeAvx1,                          true}},
-    {"GNA_AVX2",                                {Gna2AccelerationModeAvx2,                          false}},
-    {"GNA_AVX2_EXACT",                          {Gna2AccelerationModeAvx2,                          true}},
+    {GNAConfigParams::GNA_GEN,                  {Gna2AccelerationModeGeneric,                       false}},
+    {GNAConfigParams::GNA_GEN_EXACT,            {Gna2AccelerationModeGeneric,                       true}},
+    {GNAConfigParams::GNA_SSE,                  {Gna2AccelerationModeSse4x2,                        false}},
+    {GNAConfigParams::GNA_SSE_EXACT,            {Gna2AccelerationModeSse4x2,                        true}},
+    {GNAConfigParams::GNA_AVX1,                 {Gna2AccelerationModeAvx1,                          false}},
+    {GNAConfigParams::GNA_AVX1_EXACT,           {Gna2AccelerationModeAvx1,                          true}},
+    {GNAConfigParams::GNA_AVX2,                 {Gna2AccelerationModeAvx2,                          false}},
+    {GNAConfigParams::GNA_AVX2_EXACT,           {Gna2AccelerationModeAvx2,                          true}},
 };
+IE_SUPPRESS_DEPRECATED_END
 
 static const std::set<std::string> supportedTargets = {
     GNAConfigParams::GNA_TARGET_2_0,
@@ -80,7 +81,9 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             inputScaleFactors[input_index] = InferenceEngine::CNNLayer::ie_parse_float(value);
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)) {
             dumpXNNPath = value;
-        } else if (key == "GNA_FIRMWARE_MODEL_IMAGE_GENERATION") {
+IE_SUPPRESS_DEPRECATED_START
+        } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)) {
+IE_SUPPRESS_DEPRECATED_END
             dumpXNNGeneration = value;
         } else if (key == GNA_CONFIG_KEY(DEVICE_MODE)) {
             auto procType = supported_values.find(value);
@@ -131,7 +134,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                                     << value;
             }
             gnaPrecision = precision;
-        } else if (key == "GNA_PWL_UNIFORM_DESIGN") {
+IE_SUPPRESS_DEPRECATED_START
+        } else if (key == GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)) {
             // This key is deprecated and will be removed in 2022.1
             if (value == PluginConfigParams::YES) {
                 gnaFlags.uniformPwlDesign = true;
@@ -143,7 +147,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 THROW_GNA_EXCEPTION << "GNA pwl uniform algorithm parameter "
                                     << "should be equal to YES/NO, but not" << value;
             }
-        } else if (key == "GNA_PWL_MAX_ERROR_PERCENT") {
+        } else if (key == GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)) {
+IE_SUPPRESS_DEPRECATED_END
             // This key is deprecated and will be removed in 2022.1
             float max_error;
             try {
@@ -236,8 +241,9 @@ void Config::AdjustKeyMapValues() {
                 std::to_string(inputScaleFactors[n]);
     }
     keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)] = dumpXNNPath;
-    keyConfigMap["GNA_FIRMWARE_MODEL_IMAGE_GENERATION"] = dumpXNNGeneration;
-
+    IE_SUPPRESS_DEPRECATED_START
+    keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)] = dumpXNNGeneration;
+    IE_SUPPRESS_DEPRECATED_END
     std::string device_mode;
     if (gnaFlags.sw_fp32) {
         device_mode = GNA_CONFIG_VALUE(SW_FP32);
@@ -259,9 +265,11 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
             gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
-    keyConfigMap["GNA_PWL_UNIFORM_DESIGN"] =
+IE_SUPPRESS_DEPRECATED_START
+    keyConfigMap[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
             gnaFlags.uniformPwlDesign ? PluginConfigParams::YES: PluginConfigParams::NO;
-    keyConfigMap["GNA_PWL_MAX_ERROR_PERCENT"] = std::to_string(gnaFlags.pwlMaxErrorPercent);
+    keyConfigMap[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(gnaFlags.pwlMaxErrorPercent);
+IE_SUPPRESS_DEPRECATED_END
     keyConfigMap[CONFIG_KEY(PERF_COUNT)] =
             gnaFlags.performance_counting ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);
