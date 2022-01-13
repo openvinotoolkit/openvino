@@ -59,11 +59,17 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
-def get_tensor_name_or_set_friendly_name(node_output):
-    if len(node_output.get_tensor().get_names()) == 0:
+def get_out_tensor_name_or_set_friendly_name(node_output):
+    """
+    Internal function: Returns first tensor name. If tensor has no name and node has only one output tensor the function
+    sets temporary tensor name based on friendly name. If tensor has no names and node has multiple outputs the function
+    raises AttributeError
+    """
+    if not node_output.get_tensor().get_names():
         node = node_output.get_node()
         name = node.get_friendly_name()
-        assert len(node.outputs()) == 1, 'Cannot get tensor name for node {}'.format(name)
+        if len(node.outputs()) != 1:
+            raise AttributeError('Cannot get tensor name for node {}'.format(name))
         tensor_name = name + ':0'
         log.warning('Node {} has no out tensor names. Setting new out tensor name: {}'.format(name, tensor_name))
         node_output.get_tensor().set_names({tensor_name})
@@ -91,7 +97,7 @@ def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs:
             if name in ov_node.get_tensor().get_names():
                 break
             elif name == ov_node.get_node().get_friendly_name():
-                new_name = get_tensor_name_or_set_friendly_name(ov_node)
+                new_name = get_out_tensor_name_or_set_friendly_name(ov_node)
                 rename_dict[name] = new_name
                 break
 
@@ -354,6 +360,13 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     """
     prep = PrePostProcessor(ov_function)
 
+    # Save nameless tensors
+    nameless_tensors = []
+    for ov_node in ov_function.inputs + ov_function.outputs:
+        tensor = ov_node.get_tensor()
+        if not tensor.get_names():
+            nameless_tensors.append(tensor)
+
     if 'mean_scale_values' in argv and argv.mean_scale_values:
         mean_scale_values = argv.mean_scale_values
     else:
@@ -371,13 +384,13 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
 
     if '' in layout_values:
         if len(ov_function.inputs) > 1:
-            input_names = [get_tensor_name_or_set_friendly_name(ov_input) for ov_input in ov_function.inputs]
+            input_names = [get_out_tensor_name_or_set_friendly_name(ov_input) for ov_input in ov_function.inputs]
             raise Error('Layout without name can be specified for models with only one input, '
                         'but provided model has {} inputs: \'{}\'. '
                         'Please specify explicitly input/output name for --layout option'
                         .format(len(input_names), input_names))
         layout_values = {
-            get_tensor_name_or_set_friendly_name(ov_function.input()): {
+            get_out_tensor_name_or_set_friendly_name(ov_function.input()): {
                 'source_layout': layout_values[''].get('source_layout'),
                 'target_layout': layout_values[''].get('target_layout')
             }
@@ -432,3 +445,7 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
                     log.debug('Clearing guessed layout {} for {}'
                               .format(layout_value['source_layout'], node_name))
                 ov_function.get_parameters()[idx].layout = Layout()
+
+    # Remove inserted tensor names
+    for tensor in nameless_tensors:
+        tensor.set_names(set())
