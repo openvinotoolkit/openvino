@@ -45,7 +45,7 @@ struct jit_reduce_post_call_args {
     size_t oc_off;          // offset in byte along channel on output tensor
     size_t channel_size;    // only for post ops fusion of nspc layout
     const float *divisor;   // mean = sum / divisor
-    const void* post_op_data;
+    const void** post_op_data;
 };
 
 struct jit_uni_reduce_kernel {

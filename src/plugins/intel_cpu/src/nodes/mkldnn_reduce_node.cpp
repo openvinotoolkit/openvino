@@ -73,11 +73,7 @@ using namespace Xbyak;
 
 namespace {
 struct ReduceKey {
-    ReduceLayoutType layout;
-    Algorithm reduce_mode;
-    impl_desc_type implType;
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    jit_reduce_config_params jcp;
     mkldnn::post_ops postOps;
 
     size_t hash() const;
@@ -89,19 +85,18 @@ size_t ReduceKey::hash() const {
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
-    seed = hash_combine(seed, layout);
-    seed = hash_combine(seed, reduce_mode);
-    seed = hash_combine(seed, implType);
-    seed = hash_combine(seed, src_dt);
-    seed = hash_combine(seed, dst_dt);
+    seed = hash_combine(seed, jcp.layout);
+    seed = hash_combine(seed, jcp.reduce_mode);
+    seed = hash_combine(seed, jcp.src_dt);
+    seed = hash_combine(seed, jcp.dst_dt);
     seed = get_post_op_hash(seed, *postOps.get());
 
     return seed;
 }
 
 bool ReduceKey::operator==(const ReduceKey &rhs) const {
-    return layout == rhs.layout && reduce_mode == rhs.reduce_mode && implType == rhs.implType &&
-           src_dt == rhs.src_dt && dst_dt == rhs.dst_dt && *postOps.get() == *rhs.postOps.get();
+    return jcp.layout == rhs.jcp.layout && jcp.reduce_mode == rhs.jcp.reduce_mode &&
+           jcp.src_dt == rhs.jcp.src_dt && jcp.dst_dt == rhs.jcp.dst_dt && *postOps.get() == *rhs.postOps.get();
 }
 } // namespace
 
@@ -1892,20 +1887,13 @@ void MKLDNNReduceNode::prepareParams() {
 
     auto builder = [&](const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
-        auto post_jcp = jit_reduce_config_params();
-        post_jcp.layout = key.layout;
-        post_jcp.reduce_mode = key.reduce_mode;
-        post_jcp.src_dt = key.src_dt;
-        post_jcp.dst_dt = key.dst_dt;
-        post_jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(post_jcp.src_dt);
-        post_jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(post_jcp.dst_dt);
 
         if (mayiuse(cpu::x64::avx512_common)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(post_jcp, *attr.get()));
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(key.jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(post_jcp, *attr.get()));
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(key.jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(post_jcp, *attr.get()));
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(key.jcp, *attr.get()));
         }
         if (post_kernel)
             post_kernel->create_ker();
@@ -1916,12 +1904,11 @@ void MKLDNNReduceNode::prepareParams() {
     if (compile_post_kernel) {
         setPostOps(attr, dst_dims, true);
 
-        auto selected_pd = getSelectedPrimitiveDescriptor();
-        ReduceKey key = {jcp.layout, jcp.reduce_mode, selected_pd->getImplementationType(), jcp.src_dt, jcp.dst_dt, attr.get_post_ops()};
+        ReduceKey key = {jcp, attr.get_post_ops()};
         auto cache = getRuntimeCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
-            IE_THROW() << "jit_uni_reduce_post_kernel_f32 was not found for node " << getName() << ".";
+            IE_THROW() << errorPrefix << " has not found jit_uni_reduce_post_kernel_f32.";
         }
 
         reduce_post_kernel = result.first;
@@ -2379,7 +2366,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.channel_size = layout == ReduceLayoutType::reduce_nspc ? OW : OC; // OW is related to nspc-ncsp dimension reinterpret
             arg.work_amount = OD * OH * OW;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void*>(&postOpsDataPtrs[0]);
+            arg.post_op_data = static_cast<const void **>(&postOpsDataPtrs[0]);
             (*reduce_post_kernel)(&arg);
         });
     } else {
@@ -2392,7 +2379,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.oc_off = ocb * blk_size * sizeof(float);
             arg.work_amount = OD * OH * OW * blk_size;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void*>(&postOpsDataPtrs[0]);
+            arg.post_op_data = static_cast<const void **>(&postOpsDataPtrs[0]);
             (*reduce_post_kernel)(&arg);
         });
     }
