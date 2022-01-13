@@ -8,7 +8,3 @@ ov_add_frontend(NAME paddle
                 PROTOBUF_LITE
                 FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format"
                 LINK_LIBRARIES openvino::util openvino::runtime::dev)
-
-# Add include path to so_extension.hpp
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/frontend.cpp
-        PROPERTIES INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
