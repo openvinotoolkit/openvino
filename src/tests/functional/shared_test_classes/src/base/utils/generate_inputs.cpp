@@ -460,32 +460,53 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Tanh> node,
 //    }
 //}
 //
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v3::ROIAlign> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    const auto &inputShape = node->get_input_shape(0);
-//    switch (port) {
-//        case 1: {
-//            std::vector<float> blobData(node->get_shape()[0] * 4);
-//            ROIAlignLayerTest::fillCoordTensor(blobData,
-//                                               inputShape[2],
-//                                               inputShape[3],
-//                                               node->get_spatial_scale(),
-//                                               node->get_sampling_ratio(),
-//                                               node->get_pooled_h(),
-//                                               node->get_pooled_w());
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), blobData.data(), blobData.size());
-//        }
-//        case 2: {
-//            std::vector<int> roiIdxVector(node->get_shape()[0]);
-//            ROIAlignLayerTest::fillIdxTensor(roiIdxVector, node->get_shape()[0]);
-//            return FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), roiIdxVector.data(), roiIdxVector.size());
-//        }
-//        default:
-//            return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::ROIAlign> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+//    if (port == 1) {
+//        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
+//        LayerTestsDefinitions::PSROIPoolingLayerTest::fillROITensor(tensor.data<float>(),
+//                                                                    tensor.get_size() / 5,
+//                                                                    inputShape[0],
+//                                                                    inputShape[2],
+//                                                                    inputShape[3],
+//                                                                    node->get_group_size(),
+//                                                                    node->get_spatial_scale(),
+//                                                                    node->get_spatial_bins_x(),
+//                                                                    node->get_spatial_bins_y(),
+//                                                                    node->get_mode());
+//        return tensor;
 //    }
-//}
-//
+//    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+
+    switch (port) {
+        case 1: {
+            if (node->get_sampling_ratio() != 0) {
+                const auto &inputShape = node->get_input_shape(0);
+                std::vector<float> blobData(node->get_shape()[0] * 4);
+                LayerTestsDefinitions::ROIAlignLayerTest::fillCoordTensor(blobData,
+                                                                          inputShape[2],
+                                                                          inputShape[3],
+                                                                          node->get_spatial_scale(),
+                                                                          node->get_sampling_ratio(),
+                                                                          node->get_pooled_h(),
+                                                                          node->get_pooled_w());
+                return ov::test::utils::create_tensor<float>(ov::element::f32, targetShape, blobData);
+            } else {
+                return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+            }
+        }
+        case 2: {
+            std::vector<int> roiIdxVector(node->get_shape()[0]);
+            LayerTestsDefinitions::ROIAlignLayerTest::fillIdxTensor(roiIdxVector, node->get_shape()[0]);
+            return ov::test::utils::create_tensor<int>(elemType, targetShape, roiIdxVector);
+        }
+        default:
+            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+    }
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::HSwish> node,
                              size_t port,
                              const ov::element::Type& elemType,
