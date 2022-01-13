@@ -21,6 +21,7 @@ openvino/tools/mo/analysis/__init__.py
 openvino/tools/mo/analysis/boolean_input.py
 openvino/tools/mo/analysis/inputs.py
 openvino/tools/mo/analysis/json_print.py
+openvino/tools/mo/analysis/json_print_new_frontend.py
 openvino/tools/mo/analysis/nodes.py
 openvino/tools/mo/analysis/tf_od_api.py
 openvino/tools/mo/analysis/tf_retinanet.py

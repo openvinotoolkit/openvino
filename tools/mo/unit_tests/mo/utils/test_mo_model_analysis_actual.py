@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
+from unittest.mock import Mock
 from unittest.mock import patch
 import onnx
 from onnx.helper import make_graph, make_model, make_tensor_value_info
@@ -12,6 +13,11 @@ from openvino.tools.mo.main import prepare_ir
 from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
 import argparse
 from openvino.tools.mo.analysis.json_print_new_frontend import json_model_analysis_print
+
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import openvino.tools.mo.utils.telemetry_stub as tm
 
 def base_args_config():
     args = argparse.Namespace()
@@ -57,6 +63,10 @@ def base_args_config():
 class TestMoFallback(unittest.TestCase):
     def setUp(self):
         environ.update({'MO_ENABLED_TRANSFORMS': 'ANALYSIS_JSON_PRINT'})
+
+        tm.Telemetry.__init__ = Mock(return_value=None)
+        tm.Telemetry.send_event = Mock()
+
         self.models = {}
         add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
         input_tensors = [
