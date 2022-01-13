@@ -238,6 +238,32 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
         # Verify that layout presents in function after preprocessing
         self.assertEqual(function.get_parameters()[1].layout, Layout("NHWC"))
 
+    def test_mean_scale_with_layout_no_tensor_names(self):
+        argv = Namespace(mean_scale_values={'input2': {'mean': np.array([1., 2., 3., 4.]),
+                                                    'scale': np.array([2., 4., 8., 9.])}},
+                         layout_values={'input2': {'source_layout': 'NHWC', 'target_layout': None}},
+                         scale=None)
+        function = create_function2(shape2=[1, 3, 3, 4])
+        # Removing tensor names
+        for param in function.get_parameters():
+            param.get_output_tensor(0).set_names(set())
+        process_function(ov_function=function, argv=argv)
+        # Verify that first is 'subtract mean', then 'scale'
+        op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[1., 2., 3., 4.], shape=[1, 1, 1, 4])
+
+        op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=[2., 4., 8., 9.], shape=[1, 1, 1, 4])
+
+        # Verify that input1 is not affected
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertEqual(op_node.get_type_name(), 'Relu')
+
+        # Verify that layout presents in function after preprocessing
+        self.assertEqual(function.get_parameters()[1].layout, Layout("NHWC"))
+
     def test_mean_scale_with_layout_dynamic(self):
         argv = Namespace(mean_scale_values={'input2a': {'mean': np.array([1., 2., 3., 4.]),
                                                         'scale': np.array([2., 4., 8., 9.])}},

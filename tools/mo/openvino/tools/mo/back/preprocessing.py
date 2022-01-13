@@ -59,6 +59,19 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
+def get_tensor_name_or_set_friendly_name(node_output):
+    if len(node_output.get_tensor().get_names()) == 0:
+        node = node_output.get_node()
+        name = node.get_friendly_name()
+        assert len(node.outputs()) == 1, 'Cannot get tensor name for node {}'.format(name)
+        tensor_name = name + ':0'
+        log.warning('Node {} has no out tensor names. Setting new out tensor name: {}'.format(name, tensor_name))
+        node_output.get_tensor().set_names({tensor_name})
+        return tensor_name
+    else:
+        return list(node_output.get_tensor().get_names())[0]
+
+
 def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs: bool):
     """
     Internal function: checks if keys from cmd line arguments correspond to ov_function's inputs/outputs
@@ -78,8 +91,7 @@ def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs:
             if name in ov_node.get_tensor().get_names():
                 break
             elif name == ov_node.get_node().get_friendly_name():
-                assert len(ov_node.get_tensor().get_names()) > 0, 'Node must have at least one tensor name'
-                new_name = list(ov_node.get_tensor().get_names())[0]
+                new_name = get_tensor_name_or_set_friendly_name(ov_node)
                 rename_dict[name] = new_name
                 break
 
@@ -359,13 +371,13 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
 
     if '' in layout_values:
         if len(ov_function.inputs) > 1:
-            input_names = [list(ov_input.get_tensor().get_names())[0] for ov_input in ov_function.inputs]
+            input_names = [get_tensor_name_or_set_friendly_name(ov_input) for ov_input in ov_function.inputs]
             raise Error('Layout without name can be specified for models with only one input, '
                         'but provided model has {} inputs: \'{}\'. '
                         'Please specify explicitly input/output name for --layout option'
                         .format(len(input_names), input_names))
         layout_values = {
-            list(ov_function.input().get_tensor().get_names())[0]: {
+            get_tensor_name_or_set_friendly_name(ov_function.input()): {
                 'source_layout': layout_values[''].get('source_layout'),
                 'target_layout': layout_values[''].get('target_layout')
             }
