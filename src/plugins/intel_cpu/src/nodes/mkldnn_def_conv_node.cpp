@@ -1016,18 +1016,18 @@ void MKLDNNDeformableConvolutionNode::prepareParams() {
     auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
     auto& weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
 
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
+    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
         IE_THROW() << errorPrefix << " did not allocate input memory";
-    if (!offMemPtr || !offMemPtr->isAllocated())
+    if (!offMemPtr || !offMemPtr->GetPrimitivePtr())
         IE_THROW() << errorPrefix << " did not allocate offsets shape memory";
-    if (!weiMemPtr || !weiMemPtr->isAllocated())
+    if (!weiMemPtr || !weiMemPtr->GetPrimitivePtr())
         IE_THROW() << errorPrefix << " did not allocate weights memory";
 
     if (getOriginalInputsNumber() > 3) {
         auto& modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
-        if (!modMemPtr || !modMemPtr->isAllocated())
+        if (!modMemPtr || !modMemPtr->GetPrimitivePtr())
             IE_THROW() << errorPrefix << " did not allocate modulations memory";
     }
 
