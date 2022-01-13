@@ -532,7 +532,7 @@ int main(int argc, char* argv[]) {
             next_step();
             auto startTime = Time::now();
 
-            std::ifstream modelStream(FLAGS_m);
+            std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
             }
