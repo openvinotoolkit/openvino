@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateSplit;
 class TRANSFORMATIONS_API EliminateTranspose;
+class TRANSFORMATIONS_API EliminateEltwise;
 class TRANSFORMATIONS_API NopElimination;
 
 }  // namespace pass
@@ -86,6 +87,15 @@ public:
     EliminateTranspose();
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief EliminateEltwise eliminates eltwise ops that do nothing
+ */
+class ngraph::pass::EliminateEltwise: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    EliminateEltwise();
+};
 
 class ngraph::pass::NopElimination: public GraphRewrite {
 public:
