@@ -81,9 +81,9 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             inputScaleFactors[input_index] = InferenceEngine::CNNLayer::ie_parse_float(value);
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)) {
             dumpXNNPath = value;
-IE_SUPPRESS_DEPRECATED_START
+            IE_SUPPRESS_DEPRECATED_START
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)) {
-IE_SUPPRESS_DEPRECATED_END
+            IE_SUPPRESS_DEPRECATED_END
             dumpXNNGeneration = value;
         } else if (key == GNA_CONFIG_KEY(DEVICE_MODE)) {
             auto procType = supported_values.find(value);
@@ -134,7 +134,7 @@ IE_SUPPRESS_DEPRECATED_END
                                     << value;
             }
             gnaPrecision = precision;
-IE_SUPPRESS_DEPRECATED_START
+            IE_SUPPRESS_DEPRECATED_START
         } else if (key == GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)) {
             // This key is deprecated and will be removed in 2022.1
             if (value == PluginConfigParams::YES) {
@@ -148,8 +148,8 @@ IE_SUPPRESS_DEPRECATED_START
                                     << "should be equal to YES/NO, but not" << value;
             }
         } else if (key == GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)) {
-IE_SUPPRESS_DEPRECATED_END
             // This key is deprecated and will be removed in 2022.1
+            IE_SUPPRESS_DEPRECATED_END
             float max_error;
             try {
                 max_error = InferenceEngine::CNNLayer::ie_parse_float(value);
@@ -265,11 +265,11 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
             gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
-IE_SUPPRESS_DEPRECATED_START
+    IE_SUPPRESS_DEPRECATED_START
     keyConfigMap[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
             gnaFlags.uniformPwlDesign ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(gnaFlags.pwlMaxErrorPercent);
-IE_SUPPRESS_DEPRECATED_END
+    IE_SUPPRESS_DEPRECATED_END
     keyConfigMap[CONFIG_KEY(PERF_COUNT)] =
             gnaFlags.performance_counting ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);
