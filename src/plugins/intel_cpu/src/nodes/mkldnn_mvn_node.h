@@ -35,6 +35,7 @@ struct jit_mvn_call_args {
     size_t dst_stride;
     size_t work_amount;
     size_t oc_off;
+    const void* post_op_data;
 };
 
 struct jit_uni_mvn_mean_variance_kernel {
@@ -119,12 +120,14 @@ private:
 
     mkldnn::primitive_attr attr;
 
+    std::vector<const void*> postOpsDataPtrs;
+
     MVNAttrs mvnAttrs;
 
     class MVNExecutor {
     public:
         MVNExecutor(const MVNAttrs& mvnAttrs);
-        virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) = 0;
+        virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) = 0;
         virtual ~MVNExecutor() = default;
 
     protected:
@@ -148,11 +151,11 @@ private:
                            const jit_mvn_config_params &jcp,
                            const mkldnn::primitive_attr &attr);
 
-            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) override;
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 
         private:
-            void mvn_pln(const uint8_t *in_ptr_, uint8_t *out_ptr_);
-            void mvn_blk(const uint8_t *in_ptr_, uint8_t *out_ptr_);
+            void mvn_pln(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
+            void mvn_blk(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
 
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
@@ -163,7 +166,7 @@ private:
         public:
             MVNRefExecutor(const MVNAttrs& mvnAttrs);
 
-            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) override;
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 
         private:
             void mvn_ref(const uint8_t *in_ptr_, uint8_t *out_ptr_);
