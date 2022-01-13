@@ -294,26 +294,47 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::PSROIPooling> nod
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::ROIPooling> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    const auto &inputShape = node->get_input_shape(0);
-//    if (port == 1) {
-//        InferenceEngine::Blob::Ptr blob;
-//        blob = make_blob_with_precision(info.getTensorDesc());
-//        blob->allocate();
-//
-//        CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob,
-//                                                                         node->get_input_shape(0).front() - 1,
-//                                                                         inputShape[2],
-//                                                                         inputShape[3],
-//                                                                         1.0f,
-//                                                                         node->get_method() == "max");
-//        return blob;
-//    }
-//    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
-//}
-//
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 1) {
+        const auto &inputShape = node->get_input_shape(0);
+        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
+#define CASE(X) case X: ::CommonTestUtils::fill_roi_raw_ptr(                   \
+    tensor.data<element_type_traits<X>::value_type>(),                         \
+    tensor.get_size(),                                                         \
+    node->get_input_shape(0).front() - 1,                                      \
+    inputShape[2],                                                             \
+    inputShape[3],                                                             \
+    1.0f,                                                                      \
+    node->get_method() == "max"); break;                                       \
+
+    switch (elemType) {
+        CASE(ov::element::Type_t::boolean)
+        CASE(ov::element::Type_t::i8)
+        CASE(ov::element::Type_t::i16)
+        CASE(ov::element::Type_t::i32)
+        CASE(ov::element::Type_t::i64)
+        CASE(ov::element::Type_t::u8)
+        CASE(ov::element::Type_t::u16)
+        CASE(ov::element::Type_t::u32)
+        CASE(ov::element::Type_t::u64)
+        CASE(ov::element::Type_t::bf16)
+        CASE(ov::element::Type_t::f16)
+        CASE(ov::element::Type_t::f32)
+        CASE(ov::element::Type_t::f64)
+        CASE(ov::element::Type_t::u1)
+        CASE(ov::element::Type_t::i4)
+        CASE(ov::element::Type_t::u4)
+        default: OPENVINO_UNREACHABLE("Unsupported element type: ", elemType);
+    }
+#undef CASE
+        return tensor;
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::Selu> node,
                              size_t port,
                              const ov::element::Type& elemType,
