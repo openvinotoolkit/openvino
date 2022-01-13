@@ -191,3 +191,23 @@ TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeBatchNotEqualTo1
         manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
     }
 }
+
+TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeUnsuitableReshapePattern) {
+    PartialShape data_shape{1, -1, -1, -1};
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
+
+        auto indices_node = opset8::Constant::create(element::i64, {}, {0});
+        auto axis_node = opset8::Constant::create(element::i64, {}, {0});
+        auto gather = std::make_shared<opset8::Gather>(data, indices_node, axis_node);
+
+        auto transpose_const = opset8::Constant::create(element::i64, {3}, {1, 2, 0});
+        auto transpose = std::make_shared<opset8::Transpose>(gather, transpose_const);
+
+        auto reshape_const = opset8::Constant::create(element::i64, {2}, {0, -1});
+        auto reshape = std::make_shared<opset8::Reshape>(transpose, reshape_const, true);
+
+        function = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+    }
+}

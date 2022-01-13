@@ -28,7 +28,8 @@ ngraph::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndR
     auto transpose_const_m = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     auto transpose_m = ngraph::pattern::wrap_type<ngraph::opset8::Transpose>({gather_m, transpose_const_m});
 
-    auto reshape_m = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>({transpose_m, ngraph::pattern::any_input()});
+    auto reshape_const_m = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto reshape_m = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>({transpose_m, reshape_const_m});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -56,6 +57,16 @@ ngraph::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndR
             return false;
         }
 
+        const auto reshape_const = as_type_ptr<ngraph::opset8::Constant>(pattern_map.at(reshape_const_m).get_node_shared_ptr());
+        if (!reshape_const) {
+            return false;
+        }
+
+        const auto reshape_vals = reshape_const->cast_vector<std::int64_t>();
+        if (std::any_of(reshape_vals.begin(), reshape_vals.end(), [](const std::int64_t x) { return x == 0; })) {
+            return false;
+        }
+
         const auto transpose_vals = transpose_const->cast_vector<std::int64_t>();
         std::vector<std::int64_t> new_transpose_vals{0};
         // update the transpose const to compensate for the removal of Gather
@@ -71,7 +82,7 @@ ngraph::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndR
         ngraph::copy_runtime_info({transpose, gather}, new_transpose);
         ngraph::replace_node(transpose, new_transpose);
 
-        return true;
+        return false;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_m, matcher_name);
