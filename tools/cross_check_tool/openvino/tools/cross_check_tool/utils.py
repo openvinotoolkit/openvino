@@ -275,12 +275,12 @@ def find_out_cct_mode(args):
 
 def print_input_layers(inputs: list):
     word = 'inputs' if len(inputs) > 1 else 'input'
-    log.info(f"{len(inputs)} {word} detected: {', '.join(inputs)}")
+    log.info(f"{len(inputs)} {word} detected: {', '.join(input.any_name for input in inputs)}")
 
 
 def print_output_layers(outputs: list):
     layers = 'layers' if len(outputs) > 1 else 'layer'
-    log.info(f"Statistics will be dumped for {len(outputs)} {layers}: {', '.join(outputs)}")
+    log.info(f"Statistics will be dumped for {len(outputs)} {layers}: {', '.join(output.any_name for output in outputs)}")
 
 
 ###
@@ -306,63 +306,65 @@ def get_config_dictionary(config_file):
 ###
 
 
-def read_multi_input_file(input_file: str, net_inputs: dict):
+def read_multi_input_file(input_file: str, model_inputs: list):
     npz = np.load(input_file, allow_pickle=True)
     files = npz.files
-    dump = {}
-    for net_input in net_inputs:
-        if net_input not in files:
-            raise Exception(f"Can not find input data for input {net_input} in multi-input file {input_file}.\n"
+    dump = []
+    for model_input in model_inputs:
+        input_names = [name for name in model_input.names if name in files]
+        if not input_names:
+            raise Exception(f"Can not find input data for input {model_input.any_name} in multi-input file {input_file}.\n"
                             f"Input data was provided for layers: {', '.join(files)}\n"
-                            f"Network inputs: {', '.join(net_inputs.keys())}")
-        if 'blob' in npz[net_input].item(0):
-            just_blob = npz[net_input].item(0)['blob']
-            network_shape = net_inputs[net_input].input_data.shape
-            log.info(f'Layer {net_input} shape = {network_shape}, input blob from multi-input file shape = {just_blob.shape}')
+                            f"Network inputs: {', '.join(input.any_name for input in model_inputs)}")
+        used_input_name = input_names.pop()
+        if 'blob' in npz[used_input_name].item(0):
+            just_blob = npz[used_input_name].item(0)['blob']
+            input_shape = model_input.shape
+            log.info(f'Layer {used_input_name} shape = {input_shape}, input blob from multi-input file shape = {just_blob.shape}')
             try:
-                reshaped_blob = np.reshape(just_blob, network_shape)
+                reshaped_blob = np.reshape(just_blob, input_shape)
             except:
-                raise Exception(f'Can not reshape input blob from multi-input file for layer {net_input} to shape {network_shape}')
-            dump[net_input] = reshaped_blob
+                raise Exception(f'Can not reshape input blob from multi-input file for layer {used_input_name} to shape {input_shape}')
+            dump.append(reshaped_blob)
         else:
             raise Exception(
-                f'Can not find \'blob\' parameter for input {net_input} in input file {input_file}')
+                f'Can not find \'blob\' parameter for input {used_input_name} in input file {input_file}')
     return dump
 
 
 @error_handling('reading --input/-i by OpenCV python module. OpenCV version: {}. '
                 'It may happen due to wrong input image format'.format(cv2.__version__))
-def read_image_file(input_file: str, net_inputs: dict):
-    inputs = dict()
-    if len(net_inputs) == 1:
+def read_image_file(input_file: str, model_inputs: list):
+    inputs = list()
+    if len(model_inputs) == 1:
         image = cv2.imread(input_file)
         if image is None:
             raise Exception('Can not read input image ' + input_file)
-        only_layer_name = list(net_inputs.keys())[0]
-        shape = net_inputs[only_layer_name].input_data.shape
+        shape = model_inputs[0].shape
         if len(shape) != 4:
             raise Exception('Can not interpret input shape as image')
         n, c, h, w = shape
         image = cv2.resize(image, (w, h))
+        # TODO: add layout heuristic to support model with NHWC layout
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         image = image.reshape((n, c, h, w))
-        inputs[only_layer_name] = image
+        input.append(image)
     else:
         raise Exception('Multi-input topology detected. Please provide multi-input file to --input key')
     return inputs
 
 
-def input_processing(model_path: str, net_inputs: dict, input_file: str, layers_map: dict = None):
-    inputs = dict()
+def input_processing(model_path: str, model_inputs: list, input_file: str, layers_map: dict = None):
+    inputs = []
     if input_file is None:
-        for net_input in net_inputs:
-            inputs[net_input] = np.clip(np.random.normal(0.5, 0.1, size=net_inputs[net_input].input_data.shape), 0, 1)
-        dump_output_file(model_path + '_random_input_dump.npz', {inp: {'blob': inputs[inp]} for inp in inputs})
+        for model_input in model_inputs:
+            inputs.append(np.clip(np.random.normal(0.5, 0.1, size=list(model_input.shape)), 0, 1))
+        dump_output_file(model_path + '_random_input_dump.npz', {model_inputs[i].any_name: {'blob': inputs[i]} for i in range(len(model_inputs))})
         return inputs
     try:
-        inputs = read_multi_input_file(input_file=input_file, net_inputs=net_inputs)
+        inputs = read_multi_input_file(input_file=input_file, model_inputs=model_inputs)
     except:
-        inputs = read_image_file(input_file=input_file, net_inputs=net_inputs)
+        inputs = read_image_file(input_file=input_file, model_inputs=model_inputs)
     return inputs
 
 
@@ -395,12 +397,12 @@ def accuracy_metrics(out_blob, ref_out_blob):
     return {metric: value for metric, value in metrics}
 
 
-def performance_metrics(pc, ref_pc):
+def performance_metrics(device, pc, ref_device, ref_pc):
     compare = [
-        ('Device', '-d ' + pc['device'], '-ref_d ' + ref_pc['device']),
-        ('Status', pc['status'], ref_pc['status']),
-        ('Layer type', pc['layer_type'], ref_pc['layer_type']),
-        ('Real time, microsec', pc['real_time'], ref_pc['real_time'])
+        ('Device', '-d ' + device, '-ref_d ' + ref_device),
+        ('Status', pc.status, ref_pc.status),
+        ('Layer type', pc.node_type, ref_pc.node_type),
+        ('Real time, microsec', pc.real_time, ref_pc.real_time)
     ]
 
     for metric, actual, reference in compare:
@@ -498,27 +500,27 @@ def manage_user_outputs_with_mapping(mapping, reference_mapping, user_layers):
     return layers_map
 
 
-def get_layers_list(all_layers: list, inputs: dict, outputs: list, layers: str):
+def get_layers_list(all_layers: list, inputs: list, outputs: list, layers: str):
     if layers is not None and layers != 'None':
         if layers == 'all':
-            return {layer.get_friendly_name(): layer for layer in all_layers \
-                    if layer.get_type_name() not in ['Constant', 'Result']}
+            return [output for output in [layer.outputs() for layer in all_layers if layer.get_type_name() not in ['Constant', 'Result']]]
         else:
-            all_layers_names = {op.get_friendly_name() : op for op in all_layers}
+            all_node_names = {node.friendly_name: node.outputs() for node in all_layers}
             user_layers = [layer.strip() for layer in layers.split(',')]
-            layers_to_check = []
+            new_outputs = []
+            # TODO: allow to pass (operation_name, port), tensor_name in --layers
             for user_layer in user_layers:
-                if user_layer not in all_layers_names:
+                if user_layer not in all_node_names:
                     raise Exception(f"Layer {user_layer} doesn't exist in the model")
-                if user_layer in inputs:
-                    raise Exception(f"Layer {user_layer} is input layer. Can not proceed")
-                if all_layers_names[user_layer].get_type_name() != 'Result':
-                    layers_to_check.append(user_layer)
+                #if user_layer in inputs:
+                    #raise Exception(f"Layer {user_layer} is input layer. Can not proceed")
+                if all_node_names[user_layer].get_type_name() != 'Result':
+                    new_outputs += all_node_names[user_layer].outputs
                 else:
                     # if layer type is Result - add previous layer
                     prev_layer = all_layers[len(all_layers)-2]
-                    layers_to_check.append(prev_layer.get_friendly_name())
-            return layers_to_check
+                    new_outputs += prev_layer.outputs
+            return new_outputs
     else:
         return outputs
 
