@@ -54,8 +54,10 @@ DECLARE_GNA_CONFIG_KEY(PRECISION);
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
 
 /**
- * @brief This is deprecated and will be removed inm 2022.2
+ * @brief Generation of GNA embedded device to export the model.
+ * This is deprecated and will be removed in 2022.2.
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
 
 /**
@@ -71,16 +73,24 @@ DECLARE_GNA_CONFIG_VALUE(SW_EXACT);
 DECLARE_GNA_CONFIG_VALUE(SW_FP32);
 
 /**
- * @brief Modes GNA_GEN, GNA_GEN_EXACT GNA_SSE, GNA_SSE_EXACT, GNA_AVX1, GNA_AVX1_EXACT, GNA_AVX2, GNA_AVX2_EXACT are deprecated
- * and will be removed in 2022.2
+ * @brief Specific software acceleration modes.
+ * Modes are deprecated and will be removed in 2022.2.
  */
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
 DECLARE_GNA_CONFIG_VALUE(GEN);
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(GEN_EXACT);
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
 DECLARE_GNA_CONFIG_VALUE(SSE);
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(SSE_EXACT);
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
 DECLARE_GNA_CONFIG_VALUE(AVX1);
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(AVX1_EXACT);
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW instead")
 DECLARE_GNA_CONFIG_VALUE(AVX2);
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::GNAConfigParams::SW_EXACT instead")
 DECLARE_GNA_CONFIG_VALUE(AVX2_EXACT);
 
 /**
