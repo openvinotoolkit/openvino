@@ -205,8 +205,6 @@ bool op::v0::PriorBox::has_evaluate() const {
 
 // ------------------------------ V8 ------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v8::PriorBox);
-
 op::v8::PriorBox::PriorBox(const Output<Node>& layer_shape,
                            const Output<Node>& image_shape,
                            const PriorBox::Attributes& attrs)
