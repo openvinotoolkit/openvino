@@ -4,7 +4,6 @@
 
 #include <signal.h>
 #include <fstream>
-#include <transformations/utils/utils.hpp>
 #include <shared_test_classes/base/utils/generate_inputs.hpp>
 #include <shared_test_classes/base/utils/compare_results.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -88,8 +87,8 @@ void SubgraphBaseTest::serialize() {
 
     std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
 
-    std::string out_xml_path = output_name + ".xml";
-    std::string out_bin_path = output_name + ".bin";
+    std::string out_xml_path = "/opt/repo/test.xml";
+    std::string out_bin_path = "/opt/repo/test.bin";
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
@@ -110,7 +109,7 @@ void SubgraphBaseTest::serialize() {
 
     EXPECT_TRUE(success) << message;
 
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+//    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 void SubgraphBaseTest::query_model() {
@@ -139,6 +138,12 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
         const auto result = results[j];
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
+            if (ngraph::is_type<ov::op::v0::Convert>(inputNode)) {
+                std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
+                if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+                    inputNode = nextNodePtr;
+                }
+            }
             auto it = compareMap.find(inputNode->get_type_info());
             it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
         }
@@ -186,18 +191,20 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     auto inputMap = utils::getInputMap();
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {
+        std::shared_ptr<ov::Node> inputNode = param;
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
                 std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
                 if (ngraph::is_type<ov::op::v0::Convert>(nodePtr)) {
-                    std::shared_ptr<ov::Node> nextNodePtr = nodePtr->get_default_output().get_node_shared_ptr();
+                    std::shared_ptr<ov::Node> nextNodePtr = nodePtr->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
                     if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
+                        inputNode = nodePtr;
                         nodePtr = nextNodePtr;
                     }
                 }
                 auto it = inputMap.find(nodePtr->get_type_info());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
-                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
+                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
                         inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});
                         break;
                     }

@@ -272,30 +272,28 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::PRelu> node,
     }
 }
 
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::PSROIPooling> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    const auto &inputShape = node->get_input_shape(0);
-//    if (port == 1) {
-//        InferenceEngine::Blob::Ptr blob;
-//        blob = make_blob_with_precision(info.getTensorDesc());
-//        blob->allocate();
-//        PSROIPoolingLayerTest::fillROITensor(blob->buffer(),
-//                                             blob->size() / 5,
-//                                             inputShape[0],
-//                                             inputShape[2],
-//                                             inputShape[3],
-//                                             node->get_group_size(),
-//                                             node->get_spatial_scale(),
-//                                             node->get_spatial_bins_x(),
-//                                             node->get_spatial_bins_y(),
-//                                             node->get_mode());
-//        return blob;
-//    }
-//    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
-//}
-//
+ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::PSROIPooling> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    const auto &inputShape = node->get_input_shape(0);
+    if (port == 1) {
+        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
+        LayerTestsDefinitions::PSROIPoolingLayerTest::fillROITensor(tensor.data<float>(),
+                                                                    tensor.get_size() / 5,
+                                                                    inputShape[0],
+                                                                    inputShape[2],
+                                                                    inputShape[3],
+                                                                    node->get_group_size(),
+                                                                    node->get_spatial_scale(),
+                                                                    node->get_spatial_bins_x(),
+                                                                    node->get_spatial_bins_y(),
+                                                                    node->get_mode());
+        return tensor;
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::ROIPooling> node,
 //                                    const InferenceEngine::InputInfo &info,
 //                                    size_t port) {
