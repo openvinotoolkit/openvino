@@ -11,6 +11,7 @@
 #include <vector>
 
 // clang-format off
+#include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
 
 #include "gna/gna_config.hpp"
@@ -173,10 +174,8 @@ int main(int argc, char* argv[]) {
         ov::runtime::Core core;
 
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
-            // pointer to base extension
-            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
-            core.add_extension(extension_ptr);
+            // CPU (MKLDNN) extensions is loaded as a shared library
+            core.add_extension(FLAGS_l);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
 
@@ -191,6 +190,21 @@ int main(int argc, char* argv[]) {
             auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE));
             core.set_config({{CONFIG_KEY(CONFIG_FILE), ext}}, "GPU");
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
+        }
+
+        if (FLAGS_hint.empty()) {
+            for (auto& device : devices) {
+                std::vector<std::string> supported_config_keys =
+                    core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                if (std::find(supported_config_keys.begin(),
+                              supported_config_keys.end(),
+                              CONFIG_KEY(PERFORMANCE_HINT)) != supported_config_keys.end()) {
+                    slog::warn << "-hint default value is determined as" << CONFIG_VALUE(THROUGHPUT)
+                               << " automatically for " << device
+                               << " device. For more detailed information look at README." << slog::endl;
+                    FLAGS_hint = CONFIG_VALUE(THROUGHPUT);
+                }
+            }
         }
 
         slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
@@ -517,7 +531,7 @@ int main(int argc, char* argv[]) {
             next_step();
             auto startTime = Time::now();
 
-            std::ifstream modelStream(FLAGS_m);
+            std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
             }
@@ -562,19 +576,16 @@ int main(int argc, char* argv[]) {
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
-        // output of the actual settings that the device selected based on the hint
-        if (!ov_perf_hint.empty()) {
-            for (const auto& device : devices) {
-                std::vector<std::string> supported_config_keys =
-                    core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                slog::info << "Device: " << device << slog::endl;
-                for (const auto& cfg : supported_config_keys) {
-                    try {
-                        slog::info << "  {" << cfg << " , " << compiledModel.get_config(cfg).as<std::string>();
-                    } catch (...) {
-                    };
+        // output of the actual settings that the device selected
+        for (const auto& device : devices) {
+            std::vector<std::string> supported_config_keys = core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            slog::info << "Device: " << device << slog::endl;
+            for (const auto& cfg : supported_config_keys) {
+                try {
+                    slog::info << "  {" << cfg << " , " << compiledModel.get_config(cfg).as<std::string>();
                     slog::info << " }" << slog::endl;
-                }
+                } catch (...) {
+                };
             }
         }
 
