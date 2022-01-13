@@ -48,11 +48,22 @@ if(ENABLE_TESTS)
     add_subdirectory(test_utils)
 endif()
 
+if(ENABLE_OV_ONNX_FRONTEND)
+    add_subdirectory(frontend/onnx)
+endif()
+
+if(ENABLE_OV_TF_FRONTEND)
+    add_subdirectory(frontend/tensorflow)
+endif()
+
+if(ENABLE_OV_PADDLE_FRONTEND)
+    add_subdirectory(frontend/paddle)
+endif()
+
 # create target
 
-file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp
-        frontend/onnx/*.cpp frontend/tensorflow/*.cpp frontend/paddle/*.cpp
-        pyopenvino.cpp)
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
+list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
@@ -65,8 +76,7 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB}
-        ov_onnx_frontend ov_tensorflow_frontend ov_paddle_frontend)
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
