@@ -9,7 +9,6 @@
 #include <cpp/ie_cnn_network.h>
 
 #include <ngraph/pass/manager.hpp>
-#include <utility>
 #include "graph_comparator.hpp"
 
 namespace {
