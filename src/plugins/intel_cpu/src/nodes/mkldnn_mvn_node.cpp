@@ -21,7 +21,6 @@
 #include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <common/primitive_hashing_utils.hpp>
 
 #include <ngraph/opsets/opset6.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -39,6 +38,7 @@ using namespace Xbyak;
 
 namespace {
 struct MVNKey {
+    MKLDNNMVNNode::MVNAttrs mvnAttrs;
     jit_mvn_config_params jcp;
     mkldnn::primitive_attr attr;
 
@@ -51,6 +51,20 @@ size_t MVNKey::hash() const {
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
+
+    seed = hash_combine(seed, std::get<0>(mvnAttrs.shape5D));
+    seed = hash_combine(seed, std::get<1>(mvnAttrs.shape5D));
+    seed = hash_combine(seed, std::get<2>(mvnAttrs.shape5D));
+    seed = hash_combine(seed, std::get<3>(mvnAttrs.shape5D));
+    seed = hash_combine(seed, std::get<4>(mvnAttrs.shape5D));
+    seed = hash_combine(seed, mvnAttrs.initAcrossChannels_);
+    seed = hash_combine(seed, mvnAttrs.execAcrossChannels_);
+    seed = hash_combine(seed, mvnAttrs.normalizeVariance_);
+    seed = hash_combine(seed, mvnAttrs.epsValue_);
+    seed = hash_combine(seed, mvnAttrs.epsMode_);
+    seed = hash_combine(seed, mvnAttrs.src_data_size);
+    seed = hash_combine(seed, mvnAttrs.dst_data_size);
+    seed = hash_combine(seed, mvnAttrs.is_nhwc);
     seed = hash_combine(seed, jcp.planar_layout);
     seed = hash_combine(seed, jcp.across_channels);
     seed = hash_combine(seed, jcp.normalize_variance);
@@ -77,12 +91,6 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
     return retVal;
 }
 } // namespace
-
-struct MVNKernels {
-    std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
-    std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
-    std::shared_ptr<jit_uni_mvn_kernel> mvn_kernel;
-};
 
 // some utility functions
 static inline bool isFloatCompatible(Precision prc) {
@@ -724,24 +732,24 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    epsMode_ = INSIDE_SQRT;
+    mvnAttrs.epsMode_ = INSIDE_SQRT;
     if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v6::MVN>(op)) {
-        normalizeVariance_ = mvnOp->get_normalize_variance();
-        epsValue_ = mvnOp->get_eps();
+        mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
+        mvnAttrs.epsValue_ = mvnOp->get_eps();
         if (mvnOp->get_eps_mode() == ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
-            epsMode_ = OUTSIDE_SQRT;
+            mvnAttrs.epsMode_ = OUTSIDE_SQRT;
         }
 
-        initAcrossChannels_ = false;
+        mvnAttrs.initAcrossChannels_ = false;
         const auto& inDataShapeSize = getInputShapeAtPort(0).getRank();
         if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
-            initAcrossChannels_ = true;
+            mvnAttrs.initAcrossChannels_ = true;
     } else if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v0::MVN>(op)) {
-        normalizeVariance_ = mvnOp->get_normalize_variance();
-        epsValue_ = mvnOp->get_eps();
-        initAcrossChannels_ = mvnOp->get_across_channels();
+        mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
+        mvnAttrs.epsValue_ = mvnOp->get_eps();
+        mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
     }
-    execAcrossChannels_ = initAcrossChannels_;
+    mvnAttrs.execAcrossChannels_ = mvnAttrs.initAcrossChannels_;
 }
 
 void MKLDNNMVNNode::getSupportedDescriptors() {}
@@ -766,11 +774,11 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
         inputPrecision = outputPrecision = Precision::FP32;
     }
 
-    src_data_size = inputPrecision.size();
-    dst_data_size = outputPrecision.size();
+    mvnAttrs.src_data_size = inputPrecision.size();
+    mvnAttrs.dst_data_size = outputPrecision.size();
 
     // TODO [DS]: inplace
-    bool canBeInplace = !isDynamicNode() && (src_data_size == dst_data_size) &&
+    bool canBeInplace = !isDynamicNode() && (mvnAttrs.src_data_size == mvnAttrs.dst_data_size) &&
                         (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
                         !getParentEdgeAt(0)->getParent()->isConstant();
 
@@ -829,6 +837,71 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
+MKLDNNMVNNode::MVNExecutor::MVNExecutor(const MVNAttrs& mvnAttrs) :
+        shape5D(mvnAttrs.shape5D), initAcrossChannels_(mvnAttrs.initAcrossChannels_), execAcrossChannels_(mvnAttrs.execAcrossChannels_),
+        normalizeVariance_(mvnAttrs.normalizeVariance_), epsValue_(mvnAttrs.epsValue_), epsMode_(mvnAttrs.epsMode_),
+        src_data_size(mvnAttrs.src_data_size), dst_data_size(mvnAttrs.dst_data_size), is_nhwc(mvnAttrs.is_nhwc) {
+}
+
+MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
+                                              const jit_mvn_config_params& jcp,
+                                              const mkldnn::primitive_attr& attr):
+                                              MVNExecutor(mvnAttrs) {
+    is_ncsp = jcp.planar_layout;
+    auto jcp_new = jcp;
+    if (mayiuse(cpu::x64::avx512_common)) {
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp_new, *attr.get()));
+        jcp_new.normalize_variance = false;
+        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp_new));
+        if (normalizeVariance_) {
+            jcp_new.normalize_variance = true;
+            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp_new));
+        }
+    } else if (mayiuse(cpu::x64::avx2)) {
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp_new, *attr.get()));
+        jcp_new.normalize_variance = false;
+        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp_new));
+        if (normalizeVariance_) {
+            jcp_new.normalize_variance = true;
+            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp_new));
+        }
+    } else if (mayiuse(cpu::x64::sse41)) {
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp_new, *attr.get()));
+        jcp_new.normalize_variance = false;
+        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp_new));
+        if (normalizeVariance_) {
+            jcp_new.normalize_variance = true;
+            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp_new));
+        }
+    } else {
+        IE_THROW() << "Can't create jit RoiPooling kernel";
+    }
+
+    if (mvn_kernel)
+        mvn_kernel->create_ker();
+    if (mvn_mean_kernel)
+        mvn_mean_kernel->create_ker();
+    if (mvn_variance_kernel)
+        mvn_variance_kernel->create_ker();
+}
+
+void MKLDNNMVNNode::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data) {
+    if (!mvn_mean_kernel || (normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
+        IE_THROW() << "MVN layer doesn't create kernel to execute on sse41 above platform.";
+    }
+    if (is_ncsp) {
+        mvn_pln(src_data, dst_data);
+    } else {
+        mvn_blk(src_data, dst_data);
+    }
+}
+
+MKLDNNMVNNode::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs):MVNExecutor(mvnAttrs) {}
+
+void MKLDNNMVNNode::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data) {
+    mvn_ref(src_data, dst_data);
+}
+
 void MKLDNNMVNNode::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
@@ -844,73 +917,35 @@ void MKLDNNMVNNode::prepareParams() {
 
     setPostOps(attr, true);
 
+    auto jcp = jit_mvn_config_params();
     if (mayiuse(cpu::x64::sse41)) {
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        auto jcp = jit_mvn_config_params();
         jcp.src_prc = selectedPD->getConfig().inConfs[0].desc->getPrecision();
         jcp.dst_prc = selectedPD->getConfig().outConfs[0].desc->getPrecision();
         jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jcp.src_prc));
         jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jcp.dst_prc));
         jcp.planar_layout = selectedPD->getConfig().inConfs[0].desc->hasLayoutType(LayoutType::ncsp);
-        jcp.normalize_variance = normalizeVariance_;
-        jcp.across_channels = execAcrossChannels_;
+        jcp.normalize_variance = mvnAttrs.normalizeVariance_;
+        jcp.across_channels = mvnAttrs.execAcrossChannels_;
         int N = 0;
-        std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = shape5D;
-
-        MVNKey key = {jcp, attr};
-
-        auto builder = [this](const MVNKey& key) -> std::shared_ptr<MVNKernels> {
-            auto kernels = std::make_shared<MVNKernels>();
-            auto jcp = key.jcp;
-            if (mayiuse(cpu::x64::avx512_common)) {
-                kernels->mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *key.attr.get()));
-
-                jcp.normalize_variance = false;
-                kernels->mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
-                if (this->normalizeVariance_) {
-                    jcp.normalize_variance = true;
-                    kernels->mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
-                }
-            } else if (mayiuse(cpu::x64::avx2)) {
-                kernels->mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp, *key.attr.get()));
-
-                jcp.normalize_variance = false;
-                kernels->mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
-                if (this->normalizeVariance_) {
-                    jcp.normalize_variance = true;
-                    kernels->mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
-                }
-            } else if (mayiuse(cpu::x64::sse41)) {
-                kernels->mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp, *key.attr.get()));
-
-                jcp.normalize_variance = false;
-                kernels->mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
-                if (this->normalizeVariance_) {
-                    jcp.normalize_variance = true;
-                    kernels->mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
-                }
-            }
-            if (kernels->mvn_kernel)
-                kernels->mvn_kernel->create_ker();
-
-            if (kernels->mvn_mean_kernel)
-                kernels->mvn_mean_kernel->create_ker();
-
-            if (kernels->mvn_variance_kernel)
-                kernels->mvn_variance_kernel->create_ker();
-
-            return kernels;
-        };
-        auto cache = getRuntimeCache();
-        auto result = cache->getOrCreate(key, builder);
-
-        if (result.first->mvn_kernel)
-            mvn_kernel = result.first->mvn_kernel;
-        if (result.first->mvn_mean_kernel)
-            mvn_mean_kernel = result.first->mvn_mean_kernel;
-        if (result.first->mvn_variance_kernel)
-            mvn_variance_kernel = result.first->mvn_variance_kernel;
+        std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = mvnAttrs.shape5D;
+        mvnAttrs.is_nhwc = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc);
     }
+
+    MVNKey key = {mvnAttrs, jcp, attr};
+    auto builder = [&](const MVNKey& key) -> std::shared_ptr<MVNExecutor> {
+        std::shared_ptr<MVNExecutor> executor;
+        if (mayiuse(cpu::x64::sse41)) {
+            executor = std::make_shared<MVNJitExecutor>(key.mvnAttrs, key.jcp, key.attr);
+        } else {
+            executor = std::make_shared<MVNRefExecutor>(key.mvnAttrs);
+        }
+        return executor;
+    };
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+    execPtr = result.first;
 }
 
 void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
@@ -918,26 +953,26 @@ void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
         // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
         // otherwise there are not enough data in spatial dimension to process in one kernel.
         case 1 :  // C
-            if (initAcrossChannels_) {
-                shape5D = std::make_tuple(1, 1, 1, 1, shape[0]);
-                execAcrossChannels_ = false;
+            if (mvnAttrs.initAcrossChannels_) {
+                mvnAttrs.shape5D = std::make_tuple(1, 1, 1, 1, shape[0]);
+                mvnAttrs.execAcrossChannels_ = false;
                 break;
             } else {
-                shape5D = std::make_tuple(1, shape[0], 1, 1, 1);
+                mvnAttrs.shape5D = std::make_tuple(1, shape[0], 1, 1, 1);
                 break;
             }
         case 2 :  // NC
-            if (initAcrossChannels_) {
-                shape5D = std::make_tuple(1, shape[0], 1, shape[1], 1);
-                execAcrossChannels_ = false;
+            if (mvnAttrs.initAcrossChannels_) {
+                mvnAttrs.shape5D = std::make_tuple(1, shape[0], 1, shape[1], 1);
+                mvnAttrs.execAcrossChannels_ = false;
                 break;
             } else {
-                shape5D = std::make_tuple(shape[0], shape[1], 1, 1, 1);
+                mvnAttrs.shape5D = std::make_tuple(shape[0], shape[1], 1, 1, 1);
                 break;
             }
-        case 3 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], 1); break; }
-        case 4 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], shape[3]); break; }
-        case 5 : { shape5D = std::make_tuple(shape[0], shape[1], shape[2], shape[3], shape[4]); break; }
+        case 3 : { mvnAttrs.shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], 1); break; }
+        case 4 : { mvnAttrs.shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], shape[3]); break; }
+        case 5 : { mvnAttrs.shape5D = std::make_tuple(shape[0], shape[1], shape[2], shape[3], shape[4]); break; }
         default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << shape.size(); }
     }
 }
@@ -945,7 +980,7 @@ void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
 void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
     mkldnn::post_ops ops;
     VectorDims postOpDims(5);
-    std::tie(postOpDims[0], postOpDims[1], postOpDims[2], postOpDims[3], postOpDims[4]) = shape5D;
+    std::tie(postOpDims[0], postOpDims[1], postOpDims[2], postOpDims[3], postOpDims[4]) = mvnAttrs.shape5D;
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
@@ -968,27 +1003,18 @@ void MKLDNNMVNNode::executeDynamicImpl(mkldnn::stream strm) {
 }
 
 void MKLDNNMVNNode::execute(mkldnn::stream strm) {
+    if (!execPtr) {
+        IE_THROW() << "Can't execute MVN node. Primitive didn't created";
+    }
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
     uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
     uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
-
-    if (mayiuse(cpu::x64::sse41)) {
-        if (!mvn_mean_kernel || (normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
-            IE_THROW() << "MVN layer with name '" << getName() << "' doesn't create kernel to execute on sse41 above platform.";
-        }
-        if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
-            mvn_pln(src_data, dst_data);
-        } else {
-            mvn_blk(src_data, dst_data);
-        }
-    } else {
-        mvn_ref(src_data, dst_data);
-    }
+    execPtr->exec(src_data, dst_data);
 }
 
-void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data) {
+void MKLDNNMVNNode::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data) {
     size_t blk_size = 1;  // blk size in vmm
     if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
@@ -1123,7 +1149,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data) {
     }
 }
 
-void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
+void MKLDNNMVNNode::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
     const float *src_data_ptr = reinterpret_cast<const float *>(src_data);
     float *dst_data_ptr = reinterpret_cast<float *>(dst_data);
     size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
@@ -1221,7 +1247,7 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
     }
 }
 
-void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data) {
+void MKLDNNMVNNode::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data) {
     size_t blk_size = 1;  // channel blk for memory layout
     if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
@@ -1232,7 +1258,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data) {
     size_t N = 1; size_t C = 1; size_t D = 1; size_t H = 1; size_t W = 1;
     std::tie(N, C, D, H, W) = shape5D;
 
-    bool is_nhwc = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc);
+    // bool is_nhwc = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc);
 
     size_t CB = div_up(C, blk_size);
 
@@ -1468,7 +1494,7 @@ bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
                                             EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
                                             EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
     if ((inputRank == 1 && !unaryEltwise) ||
-        (inputRank == 2 && !unaryEltwise && initAcrossChannels_)) {
+        (inputRank == 2 && !unaryEltwise && mvnAttrs.initAcrossChannels_)) {
         return false;
     }
 

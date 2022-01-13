@@ -85,50 +85,89 @@ public:
     }
 
     inline bool getAcrossChannels() const {
-        return initAcrossChannels_;
+        return mvnAttrs.initAcrossChannels_;
     }
 
     inline bool getNormalizeVariance() const {
-        return normalizeVariance_;
+        return mvnAttrs.normalizeVariance_;
     }
 
     bool canFuse(const MKLDNNNodePtr& node) const override;
-
     void prepareParams() override;
 
-private:
-    void mvn_pln(const uint8_t *src_data, uint8_t *dst_data);
-
-    void mvn_blk(const uint8_t *src_data, uint8_t *dst_data);
-
-    void mvn_ref(const uint8_t *src_data, uint8_t *dst_data);
-
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
-
-    void transformTo5DCase(const InferenceEngine::SizeVector& shape);
-
-    std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
-
-    bool initAcrossChannels_ = false;
-    bool execAcrossChannels_ = false;
-    bool normalizeVariance_ = true;
-    float epsValue_ = 1e-9f;
     // Defines way to add epsilon: inside sqrt or outside.
     enum MVNEpsMode {
         INSIDE_SQRT,
         OUTSIDE_SQRT
     };
-    MVNEpsMode epsMode_;
+    struct MVNAttrs {
+        std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
+        bool initAcrossChannels_;
+        bool execAcrossChannels_;
+        bool normalizeVariance_;
+        float epsValue_;
+        MVNEpsMode epsMode_;
+        size_t src_data_size = 0;
+        size_t dst_data_size = 0;
+        bool is_nhwc;
+    };
 
-    InferenceEngine::Precision input_prec, output_prec;
-    size_t src_data_size = 0;
-    size_t dst_data_size = 0;
+private:
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
+
+    void transformTo5DCase(const InferenceEngine::SizeVector& shape);
 
     mkldnn::primitive_attr attr;
 
-    std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
-    std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
-    std::shared_ptr<jit_uni_mvn_kernel> mvn_kernel;
+    MVNAttrs mvnAttrs;
+
+    class MVNExecutor {
+    public:
+        MVNExecutor(const MVNAttrs& mvnAttrs);
+        virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) = 0;
+        virtual ~MVNExecutor() = default;
+
+    protected:
+        std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
+        bool initAcrossChannels_ = false;
+        bool execAcrossChannels_ = false;
+        bool normalizeVariance_ = true;
+        float epsValue_ = 1e-9f;
+        bool is_ncsp = true;
+        bool is_nhwc = true;
+        MVNEpsMode epsMode_;
+        size_t src_data_size = 0;
+        size_t dst_data_size = 0;
+    };
+
+    std::shared_ptr<MVNExecutor> execPtr = nullptr;
+
+    class MVNJitExecutor : public MVNExecutor {
+        public:
+            MVNJitExecutor(const MVNAttrs& mvnAttrs,
+                           const jit_mvn_config_params &jcp,
+                           const mkldnn::primitive_attr &attr);
+
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) override;
+
+        private:
+            void mvn_pln(const uint8_t *in_ptr_, uint8_t *out_ptr_);
+            void mvn_blk(const uint8_t *in_ptr_, uint8_t *out_ptr_);
+
+            std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
+            std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
+            std::shared_ptr<jit_uni_mvn_kernel> mvn_kernel;
+    };
+
+    class MVNRefExecutor : public MVNExecutor {
+        public:
+            MVNRefExecutor(const MVNAttrs& mvnAttrs);
+
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) override;
+
+        private:
+            void mvn_ref(const uint8_t *in_ptr_, uint8_t *out_ptr_);
+    };
 };
 
 }  // namespace MKLDNNPlugin
