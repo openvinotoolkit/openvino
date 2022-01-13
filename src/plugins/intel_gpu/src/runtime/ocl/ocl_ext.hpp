@@ -633,6 +633,17 @@ public:
         return ret_val;
     }
 
+    size_t get_usm_allocation_size(const void* usm_ptr) const {
+        if (!_get_mem_alloc_info_fn) {
+            throw std::runtime_error("[GPU] clGetMemAllocInfoINTEL is nullptr");
+        }
+
+        size_t ret_val;
+        size_t ret_val_size;
+        _get_mem_alloc_info_fn(_ctx.get(), usm_ptr, CL_MEM_ALLOC_SIZE_INTEL, sizeof(size_t), &ret_val, &ret_val_size);
+        return ret_val;
+    }
+
 private:
     cl::Context _ctx;
     cl::Device _device;
