@@ -3,18 +3,9 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import float_array, int64_array
-from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.middle.quantize_linear_resolver import QuantizeLinearResolver
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
-from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.ops.const import Const
-from openvino.tools.mo.ops.elementwise import Mul
-from openvino.tools.mo.ops.fakequantize import FakeQuantize
-from openvino.tools.mo.ops.reshape import Reshape
-from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.graph import node_incoming_neighbourhood
 from unit_tests.utils.graph import connect
 
 
