@@ -16,6 +16,8 @@
 #include <ngraph/validation_util.hpp>
 #include <ngraph/log.hpp>
 
+#include "transformations/rt_info/nonconvertible_divide.hpp"
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivideWithConstant, "ConvertDivideWithConstant", 0);
 
@@ -23,8 +25,8 @@ namespace {
 bool convert_divide(std::shared_ptr<ngraph::Node> node) {
     auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide>(node);
     // We can not apply this transformation in case with integer input data type
-    if (!div || div->get_input_element_type(0).is_integral()
-             || div->get_input_element_type(1).is_integral()) {
+    if (!div || ov::divide_is_nonconvertible(div)
+             || div->get_input_element_type(0).is_integral()) {
         return false;
     }
 
