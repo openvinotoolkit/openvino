@@ -784,7 +784,7 @@ void MKLDNNRNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 void MKLDNNRNN::prepareParams() {
     for (size_t i = 0; i < wIdx; i++) {
         auto memPtr = getParentEdgesAtPort(i).front()->getMemoryPtr();
-        if (!memPtr || !memPtr->GetPrimitivePtr())
+        if (!memPtr || !memPtr->isAllocated())
             THROW_ERROR << "has uninitialized memory at port " << i;
     }
 

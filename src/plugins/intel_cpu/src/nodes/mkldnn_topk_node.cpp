@@ -1971,9 +1971,9 @@ void MKLDNNTopKNode::preset_params() {
 void MKLDNNTopKNode::prepareParams() {
     auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocated destination memory.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocate input memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";

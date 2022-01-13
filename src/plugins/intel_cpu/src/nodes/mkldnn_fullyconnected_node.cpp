@@ -205,16 +205,16 @@ void MKLDNNFullyConnectedNode::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory hasn't been allocated.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory hasn't been allocated.";
-    if (!wghMemPtr || !wghMemPtr->GetPrimitivePtr())
+    if (!wghMemPtr || !wghMemPtr->isAllocated())
         IE_THROW() << "Weight memory hasn't been allocated.";
     MKLDNNMemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
-        if (!biasMemPtr || !biasMemPtr->GetPrimitivePtr())
+        if (!biasMemPtr || !biasMemPtr->isAllocated())
             IE_THROW() << "Input memory hasn't been allocated.";
     }
 
