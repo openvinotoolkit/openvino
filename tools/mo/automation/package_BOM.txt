@@ -625,6 +625,7 @@ openvino/tools/mo/front/tf/rfcn_support_api_v1.13.json
 openvino/tools/mo/front/tf/rfcn_support_api_v1.14.json
 openvino/tools/mo/front/tf/roll_ext.py
 openvino/tools/mo/front/tf/RollRealImagPack.py
+openvino/tools/mo/front/tf/scatter_nd_ext.py
 openvino/tools/mo/front/tf/select_ext.py
 openvino/tools/mo/front/tf/sign_ext.py
 openvino/tools/mo/front/tf/slice_ext.py
@@ -657,6 +658,7 @@ openvino/tools/mo/front/tf/TensorArrayGatherV3.py
 openvino/tools/mo/front/tf/tensorflow_custom_operations_config_update.py
 openvino/tools/mo/front/tf/TFFFTToDFT.py
 openvino/tools/mo/front/tf/TFResizeToInterpolate.py
+openvino/tools/mo/front/tf/TFScatterNDDecomposition.py
 openvino/tools/mo/front/tf/TFSliceToSlice.py
 openvino/tools/mo/front/tf/tile_ext.py
 openvino/tools/mo/front/tf/topk_ext.py
