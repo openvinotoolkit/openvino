@@ -55,7 +55,7 @@ test_multiple_out = [
          output_names=['inp4', 'inp1', 'inp3', 'inp2'])
 ]
 
-test_multiple_out_with_and = [
+test_multiple_out_with_add = [
     dict(input_shape=[3, 10, 10],
          output_shapes=[[1, 10, 10],
                         [1, 10, 10],
@@ -79,6 +79,19 @@ test_multiple_out_with_and = [
                         [1, 1, 3]],
          axis=1,
          output_names=['inp4', 'inp1', 'inp5', 'inp2', 'inp3', 'inp33'])
+]
+
+
+test_multiple_out_with_identity = [
+    dict(input_shape=[3, 10, 10],
+         output_shapes=[[1, 10, 10],
+                        [1, 10, 10],
+                        [1, 10, 10]],
+         axis=0,
+         split_out_names=['h', 'b', 'l'],
+         identity_names=['i1', 'i2', 'i3'],
+         output_names=['i3', 'b', 'l'],
+         ),
 ]
 
 class TestSplitConcat(Caffe2OnnxLayerTest):
@@ -380,7 +393,7 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         return onnx_net, ref_net
 
-    def create_split_net_ordered_outputs_with_and(self, input_shape, output_shapes, axis, output_names, ir_version):
+    def create_split_net_ordered_outputs_with_add(self, input_shape, output_shapes, axis, output_names, ir_version):
         """
         This test checks the case when graph has a node that is connected with Result and some other operation
         from single output port.
@@ -393,7 +406,7 @@ class TestSplit(Caffe2OnnxLayerTest):
               |       |           ... |                         |   |     ....   |
             Ouput1    Output2      OutputN                     |    |           Result_N
               \      /                                        /\   / \
-               And                                          /   And   \
+               Add                                          /   Add   \
                                                         Result_0 |     Result_1
                                                                 Result_N+1
 
@@ -409,8 +422,8 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
 
-        and_output_name1 = output_names[len(output_names)-2]
-        and_output_name2 = output_names[len(output_names)-1]
+        add_output_name1 = output_names[len(output_names)-2]
+        add_output_name2 = output_names[len(output_names)-1]
         outputs_without_add = output_names[:len(output_names)-2]
 
         output_list = []
@@ -418,22 +431,22 @@ class TestSplit(Caffe2OnnxLayerTest):
             output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
 
         node = onnx.helper.make_node('Split', inputs=['input'], outputs=outputs_without_add, axis=axis)
-        node_and1 = helper.make_node(
+        node_add1 = helper.make_node(
             'Add',
             inputs=[outputs_without_add[1], outputs_without_add[2]],
-            outputs=[and_output_name1]
+            outputs=[add_output_name1]
         )
-        node_and2 = helper.make_node(
+        node_add2 = helper.make_node(
             'Add',
-            inputs=[and_output_name1, outputs_without_add[2]],
-            outputs=[and_output_name2]
+            inputs=[add_output_name1, outputs_without_add[2]],
+            outputs=[add_output_name2]
         )
 
-        output_list = output_list + [helper.make_tensor_value_info(and_output_name1, TensorProto.FLOAT, output_shapes[0])] + [helper.make_tensor_value_info(and_output_name2, TensorProto.FLOAT, output_shapes[0])]
+        output_list = output_list + [helper.make_tensor_value_info(add_output_name1, TensorProto.FLOAT, output_shapes[0])] + [helper.make_tensor_value_info(add_output_name2, TensorProto.FLOAT, output_shapes[0])]
 
         # Create the graph (GraphProto)
         graph_def = helper.make_graph(
-            [node, node_and1, node_and2],
+            [node, node_add1, node_add2],
             'split_model',
             [input],
             output_list,
@@ -446,22 +459,23 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         return onnx_net, ref_net
 
-    def create_split_net_ordered_outputs_with_and(self, input_shape, output_shapes, axis, output_names, ir_version):
+    def create_split_net_ordered_outputs_multiple_tensor_names(self, input_shape, output_shapes, axis, split_out_names, identity_names, output_names, ir_version):
         """
-        This test checks the case when graph has a node that is connected with Result and some other operation
-        from single output port.
+        This test checks the case of multiple tensor names on connection incoming to Result. In this case
+        Result name is equal to one of tensor names from the list.
 
-            ONNX net                                           IR net
+            ONNX net                             IR net
 
-                 Input                                          Input
-                  |                                               |
-                Split                                           Split
-              |       |           ... |                         |   |     ....   |
-            Ouput1    Output2      OutputN                     |    |           Result_N
-              \      /                                        /\   / \
-               And                                          /   And   \
-                                                        Result_0 |     Result_1
-                                                                Result_N+1
+            Input->Split->Identity1->Identity2->Identity3 -> Output1
+                        ->Output2
+                        ->Output3
+
+
+            IR net
+
+            Input->Split->Result1 - this connection has tensor names from Split, Identity1, Identity2, Identity3 ops
+                        ->Result2
+                        ->Result3
 
         """
         #
@@ -475,33 +489,20 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
 
-        and_output_name1 = output_names[len(output_names) - 2]
-        and_output_name2 = output_names[len(output_names) - 1]
-        outputs_without_add = output_names[:len(output_names) - 2]
-
         output_list = []
-        for i, output_name in enumerate(outputs_without_add):
-            output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
+        for i, output_name in enumerate(split_out_names):
+            if i > 0:
+                output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
+        output_list.append(helper.make_tensor_value_info(identity_names[2], TensorProto.FLOAT, output_shapes[i]))
 
-        node = onnx.helper.make_node('Split', inputs=['input'], outputs=outputs_without_add, axis=axis)
-        node_and1 = helper.make_node(
-            'Add',
-            inputs=[outputs_without_add[1], outputs_without_add[2]],
-            outputs=[and_output_name1]
-        )
-        node_and2 = helper.make_node(
-            'Add',
-            inputs=[and_output_name1, outputs_without_add[2]],
-            outputs=[and_output_name2]
-        )
-
-        output_list = output_list + [
-            helper.make_tensor_value_info(and_output_name1, TensorProto.FLOAT, output_shapes[0])] + [
-                          helper.make_tensor_value_info(and_output_name2, TensorProto.FLOAT, output_shapes[0])]
+        node = onnx.helper.make_node('Split', inputs=['input'], outputs=split_out_names, axis=axis)
+        identity1 = onnx.helper.make_node('Identity', inputs=[split_out_names[0]], outputs=[identity_names[0]])
+        identity2 = onnx.helper.make_node('Identity', inputs=[identity_names[0]], outputs=[identity_names[1]])
+        identity3 = onnx.helper.make_node('Identity', inputs=[identity_names[1]], outputs=[identity_names[2]])
 
         # Create the graph (GraphProto)
         graph_def = helper.make_graph(
-            [node, node_and1, node_and2],
+            [node, identity1, identity2, identity3],
             'split_model',
             [input],
             output_list,
@@ -537,13 +538,22 @@ class TestSplit(Caffe2OnnxLayerTest):
         self._test(*self.create_split_net_ordered_outputs(**params, ir_version=ir_version), ie_device, precision,
                    ir_version, temp_dir=temp_dir, output_names=params['output_names'])
 
-
-    @pytest.mark.parametrize("params", test_multiple_out_with_and)
+    @pytest.mark.parametrize("params", test_multiple_out_with_add)
     def test_split_outputs_order_multiple_connection_before_result_case(self,
                                                                         params,
                                                                         ie_device,
                                                                         precision,
                                                                         ir_version,
                                                                         temp_dir):
-        self._test(*self.create_split_net_ordered_outputs_with_and(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, output_names=params['output_names'])
+        self._test(*self.create_split_net_ordered_outputs_with_add(**params, ir_version=ir_version), ie_device,
+                   precision, ir_version, temp_dir=temp_dir, output_names=params['output_names'])
+
+    @pytest.mark.parametrize("params", test_multiple_out_with_identity)
+    def test_split_outputs_order_multiple_tensors_before_result_case(self,
+                                                                     params,
+                                                                     ie_device,
+                                                                     precision,
+                                                                     ir_version,
+                                                                     temp_dir):
+        self._test(*self.create_split_net_ordered_outputs_multiple_tensor_names(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, output_names=params['output_names'])
