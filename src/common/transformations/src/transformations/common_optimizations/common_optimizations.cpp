@@ -55,6 +55,7 @@
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_divides.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -130,6 +131,8 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::InterpolateSequenceFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
+
+    manager.register_pass<ngraph::pass::ConcatReduceFusion>();
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
