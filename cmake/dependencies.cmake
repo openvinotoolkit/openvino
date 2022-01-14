@@ -100,6 +100,8 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
     elseif(DEFINED THIRDPARTY_SERVER_PATH)
         set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    else()
+        message(ERROR "Cannot load pre-production TBB from the internal server! Pls set the THIRDPARTY_SERVER_PATH")
     endif()
 
     if(WIN32 AND X86_64)
@@ -127,10 +129,10 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                ARCHIVE_LIN "tbb2017_20170412_with_cmake_oss.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+                SHA256 "390877787346e804a502143cdee674448571d14566b088c22e1201e3c4fad18b")
         if(ENABLE_TBBBIND_2_5)
             RESOLVE_DEPENDENCY(TBBBIND_2_5
                     ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
@@ -158,9 +160,9 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
-    if(EXISTS "${TBBROOT}/lib/cmake/TBB/TBBConfig.cmake")
+    if(EXISTS "${TBBROOT}/lib/cmake/tbb/TBBConfig.cmake")
         # oneTBB case
-        update_deps_cache(TBB_DIR "${TBB}/lib/cmake/TBB" "Path to TBB cmake folder")
+        update_deps_cache(TBB_DIR "${TBB}/lib/cmake/tbb" "Path to TBB cmake folder")
     else()
         update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
     endif()

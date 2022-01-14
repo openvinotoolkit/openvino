@@ -13,6 +13,8 @@ endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
+set(CMAKE_CXX_FLAGS "-D__TBB_BUILD")
+
 set(IE_MAIN_SOURCE_DIR ${OpenVINO_SOURCE_DIR}/inference-engine)
 
 find_package(IEDevScripts REQUIRED
