@@ -61,15 +61,6 @@ TEST_F(GNAConfigTest, canNOTMatchWith128AsyncThreads) {
         .throws();
 }
 
-TEST_F(GNAConfigTest, canMatchWithSingleMultipleOMPThreads) {
-    assert_that()
-        .onInferModel(GNATestIRs::Fc2DOutputModel())
-        .inNotCompactMode()
-        .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
-        .enable_omp_multithreading()
-        .gna().propagate_forward().called_without().pwl_inserted_into_nnet();
-}
-
 TEST_F(GNAConfigTest, failToCreatePluginWithDifferentInputScaleFactors) {
     assert_that().creating().gna_plugin()
         .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR))+"_0", 1000)

@@ -7,9 +7,13 @@
 using namespace ov::test::behavior;
 namespace {
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 const std::vector<std::map<std::string, std::string>> configs = {
         {{GNA_CONFIG_KEY(LIB_N_THREADS), "3"}}
 };
+
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestMultithreadingTests,
         ::testing::Combine(
