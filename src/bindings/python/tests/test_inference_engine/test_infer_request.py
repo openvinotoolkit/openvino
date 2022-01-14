@@ -114,20 +114,37 @@ def test_set_tensors(device):
     assert np.allclose(tensor3.data, t5.data, atol=1e-2, rtol=1e-2)
 
     request.set_input_tensor(tensor3)
-    t6 = request.get_tensor(request.inputs[0])
+    t6 = request.get_tensor(request.model_inputs[0])
     assert np.allclose(tensor3.data, t6.data, atol=1e-2, rtol=1e-2)
 
     request.set_input_tensor(0, tensor1)
-    t7 = request.get_tensor(request.inputs[0])
+    t7 = request.get_tensor(request.model_inputs[0])
     assert np.allclose(tensor1.data, t7.data, atol=1e-2, rtol=1e-2)
 
     request.set_output_tensor(tensor2)
-    t8 = request.get_tensor(request.outputs[0])
+    t8 = request.get_tensor(request.model_outputs[0])
     assert np.allclose(tensor2.data, t8.data, atol=1e-2, rtol=1e-2)
 
     request.set_output_tensor(0, tensor4)
-    t9 = request.get_tensor(request.outputs[0])
+    t9 = request.get_tensor(request.model_outputs[0])
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
+
+
+def test_inputs_outputs_property(device):
+    num_inputs = 10
+    input_shape = [1]
+    params = [ops.parameter(input_shape, np.uint8) for _ in range(num_inputs)]
+    model = Model(ops.split(ops.concat(params, 0), 0, num_inputs), params)
+    core = Core()
+    compiled = core.compile_model(model, device)
+    request = compiled.create_infer_request()
+    data = [np.atleast_1d(i) for i in range(num_inputs)]
+    results = request.infer(data).values()
+    for result, output_tensor in zip(results, request.outputs):
+        assert np.array_equal(result, output_tensor.data)
+    inputs = request.inputs
+    for input_data, input_tensor in zip(data, request.inputs):
+        assert np.array_equal(input_data, input_tensor.data)
 
 
 def test_cancel(device):

@@ -44,11 +44,14 @@ def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
 def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
     """Map all tensor names of all inputs to the data types of those tensors."""
 
+    def get_inputs(obj: Union[InferRequestBase, CompiledModelBase]) -> list:
+        return obj.model_inputs if isinstance(obj, InferRequestBase) else obj.inputs
+
     def map_tensor_names_to_types(input: Output) -> dict:
         return {n: input.get_element_type() for n in input.get_names()}
 
     input_types: dict = {}
-    for idx, input in enumerate(obj.inputs):
+    for idx, input in enumerate(get_inputs(obj)):
         input_types.update(map_tensor_names_to_types(input))
         input_types[idx] = input.get_element_type()
     return input_types
