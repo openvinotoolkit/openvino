@@ -706,17 +706,17 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                     if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
                         // THROUGHPUT mode
                         try {
-                            auto gpuStreams =
-                                _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(GPU_THROUGHPUT_STREAMS)).as<std::string>();
-                            int gpuStreamsInter = std::stoi(gpuStreams);
-                            LOG_DEBUG("[AUTOPLUGIN] gpuStreamsInter :%d", gpuStreamsInter);
-                            if (gpuStreamsInter > 0) {
-                                real = 2 * gpuStreamsInter;
+                            std::map<std::string, InferenceEngine::Parameter> options;
+                            options["MODEL_PTR"] = _network.getFunction();
+                            auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
+                                    METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                            if (std::get<1>(rangeOfStreams) > 0) {
+                                real = 2 * std::get<1>(rangeOfStreams);
                             } else {
                                 real = 4u;
                             }
                         } catch (const std::exception&) {
-                            LOG_WARNING("[AUTOPLUGIN] get config GPU_THROUGHPUT_STREAMS failed");
+                            LOG_WARNING("[AUTOPLUGIN] GetMetric RANGE_FOR_STREAMS failed");
                             LOG_WARNING("[AUTOPLUGIN] use default value 4 for THROUGHPUT");
                             real = 4u;
                         }

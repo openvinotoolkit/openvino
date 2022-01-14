@@ -187,11 +187,11 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, actualCustomerNum, ""});
         // enable autoBatch
         // IE_SET_METRIC(OPTIMAL_BATCH_SIZE, optimalBatchNum, 256);
-        // IE_SET_METRIC(RANGE_FOR_STREAMS, rangeOfStreams, std::make_tuple<unsigned int, unsigned int>(1, 2));
+        IE_SET_METRIC(RANGE_FOR_STREAMS, rangeOfStreams, std::make_tuple<unsigned int, unsigned int>(1, 3));
         // ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_actual), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
         //     .WillByDefault(RETURN_MOCK_VALUE(optimalBatchNum));
-        // ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_actual), StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
-        //     .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
+        ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
+             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
     } else {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {}, actualCustomerNum, ""});
@@ -227,8 +227,8 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
                     ::testing::Matcher<const Config&>(_))).WillByDefault(Return(actualMockExeNetwork));
     }
 
-    ON_CALL(*core, GetConfig(::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const std::string&>(StrEq(CONFIG_KEY(GPU_THROUGHPUT_STREAMS))))).WillByDefault(Return("2"));
+    // ON_CALL(*core, GetConfig(::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
+    //             ::testing::Matcher<const std::string&>(StrEq(CONFIG_KEY(GPU_THROUGHPUT_STREAMS))))).WillByDefault(Return("2"));
 
     ON_CALL(*cpuMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(RETURN_MOCK_VALUE(cpuOptimalNum));
@@ -277,11 +277,11 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
 //
 const std::vector<ConfigParams> testConfigs = {
                                                ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_GPU,  1},
-                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_GPU,  4},
+                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_GPU,  6},
                                                ConfigParams {false, 3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_GPU,  2},
                                                ConfigParams {true,  3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_GPU,  2},
                                                ConfigParams {false, 3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  1},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  4},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  6},
                                                ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_GPU,  2},
                                                ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_GPU,  2},
                                                ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  1},
