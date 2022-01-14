@@ -1,14 +1,12 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.back.MaxPool import MaxPool
-
 import unittest
 
-
+from openvino.tools.mo.back.MaxPool import MaxPool
 from openvino.tools.mo.graph.graph import Node
-from unit_tests.utils.graph import build_graph
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from unit_tests.utils.graph import build_graph
 
 
 class TestMaxPool(unittest.TestCase):
