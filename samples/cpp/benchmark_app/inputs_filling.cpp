@@ -33,7 +33,7 @@ ov::runtime::Tensor createTensorFromImage(const std::vector<std::string>& files,
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->getBuffer());
+    auto data = reinterpret_cast<T*>(allocator->get_buffer());
 
     /** Collect images data ptrs **/
     std::vector<std::shared_ptr<uint8_t>> vreader;
@@ -104,7 +104,7 @@ ov::runtime::Tensor createTensorImInfo(const std::pair<size_t, size_t>& image_si
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->getBuffer());
+    auto data = reinterpret_cast<T*>(allocator->get_buffer());
 
     size_t infoBatchSize = 1;
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
@@ -141,7 +141,7 @@ ov::runtime::Tensor createTensorFromBinary(const std::vector<std::string>& files
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    char* data = allocator->getBuffer();
+    char* data = allocator->get_buffer();
     size_t binaryBatchSize = 1;
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
         binaryBatchSize = batchSize;
@@ -196,7 +196,7 @@ ov::runtime::Tensor createTensorRandom(const benchmark_app::InputInfo& inputInfo
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->getBuffer());
+    auto data = reinterpret_cast<T*>(allocator->get_buffer());
 
     std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);

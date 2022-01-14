@@ -32,7 +32,7 @@ public:
         return other_blob_allocator != nullptr && other_blob_allocator == this;
     }
 
-    char* getBuffer() {
+    char* get_buffer() {
         return data;
     }
 
