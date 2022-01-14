@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_FE_NAME "ov_mock_py_frontend")
 set(PYBIND_FE_NAME "pybind_mock_frontend")
 
 set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/pyngraph_mock_frontend_api.cpp)
@@ -11,7 +10,7 @@ source_group("src" FILES ${PYBIND_FE_SRC})
 
 pybind11_add_module(${PYBIND_FE_NAME} MODULE ${PYBIND_FE_SRC})
 
-target_link_libraries(${PYBIND_FE_NAME} PRIVATE ${TARGET_FE_NAME} openvino::runtime
+target_link_libraries(${PYBIND_FE_NAME} PRIVATE ov_mock_py_frontend openvino::runtime
         ov_onnx_frontend ov_tensorflow_frontend ov_paddle_frontend)
 
 add_clang_format_target(${PYBIND_FE_NAME}_clang FOR_TARGETS ${PYBIND_FE_NAME})

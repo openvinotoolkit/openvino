@@ -161,7 +161,6 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_other_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
-
         for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
             ngraph::onnx_import::register_operator(common_conv_ext->get_op_type(),
                                                    i,
@@ -171,7 +170,6 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                                                    });
     } else if (const auto onnx_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(onnx_conv_ext);
-
         for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
             ngraph::onnx_import::register_operator(onnx_conv_ext->get_op_type(),
                                                    i,
@@ -181,5 +179,16 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                                                    });
     } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
         m_extensions.progress_reporter = progress_reporter;
+    }
+}
+
+FrontEnd::~FrontEnd() {
+    // We should remove new added operations manually due to deadlock in python GIL (pybind11/gil.h)
+    // It looks like the issue occurs when we use static c++ objects to store wrapped objects,
+    // in our case OperatorsBridge is static (singleton), and it stores ConvertionExtension.
+    for (const auto& conv_ext : m_conversion_extensions) {
+        for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i) {
+            ngraph::onnx_import::unregister_operator(conv_ext->get_op_type(), i, "");
+        }
     }
 }

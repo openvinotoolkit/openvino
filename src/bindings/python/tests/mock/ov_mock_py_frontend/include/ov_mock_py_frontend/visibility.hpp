@@ -8,7 +8,7 @@
 #include "openvino/frontend/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
-#ifdef ov_mock_py_frontend_EXPORTS
+#ifdef IMPLEMENT_OPENVINO_API
 #    define MOCK_API OPENVINO_CORE_EXPORTS
 #else
 #    define MOCK_API OPENVINO_CORE_IMPORTS

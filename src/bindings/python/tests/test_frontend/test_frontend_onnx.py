@@ -68,10 +68,14 @@ def create_onnx_model_with_custom_attributes():
                                 attribute_list_f32=np.array([1, 2, 3], dtype=np.float),
                                 attribute_list_f64=np.array([1, 2, 3], dtype=np.float64),
                                 attribute_list_bool=[True, False, True],
-                                attribute_list_type=np.array([onnx.TensorProto.INT32, onnx.TensorProto.FLOAT]),
+                                attribute_list_type=np.array([onnx.TensorProto.INT32,
+                                                              onnx.TensorProto.FLOAT]),
 
                                 )
-    const_tensor = onnx.helper.make_tensor("const_tensor", onnx.TensorProto.FLOAT, (2, 2), [0.5, 1, 1.5, 2.0])
+    const_tensor = onnx.helper.make_tensor("const_tensor",
+                                           onnx.TensorProto.FLOAT,
+                                           (2, 2),
+                                           [0.5, 1, 1.5, 2.0])
     const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
                                        value=const_tensor, name="const_node")
     mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
@@ -93,6 +97,8 @@ def run_function(function, *inputs, expected):
         np.testing.assert_allclose(expected[i], actual[i], rtol=1e-3, atol=1e-6)
 
 
+# FrontEndManager shall be initialized and destroyed after all tests finished
+# This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
 onnx_model_filename = "model.onnx"
 onnx_model_with_custom_attributes_filename = "model_custom_attributes.onnx"
@@ -102,7 +108,8 @@ ONNX_FRONTEND_NAME = "onnx"
 
 def setup_module():
     onnx.save_model(create_onnx_model(), onnx_model_filename)
-    onnx.save_model(create_onnx_model_with_custom_attributes(), onnx_model_with_custom_attributes_filename)
+    onnx.save_model(create_onnx_model_with_custom_attributes(),
+                    onnx_model_with_custom_attributes_filename)
     onnx.save_model(create_onnx_model_with_subgraphs(), onnx_model_with_subgraphs_filename)
 
 
