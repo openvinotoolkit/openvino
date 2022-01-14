@@ -801,7 +801,7 @@ Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorD
                                                   usm_host_mem,
                                                   0,
                                                   0,
-                                                  RemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
+                                                  RemoteBlobImpl::BlobType::BT_USM_SHARED);
     if (!blob)
         IE_THROW(NotAllocated) << "Failed to allocate shared host <-> device blob";
     blob->allocate();
