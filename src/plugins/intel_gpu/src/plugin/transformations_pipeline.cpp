@@ -117,7 +117,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ngraph::pass::Manager manager;
         manager.set_per_pass_validation(false);
 
-        enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        enableInt8 = true || config.enableInt8 && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         if (enableInt8) {
             manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
                 std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
@@ -406,11 +406,74 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
         });
+
         if (!use_onednn) {
             lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
                 return MatMulTransformation::is3DTensorOnActivations(node);
             });
         }
+
+        lptPassConfig->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
+            // disable MultiplyToGroupConvolution if Multiply with Constant can be fused
+
+            const auto dequantization = NetworkHelper::getDequantization(node, 0, true);
+            std::shared_ptr<ov::Node> parent = dequantization.empty() ? nullptr : dequantization.data.get_node()->shared_from_this();
+            if (parent == nullptr) {
+                const auto constant = NetworkHelper::getConstantInput(node);
+                if (constant != nullptr) {
+                    auto parent = node->get_input_node_shared_ptr(0);
+                    if (parent == constant) {
+                        parent = node->get_input_node_shared_ptr(1);
+                    }
+                }
+            }
+
+            if ((parent != nullptr) && (parent->get_output_target_inputs(0).size() == 1ul)) {
+                const bool fuseIsSupported =
+                    ov::is_type<ngraph::opset1::Convolution>(parent) ||
+                    ov::is_type<ngraph::opset1::BinaryConvolution>(parent) ||
+                    ov::is_type<ngraph::opset6::MVN>(parent) ||
+                    ov::is_type<ngraph::opset1::ConvolutionBackpropData>(parent) ||
+                    ov::is_type<ngraph::opset1::Transpose>(parent) ||
+                    ov::is_type<ngraph::opset4::Interpolate>(parent) ||
+                    ov::is_type<ngraph::opset1::SpaceToDepth>(parent) ||
+                    ov::is_type<ngraph::opset1::MatMul>(parent) ||
+                    ov::is_type<ngraph::opset2::BatchToSpace>(parent) ||
+                    ov::is_type<ngraph::opset2::SpaceToBatch>(parent) ||
+                    ov::is_type<ngraph::opset1::Multiply>(parent) ||
+                    ov::is_type<ngraph::opset1::Divide>(parent) ||
+                    ov::is_type<ngraph::opset1::Subtract>(parent) ||
+                    ov::is_type<ngraph::opset1::Add>(parent) ||
+                    ov::is_type<ngraph::op::v5::GatherND>(parent) ||
+                    ov::is_type<ngraph::op::v8::GatherND>(parent) ||
+                    ov::is_type<ngraph::op::v6::GatherElements>(parent) ||
+                    ov::is_type<ngraph::op::v3::ScatterNDUpdate>(parent) ||
+                    ov::is_type<ngraph::op::v3::ScatterElementsUpdate>(parent) ||
+                    ov::is_type<ngraph::opset1::MaxPool>(parent) ||
+                    ov::is_type<ngraph::opset1::AvgPool>(parent) ||
+                    ov::is_type<ngraph::opset1::DepthToSpace>(parent) ||
+                    ov::is_type<ngraph::opset1::ReduceMax>(parent) ||
+                    ov::is_type<ngraph::opset1::ReduceLogicalAnd>(parent) ||
+                    ov::is_type<ngraph::opset1::ReduceLogicalOr>(parent) ||
+                    ov::is_type<ngraph::opset1::ReduceMean>(parent) ||
+                    ov::is_type<ngraph::opset1::ReduceMin>(parent) ||
+                    ov::is_type<ngraph::opset1::ReduceProd>(parent) ||
+                    ov::is_type<ngraph::opset1::ReduceSum>(parent) ||
+                    ov::is_type<ngraph::opset4::ReduceL1>(parent) ||
+                    ov::is_type<ngraph::opset4::ReduceL2>(parent);
+                if (fuseIsSupported) {
+                    return true;
+                }
+            }
+
+            // disable MultiplyToGroupConvolution for Multiply with scalar
+
+            if (MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node)) {
+                return true;
+            }
+
+            return false;
+        });
 
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization);
         lptManager.run_passes(func);
