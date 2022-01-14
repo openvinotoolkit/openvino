@@ -15,11 +15,11 @@
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
-inline uint64_t getDurationInMilliseconds(uint32_t duration) {
+inline uint64_t get_duration_in_milliseconds(uint32_t duration) {
     return duration * 1000LL;
 }
 
-inline uint64_t getDurationInNanoseconds(uint32_t duration) {
+inline uint64_t get_duration_in_nanoseconds(uint32_t duration) {
     return duration * 1000000000LL;
 }
 
@@ -54,22 +54,22 @@ using InputsInfo = std::map<std::string, InputInfo>;
 using PartialShapes = std::map<std::string, ngraph::PartialShape>;
 }  // namespace benchmark_app
 
-std::vector<std::string> parseDevices(const std::string& device_string);
-uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
-std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
+std::vector<std::string> parse_devices(const std::string& device_string);
+uint32_t device_default_device_duration_in_seconds(const std::string& device);
+std::map<std::string, std::string> parse_nstreams_value_per_device(const std::vector<std::string>& devices,
                                                                const std::string& values_string);
-std::string getShapeString(const ov::Shape& shape);
-std::string getShapesString(const benchmark_app::PartialShapes& shapes);
-size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info);
+std::string get_shape_string(const ov::Shape& shape);
+std::string get_shapes_string(const benchmark_app::PartialShapes& shapes);
+size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info);
 std::vector<std::string> split(const std::string& s, char delim);
-std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& scale_mean,
+std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string& scale_mean,
                                                            const benchmark_app::InputsInfo& inputs_info);
-std::vector<ngraph::Dimension> parsePartialShape(const std::string& partial_shape);
-ov::Shape parseDataShape(const std::string& dataShapeStr);
-std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::string& file_paths_string);
-std::map<std::string, std::vector<std::string>> parseInputArguments(const std::vector<std::string>& args);
+std::vector<ngraph::Dimension> parse_partial_shape(const std::string& partial_shape);
+ov::Shape parse_data_shape(const std::string& dataShapeStr);
+std::pair<std::string, std::vector<std::string>> parse_input_files(const std::string& file_paths_string);
+std::map<std::string, std::vector<std::string>> parse_input_arguments(const std::vector<std::string>& args);
 
-std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string& parameter_string,
+std::map<std::string, std::vector<std::string>> parse_input_parameters(const std::string& parameter_string,
                                                                      const ov::ParameterVector& input_info);
 
 /// <summary>
@@ -87,7 +87,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(const std::
 /// Each element is a configuration item for every test configuration case
 /// (number of cases is calculated basing on tensor_shape and other parameters).
 /// Each element is a map (input_name, configuration) containing data for each input</returns>
-std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_string,
+std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_string,
                                                      const std::string& layout_string,
                                                      const size_t batch_size,
                                                      const std::string& data_shapes_string,
@@ -113,7 +113,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
 /// (number of cases is calculated basing on tensor_shape and other parameters).
 /// Each element is a map (input_name, configuration) containing data for each
 /// input</returns>
-std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_string,
+std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_string,
                                                      const std::string& layout_string,
                                                      const size_t batch_size,
                                                      const std::string& data_shapes_string,
@@ -128,8 +128,8 @@ void load_config(const std::string& filename, std::map<std::string, std::map<std
 extern const std::vector<std::string> supported_image_extensions;
 extern const std::vector<std::string> supported_binary_extensions;
 
-bool isBinaryFile(const std::string& filePath);
-bool isImageFile(const std::string& filePath);
-bool containsBinaries(const std::vector<std::string>& filePaths);
-std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>& filePaths,
+bool is_binary_file(const std::string& filePath);
+bool is_image_file(const std::string& filePath);
+bool contains_binaries(const std::vector<std::string>& filePaths);
+std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
                                                  const std::vector<std::string>& extensions);

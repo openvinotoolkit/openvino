@@ -65,7 +65,7 @@ void fillBuffer(void* inputBuffer, size_t elementsNum, const ov::element::Type& 
     }
 }
 
-std::map<std::string, ov::runtime::TensorVector> getRemoteInputTensors(
+std::map<std::string, ov::runtime::TensorVector> get_remote_input_tensors(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
     const ov::runtime::CompiledModel& compiledModel,
@@ -124,7 +124,7 @@ std::map<std::string, ov::runtime::TensorVector> getRemoteInputTensors(
 #endif
 }
 
-std::map<std::string, ov::runtime::Tensor> getRemoteOutputTensors(const ov::runtime::CompiledModel& compiledModel,
+std::map<std::string, ov::runtime::Tensor> get_remote_output_tensors(const ov::runtime::CompiledModel& compiledModel,
                                                                   std::map<std::string, ::gpu::BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::map<std::string, ov::runtime::Tensor> outputTensors;

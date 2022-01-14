@@ -349,7 +349,7 @@ ov::runtime::Tensor getRandomTensor(const std::pair<std::string, benchmark_app::
 std::string getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
     std::stringstream strOut;
     strOut << "(" << inputInfo.layout.to_string() << ", " << inputInfo.type.get_type_name() << ", "
-           << getShapeString(inputInfo.dataShape) << ", ";
+           << get_shape_string(inputInfo.dataShape) << ", ";
     if (inputInfo.partialShape.is_dynamic()) {
         strOut << std::string("dyn:") << inputInfo.partialShape << "):\t";
     } else {
@@ -358,8 +358,8 @@ std::string getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
     return strOut.str();
 }
 
-std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string, std::vector<std::string>> inputFiles,
-                                                            std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
+std::map<std::string, ov::runtime::TensorVector> get_tensors(std::map<std::string, std::vector<std::string>> inputFiles,
+                                                             std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
     std::map<std::string, ov::runtime::TensorVector> tensors;
     if (app_inputs_info.empty()) {
         throw std::logic_error("Inputs Info for network is empty!");
@@ -389,7 +389,7 @@ std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string
         auto input = app_inputs_info[0].at(input_name);
         if (!files.second.empty() && files.second[0] != "random" && files.second[0] != "image_info") {
             if (input.isImage()) {
-                files.second = filterFilesByExtensions(files.second, supported_image_extensions);
+                files.second = filter_files_by_extensions(files.second, supported_image_extensions);
             } else if (input.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
                 slog::info << "Input '" << input_name
                            << "' probably is image info. All files for this input will"
@@ -398,7 +398,7 @@ std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string
                 files.second = {"image_info"};
                 continue;
             } else {
-                files.second = filterFilesByExtensions(files.second, supported_binary_extensions);
+                files.second = filter_files_by_extensions(files.second, supported_binary_extensions);
             }
         }
 
@@ -457,7 +457,7 @@ std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string
 
     std::vector<size_t> batchSizes;
     for (const auto& info : app_inputs_info) {
-        batchSizes.push_back(getBatchSize(info));
+        batchSizes.push_back(get_batch_size(info));
     }
 
     for (const auto& files : inputFiles) {
@@ -519,10 +519,10 @@ std::map<std::string, ov::runtime::TensorVector> getTensors(std::map<std::string
     return tensors;
 }
 
-std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std::vector<std::string>& inputFiles,
-                                                                      const size_t& batchSize,
-                                                                      benchmark_app::InputsInfo& app_inputs_info,
-                                                                      size_t requestsNum) {
+std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const std::vector<std::string>& inputFiles,
+                                                                         const size_t& batchSize,
+                                                                         benchmark_app::InputsInfo& app_inputs_info,
+                                                                         size_t requestsNum) {
     std::map<std::string, ov::runtime::TensorVector> blobs;
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
@@ -543,7 +543,7 @@ std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std:
                       "random values!"
                    << slog::endl;
     } else {
-        binaryFiles = filterFilesByExtensions(inputFiles, supported_binary_extensions);
+        binaryFiles = filter_files_by_extensions(inputFiles, supported_binary_extensions);
         std::sort(std::begin(binaryFiles), std::end(binaryFiles));
 
         auto binaryToBeUsed = binaryInputsNum * batchSize * requestsNum;
@@ -566,7 +566,7 @@ std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std:
                        << binaryFiles.size() << slog::endl;
         }
 
-        imageFiles = filterFilesByExtensions(inputFiles, supported_image_extensions);
+        imageFiles = filter_files_by_extensions(inputFiles, supported_image_extensions);
         std::sort(std::begin(imageFiles), std::end(imageFiles));
 
         auto imagesToBeUsed = imageInputsNum * batchSize * requestsNum;
@@ -691,7 +691,7 @@ std::map<std::string, ov::runtime::TensorVector> getTensorsStaticCase(const std:
     return blobs;
 }
 
-void copyTensorData(ov::runtime::Tensor& dst, const ov::runtime::Tensor& src) {
+void copy_tensor_data(ov::runtime::Tensor& dst, const ov::runtime::Tensor& src) {
     if (src.get_shape() != dst.get_shape() || src.get_byte_size() != dst.get_byte_size()) {
         throw std::runtime_error(
             "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");

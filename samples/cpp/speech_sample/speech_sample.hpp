@@ -229,12 +229,12 @@ static void showUsage() {
  * @param argv list of input arguments
  * @return bool status true(Success) or false(Fail)
  */
-bool ParseAndCheckCommandLine(int argc, char* argv[]) {
+bool parse_and_check_command_line(int argc, char* argv[]) {
     slog::info << "Parsing input parameters" << slog::endl;
 
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
-        showUsage();
+        show_usage();
         showAvailableDevices();
         return false;
     }
@@ -242,7 +242,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 
     // input not required only in dump mode and if external scale factor provided
     if (FLAGS_i.empty() && (!isDumpMode || FLAGS_q.compare("user") != 0)) {
-        showUsage();
+        show_usage();
         if (isDumpMode) {
             throw std::logic_error("In model dump mode either static quantization is used (-i) or user scale"
                                    " factor need to be provided. See -q user option");
@@ -251,7 +251,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     }
 
     if (FLAGS_m.empty() && FLAGS_rg.empty()) {
-        showUsage();
+        show_usage();
         throw std::logic_error("Either IR file (-m) or GNAModel file (-rg) need to be set.");
     }
 

@@ -53,7 +53,7 @@ size_t InputInfo::depth() const {
 }
 }  // namespace benchmark_app
 
-uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device) {
+uint32_t device_default_device_duration_in_seconds(const std::string& device) {
     static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds{{"CPU", 60},
                                                                                 {"GPU", 60},
                                                                                 {"VPU", 60},
@@ -105,7 +105,7 @@ std::vector<float> splitFloat(const std::string& s, char delim) {
     return result;
 }
 
-std::vector<std::string> parseDevices(const std::string& device_string) {
+std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
     if (colon != std::string::npos) {
@@ -118,7 +118,7 @@ std::vector<std::string> parseDevices(const std::string& device_string) {
     return devices;
 }
 
-std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
+std::map<std::string, std::string> parse_nstreams_value_per_device(const std::vector<std::string>& devices,
                                                                const std::string& values_string) {
     //  Format: <device1>:<value1>,<device2>:<value2> or just <value>
     std::map<std::string, std::string> result;
@@ -147,7 +147,7 @@ std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector
     return result;
 }
 
-size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
+size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info) {
     size_t batch_size = 0;
     for (auto& info : inputs_info) {
         if (ov::layout::has_batch(info.second.layout)) {
@@ -167,13 +167,13 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
     return batch_size;
 }
 
-std::string getShapeString(const ov::Shape& shape) {
+std::string get_shape_string(const ov::Shape& shape) {
     std::stringstream ss;
     ss << shape;
     return ss.str();
 }
 
-std::string getShapesString(const benchmark_app::PartialShapes& shapes) {
+std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
     std::stringstream ss;
     for (auto& shape : shapes) {
         if (!ss.str().empty())
@@ -183,7 +183,7 @@ std::string getShapesString(const benchmark_app::PartialShapes& shapes) {
     return ss.str();
 }
 
-std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& scale_mean,
+std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string& scale_mean,
                                                            const benchmark_app::InputsInfo& inputs_info) {
     //  Format: data:[255,255,255],info[255,255,255]
     std::map<std::string, std::vector<float>> return_value;
@@ -222,7 +222,7 @@ std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& sc
     return return_value;
 }
 
-std::vector<ngraph::Dimension> parsePartialShape(const std::string& partial_shape) {
+std::vector<ngraph::Dimension> parse_partial_shape(const std::string& partial_shape) {
     std::vector<ngraph::Dimension> shape;
     for (auto& dim : split(partial_shape, ',')) {
         if (dim == "?" || dim == "-1") {
@@ -244,7 +244,7 @@ std::vector<ngraph::Dimension> parsePartialShape(const std::string& partial_shap
     return shape;
 }
 
-ov::Shape parseDataShape(const std::string& dataShapeStr) {
+ov::Shape parse_data_shape(const std::string& dataShapeStr) {
     std::vector<size_t> shape;
     for (auto& dim : split(dataShapeStr, ',')) {
         shape.push_back(std::stoi(dim));
@@ -252,7 +252,7 @@ ov::Shape parseDataShape(const std::string& dataShapeStr) {
     return shape;
 }
 
-std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::string& file_paths_string) {
+std::pair<std::string, std::vector<std::string>> parse_input_files(const std::string& file_paths_string) {
     auto search_string = file_paths_string;
     std::string input_name = "";
     std::vector<std::string> file_paths;
@@ -293,7 +293,7 @@ std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::stri
     return {input_name, file_paths};
 }
 
-std::map<std::string, std::vector<std::string>> parseInputArguments(const std::vector<std::string>& args) {
+std::map<std::string, std::vector<std::string>> parse_input_arguments(const std::vector<std::string>& args) {
     std::map<std::string, std::vector<std::string>> mapped_files = {};
     auto args_it = begin(args);
     const auto is_image_arg = [](const std::string& s) {
@@ -310,7 +310,7 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::v
         const auto files_begin = std::next(files_start);
         const auto files_end = std::find_if(files_begin, end(args), is_arg);
         for (auto f = files_begin; f != files_end; ++f) {
-            auto files = parseInputFiles(*f);
+            auto files = parse_input_files(*f);
             if (mapped_files.find(files.first) == mapped_files.end()) {
                 mapped_files[files.first] = {};
             }
@@ -336,7 +336,7 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::v
     return mapped_files;
 }
 
-std::map<std::string, std::vector<std::string>> parseInputParameters(
+std::map<std::string, std::vector<std::string>> parse_input_parameters(
     const std::string& parameter_string,
     const std::vector<ov::Output<const ov::Node>>& input_info) {
     // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
@@ -371,7 +371,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(
     return return_value;
 }
 
-std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_string,
+std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_string,
                                                      const std::string& layout_string,
                                                      const size_t batch_size,
                                                      const std::string& data_shapes_string,
@@ -380,10 +380,10 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                                      const std::string& mean_string,
                                                      const std::vector<ov::Output<const ov::Node>>& input_info,
                                                      bool& reshape_required) {
-    std::map<std::string, std::vector<std::string>> shape_map = parseInputParameters(shape_string, input_info);
+    std::map<std::string, std::vector<std::string>> shape_map = parse_input_parameters(shape_string, input_info);
     std::map<std::string, std::vector<std::string>> data_shapes_map =
-        parseInputParameters(data_shapes_string, input_info);
-    std::map<std::string, std::vector<std::string>> layout_map = parseInputParameters(layout_string, input_info);
+        parse_input_parameters(data_shapes_string, input_info);
+    std::map<std::string, std::vector<std::string>> layout_map = parse_input_parameters(layout_string, input_info);
 
     size_t min_size = 1, max_size = 1;
     if (!data_shapes_map.empty()) {
@@ -492,7 +492,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     throw std::logic_error(
                         "shape command line parameter doesn't support multiple shapes for one input.");
                 }
-                info.partialShape = parsePartialShape(shape_map.at(name)[0]);
+                info.partialShape = parse_partial_shape(shape_map.at(name)[0]);
                 reshape_required = true;
             } else {
                 info.partialShape = item.get_partial_shape();
@@ -505,10 +505,10 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
 
             // Tensor Shape
             if (info.partialShape.is_dynamic() && data_shapes_map.count(name)) {
-                info.dataShape = parseDataShape(data_shapes_map.at(name)[i % data_shapes_map.at(name).size()]);
+                info.dataShape = parse_data_shape(data_shapes_map.at(name)[i % data_shapes_map.at(name).size()]);
             } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.isImage()) {
                 auto& namesVector = fileNames.at(filesInputName);
-                if (containsBinaries(namesVector)) {
+                if (contains_binaries(namesVector)) {
                     throw std::logic_error("Input files list for input " + item.get_any_name() +
                                            " contains binary file(s) and input shape is dynamic. Tensor shape should "
                                            "be defined explicitly (using -tensor_shape).");
@@ -603,8 +603,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
         }
 
         // Update scale and mean
-        std::map<std::string, std::vector<float>> scale_map = parseScaleOrMean(scale_string, info_map);
-        std::map<std::string, std::vector<float>> mean_map = parseScaleOrMean(mean_string, info_map);
+        std::map<std::string, std::vector<float>> scale_map = parse_scale_or_mean(scale_string, info_map);
+        std::map<std::string, std::vector<float>> mean_map = parse_scale_or_mean(mean_string, info_map);
 
         for (auto& item : info_map) {
             if (item.second.isImage()) {
@@ -626,7 +626,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
     return info_maps;
 }
 
-std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_string,
+std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_string,
                                                      const std::string& layout_string,
                                                      const size_t batch_size,
                                                      const std::string& tensors_shape_string,
@@ -635,7 +635,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                                      const std::string& mean_string,
                                                      const std::vector<ov::Output<const ov::Node>>& input_info) {
     bool reshape_required = false;
-    return getInputsInfo(shape_string,
+    return get_inputs_info(shape_string,
                          layout_string,
                          batch_size,
                          tensors_shape_string,

@@ -39,18 +39,18 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     slog::info << "Parsing input parameters" << slog::endl;
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_help || FLAGS_h) {
-        showUsage();
+        show_usage();
         showAvailableDevices();
         return false;
     }
 
     if (FLAGS_m.empty()) {
-        showUsage();
+        show_usage();
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
     if (FLAGS_latency_percentile > 100 || FLAGS_latency_percentile < 1) {
-        showUsage();
+        show_usage();
         throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
     }
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
@@ -152,10 +152,10 @@ int main(int argc, char* argv[]) {
         std::string device_name = FLAGS_d;
 
         // Parse devices
-        auto devices = parseDevices(device_name);
+        auto devices = parse_devices(device_name);
 
         // Parse nstreams per device
-        std::map<std::string, std::string> device_nstreams = parseNStreamsValuePerDevice(devices, FLAGS_nstreams);
+        std::map<std::string, std::string> device_nstreams = parse_nstreams_value_per_device(devices, FLAGS_nstreams);
 
         // Load device config file if specified
         std::map<std::string, std::map<std::string, std::string>> config;
@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
         }
 
         /** This vector stores paths to the processed images with input names**/
-        auto inputFiles = parseInputArguments(gflags::GetArgvs());
+        auto inputFiles = parse_input_arguments(gflags::GetArgvs());
 
         // ----------------- 2. Loading the Inference Engine
         // -----------------------------------------------------------
@@ -399,7 +399,7 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
-            app_inputs_info = getInputsInfo(FLAGS_shape,
+            app_inputs_info = get_inputs_info(FLAGS_shape,
                                             FLAGS_layout,
                                             batchSize,
                                             FLAGS_data_shape,
@@ -436,7 +436,7 @@ int main(int argc, char* argv[]) {
             next_step();
             // Parse input shapes if specified
             bool reshape = false;
-            app_inputs_info = getInputsInfo(FLAGS_shape,
+            app_inputs_info = get_inputs_info(FLAGS_shape,
                                             FLAGS_layout,
                                             FLAGS_b,
                                             FLAGS_data_shape,
@@ -449,7 +449,7 @@ int main(int argc, char* argv[]) {
                 benchmark_app::PartialShapes shapes = {};
                 for (auto& item : app_inputs_info[0])
                     shapes[item.first] = item.second.partialShape;
-                slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
+                slog::info << "Reshaping network: " << get_shapes_string(shapes) << slog::endl;
                 startTime = Time::now();
                 model->reshape(shapes);
                 duration_ms = double_to_string(get_duration_ms_till_now(startTime));
@@ -541,7 +541,7 @@ int main(int argc, char* argv[]) {
 
             // Calculate batch size according to provided layout and shapes (static case)
             if (!isDynamicNetwork && app_inputs_info.size()) {
-                batchSize = getBatchSize(app_inputs_info.front());
+                batchSize = get_batch_size(app_inputs_info.front());
 
                 slog::info << "Network batch size: " << batchSize << slog::endl;
             } else if (batchSize == 0) {
@@ -584,7 +584,7 @@ int main(int argc, char* argv[]) {
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"import network time (ms)", duration_ms}});
 
-            app_inputs_info = getInputsInfo(FLAGS_shape,
+            app_inputs_info = get_inputs_info(FLAGS_shape,
                                             FLAGS_layout,
                                             FLAGS_b,
                                             FLAGS_data_shape,
@@ -679,9 +679,9 @@ int main(int argc, char* argv[]) {
             duration_seconds = FLAGS_t;
         } else if (FLAGS_niter == 0) {
             // default time limit
-            duration_seconds = deviceDefaultDeviceDurationInSeconds(device_name);
+            duration_seconds = device_default_device_duration_in_seconds(device_name);
         }
-        uint64_t duration_nanoseconds = getDurationInNanoseconds(duration_seconds);
+        uint64_t duration_nanoseconds = get_duration_in_nanoseconds(duration_seconds);
 
         if (statistics) {
             statistics->addParameters(
@@ -695,7 +695,7 @@ int main(int argc, char* argv[]) {
                     {"batch size", std::to_string(batchSize)},
                     {"number of iterations", std::to_string(niter)},
                     {"number of parallel infer requests", std::to_string(nireq)},
-                    {"duration (ms)", std::to_string(getDurationInMilliseconds(duration_seconds))},
+                    {"duration (ms)", std::to_string(get_duration_in_milliseconds(duration_seconds))},
                 });
             for (auto& nstreams : device_nstreams) {
                 std::stringstream ss;
@@ -725,13 +725,14 @@ int main(int argc, char* argv[]) {
         std::map<std::string, ov::runtime::TensorVector> inputsData;
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0) {
-                inputsData = ::gpu::getRemoteInputTensors(inputFiles, app_inputs_info, compiledModel, clInputsBuffer);
+                inputsData =
+                    ::gpu::get_remote_input_tensors(inputFiles, app_inputs_info, compiledModel, clInputsBuffer);
                 useGpuMem = true;
             } else if (device_name.find("CPU") == 0) {
                 if (newInputType) {
-                    inputsData = getTensors(inputFiles, app_inputs_info);
+                    inputsData = get_tensors(inputFiles, app_inputs_info);
                 } else {
-                    inputsData = getTensorsStaticCase(
+                    inputsData = get_tensors_static_case(
                         inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
                         batchSize,
                         app_inputs_info[0],
@@ -742,13 +743,13 @@ int main(int argc, char* argv[]) {
             }
         } else {
             if (newInputType) {
-                inputsData = getTensors(inputFiles, app_inputs_info);
+                inputsData = get_tensors(inputFiles, app_inputs_info);
             } else {
-                inputsData =
-                    getTensorsStaticCase(inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
-                                         batchSize,
-                                         app_inputs_info[0],
-                                         nireq);
+                inputsData = get_tensors_static_case(
+                    inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                    batchSize,
+                    app_inputs_info[0],
+                    nireq);
             }
         }
         // ----------------- 10. Measuring performance
@@ -777,7 +778,7 @@ int main(int argc, char* argv[]) {
         }
         ss << ", limits: ";
         if (duration_seconds > 0) {
-            ss << getDurationInMilliseconds(duration_seconds) << " ms duration";
+            ss << get_duration_in_milliseconds(duration_seconds) << " ms duration";
         }
         if (niter != 0) {
             if (duration_seconds == 0) {
@@ -818,13 +819,13 @@ int main(int argc, char* argv[]) {
                         if (isDynamicNetwork) {
                             requestTensor.set_shape(inputTensor.get_shape());
                         }
-                        copyTensorData(requestTensor, inputTensor);
+                        copy_tensor_data(requestTensor, inputTensor);
                     }
                 }
 
                 if (useGpuMem) {
                     auto outputTensors =
-                        ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
+                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->getOutputClBuffer());
                     for (auto& output : compiledModel.outputs()) {
                         inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                     }
@@ -849,7 +850,7 @@ int main(int argc, char* argv[]) {
             }
 
             if (useGpuMem) {
-                auto outputTensors = ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
+                auto outputTensors = ::gpu::get_remote_output_tensors(compiledModel, inferRequest->getOutputClBuffer());
                 for (auto& output : compiledModel.outputs()) {
                     inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                 }
@@ -897,7 +898,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 if (isDynamicNetwork) {
-                    batchSize = getBatchSize(inputs);
+                    batchSize = get_batch_size(inputs);
                     if (!std::any_of(inputs.begin(),
                                      inputs.end(),
                                      [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
@@ -918,7 +919,7 @@ int main(int argc, char* argv[]) {
 
                 if (useGpuMem) {
                     auto outputTensors =
-                        ::gpu::getRemoteOutputTensors(compiledModel, inferRequest->getOutputClBuffer());
+                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->getOutputClBuffer());
                     for (auto& output : compiledModel.outputs()) {
                         inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                     }
@@ -1011,7 +1012,7 @@ int main(int argc, char* argv[]) {
                         std::string data_shapes_string = "";
                         data_shapes_string += std::to_string(i + 1) + ". ";
                         for (auto& item : app_inputs_info[i]) {
-                            data_shapes_string += item.first + " : " + getShapeString(item.second.dataShape) + " ";
+                            data_shapes_string += item.first + " : " + get_shape_string(item.second.dataShape) + " ";
                         }
                         statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                                   {
@@ -1097,7 +1098,7 @@ int main(int argc, char* argv[]) {
                         auto shape = item.second.dataShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<size_t>(input_shape, ","));
                         input_shape << shape.back();
-                        slog::info << " " << item.first << " : " << getShapeString(item.second.dataShape);
+                        slog::info << " " << item.first << " : " << get_shape_string(item.second.dataShape);
                     }
                     slog::info << slog::endl;
 
