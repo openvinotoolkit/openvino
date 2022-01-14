@@ -142,7 +142,6 @@ def test_inputs_outputs_property(device):
     results = request.infer(data).values()
     for result, output_tensor in zip(results, request.outputs):
         assert np.array_equal(result, output_tensor.data)
-    inputs = request.inputs
     for input_data, input_tensor in zip(data, request.inputs):
         assert np.array_equal(input_data, input_tensor.data)
 
