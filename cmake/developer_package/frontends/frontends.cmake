@@ -150,7 +150,7 @@ macro(ov_add_frontend)
     endif()
 
     # Shutdown protobuf when unloading the front dynamic library
-    if(ENABLE_SHUTDOWN_PROTOBUF AND OV_FRONTEND_SHUTDOWN_PROTOBUF AND BUILD_SHARED_LIBS)
+    if(OV_FRONTEND_SHUTDOWN_PROTOBUF AND BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
     endif()
 
