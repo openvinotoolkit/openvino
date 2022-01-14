@@ -33,6 +33,10 @@ public:
         int spatialRank = 0;
         size_t group = 0lu;
         size_t dataSize = 1lu;
+        VectorDims srcDims;
+        VectorDims srcBlockedDims;
+        size_t hash() const;
+        bool operator==(const ShuffleChannelsAttributes& rhs) const;
     };
 
 protected:
@@ -42,7 +46,7 @@ private:
     ShuffleChannelsAttributes attrs;
 
     struct ShuffleChannelsExecutor final {
-        ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs, const VectorDims& srcDims, const VectorDims& srcBlockedDims);
+        ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
         void exec(const uint8_t* srcData, uint8_t* dstData, const int MB);
         ~ShuffleChannelsExecutor() = default;
 

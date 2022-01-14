@@ -24,41 +24,30 @@ using namespace InferenceEngine;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 
-namespace {
-struct ShuffleChannelsKey {
-    MKLDNNPlugin::MKLDNNShuffleChannelsNode::ShuffleChannelsAttributes attrs;
-    VectorDims srcDims;
-    VectorDims srcBlockedDims;
-    size_t hash() const;
-    bool operator==(const ShuffleChannelsKey& rhs) const;
-};
-
-size_t ShuffleChannelsKey::hash() const {
+size_t MKLDNNShuffleChannelsNode::ShuffleChannelsAttributes::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
-    seed = hash_combine(seed, attrs.layoutType);
-    seed = hash_combine(seed, attrs.dataRank);
-    seed = hash_combine(seed, attrs.axis);
-    seed = hash_combine(seed, attrs.spatialRank);
-    seed = hash_combine(seed, attrs.group);
-    seed = hash_combine(seed, attrs.dataSize);
+    seed = hash_combine(seed, layoutType);
+    seed = hash_combine(seed, dataRank);
+    seed = hash_combine(seed, axis);
+    seed = hash_combine(seed, spatialRank);
+    seed = hash_combine(seed, group);
+    seed = hash_combine(seed, dataSize);
     seed = get_vector_hash(seed, srcDims);
     seed = get_vector_hash(seed, srcBlockedDims);
 
     return seed;
 }
 
-bool ShuffleChannelsKey::operator==(const ShuffleChannelsKey& rhs) const {
-    bool result = attrs.layoutType == rhs.attrs.layoutType && attrs.dataRank == rhs.attrs.dataRank &&
-                  attrs.axis == rhs.attrs.axis && attrs.spatialRank == rhs.attrs.spatialRank &&
-                  attrs.group == rhs.attrs.group && attrs.dataSize == rhs.attrs.dataSize && srcDims == rhs.srcDims &&
+bool MKLDNNShuffleChannelsNode::ShuffleChannelsAttributes::operator==(const ShuffleChannelsAttributes& rhs) const {
+    bool result = layoutType == rhs.layoutType && dataRank == rhs.dataRank &&
+                  axis == rhs.axis && spatialRank == rhs.spatialRank &&
+                  group == rhs.group && dataSize == rhs.dataSize && srcDims == rhs.srcDims &&
                   srcBlockedDims == rhs.srcBlockedDims;
     return result;
 }
-
-}  // namespace
 
 bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -160,15 +149,14 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
 
 void MKLDNNShuffleChannelsNode::prepareParams() {
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto builder = [](const ShuffleChannelsKey& key) -> std::shared_ptr<ShuffleChannelsExecutor> {
-        return std::make_shared<ShuffleChannelsExecutor>(key.attrs, key.srcDims, key.srcBlockedDims);
+    auto builder = [](const ShuffleChannelsAttributes& key) -> std::shared_ptr<ShuffleChannelsExecutor> {
+        return std::make_shared<ShuffleChannelsExecutor>(key);
     };
+    attrs.srcDims = srcMemPtr->getStaticDims();
+    attrs.srcBlockedDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
-    ShuffleChannelsKey key = {attrs,
-                              srcMemPtr->getStaticDims(),
-                              srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims()};
     auto cache = getRuntimeCache();
-    auto result = cache->getOrCreate(key, builder);
+    auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
         IE_THROW() << "ShuffleChannelsExecutor was not found for node " << getName() << ".";
     }
@@ -176,14 +164,14 @@ void MKLDNNShuffleChannelsNode::prepareParams() {
     execPtr = result.first;
 }
 
-MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs,
-                                                                            const VectorDims& srcDims,
-                                                                            const VectorDims& srcBlockedDims) {
+MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
     if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
         IE_THROW() << "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.";
 
     const bool isBlocked = MKLDNNPlugin::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsLast = attrs.layoutType == LayoutType::nspc;
+    const auto& srcDims = attrs.srcDims;
+    const auto& srcBlockedDims = attrs.srcBlockedDims;
 
     // 2 for decomposed axis dim, 1 for composed spatial dim
     const int batchRank = attrs.axis;

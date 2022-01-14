@@ -22,42 +22,31 @@ using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl;
 
-namespace {
-struct SpaceToDepthKey {
-    MKLDNNPlugin::MKLDNNSpaceToDepthNode::SpaceToDepthAttrs attrs;
-    VectorDims srcBlockedDims;
-    VectorDims destBlockedDims;
-    size_t hash() const;
-    bool operator==(const SpaceToDepthKey& rhs) const;
-};
-
-size_t SpaceToDepthKey::hash() const {
+size_t MKLDNNSpaceToDepthNode::SpaceToDepthAttrs::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
-    seed = hash_combine(seed, attrs.layoutType);
-    seed = hash_combine(seed, attrs.mode);
-    seed = hash_combine(seed, attrs.blockSize);
-    seed = hash_combine(seed, attrs.blockStep);
-    seed = hash_combine(seed, attrs.dataSize);
-    seed = hash_combine(seed, attrs.nSpatialDims);
+    seed = hash_combine(seed, layoutType);
+    seed = hash_combine(seed, mode);
+    seed = hash_combine(seed, blockSize);
+    seed = hash_combine(seed, blockStep);
+    seed = hash_combine(seed, dataSize);
+    seed = hash_combine(seed, nSpatialDims);
     seed = get_vector_hash(seed, srcBlockedDims);
     seed = get_vector_hash(seed, destBlockedDims);
 
     return seed;
 }
 
-bool SpaceToDepthKey::operator==(const SpaceToDepthKey& rhs) const {
-    bool result = attrs.layoutType == rhs.attrs.layoutType && attrs.mode == rhs.attrs.mode &&
-                  attrs.blockSize == rhs.attrs.blockSize && attrs.blockStep == rhs.attrs.blockStep &&
-                  attrs.dataSize == rhs.attrs.dataSize && attrs.nSpatialDims == rhs.attrs.nSpatialDims &&
+bool MKLDNNSpaceToDepthNode::SpaceToDepthAttrs::operator==(const SpaceToDepthAttrs& rhs) const {
+    bool result = layoutType == rhs.layoutType && mode == rhs.mode &&
+                  blockSize == rhs.blockSize && blockStep == rhs.blockStep &&
+                  dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
                   srcBlockedDims == rhs.srcBlockedDims && destBlockedDims == rhs.destBlockedDims;
 
     return result;
 }
-
-}  // namespace
 
 bool MKLDNNSpaceToDepthNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                                                   std::string& errorMessage) noexcept {
@@ -200,17 +189,16 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
 }
 
 void MKLDNNSpaceToDepthNode::prepareParams() {
-    const VectorDims& srcBlockedDims =
+    attrs.srcBlockedDims =
         getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    const VectorDims& dstBlockedDims =
+    attrs.destBlockedDims =
         getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    auto builder = [](const SpaceToDepthKey& key) -> std::shared_ptr<SpaceToDepthExecutor> {
-        return std::make_shared<SpaceToDepthExecutor>(key.attrs, key.srcBlockedDims, key.destBlockedDims);
+    auto builder = [](const SpaceToDepthAttrs& key) -> std::shared_ptr<SpaceToDepthExecutor> {
+        return std::make_shared<SpaceToDepthExecutor>(key);
     };
 
-    SpaceToDepthKey key = {attrs, srcBlockedDims, dstBlockedDims};
     auto cache = getRuntimeCache();
-    auto result = cache->getOrCreate(key, builder);
+    auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
         IE_THROW() << "SpaceToDepthExecutor was not found for node " << getName() << ".";
     }
@@ -218,9 +206,7 @@ void MKLDNNSpaceToDepthNode::prepareParams() {
     execPtr = result.first;
 }
 
-MKLDNNSpaceToDepthNode::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs,
-                                                                   const VectorDims& srcBlockedDims,
-                                                                   const VectorDims& dstBlockedDims) {
+MKLDNNSpaceToDepthNode::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs) {
     if (!MKLDNNPlugin::one_of(attrs.layoutType,
                               LayoutType::nCsp16c,
                               LayoutType::nCsp8c,
@@ -231,6 +217,8 @@ MKLDNNSpaceToDepthNode::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceTo
 
     const bool isBlocked = MKLDNNPlugin::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
+    const auto& srcBlockedDims = attrs.srcBlockedDims;
+    const auto& dstBlockedDims = attrs.destBlockedDims;
 
     size_t nDims = srcBlockedDims.size();
 

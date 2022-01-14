@@ -33,6 +33,10 @@ public:
         size_t blockStep = 1lu;
         size_t dataSize = 1lu;
         size_t nSpatialDims = 0lu;
+        VectorDims srcBlockedDims;
+        VectorDims destBlockedDims;
+        size_t hash() const;
+        bool operator==(const SpaceToDepthAttrs& rhs) const;
     };
 
 protected:
@@ -42,9 +46,7 @@ private:
     SpaceToDepthAttrs attrs;
 
     struct SpaceToDepthExecutor final {
-        SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs,
-                             const VectorDims& srcBlockedDims,
-                             const VectorDims& dstBlockedDims);
+        SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs);
         void exec(const uint8_t* srcData, uint8_t* dstData, const int MB);
         ~SpaceToDepthExecutor() = default;
 
