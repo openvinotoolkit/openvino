@@ -1190,7 +1190,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     elif argv_input:
         raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
 
-    return placeholder_shapes, placeholder_data_types
+    return inputs, placeholder_shapes, placeholder_data_types
 
 
 def parse_tuple_pairs(argv_values: str):
