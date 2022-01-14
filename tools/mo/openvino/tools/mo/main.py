@@ -364,6 +364,10 @@ def check_fallback(argv : argparse.Namespace):
             return False
         return True
 
+    def input_freezig_used(argv):
+        return hasattr(argv, 'freeze_placeholder_with_value') and argv.freeze_placeholder_with_value is not None \
+            and len(argv.freeze_placeholder_with_value) > 0
+
     # Some frontend such as PDPD does not have legacy path so it has no reasons to fallback
     if not any(deduce_framework_by_namespace(argv)):
         return fallback_reasons
@@ -374,6 +378,7 @@ def check_fallback(argv : argparse.Namespace):
 
     fallback_reasons['extensions'] = legacy_extensions_used
     fallback_reasons['transformations_config'] = legacy_transformations_config_used
+    fallback_reasons['input_freezing'] = input_freezig_used
 
     reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons
