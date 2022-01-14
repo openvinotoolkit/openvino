@@ -38,7 +38,6 @@ setup(
     },
     classifiers=[
         'Programming Language :: Python :: 3',
-        'OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
     ],
     packages=find_packages(),
