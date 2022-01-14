@@ -83,7 +83,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
             DESTINATION ${IE_CPACK_RUNTIME_PATH}
             COMPONENT myriad)
 
-    if(ENABLE_MYRIAD AND ENABLE_BEH_TESTS)
+    if(ENABLE_INTEL_VPU AND ENABLE_BEH_TESTS)
         # for MyriadBehaviorTests
         install(FILES ${${var_name}}
                 DESTINATION tests

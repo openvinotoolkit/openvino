@@ -15,7 +15,8 @@ namespace py = pybind11;
 void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
     py::class_<ngraph::DiscreteTypeInfo, std::shared_ptr<ngraph::DiscreteTypeInfo>> discrete_type_info(
         m,
-        "DiscreteTypeInfo");
+        "DiscreteTypeInfo",
+        py::module_local());
     discrete_type_info.doc() = "ngraph.impl.DiscreteTypeInfo wraps ngraph::DiscreteTypeInfo";
 
     // operator overloading

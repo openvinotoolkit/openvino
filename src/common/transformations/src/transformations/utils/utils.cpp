@@ -203,6 +203,132 @@ void visit_shape_path(const std::shared_ptr<ov::Node>& node,
     }
 }
 
+bool is_dequantization_subgraph(const Output<Node>& node) {
+    if (!is_type<opset8::Multiply>(node.get_node())) {
+        return false;
+    }
+
+    auto mul_inputs = node.get_node()->input_values();
+    Node* sub = nullptr;
+    Node* convert = nullptr;
+
+    if (is_type<opset8::Subtract>(mul_inputs[0].get_node())) {
+        sub = mul_inputs[0].get_node();
+    } else if (is_type<opset8::Convert>(mul_inputs[0].get_node())) {
+        convert = mul_inputs[0].get_node();
+    } else {
+        return false;
+    }
+
+    if (sub) {
+        auto sub_inputs = sub->input_values();
+        if (is_type<opset8::Convert>(sub_inputs[0].get_node())) {
+            convert = sub_inputs[0].get_node();
+        }
+    }
+
+    if (!convert) {
+        return false;
+    }
+
+    auto input_type = convert->get_input_element_type(0);
+    auto output_type = convert->get_output_element_type(0);
+    return input_type.is_integral() && output_type.is_real();
+}
+
+bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise, const Output<Node>& constant, const Output<Node>& non_constant_input) {
+    if (!is_type<opset8::Add>(eltwise) &&
+        !is_type<opset8::Subtract>(eltwise) &&
+        !is_type<opset8::Multiply>(eltwise) &&
+        !is_type<opset8::Divide>(eltwise)) {
+        return false;
+    }
+
+    if (is_dequantization_subgraph(eltwise)) {
+        return false;
+    }
+
+    // check if constant has a single value with either 0 (for Add, Subtract) or 1 (for Multiply, Divide)
+    auto constant_ptr = std::dynamic_pointer_cast<opset8::Constant>(constant.get_node_shared_ptr());
+    if (!constant_ptr) {
+        return false;
+    }
+    if (!constant_ptr->get_all_data_elements_bitwise_identical()) {
+        return false;
+    }
+    float actual_const = 0;
+    const void* data_ptr = constant_ptr->get_data_ptr();
+    switch (constant_ptr->get_element_type()) {
+        case element::f32:
+            actual_const = reinterpret_cast<const float*>(data_ptr)[0];
+            break;
+        case element::i32:
+            actual_const = static_cast<float>(reinterpret_cast<const int32_t*>(data_ptr)[0]);
+            break;
+        case element::u32:
+            actual_const = static_cast<float>(reinterpret_cast<const uint32_t*>(data_ptr)[0]);
+            break;
+        case element::i64:
+            actual_const = static_cast<float>(reinterpret_cast<const int64_t*>(data_ptr)[0]);
+            break;
+        case element::u64:
+            actual_const = static_cast<float>(reinterpret_cast<const uint64_t*>(data_ptr)[0]);
+            break;
+        case element::i8:
+            actual_const = static_cast<float>(reinterpret_cast<const int8_t*>(data_ptr)[0]);
+            break;
+        case element::u8:
+            actual_const = static_cast<float>(reinterpret_cast<const uint8_t*>(data_ptr)[0]);
+            break;
+        case element::i16:
+            actual_const = static_cast<float>(reinterpret_cast<const int16_t*>(data_ptr)[0]);
+            break;
+        case element::u16:
+            actual_const = static_cast<float>(reinterpret_cast<const uint16_t*>(data_ptr)[0]);
+            break;
+        case element::f64:
+            actual_const = static_cast<float>(reinterpret_cast<const double*>(data_ptr)[0]);
+            break;
+        default:
+            return false;
+    }
+    float expected_const = 0;
+    if (is_type<opset8::Multiply>(eltwise) ||
+        is_type<opset8::Divide>(eltwise)) {
+        expected_const = 1;
+    }
+    if (actual_const != expected_const) {
+        return false;
+    }
+
+    // fuse uncoditionally if constant is a scalar
+    const auto& constant_shape = constant.get_shape();
+    if (ov::is_scalar(constant_shape)) {
+        return true;
+    }
+
+    const auto& input_shape = non_constant_input.get_partial_shape();
+    if (input_shape.rank().is_dynamic()) {
+        return false;
+    }
+
+    // cannot fuse if constant extends input's rank
+    auto input_rank = static_cast<size_t>(input_shape.rank().get_length());
+    auto constant_rank = constant_shape.size();
+    if (input_rank < constant_rank) {
+        return false;
+    }
+
+    // cannot fuse if constant makes input to be broadcasted, e.g.
+    // Multiply(input{2, 1, 5}, constant{1, 5, 1}) -> {2, 5, 5}
+    for (size_t i = 0; i < constant_rank; i++) {
+        auto constant_dim = constant_shape[constant_rank - i - 1];
+        if (constant_dim != 1 && input_shape[input_rank - i - 1] != constant_dim) {
+            return false;
+        }
+    }
+    return true;
+}
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph
