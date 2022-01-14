@@ -633,6 +633,6 @@ Note that you might have conflicts between previously installed PyPI dependencie
 For the models in ONNX* format, there are two available paths of IR conversion. 
 The old one is handled by the old Python* implementation, while the new one uses new C++ frontends. 
 Starting from the 2022.1 version, the default IR conversion path for ONNX models is processed using the new ONNX frontend. 
-Certain features, such as `--extensions` and `--transformations_config`, are not yet supported fully on the new frontends. 
-For `--extensions` are supported only paths to shared libraries (`.dll` and `.so`) and for `--transformations_config` JSON configurations with `library` fields defined. 
+Certain features, such as `--extensions and` `--transformations_config`, are not yet fully supported on the new frontends. 
+For `--extensions`, only paths to shared libraries (.dll and .so) are supported. For `--transformations_config`, MO supports JSON configurations with defined library fields. 
 The IR conversion falls back to the old path if a user does not select any expected path of conversion explicitly (by `--use_new_frontend` or `--use_legacy_frontend` MO arguments) and unsupported pre-defined scenario is detected on the new frontend path.
