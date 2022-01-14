@@ -409,6 +409,26 @@ def serialize_node(graph: Graph, node: Node, layers: SubElement, edges: SubEleme
         raise Error(str(e).replace('<SUB-ELEMENT>', '{} (id = {})'.format(node.soft_get('name'), node.id))) from e
 
 
+def get_tensor_names_of_result_node(graph):
+    result_nodes = graph.get_op_nodes(type='Result')
+    result_names_to_tensor_names = {}
+    for res_node in result_nodes:
+
+        # After port renumbering port/connection API is not applicable
+        assert len(res_node.in_nodes()) > 0, \
+            "Result node with name {} has no input node.".format(res_node.soft_get('name'))
+        res_data_node = res_node.in_node(0)
+        assert len(res_data_node.in_nodes()) > 0, \
+            "Data node of Result with name {} has no input node.".format(res_node.soft_get('name'))
+        res_in_node = res_data_node.in_node(0)
+
+        # We cannot use out_ports() after port renumbering
+        for v, d in res_in_node.get_sorted_outputs():
+            port_id = d['out'] - len(res_in_node.in_nodes()) if res_in_node.type != 'Const' else d['out']
+            tensor_names = res_in_node.out_port(port_id).get_tensor_names(port_renumber=True)
+            result_names_to_tensor_names[res_node.soft_get('name')] = tensor_names
+    return result_names_to_tensor_names
+
 def serialize_network(graph, net_element, unsupported):
     layers = SubElement(net_element, 'layers')
     edges = SubElement(net_element, 'edges')
@@ -416,11 +436,26 @@ def serialize_network(graph, net_element, unsupported):
         return
     nodes = sorted(graph.nodes())
 
+    result_nodes = graph.get_op_nodes(type='Result')
+    result_names_to_tensor_names = get_tensor_names_of_result_node(graph)
+
     ordered_results = []
     for output_name in graph.outputs_order:
         node = graph.get_op_nodes(name=output_name)
+
         if len(node) == 0:
-            log.warning("Output node with name {} is not found in graph.".format(output_name))
+            found_tensor_name = False
+            for res_node in result_nodes:
+                res_name = res_node.soft_get('name')
+                tensor_names = result_names_to_tensor_names[res_name]
+                if output_name in tensor_names:
+                    # In this case output tensor name is in tensor names list of previous op
+                    ordered_results.append(res_name)
+                    found_tensor_name = True
+                    break
+
+            if not found_tensor_name:
+                log.warning("Output node with name {} is not found in graph.".format(output_name))
             continue
         node = node[0]
 

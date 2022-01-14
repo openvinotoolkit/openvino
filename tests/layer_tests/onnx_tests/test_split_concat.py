@@ -81,7 +81,6 @@ test_multiple_out_with_add = [
          output_names=['inp4', 'inp1', 'inp5', 'inp2', 'inp3', 'inp33'])
 ]
 
-
 test_multiple_out_with_identity = [
     dict(input_shape=[3, 10, 10],
          output_shapes=[[1, 10, 10],
@@ -90,7 +89,7 @@ test_multiple_out_with_identity = [
          axis=0,
          split_out_names=['h', 'b', 'l'],
          identity_names=['i1', 'i2', 'i3'],
-         output_names=['i3', 'b', 'l'],
+         output_names=['h', 'b', 'l', 'i3'],
          ),
 ]
 
@@ -491,8 +490,7 @@ class TestSplit(Caffe2OnnxLayerTest):
 
         output_list = []
         for i, output_name in enumerate(split_out_names):
-            if i > 0:
-                output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
+            output_list.append(helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shapes[i]))
         output_list.append(helper.make_tensor_value_info(identity_names[2], TensorProto.FLOAT, output_shapes[i]))
 
         node = onnx.helper.make_node('Split', inputs=['input'], outputs=split_out_names, axis=axis)
