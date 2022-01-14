@@ -195,8 +195,18 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    if (((dequantization.subtract == nullptr) || NetworkHelper::isScalarLike(dequantization.subtractConstant)) &&
-        ((dequantization.multiply == nullptr) || NetworkHelper::isScalarLike(dequantization.multiplyConstant))) {
+    bool ignorePerTensorQuantizationCheck = false;
+    if (reshapeIgnorePerTensorQuantizationCheck) {
+        const auto inputs = op->get_output_target_inputs(0);
+        if (inputs.size() == 1ul) {
+            const auto consumer = inputs.begin()->get_node();
+            ignorePerTensorQuantizationCheck = ngraph::as_type<ngraph::opset1::MatMul>(consumer) != nullptr;
+        }
+    }
+
+    if (!ignorePerTensorQuantizationCheck &&
+        (((dequantization.subtract == nullptr) || NetworkHelper::isScalarLike(dequantization.subtractConstant)) &&
+        ((dequantization.multiply == nullptr) || NetworkHelper::isScalarLike(dequantization.multiplyConstant)))) {
         return true;
     }
 

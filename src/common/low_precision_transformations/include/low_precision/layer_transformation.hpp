@@ -238,9 +238,11 @@ public:
     public:
         Params(
             const bool updatePrecisions = true,
-            element::Type deqPrecision = element::f32) :
+            element::Type deqPrecision = element::f32,
+            const bool reshapeIgnorePerTensorQuantizationCheck = false) :
             updatePrecisions(updatePrecisions),
-            deqPrecision(deqPrecision) {}
+            deqPrecision(deqPrecision),
+            reshapeIgnorePerTensorQuantizationCheck(reshapeIgnorePerTensorQuantizationCheck) {}
 
         Params& setUpdatePrecisions(const bool updatePrecisions) {
             this->updatePrecisions = updatePrecisions;
@@ -254,6 +256,8 @@ public:
 
         bool updatePrecisions;
         element::Type deqPrecision;
+        // to support GPU workarround to keep Reshape and MatMul in FP32
+        bool reshapeIgnorePerTensorQuantizationCheck;
     };
 
     class PrecisionDetails {
@@ -321,6 +325,7 @@ protected:
 
     bool updatePrecisions;
     element::Type deqPrecision;
+    bool reshapeIgnorePerTensorQuantizationCheck;
 
     static constexpr char originalLayerPostfix[] = "_original";
     TransformationContext* context;
