@@ -102,9 +102,13 @@ public:
 
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
+        bool fail = false;
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
+            if (getenv("DUMP_TEST_DATA")) {
+                std::cout << i << " ref " << ref << " res " << res << std::endl;
+            }
             const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
             if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
                 IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
@@ -123,11 +127,14 @@ public:
             double diff = static_cast<float>(absoluteDifference) / max;
             if (max == 0 || (diff > static_cast<float>(threshold)) ||
                 (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) {
-                IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                fail = true;
+                std::cout << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
                            << " at index " << i << " with threshold " << threshold
-                           << " failed";
+                           << " failed" << std::endl;;
             }
         }
+        if (fail)
+            IE_THROW() << "asd";
     }
 
 protected:

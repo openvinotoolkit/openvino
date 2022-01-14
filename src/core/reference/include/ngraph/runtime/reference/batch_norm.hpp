@@ -43,6 +43,32 @@ void batch_norm_inference(float eps,
         out[in_idx] = normalized * ch_gamma + ch_beta;
         in_idx++;
     }
+    if (getenv("DUMP_TEST_DATA")) {
+        std::cout << __func__ << " input\n";
+        for (size_t i = 0; i < shape_size(in_shape); i++) {
+            std::cout << i << " " << in[i] << std::endl;
+        }
+        std::cout << __func__ << " gamma\n";
+        for (size_t i = 0; i < in_shape[1]; i++) {
+            std::cout << i << " " << gamma[i] << std::endl;
+        }
+        std::cout << __func__ << " beta\n";
+        for (size_t i = 0; i < in_shape[1]; i++) {
+            std::cout << i << " " << beta[i] << std::endl;
+        }
+        std::cout << __func__ << " mean\n";
+        for (size_t i = 0; i < in_shape[1]; i++) {
+            std::cout << i << " " << mean[i] << std::endl;
+        }
+        std::cout << __func__ << " variance\n";
+        for (size_t i = 0; i < in_shape[1]; i++) {
+            std::cout << i << " " << variance[i] << std::endl;
+        }
+        std::cout << __func__ << " output\n";
+        for (size_t i = 0; i < shape_size(in_shape); i++) {
+            std::cout << i << " " << out[i] << std::endl;
+        }
+    }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference

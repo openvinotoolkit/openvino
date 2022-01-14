@@ -159,6 +159,8 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DENABLE_CPU_DEBUG_CAPS=ON
+        -DENABLE_DEBUG_CAPS=ON
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
@@ -231,7 +233,7 @@ jobs:
     displayName: 'Clean build dir'
     continueOnError: false
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=smoke_QuantizedConvolutionBatchNorm* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+  - script: . $(SETUPVARS) && OV_CPU_BLOB_DUMP_FORMAT=TEXT OV_CPU_BLOB_DUMP_NODE_PORTS=ALL DUMP_TEST_DATA=1 $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=smoke_QuantizedConvolutionBatchNorm* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
 #condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')

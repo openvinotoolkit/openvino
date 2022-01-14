@@ -70,7 +70,8 @@ void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node, int count) const {
             continue;
 
         BlobDumper dumper(prEdge->getMemoryPtr());
-        dump(dumper, dump_file);
+        //dump(dumper, dump_file);
+        dumper.dumpAsTxt(std::cout);
     }
 
     dumpInternalBlobs(node);
@@ -103,7 +104,8 @@ void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node, int count) const {
             continue;
 
         BlobDumper dumper(childEdge->getMemoryPtr());
-        dump(dumper, dump_file);
+        //dump(dumper, dump_file);
+        dumper.dumpAsTxt(std::cout);
     }
 }
 
@@ -123,7 +125,8 @@ void NodeDumper::dumpInternalBlobs(const MKLDNNNodePtr& node) const {
         MKLDNNMemoryPtr memory = std::make_shared<MKLDNNMemory>(node->getEngine());
         memory->Create(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
         BlobDumper dumper(memory);
-        dump(dumper, dump_file);
+        //dump(dumper, dump_file);
+        dumper.dumpAsTxt(std::cout);
     }
 }
 
@@ -134,7 +137,7 @@ void NodeDumper::dump(const BlobDumper& bd, const std::string& file) const {
         break;
     }
     case FORMAT::TEXT: {
-        bd.dumpAsTxt(file);
+        bd.dumpAsTxt(std::cout);
         break;
     }
     default:

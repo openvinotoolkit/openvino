@@ -202,6 +202,32 @@ void fake_quantize(const T* const arg,
             increment_current_dim(current_dim, arg_shape);
         }
     }
+    if (getenv("DUMP_TEST_DATA")) {
+        std::cout << __func__ << " input\n";
+        for (size_t i = 0; i < shape_size(arg_shape); i++) {
+            std::cout << i << " " << arg[i] << std::endl;
+        }
+        std::cout << __func__ << " in_low\n";
+        for (size_t i = 0; i < shape_size(in_low_shape); i++) {
+            std::cout << i << " " << in_low[i] << std::endl;
+        }
+        std::cout << __func__ << " in_high\n";
+        for (size_t i = 0; i < shape_size(in_high_shape); i++) {
+            std::cout << i << " " << in_high[i] << std::endl;
+        }
+        std::cout << __func__ << " out_low\n";
+        for (size_t i = 0; i < shape_size(out_low_shape); i++) {
+            std::cout << i << " " << out_low[i] << std::endl;
+        }
+        std::cout << __func__ << " out_high\n";
+        for (size_t i = 0; i < shape_size(out_high_shape); i++) {
+            std::cout << i << " " << out_high[i] << std::endl;
+        }
+        std::cout << __func__ << " output\n";
+        for (size_t i = 0; i < shape_size(arg_shape); i++) {
+            std::cout << i << " " << out[i] << std::endl;
+        }
+    }
 }
 }  // namespace reference
 }  // namespace runtime

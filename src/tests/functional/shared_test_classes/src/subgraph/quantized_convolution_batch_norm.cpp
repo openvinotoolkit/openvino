@@ -26,10 +26,10 @@ void QuantizedConvolutionBatchNorm::SetUp() {
     std::shared_ptr<Node> weights = builder::makeConstant(element::f32, Shape{8, 8, 1, 1}, {}, true, 1.0f, -1.0f);
     weights = std::make_shared<opset8::FakeQuantize>(weights, low_weights, high_weights, low_weights, high_weights, 255);
     auto conv = std::make_shared<opset8::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-    auto gamma = builder::makeConstant(element::f32, Shape{8}, {}, true, 1.0f, 0.0f);
-    auto beta = builder::makeConstant(element::f32, Shape{8}, {}, true, 1.0f, 0.0f);
-    auto mean = builder::makeConstant(element::f32, Shape{8}, {}, true, 1.0f, 0.0f);
-    auto var = builder::makeConstant(element::f32, Shape{8}, {}, true, 1.0f, 0.0f);
+    auto gamma = builder::makeConstant(element::f32, Shape{8}, {}, true, 1.0f, 0.1f);
+    auto beta = builder::makeConstant(element::f32, Shape{8}, {}, true, 1.0f, 0.1f);
+    auto mean = builder::makeConstant(element::f32, Shape{8}, {}, true, 1.0f, 0.1f);
+    auto var = builder::makeConstant(element::f32, Shape{8}, {}, true, 1.0f, 0.1f);
 
     auto batch_norm = std::make_shared<opset8::BatchNormInference>(conv, gamma, beta, mean, var, 0.00001);
     function = std::make_shared<ngraph::Function>(batch_norm, ParameterVector{parameter});

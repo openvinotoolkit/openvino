@@ -243,6 +243,22 @@ void convolution(const T* in,
         }
         batch += batch_size;
     }
+
+    if (getenv("DUMP_TEST_DATA")) {
+        std::cout << __func__ << " input\n";
+        for (size_t i = 0; i < shape_size(in_shape); i++) {
+            std::cout << i << " " << in[i] << std::endl;
+        }
+        std::cout << __func__ << " filter\n";
+        for (size_t i = 0; i < shape_size(f_shape); i++) {
+            std::cout << i << " " << f[i] << std::endl;
+        }
+        std::cout << __func__ << " output\n";
+        out -= shape_size(out_shape);
+        for (size_t i = 0; i < shape_size(out_shape); i++) {
+            std::cout << i << " " << out[i] << std::endl;
+        }
+    }
 }
 }  // namespace reference
 }  // namespace runtime
