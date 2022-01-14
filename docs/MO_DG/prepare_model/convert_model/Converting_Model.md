@@ -145,7 +145,7 @@ Framework-agnostic parameters:
                         original model was trained.
 						If both --mean_values and --scale_values are specified,
                         the mean is subtracted first and then scale is applied
-                        regardless the order of options in command line.
+                        regardless of the order of options in command line.
   --data_type {FP16,FP32,half,float}
                         Data type for all intermediate tensors and weights. If
                         original model is in FP32 and --data_type=FP16 is
