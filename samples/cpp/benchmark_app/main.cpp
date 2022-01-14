@@ -400,13 +400,13 @@ int main(int argc, char* argv[]) {
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
             app_inputs_info = get_inputs_info(FLAGS_shape,
-                                            FLAGS_layout,
-                                            batchSize,
-                                            FLAGS_data_shape,
-                                            inputFiles,
-                                            FLAGS_iscale,
-                                            FLAGS_imean,
-                                            compiledModel.inputs());
+                                              FLAGS_layout,
+                                              batchSize,
+                                              FLAGS_data_shape,
+                                              inputFiles,
+                                              FLAGS_iscale,
+                                              FLAGS_imean,
+                                              compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -437,14 +437,14 @@ int main(int argc, char* argv[]) {
             // Parse input shapes if specified
             bool reshape = false;
             app_inputs_info = get_inputs_info(FLAGS_shape,
-                                            FLAGS_layout,
-                                            FLAGS_b,
-                                            FLAGS_data_shape,
-                                            inputFiles,
-                                            FLAGS_iscale,
-                                            FLAGS_imean,
-                                            inputInfo,
-                                            reshape);
+                                              FLAGS_layout,
+                                              FLAGS_b,
+                                              FLAGS_data_shape,
+                                              inputFiles,
+                                              FLAGS_iscale,
+                                              FLAGS_imean,
+                                              inputInfo,
+                                              reshape);
             if (reshape) {
                 benchmark_app::PartialShapes shapes = {};
                 for (auto& item : app_inputs_info[0])
@@ -585,13 +585,13 @@ int main(int argc, char* argv[]) {
                                           {{"import network time (ms)", duration_ms}});
 
             app_inputs_info = get_inputs_info(FLAGS_shape,
-                                            FLAGS_layout,
-                                            FLAGS_b,
-                                            FLAGS_data_shape,
-                                            inputFiles,
-                                            FLAGS_iscale,
-                                            FLAGS_imean,
-                                            compiledModel.inputs());
+                                              FLAGS_layout,
+                                              FLAGS_b,
+                                              FLAGS_data_shape,
+                                              inputFiles,
+                                              FLAGS_iscale,
+                                              FLAGS_imean,
+                                              compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -813,9 +813,9 @@ int main(int argc, char* argv[]) {
                     const auto& inputTensor = inputsData.at(inputName)[i % inputsData.at(inputName).size()];
                     // for remote blobs setTensor is used, they are already allocated on the device
                     if (useGpuMem) {
-                        inferRequest->setTensor(inputName, inputTensor);
+                        inferRequest->set_tensor(inputName, inputTensor);
                     } else {
-                        auto requestTensor = inferRequest->getTensor(inputName);
+                        auto requestTensor = inferRequest->get_tensor(inputName);
                         if (isDynamicNetwork) {
                             requestTensor.set_shape(inputTensor.get_shape());
                         }
@@ -825,9 +825,9 @@ int main(int argc, char* argv[]) {
 
                 if (useGpuMem) {
                     auto outputTensors =
-                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->getOutputClBuffer());
+                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
                     for (auto& output : compiledModel.outputs()) {
-                        inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                        inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                     }
                 }
                 ++i;
@@ -835,7 +835,7 @@ int main(int argc, char* argv[]) {
         }
 
         // warming up - out of scope
-        auto inferRequest = inferRequestsQueue.getIdleRequest();
+        auto inferRequest = inferRequestsQueue.get_idle_request();
         if (!inferRequest) {
             IE_THROW() << "No idle Infer Requests!";
         }
@@ -846,13 +846,14 @@ int main(int argc, char* argv[]) {
             for (auto& item : inputs) {
                 auto inputName = item.first;
                 const auto& data = inputsData.at(inputName)[0];
-                inferRequest->setTensor(inputName, data);
+                inferRequest->set_tensor(inputName, data);
             }
 
             if (useGpuMem) {
-                auto outputTensors = ::gpu::get_remote_output_tensors(compiledModel, inferRequest->getOutputClBuffer());
+                auto outputTensors =
+                    ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
                 for (auto& output : compiledModel.outputs()) {
-                    inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                    inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                 }
             }
         }
@@ -860,19 +861,19 @@ int main(int argc, char* argv[]) {
         if (FLAGS_api == "sync") {
             inferRequest->infer();
         } else {
-            inferRequest->startAsync();
+            inferRequest->start_async();
         }
 
-        inferRequestsQueue.waitAll();
+        inferRequestsQueue.wait_all();
 
-        auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
+        auto duration_ms = double_to_string(inferRequestsQueue.get_latencies()[0]);
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
 
         if (statistics) {
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                       {{"first inference time (ms)", duration_ms}});
         }
-        inferRequestsQueue.resetTimes();
+        inferRequestsQueue.reset_times();
 
         size_t processedFramesN = 0;
         auto startTime = Time::now();
@@ -885,7 +886,7 @@ int main(int argc, char* argv[]) {
         while ((niter != 0LL && iteration < niter) ||
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
                (FLAGS_api == "async" && iteration % nireq != 0)) {
-            inferRequest = inferRequestsQueue.getIdleRequest();
+            inferRequest = inferRequestsQueue.get_idle_request();
             if (!inferRequest) {
                 IE_THROW() << "No idle Infer Requests!";
             }
@@ -894,7 +895,7 @@ int main(int argc, char* argv[]) {
                 auto inputs = app_inputs_info[iteration % app_inputs_info.size()];
 
                 if (FLAGS_pcseq) {
-                    inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
+                    inferRequest->set_latency_group_id(iteration % app_inputs_info.size());
                 }
 
                 if (isDynamicNetwork) {
@@ -914,14 +915,14 @@ int main(int argc, char* argv[]) {
                 for (auto& item : inputs) {
                     auto inputName = item.first;
                     const auto& data = inputsData.at(inputName)[iteration % inputsData.at(inputName).size()];
-                    inferRequest->setTensor(inputName, data);
+                    inferRequest->set_tensor(inputName, data);
                 }
 
                 if (useGpuMem) {
                     auto outputTensors =
-                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->getOutputClBuffer());
+                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
                     for (auto& output : compiledModel.outputs()) {
-                        inferRequest->setTensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                        inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
                     }
                 }
             }
@@ -936,7 +937,7 @@ int main(int argc, char* argv[]) {
                 // well, but as it uses just error codes it has no details like ‘what()’
                 // method of `std::exception` So, rechecking for any exceptions here.
                 inferRequest->wait();
-                inferRequest->startAsync();
+                inferRequest->start_async();
             }
             ++iteration;
 
@@ -944,7 +945,7 @@ int main(int argc, char* argv[]) {
             processedFramesN += batchSize;
 
             if (niter > 0) {
-                progressBar.addProgress(1);
+                progressBar.add_progress(1);
             } else {
                 // calculate how many progress intervals are covered by current
                 // iteration. depends on the current iteration time and time of each
@@ -952,23 +953,23 @@ int main(int argc, char* argv[]) {
                 // skipped.
                 auto progressIntervalTime = duration_nanoseconds / progressBarTotalCount;
                 size_t newProgress = execTime / progressIntervalTime - progressCnt;
-                progressBar.addProgress(newProgress);
+                progressBar.add_progress(newProgress);
                 progressCnt += newProgress;
             }
         }
 
         // wait the latest inference executions
-        inferRequestsQueue.waitAll();
+        inferRequestsQueue.wait_all();
 
-        LatencyMetrics generalLatency(inferRequestsQueue.getLatencies());
+        LatencyMetrics generalLatency(inferRequestsQueue.get_latencies());
         std::vector<LatencyMetrics> groupLatencies = {};
         if (FLAGS_pcseq && app_inputs_info.size() > 1) {
-            for (auto lats : inferRequestsQueue.getLatencyGroups()) {
+            for (auto lats : inferRequestsQueue.get_latency_groups()) {
                 groupLatencies.push_back(LatencyMetrics(lats));
             }
         }
 
-        double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
+        double totalDuration = inferRequestsQueue.get_duration_in_milliseconds();
         double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / generalLatency.percentile(FLAGS_latency_percentile)
                                            : 1000.0 * processedFramesN / totalDuration;
 
@@ -1067,7 +1068,7 @@ int main(int argc, char* argv[]) {
         if (perf_counts) {
             std::vector<std::vector<ov::runtime::ProfilingInfo>> perfCounts;
             for (size_t ireq = 0; ireq < nireq; ireq++) {
-                auto reqPerfCounts = inferRequestsQueue.requests[ireq]->getPerformanceCounts();
+                auto reqPerfCounts = inferRequestsQueue.requests[ireq]->get_performance_counts();
                 if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);

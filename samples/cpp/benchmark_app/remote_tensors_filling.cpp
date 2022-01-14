@@ -37,7 +37,7 @@ void fillBufferRandom(void* inputBuffer,
     }
 }
 
-void fillBuffer(void* inputBuffer, size_t elementsNum, const ov::element::Type& type) {
+void fill_buffer(void* inputBuffer, size_t elementsNum, const ov::element::Type& type) {
     if (type == ov::element::f32) {
         fillBufferRandom<float, float>(inputBuffer, elementsNum);
     } else if (type == ov::element::f16) {
@@ -124,8 +124,9 @@ std::map<std::string, ov::runtime::TensorVector> get_remote_input_tensors(
 #endif
 }
 
-std::map<std::string, ov::runtime::Tensor> get_remote_output_tensors(const ov::runtime::CompiledModel& compiledModel,
-                                                                  std::map<std::string, ::gpu::BufferType>& clBuffer) {
+std::map<std::string, ov::runtime::Tensor> get_remote_output_tensors(
+    const ov::runtime::CompiledModel& compiledModel,
+    std::map<std::string, ::gpu::BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::map<std::string, ov::runtime::Tensor> outputTensors;
     for (auto& output : compiledModel.outputs()) {

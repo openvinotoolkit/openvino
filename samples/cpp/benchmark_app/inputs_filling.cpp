@@ -208,11 +208,11 @@ ov::runtime::Tensor createTensorRandom(const benchmark_app::InputInfo& inputInfo
     return tensor;
 }
 
-ov::runtime::Tensor getImageTensor(const std::vector<std::string>& files,
-                                   size_t inputId,
-                                   size_t batchSize,
-                                   const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
-                                   std::string* filenames_used = nullptr) {
+ov::runtime::Tensor get_image_tensor(const std::vector<std::string>& files,
+                                     size_t inputId,
+                                     size_t batchSize,
+                                     const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                                     std::string* filenames_used = nullptr) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return createTensorFromImage<float>(files,
@@ -254,9 +254,9 @@ ov::runtime::Tensor getImageTensor(const std::vector<std::string>& files,
     }
 }
 
-ov::runtime::Tensor getImInfoTensor(const std::pair<size_t, size_t>& image_size,
-                                    size_t batchSize,
-                                    const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+ov::runtime::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_size,
+                                       size_t batchSize,
+                                       const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return createTensorImInfo<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
@@ -271,11 +271,11 @@ ov::runtime::Tensor getImInfoTensor(const std::pair<size_t, size_t>& image_size,
     }
 }
 
-ov::runtime::Tensor getBinaryTensor(const std::vector<std::string>& files,
-                                    size_t inputId,
-                                    size_t batchSize,
-                                    const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
-                                    std::string* filenames_used = nullptr) {
+ov::runtime::Tensor get_binary_tensor(const std::vector<std::string>& files,
+                                      size_t inputId,
+                                      size_t batchSize,
+                                      const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                                      std::string* filenames_used = nullptr) {
     const auto& type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return createTensorFromBinary<float>(files,
@@ -317,7 +317,7 @@ ov::runtime::Tensor getBinaryTensor(const std::vector<std::string>& files,
     }
 }
 
-ov::runtime::Tensor getRandomTensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+ov::runtime::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return createTensorRandom<float, float>(inputInfo.second);
@@ -346,7 +346,7 @@ ov::runtime::Tensor getRandomTensor(const std::pair<std::string, benchmark_app::
     }
 }
 
-std::string getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
+std::string get_test_info_stream_header(benchmark_app::InputInfo& inputInfo) {
     std::stringstream strOut;
     strOut << "(" << inputInfo.layout.to_string() << ", " << inputInfo.type.get_type_name() << ", "
            << get_shape_string(inputInfo.dataShape) << ", ";
@@ -473,25 +473,25 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors(std::map<std::strin
                 // Fill random
                 tensor_src_info =
                     "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
-                tensors[input_name].push_back(getRandomTensor({input_name, input_info}));
+                tensors[input_name].push_back(get_random_tensor({input_name, input_info}));
             } else if (files.second[0] == "image_info") {
                 // Most likely it is image info: fill with image information
                 auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
                 tensor_src_info =
                     "Image size tensor " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
-                tensors[input_name].push_back(getImInfoTensor(image_size, batchSize, {input_name, input_info}));
+                tensors[input_name].push_back(get_im_info_tensor(image_size, batchSize, {input_name, input_info}));
             } else if (input_info.isImage()) {
                 // Fill with Images
                 tensors[input_name].push_back(
-                    getImageTensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
+                    get_image_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
             } else {
                 // Fill with binary files
                 tensors[input_name].push_back(
-                    getBinaryTensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
+                    get_binary_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
             }
 
             // Preparing info
-            std::string strOut = getTestInfoStreamHeader(input_info) + tensor_src_info;
+            std::string strOut = get_test_info_stream_header(input_info) + tensor_src_info;
             if (n_shape >= logOutput.size()) {
                 logOutput.resize(n_shape + 1);
             }
@@ -635,25 +635,25 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const s
             if (input_info.isImage()) {
                 if (!imageFiles.empty()) {
                     // Fill with Images
-                    blobs[input_name].push_back(getImageTensor(files.second,
-                                                               imageInputId,
-                                                               batchSize,
-                                                               {input_name, input_info},
-                                                               &blob_src_info));
+                    blobs[input_name].push_back(get_image_tensor(files.second,
+                                                                 imageInputId,
+                                                                 batchSize,
+                                                                 {input_name, input_info},
+                                                                 &blob_src_info));
                     imageInputId = (imageInputId + batchSize) % files.second.size();
-                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
+                    logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
                     continue;
                 }
             } else {
                 if (!binaryFiles.empty()) {
                     // Fill with binary files
-                    blobs[input_name].push_back(getBinaryTensor(files.second,
-                                                                binaryInputId,
-                                                                batchSize,
-                                                                {input_name, input_info},
-                                                                &blob_src_info));
+                    blobs[input_name].push_back(get_binary_tensor(files.second,
+                                                                  binaryInputId,
+                                                                  batchSize,
+                                                                  {input_name, input_info},
+                                                                  &blob_src_info));
                     binaryInputId = (binaryInputId + batchSize) % files.second.size();
-                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
+                    logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
                     continue;
                 }
                 if (input_info.isImageInfo() && (net_input_im_sizes.size() == 1)) {
@@ -661,16 +661,16 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const s
                     auto image_size = net_input_im_sizes.at(0);
                     blob_src_info = "Image size blob " + std::to_string(image_size.first) + " x " +
                                     std::to_string(image_size.second);
-                    blobs[input_name].push_back(getImInfoTensor(image_size, batchSize, {input_name, input_info}));
-                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
+                    blobs[input_name].push_back(get_im_info_tensor(image_size, batchSize, {input_name, input_info}));
+                    logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
                     continue;
                 }
             }
             // Fill random
             blob_src_info =
                 "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
-            blobs[input_name].push_back(getRandomTensor({input_name, input_info}));
-            logOutput[i][input_name] += getTestInfoStreamHeader(input_info) + blob_src_info;
+            blobs[input_name].push_back(get_random_tensor({input_name, input_info}));
+            logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
         }
     }
 

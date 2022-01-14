@@ -119,7 +119,7 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
 }
 
 std::map<std::string, std::string> parse_nstreams_value_per_device(const std::vector<std::string>& devices,
-                                                               const std::string& values_string) {
+                                                                   const std::string& values_string) {
     //  Format: <device1>:<value1>,<device2>:<value2> or just <value>
     std::map<std::string, std::string> result;
     auto device_value_strings = split(values_string, ',');
@@ -184,7 +184,7 @@ std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
 }
 
 std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string& scale_mean,
-                                                           const benchmark_app::InputsInfo& inputs_info) {
+                                                              const benchmark_app::InputsInfo& inputs_info) {
     //  Format: data:[255,255,255],info[255,255,255]
     std::map<std::string, std::vector<float>> return_value;
 
@@ -372,14 +372,14 @@ std::map<std::string, std::vector<std::string>> parse_input_parameters(
 }
 
 std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_string,
-                                                     const std::string& layout_string,
-                                                     const size_t batch_size,
-                                                     const std::string& data_shapes_string,
-                                                     const std::map<std::string, std::vector<std::string>>& fileNames,
-                                                     const std::string& scale_string,
-                                                     const std::string& mean_string,
-                                                     const std::vector<ov::Output<const ov::Node>>& input_info,
-                                                     bool& reshape_required) {
+                                                       const std::string& layout_string,
+                                                       const size_t batch_size,
+                                                       const std::string& data_shapes_string,
+                                                       const std::map<std::string, std::vector<std::string>>& fileNames,
+                                                       const std::string& scale_string,
+                                                       const std::string& mean_string,
+                                                       const std::vector<ov::Output<const ov::Node>>& input_info,
+                                                       bool& reshape_required) {
     std::map<std::string, std::vector<std::string>> shape_map = parse_input_parameters(shape_string, input_info);
     std::map<std::string, std::vector<std::string>> data_shapes_map =
         parse_input_parameters(data_shapes_string, input_info);
@@ -627,23 +627,23 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 }
 
 std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_string,
-                                                     const std::string& layout_string,
-                                                     const size_t batch_size,
-                                                     const std::string& tensors_shape_string,
-                                                     const std::map<std::string, std::vector<std::string>>& fileNames,
-                                                     const std::string& scale_string,
-                                                     const std::string& mean_string,
-                                                     const std::vector<ov::Output<const ov::Node>>& input_info) {
+                                                       const std::string& layout_string,
+                                                       const size_t batch_size,
+                                                       const std::string& tensors_shape_string,
+                                                       const std::map<std::string, std::vector<std::string>>& fileNames,
+                                                       const std::string& scale_string,
+                                                       const std::string& mean_string,
+                                                       const std::vector<ov::Output<const ov::Node>>& input_info) {
     bool reshape_required = false;
     return get_inputs_info(shape_string,
-                         layout_string,
-                         batch_size,
-                         tensors_shape_string,
-                         fileNames,
-                         scale_string,
-                         mean_string,
-                         input_info,
-                         reshape_required);
+                           layout_string,
+                           batch_size,
+                           tensors_shape_string,
+                           fileNames,
+                           scale_string,
+                           mean_string,
+                           input_info,
+                           reshape_required);
 }
 
 #ifdef USE_OPENCV
@@ -753,21 +753,21 @@ std::string getExtension(const std::string& name) {
     return extensionPosition == std::string::npos ? "" : name.substr(extensionPosition + 1, name.size() - 1);
 };
 
-bool isBinaryFile(const std::string& filePath) {
+bool is_binary_file(const std::string& filePath) {
     auto extension = getExtension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
     return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
            supported_binary_extensions.end();
 }
 
-bool isImageFile(const std::string& filePath) {
+bool is_image_file(const std::string& filePath) {
     auto extension = getExtension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
     return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
            supported_binary_extensions.end();
 }
 
-bool containsBinaries(const std::vector<std::string>& filePaths) {
+bool contains_binaries(const std::vector<std::string>& filePaths) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
         auto extension = getExtension(filePath);
@@ -779,7 +779,7 @@ bool containsBinaries(const std::vector<std::string>& filePaths) {
     }
     return false;
 }
-std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>& filePaths,
+std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
                                                  const std::vector<std::string>& extensions) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
