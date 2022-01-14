@@ -195,7 +195,7 @@ DEFINE_double(pwl_me, 1.0, pwl_max_error_percent_message);
 /**
  * \brief This function show a help message
  */
-static void showUsage() {
+static void show_usage() {
     std::cout << std::endl;
     std::cout << "speech_sample [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
