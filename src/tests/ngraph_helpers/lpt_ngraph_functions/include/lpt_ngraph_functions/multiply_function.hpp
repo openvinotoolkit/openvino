@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 
+#include "elementwise_function.hpp"
 #include "lpt_ngraph_functions/common/constant.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
@@ -37,7 +38,7 @@ inline std::ostream& operator<<(std::ostream& out, const MultiplyValues& values)
     return out << "_" << values.branch1 << "_" << values.branch2 << (values.isDequantization ? "_isDequantization" : "");
 }
 
-class MultiplyFunction {
+class MultiplyFunction : public ElementwiseFunction {
 public:
     static std::shared_ptr<ngraph::Function> get(
             const element::Type precision,
@@ -46,9 +47,11 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
-        const bool broadcast,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2);
+        const bool broadcast1,
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
+        const bool broadcast2,
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fq2,
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter);
 };
 
 }  // namespace subgraph

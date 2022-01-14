@@ -24,6 +24,7 @@
 namespace InferenceEngine {
 
 /**
+ * @ingroup ie_cpp
  * @brief This class represents Inference Engine Core entity.
  *
  * It can throw exceptions safely for the application, where it is properly handled.
@@ -78,6 +79,7 @@ public:
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath = {}) const;
+
     /**
      * @brief Reads models from IR and ONNX formats
      * @param model string with model in IR or ONNX format
@@ -95,6 +97,20 @@ public:
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const;
 
     /**
+     * @brief Creates an executable network from a network object and uses AUTO plugin as the default device to load
+     * executable network.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config = {});
+
+    /**
      * @brief Creates an executable network from a network object.
      *
      * Users can create as many networks as they need and use
@@ -109,6 +125,21 @@ public:
     ExecutableNetwork LoadNetwork(const CNNNetwork& network,
                                   const std::string& deviceName,
                                   const std::map<std::string, std::string>& config = {});
+
+    /**
+     * @brief Reads model and creates an executable network from IR or ONNX file and uses AUTO plugin as the default
+     * device to load executable network.
+     *
+     * This can be more efficient than using ReadNetwork + LoadNetwork(CNNNetwork) flow
+     *        especially for cases when caching is enabled and cached model is available
+     *
+     * @param modelPath path to model
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation/
+     *
+     * @return An executable network reference
+     */
+    ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file

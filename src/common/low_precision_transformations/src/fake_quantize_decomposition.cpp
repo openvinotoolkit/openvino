@@ -122,12 +122,12 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
     const auto& precisions = precisionsAttribute.as<PrecisionsAttribute>().value();
     std::vector<element::Type> precisionsForLevels{};
     switch (levels) {
-        case 65536:
-        case 65535:
+        case low_precision::levels::int16:
+        case low_precision::levels::int16_narrow_range:
             precisionsForLevels = {element::u16, element::i16};
             break;
-        case static_cast<size_t>(4294967296):
-        case 4294967295:
+        case low_precision::levels::int32:
+        case low_precision::levels::int32_narrow_range:
             precisionsForLevels = {element::u32, element::i32};
             break;
         default:

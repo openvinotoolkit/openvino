@@ -40,15 +40,17 @@ PKG_INSTALL_CFG = {
         'black_list': [],
         'prefix': 'benchmark_tool',
         'extract_entry_points': True,
+        'extract_requirements': True,
     },
     "accuracy_checker": {
-        'src_dir': OPENVINO_DIR / 'tools' / 'pot' / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
+        'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
         'black_list': ['*tests*'],
         'prefix': 'accuracy_checker',
         'extract_entry_points': True,
+        'extract_requirements': True,
     },
     "omz_tools": {
-        'src_dir': OPENVINO_DIR / 'tools' / 'pot' / 'thirdparty' / 'open_model_zoo' / 'tools' / 'model_tools',  # noqa:E501
+        'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'model_tools',  # noqa:E501
         'black_list': [],
         'prefix': 'omz_tools',
         'extract_requirements': True,
@@ -60,6 +62,7 @@ PKG_INSTALL_CFG = {
         'black_list': ['*tests*'],
         'prefix': 'pot',
         'extract_entry_points': True,
+        'extract_requirements': True,
     },
 }
 
@@ -80,6 +83,10 @@ class CustomBuild(build):
         self.announce('Installing packages', level=log.INFO)
         for cmp, cmp_data in PKG_INSTALL_CFG.items():
             self.announce(f'Processing package: {cmp}', level=log.INFO)
+            if not cmp_data['src_dir'].is_dir():
+                raise FileNotFoundError(
+                    f'The source directory was not found: {cmp_data["src_dir"]}'
+                )
             subprocess.call([sys.executable, 'setup.py', 'install',
                             '--root', str(SCRIPT_DIR),
                              '--prefix', str(cmp_data.get("prefix"))],
@@ -195,12 +202,11 @@ setup(
     author_email='openvino_pushbot@intel.com',
     url='https://docs.openvinotoolkit.org/latest/index.html',
     download_url='https://github.com/openvinotoolkit/openvino/tags',
-    description='OpenVINO™ Developer Package',
+    description='OpenVINO(TM) Development Tools',
     long_description=get_description(SCRIPT_DIR.parents[1] / 'docs/install_guides/pypi-openvino-dev.md'),
     long_description_content_type='text/markdown',
     classifiers=[
         'Programming Language :: Python :: 3',
-        'OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
     ],
     cmdclass={

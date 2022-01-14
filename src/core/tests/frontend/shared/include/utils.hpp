@@ -5,7 +5,7 @@
 #pragma once
 
 #include <fstream>
-#include <manager.hpp>
+#include <openvino/frontend/manager.hpp>
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"

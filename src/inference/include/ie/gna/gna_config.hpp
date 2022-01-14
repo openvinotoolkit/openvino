@@ -54,11 +54,6 @@ DECLARE_GNA_CONFIG_KEY(PRECISION);
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
 
 /**
- * @brief information on GNA generation chosen for firmware model dump, can be overridden by GNA3
- */
-DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
-
-/**
  * @brief GNA proc_type setting that should be one of GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW, GNA_SW_EXACT
  */
 DECLARE_GNA_CONFIG_KEY(DEVICE_MODE);
@@ -69,14 +64,6 @@ DECLARE_GNA_CONFIG_VALUE(HW_WITH_SW_FBACK);
 DECLARE_GNA_CONFIG_VALUE(SW);
 DECLARE_GNA_CONFIG_VALUE(SW_EXACT);
 DECLARE_GNA_CONFIG_VALUE(SW_FP32);
-DECLARE_GNA_CONFIG_VALUE(GEN);
-DECLARE_GNA_CONFIG_VALUE(GEN_EXACT);
-DECLARE_GNA_CONFIG_VALUE(SSE);
-DECLARE_GNA_CONFIG_VALUE(SSE_EXACT);
-DECLARE_GNA_CONFIG_VALUE(AVX1);
-DECLARE_GNA_CONFIG_VALUE(AVX1_EXACT);
-DECLARE_GNA_CONFIG_VALUE(AVX2);
-DECLARE_GNA_CONFIG_VALUE(AVX2_EXACT);
 
 /**
  * @brief The option to override the GNA HW execution target. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0.
@@ -124,7 +111,9 @@ DECLARE_GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT);
  *
  * Note that multithreading mode does not guarantee the same computation order as order
  * of issuing. Additionally, in this case, software modes do not implement any serializations.
+ * @deprecated The config key is deprecated and will be removed in a future release
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_GNA_CONFIG_KEY(LIB_N_THREADS);
 }  // namespace GNAConfigParams
 
@@ -143,7 +132,9 @@ namespace PluginConfigParams {
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
  * PluginConfigParams::YES or PluginConfigParams::NO
+ * @deprecated The config key is deprecated and will be removed in a future release
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_CONFIG_KEY(SINGLE_THREAD);
 
 }  // namespace PluginConfigParams

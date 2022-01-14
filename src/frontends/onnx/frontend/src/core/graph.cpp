@@ -31,6 +31,12 @@ static std::string to_string(
     return result;
 }
 
+inline std::string generate_result_name(const std::string& onnx_output_name,
+                                        const std::shared_ptr<ov::Node>& result_node) {
+    auto output_index = result_node->input(0).get_source_output().get_index();
+    return onnx_output_name + "/sink_port_" + std::to_string(output_index);
+}
+
 /// \brief      Gets the operator represented by provided node unique identificator.
 ///
 /// \param[in]  node_proto  The node protobuf representation object.
@@ -57,17 +63,17 @@ bool common_node_for_all_outputs(const OutputVector& outputs) {
 };
 }  // namespace detail
 
-Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
-             const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : Graph(model_proto, common::make_unique<GraphCache>(), telemetry) {}
+Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov::frontend::ExtensionHolder extensions)
+    : Graph(model_proto, common::make_unique<GraphCache>(), std::move(extensions)) {}
 
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
-             const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+             ov::frontend::ExtensionHolder extensions)
     : m_model{common::make_unique<Model>(model_proto)},
       m_cache{std::move(cache)},
-      m_telemetry(telemetry) {
+      m_extensions{std::move(extensions)} {
     std::map<std::string, Tensor> initializers;
+
     // Process all initializers in the graph
     for (const auto& initializer_tensor : m_model->get_graph().initializer()) {
         if (initializer_tensor.has_name()) {
@@ -110,7 +116,7 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
     std::map<std::string, std::reference_wrapper<const ONNX_NAMESPACE::NodeProto>> unknown_operators;
     std::map<std::string, uint64_t> op_statistics;
     for (const auto& node_proto : m_model->get_graph().node()) {
-        if (telemetry) {
+        if (m_extensions.telemetry) {
             op_statistics[node_proto.op_type()]++;
         }
         if (!m_model->is_operator_available(node_proto)) {
@@ -121,9 +127,9 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
         }
     }
 
-    if (telemetry) {
+    if (m_extensions.telemetry) {
         for (const auto& op : op_statistics) {
-            telemetry->send_event("op_count", "onnx_" + op.first, op.second);
+            m_extensions.telemetry->send_event("op_count", "onnx_" + op.first, op.second);
         }
     }
 
@@ -143,6 +149,8 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
 }
 
 void Graph::convert_to_ngraph_nodes() {
+    const float total = static_cast<float>(m_model->get_graph().node().size());
+    unsigned int completed = 0u;
     // Process ONNX graph nodes, convert to nGraph nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         const Node node{node_proto, *this};
@@ -154,6 +162,8 @@ void Graph::convert_to_ngraph_nodes() {
             }
         }
         OutputVector ng_nodes{make_ng_nodes(node)};
+        ++completed;
+        m_extensions.progress_reporter->report_progress(completed / total, total, completed);
     }
 }
 
@@ -192,6 +202,8 @@ std::shared_ptr<Function> Graph::convert() {
 }
 
 void Graph::decode_to_framework_nodes() {
+    const float total = static_cast<float>(m_model->get_graph().node().size());
+    unsigned int completed = 0u;
     // Process ONNX graph nodes, convert to nGraph nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         const Node node{node_proto, *this};
@@ -199,9 +211,10 @@ void Graph::decode_to_framework_nodes() {
         if (node.has_subgraphs()) {
             const auto& subgraphs = node.get_subgraphs();
             auto inputs = node.get_ng_inputs();
+            std::vector<std::shared_ptr<Function>> functions;
             for (const auto& kv : subgraphs) {
                 auto& subgraph = kv.second;
-                subgraph->decode();
+                functions.push_back(subgraph->decode());
                 for (const auto& input : subgraph->get_inputs_from_parent()) {
                     const auto& name = input.get_node()->get_friendly_name();
                     if (std::find_if(inputs.begin(), inputs.end(), [&name](const Output<ngraph::Node>& n) -> bool {
@@ -211,10 +224,9 @@ void Graph::decode_to_framework_nodes() {
                     }
                 }
             }
-            framework_node =
-                std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(shared_from_this(), node, inputs);
+            framework_node = std::make_shared<frontend::ONNXSubgraphFrameworkNode>(node, functions, inputs);
         } else {
-            framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(shared_from_this(), node);
+            framework_node = std::make_shared<frontend::ONNXFrameworkNode>(node);
         }
         OutputVector ng_nodes{framework_node->outputs()};
         set_friendly_names(node, ng_nodes);
@@ -224,6 +236,8 @@ void Graph::decode_to_framework_nodes() {
         for (std::size_t i{0}; i < node.get_outputs_size(); ++i) {
             m_cache->emplace_node(node.output(i), std::move(ng_nodes.at(i)));
         }
+        ++completed;
+        m_extensions.progress_reporter->report_progress(completed / total, total, completed);
     }
 }
 
@@ -232,15 +246,18 @@ std::shared_ptr<Function> Graph::create_function() {
     const auto& onnx_outputs = m_model->get_graph().output();
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
         // the suffix makes the Result's name unique in case the nodes in the model don't have a name
-        const auto suffix = "/sink_port_" + std::to_string(i);
-        function->get_output_op(i)->set_friendly_name(onnx_outputs.Get(i).name() + suffix);
+        auto ov_result = function->get_output_op(i);
+        ov_result->set_friendly_name(detail::generate_result_name(onnx_outputs.Get(i).name(), ov_result));
     }
     return function;
 }
 
 std::shared_ptr<Function> Graph::decode() {
     decode_to_framework_nodes();
-    return create_function();
+    auto function = create_function();
+    auto& rt_info = function->get_rt_info();
+    rt_info[ONNX_GRAPH_RT_ATTRIBUTE] = shared_from_this();
+    return function;
 }
 
 bool Graph::is_ng_node_in_cache(const std::string& name) const {
@@ -341,8 +358,12 @@ const OpsetImports& Graph::get_opset_imports() const {
 }
 
 Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph* parent_graph)
-    : Graph(model_proto, common::make_unique<GraphCache>(), parent_graph->get_telemetry()),
-      m_parent_graph(parent_graph) {}
+    : Graph(model_proto, common::make_unique<GraphCache>()),
+      m_parent_graph(parent_graph) {
+    // do not copy a pre-configured progress reporter extension to the subgraph, copy just the telemetry
+    // (do not report subgraph conversion progress)
+    m_extensions.telemetry = parent_graph->get_extensions().telemetry;
+}
 
 bool Subgraph::is_ng_node_in_cache(const std::string& name) const {
     if (m_cache->contains(name)) {
@@ -399,7 +420,8 @@ void Subgraph::find_inputs_from_parent() {
         for (const auto& out_name : node_proto.output()) {
             if (m_cache->contains(out_name)) {
                 auto node_to_replace_input = m_cache->get_node(out_name).get_node();
-                if (!dynamic_cast<op::util::MultiSubGraphOp*>(node_to_replace_input))
+                if (!ov::is_type<op::util::MultiSubGraphOp>(node_to_replace_input) &&
+                    !ov::is_type<frontend::ONNXSubgraphFrameworkNode>(node_to_replace_input))
                     continue;
                 auto inputs = node_to_replace_input->input_values();
                 for (size_t i = 0; i < inputs.size(); i++) {

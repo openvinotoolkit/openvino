@@ -12,9 +12,7 @@ using namespace GNAPluginNS;
 static const Version gnaPluginDescription = {
         {2, 1},
         CI_BUILD_NUMBER
-#if GNA_LIB_VER == 2
         "_with_GNA_LIB_VER==2"
-#endif
         ,
         "ov_intel_gna_plugin"
 };

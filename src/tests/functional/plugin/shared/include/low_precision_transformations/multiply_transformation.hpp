@@ -14,11 +14,12 @@ namespace LayerTestsDefinitions {
 
 class MultiplyTestValues {
 public:
+    bool broadcast1;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
+    bool broadcast2;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
-    bool broadcast;
-    std::vector<ngraph::element::Type> precisionOnActivations;
-    std::vector<ngraph::element::Type> expectedPrecisions;
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
+    ngraph::element::Type expectedPrecisions;
 };
 
 typedef std::tuple<
@@ -36,6 +37,7 @@ public:
 
 protected:
     void SetUp() override;
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions

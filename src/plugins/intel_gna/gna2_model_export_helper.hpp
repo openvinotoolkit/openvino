@@ -4,8 +4,6 @@
 
 #pragma once
 
-#if GNA_LIB_VER == 2
-
 #include "gna2-common-api.h"
 #include "gna2-model-suecreek-header.h"
 
@@ -23,5 +21,3 @@ void ExportLdForDeviceVersion(
     Gna2DeviceVersion deviceVersionToExport);
 
 void ExportGnaDescriptorPartiallyFilled(uint32_t numberOfLayers, std::ostream & outStream);
-
-#endif

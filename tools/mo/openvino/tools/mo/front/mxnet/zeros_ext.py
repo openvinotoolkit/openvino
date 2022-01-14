@@ -16,6 +16,11 @@ class ZerosFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         shape = list(attrs.tuple('shape', int, None))
+        dtype = attrs.tuple('dtype', str, None)
+        if dtype and len(dtype) == 1:
+            dtype = dtype[0]
+        else:
+            dtype = np.float32
         zero_shapes = []
         for i, s in enumerate(shape):
             if s == 0:
@@ -24,7 +29,7 @@ class ZerosFrontExtractor(FrontExtractorOp):
 
         update_attrs = {
             'shape': np.ndarray(shape),
-            'value': np.zeros(shape),
+            'value': np.zeros(shape, dtype=dtype),
             'zero_shapes': zero_shapes
         }
 
