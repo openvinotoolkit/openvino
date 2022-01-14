@@ -91,7 +91,8 @@ public:
                        const std::pair<const char*, size_t> &graphHeaderDesc,
                        size_t numStages,
                        const std::string & networkName,
-                       int executors);
+                       int executors,
+                       const PluginConfiguration& config);
 
     void deallocateGraph(DevicePtr &device, GraphDesc &graphDesc);
 

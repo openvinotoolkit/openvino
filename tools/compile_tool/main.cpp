@@ -618,7 +618,6 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
 
 static std::map<std::string, std::string> configure() {
     const bool isMYRIAD = FLAGS_d.find("MYRIAD") != std::string::npos;
-
     auto config = parseConfigFile();
 
     if (isMYRIAD) {
