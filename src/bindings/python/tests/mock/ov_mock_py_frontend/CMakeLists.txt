@@ -17,8 +17,24 @@ target_include_directories(${TARGET_FE_NAME}
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
         PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-target_link_libraries(${TARGET_FE_NAME} PRIVATE frontend_common::static
-        ov_onnx_frontend ov_tensorflow_frontend ov_paddle_frontend)
+set(DEPENDENCIES frontend_common::static)
+
+if (ENABLE_OV_ONNX_FRONTEND)
+    list(APPEND DEPENDENCIES ov_onnx_frontend)
+    add_compile_definitions(ENABLE_OV_ONNX_FRONTEND)
+endif()
+
+if (ENABLE_OV_TF_FRONTEND)
+    list(APPEND DEPENDENCIES ov_tensorflow_frontend)
+    add_compile_definitions(ENABLE_OV_TF_FRONTEND)
+endif()
+
+if (ENABLE_OV_PADDLE_FRONTEND)
+    list(APPEND DEPENDENCIES ov_paddle_frontend)
+    add_compile_definitions(ENABLE_OV_PADDLE_FRONTEND)
+endif()
+
+target_link_libraries(${TARGET_FE_NAME} PRIVATE ${DEPENDENCIES})
 
 add_clang_format_target(${TARGET_FE_NAME}_clang FOR_TARGETS ${TARGET_FE_NAME})
 

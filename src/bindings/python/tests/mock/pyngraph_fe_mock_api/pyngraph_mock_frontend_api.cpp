@@ -94,6 +94,7 @@ static void register_mock_place_stat(py::module m) {
 }
 
 static void register_frontend_wrappers(py::module m) {
+#ifdef ENABLE_OV_PADDLE_FRONTEND
     py::class_<FrontEndWrapperPaddle, std::shared_ptr<FrontEndWrapperPaddle>> fe_paddle(m,
                                                                                         "FrontEndWrapperPaddle",
                                                                                         py::dynamic_attr());
@@ -106,7 +107,9 @@ static void register_frontend_wrappers(py::module m) {
     fe_paddle.def("check_conversion_extension_registered", [](FrontEndWrapperPaddle& self, const std::string& name) {
         return self.check_conversion_extension_registered(name);
     });
+#endif
 
+#ifdef ENABLE_OV_TF_FRONTEND
     py::class_<FrontEndWrapperTensorflow, std::shared_ptr<FrontEndWrapperTensorflow>> fe_tensorflow(
         m,
         "FrontEndWrapperTensorflow",
@@ -121,6 +124,7 @@ static void register_frontend_wrappers(py::module m) {
                       [](FrontEndWrapperTensorflow& self, const std::string& name) {
                           return self.check_conversion_extension_registered(name);
                       });
+#endif
 }
 
 PYBIND11_MODULE(pybind_mock_frontend, m) {

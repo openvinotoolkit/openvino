@@ -48,15 +48,15 @@ if(ENABLE_TESTS)
     add_subdirectory(test_utils)
 endif()
 
-if(ENABLE_OV_ONNX_FRONTEND)
+if(TARGET ov_onnx_frontend)
     add_subdirectory(frontend/onnx)
 endif()
 
-if(ENABLE_OV_TF_FRONTEND)
+if(TARGET ov_tensorflow_frontend)
     add_subdirectory(frontend/tensorflow)
 endif()
 
-if(ENABLE_OV_PADDLE_FRONTEND)
+if(TARGET ov_paddle_frontend)
     add_subdirectory(frontend/paddle)
 endif()
 

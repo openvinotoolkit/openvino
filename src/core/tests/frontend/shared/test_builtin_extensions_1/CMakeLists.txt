@@ -4,14 +4,29 @@
 
 set(TARGET_NAME "test_builtin_extensions_1")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+
+set(DEPENDENCIES nlohmann_json openvino::runtime::dev offline_transformations)
+
+if (ENABLE_OV_ONNX_FRONTEND)
+    list(APPEND DEPENDENCIES ov_onnx_frontend)
+    add_compile_definitions(ENABLE_OV_ONNX_FRONTEND)
+endif()
+
+if (ENABLE_OV_TF_FRONTEND)
+    list(APPEND DEPENDENCIES ov_tensorflow_frontend)
+    add_compile_definitions(ENABLE_OV_TF_FRONTEND)
+endif()
+
+if (ENABLE_OV_PADDLE_FRONTEND)
+    list(APPEND DEPENDENCIES ov_paddle_frontend)
+    add_compile_definitions(ENABLE_OV_PADDLE_FRONTEND)
+endif()
 
 # Create library
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
-
-target_link_libraries(${TARGET_NAME} PRIVATE nlohmann_json openvino::runtime::dev
-        ov_onnx_frontend ov_tensorflow_frontend ov_paddle_frontend offline_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
