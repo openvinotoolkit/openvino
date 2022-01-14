@@ -87,8 +87,15 @@ struct reg_traits_by_size<64> {
 template<typename T>
 struct reg_traits : public reg_traits_by_size<sizeof(T)> {};
 
+template<size_t N>
+struct vec_min_size {
+    constexpr static size_t size = N <= 16 ? 16 :
+                                   N <= 32 ? 32 :
+                                   64;
+};
+
 template<typename T, size_t N>
-struct reg_traits<T[N]> : public reg_traits_by_size<sizeof(T[N])> {};
+struct reg_traits<T[N]> : public reg_traits_by_size<vec_min_size<sizeof(T[N])>::size> {};
 
 template<>
 struct reg_traits<float> {
@@ -99,9 +106,6 @@ struct reg_traits<float> {
 };
 template<>
 struct reg_traits<double> : public reg_traits<float> {};
-
-template<typename T>
-struct reg_traits<T[1]> : public reg_traits<T> {};
 
 template<>
 struct isa_traits<dnnl::impl::cpu::x64::cpu_isa_t::sse41> {
@@ -309,8 +313,7 @@ public:
         base::_kernel.mov(base::reg(), reinterpret_cast<size_t>(rhs));
         return *this;
     }
-    template<typename U>
-    const variable & operator = (U rhs) const {
+    const variable & operator = (arithmetic_type rhs) const {
         base::_kernel.mov(base::reg(), static_cast<size_t>(rhs));
         return *this;
     }
