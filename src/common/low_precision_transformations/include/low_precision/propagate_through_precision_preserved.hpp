@@ -66,14 +66,14 @@ public:
                 const_cast<AttributeType&>(resultAttribute).merge(toMerge);
 
                 for (size_t index = 1ul; index < parentRestrictions.size(); index++) {
-                    auto& attributes = parentRestrictions[index].template as<AttributeType>().attribute->sharedValue->attributes;
+                    auto& attributes = parentRestrictions[index].template as<AttributeType>().attribute->sharedValue->getAttributes();
                     for (auto&& attributeWeakPtr : attributes) {
                         auto attribute = attributeWeakPtr.lock();
                         if (attribute == nullptr) {
                             continue;
                         }
                         attribute->sharedValue = resultAttribute.attribute->sharedValue;
-                        resultAttribute.attribute->sharedValue->attributes.push_back(attribute);
+                        resultAttribute.attribute->sharedValue->addAttribute(attribute);
                     }
                 }
 
