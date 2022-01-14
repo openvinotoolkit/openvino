@@ -36,7 +36,7 @@ class SwapAxis(Op):
     @staticmethod
     def reverse_infer(node: Node):
         output_shape = node.out_port(0).data.get_shape()
-        if output_shape is not None:
+        if node.in_port(0).data.get_shape() is None and output_shape is not None:
             input_shape = output_shape.data.copy()
             input_shape[node.dim2], input_shape[node.dim1] = input_shape[node.dim1], input_shape[node.dim2]
             node.in_port(0).data.set_shape(shape_array(input_shape))

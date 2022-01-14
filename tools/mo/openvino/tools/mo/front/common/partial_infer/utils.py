@@ -317,10 +317,19 @@ def is_dynamic_slice(s: [slice, int, None]):
 
 
 def reverse_bypass_infer(node, in_ports: List[int] = None):
+    """
+    Copies shapes from the out_port 0 into ports specified in the in_ports
+
+
+    :param node:
+    :param in_ports: input ports for which shape will be updated
+    :return:
+    """
+    if in_ports is None:
+        in_ports = [0]
+
     output_shape = node.out_port(0).data.get_shape()
     if output_shape is not None:
-        if in_ports is None:
-            in_ports = node.in_ports().keys()
         for port in in_ports:
             if node.in_port(port).data.get_shape() is None:
                 node.in_port(port).data.set_shape(output_shape)

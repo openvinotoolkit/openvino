@@ -17,7 +17,7 @@ class ConvertLike(Op):
             'version': 'opset1',
 
             'infer': copy_shape_infer,
-            'reverse_infer': reverse_bypass_infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
             'type_infer': self.type_infer,
 
             'in_ports_count': 2,

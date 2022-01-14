@@ -129,7 +129,7 @@ class VariadicSplit(VariadicSplitBase):
             'type': self.op,
 
             'infer': self.infer,
-            'reverse_infer': reverse_bypass_infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, [0]),
 
             'in_ports_count': 3,
         }, attrs)
@@ -155,7 +155,7 @@ class AttributedVariadicSplit(VariadicSplitBase):
             'version': 'opset1',
 
             'infer': self.infer,
-            'reverse_infer': reverse_bypass_infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, [0]),
 
             'in_ports_count': 1,
         }, attrs)

@@ -21,7 +21,7 @@ class Roll(Op):
             'op': self.op,
             'version': 'opset7',
             'infer': roll_infer,
-            'reverse_infer': reverse_bypass_infer,
+            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
             'in_ports_count': 3,
             'out_ports_count': 1
         }, attrs)
