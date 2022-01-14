@@ -22,8 +22,9 @@ public:
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override;
-    bool isCompatible(const DnnlBlockedMemoryDesc& rhs) const;
-    bool isCompatible(const CpuBlockedMemoryDesc& rhs) const;
+    bool isCompatible(const BlockedMemoryDesc& rhs, uint32_t cmpMask) const override;
+    bool isCompatible(const CpuBlockedMemoryDesc &rhs, uint32_t cmpMask = 0xffffffff) const;
+    bool isCompatible(const DnnlBlockedMemoryDesc &rhs, uint32_t cmpMask = 0xffffffff) const;
 
     const VectorDims& getBlockDims() const override {
         return blockedDims;

@@ -99,12 +99,23 @@ bool CpuBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     }
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc &rhs) const {
-    return BlockedMemoryDesc::isCompatible(rhs);
+bool CpuBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc &rhs, uint32_t cmpMask) const {
+    return BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc &rhs) const {
-    return rhs.isCompatible(*this);
+bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc &rhs, uint32_t cmpMask) const {
+    return rhs.isCompatible(*this, cmpMask);
+}
+
+bool CpuBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, uint32_t cmpMask) const {
+    const BlockedMemoryDesc* pRhs = &rhs;
+    if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
+        return isCompatible(*cpuBlkDesc, cmpMask);
+    } else if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
+        return isCompatible(*dnnlBlkDesc, cmpMask);
+    } else {
+        return false;
+    }
 }
 
 bool CpuBlockedMemoryDesc::canComputeMemSizeZeroDims() const {

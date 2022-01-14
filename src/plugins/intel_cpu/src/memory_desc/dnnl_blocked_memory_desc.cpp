@@ -231,11 +231,21 @@ bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     }
 }
 
-bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs) const {
-    return this->desc.data.extra.flags == dnnl_memory_extra_flag_none && BlockedMemoryDesc::isCompatible(rhs);
+bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, uint32_t cmpMask) const {
+    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc, cmpMask);
+    } else if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc, cmpMask);
+    } else {
+        return false;
+    }
 }
 
-bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const {
+bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, uint32_t cmpMask) const {
+    return this->desc.data.extra.flags == dnnl_memory_extra_flag_none && BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
+}
+
+bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, uint32_t cmpMask) const {
     using namespace dnnl;
     using namespace impl;
     using namespace impl::utils;
@@ -243,6 +253,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
         return false;
     }
 
+    // TODO: do we really need this check, seems the code below does the same thing
     if (this->desc == rhs.desc) {
         return true;
     }
@@ -252,11 +263,17 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
         return false;
 
     int stride_start = 0;
+    while ((cmpMask & (1u << stride_start)) && stride_start < wrappedThis.ndims()) {
+        ++stride_start;
+    }
+
+    constexpr uint32_t offsetMask = 0x80000000u;
+    bool checkOffset = cmpMask & offsetMask;
 
     const auto thisExtra = this->desc.data.extra;
     const auto rhsExtra = rhs.desc.data.extra;
     return this->getOrder() == rhs.getOrder() && (thisExtra.flags == rhsExtra.flags && thisExtra.compensation_mask == rhsExtra.compensation_mask &&
-           thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, stride_start, true, true);
+           thisExtra.scale_adjust == rhsExtra.scale_adjust) && wrappedThis.similar_to(wrappedRhs, true, true, 0, stride_start, true, checkOffset);
 }
 
 static VectorDims extractOrder(const mkldnn::memory::desc& desc) {

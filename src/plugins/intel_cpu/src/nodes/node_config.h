@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,66 @@
 #include "memory_desc/cpu_memory_desc.h"
 
 namespace MKLDNNPlugin {
+class PortDescBase {
+public:
+    virtual ~PortDescBase() = default;
+    bool compare(const PortDescBase& rhs) const {
+        return typeid(*this) == typeid(rhs) && this->compareImpl(rhs);
+    }
+    virtual MemoryDescPtr getMemDesc() const = 0;
+protected:
+    virtual bool compareImpl(const PortDescBase& rhs) const = 0;
+};
+
+template<class T>
+class PortDescBase_ : public PortDescBase {
+protected:
+    PortDescBase_() = default;
+    bool compareImpl(const PortDescBase& rhs) const override final {
+        return static_cast<const T&>(*this).compare(static_cast<const T&>(rhs));
+    }
+};
+
+class PortDescGeneric : public PortDescBase_<PortDescGeneric> {
+public:
+    explicit PortDescGeneric(MemoryDescPtr memDesc) : _memDesc(memDesc) {
+        if (nullptr == _memDesc) {
+            IE_THROW(ParameterMismatch) << "PortDescGeneric constructor got nullptr";
+        }
+    }
+    bool compare(const PortDescGeneric& rhs) const {
+        return _memDesc->isCompatible(*rhs._memDesc);
+    }
+    MemoryDescPtr getMemDesc() const override {
+        return _memDesc;
+    }
+
+private:
+    MemoryDescPtr _memDesc;
+};
+
+class PortDescBlocked : public PortDescBase_<PortDescBlocked> {
+public:
+    PortDescBlocked(BlockedMemoryDescPtr memDesc, uint32_t cmpMask) : _memDesc(memDesc), _cmpMask(cmpMask) {
+        if (nullptr == _memDesc) {
+            IE_THROW(ParameterMismatch) << "PortDescBlocked constructor got nullptr";
+        }
+    }
+    bool compare(const PortDescBlocked& rhs) const {
+        return _memDesc->isCompatible(*rhs._memDesc, _cmpMask);
+    }
+    MemoryDescPtr getMemDesc() const override {
+        return _memDesc;
+    }
+
+private:
+    BlockedMemoryDescPtr _memDesc;
+    uint32_t _cmpMask = 0xffffffff;
+};
+
 class PortConfig {
+public:
+    using PortDescBasePtr = std::shared_ptr<PortDescBase>;
 public:
     PortConfig() = default;
 
@@ -48,17 +107,29 @@ public:
     }
 
     MemoryDescPtr getMemDesc() const {
-        return _desc;
+        return _desc->getMemDesc();
     }
 
     void setMemDesc(MemoryDescPtr desc) {
-        _desc = desc;
+        if (desc->getType() & Blocked) {
+            setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), 0xffffffff);
+        } else {
+            _desc = std::make_shared<PortDescGeneric>(desc);
+        }
+    }
+
+    void setMemDesc(BlockedMemoryDescPtr desc, uint32_t cmpMask) {
+        _desc = std::make_shared<PortDescBlocked>(desc, cmpMask);
+    }
+
+    PortDescBasePtr getPortDesc() const {
+        return _desc;
     }
 
 private:
     bool _constant = false;
     int _inPlacePort = -1;
-    MemoryDescPtr _desc;
+    PortDescBasePtr _desc;
 };
 
 struct NodeConfig {
