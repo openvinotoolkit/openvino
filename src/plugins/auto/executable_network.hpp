@@ -96,6 +96,7 @@ public:
                                  const std::string&                           strDevices,
                                  MultiDeviceInferencePlugin*                  plugin,
                                  const AutoContext&                           context,
+                                 const bool                                   diableBatching,
                                  const bool                                   needPerfCounters = false);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
@@ -160,6 +161,7 @@ private:
     mutable unsigned int                                                _optimalBatchingRequestNum{0};
     mutable unsigned int                                                _optimalBatchSize{0};
     mutable std::once_flag                                              _ocBatchNumQuery;
+    bool                                                                _disableBatch = {false};
 };
 
 }  // namespace MultiDevicePlugin

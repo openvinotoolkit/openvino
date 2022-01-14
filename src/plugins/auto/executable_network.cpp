@@ -150,6 +150,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            const std::string&                         strDevices,
                                                            MultiDeviceInferencePlugin*                plugin,
                                                            const AutoContext&                         context,
+                                                           const bool                                 disableBatching,
                                                            const bool                                 needPerfCounters)
                                                            : _devicePriorities{metaDevices}
                                                            , _devicePrioritiesInitial{metaDevices}
@@ -157,7 +158,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _multiPlugin(plugin)
                                                            , _context(context)
                                                            , _workModeIsAUTO(true)
-                                                           , _network(network) {
+                                                           , _network(network)
+                                                           , _disableBatch(disableBatching) {
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
@@ -205,10 +207,12 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
          if (_loadContext[i].isEnabled) {
              _loadContext[i].future =  _loadContext[i].promise.get_future();
               auto* contextPtr = &_loadContext[i];
-             _loadContext[i].task = [this, contextPtr, modelPath, network]() mutable {
+             _loadContext[i].task = [this, contextPtr, modelPath, network, disableBatching]() mutable {
                       // check auto batching for GPU only, do not affect CPU load efficiency
-                      if (contextPtr->deviceInfo.deviceName.find("GPU") != std::string::npos)
-                          TryApplyAutoBatching(*contextPtr);
+                      if (!disableBatching) {
+                          if (contextPtr->deviceInfo.deviceName.find("GPU") != std::string::npos)
+                              TryApplyAutoBatching(*contextPtr);
+                      }
                       TryToLoadNetWork(*contextPtr, modelPath, network);
                       if (contextPtr->isLoadSuccess) {
                           if (contextPtr->workName.empty()) {
@@ -311,7 +315,7 @@ void MultiDeviceExecutableNetwork::SetOptimalBatchNum(const DeviceName& devicena
 void MultiDeviceExecutableNetwork::TryApplyAutoBatching(AutoLoadContext& context) {
     std::string deviceNameWithoutBatch;
     std::map<std::string, std::string>& config_with_batch = context.deviceInfo.config;
-    // check whether if the Auto-Batching is applicable to the device
+    // check whether the Auto-Batching is applicable to the device
     deviceNameWithoutBatch = context.deviceInfo.deviceName;
     // if applicable, the  Auto-Batching is implicitly enabled via the performance hints
     bool bThroughputEnabledInPlugin = false;
@@ -738,7 +742,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 std::unique_lock<std::mutex> lock(_confMutex);
                 auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
                 lock.unlock();
-                if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
+                if (deviceInfo.deviceName.find("GPU") != std::string::npos && !_disableBatch) {
                     const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
                     // for benchmark through AUTO:CPU,GPU
                     // SetConfig directly set to CPU/GPU in this case
@@ -747,11 +751,10 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                     if (bThroughputEnabledInPlugin ||
                         (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
                         SetOptimalBatchNum(deviceInfo.deviceName);
-                        real = (std::max)(real, _optimalBatchingRequestNum);
                     }
                 }
             }
-            unsigned int res = (std::max)(8u, real);
+            unsigned int res = (std::max)(8u, (std::max)(real, _optimalBatchingRequestNum));
             IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
         }
 
