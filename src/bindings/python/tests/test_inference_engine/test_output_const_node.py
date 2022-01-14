@@ -140,3 +140,4 @@ def test_operations():
     assert outputs[0] < outputs[1]
     assert outputs[0] == split.output(0)
     assert hash(outputs[0]) == hash(split.output(0))
+    assert hash(outputs[0]) != hash(outputs[0].node)
