@@ -19,7 +19,6 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="",
     :param node_name: user provided node name
     :return: decoded place in the graph
     """
-
     found_nodes = []
     found_node_names = []
 
