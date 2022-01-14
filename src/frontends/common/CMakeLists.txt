@@ -71,6 +71,6 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
 
 
 # Shutdown protobuf library
-if(ENABLE_SHUTDOWN_PROTOBUF)
+if(Protobuf_IN_FRONTEND AND BUILD_SHARED_LIBS)
     add_subdirectory(shutdown_protobuf)
 endif()
