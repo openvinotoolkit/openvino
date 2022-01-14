@@ -11,6 +11,7 @@
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
 
+IE_SUPPRESS_DEPRECATED_START
 const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
@@ -28,6 +29,7 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
     {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE}
 };
+IE_SUPPRESS_DEPRECATED_END
 
 class GNAPluginConfigTest : public ::testing::Test {
 protected:
@@ -139,11 +141,14 @@ TEST_F(GNAPluginConfigTest, GnaConfigPrecisionTest) {
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPwlUniformDesignTest) {
+    IE_SUPPRESS_DEPRECATED_START
     SetAndCheckFlag(GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN),
                     config.gnaFlags.uniformPwlDesign);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPwlMaxErrorPercentTest) {
+    IE_SUPPRESS_DEPRECATED_START
     SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("0.100000"));
     EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 0.1f);
     SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("1.000000"));
@@ -152,6 +157,7 @@ TEST_F(GNAPluginConfigTest, GnaConfigPwlMaxErrorPercentTest) {
     EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 5);
     ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "-1");
     ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "100.1");
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPerfCountTest) {

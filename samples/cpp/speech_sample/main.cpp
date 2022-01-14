@@ -174,12 +174,16 @@ int main(int argc, char* argv[]) {
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_LIB_N_THREADS] =
             std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
+        IE_SUPPRESS_DEPRECATED_START
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
+        IE_SUPPRESS_DEPRECATED_END
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
+            IE_SUPPRESS_DEPRECATED_START
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
+            IE_SUPPRESS_DEPRECATED_END
         }
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 2. Loading model to the device ------------------------------------------

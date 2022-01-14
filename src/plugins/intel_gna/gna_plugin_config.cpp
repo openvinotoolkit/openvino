@@ -136,7 +136,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             gnaPrecision = precision;
             IE_SUPPRESS_DEPRECATED_START
         } else if (key == GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)) {
-            // This key is deprecated and will be removed in 2022.1
+            // This key is deprecated and will be removed in a future release
             if (value == PluginConfigParams::YES) {
                 gnaFlags.uniformPwlDesign = true;
             } else if (value == PluginConfigParams::NO) {
@@ -148,7 +148,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                                     << "should be equal to YES/NO, but not" << value;
             }
         } else if (key == GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)) {
-            // This key is deprecated and will be removed in 2022.1
+            // This key is deprecated and will be removed in a future release
             IE_SUPPRESS_DEPRECATED_END
             float max_error;
             try {
