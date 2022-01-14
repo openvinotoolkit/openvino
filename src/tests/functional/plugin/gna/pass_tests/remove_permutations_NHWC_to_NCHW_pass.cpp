@@ -33,7 +33,7 @@ typedef std::tuple<
     std::map<std::string, std::string>, // Configuration
     std::vector<size_t>,                // Input shape
     bool,                               // additional bool parameter
-    bool                                // tranpose to reshape
+    bool                                // transpose to reshape
 > removePermutationsAddParamPassParams;
 
 namespace LayerTestsDefinitions {

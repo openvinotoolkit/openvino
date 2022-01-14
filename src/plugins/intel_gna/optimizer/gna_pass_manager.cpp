@@ -2018,11 +2018,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
     };
 
     auto allowFQFuse = [](CNNLayerPtr layer) -> bool {
-        auto doNotSkup = [](CNNLayerPtr layer) {
+        auto doNotSkip = [](CNNLayerPtr layer) {
             return false;
         };
 
-        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkup).empty()) {
+        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkip).empty()) {
             return false;
         }
 
@@ -2143,7 +2143,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 
         // Before FQ layer is removed, the previous functional layer has to be updated with its quantization data
         auto prevFuncLayer = CNNNetPrevLayerSkipCertain(*fqLayer, 0, [](CNNLayerPtr layer) {
-            return LayerInfo(layer).isNonFunctional();
+            return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isPooling();
         });
         auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevFuncLayer);
         quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);

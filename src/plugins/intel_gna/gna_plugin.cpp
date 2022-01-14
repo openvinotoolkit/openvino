@@ -702,6 +702,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<Unfuse2dto4dReshapeAndTranspose>();
         manager.register_pass<Unfuse4dto2dReshapeAndTranspose>();
+        manager.register_pass<RemoveExtraReshapes>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();
@@ -794,7 +795,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
         passes->registerPass<SubstitutePReluPass>();
 
-        passes->registerPass<ReorderMaxPoolPass>();
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<ReorderMaxPoolPass>();
+        }
+
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
