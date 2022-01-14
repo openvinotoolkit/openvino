@@ -91,7 +91,7 @@ Framework-agnostic parameters:
                         is overridden by the --input parameter, this scale is
                         not applied for any input that does not match with the
                         original input of the model.
-						If both --mean and --scale are specified,
+                        If both --mean and --scale are specified,
                         the mean is subtracted first and then scale is applied
                         regardless the order of options in command line.
   --reverse_input_channels
@@ -143,7 +143,7 @@ Framework-agnostic parameters:
                         data[255,255,255],info[255,255,255]". The exact
                         meaning and order of channels depend on how the
                         original model was trained.
-						If both --mean_values and --scale_values are specified,
+                        If both --mean_values and --scale_values are specified,
                         the mean is subtracted first and then scale is applied
                         regardless the order of options in command line.
   --data_type {FP16,FP32,half,float}
