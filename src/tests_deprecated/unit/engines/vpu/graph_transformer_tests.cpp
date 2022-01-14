@@ -55,6 +55,8 @@
 #include <vpu/configuration/options/enable_custom_reshape_param.hpp>
 #include <vpu/configuration/options/none_layers.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
+#include "vpu/configuration/options/performance_hint.hpp"
+#include "vpu/configuration/options/performance_hitn_num_requests.hpp"
 
 namespace vpu {
 
@@ -251,6 +253,8 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<EnableCustomReshapeParamOption>();
     configuration.registerOption<NoneLayersOption>();
     configuration.registerOption<EnableAsyncDMAOption>();
+    configuration.registerOption<PerformanceHintOption>();
+    configuration.registerOption<PerformanceHintNumRequestsOption>();
 
 IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<DisableConvertStagesOption>(InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES);
