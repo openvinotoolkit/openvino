@@ -515,15 +515,28 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Mish> node,
     return Activation::generate(elemType, targetShape);
 }
 
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v4::Proposal> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    if (port == 0) {
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Proposal> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    InputGenerateData inGenData;
+
+    const std::string name = info.name();
+    if (name == "a_scores") {
+        blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
+    } else if (name == "b_boxes") {
+        blobPtr = FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
+    }
+
+    return blobPtr;
+
+    if (port == 0) {
+        inGenData.
 //        return FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
-//    }
+    }
 //    return FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
-//}
-//
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::SoftPlus> node,
                              size_t port,
                              const ov::element::Type& elemType,
