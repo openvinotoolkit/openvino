@@ -115,7 +115,7 @@ protected:
         std::shared_ptr<ngraph::Node> node_before_pooling = convFQNode;
         if (reshape) {
             const auto& shape = conv->get_output_shape(0);
-            auto total = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+            size_t total = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
             auto reshapeConst1 = ngraph::builder::makeConstant(ngraph::element::i64, std::vector<size_t>{ 2 }, ngraph::Shape{1, total});
             auto reshapeNode1 = std::make_shared<ngraph::opset1::Reshape>(convFQNode, reshapeConst1, false);
             auto reshapeConst2 = ngraph::builder::makeConstant(ngraph::element::i64, std::vector<size_t>{ 4 }, shape);
