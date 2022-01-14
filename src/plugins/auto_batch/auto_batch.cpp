@@ -263,14 +263,20 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
         };
         AutoBatchAsyncInferRequest* _this = nullptr;
     };
-    _pipeline = {
-        {/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this, needPerfCounters] {
-             if (this->_inferRequest->_exceptionPtr)  // if the exception happened in the batch1 fallback
-                 std::rethrow_exception(this->_inferRequest->_exceptionPtr);
-             if (this->_inferRequest->_myBatchedRequestWrapper._exceptionPtr)  // when the batchN execution failed
-                 std::rethrow_exception(this->_inferRequest->_myBatchedRequestWrapper._exceptionPtr);
-             this->_inferRequest->CopyOutputsIfNeeded();
-         }}};
+    _pipeline = {{/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this, needPerfCounters] {
+                      if (this->_inferRequest->_exceptionPtr)  // if the exception happened in the batch1 fallback
+                          std::rethrow_exception(this->_inferRequest->_exceptionPtr);
+                      auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
+                      if (batchReq._exceptionPtr)  // when the batchN execution failed
+                          std::rethrow_exception(batchReq._exceptionPtr);
+                      this->_inferRequest->CopyOutputsIfNeeded();
+                      if (needPerfCounters) {
+                          try {
+                              this->_inferRequest->_perfMap = batchReq._inferRequestBatched->GetPerformanceCounts();
+                          } catch (...) {
+                          }
+                      }
+                  }}};
 }
 
 void AutoBatchAsyncInferRequest::Infer_ThreadUnsafe() {
@@ -390,9 +396,7 @@ std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecuta
                             t.first->_inferRequest->CopyInputsIfNeeded();
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
-                        std::cout << "BATCH" << std::endl;
                     } else if ((status == std::cv_status::timeout) && sz) {
-                        std::cout << "timeout" << std::endl;
                         // timeout to collect the batch is over, have to execute the requests in the batch1 mode
                         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
                         // popping all tasks collected by the moment of the time-out and execute each with batch1
@@ -678,8 +682,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     const auto& deviceName = metaDevice.deviceName;
     const auto& deviceConfig = metaDevice.config;
     const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
-    const bool enablePerfCounters = (fullConfig.end() != perfConfig) && (perfConfig->second == PluginConfigParams::YES);
-
+    const auto perfConfigInTargetPlugin =
+        GetCore()->GetConfig(deviceName, PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
+        PluginConfigParams::YES;
+    const bool enablePerfCounters = perfConfigInTargetPlugin || ((fullConfig.end() != perfConfig) &&
+                                                                 (perfConfig->second == PluginConfigParams::YES));
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
         size_t footprint = 0;
         // TODO: use the per-network metric (22.2) rather than plugin-level

@@ -106,9 +106,9 @@ public:
     void CopyOutputsIfNeeded();
     AutoBatchExecutableNetwork::WorkerInferRequest& _myBatchedRequestWrapper;
     std::exception_ptr _exceptionPtr;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> _perfMap;
 
 protected:
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> _perfMap;
     bool _needPerfCounters = false;
     void CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst, bool bInput);
     void ShareBlobsWithBatchRequest();
