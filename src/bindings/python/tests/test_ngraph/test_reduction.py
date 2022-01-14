@@ -3,7 +3,7 @@
 
 import numpy as np
 import pytest
-from _pyngraph import PartialShape, Dimension
+from openvino.runtime import PartialShape, Dimension
 
 import openvino.runtime.opset8 as ov
 from openvino.runtime.utils.types import make_constant_node
