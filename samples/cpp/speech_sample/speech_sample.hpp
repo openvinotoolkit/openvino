@@ -99,13 +99,13 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
 static const char context_window_message_l[] =
     "Optional. Number of frames for left context windows (default is 0). "
     "Works only with context window networks."
-    " If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.";
+    " If you use the cw_l or cw_r flag, then batch size argument is ignored.";
 
 /// @brief message for right context window argument
 static const char context_window_message_r[] =
     "Optional. Number of frames for right context windows (default is 0). "
     "Works only with context window networks."
-    " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
+    " If you use the cw_r or cw_l flag, then batch size argument is ignored.";
 
 /// @brief message for output layer names
 static const char output_layer_names_message[] = "Optional. Layer names for output blobs. "
@@ -214,7 +214,6 @@ static void showUsage() {
     std::cout << "    -rg \"<path>\"               " << read_gna_model_message << std::endl;
     std::cout << "    -wg \"<path>\"               " << write_gna_model_message << std::endl;
     std::cout << "    -we \"<path>\"               " << write_embedded_model_message << std::endl;
-    std::cout << "    -nthreads \"<integer>\"      " << infer_num_threads_message << std::endl;
     std::cout << "    -cw_l \"<integer>\"          " << context_window_message_l << std::endl;
     std::cout << "    -cw_r \"<integer>\"          " << context_window_message_r << std::endl;
     std::cout << "    -oname \"<string>\"          " << output_layer_names_message << std::endl;
@@ -295,10 +294,6 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 
     if (FLAGS_qb != 16 && FLAGS_qb != 8) {
         throw std::logic_error("Only 8 or 16 bits supported.");
-    }
-
-    if (FLAGS_nthreads <= 0) {
-        throw std::logic_error("Invalid value for 'nthreads' argument. It must be greater that or equal to 0");
     }
 
     if (FLAGS_cw_r < 0) {
