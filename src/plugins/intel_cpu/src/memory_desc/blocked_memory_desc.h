@@ -75,6 +75,10 @@ public:
      */
     virtual MemoryDescPtr cloneWithDefaultStridesAndOffset() const = 0;
 
+    virtual bool isCompatible(const BlockedMemoryDesc &rhs, uint32_t compMask) const = 0;
+
+    virtual ~BlockedMemoryDesc() = default;
+
     std::string serializeFormat() const override;
 
 protected:
@@ -85,7 +89,7 @@ protected:
      * Doesn't perform descs specific attributes check
      * @return true if compatible, otherwise false
      */
-    bool isCompatible(const BlockedMemoryDesc &rhs) const;
+    bool isCompatibleInternal(const BlockedMemoryDesc &rhs, uint32_t compMask = 0xffffffff) const;
 
     mutable VectorDims blockedDims;
     mutable VectorDims strides;

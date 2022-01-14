@@ -7,7 +7,7 @@
 
 using namespace MKLDNNPlugin;
 
-bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
+bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, uint32_t cmpMask) const {
     if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision())
         return false;
 
@@ -23,11 +23,27 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
         return false;
     }
 
+    auto& thisStrides = this->getStrides();
+    auto& rhsStrides = rhs.getStrides();
+
+    if (thisStrides.size() != rhsStrides.size())
+        return false;
+
+    for (size_t i = 0; i < thisStrides.size(); i++) {
+        if ((cmpMask & (1u << i)) && !dimsEqualWeak(thisStrides[i], rhsStrides[i]))
+            return false;
+    }
+
     if (!dimsEqualWeak(this->getOrder(), rhs.getOrder())) {
         return false;
     }
 
-    return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
+    constexpr uint32_t offsetMask = 0x80000000u;
+    if (cmpMask & offsetMask) {
+        return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
+    }
+
+    return true;
 }
 
 std::string BlockedMemoryDesc::serializeFormat() const {
