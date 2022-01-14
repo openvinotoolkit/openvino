@@ -118,8 +118,6 @@ private:
 
     void transformTo5DCase(const InferenceEngine::SizeVector& shape);
 
-    mkldnn::primitive_attr attr;
-
     std::vector<const void*> postOpsDataPtrs;
 
     MVNAttrs mvnAttrs;

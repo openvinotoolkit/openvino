@@ -562,7 +562,7 @@ private:
     Xbyak::Reg64 reg_oc_off = rax;
     Xbyak::Reg64 reg_d_weights = rbx;
     Xbyak::Reg64 reg_d_bias = rdx;
-    Xbyak::Reg64 reg_post_ops_data = rcx;
+    Xbyak::Reg64 reg_post_ops_data = rsi;
 
     Xbyak::Reg64 reg_load_table = r15;
     Xbyak::Reg64 reg_load_store_mask = rbp;
@@ -920,8 +920,6 @@ void MKLDNNMVNNode::prepareParams() {
     const SizeVector in_dims = srcMemPtr->getStaticDims();
     transformTo5DCase(in_dims);
 
-    setPostOps(attr, true);
-
     auto jcp = jit_mvn_config_params();
     if (mayiuse(cpu::x64::sse41)) {
         auto selectedPD = getSelectedPrimitiveDescriptor();
@@ -937,7 +935,8 @@ void MKLDNNMVNNode::prepareParams() {
         mvnAttrs.is_nhwc = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc);
     }
 
-    MVNKey key = {mvnAttrs, jcp, attr};
+    MVNKey key = {mvnAttrs, jcp, mkldnn::primitive_attr()};
+    setPostOps(key.attr, true);
 
     postOpsDataPtrs.clear();
     auto &postOps = (*key.attr.get()).post_ops_;
@@ -1035,7 +1034,7 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
 
     uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
     uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
-    execPtr->exec(src_data, dst_data, static_cast<const void*>(&postOpsDataPtrs[0]));
+    execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
 }
 
 void MKLDNNMVNNode::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
