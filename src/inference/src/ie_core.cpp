@@ -523,43 +523,34 @@ public:
     void ApplyAutoBatching(const ie::CNNNetwork& network,
                            std::string& deviceName,
                            std::map<std::string, std::string>& config_with_batch) {
-        if (deviceName.find("BATCH") != std::string::npos) {
-            // explicitly enabled Auto-Batching e.g. in the tests
-            auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                auto deviceNameWithBatchSize = deviceName.substr(pos + 1);
-                auto deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
-                auto function = network.getFunction();
-                // have to execute the DetectionOutput separately (without batching)
-                // as this layer mix-in the values from the different inputs (batch id)
-                bool bDetectionOutput = false;
-                const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
-                const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
-                for (auto&& node : function->get_ops()) {
-                    auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
-                        for (size_t n = 0; n < nd->get_input_size(); n++) {
-                            if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
-                                return true;
-                        }
-                        return false;
-                    };
-
-                    if ((detectionOutputOpName == node->get_type_info().name) ||
-                        ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
-                        node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                        bDetectionOutput = true;
-                    } else {
-                        node->get_rt_info()["affinity"] = "BATCH";
-                    }
-                }
-                if (bDetectionOutput) {
-                    deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-                    config_with_batch[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = deviceNameWithBatchSize;
-                } else {
-                    deviceName = "BATCH:" + deviceNameWithBatchSize;
-                }
-            }
+        if (deviceName.find("BATCH") != std::string::npos)  // explicitly enabled Auto-Batching e.g. in the tests
+            return;
+        // check whether the Auto-Batching is disabled explicitly
+        const auto& batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+        if (batch_mode != config_with_batch.end()) {
+            const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
+            // no need for this config key in the rest of loading
+            config_with_batch.erase(batch_mode);
+            if (disabled)
+                return;
         }
+        // if the Auto-Batching is applicable to the device
+        auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
+        auto pluginName = device._deviceName;
+        std::vector<std::string> metrics = GetCPPPluginByName(pluginName).get_metric(METRIC_KEY(SUPPORTED_METRICS), {});
+        auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
+        if (metrics.end() == it)
+            return;
+        // when applicable, the Auto-Batching is implicitly enabled via the performance hints
+        bool bThroughputEnabledInPlugin =
+            GetConfig(pluginName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+        const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
+        bool bThroughputEnabledInLoadCfg =
+            (mode != config_with_batch.end() && mode->second == CONFIG_VALUE(THROUGHPUT));
+        if (!bThroughputEnabledInPlugin && !bThroughputEnabledInLoadCfg)
+            return;
+        // the rest of logic (batch size, reshapebility of the network, HETERO if needed) is handled by the BATCH plugin
+        deviceName = "BATCH:" + deviceName;
     }
 
     ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
