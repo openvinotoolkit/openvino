@@ -506,16 +506,33 @@ def serialize_network(graph, net_element, unsupported):
         if not found_result:
             log.warning("Node that expected to be output with name {} is not connected with Result node.".format(output_name))
 
+    param_nodes = graph.get_op_nodes(type='Parameter')
+    serialized_inputs = []
     for input_name in graph.inputs_order:
         node = graph.get_op_nodes(name=input_name)
-        if len(node) == 0:
-            log.warning("Input node with name {} is not found in graph.".format(input_name))
+        if len(node) != 0:
+            serialize_node(graph, node[0], layers, edges, unsupported)
+            serialized_inputs.append(input_name)
             continue
-        serialize_node(graph, node[0], layers, edges, unsupported)
+        found_tensor_name = False
+        for param_node in param_nodes:
+            param_name = param_node.soft_get('name')
+            if not param_node.is_out_port_connected(0):
+                continue
+            tensor_names = param_node.out_port(0).get_tensor_names(port_renumber=True)
+            if input_name in tensor_names:
+                # In this case input name is in tensor names list of Parameter op
+                serialize_node(graph, param_node, layers, edges, unsupported)
+                serialized_inputs.append(param_name)
+                found_tensor_name = True
+                break
+
+        if not found_tensor_name:
+            log.warning("Input node with name {} is not found in graph.".format(param_name))
 
     for node in nodes:
         node = Node(graph, node)
-        if node.soft_get('name') in graph.inputs_order:
+        if node.soft_get('name') in serialized_inputs:
             continue
         if node.soft_get('name') in ordered_results:
             continue

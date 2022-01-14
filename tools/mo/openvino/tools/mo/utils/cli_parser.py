@@ -288,7 +288,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default='ERROR')
     common_group.add_argument('--input',
                               help='Quoted list of comma-separated input nodes names with shapes, data types, '
-                                   'and values for freezing. The shape and value are specified as space-separated '
+                                   'and values for freezing. The order of inputs is preserved in The shape and value are specified as space-separated '
                                    'lists. The data type of input node is specified in braces and '
                                    'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
                                    'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
@@ -1124,10 +1124,12 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     placeholder_shapes = dict()
     placeholder_data_types = dict()
     are_shapes_specified_through_input = False
+    inputs = list()
     if argv_input:
         for input_value in argv_input.split(','):
             node_name, shape, _, data_type = parse_input_value(input_value)
             placeholder_shapes[node_name] = shape
+            inputs.append(node_name)
             if data_type is not None:
                 placeholder_data_types[node_name] = data_type
             if shape is not None:
@@ -1142,7 +1144,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
                     "parameter is allowed.")
 
     if are_shapes_specified_through_input:
-        return placeholder_shapes, placeholder_data_types
+        return inputs, placeholder_shapes, placeholder_data_types
 
     shapes = list()
     inputs = list()
