@@ -79,11 +79,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
             // TODO: Issue 67910
             R"(.*smoke_PrePostProcess_GPU.*two_inputs_trivial.*)",
-            // TODO: 68525
-            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
-            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
-            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
             // TODO: Issue: 67486
             R"(.*(SoftMaxLayerTest).*)",
             // TODO: Issue: 68712
@@ -96,5 +91,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_Behavior/InferRequestSetBlobByType.setInputBlobsByType/BlobType=Batched_Device=GPU_Config=().*)",
             // TODO: Issue 72624
             R"(smoke_PrePostProcess.*resize_dynamic.*)",
+            // Issue: CVS-66778
+            R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+            R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
+            R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
     };
 }

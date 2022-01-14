@@ -17,8 +17,7 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static
-    ngraph inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 

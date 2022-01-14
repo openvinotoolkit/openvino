@@ -244,6 +244,16 @@ public:
         _syncRequest->SetBlob(name, data, info);
     }
 
+    void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) override {
+        CheckState();
+        _syncRequest->SetBlobs(name, blobs);
+    }
+
+    BatchedBlob::Ptr GetBlobs(const std::string& name) override {
+        CheckState();
+        return _syncRequest->GetBlobs(name);
+    }
+
     Blob::Ptr GetBlob(const std::string& name) override {
         CheckState();
         return _syncRequest->GetBlob(name);
@@ -280,6 +290,13 @@ public:
         if (_state == InferState::Busy) {
             _state = InferState::Canceled;
         }
+    }
+
+    void setModelInputsOutputs(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                               const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
+        _parameters = inputs;
+        _results = outputs;
+        _syncRequest->setModelInputsOutputs(inputs, outputs);
     }
 
 protected:

@@ -43,14 +43,8 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
         add_library(libGNAStubs SHARED "${gna_stub}")
 
         find_package(libGNA)
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_LIBRARY_VERSION_NUMBER 2)
-        else()
-            set(GNA_LIBRARY_VERSION_NUMBER 1)
-        endif()
 
         target_include_directories(libGNAStubs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/")
-        target_compile_definitions(libGNAStubs PUBLIC GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER})
         target_link_libraries(libGNAStubs PUBLIC libGNA::API gmock gtest)
         if(UNIX)
             set_target_properties(libGNAStubs PROPERTIES CXX_VISIBILITY_PRESET default)
@@ -59,7 +53,7 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
     endif()
 endif()
 
-if (ENABLE_MYRIAD)
+if (ENABLE_INTEL_VPU)
     include(${XLINK_DIR}/XLink.cmake)
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -78,12 +72,12 @@ if (ENABLE_MYRIAD)
             engines/vpu/myriad_tests/*cpp
             engines/vpu/myriad_tests/helpers/*cpp
             engines/vpu/myriad_tests/helpers/*h
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/*.cpp
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/configuration/*.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/myriad_plugin/*.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_vpu/myriad_plugin/configuration/*.cpp
             )
     include_directories(
             engines/vpu/myriad_tests/helpers
-            $<TARGET_PROPERTY:myriadPlugin,SOURCE_DIR>
+            $<TARGET_PROPERTY:ov_intel_vpu_plugin,SOURCE_DIR>
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 
@@ -113,7 +107,7 @@ endif()
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-error=inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-error=inconsistent-missing-override >)
 
-if (ENABLE_MYRIAD)
+if (ENABLE_INTEL_VPU)
     target_compile_definitions(${TARGET_NAME} PRIVATE __PC__)
     target_link_libraries(${TARGET_NAME} PRIVATE mvnc vpu_graph_transformer_test_static)
 endif ()

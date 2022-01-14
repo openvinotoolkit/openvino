@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief A header file that provides VariableState
- *
+ * @brief A header file that provides ov::runtime::VariableState
  * @file openvino/runtime/variable_state.hpp
  */
 
@@ -29,8 +28,8 @@ class InferRequest;
  * @brief VariableState class
  */
 class OPENVINO_RUNTIME_API VariableState {
-    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IVariableStateInternal> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr
@@ -38,8 +37,8 @@ class OPENVINO_RUNTIME_API VariableState {
      * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin
      * object is destroyed.
      */
-    VariableState(const std::shared_ptr<void>& so,
-                  const std::shared_ptr<InferenceEngine::IVariableStateInternal>& impl);
+    VariableState(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& impl,
+                  const std::shared_ptr<void>& so);
 
     friend class ov::runtime::InferRequest;
 
@@ -48,6 +47,11 @@ public:
      * @brief Default constructor
      */
     VariableState() = default;
+
+    /**
+     * @brief Destructor preserves unloading order of implementation object and reference to library
+     */
+    ~VariableState();
 
     /**
      * @brief Reset internal variable state for relevant infer request,
@@ -64,7 +68,7 @@ public:
 
     /**
      * @brief Returns the value of the variable state.
-     * @return A blob representing a state
+     * @return A tensor representing a state
      */
     Tensor get_state() const;
 

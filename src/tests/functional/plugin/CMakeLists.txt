@@ -4,7 +4,7 @@
 
 add_subdirectory(shared)
 
-if (ENABLE_MKL_DNN)
+if (ENABLE_INTEL_CPU)
     add_subdirectory(cpu)
 endif()
 
@@ -16,7 +16,7 @@ if (ENABLE_INTEL_GNA)
     add_subdirectory(gna)
 endif()
 
-if (ENABLE_MYRIAD)
+if (ENABLE_INTEL_VPU)
     add_subdirectory(myriad)
 endif()
 

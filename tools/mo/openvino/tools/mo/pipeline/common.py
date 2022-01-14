@@ -173,16 +173,14 @@ def convert_inputs_of_specific_ops(graph: Graph):
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
                     mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None,
-                    use_temporary_path=False, used_by_ir_reader=False):
+                    use_temporary_path=False, convert_types=False):
     if input_names is None:
         input_names = []
     if meta_info is None:
         meta_info = {}
     graph.strict_mode = False
 
-    # temporary disable new FP16 generation
-    # if not used_by_ir_reader:
-    if True:
+    if convert_types:
         # convert Parameter data types
         convert_data_type.convert_parameters_data_type(graph, data_type)
         # convert blobs (usually weights and biases)

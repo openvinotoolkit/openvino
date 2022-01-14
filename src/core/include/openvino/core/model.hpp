@@ -24,9 +24,23 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
+class Model;
+
+OPENVINO_API
+std::shared_ptr<Model> clone_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+
+namespace frontend {
+class FrontEnd;
+}
+
 class ModelAccessor;
 /// A user-defined function.
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
+    friend class frontend::FrontEnd;
+    friend OPENVINO_API std::shared_ptr<Model> clone_model(const Model& func,
+                                                           std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
+    std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
+
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
         static const ::ov::DiscreteTypeInfo type_info{"Function", 0};
@@ -116,6 +130,8 @@ public:
     ov::Output<ov::Node> add_output(const std::string& op_name, size_t output_idx);
     ov::Output<ov::Node> add_output(const ov::Output<ov::Node>& port);
 
+    void reshape(const ov::PartialShape& partial_shape);
+    void reshape(const std::map<size_t, ov::PartialShape>& partial_shapes);
     void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
     void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes);
 

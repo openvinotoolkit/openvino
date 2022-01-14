@@ -22,7 +22,7 @@ std::string fileExt(const std::string &filename) {
 }
 
 /**
- * @brief Function that enables performance hint for specified device.
+ * @brief Function that enables Latency performance hint for specified device.
  */
 void setPerformanceConfig(InferenceEngine::Core ie, const std::string &device) {
   std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));

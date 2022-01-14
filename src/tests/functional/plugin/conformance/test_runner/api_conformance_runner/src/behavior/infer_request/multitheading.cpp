@@ -38,4 +38,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestMultithreadingT
                                  ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestMultithreadingTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Batch_BehaviorTests, InferRequestMultithreadingTests,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_BATCH))),
+                         InferRequestMultithreadingTests::getTestCaseName);
+
 }  // namespace

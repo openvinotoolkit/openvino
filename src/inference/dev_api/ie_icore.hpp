@@ -16,6 +16,7 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
+#include "ie_remote_context.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
@@ -58,6 +59,22 @@ public:
      */
     virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
                                                     const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config = {}) = 0;
+
+    /**
+     * @brief Creates an executable network from a network object.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * @param remoteCtx  "Remote" (non-CPU) accelerator device-specific execution context to use
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+                                                    const RemoteContext::Ptr& remoteCtx,
                                                     const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -142,6 +159,16 @@ public:
      */
     virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
 
+    /**
+     * @brief Create a new shared context object on specified accelerator device
+     * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
+     * @param deviceName Name of a device to create new shared context on.
+     * @param params Map of device-specific shared context parameters.
+     * @return A shared pointer to a created remote context.
+     */
+    virtual InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
+                                                              const InferenceEngine::ParamMap&) = 0;
+
     virtual bool isNewAPI() const = 0;
 
     /**
@@ -165,6 +192,7 @@ public:
 
     static std::vector<std::string> getHeteroDevices(std::string fallbackDevice);
     static std::vector<std::string> getMultiDevices(std::string devicesList);
+    static std::string getBatchDevice(std::string devicesList);
 };
 
 }  // namespace InferenceEngine

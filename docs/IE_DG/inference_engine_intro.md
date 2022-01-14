@@ -1,11 +1,11 @@
 # Introduction to Inference Engine {#openvino_docs_IE_DG_inference_engine_intro}
 
-> **NOTE:** [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
+> **NOTE**: [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
 This Guide provides an overview of the Inference Engine describing the typical workflow for performing
 inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
-> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
+> **NOTE**: Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
 
 After you have used the Model Optimizer to create an Intermediate Representation (IR), use the Inference Engine to infer the result for a given input data.
 
@@ -28,11 +28,11 @@ Modules in the Inference Engine component
 
 Your application must link to the core Inference Engine libraries:
 * Linux* OS:
-    - `libinference_engine.so`, which depends on `libinference_engine_transformations.so`, `libtbb.so`, `libtbbmalloc.so` and `libngraph.so`
+    - `libov_runtime.so`, which depends on `libtbb.so`, `libtbbmalloc.so`
 * Windows* OS:
-    - `inference_engine.dll`, which depends on `inference_engine_transformations.dll`, `tbb.dll`, `tbbmalloc.dll` and `ngraph.dll`
+    - `ov_runtime.dll`, which depends on `tbb.dll`, `tbbmalloc.dll`
 * macOS*:
-    - `libinference_engine.dylib`, which depends on `libinference_engine_transformations.dylib`, `libtbb.dylib`, `libtbbmalloc.dylib` and `libngraph.dylib`
+    - `libov_runtime.dylib`, which depends on `libtbb.dylib`, `libtbbmalloc.dylib`
 
 The required C++ header files are located in the `include` directory.
 
@@ -45,13 +45,13 @@ This library contains the classes to:
 
 Starting from 2022.1 release, OpenVINO Runtime introduced a concept of frontend plugins. Such plugins can be automatically dynamically loaded by OpenVINO Runtime dynamically depending on file format:
 * Unix* OS:
-    - `libir_ov_frontend.so` to read a network from IR
-    - `libpaddlepaddle_ov_frontend.so` to read a network from PaddlePaddle model format
-    - `libonnx_ov_frontend.so` to read a network from ONNX model format
+    - `libov_ir_frontend.so` to read a network from IR
+    - `libov_paddle_frontend.so` to read a network from PaddlePaddle model format
+    - `libov_onnx_frontend.so` to read a network from ONNX model format
 * Windows* OS:
-    - `ir_ov_frontend.dll` to read a network from IR
-    - `paddlepaddle_ov_frontend.dll` to read a network from PaddlePaddle model format
-    - `onnx_ov_frontend.dll` to read a network from ONNX model format
+    - `ov_ir_frontend.dll` to read a network from IR
+    - `ov_paddle_frontend.dll` to read a network from PaddlePaddle model format
+    - `ov_onnx_frontend.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###
 
@@ -70,9 +70,9 @@ The table below shows the plugin libraries and additional dependencies for Linux
 
 | Plugin | Library name for Linux      | Dependency libraries for Linux                              | Library name for Windows | Dependency libraries for Windows                                                                       | Library name for macOS       | Dependency libraries for macOS              |
 |--------|-----------------------------|-------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|---------------------------------------------|
-| CPU    | `libMKLDNNPlugin.so`        | `libinference_engine_lp_transformations.so`                 | `MKLDNNPlugin.dll`       | `inference_engine_lp_transformations.dll`                                                              | `libMKLDNNPlugin.so`      | `inference_engine_lp_transformations.dylib` |
-| GPU    | `libov_intel_gpu_plugin.so`         | `libinference_engine_lp_transformations.so`, `libOpenCL.so` | `ov_intel_gpu_plugin.dll`        | `OpenCL.dll`, `inference_engine_lp_transformations.dll`                                                |  Is not supported            |  -                                          |
-| MYRIAD | `libmyriadPlugin.so`        | `libusb.so`,                                                | `myriadPlugin.dll`       | `usb.dll`                                                                                              | `libmyriadPlugin.so`      | `libusb.dylib`                              |
+| CPU    | `libov_intel_cpu_plugin.so`        | | `ov_intel_cpu_plugin.dll`       | | `libov_intel_cpu_plugin.so`      | |
+| GPU    | `libov_intel_gpu_plugin.so`         | `libOpenCL.so` | `ov_intel_gpu_plugin.dll`        | `OpenCL.dll` |  Is not supported            |  -                                          |
+| MYRIAD | `libov_intel_vpu_plugin.so` | `libusb.so`                                                 | `ov_intel_vpu_plugin.dll`| `usb.dll`                                                                                              | `libov_intel_vpu_plugin.so`   | `libusb.dylib`                              |
 | HDDL   | `libHDDLPlugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
 | GNA    | `libov_intel_gna_plugin.so`           | `libgna.so`,                                                | `ov_intel_gna_plugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |
 | HETERO | `libov_hetero_plugin.so`        | Same as for selected plugins                                | `ov_hetero_plugin.dll`       | Same as for selected plugins                                                                           | `libov_hetero_plugin.so`      |  Same as for selected plugins               |

@@ -138,7 +138,7 @@ git checkout 57b8f2d95e62e2e649b382f516ab41f949b57239
 
 3. Set up the environment as described in `README.md`.
 
-**Step 2**. Download a pre-trained model from the list attached in the `Evaluation` section of the [README.md](https://github.com/dbolya/yolact/blob/master/README.md) document, for example `yolact_base_54_800000.pth`.
+**Step 2**. Download a pre-trained model from the list attached in the `Evaluation` section of `README.md` document, for example `yolact_base_54_800000.pth`.
 
 **Step 3**. Export the model to ONNX* format.
 
@@ -161,7 +161,6 @@ python3 eval.py \
 3. The script may fail, but you should get `yolact.onnx` file.
 
 **Step 4**. Convert the model to the IR:
-
 ```sh
 mo --input_model /path/to/yolact.onnx
 ```
@@ -171,7 +170,6 @@ mo --input_model /path/to/yolact.onnx
 To get performance gain by offloading to the OpenVINO application of mean/scale values and RGB->BGR conversion, use the following options of the Model Optimizer (MO):
 
 * If the backbone of the model is Resnet50-FPN or Resnet101-FPN, use the following MO command line:
-
 ```sh
 mo \
     --input_model /path/to/yolact.onnx \
@@ -180,8 +178,7 @@ mo \
     --scale_values "[58.40, 57.12, 57.38]"
 ```
 
-* If the backbone of the model is Darknet53-FPN, use the following MO command line:
-
+* If the backbone of the model is Darknet53-FPN, use the following command line:
 ```sh
 mo \
     --input_model /path/to/yolact.onnx \

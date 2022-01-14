@@ -14,7 +14,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
             )
 
     # Tests for Myriad plugin
-    if (ENABLE_MYRIAD)
+    if (ENABLE_INTEL_VPU)
         file(GLOB_RECURSE TEST_INCLUDE myriad_tests/*.hpp)
         file(GLOB_RECURSE VPU_TESTS myriad_tests/*.cpp)
         if (NOT ENABLE_MYRIAD_NO_BOOT)
@@ -50,7 +50,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
     target_include_directories(${TARGET_NAME} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests)
 
-    if (ENABLE_MYRIAD)
+    if (ENABLE_INTEL_VPU)
         include(${XLINK_DIR}/XLink.cmake)
 
         target_compile_definitions(${TARGET_NAME} PRIVATE __PC__)
@@ -58,7 +58,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
         target_include_directories(${TARGET_NAME} PRIVATE
                 $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
                 ${CMAKE_CURRENT_SOURCE_DIR}/myriad_tests
-                $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src
+                $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
                 ${XLINK_INCLUDE}
                 ${XLINK_PLATFORM_INCLUDE})
         target_link_libraries(${TARGET_NAME} PRIVATE mvnc)
@@ -75,7 +75,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
     add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 endfunction(enable_vpu)
 
-if (ENABLE_MYRIAD)
+if (ENABLE_INTEL_VPU)
     set(MYRIAD_TARGET_NAME MyriadBehaviorTests)
-    enable_vpu(${MYRIAD_TARGET_NAME} USE_MYRIAD myriadPlugin)
+    enable_vpu(${MYRIAD_TARGET_NAME} USE_MYRIAD ov_intel_vpu_plugin)
 endif()
