@@ -5,10 +5,11 @@
 #pragma once
 
 #include <mkldnn_node.h>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+
 #include <string>
 #include <memory>
 #include <vector>
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
@@ -18,7 +19,6 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
-    void createPrimitive() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     bool created() const override;
@@ -31,11 +31,19 @@ public:
         return nativeOrder;
     }
 
+    void cleanup() override;
+
+protected:
+    std::vector<VectorDims> shapeInfer() const override;
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
 private:
-    void initCell(const std::shared_ptr<ngraph::Node>& op);
-    void initSeq(const std::shared_ptr<ngraph::Node>& op);
+    void initCell();
+    void initSequence();
     void fillCellDesc();
-    void fillSeqDesc();
+    void fillSequenceDesc();
+    void fillDescs();
     bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
                                 const InferenceEngine::Precision& weightsPrec);
 
@@ -46,8 +54,6 @@ private:
 
     void copyWeightsData();
 
-private:
-    InferenceEngine::Precision runtimePrecision;
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 
@@ -64,11 +70,26 @@ private:
     mkldnn::algorithm cell_act = mkldnn::algorithm::eltwise_tanh;
 
     /** Weights data and state memory format: ldigo or any */
-    mkldnn::memory::format_tag w_format = mkldnn::memory::format_tag::any;
+    mkldnn::memory::format_tag wFormat = mkldnn::memory::format_tag::any;
 
+    struct Interval {
+        Interval() = default;
+
+        Interval(Dim min, Dim max) {
+            minVal = min;
+            maxVal = max;
+        }
+
+        bool isStatic() {
+            return minVal == maxVal;
+        }
+
+        Dim minVal = 0;
+        Dim maxVal = 0;
+    };
     // Internal attributes
-    size_t N = 0;   /**< Batch value */
-    size_t T = 0;   /**< Sequence value */
+    Interval N;     /**< Batch value */
+    Interval T;     /**< Sequence value */
     size_t DC = 0;  /**< Input data channel size */
     size_t SC = 0;  /**< State channel size value */
     size_t G = 0;   /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */
@@ -77,8 +98,9 @@ private:
     const size_t L = 1;   /**< What is it??. Constant for mkldnn impl */
     const size_t D = 1;   /**< Num of direction. 1 or 2 */
 
-    std::vector<DnnlBlockedMemoryDesc> in_data_d;
-    std::vector<DnnlBlockedMemoryDesc> out_data_d;
+    std::vector<DnnlBlockedMemoryDescPtr> inDataDescs;
+    std::vector<DnnlBlockedMemoryDescPtr> outDataDescs;
+    std::vector<mkldnn::memory::desc> wDescs;
 
     enum RNNInOutKind {
         Layer       = 0,
@@ -86,14 +108,16 @@ private:
         CellState   = 2
     };
 
-    std::vector<size_t > in_data_dims;
-    std::vector<size_t > out_data_dims;
-
     size_t wIdx = 0;
     size_t rIdx = 0;
     size_t bIdx = 0;
 
     static const std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec;
+
+    static constexpr size_t optimalBatchSize = 16lu;
+    static constexpr size_t batchDimDummyValue = 64lu;
+
+    bool wasMemoryPrepared = false;
 };
 
 }  // namespace MKLDNNPlugin

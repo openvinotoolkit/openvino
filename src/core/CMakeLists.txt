@@ -46,6 +46,10 @@ set_source_files_properties(${MIXED_SRC}
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
+# Create ov_core_dev library
+add_library(ov_core_dev INTERFACE)
+target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>)
+
 # Create static or shared library depending on BUILD_SHARED_LIBS
 add_library(ngraph_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${IE_SHARED_SRCS})
 
@@ -57,12 +61,12 @@ ie_faster_build(ngraph_obj
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference)
+target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference ov_core_dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
-                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
+                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph_obj)
 

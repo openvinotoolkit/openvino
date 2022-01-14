@@ -262,7 +262,7 @@ class LayerInfo {
     bool isFakeQuantize() const noexcept {
         return isOfType("FakeQuantize");
     }
-    bool isNonFunctional() const noexcept {
+    bool isNonFunctional() const {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
     bool isReshape() const noexcept {
@@ -272,7 +272,7 @@ class LayerInfo {
         return isOfType("permute");
     }
     // @brief this not only mathematically trivial, has some WA for kaldi case
-    bool isTrivialPermute() const noexcept {
+    bool isTrivialPermute() const {
         if (!isPermute()) return false;
 
         auto layerOrder = layer->GetParamAsInts("order");

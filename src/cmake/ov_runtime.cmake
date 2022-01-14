@@ -48,7 +48,7 @@ ie_mark_target_as_cc(${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin ov_intel_cpu_plugin myriadPlugin)
+                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin ov_intel_cpu_plugin ov_intel_vpu_plugin)
 
 # Export for build tree
 
@@ -65,6 +65,7 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
 # --------------- OpenVINO runtime library dev ------------------------------
 add_library(${TARGET_NAME}_dev INTERFACE)
 target_include_directories(${TARGET_NAME}_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
+                                                        $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
                                                         $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
                                                         $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
                                                         $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>
