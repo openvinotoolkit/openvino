@@ -174,6 +174,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
         // New API tensor tests
         R"(.*OVInferRequestCheckTensorPrecision.*)",
+        // Issue: 75022
+        R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
+        R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
     };
 
 #define FIX_62820 0
