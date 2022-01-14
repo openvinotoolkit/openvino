@@ -264,6 +264,10 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
         # Verify that layout presents in function after preprocessing
         self.assertEqual(function.get_parameters()[1].layout, Layout("NHWC"))
 
+        # Checking that tensor names weren't added
+        for param in function.get_parameters():
+            self.assertTrue(len(param.get_output_tensor(0).get_names()) == 0)
+
     def test_mean_scale_with_layout_dynamic(self):
         argv = Namespace(mean_scale_values={'input2a': {'mean': np.array([1., 2., 3., 4.]),
                                                         'scale': np.array([2., 4., 8., 9.])}},
