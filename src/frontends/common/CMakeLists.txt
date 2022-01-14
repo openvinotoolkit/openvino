@@ -49,7 +49,7 @@ set_property(SOURCE
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
-                    INCLUDE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
+                    SOURCE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -71,6 +71,6 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
 
 
 # Shutdown protobuf library
-if(ENABLE_SHUTDOWN_PROTOBUF)
+if(Protobuf_IN_FRONTEND AND BUILD_SHARED_LIBS)
     add_subdirectory(shutdown_protobuf)
 endif()
