@@ -96,10 +96,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseLogicalNotInt,
                                 ::testing::Values(additional_config)),
                         LogicalLayerTest::getTestCaseName);
 
-std::vector<InferenceEngine::Precision> inputsPrecisions = {
-        InferenceEngine::Precision::BOOL,
-};
-
 std::vector<ngraph::helpers::LogicalTypes> logicalOpTypes = {
         ngraph::helpers::LogicalTypes::LOGICAL_AND,
 };
@@ -107,10 +103,6 @@ std::vector<ngraph::helpers::LogicalTypes> logicalOpTypes = {
 std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
         ngraph::helpers::InputLayerType::CONSTANT,
         ngraph::helpers::InputLayerType::PARAMETER,
-};
-
-std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::BOOL,
 };
 
 const auto LogicalTestParams = ::testing::Combine(
