@@ -149,7 +149,7 @@ protected:
         auto roialign = std::make_shared<ngraph::opset3::ROIAlign>(float_params[0], float_params[1], int_params[0], pooledH, pooledW,
                                                                    samplingRatio, spatialScale, mode);
 
-        selectedType = makeSelectedTypeStr("unknown", inputPrecision);
+        selectedType = makeSelectedTypeStr("ref", inputPrecision);
         if (inputPrecision == ElementType::bf16) {
             rel_threshold = 1e-2;
         }
@@ -182,7 +182,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
 
 const std::vector<ElementType> netPrecisions = {
         ElementType::f32,
-        ElementType::bf16,
+        ElementType::bf16
 };
 
 const std::vector<int> spatialBinXVector = { 2 };

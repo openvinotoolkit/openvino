@@ -17,6 +17,10 @@ const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
     {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU}}
 };
 
+const std::vector<std::map<std::string, std::string>> AutoConfigs = {
+    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_CPU}}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferenceChaining,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -29,4 +33,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferenceChaining,
                                 ::testing::ValuesIn(HeteroConfigs)),
                         OVInferenceChaining::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferenceChaining,
+                        ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::ValuesIn(AutoConfigs)),
+                        OVInferenceChaining::getTestCaseName);
 }  // namespace

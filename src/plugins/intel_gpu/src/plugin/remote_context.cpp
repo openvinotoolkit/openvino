@@ -26,6 +26,21 @@ RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     BlobType mem_type) :
     m_context(context), m_stream(stream), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
     _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
+    auto _impl = getContextImpl(m_context.lock());
+    auto eng = _impl->GetEngine();
+
+    // Verify shared buffer/usm memory and ensure that requested byte size is not greater than allocated one
+    switch (m_mem_type) {
+    case BlobType::BT_BUF_SHARED: {
+        eng->share_buffer(m_layout, m_mem);
+        break;
+    }
+    case BlobType::BT_USM_SHARED: {
+        eng->share_usm(m_layout, m_mem);
+        break;
+    }
+    default: break;
+    }
 }
 
 ParamMap RemoteBlobImpl::getParams() const {
@@ -185,28 +200,48 @@ void RemoteBlobImpl::unlock() const {
 }
 
 LockedMemory<void> RemoteBlobImpl::buffer() noexcept {
-    lock();
-    return LockedMemory<void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<void>(nullptr, nullptr, 0);
+    }
 }
 
 LockedMemory<const void> RemoteBlobImpl::cbuffer() const noexcept {
-    lock();
-    return LockedMemory<const void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<const void>(reinterpret_cast<IAllocator*>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<const void>(nullptr, nullptr, 0);
+    }
 }
 
 LockedMemory<void> RemoteBlobImpl::rwmap()noexcept {
-    lock();
-    return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<void>(nullptr, nullptr, 0);
+    }
 }
 
 LockedMemory<const void> RemoteBlobImpl::rmap() const noexcept {
-    lock();
-    return LockedMemory<const void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<const void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<const void>(nullptr, nullptr, 0);
+    }
 }
 
 LockedMemory<void> RemoteBlobImpl::wmap()noexcept {
-    lock();
-    return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    try {
+        lock();
+        return LockedMemory<void>(reinterpret_cast<IAllocator *>(&m_allocator), _handle, 0);
+    } catch (...) {
+        return LockedMemory<void>(nullptr, nullptr, 0);
+    }
 }
 
 void RemoteAllocator::regLockedBlob(void* handle, const RemoteBlobImpl* blob) {

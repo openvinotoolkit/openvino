@@ -26,6 +26,9 @@ public:
     MOCK_METHOD3(ImportNetwork, InferenceEngine::SoExecutableNetworkInternal(
         std::istream&, const std::shared_ptr<InferenceEngine::RemoteContext>&, const std::map<std::string, std::string>&));
 
+    MOCK_METHOD2(CreateContext, InferenceEngine::RemoteContext::Ptr(const std::string& deviceName,
+            const InferenceEngine::ParamMap& params));
+
     MOCK_CONST_METHOD3(QueryNetwork, InferenceEngine::QueryNetworkResult(
         const InferenceEngine::CNNNetwork&, const std::string&, const std::map<std::string, std::string>&));
 

@@ -19,7 +19,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <transformations/init_node_info.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 

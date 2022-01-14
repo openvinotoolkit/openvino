@@ -45,3 +45,15 @@ class Environment:
     def __exit__(self, *args):
         if not self.was_set:
             del os.environ[self.variable]
+
+
+def get_ie_version():
+    try:
+        from openvino.runtime import get_version  # pylint: disable=import-error,no-name-in-module,import-outside-toplevel
+        return get_version()
+    except ImportError:
+        try:
+            from openvino.inference_engine import get_version  # pylint: disable=import-error,no-name-in-module,import-outside-toplevel
+            return get_version()
+        except ImportError:
+            return None

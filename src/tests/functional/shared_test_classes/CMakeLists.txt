@@ -21,6 +21,7 @@ addIeTarget(
                 pugixml::static
                 funcTestUtils
                 ngraphFunctions
+                inference_engine_legacy
 )
 
 ie_faster_build(${TARGET_NAME}

@@ -28,7 +28,7 @@ static std::string get_extension_path() {
 }
 
 static std::string get_ov_extension_path() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("template_ov_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>({}, std::string("ov_template_extension") + IE_BUILD_POSTFIX);
 }
 
 class CustomOpsSerializationTest : public ::testing::Test {

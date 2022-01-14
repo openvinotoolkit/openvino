@@ -269,7 +269,9 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | Placeholder |  |
 | PlaceholderWithDefault |  |
 | Prod |  |
+| QueueDequeue | Supported only when it is part of a sub-graph of the special form |
 | QueueDequeueUpToV2 | Supported only when it is part of a sub-graph of the special form |
+| QueueDequeueV2 | Supported only when it is part of a sub-graph of the special form |
 | RandomUniform |  |
 | RandomUniformInt |  |
 | Range |  |
@@ -288,6 +290,7 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | Round |  |
 | Pow |  |
 | Rsqrt |  |
+| ScatterNd |  |
 | Select |  |
 | SelectV2 |  |
 | Shape |  |

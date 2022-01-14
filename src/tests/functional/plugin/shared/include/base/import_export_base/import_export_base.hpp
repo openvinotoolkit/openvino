@@ -9,6 +9,7 @@
 #include <ie_core.hpp>
 
 typedef std::tuple<
+    std::vector<size_t>,                // Input Shape
     InferenceEngine::Precision,         // Network Precision
     std::string,                        // Target Device
     std::map<std::string, std::string>, // Export Configuration

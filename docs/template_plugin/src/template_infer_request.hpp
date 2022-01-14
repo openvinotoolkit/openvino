@@ -46,6 +46,8 @@ public:
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) override;
 
+    void SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batchedBlob) override;
+
 private:
     void createInferRequest();
     void allocateDeviceBuffers();

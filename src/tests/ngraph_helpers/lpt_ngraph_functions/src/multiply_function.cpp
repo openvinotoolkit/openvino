@@ -90,22 +90,32 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::get(
 std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape,
-    const bool broadcast,
+    const bool broadcast1,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fq2) {
-    auto inputShape2 = inputShape;
+    const bool broadcast2,
+    const ngraph::builder::subgraph::FakeQuantizeOnData& fq2,
+    const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter) {
+    auto inputShape1 = inputShape;
+    if (broadcast1) {
+        inputShape1[2] = 1;
+        inputShape1[3] = 1;
+    }
 
-    if (broadcast) {
+    auto inputShape2 = inputShape;
+    if (broadcast2) {
         inputShape2[2] = 1;
         inputShape2[3] = 1;
     }
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
     const auto fakeQuantize1 = fq1.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
             input1, precision, fq1.quantizationLevel, fq1.constantShape,
             fq1.inputLowValues, fq1.inputHighValues, fq1.outputLowValues, fq1.outputHighValues);
+    if (fakeQuantize1 != nullptr) {
+        fakeQuantize1->set_friendly_name("fakeQuantize1");
+    }
 
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
     const auto fakeQuantize2 = fq2.empty() ?
@@ -113,12 +123,24 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
         ngraph::builder::makeFakeQuantize(
             input2, precision, fq2.quantizationLevel, fq2.constantShape,
             fq2.inputLowValues, fq2.inputHighValues, fq2.outputLowValues, fq2.outputHighValues);
+    if (fakeQuantize2 != nullptr) {
+        fakeQuantize2->set_friendly_name("fakeQuantize2");
+    }
 
     const auto multiply = std::make_shared<ngraph::opset1::Multiply>(
         fq1.empty() ? input1 : fakeQuantize1,
         fq2.empty() ? input2 : fakeQuantize2);
+    multiply->set_friendly_name("multiply");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
+    auto const fakeQuantizeAfter = fqAfter.empty() ?
+        nullptr :
+        makeFakeQuantize(multiply, precision, fqAfter);
+    if (fakeQuantizeAfter != nullptr) {
+        fakeQuantizeAfter->set_friendly_name("fakeQuantizeAfter");
+    }
+
+    const std::shared_ptr<Node> result = fakeQuantizeAfter == nullptr ? std::dynamic_pointer_cast<Node>(multiply) : fakeQuantizeAfter;
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(result) };
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input1, input2 },

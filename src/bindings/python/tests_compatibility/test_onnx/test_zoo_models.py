@@ -12,7 +12,6 @@ from tests_compatibility.test_onnx.utils.model_importer import ModelImportRunner
 
 from tests_compatibility import (
     xfail_issue_38701,
-    xfail_issue_45457,
     xfail_issue_37957,
     xfail_issue_38084,
     xfail_issue_39669,
@@ -162,7 +161,6 @@ if len(zoo_models) > 0:
             # ONNX Model Zoo
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
-            (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet50_11_fcn_resnet50_11_model_cpu"),
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet101_11_fcn_resnet101_11_model_cpu"),
             (xfail_issue_48145, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
@@ -181,11 +179,9 @@ if len(zoo_models) > 0:
             (xfail_issue_58676, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
 
             (xfail_issue_38084, "test_MSFT_opset10_mask_rcnn_mask_rcnn_R_50_FPN_1x_cpu"),
-            (xfail_issue_38084, "test_MSFT_opset10_faster_rcnn_faster_rcnn_R_50_FPN_1x_cpu"),
 
             (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
             (xfail_issue_47495, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
-            (xfail_issue_45457, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
             (xfail_issue_63643, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
         ]
         for test_case in import_xfail_list + execution_xfail_list:

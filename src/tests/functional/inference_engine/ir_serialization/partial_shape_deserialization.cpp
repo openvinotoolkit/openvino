@@ -7,7 +7,7 @@
 #include <inference_engine.hpp>
 #include <memory>
 #include <string>
-#include "manager.hpp"
+#include "openvino/frontend/manager.hpp"
 
 #include "graph_comparator.hpp"
 #include "ie_blob.h"
