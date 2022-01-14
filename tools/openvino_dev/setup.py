@@ -207,7 +207,6 @@ setup(
     long_description_content_type='text/markdown',
     classifiers=[
         'Programming Language :: Python :: 3',
-        'OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
     ],
     cmdclass={
