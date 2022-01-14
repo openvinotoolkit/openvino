@@ -98,8 +98,7 @@ fi
 
 python_bitness=$(python"$python_version" -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
 if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
-    echo "[setupvars.sh] 64 bitness for Python $python_version is required"
-    return 1
+    echo "[setupvars.sh] WARNING: 64 bitness for Python $python_version is required"
 fi
 
 if [ -n "$python_version" ]; then
