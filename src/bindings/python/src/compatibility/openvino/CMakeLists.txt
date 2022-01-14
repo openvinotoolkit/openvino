@@ -29,15 +29,13 @@ else()
     message(STATUS "Found Cython version ${CYTHON_VERSION}")
 endif()
 
-set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-
-#if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
-#    set(PYTHON_VERSION_MAJOR ${CMAKE_MATCH_1})
-#    set(PYTHON_VERSION_MINOR ${CMAKE_MATCH_2})
-#    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-#else()
-#    message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
-#endif()
+if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
+    set(PYTHON_VERSION_MAJOR ${CMAKE_MATCH_1})
+    set(PYTHON_VERSION_MINOR ${CMAKE_MATCH_2})
+    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+else()
+    message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
+endif()
 
 if(ENABLE_CONDA_FOLDER)
     set(PYTHON_COMPONENT conda_${PYTHON_VERSION})
@@ -64,11 +62,11 @@ endfunction()
 
 set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
-#add_subdirectory (inference_engine)
-#
-#if(TARGET _pyngraph)
-#    add_dependencies(ie_api _pyngraph)
-#endif()
+add_subdirectory (inference_engine)
+
+if(TARGET _pyngraph)
+    add_dependencies(ie_api _pyngraph)
+endif()
 
 # install
 
