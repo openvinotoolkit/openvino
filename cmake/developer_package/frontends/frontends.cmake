@@ -165,7 +165,7 @@ macro(ov_add_frontend)
         # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
     else()
         ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                            INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                             ADDITIONAL_INCLUDE_DIRECTORIES
                                 $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()

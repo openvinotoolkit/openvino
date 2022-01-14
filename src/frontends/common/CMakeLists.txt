@@ -49,7 +49,7 @@ set_property(SOURCE
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
-                    INCLUDE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
+                    SOURCE_DIRECTORY "${FRONTEND_INCLUDE_DIR}"
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
