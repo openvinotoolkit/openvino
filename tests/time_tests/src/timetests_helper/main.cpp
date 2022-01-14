@@ -8,7 +8,8 @@
 
 #include <iostream>
 
-int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled);
+int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
+                const std::string &reshapeShapes, const std::string &dataShapes);
 
 /**
  * @brief Parses command line and check required arguments
@@ -40,7 +41,7 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
  */
 int _runPipeline() {
   SCOPED_TIMER(full_run);
-  return runPipeline(FLAGS_m, FLAGS_d, FLAGS_c);
+  return runPipeline(FLAGS_m, FLAGS_d, FLAGS_c, FLAGS_reshape_shapes, FLAGS_data_shapes);
 }
 
 /**

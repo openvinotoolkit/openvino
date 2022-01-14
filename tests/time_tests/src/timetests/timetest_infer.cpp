@@ -16,13 +16,20 @@ using namespace InferenceEngine;
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled) {
-  auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled) {
+int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
+                const std::string &reshapeShapes, const std::string &dataShapes) {
+  auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
+                     const std::string &reshapeShapes, const std::string &dataShapes) {
     Core ie;
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
     InferRequest inferRequest;
     size_t batchSize = 0;
+
+    bool reshape = false;
+    if (!reshapeShapes.empty()) {
+      reshape = true;
+    }
 
     // first_inference_latency = time_to_inference + first_inference
     {
@@ -48,6 +55,13 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
               cnnNetwork = ie.ReadNetwork(model);
               batchSize = cnnNetwork.getBatchSize();
             }
+            if (reshape) {
+              {
+              SCOPED_TIMER(reshape);
+              auto dynamicShapes = getReshapeShapes(reshapeShapes);
+              cnnNetwork.reshape(dynamicShapes);
+              }
+            }
             {
               SCOPED_TIMER(load_network);
               exeNetwork = ie.LoadNetwork(cnnNetwork, device);
@@ -66,15 +80,21 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
       {
         SCOPED_TIMER(fill_inputs);
         const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-        batchSize = batchSize != 0 ? batchSize : 1;
-        fillBlobs(inferRequest, inputsInfo, batchSize);
+
+        if (reshape) {
+          auto staticShapes = getDataShapes(dataShapes);
+          fillBlobsDynamic(inferRequest, inputsInfo, staticShapes);
+        } else {
+          batchSize = batchSize != 0 ? batchSize : 1;
+          fillBlobs(inferRequest, inputsInfo, batchSize);
+        }
       }
       inferRequest.Infer();
     }
   };
 
   try {
-    pipeline(model, device, isCacheEnabled);
+    pipeline(model, device, isCacheEnabled, reshapeShapes, dataShapes);
   } catch (const InferenceEngine::Exception &iex) {
     std::cerr
         << "Inference Engine pipeline failed with Inference Engine exception:\n"
