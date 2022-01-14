@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifndef FILE_UTILS_CPP
+#define FILE_UTILS_CPP
+
 #include <cstring>
 #include <fstream>
 #include <string>
@@ -130,3 +133,5 @@ std::string getIELibraryPath() {
 }
 
 }  // namespace InferenceEngine
+
+#endif
