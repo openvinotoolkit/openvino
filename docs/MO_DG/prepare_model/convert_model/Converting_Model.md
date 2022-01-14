@@ -93,7 +93,7 @@ Framework-agnostic parameters:
                         original input of the model.
 						If both --mean and --scale are specified,
                         the mean is subtracted first and then scale is applied
-                        regardless the order of options in command line.
+                        regardless of the order of options in command line.
   --reverse_input_channels
                         Switch the input channels order from RGB to BGR (or
                         vice versa). Applied to original inputs of the model
