@@ -13,7 +13,10 @@ from tests.runtime import get_runtime
 
 def create_onnx_model():
     add = onnx.helper.make_node("Add", inputs=["x", "y"], outputs=["z"])
-    const_tensor = onnx.helper.make_tensor("const_tensor", onnx.TensorProto.FLOAT, (2, 2), [0.5, 1, 1.5, 2.0])
+    const_tensor = onnx.helper.make_tensor("const_tensor",
+                                           onnx.TensorProto.FLOAT,
+                                           (2, 2),
+                                           [0.5, 1, 1.5, 2.0])
     const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
                                        value=const_tensor, name="const_node")
     mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
@@ -292,7 +295,8 @@ def test_onnx_conversion_extension_attribute_with_default_value():
         check_attribute(node, "attribute_list_f32", np.array([4, 5, 6], dtype=np.float))
         check_attribute(node, "attribute_list_f64", np.array([4, 5, 6], dtype=np.float64))
         check_attribute(node, "attribute_list_bool", np.array([True, False, True], dtype=np.bool))
-        check_attribute(node, "attribute_list_type", np.array([onnx.TensorProto.INT32, onnx.TensorProto.FLOAT]))
+        check_attribute(node, "attribute_list_type", np.array([onnx.TensorProto.INT32,
+                                                               onnx.TensorProto.FLOAT]))
 
         a = node.get_input(0)
         b = node.get_input(1)
