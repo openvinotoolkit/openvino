@@ -1,16 +1,20 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import numpy as np
+
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
-from openvino.tools.mo.ops.elementwise import Add
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.elementwise import Add, Div
 from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.range import Range
 from openvino.tools.mo.ops.reshape import Reshape
 from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.slice import Slice
 from openvino.tools.mo.ops.squeeze import Squeeze
-from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.ops.tile import Tile
 
 
 class ArangeLikeReplacer(FrontReplacementOp):
@@ -20,14 +24,13 @@ class ArangeLikeReplacer(FrontReplacementOp):
     def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
         name = node.soft_get('name', node.id)
-        if node.repeat != 1:
-            raise Error("arange_like node {} with non default repeat value {} "
-                        "is not supported".format(name, node.repeat))
         axis = node.axis
-        shape_node = Shape(graph, {'name': name + '/shape'}).create_node()
+        data_out_port = node.in_port(0).get_source()
+        input_shape_node = Shape(graph, {'name': name + '/ShapeOf'}).create_node()
         range_node = create_op_with_const_inputs(graph, Range, {0: int64_array(node.start),
                                                                 2: int64_array(node.step)}, {'name': name + '/Range'})
-        node.in_port(0).get_connection().set_destination(shape_node.in_port(0))
+        node.in_port(0).disconnect()
+        input_shape_node.in_port(0).connect(data_out_port)
 
         if axis is not None:
             '''
@@ -37,7 +40,7 @@ class ArangeLikeReplacer(FrontReplacementOp):
             gather_node = create_op_with_const_inputs(graph, Gather, {1: int64_array([axis]),
                                                                       2: int64_array(0)},
                                                       {'name': name + '/Gather'})
-            shape_node.out_port(0).connect(gather_node.in_port(0))
+            input_shape_node.out_port(0).connect(gather_node.in_port(0))
             gather_node.out_port(0).connect(range_node.in_port(1))
             node.out_port(0).get_connection().set_source(range_node.out_port(0))
             rename_nodes([(node, name + '/ShouldBeDeleted'), (range_node, name)])
@@ -45,26 +48,61 @@ class ArangeLikeReplacer(FrontReplacementOp):
             r'''
             Replace arange_like op to subgraph:
                     |
-                  Shape     
-                 /     \
-            Reshape     |
-               |        |
-             Range      | 
-                \      /
-                 Reshape
+                    | -------------- |
+                    |                |
+                 Reshape             |
+                    |                 |
+                 ShapeOf           ShapeOf  
+                    |                |
+                  Range              |
+                    |                |
+                 Reshape ----------- | 
                     |
             '''
 
-            reshape_node1 = create_op_with_const_inputs(graph, Reshape, {1: int64_array([-1])},
-                                                        {'name': name + '/Reshape_forward'})
+            reshape_forward_node = create_op_with_const_inputs(graph, Reshape, {1: int64_array([-1])},
+                                                               {'name': name + '/Reshape_forward'})
 
-            reshape_node2 = Reshape(graph, {'name': name + '/Reshape_backward'}).create_node()
-            shape_node.out_port(0).connect(reshape_node1.in_port(0))
-            reshape_node1.out_port(0).connect(range_node.in_port(1))
-            range_node.out_port(0).connect(reshape_node2.in_port(0))
-            shape_node.out_port(0).connect(reshape_node2.in_port(1))
-            node.out_port(0).get_connection().set_source(reshape_node2.out_port(0))
-            rename_nodes([(node, name + '/ShouldBeDeleted'), (reshape_node2, name)])
+            reshape_backward_node = Reshape(graph, {'name': name + '/Reshape_backward'}).create_node()
+            shape_of_node = Shape(graph, {'name': reshape_forward_node.name + '/ShapeOf'}).create_node()
+
+            reshape_forward_node.in_port(0).connect(data_out_port)
+            reshape_forward_node.out_port(0).connect(shape_of_node.in_port(0))
+            shape_of_node.out_port(0).connect(range_node.in_port(1))
+            range_node.out_port(0).connect(reshape_backward_node.in_port(0))
+            input_shape_node.out_port(0).connect(reshape_backward_node.in_port(1))
+            node.out_port(0).get_connection().set_source(reshape_backward_node.out_port(0))
+            rename_nodes([(node, name + '/ShouldBeDeleted'), (reshape_backward_node, name)])
+
+        if node.repeat != 1:
+            div_node = create_op_with_const_inputs(graph, Div, {1: int64_array([node.repeat])},
+                                                   {'name': name + '/Divide'})
+            add_node = create_op_with_const_inputs(graph, Add, {1: int64_array([1])},
+                                                   {'name': div_node.name + '/Add'})
+            cast_node = Cast(graph, {'name': name + '/ConvertToI64', 'dst_type': np.int64}).create_node()
+
+            cast_node.out_port(0).connect(div_node.in_port(0))
+            div_node.out_port(0).connect(add_node.in_port(0))
+            range_node.in_port(1).get_connection().set_destination(cast_node.in_port(0))
+            add_node.out_port(0).connect(range_node.in_port(1))
+
+            tile_forward_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array([-1, 1])},
+                                                               {'name': range_node.name + '/ForwardReshape'})
+            tile = create_op_with_const_inputs(graph, Tile, {1: int64_array([1, node.repeat])},
+                                               {'name': tile_forward_reshape.name + '/Tile'})
+            tile_backward_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array([-1])},
+                                                                {'name': tile.name + '/BackwardReshape'})
+            slice_node = create_op_with_const_inputs(graph, Slice, {1: int64_array([0]), 3: int64_array([1]),
+                                                                    4: int64_array([0])},
+                                                     {'name': tile_backward_reshape.name + '/Slice'})
+
+            tile_forward_reshape.out_port(0).connect(tile.in_port(0))
+            tile.out_port(0).connect(tile_backward_reshape.in_port(0))
+            tile_backward_reshape.out_port(0).connect(slice_node.in_port(0))
+            slice_node.in_port(2).connect(div_node.in_port(0).get_source())
+
+            range_node.out_port(0).get_connection().set_source(slice_node.out_port(0))
+            range_node.out_port(0).connect(tile_forward_reshape.in_port(0))
 
         # MXNet arange_like op has no stop attribute and the result tensor always matches the input shape, so
         # we have to correct the stop value for the Range node if start > 0
