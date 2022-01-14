@@ -1720,6 +1720,12 @@ void UnrollTIPass::run() {
     }
 }
 
+// Helper class to be used by RemoveConstPass
+// This class overrides InferenceEngine::ConstTransformer
+// It disallows trimming of some nodes by ConstTransformer::fullTrim()
+// The nodes which are needed to be preserved were inserted by ConvertUnalignedConcatIntoGnaGraph
+// and have to be converted to GNA primitives to properly handle unaligned Concat for GNA
+// When RemoveConstPass removed (or moved to ngraph) this class could be removed as well
 class GnaConstTransformer : public ConstTransformer {
 public:
     template<typename T>

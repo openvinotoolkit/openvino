@@ -132,7 +132,7 @@ class GNAMemory : public GNAMemRequestsQueue {
                 // std::cout << "  [binded=" << rTypeToStr(re._type) << ", ptr=" << re._ptr_out <<"]\n";
                 visitor(reference, re);
                 // primitive loop check
-                if (re.IsInPtrEqualToOutPtrOf(re)) continue;
+                if (re._ptr_in == re._ptr_out) continue;
                 // TODO: no circular dependency checking, only tree-style dependency with loops supported
                 iterate_binded(re, visitor);
             }

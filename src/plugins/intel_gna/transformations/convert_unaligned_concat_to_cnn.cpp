@@ -29,6 +29,10 @@ using GNAPluginNS::GNALimitations::gnaTensorDataAlignmentElements;
 typedef std::vector<float> DelayedCopyCnnFilter;
 typedef std::vector<float> DelayedCopyAffineFilter;
 
+NGRAPH_RTTI_DEFINITION(ConvertUnalignedConcatIntoGnaGraph, "ConvertUnalignedConcatIntoGnaGraph", 0);
+NGRAPH_RTTI_DEFINITION(RemoveTrivialStrideConcatPattern, "RemoveTrivialStrideConcatPattern", 0);
+NGRAPH_RTTI_DEFINITION(TransformConcatForGna, "TransformConcatForGna", 0);
+
 // Example of returned vector
 // numberOfFilters = 4             0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0
 // filterLength = 16               0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0
@@ -77,10 +81,6 @@ std::shared_ptr < ngraph::opset7::Constant > GetConstant2U(T e1, N e2) {
 template <typename T>
 std::shared_ptr < ngraph::opset7::Constant > CreateConstantU64V(const std::vector<T>& values) {
     return ngraph::opset7::Constant::create(ov::element::u64, ngraph::Shape{ values.size() }, values);
-}
-
-static std::string rtValue(size_t val) {
-    return std::to_string(val);
 }
 
 template <typename N, typename K>
@@ -505,9 +505,8 @@ static std::function<bool(Output<ov::Node>)> CheckTrivialStrideConcat() {
     };
 }
 
-NGRAPH_RTTI_DEFINITION(ConvertUnalignedConcatIntoGnaGraph, "ConvertUnalignedConcatIntoGnaGraph", 0);
 ConvertUnalignedConcatIntoGnaGraph::ConvertUnalignedConcatIntoGnaGraph() {
-    MATCHER_SCOPE(TransformConcatForGna);
+    MATCHER_SCOPE(ConvertUnalignedConcatIntoGnaGraph);
     auto concatPattern = ngraph::pattern::wrap_type<ngraph::opset7::Concat>({}, CheckUnalignedConcat());
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -524,7 +523,6 @@ ConvertUnalignedConcatIntoGnaGraph::ConvertUnalignedConcatIntoGnaGraph() {
     this->register_matcher(unalignedConcatMatcher, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(RemoveTrivialStrideConcatPattern, "RemoveTrivialStrideConcatPattern", 0);
 RemoveTrivialStrideConcatPattern::RemoveTrivialStrideConcatPattern() {
     MATCHER_SCOPE(RemoveTrivialStrideConcatPattern);
     auto concatPattern = ngraph::pattern::wrap_type<ngraph::opset7::Concat>({}, CheckTrivialStrideConcat());
@@ -540,13 +538,6 @@ RemoveTrivialStrideConcatPattern::RemoveTrivialStrideConcatPattern() {
     auto unalignedConcatMatcher = std::make_shared<ngraph::pattern::Matcher>(concatPattern, matcher_name);
 
     this->register_matcher(unalignedConcatMatcher, callback);
-}
-
-NGRAPH_RTTI_DEFINITION(TransformConcatForGna, "TransformConcatForGna", 0);
-TransformConcatForGna::TransformConcatForGna() {
-    MATCHER_SCOPE(TransformConcatForGna);
-    add_matcher<GNAPluginNS::RemoveTrivialStrideConcatPattern>();
-    convUCPass = add_matcher<GNAPluginNS::ConvertUnalignedConcatIntoGnaGraph>();
 }
 
 bool TransformConcatForGna::unalignedConcatIntoGnaGraphConverted() const {
