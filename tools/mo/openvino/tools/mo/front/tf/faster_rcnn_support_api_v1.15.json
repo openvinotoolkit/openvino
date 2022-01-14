@@ -61,7 +61,8 @@
     {
         "custom_attributes": {
             "clip_before_nms": false,
-            "clip_after_nms": true
+            "clip_after_nms": true,
+            "do_not_swap_input": true
         },
         "id": "ObjectDetectionAPIDetectionOutputReplacement",
         "inputs": [
