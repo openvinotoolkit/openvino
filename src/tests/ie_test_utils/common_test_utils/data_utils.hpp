@@ -322,6 +322,20 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
     std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
 }
 
+template<typename T>
+void inline fill_data_ptr_consistently(T* data, size_t size, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1) {
+    int64_t value = start_from;
+    const int64_t maxValue = start_from + range;
+    for (size_t i = 0; i < size; i++) {
+        data[i] = static_cast<T>(value);
+        if (value < (maxValue - k)) {
+            value += k;
+        } else {
+            value = start_from;
+        }
+    }
+}
+
 template<InferenceEngine::Precision::ePrecision PRC>
 void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0,
                                    const int32_t k = 1) {
@@ -330,17 +344,7 @@ void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint3
     if (start_from < 0 && !std::is_signed<dataType>::value) {
         start_from = 0;
     }
-
-    int64_t value = start_from;
-    const int64_t maxValue = start_from + range;
-    for (size_t i = 0; i < blob->size(); i++) {
-        rawBlobDataPtr[i] = static_cast<dataType>(value);
-        if (value < (maxValue - k)) {
-            value += k;
-        } else {
-            value = start_from;
-        }
-    }
+    fill_data_ptr_consistently(rawBlobDataPtr, blob->size(), range, start_from, k);
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
@@ -366,25 +370,32 @@ fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, i
     }
 }
 
+template<typename T>
+void inline fill_data_ptr_normal_random_float(T* data,
+                                          size_t size,
+                                          const float mean,
+                                          const float stddev,
+                                          const int seed = 1) {
+    std::default_random_engine random(seed);
+    std::normal_distribution<> normal_d{mean, stddev};
+    for (size_t i = 0; i < size; i++) {
+        auto value = static_cast<float>(normal_d(random));
+        if (typeid(T) == typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
+            data[i] = static_cast<T>(ov::float16(value).to_bits());
+        } else {
+            data[i] = static_cast<T>(value);
+        }
+    }
+}
+
 template<InferenceEngine::Precision::ePrecision PRC>
 void inline fill_data_normal_random_float(InferenceEngine::Blob::Ptr &blob,
                                           const float mean,
                                           const float stddev,
                                           const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    std::default_random_engine random(seed);
-    std::normal_distribution<> normal_d{mean, stddev};
-
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
-    for (size_t i = 0; i < blob->size(); i++) {
-        auto value = static_cast<float>(normal_d(random));
-        if (typeid(dataType) ==
-            typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
-            rawBlobDataPtr[i] = static_cast<dataType>(ngraph::float16(value).to_bits());
-        } else {
-            rawBlobDataPtr[i] = static_cast<dataType>(value);
-        }
-    }
+    fill_data_ptr_normal_random_float<dataType>(rawBlobDataPtr, blob->size(), mean, stddev, seed);
 }
 
 template<InferenceEngine::Precision::ePrecision PRC, typename T>

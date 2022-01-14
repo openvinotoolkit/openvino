@@ -35,6 +35,20 @@ ov::runtime::Tensor create_and_fill_tensor_unique_sequence(
         const int32_t resolution = 1,
         const int seed = 1);
 
+ov::runtime::Tensor create_and_fill_tensor_normal_distribution(
+        const ov::element::Type element_type,
+        const ov::Shape& shape,
+        const float mean,
+        const float stddev,
+        const int seed = 1);
+
+ov::runtime::Tensor create_and_fill_tensor_consistently(
+        const ov::element::Type element_type,
+        const ov::Shape& shape,
+        const uint32_t range,
+        const int32_t start_from,
+        const int32_t resolution);
+
 void compare(
         const ov::runtime::Tensor &expected,
         const ov::runtime::Tensor &actual,
