@@ -61,8 +61,6 @@ size_t NormalizeKey::hash() const {
     seed = hash_combine(seed, attrs.is_blk);
     seed = hash_combine(seed, attrs.input_prec.getPrecVal());
     seed = hash_combine(seed, attrs.output_prec.getPrecVal());
-    seed = hash_combine(seed, attrs.src_data_size);
-    seed = hash_combine(seed, attrs.dst_data_size);
 
     seed = hash_combine(seed, get_attr_hash(*kernel_attrs.get()));
     seed = get_vector_hash(seed, dims);
@@ -74,8 +72,7 @@ bool NormalizeKey::operator==(const NormalizeKey& rhs) const {
            (attrs.cornerCase == rhs.attrs.cornerCase) && (attrs.eps == rhs.attrs.eps) &&
            (attrs.is_nchw == rhs.attrs.is_nchw) && (attrs.is_nhwc == rhs.attrs.is_nhwc) &&
            (attrs.is_blk == rhs.attrs.is_blk) && (attrs.input_prec == rhs.attrs.input_prec) &&
-           (attrs.output_prec == rhs.attrs.output_prec) && (attrs.src_data_size == rhs.attrs.src_data_size) &&
-           (attrs.dst_data_size == rhs.attrs.dst_data_size) && (*kernel_attrs.get() == *(rhs.kernel_attrs.get())) &&
+           (attrs.output_prec == rhs.attrs.output_prec) && (*kernel_attrs.get() == *(rhs.kernel_attrs.get())) &&
            (dims == rhs.dims);
 }
 
