@@ -179,7 +179,7 @@ public:
         const bool updatePrecision,
         const bool moveSubtract);
 
-    static std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> split_consts_before_concat(
+    static std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> splitConstantsBeforeConcat(
         const std::shared_ptr<ov::Node> concat,
         const std::vector<std::shared_ptr<opset1::Constant>> currConstants);
 
