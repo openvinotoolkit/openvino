@@ -406,11 +406,44 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
         });
+
         if (!use_onednn) {
             lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
                 return MatMulTransformation::is3DTensorOnActivations(node);
             });
         }
+
+        lptPassConfig->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
+            // disable MultiplyToGroupConvolution if Multiply with Constant can be fused
+
+            const auto dequantization = NetworkHelper::getDequantization(node, 0, true);
+            std::shared_ptr<ov::Node> parent = dequantization.empty() ? nullptr : dequantization.data.get_node()->shared_from_this();
+            if (parent == nullptr) {
+                const auto constantNode = NetworkHelper::getConstantInput(node);
+                const auto constant = constantNode == nullptr ? nullptr : ngraph::as_type_ptr<ngraph::opset1::Constant>(constantNode);
+                if (constant != nullptr) {
+                    auto parent = node->get_input_node_shared_ptr(0);
+                    if (parent == constant) {
+                        parent = node->get_input_node_shared_ptr(1);
+                    }
+                }
+            }
+
+            if (parent != nullptr) {
+                const auto parentHasOneConsumer = parent->get_output_target_inputs(0).size() == 1ul;
+                if (parentHasOneConsumer) {
+                    return true;
+                }
+            }
+
+            // disable MultiplyToGroupConvolution for Multiply with scalar
+
+            if (MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node)) {
+                return true;
+            }
+
+            return false;
+        });
 
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization);
         lptManager.run_passes(func);
