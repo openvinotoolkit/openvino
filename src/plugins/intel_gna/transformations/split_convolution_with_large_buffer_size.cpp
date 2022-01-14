@@ -36,7 +36,7 @@ static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
         auto sH = convolution->get_strides().at(0);
         auto sW = convolution->get_strides().at(1);
         if (GNAConvolutionLayer::isConv2D(height, width, in_channels, kH, kW) &&
-            !GNAConvolutionLayer::isMappableFrom2DTo1D(height, width, kH, kW, sH, sW)) {
+            !GNAConvolutionLayer::isMappableFrom2DTo1D(height, width, in_channels, kH, kW, sH, sW)) {
             return false;
         }
     }

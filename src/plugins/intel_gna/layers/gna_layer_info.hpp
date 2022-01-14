@@ -271,7 +271,7 @@ class LayerInfo {
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
-    bool isPermuteViaReshape() const noexcept {
+    bool isPermuteViaReshape() const {
         if (!isOfType("reshape")) return false;
 
         auto input_dims = layer->insData[0].lock()->getDims();
