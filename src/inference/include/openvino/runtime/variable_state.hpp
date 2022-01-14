@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief A header file that provides VariableState
- *
+ * @brief A header file that provides ov::runtime::VariableState
  * @file openvino/runtime/variable_state.hpp
  */
 
@@ -50,7 +49,7 @@ public:
     VariableState() = default;
 
     /**
-     * @brief Destructor presereves unload order of implementation object and reference to library
+     * @brief Destructor preserves unloading order of implementation object and reference to library
      */
     ~VariableState();
 
@@ -69,7 +68,7 @@ public:
 
     /**
      * @brief Returns the value of the variable state.
-     * @return A blob representing a state
+     * @return A tensor representing a state
      */
     Tensor get_state() const;
 
