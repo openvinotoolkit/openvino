@@ -213,7 +213,7 @@ def test_infer_mixed_keys(device):
 
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res[list(res)[0]]) == 2
+    assert np.argmax(res[model.output()]) == 2
 
 
 def test_infer_queue(device):
@@ -342,13 +342,14 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
 
 def test_get_results(device):
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    core.set_config({"PERF_COUNT": "YES"}, device)
-    exec_net = core.compile_model(func, device)
-    img = read_image()
-    request = exec_net.create_infer_request()
-    outputs = request.infer({0: img})
-    assert np.allclose(list(outputs.values()), list(request.results.values()))
+    data = ops.parameter([10], np.float64)
+    model = Model(ops.split(data, 0, 5), [data])
+    compiled = core.compile_model(model, device)
+    request = compiled.create_infer_request()
+    inputs = [np.random.normal(size=list(compiled.input().shape))]
+    results = request.infer(inputs)
+    for output in compiled.outputs:
+        assert np.array_equal(results[output], request.results[output])
 
 
 def test_results_async_infer(device):

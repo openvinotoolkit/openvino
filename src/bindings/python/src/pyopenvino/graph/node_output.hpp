@@ -5,6 +5,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+#include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
 #include "openvino/core/node_output.hpp"
@@ -24,6 +25,18 @@ void regclass_graph_Output(py::module m, std::string typestring)
                                                                        pyclass_name,
                                                                        py::dynamic_attr());
     output.doc() = docs;
+
+    // operator overloading
+    output.def(py::self < py::self);
+    output.def(py::self <= py::self);
+    output.def(py::self > py::self);
+    output.def(py::self >= py::self);
+    output.def(py::self == py::self);
+    output.def(py::self != py::self);
+
+    output.def("__hash__", [](ov::Output<VT>& port) {
+        return std::hash<VT*>()(port.get_node()) + port.get_index();
+    });
 
     output.def("get_node",
                &ov::Output<VT>::get_node_shared_ptr,

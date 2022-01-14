@@ -131,3 +131,12 @@ def test_update_rt_info(device):
     for k, v in output_node.get_rt_info().items():
         assert k == "test12345"
         assert isinstance(v, Parameter)
+
+
+def test_operations():
+    data = ops.parameter([2])
+    split = ops.split(data, 0, 2)
+    outputs = split.outputs()
+    assert outputs[0] < outputs[1]
+    assert outputs[0] == split.output(0)
+    assert hash(outputs[0]) == hash(split.output(0))
