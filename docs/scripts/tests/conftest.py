@@ -85,7 +85,7 @@ def read_lists(configs):
     files = set()
     for config_path in configs:
         try:
-            with open(config_path, 'r') as config:
+            with open(config_path, 'r', encoding='utf-8') as config:
                 files.update(map(str.strip, config.readlines()))
         except OSError:
             pass
@@ -113,8 +113,10 @@ def pytest_generate_tests(metafunc):
     for link in exclude_links:
         doxy_ref_pattern = "unable to resolve reference to '{}".format(link)
         sphinx_ref_pattern = "toctree contains reference to nonexisting document '{}".format(link)
+        sphinx_ref_pattern2 = "unknown document: {}".format(link)
         suppress_warnings.append(doxy_ref_pattern)
         suppress_warnings.append(sphinx_ref_pattern)
+        suppress_warnings.append(sphinx_ref_pattern2)
 
     # read doxygen log
     doxy_parser = LogParser(metafunc.config.getoption('doxygen'))

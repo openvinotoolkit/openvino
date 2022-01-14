@@ -460,24 +460,24 @@ As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes seve
 @sphinxdirective
 .. tab:: Linux
 
-- ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
-- ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
-- `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
-- `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
+   - ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
+   - ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
+   - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
+   - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
 
 .. tab:: Windows
 
-- ``<INSTALL_DIR>\deployment_tools\demo\car.png``
-- ``<INSTALL_DIR>\deployment_tools\demo\car_1.bmp``
-- `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
-- `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
+   - ``<INSTALL_DIR>\deployment_tools\demo\car.png``
+   - ``<INSTALL_DIR>\deployment_tools\demo\car_1.bmp``
+   - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
+   - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
 
 .. tab:: macOS
 
-- ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
-- ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
-- `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
-- `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
+   - ``/opt/intel/openvino_2021/deployment_tools/demo/car.png``
+   - ``/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp``
+   - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`_
+   - `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`_
 
 @endsphinxdirective
 
