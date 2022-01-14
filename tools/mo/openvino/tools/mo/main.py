@@ -203,9 +203,10 @@ def arguments_post_parsing(argv: argparse.Namespace):
                     "Consider building the Inference Engine and nGraph Python APIs from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
                     "bat" if sys.platform == "windows" else "sh"))
     try:
-        if not find_ie_version(silent=argv.silent):
+        if not find_ie_version(os.environ, silent=argv.silent):
             raise_ie_not_found()
     except Exception as e:
+        log.error(e)
         raise_ie_not_found()
 
     if 'data_type' in argv and argv.data_type in ['FP16', 'half']:
