@@ -87,6 +87,57 @@ public:
     }
 };
 
+TEST_P(OVRemoteTensorInputBlob_Test, smoke_cantCreateBlobWithInvalidSize) {
+    RemoteTensorSharingType sharing_type;
+    bool with_auto_batching;
+    std::tie(sharing_type, with_auto_batching) = GetParam();
+    if (with_auto_batching)
+        GTEST_SKIP();
+
+    if (sharing_type == RemoteTensorSharingType::PLUGIN_CL_TENSOR ||
+        sharing_type == RemoteTensorSharingType::PLUGIN_USM_HOST_TENSOR ||
+        sharing_type == RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR ||
+        sharing_type == RemoteTensorSharingType::PLUGIN_HOST_TENSOR)
+        GTEST_SKIP();
+
+    auto ie = ov::runtime::Core();
+    auto cldnn_context = ie.get_default_context(deviceName).as<ov::runtime::intel_gpu::ocl::ClContext>();
+    cl_context ctx = cldnn_context;
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+    cl_int err;
+
+    ov::Shape invalid_shape = {1, 20, 30, 40};
+
+    auto imSize = ov::shape_size(ov::Shape({1, 2, 3, 4}));
+
+    switch (sharing_type) {
+        case RemoteTensorSharingType::USER_CL_TENSOR: {
+            cl::Buffer shared_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, imSize, NULL, &err);
+            ASSERT_ANY_THROW(cldnn_context.create_tensor(ov::element::i8, invalid_shape, shared_buffer));
+            break;
+        }
+        case RemoteTensorSharingType::USER_USM_DEVICE_TENSOR: {
+            if (!ocl_instance->supports_usm())
+                GTEST_SKIP();
+
+            void* shared_buffer = ocl_instance->allocate_usm_device_buffer(imSize);
+            ASSERT_ANY_THROW(cldnn_context.create_tensor(ov::element::i8, invalid_shape, shared_buffer));
+            ocl_instance->free_mem(shared_buffer);
+            break;
+        }
+        case RemoteTensorSharingType::USER_USM_HOST_TENSOR: {
+            if (!ocl_instance->supports_usm())
+                GTEST_SKIP();
+
+            void* shared_buffer = ocl_instance->allocate_usm_host_buffer(imSize);
+            ASSERT_ANY_THROW(cldnn_context.create_tensor(ov::element::i8, invalid_shape, shared_buffer));
+            ocl_instance->free_mem(shared_buffer);
+            break;
+        }
+        default: break;
+    }
+}
+
 TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
 #if defined(ANDROID)
     GTEST_SKIP();

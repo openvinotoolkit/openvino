@@ -512,7 +512,7 @@ public:
                 res = compile_model_impl(network, plugin, parsed._config, context, hash);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction());
+                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, context, {});
@@ -589,7 +589,7 @@ public:
                 res = compile_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction());
+                InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
             }
         } else {
             res = compile_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
@@ -699,10 +699,25 @@ public:
             opNames.emplace(op->get_friendly_name());
 
         for (const auto& op : func->get_ops()) {
-            if (opNames.find(op->get_friendly_name()) == opNames.end() ||
-                (!res.supportedLayersMap.count(op->get_friendly_name()) &&
-                 std::dynamic_pointer_cast<ngraph::op::Constant>(op)))
+            if (opNames.find(op->get_friendly_name()) == opNames.end()) {
                 res.supportedLayersMap[op->get_friendly_name()] = defDevice;
+            }
+        }
+
+        for (const auto& op : func->get_ops()) {
+            if (!res.supportedLayersMap.count(op->get_friendly_name()) &&
+                std::dynamic_pointer_cast<ngraph::op::Constant>(op)) {
+                bool are_all_users_supported = true;
+                for (const auto& user : op->output(0).get_target_inputs()) {
+                    if (!res.supportedLayersMap.count(user.get_node()->get_friendly_name())) {
+                        are_all_users_supported = false;
+                        break;
+                    }
+                }
+                if (are_all_users_supported) {
+                    res.supportedLayersMap[op->get_friendly_name()] = defDevice;
+                }
+            }
         }
         return res;
     }

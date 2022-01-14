@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 from argparse import Namespace
 
 import numpy as np
@@ -11,6 +10,7 @@ from openvino.tools.mo.middle.ScaleInput import ScaleInput
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.utils.cli_parser import get_mean_scale_dictionary, parse_tuple_pairs
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, result, connect, connect_data, \
     valued_const_with_data
 
@@ -36,7 +36,7 @@ nodes = {
 }
 
 
-class AddMeanScaleValuesTest(unittest.TestCase):
+class AddMeanScaleValuesTest(UnitTestWithMockedTelemetry):
     def check_graph_attrs(self, graph: Graph, graph_ref: Graph, parameter_node_names: list):
         for node in graph.get_op_nodes():
             if node.soft_get('name') in parameter_node_names:
