@@ -447,5 +447,15 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
                 ov_function.get_parameters()[idx].layout = Layout()
 
     # Remove inserted tensor names
+    names_to_delete = []
     for tensor in nameless_tensors:
-        tensor.set_names(set())
+        names_to_delete.extend(tensor.get_names())
+    if len(names_to_delete) > 0:
+        tensors = [ov_node.get_tensor() for ov_node in ov_function.inputs + ov_function.outputs]
+        for tensor in tensors:
+            names = tensor.get_names()
+            new_names = set()
+            for name in names:
+                if name not in names_to_delete:
+                    new_names.add(name)
+            tensor.set_names(new_names)
