@@ -91,6 +91,9 @@ Framework-agnostic parameters:
                         is overridden by the --input parameter, this scale is
                         not applied for any input that does not match with the
                         original input of the model.
+						If both --mean and --scale are specified,
+                        the mean is subtracted first and then scale is applied
+                        regardless the order of options in command line.
   --reverse_input_channels
                         Switch the input channels order from RGB to BGR (or
                         vice versa). Applied to original inputs of the model
@@ -140,6 +143,9 @@ Framework-agnostic parameters:
                         data[255,255,255],info[255,255,255]". The exact
                         meaning and order of channels depend on how the
                         original model was trained.
+						If both --mean_values and --scale_values are specified,
+                        the mean is subtracted first and then scale is applied
+                        regardless the order of options in command line.
   --data_type {FP16,FP32,half,float}
                         Data type for all intermediate tensors and weights. If
                         original model is in FP32 and --data_type=FP16 is
