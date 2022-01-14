@@ -326,7 +326,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'of channels depend on how the original model was trained.' +
                                    'If both --mean_values and --scale_values are specified, ' +
                                    'the mean is subtracted first and then scale is applied ' +
-                                   'regardless the order of options in command line.',
+                                   'regardless of the order of options in command line.',
                               default=())
     common_group.add_argument('--source_layout',
                               help='Layout of the input or output of the model in the framework. Layout can'
