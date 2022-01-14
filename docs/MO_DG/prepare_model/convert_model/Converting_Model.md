@@ -203,7 +203,7 @@ In the first case, the Model Optimizer generates the IR with required pre-proces
  
 In the second case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR. Model Optimizer provides a number of command line parameters to specify them: `--mean`, `--scale`, `--scale_values`, `--mean_values`. 
 
-> **NOTE:** If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the mean will be applied first, then scale and after that reverse_input_channels.
+> **NOTE:** If both mean and scale values are specified, the mean is subtracted first and then scale is applied regardless of the order of options in command line. Input values are *divided* by the scale value(s). If also `--reverse_input_channels` option is used, the reverse_input_channels will be applied first, then mean and after that scale.
 
 There is no a universal recipe for determining the mean/scale values for a particular model. The steps below could help to determine them:
 * Read the model documentation. Usually the documentation describes mean/scale value if the pre-processing is required.
