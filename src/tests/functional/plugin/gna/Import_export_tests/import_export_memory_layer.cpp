@@ -75,16 +75,24 @@ public:
         auto importedNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
         std::vector<std::string> queryToState;
         InferenceEngine::InferRequest importInfer = importedNetwork.CreateInferRequest();
+
         for (auto &query_state : importInfer.QueryState()) {
             queryToState.push_back(query_state.GetName());
-            if (withReset.second)
-                query_state.Reset();
+        }
+        if (withReset.first) {
+            CheckQueryStates(&inferRequest);
         }
         for (const auto &next_memory : importInfer.QueryState()) {
             ASSERT_TRUE(std::find(queryToState.begin(), queryToState.end(), next_memory.GetName()) != queryToState.end())
                                         << "State " << next_memory.GetName() << " expected to be in memory states but it is not!";
         }
         importInfer.Infer();
+        if (withReset.second) {
+            for (auto &query_state : importInfer.QueryState()) {
+                query_state.Reset();
+            }
+            CheckQueryStates(&importInfer);
+        }
     }
 
 protected:
@@ -105,6 +113,18 @@ protected:
         relu->add_control_dependency(mem_w);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu)};
         function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
+    }
+
+    void CheckQueryStates(InferenceEngine::InferRequest* inferRequest) {
+        for (auto &query_state : inferRequest->QueryState()) {
+            auto state = query_state.GetState();
+            auto state_data = state->cbuffer().as<int16_t *>();
+            for (int i = 0; i < state->size(); i++) {
+                float elem = state_data[i];
+                std::cout << elem << " " << i << std::endl;
+                EXPECT_NEAR(0, elem, 1e-5);
+            }
+        }
     }
 
 private:
@@ -156,4 +176,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkMemoryCase, ImportMemoryTest,
                         ImportMemoryTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
-
