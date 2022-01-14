@@ -66,7 +66,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_VPU=OFF ..
+          cmake -DENABLE_INTEL_VPU=OFF ..
 
       - name: ShellCheck
         run: cmake --build . --target ie_shellcheck -j8
@@ -91,7 +91,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_VPU=OFF ..
+          cmake -DENABLE_INTEL_VPU=OFF ..
 
       - name: Naming convention check
         run: cmake --build . --target ncc_all -j8

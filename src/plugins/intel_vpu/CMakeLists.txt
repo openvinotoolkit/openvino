@@ -12,7 +12,7 @@ endif()
 
 add_subdirectory(common)
 
-if(ENABLE_MYRIAD)
+if(ENABLE_INTEL_VPU)
     add_subdirectory(graph_transformer)
     add_subdirectory(myriad_plugin)
 

@@ -4,7 +4,7 @@
 
 ///  @rationale aot tests aim to test network export/import  functionality
 
-#if defined(ENABLE_MYRIAD)
+#if defined(ENABLE_INTEL_VPU)
 
 #include <behavior_test_plugin.h>
 #include <mvnc.h>

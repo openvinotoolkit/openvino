@@ -55,7 +55,7 @@ COPY . /openvino/
 WORKDIR /openvino/build
 RUN cmake .. \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-    -DENABLE_VPU=OFF \
+    -DENABLE_INTEL_VPU=OFF \
     -DENABLE_INTEL_GNA=OFF \
     -DENABLE_OPENCV=OFF \
     -DENABLE_CPPLINT=OFF \

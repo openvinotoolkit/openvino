@@ -52,7 +52,7 @@
       "files": [
         "runtime/bin/intel64/Release/usb-ma2x8x.mvcmd",
         "runtime/bin/intel64/Release/pcie-ma2x8x.elf",
-        "runtime/bin/intel64/Release/myriadPlugin.dll"
+        "runtime/bin/intel64/Release/ov_intel_vpu_plugin.dll"
       ]
     },
     "gna": {

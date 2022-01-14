@@ -41,7 +41,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libmyriadPlugin.so",
+        "runtime/lib/intel64/libov_intel_vpu_plugin.so",
         "runtime/lib/intel64/usb-ma2x8x.mvcmd",
         "runtime/lib/intel64/pcie-ma2x8x.mvcmd"
       ]
