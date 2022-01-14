@@ -112,6 +112,7 @@ def main():
         plugin_config['GNA_DEVICE_MODE'] = gna_device_mode
         plugin_config['GNA_PRECISION'] = f'I{args.quantization_bits}'
         plugin_config['GNA_EXEC_TARGET'] = args.exec_target
+        plugin_config['GNA_PWL_MAX_ERROR_PERCENT'] = str(args.pwl_me)
 
         # Set a GNA scale factor
         if args.import_gna_model:
@@ -172,7 +173,7 @@ def main():
         if ':' in compiled_model.outputs[0].any_name:
             output_names = [f'{output_names[i]}:{output_ports[i]}' for i in range(len(output_names))]
     else:
-        output_names = [compiled_model.outputs[0].any_name]
+        output_names = [compiled_model.outputs[-1].any_name]
 
     if args.input:
         input_files = re.split(', |,', args.input)
@@ -198,49 +199,55 @@ def main():
 
     file_data = [read_utterance_file(file_name) for file_name in input_files]
 
-    input_data = {
-        utterance_name: {
-            input_names[i]: file_data[i][utterance_name] for i in range(len(input_names))
+    input_data = [
+        {
+            input_names[j]: list(file_data[j].values())[i]
+            for j in range(len(input_names))
         }
-        for utterance_name in file_data[0].keys()
-    }
+        for i in range(len(file_data[0]))
+    ]
 
     if args.reference:
-        references = {output_names[i]: read_utterance_file(reference_files[i]) for i in range(len(output_names))}
+        reference_data = [read_utterance_file(file_name) for file_name in reference_files]
+
+        references = [
+            {
+                output_names[j]: list(reference_data[j].values())[i]
+                for j in range(len(output_names))
+            }
+            for i in range(len(reference_data[0]))
+        ]
 
 # --------------------------- Step 7. Create infer request ------------------------------------------------------------
     infer_request = compiled_model.create_infer_request()
 
 # --------------------------- Step 8. Do inference --------------------------------------------------------------------
     log.info('Starting inference in synchronous mode')
-    results = {name: {} for name in output_names}
+    results = []
     total_infer_time = 0
 
-    for i, key in enumerate(sorted(input_data)):
+    for i in range(len(input_data)):
         start_infer_time = default_timer()
 
         # Reset states between utterance inferences to remove a memory impact
         for state in infer_request.query_state():
             state.reset()
 
-        result = infer_data(
-            input_data[key],
+        results.append(infer_data(
+            input_data[i],
             infer_request,
             args.context_window_left,
             args.context_window_right,
-        )
-
-        for name in output_names:
-            results[name][key] = result[name]
+        ))
 
         infer_time = default_timer() - start_infer_time
         total_infer_time += infer_time
-        num_of_frames = file_data[0][key].shape[0]
+        num_of_frames = input_data[i][input_names[0]].shape[0]
         avg_infer_time_per_frame = infer_time / num_of_frames
 
 # --------------------------- Step 9. Process output ------------------------------------------------------------------
         log.info('')
-        log.info(f'Utterance {i} ({key}):')
+        log.info(f'Utterance {i}:')
         log.info(f'Total time in Infer (HW and SW): {infer_time * 1000:.2f}ms')
         log.info(f'Frames in utterance: {num_of_frames}')
         log.info(f'Average Infer time per frame: {avg_infer_time_per_frame * 1000:.2f}ms')
@@ -248,11 +255,11 @@ def main():
         for name in output_names:
             log.info('')
             log.info(f'Output blob name: {name}')
-            log.info(f'Number scores per frame: {results[name][key].shape[1]}')
+            log.info(f'Number scores per frame: {results[i][name].shape[1]}')
 
             if args.reference:
                 log.info('')
-                compare_with_reference(results[name][key], references[name][key])
+                compare_with_reference(results[i][name], references[i][name])
 
         if args.performance_counter:
             if 'GNA' in args.device:
