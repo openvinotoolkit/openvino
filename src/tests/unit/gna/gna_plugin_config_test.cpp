@@ -11,6 +11,7 @@
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
 
+IE_SUPPRESS_DEPRECATED_START
 const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
@@ -28,6 +29,7 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
     {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE}
 };
+IE_SUPPRESS_DEPRECATED_END
 
 class GNAPluginConfigTest : public ::testing::Test {
 protected:
@@ -159,6 +161,8 @@ TEST_F(GNAPluginConfigTest, GnaConfigPerfCountTest) {
                     config.gnaFlags.performance_counting);
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 TEST_F(GNAPluginConfigTest, GnaConfigLibNThreadsTest) {
     SetAndCompare(GNA_CONFIG_KEY(LIB_N_THREADS), "2");
     EXPECT_EQ(config.gnaFlags.gna_lib_async_threads_num, 2);
@@ -175,6 +179,8 @@ TEST_F(GNAPluginConfigTest, GnaConfigSingleThreadTest) {
                     config.gnaFlags.gna_openmp_multithreading,
                     true);
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_2_0");

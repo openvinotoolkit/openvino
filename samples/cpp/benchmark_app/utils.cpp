@@ -158,22 +158,12 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
         }
     }
     if (batch_size == 0) {
+        slog::warn << "No batch dimension was found at any input, asssuming batch to be 1. Beware: this might affect "
+                      "FPS calculation."
+                   << slog::endl;
         batch_size = 1;
     }
     return batch_size;
-}
-
-size_t getModelInputBatchSize(const ov::Model& model) {
-    try {
-        auto& param = model.get_parameters()[0];
-        auto layout = param->get_layout();
-        return param->get_shape().at(ov::layout::batch_idx(layout));
-    } catch (...) {
-        slog::warn
-            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
-            << slog::endl;
-        return 1;  // Default batch value
-    }
 }
 
 std::string getShapeString(const ov::Shape& shape) {

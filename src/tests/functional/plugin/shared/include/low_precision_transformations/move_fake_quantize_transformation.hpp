@@ -19,12 +19,10 @@ namespace LayerTestsDefinitions {
 
 class MoveFakeQuantizeTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore1;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore2;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore2;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
+    size_t number_of_operations;
+    std::vector<ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant> fakeQuantizeBefore;
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
     std::string operation;
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
     ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
@@ -36,7 +34,7 @@ public:
 
 typedef std::tuple <
     ngraph::element::Type,
-    ngraph::Shape,
+    std::vector<ngraph::PartialShape>,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     MoveFakeQuantizeTransformationParam

@@ -53,7 +53,7 @@ public:
         }
         // Load plugins until we found the right one
         for (auto& plugin : m_plugins) {
-            plugin.load();
+            OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
             if (plugin.get_creator().m_name == framework) {
                 auto fe_obj = std::make_shared<FrontEnd>();
                 fe_obj->m_shared_object = plugin.get_so_pointer();
