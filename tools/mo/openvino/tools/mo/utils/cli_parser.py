@@ -1124,12 +1124,12 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     placeholder_shapes = dict()
     placeholder_data_types = dict()
     are_shapes_specified_through_input = False
-    inputs = list()
+    inputs_list = list()
     if argv_input:
         for input_value in argv_input.split(','):
             node_name, shape, _, data_type = parse_input_value(input_value)
             placeholder_shapes[node_name] = shape
-            inputs.append(node_name)
+            inputs_list.append(node_name)
             if data_type is not None:
                 placeholder_data_types[node_name] = data_type
             if shape is not None:
@@ -1144,10 +1144,11 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
                     "parameter is allowed.")
 
     if are_shapes_specified_through_input:
-        return inputs, placeholder_shapes, placeholder_data_types
+        return inputs_list, placeholder_shapes, placeholder_data_types
 
     shapes = list()
     inputs = list()
+    inputs_list = list()
     placeholder_shapes = None
 
     range_reg = r'([0-9]*\.\.[0-9]*)'
@@ -1180,8 +1181,10 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
                                                   shapes)))
         for inp in inputs:
             if '->' not in inp:
+                inputs_list.append(inp)
                 continue
             shape = placeholder_shapes[inp.split('->')[0]]
+            inputs_list.append(inp.split('->')[0])
 
             if shape is None:
                 continue
@@ -1192,7 +1195,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     elif argv_input:
         raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
 
-    return inputs, placeholder_shapes, placeholder_data_types
+    return inputs_list, placeholder_shapes, placeholder_data_types
 
 
 def parse_tuple_pairs(argv_values: str):
