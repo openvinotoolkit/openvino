@@ -198,7 +198,6 @@ def test_load_by_model():
 
 def test_onnx_conversion_extension_check_attributes():
     skip_if_onnx_frontend_is_disabled()
-    setup_module()
 
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import ConversionExtension
@@ -248,13 +247,11 @@ def test_onnx_conversion_extension_check_attributes():
     assert input_model
     model = fe.convert(input_model)
     assert model
-    teardown_module()
     assert invoked
 
 
 def test_onnx_conversion_extension_attribute_with_default_value():
     skip_if_onnx_frontend_is_disabled()
-    setup_module()
 
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import ConversionExtension
@@ -308,13 +305,11 @@ def test_onnx_conversion_extension_attribute_with_default_value():
     assert input_model
     model = fe.convert(input_model)
     assert model
-    teardown_module()
     assert invoked
 
 
 def test_onnx_conversion_extension_cast_attributes():
     skip_if_onnx_frontend_is_disabled()
-    setup_module()
 
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import ConversionExtension
@@ -367,13 +362,11 @@ def test_onnx_conversion_extension_cast_attributes():
     assert input_model
     model = fe.convert(input_model)
     assert model
-    teardown_module()
     assert invoked
 
 
 def test_onnx_conversion_extension_common():
     skip_if_onnx_frontend_is_disabled()
-    setup_module()
 
     # use common (openvino.frontend) import here
     from openvino.frontend import ConversionExtension
@@ -399,13 +392,11 @@ def test_onnx_conversion_extension_common():
     assert input_model
     model = fe.convert(input_model)
     assert model
-    teardown_module()
     assert invoked
 
 
 def test_onnx_conversion_extension():
     skip_if_onnx_frontend_is_disabled()
-    setup_module()
 
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.onnx import ConversionExtension
@@ -431,5 +422,4 @@ def test_onnx_conversion_extension():
     assert input_model
     model = fe.convert(input_model)
     assert model
-    teardown_module()
     assert invoked
