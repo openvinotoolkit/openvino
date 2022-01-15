@@ -14,6 +14,8 @@ endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 
+set(PYTHON_BRIDGE_CPACK_PATH "python")
+
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.
     set(CMAKE_CXX_VISIBILITY_PRESET default)
@@ -80,4 +82,4 @@ install(PROGRAMS ${PYTHON_BRIDGE_SRC_ROOT}/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_COMPONENT})
 
-ie_cpack(${PYTHON_COMPONENT})
+# ie_cpack(${PYTHON_COMPONENT})
