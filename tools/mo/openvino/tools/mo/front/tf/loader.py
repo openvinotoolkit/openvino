@@ -191,7 +191,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
     try:
         if graph_file_name and not meta_graph_file and not checkpoint:
             # frozen graph
-            return read_file_to_graph_def(graph_def, graph_file_name, is_binary), variables_values, 'tf'
+            return read_file_to_graph_def(graph_def, graph_file_name, is_binary), variables_values, 'tf', None
         if graph_file_name and not meta_graph_file and checkpoint:
             # inference graph and checkpoint
             graph_def = read_file_to_graph_def(graph_def, graph_file_name, is_binary)
