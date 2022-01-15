@@ -913,7 +913,7 @@ def add_removed_converts(graph: Graph):
                 format(const_op.soft_get('name'), const_op.soft_get('type')))
             continue
 
-        if const_op.data_type != np.float32:
+        if const_op.data_type == np.float32:
             logger.debug('Error when try to insert Convert operation after Const: {}'.\
                 format(const_op.soft_get('name')))
             continue
