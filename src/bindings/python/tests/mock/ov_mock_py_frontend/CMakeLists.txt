@@ -10,8 +10,7 @@ file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 
-# Create shared library
-add_library(${TARGET_FE_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
+add_library(${TARGET_FE_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
 target_include_directories(${TARGET_FE_NAME}
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
