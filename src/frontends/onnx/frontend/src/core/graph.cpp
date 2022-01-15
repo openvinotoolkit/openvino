@@ -318,9 +318,6 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
         return;
     }
 
-    // indicates that all subgraph outputs come out of a single nG node (controls node naming below)
-    const auto common_node = detail::common_node_for_all_outputs(ng_subgraph_outputs);
-
     for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
         // Other optional outputs should have name set to an empty string.
@@ -328,27 +325,14 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
             break;
         }
 
-        const auto& onnx_node_name = onnx_node.get_name();
-        if (onnx_node_name.empty()) {
-            // for multioutput nodes, their friendly name is always set to the last ONNX output's name
-            // this is because this setter is called in a loop and the last call is ultimate for a given node
-            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
-        } else {
-            if (common_node) {
-                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name());
-            } else {
-                // if different outputs are produced by different nodes, then those nodes need to be given
-                // unique friendly names
-                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name() + "_" + onnx_node.output(i));
-            }
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
-            NGRAPH_SUPPRESS_DEPRECATED_END
-        }
+        ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
 
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
             ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }
 }
