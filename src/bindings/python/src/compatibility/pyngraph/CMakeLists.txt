@@ -52,8 +52,7 @@ file(GLOB_RECURSE SOURCES *.cpp)
 
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
-target_include_directories(_${PROJECT_NAME} PRIVATE "../"
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>>)
+target_include_directories(_${PROJECT_NAME} PRIVATE "../" "${OpenVINO_SOURCE_DIR}/src/common/transformations/include")
 
 target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::runtime)
 

@@ -6,10 +6,11 @@
 
 #include <pybind11/numpy.h>
 
+#include <transformations/utils/utils.hpp>
+
 #include "ngraph/op/result.hpp"
 #include "ngraph/validation_util.hpp"
 #include "ngraph/version.hpp"
-#include "transformations/utils/utils.hpp"
 
 namespace py = pybind11;
 
