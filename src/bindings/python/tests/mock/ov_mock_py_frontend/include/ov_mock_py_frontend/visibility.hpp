@@ -7,9 +7,12 @@
 #include "ngraph/visibility.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-// Defined if we are building the plugin DLL (instead of using it)
-#ifdef IMPLEMENT_OPENVINO_API
-#    define MOCK_API OPENVINO_CORE_EXPORTS
+#ifdef OPENVINO_STATIC_LIBRARY
+#    define MOCK_API
 #else
-#    define MOCK_API OPENVINO_CORE_IMPORTS
-#endif  // ov_mock_py_frontend_EXPORTS
+#    ifdef IMPLEMENT_OPENVINO_API
+#        define MOCK_API OPENVINO_CORE_EXPORTS
+#    else
+#        define MOCK_API OPENVINO_CORE_IMPORTS
+#    endif  // IMPLEMENT_OPENVINO_API
+#endif      // OPENVINO_STATIC_LIBRARY
