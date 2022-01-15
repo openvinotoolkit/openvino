@@ -191,4 +191,5 @@ FrontEnd::~FrontEnd() {
             ngraph::onnx_import::unregister_operator(conv_ext->get_op_type(), i, "");
         }
     }
+    ngraph::onnx_import::OperatorsBridge::load_initial_state();
 }
