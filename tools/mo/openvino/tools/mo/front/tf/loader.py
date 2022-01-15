@@ -10,6 +10,7 @@ from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.versions_checker import get_environment_setup
+from tensorflow.python.tools import saved_model_utils
 
 try:
     import tensorflow.compat.v1 as tf_v1
@@ -201,7 +202,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 graph_def, variables_values = freeze_checkpoints(graph_def=graph_def, checkpoint_dir=checkpoint,
                                                                  output_node_names=outputs)
             # we are sure that checkpoint is existing file or directory due to cli_parser configuration
-            return graph_def, variables_values, 'tf'
+            return graph_def, variables_values, 'tf', None
         if not graph_file_name and meta_graph_file:
             meta_graph_file = deducing_metagraph_path(meta_graph_file)
             input_meta_graph_def = read_file_to_graph_def(tf_v1.MetaGraphDef(), meta_graph_file, is_binary)
@@ -212,7 +213,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 outputs = get_output_node_names_list(input_meta_graph_def.graph_def, user_output_node_names_list)
                 graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, input_meta_graph_def.graph_def,
                                                                             outputs)
-                return graph_def, variables_values, 'tf'
+                return graph_def, variables_values, 'tf', None
         if model_dir:
             # saved model directory
             try:
@@ -236,7 +237,17 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
                 # disable eager execution since next steps are executed with a graph in non-eager mode
                 tf_v1.disable_eager_execution()
-                return graph_def, variables_values, 'tf2'
+
+                saved_model = tf.keras.models.load_model(model_dir, custom_objects=None)
+                input_names = [tensor.name for tensor in saved_model.inputs]
+
+                # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
+                # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
+                # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
+                # order alignment.
+                output_names = [tensor.name for tensor in frozen_func.outputs]
+
+                return graph_def, variables_values, 'tf2', (input_names, output_names)
             except (TypeError, KeyError):
                 # disable eager execution since TensorFlow 1 model is handled
                 tf_v1.disable_eager_execution()
@@ -246,7 +257,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                     meta_graph_def = tf_v1.saved_model.loader.load(sess, tags, model_dir)
                     outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
                     graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
-                    return graph_def, variables_values, 'tf'
+                    return graph_def, variables_values, 'tf', None
             except Exception as e:
                 raise FrameworkError('SavedModel format load failure: {}', e) from e
     except Exception as e:
