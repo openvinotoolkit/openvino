@@ -60,7 +60,7 @@ def run(args):
             is_network_compiled = True
             print("Model is compiled")
 
-        # ------------------------------ 2. Loading Inference Engine ---------------------------------------------------
+        # ------------------------------ 2. Loading OpenVINO ---------------------------------------------------
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
@@ -196,8 +196,6 @@ def run(args):
                         config[device]['GNA_PRECISION'] = 'I8'
                     else:
                         config[device]['GNA_PRECISION'] = 'I16'
-                if args.number_threads and is_flag_set_in_command_line("nthreads"):
-                    config[device]['GNA_LIB_N_THREADS'] = str(args.number_threads)
             else:
                 supported_config_keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
                 if 'CPU_THREADS_NUM' in supported_config_keys and args.number_threads and is_flag_set_in_command_line("nthreads"):
@@ -371,6 +369,11 @@ def run(args):
         elif benchmark.inference_only and not allow_inference_only_or_sync:
             raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
 
+        if benchmark.inference_only:
+            logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
+        else:
+            logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
+
         # update batch size in case dynamic network with one data_shape
         if benchmark.inference_only and batch_size.is_dynamic:
             batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
@@ -390,7 +393,8 @@ def run(args):
             data_tensors = data_queue.get_next_input()
             for port, data_tensor in data_tensors.items():
                 input_tensor = request.get_input_tensor(port)
-                input_tensor.shape = data_tensor.shape
+                if not static_mode:
+                    input_tensor.shape = data_tensor.shape
                 input_tensor.data[:] = data_tensor.data
 
         if statistics:
@@ -443,7 +447,7 @@ def run(args):
 
         if args.dump_config:
             dump_config(args.dump_config, config)
-            logger.info(f"Inference Engine configuration settings were dumped to {args.dump_config}")
+            logger.info(f"OpenVINO configuration settings were dumped to {args.dump_config}")
 
         if args.exec_graph_path:
             dump_exec_graph(compiled_model, args.exec_graph_path)
@@ -512,25 +516,25 @@ def run(args):
             statistics.dump()
 
 
-        print(f'Count:      {iteration} iterations')
-        print(f'Duration:   {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
+        print(f'Count:          {iteration} iterations')
+        print(f'Duration:       {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
             print('Latency:')
             if args.latency_percentile == 50 and static_mode:
-                print(f'Median:     {median_latency_ms:.2f} ms')
+                print(f'    Median:     {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
                 print(f'({args.latency_percentile} percentile):     {median_latency_ms:.2f} ms')
-            print(f'AVG:        {avg_latency_ms:.2f} ms')
-            print(f'MIN:        {min_latency_ms:.2f} ms')
-            print(f'MAX:        {max_latency_ms:.2f} ms')
+            print(f'    AVG:        {avg_latency_ms:.2f} ms')
+            print(f'    MIN:        {min_latency_ms:.2f} ms')
+            print(f'    MAX:        {max_latency_ms:.2f} ms')
 
             if pcseq:
                 print("Latency for each data shape group: ")
                 for group in benchmark.latency_groups:
-                    print(f"{str(group)}")
-                    print(f'AVG:        {group.avg:.2f} ms')
-                    print(f'MIN:        {group.min:.2f} ms')
-                    print(f'MAX:        {group.max:.2f} ms')
+                    print(f"  {str(group)}")
+                    print(f'    AVG:        {group.avg:.2f} ms')
+                    print(f'    MIN:        {group.min:.2f} ms')
+                    print(f'    MAX:        {group.max:.2f} ms')
 
         print(f'Throughput: {fps:.2f} FPS')
 

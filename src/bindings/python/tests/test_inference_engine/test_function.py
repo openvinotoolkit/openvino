@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Model, Tensor, Output, Dimension,\
+from openvino.runtime import Core, Model, Tensor, Output, Dimension,\
     Layout, Type, PartialShape, Shape, set_batch, get_batch
 
 
@@ -349,3 +349,15 @@ def test_reshape_with_names():
     for input in model.inputs:
         model.reshape({input.any_name: new_shape})
         assert input.partial_shape == new_shape
+
+
+def test_reshape(device):
+    shape = Shape([1, 10])
+    param = ops.parameter(shape, dtype=np.float32)
+    model = Model(ops.relu(param), [param])
+    ref_shape = model.input().partial_shape
+    ref_shape[0] = 3
+    model.reshape(ref_shape)
+    core = Core()
+    compiled = core.compile_model(model, device)
+    assert compiled.input().partial_shape == ref_shape
