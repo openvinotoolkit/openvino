@@ -133,7 +133,7 @@ public:
      */
     D3DContext(Core& core, ID3D11Device* device, int target_tile_id = -1) : ClContext(core, (cl_context) nullptr) {
         // clang-format off
-        ParamMap context_params = {
+        AnyMap context_params = {
             {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
             {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)},
             {GPU_PARAM_KEY(TILE_ID), target_tile_id}
@@ -150,7 +150,7 @@ public:
      * @return A pair of remote tensors for each plane
      */
     std::pair<D3DSurface2DTensor, D3DSurface2DTensor> create_tensor_nv12(const size_t height, const size_t width, ID3D11Texture2D* nv12_surf) {
-        ParamMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
+        AnyMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
                                   {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(nv12_surf)},
                                   {GPU_PARAM_KEY(VA_PLANE), uint32_t(0)}};
         auto y_tensor = create_tensor(element::u8, {1, 1, height, width}, tensor_params);
@@ -168,7 +168,7 @@ public:
      * @return A remote tensor instance
      */
     D3DBufferTensor create_tensor(const element::Type type, const Shape& shape, ID3D11Buffer* buffer) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER)},
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER)},
                            {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(buffer)}};
         create_tensor(type, shape, params).as<D3DBufferTensor>();
     }
@@ -186,7 +186,7 @@ public:
                                      const Shape& shape,
                                      ID3D11Texture2D* surface,
                                      uint32_t plane = 0) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
                            {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(surface)},
                            {GPU_PARAM_KEY(VA_PLANE), plane}};
         return create_tensor(type, shape, params).as<D3DSurface2DTensor>();

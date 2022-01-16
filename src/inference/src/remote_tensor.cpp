@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/remote_tensor.hpp"
 
+#include "any_copy.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 
@@ -33,12 +34,12 @@ void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, 
     }
 }
 
-ie::ParamMap RemoteTensor::get_params() const {
+AnyMap RemoteTensor::get_params() const {
     OPENVINO_ASSERT(_impl != nullptr, "Remote tensor was not initialized.");
     type_check(*this);
     auto remote_impl = static_cast<ie::RemoteBlob*>(_impl.get());
     try {
-        ParamMap paramMap;
+        AnyMap paramMap;
         for (auto&& param : remote_impl->getParams()) {
             paramMap.emplace(param.first, Any{param.second, _so});
         }
@@ -52,8 +53,8 @@ ie::ParamMap RemoteTensor::get_params() const {
 
 std::string RemoteTensor::get_device_name() const {
     OPENVINO_ASSERT(_impl != nullptr, "Remote tensor was not initialized.");
-    type_check(*this);
     auto remote_impl = static_cast<ie::RemoteBlob*>(_impl.get());
+    type_check(*this);
     try {
         return remote_impl->getDeviceName();
     } catch (const std::exception& ex) {

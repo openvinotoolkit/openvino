@@ -19,6 +19,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "so_ptr.hpp"
 #include "openvino/runtime/common.hpp"
+#include "any_copy.hpp"
 
 #if defined __GNUC__
 # pragma GCC diagnostic push
@@ -175,7 +176,7 @@ public:
         OV_PLUGIN_CALL_STATEMENT(_ptr->AddExtension(extension));
     }
 
-    void set_config(const ConfigMap& config) {
+    void set_config(const std::map<std::string, std::string>& config) {
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
@@ -194,7 +195,7 @@ public:
     }
 
     ie::QueryNetworkResult query_model(const ie::CNNNetwork& network,
-                                       const ConfigMap& config) const {
+                                       const std::map<std::string, std::string>& config) const {
         ie::QueryNetworkResult res;
         OV_PLUGIN_CALL_STATEMENT(res = _ptr->QueryNetwork(network, config));
         OPENVINO_ASSERT(res.rc == ie::OK, res.resp.msg);
@@ -217,19 +218,19 @@ public:
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(networkModel, context, config), _so});
     }
 
-    ie::Parameter get_metric(const std::string& name, const ie::ParamMap& options) const {
+    Any get_metric(const std::string& name, const AnyMap& options) const {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetMetric(name, options), _so});
     }
 
-    SoPtr<ie::RemoteContext> create_context(const ie::ParamMap& params) {
+    SoPtr<ie::RemoteContext> create_context(const AnyMap& params) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->CreateContext(params), _so});
     }
 
-    SoPtr<ie::RemoteContext> get_default_context(const ie::ParamMap& params) {
+    SoPtr<ie::RemoteContext> get_default_context(const AnyMap& params) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetDefaultContext(params), _so});
     }
 
-    ie::Parameter get_config(const std::string& name, const ie::ParamMap& options) const {
+    Any get_config(const std::string& name, const AnyMap& options) const {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetConfig(name, options), _so});
     }
 };

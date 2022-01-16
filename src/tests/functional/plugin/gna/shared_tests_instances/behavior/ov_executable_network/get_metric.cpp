@@ -81,11 +81,11 @@ using OVClassExecutableNetworkSetConfigFromFp32Test = OVClassExecutableNetworkGe
 TEST_P(OVClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
 ov::runtime::Core ie;
 
-std::map<std::string, std::string> initialConfig;
+ov::AnyMap initialConfig;
 initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = InferenceEngine::GNAConfigParams::GNA_SW_FP32;
 ov::runtime::CompiledModel exeNetwork = ie.compile_model(simpleNetwork, deviceName, initialConfig);
 
-ASSERT_THROW(exeNetwork.set_config({{configKey, configValue}}), ov::Exception);
+ASSERT_THROW(exeNetwork.set_property({{configKey, configValue}}), ov::Exception);
 }
 
 IE_SUPPRESS_DEPRECATED_START

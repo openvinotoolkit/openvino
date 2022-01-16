@@ -665,7 +665,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     // accumulate config parameters on engine level
     streamsSet = (config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != config.end());
-    engConfig.readProperties(config);
+engConfig.readProperties(config);
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {

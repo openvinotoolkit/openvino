@@ -32,8 +32,8 @@ public:
     MOCK_CONST_METHOD3(QueryNetwork, InferenceEngine::QueryNetworkResult(
         const InferenceEngine::CNNNetwork&, const std::string&, const std::map<std::string, std::string>&));
 
-    MOCK_CONST_METHOD3(GetMetric, InferenceEngine::Parameter(const std::string&, const std::string&, const std::map<std::string, InferenceEngine::Parameter>&));
-    MOCK_CONST_METHOD2(GetConfig, InferenceEngine::Parameter(const std::string&, const std::string&));
+    MOCK_CONST_METHOD3(GetMetric, ov::Any(const std::string&, const std::string&, const ov::AnyMap&));
+    MOCK_CONST_METHOD2(GetConfig, ov::Any(const std::string&, const std::string&));
     MOCK_CONST_METHOD0(GetAvailableDevices, std::vector<std::string>());
     MOCK_CONST_METHOD1(DeviceSupportsImportExport, bool(const std::string&)); // NOLINT not a cast to bool
     MOCK_CONST_METHOD0(isNewAPI, bool());

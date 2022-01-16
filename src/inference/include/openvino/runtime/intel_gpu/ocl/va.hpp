@@ -102,9 +102,9 @@ public:
      * that root device should be used
      */
     VAContext(Core& core, VADisplay device, int target_tile_id = -1) : ClContext(core, (cl_context) nullptr) {
-        ParamMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
-                                   {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)},
-                                   {GPU_PARAM_KEY(TILE_ID), target_tile_id}};
+        AnyMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
+                                 {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)},
+                                 {GPU_PARAM_KEY(TILE_ID), target_tile_id}};
         *this = core.create_context(device_name, context_params).as<VAContext>();
     }
 
@@ -119,9 +119,9 @@ public:
     std::pair<VASurfaceTensor, VASurfaceTensor> create_tensor_nv12(const size_t height,
                                                                    const size_t width,
                                                                    const VASurfaceID nv12_surf) {
-        ParamMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
-                                  {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), nv12_surf},
-                                  {GPU_PARAM_KEY(VA_PLANE), uint32_t(0)}};
+        AnyMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
+                                {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), nv12_surf},
+                                {GPU_PARAM_KEY(VA_PLANE), uint32_t(0)}};
         auto y_tensor = create_tensor(element::u8, {1, 1, height, width}, tensor_params);
         tensor_params[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
         auto uv_tensor = create_tensor(element::u8, {1, 2, height / 2, width / 2}, tensor_params);
@@ -140,9 +140,9 @@ public:
                                          const Shape& shape,
                                          const VASurfaceID surface,
                                          const uint32_t plane = 0) {
-        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
-                           {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), surface},
-                           {GPU_PARAM_KEY(VA_PLANE), plane}};
+        AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
+                         {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), surface},
+                         {GPU_PARAM_KEY(VA_PLANE), plane}};
         return create_tensor(type, shape, params).as<VASurfaceTensor>();
     }
 };

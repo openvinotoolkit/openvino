@@ -18,7 +18,7 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/infer_request.hpp"
-#include "openvino/runtime/parameter.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 namespace InferenceEngine {
@@ -49,6 +49,8 @@ class OPENVINO_RUNTIME_API CompiledModel {
                   const std::shared_ptr<void>& so);
     friend class ov::runtime::Core;
     friend class ov::runtime::InferRequest;
+
+    void get_property(const std::string& name, ov::Any& to) const;
 
 public:
     /**
@@ -159,34 +161,52 @@ public:
     void export_model(std::ostream& model_stream);
 
     /**
-     * @brief Sets configuration for current compiled model
-     * @param config Map of pairs: (config parameter name, config parameter value)
+     * @brief Sets properties for current compiled model
+     *
+     * @param property Map of pairs: (property name, property value)
      */
-    void set_config(const ParamMap& config);
+    void set_property(const AnyMap& property);
 
-    /** @brief Gets configuration for a compiled model.
+    /**
+     * @brief Sets properties for current executable network
+     *
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param properties Optional pack of pairs: (property name, property value)
+     * @return nothing
+     */
+    template <typename... Properties>
+    util::EnableIfAllProperties<void, Properties...> set_property(Properties&&... properties) {
+        set_property(AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /** @brief Gets properties for current compiled model
      *
      * The method is responsible to extract information
      * which affects compiled model inference. The list of supported configuration values can be extracted via
-     * CompiledModel::get_metric with the SUPPORTED_CONFIG_KEYS key, but some of these keys cannot be changed
+     * CompiledModel::get_properties with the ov::supported_properties key, but some of these keys cannot be changed
      * dynamically, e.g. DEVICE_ID cannot changed if a compiled model has already been compiled for particular
      * device.
      *
-     * @param key_name config key, can be found in ie_plugin_config.hpp
-     * @return Configuration parameter value
+     * @param name property key, can be found in openvino/runtime/properties.hpp
+     * @return Property value
      */
-    Any get_config(const std::string& key_name) const;
+    Any get_property(const std::string& name) const;
 
     /**
-     * @brief Gets general runtime metric for a compiled model.
+     * @brief Gets properties dedicated to device behaviour.
      *
-     * It can be model name, actual device ID on
-     * which compiled model is running or all other properties which cannot be changed dynamically.
+     * The method is targeted to extract information which can be set via set_property method.
      *
-     * @param metric_name metric name to request
-     * @return Metric parameter value
+     * @tparam T - type of returned value
+     * @param key  - property key object.
+     * @return Value of property corresponding to property key.
      */
-    Any get_metric(const std::string& metric_name) const;
+    template <typename T, PropertyMutability mutability>
+    util::EnableIfRaedableProperty<T, mutability> get_property(const ov::Key<T, mutability>& key) const {
+        auto to = Any::make<T>();
+        get_property(key.str(), to);
+        return to.template as<T>();
+    }
 
     /**
      * @brief Returns pointer to device-specific shared context

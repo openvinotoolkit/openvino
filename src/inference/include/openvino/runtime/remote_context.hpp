@@ -15,7 +15,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/parameter.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 
 namespace InferenceEngine {
@@ -140,10 +140,10 @@ public:
      * Returns a pointer to the object which implements RemoteTensor interface.
      * @param type Defines the element type of the tensor
      * @param shape Defines the shape of the tensor
-     * @param params Map of the low-level tensor object parameters.
+     * @param config Map of the low-level tensor object parameters.
      * @return A pointer to plugin object that implements RemoteTensor interface.
      */
-    RemoteTensor create_tensor(const element::Type& type, const Shape& shape, const ParamMap& params = {});
+    RemoteTensor create_tensor(const element::Type& type, const Shape& shape, const AnyMap& config = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
@@ -154,7 +154,7 @@ public:
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    ParamMap get_params() const;
+    AnyMap get_params() const;
 
     /**
      * @brief This method is used to create host tensor object friendly for the device in current context

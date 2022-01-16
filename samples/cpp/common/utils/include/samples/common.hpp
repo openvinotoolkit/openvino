@@ -979,7 +979,7 @@ std::map<std::string, std::string> parseConfig(const std::string& configName, ch
 inline std::string getFullDeviceName(ov::runtime::Core& core, std::string device) {
     ov::Any p;
     try {
-        p = core.get_metric(device, METRIC_KEY(FULL_DEVICE_NAME));
+        p = core.get_property(device, METRIC_KEY(FULL_DEVICE_NAME));
         return p.as<std::string>();
     } catch (ov::Exception&) {
         return "";

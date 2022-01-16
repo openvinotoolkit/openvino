@@ -35,11 +35,11 @@ using OVClassNetworkTestP_VPU_GetMetric = OVClassNetworkTestP;
 
 TEST_P(OVClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsFP16) {
     ov::runtime::Core ie;
-    ASSERT_METRIC_SUPPORTED(METRIC_KEY(OPTIMIZATION_CAPABILITIES))
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::optimization_capabilities)
 
     ov::Any optimizationCapabilitiesParameter;
     ASSERT_NO_THROW(optimizationCapabilitiesParameter =
-                            ie.get_metric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
+                            ie.get_property(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
 
     const auto optimizationCapabilities = optimizationCapabilitiesParameter.as<std::vector<std::string>>();
     ASSERT_EQ(optimizationCapabilities.size(), 1);

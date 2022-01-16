@@ -27,30 +27,46 @@ void regclass_Core(py::module m) {
 
     cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
 
-    cls.def("set_config",
-            (void (ov::runtime::Core::*)(const ConfigMap&, const std::string&)) & ov::runtime::Core::set_config,
-            py::arg("config"),
-            py::arg("device_name") = "");
-
-    cls.def("compile_model",
-            (ov::runtime::CompiledModel(
-                ov::runtime::Core::*)(const std::shared_ptr<const ov::Model>&, const std::string&, const ConfigMap&)) &
-                ov::runtime::Core::compile_model,
-            py::arg("model"),
-            py::arg("device_name"),
-            py::arg("config") = py::dict());
+    cls.def(
+        "set_config",
+        [](ov::runtime::Core& self, const ov::runtime::ConfigMap& config, const std::string& device_name) {
+            self.set_property(device_name, {config.begin(), config.end()});
+        },
+        py::arg("config"),
+        py::arg("device_name") = "");
 
     cls.def(
         "compile_model",
-        (ov::runtime::CompiledModel(ov::runtime::Core::*)(const std::shared_ptr<const ov::Model>&, const ConfigMap&)) &
-            ov::runtime::Core::compile_model,
+        [](ov::runtime::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
+           const std::string& device_name,
+           const ov::runtime::ConfigMap& config) {
+            return self.compile_model(model, device_name, {config.begin(), config.end()});
+        },
         py::arg("model"),
+        py::arg("device_name"),
         py::arg("config") = py::dict());
 
     cls.def(
         "compile_model",
-        (ov::runtime::CompiledModel(ov::runtime::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
-            ov::runtime::Core::compile_model,
+        [](ov::runtime::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
+           const ov::runtime::ConfigMap& config) {
+            return self.compile_model(model, {config.begin(), config.end()});
+        },
+        py::arg("model"),
+        py::arg("device_name"),
+        py::arg("config") = py::dict());
+
+    cls.def(
+        "compile_model",
+
+        [](ov::runtime::Core& self,
+           const std::string& model_path,
+           const std::string& device_name,
+           const ov::runtime::ConfigMap& config) {
+            return self.compile_model(model_path, device_name, {config.begin(), config.end()});
+        },
         py::arg("model_path"),
         py::arg("device_name"),
         py::arg("config") = py::dict());
@@ -103,17 +119,22 @@ void regclass_Core(py::module m) {
         py::arg("model"),
         py::arg("weights") = "");
 
-    cls.def("import_model",
-            (ov::runtime::CompiledModel(ov::runtime::Core::*)(std::istream&, const std::string&, const ConfigMap&)) &
-                ov::runtime::Core::import_model,
-            py::arg("model_file"),
-            py::arg("device_name"),
-            py::arg("config") = py::none());
+    cls.def(
+        "import_model",
+        [](ov::runtime::Core& self,
+           std::istream& model_file,
+           const std::string& device_name,
+           const ov::runtime::ConfigMap& config) {
+            return self.import_model(model_file, device_name, {config.begin(), config.end()});
+        },
+        py::arg("model_file"),
+        py::arg("device_name"),
+        py::arg("config") = py::none());
 
     cls.def(
         "get_config",
         [](ov::runtime::Core& self, const std::string& device_name, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_config(device_name, name)).as<py::object>();
+            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
@@ -121,7 +142,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "get_metric",
         [](ov::runtime::Core& self, const std::string device_name, const std::string name) -> py::object {
-            return Common::from_ov_any(self.get_metric(device_name, name)).as<py::object>();
+            return Common::from_ov_any(self.get_property(device_name, name)).as<py::object>();
         },
         py::arg("device_name"),
         py::arg("name"));
@@ -132,13 +153,17 @@ void regclass_Core(py::module m) {
 
     cls.def("unload_plugin", &ov::runtime::Core::unload_plugin, py::arg("device_name"));
 
-    cls.def("query_model",
-            (ov::runtime::SupportedOpsMap(
-                ov::runtime::Core::*)(const std::shared_ptr<const ov::Model>&, const std::string&, const ConfigMap&)) &
-                ov::runtime::Core::query_model,
-            py::arg("model"),
-            py::arg("device_name"),
-            py::arg("config") = py::dict());
+    cls.def(
+        "query_model",
+        [](ov::runtime::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
+           const std::string& device_name,
+           const ov::runtime::ConfigMap& config) {
+            return self.query_model(model, device_name, {config.begin(), config.end()});
+        },
+        py::arg("model"),
+        py::arg("device_name"),
+        py::arg("config") = py::dict());
 
     cls.def("add_extension",
             static_cast<void (ov::runtime::Core::*)(const std::string&)>(&ov::runtime::Core::add_extension),

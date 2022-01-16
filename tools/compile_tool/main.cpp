@@ -746,7 +746,7 @@ int main(int argc, char* argv[]) {
         } else {
             ov::runtime::Core core;
             if (!FLAGS_log_level.empty()) {
-                core.set_config({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
+                core.set_property(FLAGS_d, {{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}});
             }
 
             auto model = core.read_model(FLAGS_m);
@@ -754,7 +754,8 @@ int main(int argc, char* argv[]) {
             configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml, FLAGS_oml, FLAGS_ioml);
             printInputAndOutputsInfoShort(*model);
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
-            auto compiledModel = core.compile_model(model, FLAGS_d, configure());
+            auto configs = configure();
+            auto compiledModel = core.compile_model(model, FLAGS_d, {configs.begin(), configs.end()});
             loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
             std::string outputName = FLAGS_o;
             if (outputName.empty()) {
