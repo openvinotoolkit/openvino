@@ -333,3 +333,21 @@ def reverse_bypass_infer(node, in_ports: List[int] = None):
         for port in in_ports:
             if node.in_port(port).data.get_shape() is None:
                 node.in_port(port).data.set_shape(output_shape)
+
+
+def clarify_partial_shape(shapes):
+    """
+    returns more precise partial shape from a set of partial shapes,
+    e.g. pshape_1 = [dyn, 2, dyn], pshape_2 = [10, dyn, dyn] => out_shape = [10, 2, dyn]
+    :param shapes:
+    :return:
+    """
+    out_shape = shapes[0]
+    for shape in shapes:
+        assert compatible_shapes(shape, out_shape), "shapes {} and {} are not compatible".format(
+            unmask_shape(shape), unmask_shape(out_shape))
+        shape_unmasked = shape.data.copy()
+        for i, dim in enumerate(shape_unmasked):
+            if dim != dynamic_dimension_value:
+                out_shape[i] = dim
+    return out_shape

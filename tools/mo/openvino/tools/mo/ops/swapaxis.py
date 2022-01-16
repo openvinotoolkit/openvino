@@ -3,9 +3,9 @@
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import PermuteAttrs, Op
-from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, int64_array, unmask_shape
 
 
 class SwapAxis(Op):
