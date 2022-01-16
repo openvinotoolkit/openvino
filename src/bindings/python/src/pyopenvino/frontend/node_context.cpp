@@ -79,7 +79,7 @@ void regclass_frontend_NodeContext(py::module m) {
 
             CAST_VEC_TO_PY(any, dtype, std::vector<int32_t>);
             CAST_VEC_TO_PY(any, dtype, std::vector<int64_t>);
-#ifndef __APPLE
+#ifndef __APPLE__
             // TODO: investigate the issue in pybind11 on MacOS
             CAST_VEC_TO_PY(any, dtype, std::vector<bool>);
 #endif
