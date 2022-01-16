@@ -111,7 +111,9 @@ DECLARE_GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT);
  *
  * Note that multithreading mode does not guarantee the same computation order as order
  * of issuing. Additionally, in this case, software modes do not implement any serializations.
+ * @deprecated The config key is deprecated and will be removed in a future release
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_GNA_CONFIG_KEY(LIB_N_THREADS);
 }  // namespace GNAConfigParams
 
@@ -130,7 +132,9 @@ namespace PluginConfigParams {
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
  * PluginConfigParams::YES or PluginConfigParams::NO
+ * @deprecated The config key is deprecated and will be removed in a future release
  */
+INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
 DECLARE_CONFIG_KEY(SINGLE_THREAD);
 
 }  // namespace PluginConfigParams

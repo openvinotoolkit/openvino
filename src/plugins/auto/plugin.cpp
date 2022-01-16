@@ -442,8 +442,13 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
 
     // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
     std::list<DeviceInformation>  devices;
-    devices.splice(devices.end(), dGPU);
-    devices.splice(devices.end(), VPUX);
+    if (networkPrecision == "INT8") {
+        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), dGPU);
+    } else {
+        devices.splice(devices.end(), dGPU);
+        devices.splice(devices.end(), VPUX);
+    }
     devices.splice(devices.end(), iGPU);
     devices.splice(devices.end(), MYRIAD);
     devices.splice(devices.end(), CPU);
@@ -484,7 +489,7 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
                 continue;
             }
             auto& filterDevices = kvp.second;
-            auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](DeviceInformation device) {
+            auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](const DeviceInformation& device) {
                     auto iter = std::find_if(filterDevices.begin(), filterDevices.end(), [&device](std::string uniqueName) {
                             return (uniqueName == device.uniqueName);
                             });

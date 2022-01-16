@@ -220,7 +220,7 @@ protected:
     static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-    void Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();

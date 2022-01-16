@@ -11,6 +11,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ShuffleChannelsTransformation propagates dequantization operations through ShuffleChannels operation.
+ *
+ * For more details about the transformation, refer to
+ * [ShuffleChannelsTransformation](@ref openvino_docs_IE_DG_lpt_ShuffleChannelsTransformation) page
+ * in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API ShuffleChannelsTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

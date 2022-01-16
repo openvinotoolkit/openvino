@@ -9,6 +9,8 @@
 #include <stddef.h>
 #include <memory>
 #include <stdexcept>
+#include <algorithm>
+#include <vector>
 
 namespace cldnn {
 
@@ -137,6 +139,36 @@ inline derived_type& downcast(base_type& base) {
         throw std::runtime_error("Unable to cast reference from base to derived type");
     }
     throw std::runtime_error("downcast failed with unhadnled exception");
+}
+
+template <typename T>
+inline bool all_ones(const std::vector<T> vec) {
+    return std::all_of(vec.begin(), vec.end(), [](const T& val) { return val == 1; });
+}
+
+template <typename T>
+inline bool all_zeroes(const std::vector<T> vec) {
+    return std::all_of(vec.begin(), vec.end(), [](const T& val) { return val == 0; });
+}
+
+template <typename T>
+inline bool any_one(const std::vector<T> vec) {
+    return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val == 1; });
+}
+
+template <typename T>
+inline bool any_zero(const std::vector<T> vec) {
+    return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val == 0; });
+}
+
+template <typename T>
+inline bool any_not_one(const std::vector<T> vec) {
+    return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 1; });
+}
+
+template <typename T>
+inline bool any_not_zero(const std::vector<T> vec) {
+    return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
 }
 
 /// @}
