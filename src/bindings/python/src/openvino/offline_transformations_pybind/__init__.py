@@ -30,6 +30,7 @@ if sys.platform == "win32":
 
 
 from openvino.pyopenvino.offline_transformations_pybind import apply_moc_transformations
+from openvino.pyopenvino.offline_transformations_pybind import apply_moc_legacy_transformations
 from openvino.pyopenvino.offline_transformations_pybind import apply_pot_transformations
 from openvino.pyopenvino.offline_transformations_pybind import apply_low_latency_transformation
 from openvino.pyopenvino.offline_transformations_pybind import apply_pruning_transformation
@@ -37,3 +38,4 @@ from openvino.pyopenvino.offline_transformations_pybind import generate_mapping_
 from openvino.pyopenvino.offline_transformations_pybind import apply_make_stateful_transformation
 from openvino.pyopenvino.offline_transformations_pybind import serialize
 from openvino.pyopenvino.offline_transformations_pybind import compress_model_transformation
+from openvino.pyopenvino.offline_transformations_pybind import compress_quantize_weights_transformation
