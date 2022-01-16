@@ -1561,13 +1561,16 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
             roundedShift = shiftConst;
         }
 
-        if (isScalarLike(roundedShift)) {
-            roundedShift = toScalar(roundedShift);
-            if (op::util::constantIsEqualTo(roundedShift, 0)) {
-                replace_node(subtract, convertOnSubtract->get_input_node_shared_ptr(0));
-                roundedShift = nullptr;
-            }
-        }
+//        if (isScalarLike(roundedShift)) {
+//            roundedShift = toScalar(roundedShift);
+//            if (op::util::constantIsEqualTo(roundedShift, 0)) {
+//                replace_node(subtract, convertOnSubtract->get_input_node_shared_ptr(0));
+//                roundedShift = nullptr;
+//            }
+//        }
+
+        replace_node(subtract, convertOnSubtract->get_input_node_shared_ptr(0));
+        roundedShift = nullptr;
 
         if (roundedShift) {
             NetworkHelper::copyInfo(shiftConst, roundedShift);
