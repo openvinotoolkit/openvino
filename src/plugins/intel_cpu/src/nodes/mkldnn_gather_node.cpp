@@ -270,6 +270,23 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
         uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
+if (getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getStaticDims() == VectorDims {4, 5, 6, 7} &&
+        getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getStaticDims() == VectorDims {4} &&
+        axis == 2 && batchDims == 0 && dataTypeSize == 4) {
+    const int* srcDataInt = reinterpret_cast<int*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr());
+    const int* srcIndicesInt = reinterpret_cast<int*>(getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr());
+        std::string srcIndicesIntStr = "srcIndicesInt {", srcDataIntStr = "srcDataInt {";
+    for (int i = 0; i < getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetShape().getElementsCount(); i++) {
+        srcDataIntStr += std::to_string(srcDataInt[i]) + "; ";
+    }
+    for (int i = 0; i < getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetShape().getElementsCount(); i++) {
+        srcIndicesIntStr += std::to_string(srcIndicesInt[i]) + "; ";
+    }
+    srcIndicesIntStr += "}\n";
+    srcDataIntStr += "}\n";
+    printf("%s%s", srcDataIntStr.c_str(), srcIndicesIntStr.c_str());
+}
+
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
         auto threadBody = [&](const int ithr, const int nthr) {
@@ -294,6 +311,8 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
 
             const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
 
+    std::string seqStr = std::string("[") + std::to_string(ithr) + "] TW: " + std::to_string(totalWork) +
+        " start: " + std::to_string(p.dstStart) + "\n";
 
             if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) { // Elementwise short case.
                 arg.permIdxMask = p.permIdxMask.data();
@@ -304,16 +323,79 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
                 arg.beforeAxisDiff = p.srcBeforeAxisDiff.data();
                 arg.beforeAxisPermMask = p.beforeAxPermMask.data();
                 arg.afterAxisPermMask = p.afterAxPermMask.data();
-                const int afterAxSizeB = afterAxisSize;
-                arg.afterAxSizePtr = &afterAxSizeB;
+//                const int afterAxSizeB = afterAxisSize;
+                arg.afterAxSizePtr = &afterAxisSize;
                 arg.specIdxAndAfterAxIterB = p.specIdxAndAfterAxIterB;
                 arg.specIdxAndAfterAxSizeB = specIdxAndAfterAxSizeB;
             }
+
+//    std::string thrIdx = "[" + std::to_string(ithr) + "] ";
+//    std::string specIndicesInBytesStr = thrIdx + "specIndicesInBytes {",
+//            idxBatchSumInBytesStr = thrIdx + "idxBatchSumInBytes {",
+//            srcBeforeAxisSumStr = thrIdx + "dataBeforeAxisSumB {",
+//            beforeAxisDiffStr = thrIdx + "beforeAxisDiff {",
+//            beforeAxPermMaskStr = thrIdx + "beforeAxPermMask {",
+//            specIdxDiffStr = thrIdx + "specIdxDiff {",
+//            afterAxisPermStr = thrIdx + "afterAxisPermMask {",
+//            afterAxIdxBStr = thrIdx + "afterAxIdxB {",
+//            betweenBatchAndAxisIterStr = thrIdx + "betweenBatchAndAxisIter: " + std::to_string(p.betweenBatchAndAxisIter) +
+//                "; betweenBatchAndAxisSize: " + std::to_string(betweenBatchAndAxisSize) +
+//                "; srcAfterBatchSizeInBytes: " + std::to_string(srcAfterBatchSizeInBytes) +
+//                "; specIdxAndAfterAxIterB: " + std::to_string(p.specIdxAndAfterAxIterB) +
+//                "; specIdxAndAfterAxSizeB: " + std::to_string(specIdxAndAfterAxSizeB) + "\n";
+//for (int i = 0; i < dataElPerVec; i++) {
+//    specIndicesInBytesStr += std::to_string(p.specIdxInBytes[i]) + "; ";
+//    idxBatchSumInBytesStr += std::to_string(p.idxBatchSumInBytes[i]) + "; ";
+//    srcBeforeAxisSumStr += std::to_string(p.dataBeforeAxisSumInBytes[i]) + "; ";
+//    if (i < p.afterAxIdxInBytes.size())
+//        afterAxIdxBStr += std::to_string(p.afterAxIdxInBytes[i]) + "; ";
+//    if (i < p.srcBeforeAxisDiff.size())
+//        beforeAxisDiffStr += std::to_string(p.srcBeforeAxisDiff[i]) + "; ";
+//    if (i < p.beforeAxPermMask.size())
+//        beforeAxPermMaskStr += std::to_string(p.beforeAxPermMask[i]) + "; ";
+//    if (i < p.specIdxDiff.size())
+//        specIdxDiffStr += std::to_string(p.specIdxDiff[i]) + "; ";
+//    if (i < p.afterAxPermMask.size())
+//        afterAxisPermStr += std::to_string(p.afterAxPermMask[i]) + "; ";
+//}
+//specIndicesInBytesStr += "}\n";
+//idxBatchSumInBytesStr += "}\n";
+//srcBeforeAxisSumStr += "}\n";
+//afterAxIdxBStr += "}\n";
+//beforeAxisDiffStr += "}\n";
+//beforeAxPermMaskStr += "}\n";
+//specIdxDiffStr += "}\n";
+//afterAxisPermStr += "}\n";
+//
+//if (getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getStaticDims() == VectorDims {4, 5, 6, 7} &&
+//        getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getStaticDims() == VectorDims {4} &&
+//        axis == 2 && batchDims == 0) {
+//    printf("%s%s%s%s%s%s%s%s%s%s", seqStr.c_str(), specIndicesInBytesStr.c_str(), idxBatchSumInBytesStr.c_str(), srcBeforeAxisSumStr.c_str(),
+//        afterAxIdxBStr.c_str(), beforeAxisDiffStr.c_str(), beforeAxPermMaskStr.c_str(),
+//        specIdxDiffStr.c_str(), afterAxisPermStr.c_str(), betweenBatchAndAxisIterStr.c_str());
+//}
 
             (*jitKernel)(&arg);
         };
 
         parallel_nt(0, threadBody);
+
+if (getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getStaticDims() == VectorDims {4, 5, 6, 7} &&
+        getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getStaticDims() == VectorDims {4} &&
+        axis == 2 && batchDims == 0 && dataTypeSize == 4) {
+    int* tmpDst = reinterpret_cast<int*>(dstData);
+    std::cout << "\nOUT DATA:\n";
+    int wpt = execParamsPerThread[1].dstStart - execParamsPerThread[0].dstStart;
+    for (int i = 0; i < getOutputShapeAtPort(0).getElementsCount(); i++) {
+        if (i % 8 == 0)
+            std::cout << "_";
+        if (i % wpt == 0)
+            std::cout << "\nThread " << (i / wpt) << std::endl;
+        std::cout << std::to_string(tmpDst[i]) << ";";
+    }
+    std::cout << std::endl;
+}
+
     } else {
         execReference();
     }

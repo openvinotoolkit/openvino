@@ -620,6 +620,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
             }
         }
     }
+//vmovups(ptr[regDst], vAux1);
 
     vpcmpeqd(kDstMask, vAux0, vAux0);
     if (jcp.batchDims > 0lu) {
@@ -639,13 +640,16 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
     }
 
     normalizeRawIndices(vDstShifts, kDstMask, kAuxMask0);
+//vmovups(ptr[regDst], vDstShifts);
 
     if (jcp.afterAxisSize != 1lu) {
         vpmulld(vDstShifts, vDstShifts, vmmAfterAxisSize);
+vmovups(ptr[regDst], vDstShifts);
         vpaddd(vDstShifts, vDstShifts, vmmAfterAxisIdxB);
     }
     if (jcp.beforeAxisSize != 1lu)
         vpaddd(vDstShifts, vDstShifts, vAux1);
+//vmovups(ptr[regDst], vDstShifts);
 }
 
 template <x64::cpu_isa_t isa>
@@ -671,7 +675,7 @@ void jitUniGatherKernel<isa>::process32b(bool isShortIdx, bool blocked) {
 
     // First iteration
     shiftIdxAndGather(vmmAuxContainer, isShortIdx, false, blocked);
-    vmovups(ptr[regDst], vmmAuxContainer[2]);
+//    vmovups(ptr[regDst], vmmAuxContainer[2]);
 
     // Main loop
     L(lDstIdxLoop);
@@ -682,7 +686,7 @@ void jitUniGatherKernel<isa>::process32b(bool isShortIdx, bool blocked) {
         jl(lTail, T_NEAR);
 
         shiftIdxAndGather(vmmAuxContainer, isShortIdx, true, blocked);
-        vmovups(ptr[regDst], vmmAuxContainer[2]);
+//        vmovups(ptr[regDst], vmmAuxContainer[2]);
 
         jmp(lDstIdxLoop, T_NEAR);
     }

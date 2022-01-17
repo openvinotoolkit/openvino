@@ -35,7 +35,7 @@ struct gatherJitExecArgs {
     const int* beforeAxisPermMask;
     const int* afterAxIdxB;
     const int* afterAxisPermMask;
-    const int* afterAxSizePtr;
+    const uint64_t* afterAxSizePtr;
     const int* specIdxDiff;
 
     uint64_t workAmount = 0lu;
