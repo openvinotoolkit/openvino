@@ -29,13 +29,13 @@ if sys.platform == "win32":
                 os.environ["PATH"] = os.path.abspath(lib_path) + ";" + os.environ["PATH"]
 
 
-from openvino.pyopenvino.offline_transformations_pybind import apply_moc_transformations
-from openvino.pyopenvino.offline_transformations_pybind import apply_moc_legacy_transformations
-from openvino.pyopenvino.offline_transformations_pybind import apply_pot_transformations
-from openvino.pyopenvino.offline_transformations_pybind import apply_low_latency_transformation
-from openvino.pyopenvino.offline_transformations_pybind import apply_pruning_transformation
-from openvino.pyopenvino.offline_transformations_pybind import generate_mapping_file
-from openvino.pyopenvino.offline_transformations_pybind import apply_make_stateful_transformation
-from openvino.pyopenvino.offline_transformations_pybind import serialize
-from openvino.pyopenvino.offline_transformations_pybind import compress_model_transformation
-from openvino.pyopenvino.offline_transformations_pybind import compress_quantize_weights_transformation
+from openvino.pyopenvino.offline_transformations import apply_moc_transformations
+from openvino.pyopenvino.offline_transformations import apply_moc_legacy_transformations
+from openvino.pyopenvino.offline_transformations import apply_pot_transformations
+from openvino.pyopenvino.offline_transformations import apply_low_latency_transformation
+from openvino.pyopenvino.offline_transformations import apply_pruning_transformation
+from openvino.pyopenvino.offline_transformations import generate_mapping_file
+from openvino.pyopenvino.offline_transformations import apply_make_stateful_transformation
+from openvino.pyopenvino.offline_transformations import serialize
+from openvino.pyopenvino.offline_transformations import compress_model_transformation
+from openvino.pyopenvino.offline_transformations import compress_quantize_weights_transformation
