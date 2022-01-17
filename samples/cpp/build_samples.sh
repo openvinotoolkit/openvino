@@ -63,13 +63,10 @@ if [ -z "$INTEL_OPENVINO_DIR" ]; then
         printf "Error: Failed to set the environment variables automatically. To fix, run the following command:\n source <INSTALL_DIR>/setupvars.sh\n where INSTALL_DIR is the OpenVINO installation directory.\n\n"
         exit 1
     fi
-    if ! source "$setvars_path" ; then
-        printf "Unable to run ./setupvars.sh. Please check its presence. \n\n"
-        exit 1
-    fi
+    source "$setvars_path" || true
 else
     # case for run with `sudo -E` 
-    source "$INTEL_OPENVINO_DIR/setupvars.sh"
+    source "$INTEL_OPENVINO_DIR/setupvars.sh" || true
 fi
 
 if ! command -v cmake &>/dev/null; then
