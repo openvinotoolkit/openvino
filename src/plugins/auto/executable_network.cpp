@@ -280,21 +280,23 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
 
     WaitFirstNetworkReady();
 }
-void MultiDeviceExecutableNetwork::SetOptimalBatchNum(const DeviceName& devicename) const {
-        std::call_once(_ocBatchNumQuery, [this, &devicename] () {
+void MultiDeviceExecutableNetwork::SetOptimalBatchNum(const DeviceName& devicename,
+                                                    const std::map<std::string, std::string>& config) const {
+        std::call_once(_ocBatchNumQuery, [this, &devicename, &config] () {
                     try {
                         std::map<std::string, InferenceEngine::Parameter> options;
                         options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
                         _optimalBatchSize = _core->GetMetric(devicename,
                                             METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+                        LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "batch size", _optimalBatchSize);
                         unsigned int requests = 0;
                         try {
                             // check if app have set preferred value
                             auto res =
                                 _core->GetConfig(devicename, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
                             requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
-                            const auto& reqs = _config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-                            if (reqs != _config.end())
+                            const auto& reqs = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+                            if (reqs != config.end())
                                 requests =
                                     static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
                             if (!requests) { // no limitations from user
@@ -307,6 +309,7 @@ void MultiDeviceExecutableNetwork::SetOptimalBatchNum(const DeviceName& devicena
                         }
                         // round up to possible user's value
                         _optimalBatchingRequestNum = (std::max)(_optimalBatchSize, requests);
+                        LOG_DEBUG("[AUTOPLUGIN]BATCHING %s:%ld", "optimal batch request num", _optimalBatchingRequestNum);
                     } catch (...) {
                         LOG_WARNING("[AUTOPLUGIN]get optimal infer request num for GPU auto-batch failed :%s");
                     }
@@ -330,7 +333,7 @@ void MultiDeviceExecutableNetwork::TryApplyAutoBatching(AutoLoadContext& context
         (mode == config_with_batch.end() || mode->second != CONFIG_VALUE(THROUGHPUT))))
         return;
     try {
-            SetOptimalBatchNum(deviceNameWithoutBatch);
+            SetOptimalBatchNum(deviceNameWithoutBatch, config_with_batch);
             if (_optimalBatchSize > 1) {
                 auto batchConfig = deviceNameWithoutBatch + "(" + std::to_string(_optimalBatchSize) + ")";
                 _deviceNameWithBatching = "BATCH:" + batchConfig;
@@ -750,7 +753,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                         _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
                     if (bThroughputEnabledInPlugin ||
                         (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
-                        SetOptimalBatchNum(deviceInfo.deviceName);
+                        SetOptimalBatchNum(deviceInfo.deviceName, deviceInfo.config);
                     }
                 }
             }

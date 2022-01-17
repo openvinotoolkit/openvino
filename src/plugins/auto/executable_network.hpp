@@ -139,7 +139,7 @@ private:
                                 NotBusyWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
     void TryApplyAutoBatching(AutoLoadContext& context);
-    void SetOptimalBatchNum(const DeviceName& devicename) const;
+    void SetOptimalBatchNum(const DeviceName& deviceName, const std::map<std::string, std::string>& config) const;
     void TryToLoadNetWork(AutoLoadContext& context,
                           const std::string& modelPath,
                           const InferenceEngine::CNNNetwork& network);
