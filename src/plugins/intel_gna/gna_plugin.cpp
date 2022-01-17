@@ -1358,18 +1358,6 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                                         transpose_output_info->second);
         }
 
-        const std::set<InferenceEngine::Precision::ePrecision> supportedOutputPrecission = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::I32,
-        };
-
-        const auto& outputBlobPrecision = outputBlob->getTensorDesc().getPrecision();
-        if (supportedOutputPrecission.count(outputBlobPrecision) == 0) {
-            THROW_GNA_EXCEPTION << "Unsupported target precision: " << outputBlob->getTensorDesc().getPrecision()
-                                << " detected for output blob: " << outputBlobIt.first
-                                << std::endl;
-        }
-
         ExportScores(outputBlob->buffer(),
                         outputDesc.ptrs[request_idx],
                         outputDesc.orientation,
@@ -1403,16 +1391,22 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                 fprintf(f, "\n\n");
             }
 #endif
-            if (outputBlobPrecision.is_float()) {
+            switch (outputBlob->getTensorDesc().getPrecision()) {
+            case InferenceEngine::Precision::FP32 :
                 UnscaleAndCast(outputBlob->buffer().as<float*>(),
-                               outputBlob->buffer().as<int32_t*>(),
-                               elementsPerBatch,
-                               batchSize,
-                               outputDesc.scale_factor);
-            } else {
+                              outputBlob->buffer().as<int32_t*>(),
+                              elementsPerBatch, batchSize, outputDesc.scale_factor);
+                break;
+
+            case InferenceEngine::Precision::I32 :
                 UnscaleAndCast(outputBlob->buffer().as<int32_t*>(),
                               outputBlob->buffer().as<int32_t*>(),
                               elementsPerBatch, batchSize, outputDesc.scale_factor);
+                break;
+
+            default:
+                THROW_GNA_EXCEPTION << "Unsupported target precision: " << outputBlob->getTensorDesc().getPrecision() << std::endl;
+                break;
             }
 
 #ifdef PLOT
