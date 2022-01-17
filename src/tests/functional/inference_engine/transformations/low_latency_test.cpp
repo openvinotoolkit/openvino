@@ -447,7 +447,7 @@ TEST(TransformationTests, LowLatencyLSTM_Loop) {
         auto C_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
 
         const std::string variable_name_H("LSTMLoop/H_t/variable");
-        const std::string variable_name_C("LSTMLoop/C_tvariable");
+        const std::string variable_name_C("LSTMLoop/C_t/variable");
         auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
