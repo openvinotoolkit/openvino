@@ -584,11 +584,47 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
                              to_str(f2_sinks.size()));
     }
 
-    // Compare sinks with order given in vectors
-    // Sorting sinks by friendly names doesn't look applicable here (these can be auto-generated)
-    for (size_t i = 0; i < f1_sinks.size(); i++) {
-        q.push({f1_sinks[i].get(), f2_sinks[i].get()});
-        used.insert(f1_sinks[i].get());
+    // Compare sinks
+    if (f1_sinks.size() == 1) {
+        q.push({f1_sinks[0].get(), f2_sinks[0].get()});
+        used.insert(f1_sinks[0].get());
+    } else {
+        // Find suitable sink by 'variable name'. Check only suffix (e.g. 'variable_2')
+        auto get_suffix = [](const std::string& name) {
+            auto pos = name.find_last_of('/');
+            if (pos != std::string::npos) {
+                return name.substr(pos + 1);
+            }
+            return name;
+        };
+        // Cast to Assign and find those that have same variable_id suffix
+        for (const auto& sink1 : f1_sinks) {
+            auto assign1 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink1);
+            if (!assign1) {
+                return Result::error("Sink '" + name(sink1) +
+                                     "' is not a variable - graph comparison is not supported");
+            }
+            auto name1 = get_suffix(assign1->get_variable_id());
+            std::shared_ptr<ov::op::Sink> found_sink2;
+            for (const auto& sink2 : f2_sinks) {
+                auto assign2 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink2);
+                if (!assign2) {
+                    return Result::error("Sink '" + name(sink2) +
+                                         "' is not a variable - graph comparison is not supported");
+                }
+                auto name2 = get_suffix(assign2->get_variable_id());
+                if (name2 == name1) {
+                    found_sink2 = sink2;
+                    break;
+                }
+            }
+            if (!found_sink2) {
+                return Result::error("No suitable sink is found for: " + name(sink1) +
+                                     ", var=" + assign1->get_variable_id());
+            }
+            q.push({sink1.get(), found_sink2.get()});
+            used.insert(sink1.get());
+        }
     }
 
     for (size_t i = 0; i < f1_results.size(); ++i) {

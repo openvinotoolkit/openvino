@@ -593,11 +593,11 @@ TEST(build_graph, build_graph_with_sinks_compare_reads) {
 
         auto init_const0 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
         auto read0 = make_shared<opset7::ReadValue>(init_const0, variable1);
-        auto assign0 = make_shared<opset7::Assign>(read0, variable1);
+        auto assign0 = make_shared<opset7::Assign>(read0, variable0);
 
         auto init_const1 = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
         auto read1 = make_shared<opset7::ReadValue>(init_const1, variable0);
-        auto assign1 = make_shared<opset7::Assign>(read1, variable0);
+        auto assign1 = make_shared<opset7::Assign>(read1, variable1);
 
         f1 = make_shared<Function>(ResultVector({}),
                                    SinkVector({assign0, assign1}),
