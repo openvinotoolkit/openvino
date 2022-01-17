@@ -113,32 +113,14 @@ void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto typeCandidate = ref_any, type = ref_any;
-    size_t vlen = 1;
-    if (x64::mayiuse(x64::avx512_common)) {
-        typeCandidate = jit_avx512;
-        vlen = x64::cpu_isa_traits<x64::avx512_common>::vlen / dataTypeSize;
-    } else if (x64::mayiuse(x64::avx2)) {
-        typeCandidate = jit_avx2;
-        vlen = x64::cpu_isa_traits<x64::avx2>::vlen / dataTypeSize;
-    }
-
-    if (typeCandidate != ref_any) {
-         if (isDynamicNode()) {
-            if (isDataShapeStat && isAxisInputConst && afterAxisSize == 1) {
-                type = typeCandidate;
-            }
-         } else if (afterAxisSize < vlen) {
-            type = typeCandidate;
-         }
-    }
-
+    // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
     Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, Precision::I32},
                           {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
                          {{LayoutType::ncsp, dataPrecision}},
-                         type);
+                         ref_any,
+                         isDynamicNode());
 }
 
 void MKLDNNGatherNode::createPrimitive() {
@@ -250,19 +232,6 @@ void MKLDNNGatherNode::prepareParams() {
             specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
-
-        const auto selectedPD = getSelectedPrimitiveDescriptor();
-        if (afterAxisSize == 1) {
-            if (x64::mayiuse(x64::avx512_common)) {
-                selectedPD->setImplementationType(jit_avx512);
-            } else if (x64::mayiuse(x64::avx2)) {
-                selectedPD->setImplementationType(jit_avx2);
-            } else {
-                selectedPD->setImplementationType(ref_any);
-            }
-        } else {
-            selectedPD->setImplementationType(ref_any);
-        }
     }
 
     if (!isIdxShapeStat) {
@@ -271,6 +240,17 @@ void MKLDNNGatherNode::prepareParams() {
 
         specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
         totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
+    }
+
+    const auto& selectedPD = getSelectedPrimitiveDescriptor();
+    if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
+        if (x64::mayiuse(x64::avx512_common)) {
+            selectedPD->setImplementationType(jit_avx512);
+        } else if (x64::mayiuse(x64::avx2)) {
+            selectedPD->setImplementationType(jit_avx2);
+        }
+    } else {
+        selectedPD->setImplementationType(ref_any);
     }
 }
 
@@ -303,7 +283,6 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
             arg.betweenBatchAndAxisIter = p.betweenBatchAndAxisIter;
 
             const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
-
 
             if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) { // Elementwise short case.
                 arg.permIdxMask = p.permIdxMask.data();
@@ -488,25 +467,7 @@ void MKLDNNGatherNode::execReference() {
 }
 
 std::vector<VectorDims> MKLDNNGatherNode::shapeInfer() const {
-    ngraph::OutputVector inputsForShapeInfer {
-        std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(GATHER_DATA),
-                                                getParentEdgesAtPort(GATHER_DATA)[0]->getMemory().GetShape().toPartialShape()),
-        std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(GATHER_INDICES),
-                                                getParentEdgesAtPort(GATHER_INDICES)[0]->getMemory().GetShape().toPartialShape()),
-        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
-                                               getParentEdgesAtPort(GATHER_AXIS)[0]->getMemory().GetShape().getStaticDims(),
-                                               getParentEdgesAtPort(GATHER_AXIS)[0]->getMemory().GetPtr())
-    };
-    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
-
-    localShapeInferOp->validate_and_infer_types();
-
-    std::vector<VectorDims> newOutputShapes(outputShapes.size());
-    for (size_t i = 0lu; i < newOutputShapes.size(); i++) {
-        const auto &partShape = localShapeInferOp->get_output_partial_shape(i);
-        newOutputShapes[i] = partShape.get_shape();
-    }
-    return newOutputShapes;
+    return MKLDNNNode::shapeInferGeneric(PortMask(1, 2, 3));
 }
 
 bool MKLDNNGatherNode::created() const {

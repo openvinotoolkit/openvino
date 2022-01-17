@@ -70,7 +70,7 @@ private:
     uint64_t beforeBatchSize;
     uint64_t beforeAxisSize;
     uint64_t betweenBatchAndAxisSize;
-    uint64_t afterAxisSize;
+    uint64_t afterAxisSize = 0;
     uint64_t afterAxisSizeInBytes;
     uint64_t axisAndAfterAxisSizeInBytes;
     uint64_t srcAfterBatchSizeInBytes;
