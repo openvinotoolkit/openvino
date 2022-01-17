@@ -6,7 +6,6 @@ import numpy as np
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.middle.quantize_linear_resolver import QuantizeLinearResolver
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
-from unit_tests.utils.graph import connect
 
 
 class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
