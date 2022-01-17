@@ -179,13 +179,6 @@ void MatrixNmsLayerTest::compare(const std::vector<ov::runtime::Tensor> &expecte
                             default:
                                 break;
                         }
-                        if (m_outStaticShape) {
-                            const auto fBuffer = static_cast<float*>(actual.data());
-                            for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
-                                ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] - -1.f) < 1e-5)
-                                    << "Invalid default value: " << fBuffer[i] << " at index: " << i;
-                            }
-                        }
                         break;
                     }
                     case ov::element::i32: {
@@ -203,24 +196,13 @@ void MatrixNmsLayerTest::compare(const std::vector<ov::runtime::Tensor> &expecte
                             default:
                                 break;
                         }
-                        if (m_outStaticShape) {
-                            const auto iBuffer = static_cast<int*>(actual.data());
-                            for (size_t tailing = validNums; tailing < maxOutputBoxesPerBatch; tailing++) {
-                                ASSERT_TRUE(iBuffer[actual_offset + tailing] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
-                            }
-                        }
                         break;
                     }
                     default:
                         FAIL() << "Comparator for " << precision << " precision isn't supported";
                 }
-                if (!m_outStaticShape) {
-                    expected_offset += validNums;
-                    actual_offset += validNums;
-                } else {
-                    expected_offset += validNums;
-                    actual_offset += maxOutputBoxesPerBatch;
-                }
+                expected_offset += validNums;
+                actual_offset += validNums;
             }
         } else {
             if (outputIndex == 2) {
@@ -272,9 +254,6 @@ void MatrixNmsLayerTest::SetUp() {
     // input is dynamic shape -> output will be dynamic shape
     // input is static shape -> output will be static shape
     const auto inputDynamicParam = {shapes[0].first, shapes[1].first};
-    m_outStaticShape = std::any_of(inputDynamicParam.begin(), inputDynamicParam.end(), [](const ov::PartialShape& shape) {
-        return shape.rank() == 0;
-    });
 
     ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -282,20 +261,8 @@ void MatrixNmsLayerTest::SetUp() {
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], m_attrs);
-    if (!m_outStaticShape) {
-        auto result = std::make_shared<opset5::Result>(nms);
-        function = std::make_shared<Function>(result, params, "MatrixNMS");
-    } else {
-        auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
-        auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(m_attrs.output_type, Shape{1}, {1}));
-        auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(m_attrs.output_type, Shape{1}, {1}));
-        OutputVector results = {
-            std::make_shared<opset5::Result>(nms_0_identity),
-            std::make_shared<opset5::Result>(nms_1_identity),
-            std::make_shared<opset5::Result>(nms_2_identity)
-        };
-        function = std::make_shared<Function>(results, params, "MatrixNMS");
-    }
+    auto result = std::make_shared<opset5::Result>(nms);
+    function = std::make_shared<Function>(result, params, "MatrixNMS");
 }
 
 } // namespace subgraph
