@@ -19,7 +19,6 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-
 using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
 using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
 using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
@@ -699,10 +698,17 @@ static op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialSha
 
     if (attrs_v0.align_corners) {
         attrs_v4.coordinate_transformation_mode = Transform_mode::ALIGN_CORNERS;
-    } else if ((attrs_v4.mode == InterpolateMode::LINEAR_ONNX ||
-        attrs_v4.mode == InterpolateMode::LINEAR) &&
-        std::all_of(attrs_v4.pads_begin.begin(), attrs_v4.pads_begin.end(), [](size_t i){return i == 0;}) &&
-        std::all_of(attrs_v4.pads_end.begin(), attrs_v4.pads_end.end(), [](size_t i){return i == 0;}) &&
+    } else if ((attrs_v4.mode == InterpolateMode::LINEAR_ONNX || attrs_v4.mode == InterpolateMode::LINEAR) &&
+               std::all_of(attrs_v4.pads_begin.begin(),
+                           attrs_v4.pads_begin.end(),
+                           [](size_t i) {
+                               return i == 0;
+                           }) &&
+               std::all_of(attrs_v4.pads_end.begin(),
+                           attrs_v4.pads_end.end(),
+                           [](size_t i) {
+                               return i == 0;
+                           }) &&
                !(input_shape_rank - 2 == 2 && attrs_v0.axes == AxisSet{2, 3})) {
         attrs_v4.coordinate_transformation_mode = Transform_mode::HALF_PIXEL;
     }

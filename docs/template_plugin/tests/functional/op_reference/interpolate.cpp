@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/interpolate.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/interpolate.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -141,17 +142,19 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
-                                                    const Shape& output_shape,
-                                                    const element::Type& input_type,
-                                                    const element::Type& output_type,
-                                                    const std::vector<size_t> outShapeInput,
-                                                    const element::Type& outShapeInputType,
-                                                    const std::vector<float>& scales,
-                                                     op::v4::Interpolate::InterpolateAttrs& attrs) {
+                                                 const Shape& output_shape,
+                                                 const element::Type& input_type,
+                                                 const element::Type& output_type,
+                                                 const std::vector<size_t> outShapeInput,
+                                                 const element::Type& outShapeInputType,
+                                                 const std::vector<float>& scales,
+                                                 op::v4::Interpolate::InterpolateAttrs& attrs) {
         const auto node_input = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto node_output_shape_input = op::v0::Constant::create(outShapeInputType, outShapeInput, output_shape);
-        const auto node_scales = op::v0::Constant::create(element::Type_t::f32, {scales.size()}, scales);;
-        auto interpolate = std::make_shared<op::v4::Interpolate>(node_input, node_output_shape_input, node_scales, attrs);
+        const auto node_scales = op::v0::Constant::create(element::Type_t::f32, {scales.size()}, scales);
+        ;
+        auto interpolate =
+            std::make_shared<op::v4::Interpolate>(node_input, node_output_shape_input, node_scales, attrs);
         return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{node_input});
     }
 };
@@ -181,8 +184,7 @@ std::vector<InterpolateV1Params> generateParamsForInterpolateV1() {
                                                             false,
                                                             false,
                                                             std::vector<size_t>{0, 0, 0, 0},
-                                                            std::vector<size_t>{0, 0, 0, 0}})
-    };
+                                                            std::vector<size_t>{0, 0, 0, 0}})};
     return params;
 }
 
@@ -195,25 +197,23 @@ std::vector<InterpolateV4Params> generateParamsForInterpolateV4() {
     using TransformMode = op::v4::Interpolate::CoordinateTransformMode;
     using NearestMode = op::v4::Interpolate::NearestMode;
 
-    std::vector<InterpolateV4Params> params{
-        InterpolateV4Params(ov::Shape{1, 1, 2, 4},
-                            ov::Shape{1, 1, 1, 2},
-                            IN_ET,
-                            IN_ET,
-                            std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},
-                            std::vector<T>{1, 3},
-                            {4},
-                            element::i64,
-                            {1.0},
-                            InterpolateAttrs{InterpolateMode::NEAREST,
-                                                                  ShapeCalcMode::SIZES,
-                                                                  std::vector<size_t>{0, 0, 0, 0},
-                                                                  std::vector<size_t>{0, 0, 0, 0},
-                                                                  TransformMode::HALF_PIXEL,
-                                                                  NearestMode::ROUND_PREFER_FLOOR,
-                                                                  false,
-                                                                  -0.75})
-    };
+    std::vector<InterpolateV4Params> params{InterpolateV4Params(ov::Shape{1, 1, 2, 4},
+                                                                ov::Shape{1, 1, 1, 2},
+                                                                IN_ET,
+                                                                IN_ET,
+                                                                std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},
+                                                                std::vector<T>{1, 3},
+                                                                {4},
+                                                                element::i64,
+                                                                {1.0},
+                                                                InterpolateAttrs{InterpolateMode::NEAREST,
+                                                                                 ShapeCalcMode::SIZES,
+                                                                                 std::vector<size_t>{0, 0, 0, 0},
+                                                                                 std::vector<size_t>{0, 0, 0, 0},
+                                                                                 TransformMode::HALF_PIXEL,
+                                                                                 NearestMode::ROUND_PREFER_FLOOR,
+                                                                                 false,
+                                                                                 -0.75})};
     return params;
 }
 
@@ -222,8 +222,7 @@ std::vector<InterpolateV1Params> generateCombinedParamsForInterpolateV1() {
         generateParamsForInterpolateV1<element::Type_t::f32>(),
         generateParamsForInterpolateV1<element::Type_t::f16>(),
         generateParamsForInterpolateV1<element::Type_t::i8>(),
-        generateParamsForInterpolateV1<element::Type_t::u8>()
-    };
+        generateParamsForInterpolateV1<element::Type_t::u8>()};
 
     std::vector<InterpolateV1Params> combinedParams;
 
@@ -239,8 +238,7 @@ std::vector<InterpolateV4Params> generateCombinedParamsForInterpolateV4() {
         generateParamsForInterpolateV4<element::Type_t::f32>(),
         generateParamsForInterpolateV4<element::Type_t::f16>(),
         generateParamsForInterpolateV4<element::Type_t::i8>(),
-        generateParamsForInterpolateV4<element::Type_t::u8>()
-    };
+        generateParamsForInterpolateV4<element::Type_t::u8>()};
 
     std::vector<InterpolateV4Params> combinedParams;
 
@@ -251,16 +249,14 @@ std::vector<InterpolateV4Params> generateCombinedParamsForInterpolateV4() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Interpolate_V1_With_Hardcoded_Refs,
-    ReferenceInterpolateV1LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForInterpolateV1()),
-    ReferenceInterpolateV1LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_V1_With_Hardcoded_Refs,
+                         ReferenceInterpolateV1LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForInterpolateV1()),
+                         ReferenceInterpolateV1LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Interpolate_V4_With_Hardcoded_Refs,
-    ReferenceInterpolateV4LayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForInterpolateV4()),
-    ReferenceInterpolateV4LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_V4_With_Hardcoded_Refs,
+                         ReferenceInterpolateV4LayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForInterpolateV4()),
+                         ReferenceInterpolateV4LayerTest::getTestCaseName);
 
 }  // namespace
