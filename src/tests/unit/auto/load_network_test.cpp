@@ -48,10 +48,11 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
     // ie.UnregisterPlugin("AUTO");
     // ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, "AUTO");
 
-    EXPECT_CALL(*origin_plugin, LoadNetwork(_, _))
-        .WillOnce([&](const std::string&,
+    EXPECT_CALL(*origin_plugin, LoadExeNetworkImpl(_, _))
+        .WillOnce([&](const InferenceEngine::CNNNetwork&,
                       const std::map<std::string, std::string>&) -> InferenceEngine::IExecutableNetworkInternal::Ptr {
-            return nullptr;
+            auto mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
+            return mockIExeNet;
         });
 
     InferenceEngine::CNNNetwork actualCnnNetwork;

@@ -29,7 +29,7 @@ public:
     MultiDeviceInferencePlugin();
     ~MultiDeviceInferencePlugin() = default;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
+    MOCKTESTMACRO InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                                                        const std::map<std::string, std::string>& config) override;
 
     MOCKTESTMACRO InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
