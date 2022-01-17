@@ -46,6 +46,7 @@
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/if.hpp>
+#include <ngraph/runtime/reference/interpolate.hpp>
 #include <ngraph/runtime/reference/log.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
@@ -3294,6 +3295,44 @@ inline bool evaluate(const shared_ptr<op::v8::NV12toBGR>& op,
                                                       outputs,
                                                       inputs,
                                                       ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR);
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Interpolate>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    element::Type input_et = op->get_input_element_type(0);
+
+    switch (input_et) {
+    case element::Type_t::f32:
+        ngraph::runtime::reference::interpolate<float>(inputs[0]->get_data_ptr<float>(),
+                                                       op->get_input_partial_shape(0),
+                                                       outputs[0]->get_data_ptr<float>(),
+                                                       op->get_output_shape(0),
+                                                       op->get_attrs());
+        break;
+    case element::Type_t::f16:
+        ngraph::runtime::reference::interpolate<float16>(inputs[0]->get_data_ptr<float16>(),
+                                                         op->get_input_partial_shape(0),
+                                                         outputs[0]->get_data_ptr<float16>(),
+                                                         op->get_output_shape(0),
+                                                         op->get_attrs());
+        break;
+    case element::Type_t::i8:
+        ngraph::runtime::reference::interpolate<int8_t>(inputs[0]->get_data_ptr<int8_t>(),
+                                                        op->get_input_partial_shape(0),
+                                                        outputs[0]->get_data_ptr<int8_t>(),
+                                                        op->get_output_shape(0),
+                                                        op->get_attrs());
+        break;
+    case element::Type_t::u8:
+        ngraph::runtime::reference::interpolate<uint8_t>(inputs[0]->get_data_ptr<uint8_t>(),
+                                                         op->get_input_partial_shape(0),
+                                                         outputs[0]->get_data_ptr<uint8_t>(),
+                                                         op->get_output_shape(0),
+                                                         op->get_attrs());
+        break;
+    default:;
+    }
+
+    return true;
 }
 
 template <typename T>
