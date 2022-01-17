@@ -128,8 +128,8 @@ def main():
                 scale_factors = []
 
                 for file_name in re.split(', |,', args.input):
-                    first_utterance = next(iter(read_utterance_file(file_name).values()))
-                    scale_factors.append(get_scale_factor(first_utterance))
+                    _, utterances = read_utterance_file(file_name)
+                    scale_factors.append(get_scale_factor(utterances[0]))
 
                 log.info('Using scale factor(s) calculated from first utterance')
                 set_scale_factors(plugin_config, scale_factors)
@@ -201,10 +201,10 @@ def main():
 
     input_data = [
         {
-            input_names[j]: list(file_data[j].values())[i]
+            input_names[j]: file_data[j].utterances[i]
             for j in range(len(input_names))
         }
-        for i in range(len(file_data[0]))
+        for i in range(len(file_data[0].utterances))
     ]
 
     if args.reference:
@@ -212,10 +212,10 @@ def main():
 
         references = [
             {
-                output_names[j]: list(reference_data[j].values())[i]
+                output_names[j]: reference_data[j].utterances[i]
                 for j in range(len(output_names))
             }
-            for i in range(len(reference_data[0]))
+            for i in range(len(file_data[0].utterances))
         ]
 
 # --------------------------- Step 7. Create infer request ------------------------------------------------------------
@@ -284,8 +284,9 @@ def main():
     log.info(f'Total sample time: {total_infer_time * 1000:.2f}ms')
 
     if args.output:
-        for i, name in enumerate(results):
-            write_utterance_file(output_files[i], results[name])
+        for i, name in enumerate(output_names):
+            data = [results[i][name] for i in range(len(file_data[0].utterances))]
+            write_utterance_file(output_files[i], file_data[0].keys, data)
             log.info(f'File {output_files[i]} was created!')
 
 # ----------------------------------------------------------------------------------------------------------------------
