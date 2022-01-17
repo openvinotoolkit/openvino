@@ -238,11 +238,11 @@ void GNAPlugin::ExportScores(void *ptr_dst,
                 case Precision::I8 :
                 case Precision::I32 : {
                     for (uint32_t i = 0; i < num_frames; i++) {
-                        void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * sizeof(float);
-                        const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * sizeof(float);
-                        memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
-                        ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
-                            ptr_src_vec, num_active_elements * sizeof(float));
+                        void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * precision_out.size();
+                        const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * precision_in.size();
+                        memset(ptr_dst_vec, 0, num_vector_elements * precision_out.size());
+                        ie_memcpy(ptr_dst_vec, num_active_elements * precision_out.size(),
+                            ptr_src_vec, num_active_elements * precision_in.size());
                     }
                     break;
                 }
