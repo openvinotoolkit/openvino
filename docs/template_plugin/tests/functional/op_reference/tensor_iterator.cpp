@@ -34,27 +34,80 @@ struct TensorIteratorParams {
         testcaseName(testcaseName) {
             numDirections = (direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) ? 2 : 1;
 
-            Shape XShape = Shape{batchSize, seqLength, inputSize};
-            Shape H_tShape = Shape{batchSize, hiddenSize};
-            Shape C_tShape = Shape{batchSize, hiddenSize};
-            Shape S_tShape = Shape{batchSize};
-            Shape WShape = Shape{4 * hiddenSize, inputSize};
-            Shape RShape = Shape{4 * hiddenSize, hiddenSize};
-            Shape BShape = Shape{4 * hiddenSize};
-            Shape YShape = Shape{batchSize, seqLength, hiddenSize};
-            Shape HoShape = Shape{batchSize, hiddenSize};
-            Shape CoShape = Shape{batchSize, hiddenSize};
+            switch (body_type) {
+                case ngraph::helpers::TensorIteratorBody::LSTM: {
+                    Shape XShape = Shape{batchSize, seqLength, inputSize};
+                    Shape H_tShape = Shape{batchSize, hiddenSize};
+                    Shape C_tShape = Shape{batchSize, hiddenSize};
+                    Shape S_tShape = Shape{batchSize};
+                    Shape WShape = Shape{4 * hiddenSize, inputSize};
+                    Shape RShape = Shape{4 * hiddenSize, hiddenSize};
+                    Shape BShape = Shape{4 * hiddenSize};
+                    Shape YShape = Shape{batchSize, seqLength, hiddenSize};
+                    Shape HoShape = Shape{batchSize, hiddenSize};
+                    Shape CoShape = Shape{batchSize, hiddenSize};
 
-            X = Tensor(XShape, iType, XValues);
-            H_t = Tensor(H_tShape, iType, H_tValues);
-            C_t = Tensor(C_tShape, iType, C_tValues);
-            S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
-            W = Tensor(WShape, iType, WValues);
-            R = Tensor(RShape, iType, RValues);
-            B = Tensor(BShape, iType, BValues);
-            Y = Tensor(YShape, oType, YValues);
-            Ho = Tensor(HoShape, oType, HoValues);
-            Co = Tensor(CoShape, oType, CoValues);
+                    X = Tensor(XShape, iType, XValues);
+                    H_t = Tensor(H_tShape, iType, H_tValues);
+                    C_t = Tensor(C_tShape, iType, C_tValues);
+                    S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
+                    W = Tensor(WShape, iType, WValues);
+                    R = Tensor(RShape, iType, RValues);
+                    B = Tensor(BShape, iType, BValues);
+                    Y = Tensor(YShape, oType, YValues);
+                    Ho = Tensor(HoShape, oType, HoValues);
+                    Co = Tensor(CoShape, oType, CoValues);
+                    break;
+                }
+                case ngraph::helpers::TensorIteratorBody::GRU: {
+                    Shape XShape = Shape{batchSize, seqLength, inputSize};
+                    Shape H_tShape = Shape{batchSize, hiddenSize};
+                    //Shape C_tShape = Shape{batchSize, hiddenSize}; //
+                    Shape S_tShape = Shape{batchSize};
+                    Shape WShape = Shape{3 * hiddenSize, inputSize};
+                    Shape RShape = Shape{3 * hiddenSize, hiddenSize};
+                    Shape BShape = Shape{3 * hiddenSize};
+                    Shape YShape = Shape{batchSize, seqLength, hiddenSize};
+                    Shape HoShape = Shape{batchSize, hiddenSize};
+                    //Shape CoShape = Shape{batchSize, hiddenSize}; //
+
+                    X = Tensor(XShape, iType, XValues);
+                    H_t = Tensor(H_tShape, iType, H_tValues);
+                    //C_t = Tensor(C_tShape, iType, C_tValues);
+                    S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
+                    W = Tensor(WShape, iType, WValues);
+                    R = Tensor(RShape, iType, RValues);
+                    B = Tensor(BShape, iType, BValues);
+                    Y = Tensor(YShape, oType, YValues);
+                    Ho = Tensor(HoShape, oType, HoValues);
+                    //Co = Tensor(CoShape, oType, CoValues);
+                    break;
+                }
+                case ngraph::helpers::TensorIteratorBody::RNN: {
+                    Shape XShape = Shape{batchSize, seqLength, inputSize};
+                    Shape H_tShape = Shape{batchSize, hiddenSize};
+                    //Shape C_tShape = Shape{batchSize, hiddenSize}; //
+                    Shape S_tShape = Shape{batchSize};
+                    Shape WShape = Shape{hiddenSize, inputSize};
+                    Shape RShape = Shape{hiddenSize, hiddenSize};
+                    Shape BShape = Shape{hiddenSize};
+                    Shape YShape = Shape{batchSize, seqLength, hiddenSize};
+                    Shape HoShape = Shape{batchSize, hiddenSize};
+                    //Shape CoShape = Shape{batchSize, hiddenSize}; //
+
+                    X = Tensor(XShape, iType, XValues);
+                    H_t = Tensor(H_tShape, iType, H_tValues);
+                    //C_t = Tensor(C_tShape, iType, C_tValues);
+                    S_t = Tensor(S_tShape, element::Type_t::i64, S_tValues);
+                    W = Tensor(WShape, iType, WValues);
+                    R = Tensor(RShape, iType, RValues);
+                    B = Tensor(BShape, iType, BValues);
+                    Y = Tensor(YShape, oType, YValues);
+                    Ho = Tensor(HoShape, oType, HoValues);
+                    //Co = Tensor(CoShape, oType, CoValues);
+                    break;
+                }
+            }
         }
 
     size_t batchSize;
@@ -100,6 +153,7 @@ public:
         result << "_hSize=" << param.hiddenSize;
         result << "_sLength=" << param.seqLength;
         result << "_clip=" << param.clip;
+        result << "_body=" << param.body_type;
         result << "_xType=" << param.X.type;
         result << "_xShape=" << param.X.shape;
         if (param.testcaseName != "") {
@@ -126,8 +180,12 @@ private:
         switch (params.body_type) {
             case ngraph::helpers::TensorIteratorBody::LSTM: {
                 inputShapes = {
-                        {{params.batchSize, params.seqLength, params.inputSize}, {params.batchSize, params.hiddenSize}, {params.batchSize, params.hiddenSize},
-                        {4 * params.hiddenSize, params.inputSize}, {4 * params.hiddenSize, params.inputSize}, {4 * params.inputSize}},
+                        {{params.batchSize, params.seqLength, params.inputSize}, // X
+                         {params.batchSize, params.hiddenSize},                  // H_i
+                         {params.batchSize, params.hiddenSize},                  // C_i
+                         {4 * params.hiddenSize, params.inputSize},              // W
+                         {4 * params.hiddenSize, params.inputSize},              // R
+                         {4 * params.inputSize}},                                // B
                 };
                 if (params.sequenceAxis == 0) {
                     // swap params.batchSize and params.seqLength
@@ -184,10 +242,13 @@ private:
                                                                                    tensor_iterator->output(2)}, outer_params);
                 break;
             }
-/*            case ngraph::helpers::TensorIteratorBody::GRU: {
+            case ngraph::helpers::TensorIteratorBody::GRU: {
                 inputShapes = {
-                        {{batch, seq_lengths, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
-                                {3 * hidden_size, hidden_size}, {3 * hidden_size}},
+                        {{params.batchSize, params.seqLength, params.inputSize}, // X
+                         {params.batchSize, params.inputSize},                   // H_i
+                         {3 * params.hiddenSize, params.inputSize},              // W
+                         {3 * params.hiddenSize, params.hiddenSize},             // R
+                         {3 * params.hiddenSize}},                               // B
                 };
                 if (params.sequenceAxis == 0) {
                     // swap params.batchSize and params.seqLength
@@ -198,11 +259,24 @@ private:
                 // 1. Create TensorIterator body.
                 inputShapes[0][params.sequenceAxis] = 1; // sliced dimension
                 auto body_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1]});
-                std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
-                auto gru_cell = ngraph::builder::makeGRU(out_vector, WRB, params.hiddenSize, {"sigmoid", "tanh"},
-                                                         {}, {}, params.clip, false);
+
+                auto W = std::make_shared<ngraph::opset1::Constant>(params.W.type, params.W.shape, params.W.data.data());
+                auto R = std::make_shared<ngraph::opset1::Constant>(params.R.type, params.R.shape, params.R.data.data());
+                auto B = std::make_shared<ngraph::opset1::Constant>(params.B.type, params.B.shape, params.B.data.data());
+                auto gru_cell = std::make_shared<ngraph::opset4::GRUCell>(out_vector[0],
+                                                                          out_vector[1],
+                                                                          W,
+                                                                          R,
+                                                                          B,
+                                                                          params.hiddenSize,
+                                                                          std::vector<std::string>{"sigmoid", "tanh"},
+                                                                          std::vector<float>{},
+                                                                          std::vector<float>{},
+                                                                          params.clip,
+                                                                          false);
+
                 auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(gru_cell->output(0), axis);
                 ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0)),
                                              std::make_shared<ngraph::opset1::Result>(unsqueeze)};
@@ -228,11 +302,13 @@ private:
                 break;
             }
             case ngraph::helpers::TensorIteratorBody::RNN: {
-                inputShapes = {{batch, seq_lengths, input_size},
-                               {batch,       hidden_size},
-                               {hidden_size, input_size},
-                               {hidden_size, hidden_size},
-                               {hidden_size}};
+                inputShapes = {
+                        {{params.batchSize, params.seqLength, params.inputSize}, // X
+                         {params.batchSize, params.inputSize},                   // H_i
+                         {params.hiddenSize, params.inputSize},                  // W
+                         {params.hiddenSize, params.hiddenSize},                 // R
+                         {params.hiddenSize}},                                   // B
+                };
                 if (params.sequenceAxis == 0) {
                     // swap params.batchSize and params.seqLength
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
@@ -242,10 +318,23 @@ private:
                 // 1. Create TensorIterator body.
                 inputShapes[0][params.sequenceAxis] = 1; // sliced dimension
                 auto body_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1]});
-                std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
-                auto rnn_cell = ngraph::builder::makeRNN(out_vector, WRB, params.hiddenSize, {"tanh"}, {}, {}, params.clip);
+
+                auto W = std::make_shared<ngraph::opset1::Constant>(params.W.type, params.W.shape, params.W.data.data());
+                auto R = std::make_shared<ngraph::opset1::Constant>(params.R.type, params.R.shape, params.R.data.data());
+                auto B = std::make_shared<ngraph::opset1::Constant>(params.B.type, params.B.shape, params.B.data.data());
+                auto rnn_cell = std::make_shared<ngraph::opset4::RNNCell>(out_vector[0],
+                                                                          out_vector[1],
+                                                                          W,
+                                                                          R,
+                                                                          B,
+                                                                          params.hiddenSize,
+                                                                          std::vector<std::string>{"tanh"},
+                                                                          std::vector<float>{},
+                                                                          std::vector<float>{},
+                                                                          params.clip);
+
                 auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(rnn_cell->output(0), axis);
                 ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell),
                                              std::make_shared<ngraph::opset1::Result>(unsqueeze)};
@@ -269,7 +358,7 @@ private:
                 // 3. Outer function
                 function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
-            } */
+            }
         }
         return function;
     }
