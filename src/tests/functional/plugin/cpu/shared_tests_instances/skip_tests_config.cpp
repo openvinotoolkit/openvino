@@ -147,9 +147,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO : CVS-69533
         R"(.*ConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
         R"(.*GroupConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
-        // Issue: 74817
-        // Sporadic failings with NAN on Dynamic shape cases with jit implementation
-        R"(.*DefConvLayoutTest7.*)",
         // Issue: 71968
         R"(.*LSTMSequenceCommonZeroClip.*PURE.*CONST.*hidden_size=10.*sigmoid.sigmoid.sigmoid.*reverse.*FP32_targetDevice=CPU.*)",
         // Issue: 72005
