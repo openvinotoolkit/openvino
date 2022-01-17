@@ -26,7 +26,7 @@ def generate_pot_version():
 
 def get_version():
     version = generate_pot_version()
-    version_txt = os.path.join(os.path.dirname(os.path.realpath(__file__)), "version.txt")
+    version_txt = os.path.join(here, "openvino", "tools", "pot", "version.txt")
     if version != UNKNOWN_VERSION:
         with open(version_txt, 'w') as f:
             f.write(version + '\n')

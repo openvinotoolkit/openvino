@@ -24,7 +24,7 @@ def generate_pot_version():
 def get_version():
     version = generate_pot_version()
     if version == UNKNOWN_VERSION:
-        version_txt = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "version.txt")
+        version_txt = os.path.join(os.path.dirname(os.path.realpath(__file__)), "version.txt")
         if os.path.isfile(version_txt):
             with open(version_txt) as f:
                 version = f.readline().replace('\n', '')
