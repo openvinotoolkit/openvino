@@ -51,16 +51,6 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     std::string domain = get_node_domain(node_proto);
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
-
-bool common_node_for_all_outputs(const OutputVector& outputs) {
-    const auto first_out_node = outputs.at(0).get_node();
-    bool ret = std::all_of(std::next(std::begin(outputs)),
-                           std::end(outputs),
-                           [first_out_node](const OutputVector::value_type& output) {
-                               return output.get_node() == first_out_node;
-                           });
-    return ret;
-};
 }  // namespace detail
 
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov::frontend::ExtensionHolder extensions)
