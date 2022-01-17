@@ -137,7 +137,8 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             }
         };
 
-        size_t offset = std::numeric_limits<size_t>::max();
+        size_t offset = 0;
+        uint32_t mask = 0xffffffff ^ (1 << 31); // accepts any offset
         NodeConfig config;
         config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
@@ -147,16 +148,8 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             portConfig.constant(false);
             portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset));
             if (inputShapes[i].getDims()[0] == 1) {
-                const auto denseDesc = portConfig.getMemDesc()->as<BlockedMemoryDesc>();
-                auto strides = denseDesc->getStrides();
-                strides[0] = Shape::UNDEFINED_DIM;
-                portConfig.setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                             denseDesc->getShape(),
-                                                                             denseDesc->getBlockDims(),
-                                                                             denseDesc->getOrder(),
-                                                                             denseDesc->getOffsetPadding(),
-                                                                             denseDesc->getOffsetPaddingToData(),
-                                                                             strides));
+                mask ^= 0x1; // accepts any stride on batch axis
+                portConfig.setMemDesc(std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(portConfig.getMemDesc()), mask);
             }
             config.inConfs[i] = portConfig;
         }
@@ -167,16 +160,8 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             portConfig.constant(false);
             portConfig.setMemDesc(createMemoryDesc(outputShapes[i], supportedPrecision, offset));
             if (outputShapes[i].getDims()[0] == 1) {
-                const auto denseDesc = portConfig.getMemDesc()->as<BlockedMemoryDesc>();
-                auto strides = denseDesc->getStrides();
-                strides[0] = Shape::UNDEFINED_DIM;
-                portConfig.setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                             denseDesc->getShape(),
-                                                                             denseDesc->getBlockDims(),
-                                                                             denseDesc->getOrder(),
-                                                                             denseDesc->getOffsetPadding(),
-                                                                             denseDesc->getOffsetPaddingToData(),
-                                                                             strides));
+                mask ^= 0x1; // accepts any stride on batch axis
+                portConfig.setMemDesc(std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(portConfig.getMemDesc()), mask);
             }
             config.outConfs[i] = portConfig;
         }

@@ -163,7 +163,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             if (isDynamicNode()) {
                 config.inConfs[i].setMemDesc(desc);
             } else {
-                config.inConfs[i].setMemDesc(desc->cloneWithUndefStridesAndOffset());
+                config.inConfs[i].setMemDesc(desc, 0x0);
             }
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
@@ -188,31 +188,34 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
         auto config = refConfig;
 
-        const auto &order = refConfig.outConfs[0].getMemDesc()->as<CpuBlockedMemoryDesc>()->getOrder();
-        const auto &blkDims = refConfig.outConfs[0].getMemDesc()->as<CpuBlockedMemoryDesc>()->getBlockDims();
+        auto denseOutDesc = refConfig.outConfs[0].getMemDesc()->as<CpuBlockedMemoryDesc>();
+        const auto &order = denseOutDesc->getOrder();
+        const auto &blkDims = denseOutDesc->getBlockDims();
         auto numOfDim = blkDims.size();
 
         SizeVector offsets(numOfDim, 0lu);
         SizeVector strides(numOfDim);
         strides.back() = 1lu;
-        size_t offset = (std::numeric_limits<size_t>::max)();
+        size_t offset = Shape::UNDEFINED_DIM;
+        uint32_t mask = 0xffffffff ^ (1<<31); // any offset
 
         for (size_t i = 2; i <= numOfDim; i++) {
             if (numOfDim - i < axis) {
-                strides[numOfDim - i] = (std::numeric_limits<size_t>::max)();
+                strides[numOfDim - i] = Shape::UNDEFINED_DIM;
+                mask ^= (1 << (numOfDim - i)); // any strides on certain axis
             } else {
                 strides[numOfDim - i] = strides[numOfDim - i + 1] * blkDims[numOfDim - i + 1];
             }
         }
 
-        config.outConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(outputPrecision, dstShape, blkDims, order, offset, offsets, strides));
+        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(refConfig.outConfs[0].getMemDesc()), mask);
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             const auto& srcBlkDims = refConfig.inConfs[i].getMemDesc()->as<CpuBlockedMemoryDesc>()->getBlockDims();
             const auto& shape = refConfig.inConfs[i].getMemDesc()->getShape();
 
             config.inConfs[i].inPlace(0);
-            config.inConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(inputPrecision, shape, srcBlkDims, order, offset, offsets, strides));
+            config.inConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(inputPrecision, shape, srcBlkDims, order, offset, offsets, strides), mask);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -426,8 +429,8 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (!isDynamicNode() && !isConfigDefined(config)) {
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            if (config.outConfs[i].getMemDesc()->isDefined())
-                continue;
+//            if (config.outConfs[i].getMemDesc()->isDefined())
+//                continue;
 
             int num = getChildEdgeAt(i)->getOutputNum();
             if (num >= 0) {
@@ -438,15 +441,15 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
                     if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
                         getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
 
-                    if (childConf.getMemDesc()->isDefined() && childConf.getMemDesc()->isCompatible(*config.outConfs[i].getMemDesc())) {
+                    if (childConf.getMemDesc()->isDefined() && config.outConfs[i].getPortDesc()->compare(*childConf.getPortDesc())) {
                         config.outConfs[i].setMemDesc(childConf.getMemDesc());
                         continue;
                     }
                 }
             }
 
-            // reset undefined offsets
-            config.outConfs[i].setMemDesc(config.outConfs[i].getMemDesc()->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset());
+            // reset mask
+            config.outConfs[i].setMemDesc(config.outConfs[i].getMemDesc());
         }
         auto firstOutBlockingDesc = config.outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
         size_t offset = 0;
@@ -460,7 +463,7 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
                                                                             inpBlockingDesc->getOrder(),
                                                                             firstOutBlockingDesc->getOffsetPadding() + offset,
                                                                             firstOutBlockingDesc->getOffsetPaddingToData(),
-                                                                            firstOutBlockingDesc->getStrides()));
+                                                                            firstOutBlockingDesc->getStrides()), 0xffffffff);
             size_t axisSize = 1;
 
             auto firstInpBlockingDesc = config.inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();

@@ -109,22 +109,22 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
-    if (isConfigDefined(config))
+    if (isDynamicNode()) //isConfigDefined(config)
         return;
 
     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
             (config.inConfs[0].getMemDesc()->isDefined() &&
-                    config.outConfs[0].getMemDesc()->isDefined() && !config.inConfs[0].getMemDesc()->isCompatible(*config.outConfs[0].getMemDesc())))
+                    config.outConfs[0].getMemDesc()->isDefined() && !config.outConfs[0].getPortDesc()->compare(*config.inConfs[0].getPortDesc())))
         IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
-    if (config.inConfs[0].getMemDesc()->isDefined()) {
-        config.outConfs[0].setMemDesc(config.inConfs[0].getMemDesc());
-    } else if (config.outConfs[0].getMemDesc()->isDefined()) {
-        config.inConfs[0].setMemDesc(config.outConfs[0].getMemDesc());
-    } else {
+//    if (config.inConfs[0].getMemDesc()->isDefined()) {
+//        config.outConfs[0].setMemDesc(config.inConfs[0].getMemDesc());
+//    } else if (config.outConfs[0].getMemDesc()->isDefined()) {
+//        config.inConfs[0].setMemDesc(config.outConfs[0].getMemDesc());
+//    } else {
         config.inConfs[0].setMemDesc(getDefinedInputDesc(config, 0));
         config.outConfs[0].setMemDesc(config.inConfs[0].getMemDesc());
-    }
+//    }
 
     initDescriptor(config);
 }

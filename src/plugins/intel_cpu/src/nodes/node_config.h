@@ -5,11 +5,20 @@
 #pragma once
 
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 class PortDescBase {
 public:
     virtual ~PortDescBase() = default;
+
+    /**
+     * @brief Check if the port desc can be accepted.
+     *
+     * @warning This operation is not commutative desc1.compare(desc2) != desc2.compare(desc1) in general case
+     *
+     * @return True if the port desc may be accepted false otherwise
+     */
     bool compare(const PortDescBase& rhs) const {
         return typeid(*this) == typeid(rhs) && this->compareImpl(rhs);
     }
@@ -17,6 +26,9 @@ public:
 protected:
     virtual bool compareImpl(const PortDescBase& rhs) const = 0;
 };
+
+using PortDescBasePtr = std::shared_ptr<PortDescBase>;
+using PortDescBaseCPtr = std::shared_ptr<const PortDescBase>;
 
 template<class T>
 class PortDescBase_ : public PortDescBase {
@@ -53,7 +65,7 @@ public:
         }
     }
     bool compare(const PortDescBlocked& rhs) const {
-        return _memDesc->isCompatible(*rhs._memDesc, _cmpMask);
+        return _memDesc->isCompatible(*rhs._memDesc, _cmpMask & rhs._cmpMask);
     }
     MemoryDescPtr getMemDesc() const override {
         return _memDesc;
@@ -65,8 +77,6 @@ private:
 };
 
 class PortConfig {
-public:
-    using PortDescBasePtr = std::shared_ptr<PortDescBase>;
 public:
     PortConfig() = default;
 

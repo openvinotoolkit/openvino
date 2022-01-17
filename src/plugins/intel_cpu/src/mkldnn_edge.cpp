@@ -218,8 +218,10 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
 
 MKLDNNEdge::ReorderStatus MKLDNNEdge::needReorder() {
     bool optimized = false;
-    if (!getInputDesc().isCompatible(getOutputDesc())) {
-        if (isPhycicalMemCompatible(getInputDesc(), getOutputDesc()) && !getParent()->isConstant()) {
+    auto inputPortDesc = getInputPortDesc();
+    auto outPortDesc = getOutputPortDesc();
+    if (!outPortDesc->compare(*inputPortDesc)) {
+        if (isPhycicalMemCompatible(*inputPortDesc->getMemDesc(), *outPortDesc->getMemDesc()) && !getParent()->isConstant()) {
             optimized = true;
         } else {
             return ReorderStatus::Regular;
@@ -316,7 +318,7 @@ void MKLDNNEdge::changeStatus(MKLDNNEdge::Status state) {
     status = state;
 }
 
-const MemoryDesc& MKLDNNEdge::getInputDesc() const {
+PortDescBaseCPtr MKLDNNEdge::getInputPortDesc() const {
     auto parentPtr = getParent();
     if (parentPtr->getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Primitive descriptor for node " << parentPtr->getName() << " is not selected.";
@@ -332,10 +334,15 @@ const MemoryDesc& MKLDNNEdge::getInputDesc() const {
     if (inputIdx >= outConfs.size())
         inputIdx = 0;
 
-    return *(outConfs[inputIdx].getMemDesc());
+    auto inputPortDesc = outConfs[inputIdx].getPortDesc();
+    if (!inputPortDesc) {
+        IE_THROW() << "Node" << parentPtr->getName() << " has unitialized input port desc on port " << inputIdx;
+    }
+
+    return inputPortDesc;
 }
 
-const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
+PortDescBaseCPtr MKLDNNEdge::getOutputPortDesc() const {
     auto childPtr = getChild();
 
     if (childPtr->getSelectedPrimitiveDescriptor() == nullptr)
@@ -352,7 +359,20 @@ const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
     if (outputIdx >= inConfs.size())
         outputIdx = 0;
 
-    return *(inConfs[outputIdx].getMemDesc());
+    auto outPortDesc = inConfs[outputIdx].getPortDesc();
+    if (!outPortDesc) {
+        IE_THROW() << "Node" << childPtr->getName() << " has unitialized output port desc on port " << outputIdx;
+    }
+
+    return outPortDesc;
+}
+
+const MemoryDesc& MKLDNNEdge::getInputDesc() const {
+    return *getInputPortDesc()->getMemDesc();
+}
+
+const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
+    return *getOutputPortDesc()->getMemDesc();
 }
 
 const MemoryDesc& MKLDNNEdge::getDesc() const {
