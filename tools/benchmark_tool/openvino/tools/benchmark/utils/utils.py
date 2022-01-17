@@ -3,10 +3,9 @@
 
 from collections import defaultdict
 import datetime
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout
-from openvino.runtime import Type
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type
 from openvino.preprocess import PrePostProcessor
-from openvino.offline_transformations_pybind import serialize
+from openvino.runtime.passes import Manager
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -29,7 +28,7 @@ def static_vars(**kwargs):
 def next_step(additional_info='', step_id=0):
     step_names = {
         1: "Parsing and validating input arguments",
-        2: "Loading Inference Engine",
+        2: "Loading OpenVINO",
         3: "Setting device configuration",
         4: "Reading network files",
         5: "Resizing network to match image sizes and given batch",
@@ -68,7 +67,10 @@ def get_element_type(precision):
     }
     if precision in format_map.keys():
         return format_map[precision]
-    raise Exception("Can't find openvino element type for precision: " + precision)
+    for element_type in format_map.values():
+        if element_type.get_type_name() == precision:
+            return element_type
+    raise Exception(f"Undefined precision: '{precision}' !")
 
 
 def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
@@ -128,34 +130,17 @@ def _parse_arg_map(arg_map: str):
     return parsed_map
 
 
-def get_precision(element_type: Type):
-    format_map = {
-      'f32' : 'FP32',
-      'i32'  : 'I32',
-      'i64'  : 'I64',
-      'f16' : 'FP16',
-      'i16'  : 'I16',
-      'u16'  : 'U16',
-      'i8'   : 'I8',
-      'u8'   : 'U8',
-      'boolean' : 'BOOL',
-    }
-    if element_type.get_type_name() in format_map.keys():
-        return format_map[element_type.get_type_name()]
-    raise Exception("Can't find  precision for openvino element type: " + str(element_type))
-
-
 def print_inputs_and_outputs_info(model: Model):
     inputs = model.inputs
     input_names = get_input_output_names(inputs)
     for i in range(len(inputs)):
-        logger.info(f"Model input '{input_names[i]}' precision {get_precision(inputs[i].element_type)}, "
+        logger.info(f"Model input '{input_names[i]}' precision {inputs[i].element_type.get_type_name()}, "
                                                     f"dimensions ({str(inputs[i].node.layout)}): "
                                                     f"{' '.join(str(x) for x in inputs[i].partial_shape)}")
     outputs = model.outputs
     output_names = get_input_output_names(outputs)
     for i in range(len(outputs)):
-        logger.info(f"Model output '{output_names[i]}' precision {get_precision(outputs[i].element_type)}, "
+        logger.info(f"Model output '{output_names[i]}' precision {outputs[i].element_type.get_type_name()}, "
                                         f"dimensions ({str(outputs[i].node.layout)}): "
                                         f"{' '.join(str(x) for x in  outputs[i].partial_shape)}")
 
@@ -307,10 +292,11 @@ def process_help_inference_string(benchmark_app, device_number_streams):
     return output_string
 
 
-def dump_exec_graph(compiled_model, model_path, weight_path = None):
-    if not weight_path:
-        weight_path = model_path[:model_path.find(".xml")] + ".bin"
-    serialize(compiled_model.get_runtime_model(), model_path, weight_path)
+def dump_exec_graph(compiled_model, model_path):
+    weight_path = model_path[:model_path.find(".xml")] + ".bin"
+    pass_manager = Manager()
+    pass_manager.register_pass("Serialize", model_path, weight_path)
+    pass_manager.run_passes(compiled_model.get_runtime_model())
 
 
 
@@ -547,6 +533,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
     layout_map = parse_input_parameters(layout_string, input_names)
     batch_size = parse_batch_size(batch_size)
     reshape = False
+    batch_found = False
     input_info = []
     for i in range(len(inputs)):
         info = AppInputInfo()
@@ -593,14 +580,15 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                 elif info.layout == Layout():
                     supposed_batch = info.partial_shape[0]
                     if supposed_batch.is_dynamic or supposed_batch in [0, 1]:
-                        logger.warning(f"Batch dimension is not specified in layout. "
+                        logger.warning(f"Batch dimension is not specified for input '{info.name}'. "
                                         "The first dimension will be interpreted as batch size.")
                         batch_index = 0
                         info.layout = Layout("N...")
                 if batch_index != -1 and info.partial_shape[batch_index] != batch_size:
                     info.partial_shape[batch_index] = batch_size
                     reshape = True
-                elif batch_index == -1:
+                    batch_found = True
+                elif batch_index == -1 and not batch_found and i == len(inputs) - 1:
                     raise Exception(f"Batch dimension is not specified for this model!")
 
         # Data shape
