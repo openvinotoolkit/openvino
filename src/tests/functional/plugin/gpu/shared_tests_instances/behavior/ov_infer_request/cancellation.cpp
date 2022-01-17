@@ -16,4 +16,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTests,
             ::testing::Values(CommonTestUtils::DEVICE_GPU),
             ::testing::ValuesIn(configs)),
         OVInferRequestCancellationTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVInferRequestCancellationTests,
+                         ::testing::Combine(
+                                 ::testing::Values(std::string(CommonTestUtils::DEVICE_BATCH) + ":" + CommonTestUtils::DEVICE_GPU),
+                                 ::testing::ValuesIn(configs)),
+                         OVInferRequestCancellationTests::getTestCaseName);
 }  // namespace
