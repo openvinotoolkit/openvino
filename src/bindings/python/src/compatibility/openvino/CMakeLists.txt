@@ -13,6 +13,7 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
 endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
+
 set(PYTHON_BRIDGE_CPACK_PATH "python")
 
 if(UNIX)
@@ -62,7 +63,6 @@ function(ov_python_disable_intel_warnings target)
 endfunction()
 
 set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-
 add_subdirectory (inference_engine)
 
 if(TARGET _pyngraph)
