@@ -91,38 +91,6 @@ public:
         return result.str();
     }
 
-//    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
-//        inputs.clear();
-//        const auto& funcInputs = function->inputs();
-//        for (int i = 0; i < funcInputs.size(); ++i) {
-//            const auto& funcInput = funcInputs[i];
-//            ov::runtime::Tensor tensor;
-//
-//            if (i == 1) {
-//                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-//
-//                const size_t range = 1;
-//                const size_t startFrom = 0;
-//                const size_t k = 1000;
-//                const int seed = 1;
-//                std::default_random_engine random(seed);
-//                std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
-//
-//                auto *dataPtr = tensor.data<float>();
-//                for (size_t i = 0; i < tensor.get_size(); i++) {
-//                    auto value = static_cast<float>(distribution(random));
-//                    dataPtr[i] = value / static_cast<float>(k);
-//                }
-//            } else if (i == 2) {
-//                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &maxOutBoxesPerClass);
-//            } else {
-//                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-//            }
-//
-//            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
-//        }
-//    }
-
     void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
         CompareBBoxes(expected, actual);
         inferRequestNum++;
