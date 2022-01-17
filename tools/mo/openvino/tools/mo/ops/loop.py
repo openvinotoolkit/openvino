@@ -536,7 +536,6 @@ class Loop(TensorIterator):
 
     @staticmethod
     def infer(loop_node: Node):
-        Loop.normalize_input_output_ports(loop_node)
         Loop.updated_body_parameters_shape(loop_node)
         partial_infer(loop_node.body)
         Loop.updated_loop_output_ports_shape_and_value(loop_node)
