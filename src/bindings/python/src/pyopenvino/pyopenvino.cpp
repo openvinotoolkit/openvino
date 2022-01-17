@@ -34,7 +34,7 @@
 #include "pyopenvino/core/version.hpp"
 #include "pyopenvino/frontend/extension.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
-#include "pyopenvino/frontend/inputmodel.hpp"
+#include "pyopenvino/frontend/input_model.hpp"
 #include "pyopenvino/frontend/manager.hpp"
 #include "pyopenvino/frontend/node_context.hpp"
 #include "pyopenvino/frontend/place.hpp"

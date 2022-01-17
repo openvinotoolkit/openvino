@@ -12,4 +12,8 @@ from openvino.utils import add_openvino_libs_to_path
 
 add_openvino_libs_to_path()
 
-from openvino.frontend.tensorflow.py_tensorflow_frontend import ConversionExtensionTensorflow as ConversionExtension
+try:
+    from openvino.frontend.tensorflow.py_tensorflow_frontend import ConversionExtensionTensorflow as ConversionExtension
+except ImportError as err:
+    raise ImportError("OpenVINO ONNX frontend is not available, please make sure the frontend is built. "
+                      "{}".format(err.msg))

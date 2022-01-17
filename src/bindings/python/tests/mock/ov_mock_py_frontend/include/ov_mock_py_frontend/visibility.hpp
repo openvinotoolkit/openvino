@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
-#include "openvino/frontend/visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define MOCK_API

@@ -48,15 +48,15 @@ if(ENABLE_TESTS)
     add_subdirectory(test_utils)
 endif()
 
-if(TARGET ov_onnx_frontend)
+if(TARGET openvino::frontend::onnx)
     add_subdirectory(frontend/onnx)
 endif()
 
-if(TARGET ov_tensorflow_frontend)
+if(TARGET openvino::frontend::tensorflow)
     add_subdirectory(frontend/tensorflow)
 endif()
 
-if(TARGET ov_paddle_frontend)
+if(TARGET openvino::frontend::paddle)
     add_subdirectory(frontend/paddle)
 endif()
 
