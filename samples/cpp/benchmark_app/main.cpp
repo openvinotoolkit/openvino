@@ -498,10 +498,10 @@ int main(int argc, char* argv[]) {
                 auto& in = preproc.input(item.get_index());
                 if (type_to_set != ov::element::undefined) {
                     in.tensor().set_element_type(type_to_set);
-                    
+
                     if (!name.empty()) {
                         for (auto& info : app_inputs_info) {
-                            info.at(name).type = input_precision;
+                            info.at(name).type = type_to_set;
                         }
                     }
                     // Explicitly set inputs layout.
@@ -514,8 +514,8 @@ int main(int argc, char* argv[]) {
                 const auto& item = outs[i];
                 auto iop_precision = ov::element::undefined;
                 try {
-                    // Some tensors might have no names, get_friendly_name will throw exception in that case. 
-                    // -iop option will not work for those tensors. 
+                    // Some tensors might have no names, get_friendly_name will throw exception in that case.
+                    // -iop option will not work for those tensors.
                     iop_precision = getPrecision2(user_precisions_map.at(item.get_node()->get_friendly_name()));
                 } catch (...) {
                 }
