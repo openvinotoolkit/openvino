@@ -6,7 +6,7 @@ import pytest
 
 import openvino.runtime as ov
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Function, Output, Type
+from openvino.runtime import Model, Output, Type
 from openvino.runtime.utils.decorators import custom_preprocess_function
 from openvino.runtime import Core
 from tests.runtime import get_runtime
@@ -17,7 +17,7 @@ def test_ngraph_preprocess_mean():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
 
     p = PrePostProcessor(function)
     inp = p.input()
@@ -38,7 +38,7 @@ def test_ngraph_preprocess_mean_vector():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
     layout = ov.Layout("NCHW")
 
     p = PrePostProcessor(function)
@@ -59,7 +59,7 @@ def test_ngraph_preprocess_scale_vector():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
     layout = ov.Layout("NCHW")
 
     p = PrePostProcessor(function)
@@ -81,7 +81,7 @@ def test_ngraph_preprocess_mean_scale_convert():
     shape = [2, 2]
     param1 = ops.parameter(shape, dtype=np.int32, name="A")
     param2 = ops.parameter(shape, dtype=np.int32, name="B")
-    function = Function([param1, param2], [param1, param2], "TestFunction")
+    function = Model([param1, param2], [param1, param2], "TestFunction")
 
     @custom_preprocess_function
     def custom_preprocess(output: Output):
@@ -111,7 +111,7 @@ def test_ngraph_preprocess_input_output_by_name():
     shape = [2, 2]
     param1 = ops.parameter(shape, dtype=np.int32, name="A")
     param2 = ops.parameter(shape, dtype=np.int32, name="B")
-    function = Function([param1, param2], [param1, param2], "TestFunction")
+    function = Model([param1, param2], [param1, param2], "TestFunction")
 
     @custom_preprocess_function
     def custom_preprocess(output: Output):
@@ -145,7 +145,7 @@ def test_ngraph_preprocess_output_postprocess():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
     layout1 = ov.Layout("NCHW")
     layout2 = ov.Layout("NHWC")
     layout3 = [0, 1]
@@ -177,7 +177,7 @@ def test_ngraph_preprocess_spatial_static_shape():
     shape = [2, 2, 2]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
     layout = ov.Layout("CHW")
 
     color_format = ColorFormat.RGB
@@ -205,7 +205,7 @@ def test_ngraph_preprocess_set_shape():
     shape = [1, 1, 1]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
 
     @custom_preprocess_function
     def custom_crop(out_node: Output):
@@ -232,6 +232,20 @@ def test_ngraph_preprocess_set_shape():
     assert np.equal(output, expected_output).all()
 
 
+def test_ngraph_preprocess_set_memory_type():
+    shape = [1, 1, 1]
+    parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
+    op = ops.relu(parameter_a)
+    model = op
+    function = Model(model, [parameter_a], "TestFunction")
+
+    p = PrePostProcessor(function)
+    p.input().tensor().set_memory_type("some_memory_type")
+    function = p.build()
+
+    assert any(key for key in function.input().rt_info if "memory_type" in key)
+
+
 @pytest.mark.parametrize(
     "algorithm, color_format1, color_format2, is_failing",
     [(ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.BGR, True),
@@ -256,7 +270,7 @@ def test_ngraph_preprocess_steps(algorithm, color_format1, color_format2, is_fai
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
     layout1 = ov.Layout("NCWH")
     layout2 = ov.Layout("NCHW")
 
@@ -284,7 +298,7 @@ def test_ngraph_preprocess_postprocess_layout():
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
     layout1 = ov.Layout("NCWH")
     layout2 = ov.Layout("NCHW")
 
@@ -309,7 +323,7 @@ def test_ngraph_preprocess_reverse_channels():
     shape = [1, 2, 2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
     layout1 = ov.Layout("NCWH")
 
     p = PrePostProcessor(function)
@@ -331,7 +345,7 @@ def test_ngraph_preprocess_resize_algorithm():
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
-    function = Function(model, [parameter_a], "TestFunction")
+    function = Model(model, [parameter_a], "TestFunction")
     resize_alg = ResizeAlgorithm.RESIZE_CUBIC
     layout1 = ov.Layout("NCWH")
 
@@ -431,3 +445,33 @@ def test_ngraph_preprocess_model():
     output = computation(input_data, input_data)
 
     assert np.equal(output, expected_output).all()
+
+
+def test_ngraph_preprocess_dump():
+    shape = [1, 3, 224, 224]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    p = PrePostProcessor(function)
+    p.input().tensor()\
+        .set_layout(ov.Layout("NHWC"))\
+        .set_element_type(Type.u8)\
+        .set_spatial_dynamic_shape()
+    p.input().preprocess()\
+        .convert_element_type(Type.f32)\
+        .reverse_channels()\
+        .mean([1, 2, 3])\
+        .scale([4, 5, 6])\
+        .resize(ResizeAlgorithm.RESIZE_LINEAR)
+    p.input().model().set_layout(ov.Layout("NCHW"))
+    p_str = str(p)
+    print(p)
+    assert "Pre-processing steps (5):" in p_str
+    assert "convert type (f32):" in p_str
+    assert "reverse channels:" in p_str
+    assert "mean (1,2,3):" in p_str
+    assert "scale (4,5,6):" in p_str
+    assert "resize to model width/height:" in p_str
+    assert "Implicit pre-processing steps (1):" in p_str
+    assert "convert layout " + ov.Layout("NCHW").to_string() in p_str

@@ -68,6 +68,34 @@ inline bool get_data_as_int64<ov::PartialShape>(
 }
 
 template <class T>
+inline bool get_data_as_float(
+        size_t idx, const ov::Node* op, std::vector<float>& axes_value,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    if (constant_data.count(idx)) {
+        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<float>();
+    } else {
+        const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
+        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
+        axes_value = constant->cast_vector<float>();
+    }
+    return true;
+}
+
+template <>
+inline bool get_data_as_float<ov::PartialShape>(
+        size_t idx, const ov::Node* op, std::vector<float>& axes_value,
+        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    if (constant_data.count(idx)) {
+        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<float>();
+    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+        axes_value = constant->cast_vector<float>();
+    } else {
+        return false;
+    }
+    return true;
+}
+
+template <class T>
 inline bool get_data_as_shape(
         size_t idx, const ov::Node* op, T& shape,
         const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
@@ -91,4 +119,36 @@ inline bool get_data_as_shape<ov::PartialShape>(
     } else {
         return ov::evaluate_as_partial_shape(op->input_value(idx), shape);
     }
+}
+
+template <class T>
+inline void check_divided_result(const ov::Node* op,
+                                 const T& res,
+                                 const T& divided,
+                                 const typename T::value_type& divisor) {
+    NODE_VALIDATION_CHECK(op,
+                          res != T{},
+                          "Dimension value: [ ",
+                          divided.get_min_length(),
+                          ", ",
+                          divided.get_max_length(),
+                          "]",
+                          " must be a multiple of divisor: ",
+                          divisor);
+}
+
+template <>
+inline void check_divided_result<ov::Dimension>(const ov::Node* op,
+                                                const ov::Dimension& res,
+                                                const ov::Dimension& divided,
+                                                const typename ov::Dimension::value_type& divisor) {
+    NODE_VALIDATION_CHECK(op,
+                          !res.get_interval().empty(),
+                          "Dimension value: [ ",
+                          divided.get_min_length(),
+                          ", ",
+                          divided.get_max_length(),
+                          "]",
+                          " must be a multiple of divisor: ",
+                          divisor);
 }

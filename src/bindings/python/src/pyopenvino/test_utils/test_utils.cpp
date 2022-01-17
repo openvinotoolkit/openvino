@@ -13,9 +13,9 @@ namespace py = pybind11;
 PYBIND11_MODULE(test_utils_api, m) {
     m.def(
         "compare_functions",
-        [](const ov::Function& lhs, const ov::Function& rhs) {
-            const auto lhs_ptr = std::const_pointer_cast<ov::Function>(lhs.shared_from_this());
-            const auto rhs_ptr = std::const_pointer_cast<ov::Function>(rhs.shared_from_this());
+        [](const ov::Model& lhs, const ov::Model& rhs) {
+            const auto lhs_ptr = std::const_pointer_cast<ov::Model>(lhs.shared_from_this());
+            const auto rhs_ptr = std::const_pointer_cast<ov::Model>(rhs.shared_from_this());
 
             const auto fc = FunctionsComparator::with_default()
                                 .enable(FunctionsComparator::ATTRIBUTES)

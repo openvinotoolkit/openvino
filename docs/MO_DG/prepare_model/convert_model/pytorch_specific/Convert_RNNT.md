@@ -96,9 +96,9 @@ python3 export_rnnt_to_onnx.py
 
 After completing this step, the files `rnnt_encoder.onnx`, `rnnt_prediction.onnx`, and `rnnt_joint.onnx` will be saved in the current directory. 
 
-**Step 6**. Run the conversion command:
+**Step 6**. Run the conversion commands:
 
-```bash
+```sh
 mo --input_model rnnt_encoder.onnx --input "input[157 1 240],feature_length->157"
 mo --input_model rnnt_prediction.onnx --input "symbol[1 1],hidden_in_1[2 1 320],hidden_in_2[2 1 320]"
 mo --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"

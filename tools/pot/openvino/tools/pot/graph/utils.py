@@ -7,7 +7,7 @@ import json
 
 import numpy as np
 
-import openvino.tools.pot.version
+from openvino.tools.pot.version import get_version
 from .cpu_patterns import get_cpu_ignored_patterns
 from .gpu_patterns import get_gpu_ignored_patterns
 from .vpu_patterns import get_vpu_ignored_patterns
@@ -126,7 +126,7 @@ def create_quantization_info_for_mo(config):
     config_info = {key: config[key] for key in ['compression', 'engine']}
     quantization_section['config'] = json.dumps(config_info, indent='\t',
                                                 cls=PathEncoder).replace('"', "'").replace('\n', '\n\t')
-    quantization_section['version'] = openvino.tools.pot.version.__version__
+    quantization_section['version'] = get_version()
     return quantization_section
 
 

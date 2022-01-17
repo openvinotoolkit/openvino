@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "transformations_visibility.hpp"
 #include "openvino/pass/pass.hpp"
-
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
@@ -22,8 +21,8 @@ class TRANSFORMATIONS_API MarkPrecisionSensitiveSubgraphs;
  * inside the subgraph starting from precision-sensitive input and ending at
  * the ShapeOf node as disabled for FP16 compression.
  */
-class ov::pass::MarkPrecisionSensitiveSubgraphs : public FunctionPass {
+class ov::pass::MarkPrecisionSensitiveSubgraphs : public ModelPass {
 public:
     OPENVINO_RTTI("MarkPrecisionSensitiveSubgraphs", "0");
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };

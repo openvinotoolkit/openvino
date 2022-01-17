@@ -24,7 +24,7 @@ class Manager;
 }  // namespace ov
 namespace ngraph {
 namespace pass {
-using ov::pass::FunctionPass;
+using FunctionPass = ov::pass::ModelPass;
 using ov::pass::FusionType;
 using ov::pass::FusionTypeMask;
 using ov::pass::Manager;

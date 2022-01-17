@@ -10,10 +10,10 @@ $ python setup.py sdist bdist_wheel
 """
 
 import os
-import sys
 import re
+import sys
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, copy
 
 from setuptools import setup, find_namespace_packages
 from setuptools.command.build_py import build_py
@@ -40,7 +40,7 @@ py_modules.append(prefix.replace('/', '.') + 'subprocess_main')
 py_modules.append(prefix.replace('/', '.') + '__main__')
 
 # Minimal set of dependencies
-deps_whitelist = ['networkx', 'defusedxml', 'numpy']
+deps_whitelist = ['networkx', 'defusedxml', 'numpy', 'openvino-telemetry']
 
 # for py37 and less on Windows need importlib-metadata in order to use entry_point *.exe files
 if sys.platform == 'win32' and sys.version_info[1] < 8:
@@ -56,12 +56,10 @@ with open('requirements.txt', 'rt') as req_file:
 class InstallCmd(install):
     def run(self):
         install.run(self)
-        # Create requirements.txt files for all the frameworks
+        # copy requirements.txt files for all the frameworks
         for name in requirements_txt:
-            path = os.path.join(self.install_purelib, prefix, name)
-            with open(path, 'wt') as common_reqs_file:
-                common_reqs_file.write('\n'.join(deps))
-        # Add version.txt if exists
+            copy(name, os.path.join(self.install_purelib, prefix))
+
         version_txt = 'version.txt'
         if os.path.exists(version_txt):
             copyfile(os.path.join(version_txt),

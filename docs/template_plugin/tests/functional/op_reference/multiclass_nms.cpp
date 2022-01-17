@@ -93,7 +93,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const MulticlassNmsParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const MulticlassNmsParams& params) {
         op::v8::MulticlassNms::Attributes attrs;
         attrs.nms_top_k = params.nms_top_k;
         attrs.iou_threshold = params.iou_threshold;
@@ -108,7 +108,7 @@ private:
         const auto boxes = std::make_shared<op::v0::Parameter>(params.boxes.type, PartialShape::dynamic());
         const auto scores = std::make_shared<op::v0::Parameter>(params.scores.type, PartialShape::dynamic());
         const auto nms = std::make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
-        const auto f = std::make_shared<Function>(nms->outputs(), ParameterVector{boxes, scores});
+        const auto f = std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
 };
@@ -432,9 +432,9 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
             Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
-                0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
+                0.9, 0.75, 0.6, 0.96, 0.5, 0.3}),                                       // scores
             Tensor(ET_TH, {1, 6}, std::vector<T_TH>{
-                0.00, 0.95, 0.00, 10.00, 1.00, 11.00}),                                 // expected_selected_scores
+                0.00, 0.96, 0.00, 10.00, 1.00, 11.00}),                                 // expected_selected_scores
             Tensor(ET_IND, {1, 1}, std::vector<T_IND>{3}),                              // expected_selected_indices
             Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
             "multiclass_nms_by_IOU_and_scores"),
@@ -547,11 +547,11 @@ std::vector<MulticlassNmsParams> generateParams() {
 
 std::vector<MulticlassNmsParams> generateCombinedParams() {
     const std::vector<std::vector<MulticlassNmsParams>> generatedParams {
-        generateParams<element::Type_t::bf16, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams<element::Type_t::f16, element::Type_t::f32, element::Type_t::i32>(),
+        generateParams<element::Type_t::bf16, element::Type_t::bf16, element::Type_t::i32>(),
+        generateParams<element::Type_t::f16, element::Type_t::f16, element::Type_t::i32>(),
         generateParams<element::Type_t::f32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams<element::Type_t::bf16, element::Type_t::f32, element::Type_t::i64>(),
-        generateParams<element::Type_t::f16, element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::bf16, element::Type_t::bf16, element::Type_t::i64>(),
+        generateParams<element::Type_t::f16, element::Type_t::f16, element::Type_t::i64>(),
         generateParams<element::Type_t::f32, element::Type_t::f32, element::Type_t::i64>(),
     };
     std::vector<MulticlassNmsParams> combinedParams;

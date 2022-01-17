@@ -468,7 +468,7 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
 }
 
 
-void PwlDesignOpt(const DnnActivation activation_type,
+void PwlDesignOpt(const DnnActivation& activation_type,
                     std::vector<gna_pwl_segment_t> &ptr_segment,
                     const float scale_in,
                     const float scale_out,
@@ -582,7 +582,7 @@ void PwlDesignOpt(const DnnActivation activation_type,
     }
 }
 
-void PwlDesign(const DnnActivation activation_type,
+void PwlDesign(const DnnActivation& activation_type,
                  gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
@@ -976,7 +976,6 @@ void PwlApply32(intel_dnn_component_t *component,
             }
             break;
         case kActFakeQuantize: {
-            bool clamping = true;
             double levels  = transform->func_id.fqParams.levels;
 
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
@@ -988,16 +987,9 @@ void PwlApply32(intel_dnn_component_t *component,
                 double output_low  = transform->func_id.fqParams.output_low[outputChannel];
                 double output_high = transform->func_id.fqParams.output_high[outputChannel];
 
-                auto scaleInput = (levels - 1) / (input_high - input_low);
-                auto scaleOutput = (levels - 1) / (output_high - output_low);
-
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
                     auto offset = i * num_columns + j;
                     auto x = ptr_in[offset];
-                    if (!clamping) {
-                        ptr_out[offset] = ptr_in[offset] * scaleInput / scaleOutput;
-                        continue;
-                    }
 
                     if (x <= std::min(input_low, input_high)) {
                         ptr_out[offset] = output_low;

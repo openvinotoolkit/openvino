@@ -4,7 +4,7 @@
 import numpy as np
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Dimension, Function, PartialShape, Shape
+from openvino.runtime import Dimension, Model, PartialShape, Shape
 
 
 def test_dimension():
@@ -30,7 +30,7 @@ def test_dimension():
     assert dim.is_dynamic
     assert dim.get_min_length() == 5
     assert dim.get_max_length() == 15
-    assert repr(dim) == "<Dimension: [5, 15]>"
+    assert repr(dim) == "<Dimension: 5..15>"
 
 
 def test_dimension_comparisons():
@@ -129,9 +129,9 @@ def test_partial_shape():
     assert ps.rank == Dimension.dynamic()
     assert list(ps.get_min_shape()) == []
     assert list(ps.get_max_shape()) == []
-    assert repr(ps) == "<PartialShape: ?>"
+    assert repr(ps) == "<PartialShape: ...>"
 
-    ps = PartialShape.dynamic(r=Dimension(2))
+    ps = PartialShape.dynamic(rank=Dimension(2))
     assert not ps.is_static
     assert ps.is_dynamic
     assert ps.rank == 2
@@ -220,6 +220,16 @@ def test_partial_shape_equals():
     shape = Shape([1, 2, 3])
     ps = PartialShape([1, 2, 3])
     assert shape == ps
+    assert shape == ps.to_shape()
+
+
+def test_input_shape_read_only():
+    shape = Shape([1, 10])
+    param = ov.parameter(shape, dtype=np.float32)
+    model = Model(ov.relu(param), [param])
+    ref_shape = model.input().shape
+    ref_shape[0] = Dimension(3)
+    assert model.input().shape == shape
 
 
 def test_repr_dynamic_shape():
@@ -227,9 +237,9 @@ def test_repr_dynamic_shape():
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     model = parameter_a + parameter_b
-    function = Function(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
+    function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
-    assert repr(function) == "<Function: 'simple_dyn_shapes_graph' ({?,2})>"
+    assert repr(function) == "<Model: 'simple_dyn_shapes_graph' ({?,2})>"
 
     ops = function.get_ordered_ops()
     for op in ops:

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "statistics_report.hpp"
-
+// clang-format off
 #include <algorithm>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "statistics_report.hpp"
+// clang-format on
 
 void StatisticsReport::addParameters(const Category& category, const Parameters& parameters) {
     if (_parameters.count(category) == 0)
@@ -54,10 +56,8 @@ void StatisticsReport::dump() {
 }
 
 void StatisticsReport::dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformaceCounters& perfCounts) {
-    auto performanceMapSorted = perfCountersSorted(perfCounts);
-
-    long long total = 0L;
-    long long total_cpu = 0L;
+    std::chrono::microseconds total = std::chrono::microseconds::zero();
+    std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
 
     dumper << "layerName"
            << "execStatus"
@@ -67,31 +67,31 @@ void StatisticsReport::dumpPerformanceCountersRequest(CsvDumper& dumper, const P
            << "cpuTime (ms)";
     dumper.endLine();
 
-    for (const auto& layer : performanceMapSorted) {
-        dumper << layer.first;  // layer name
+    for (const auto& layer : perfCounts) {
+        dumper << layer.node_name;  // layer name
 
-        switch (layer.second.status) {
-        case InferenceEngine::InferenceEngineProfileInfo::EXECUTED:
+        switch (layer.status) {
+        case ov::runtime::ProfilingInfo::Status::EXECUTED:
             dumper << "EXECUTED";
             break;
-        case InferenceEngine::InferenceEngineProfileInfo::NOT_RUN:
+        case ov::runtime::ProfilingInfo::Status::NOT_RUN:
             dumper << "NOT_RUN";
             break;
-        case InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT:
+        case ov::runtime::ProfilingInfo::Status::OPTIMIZED_OUT:
             dumper << "OPTIMIZED_OUT";
             break;
         }
-        dumper << layer.second.layer_type << layer.second.exec_type;
-        dumper << std::to_string(layer.second.realTime_uSec / 1000.0) << std::to_string(layer.second.cpu_uSec / 1000.0);
-        total += layer.second.realTime_uSec;
-        total_cpu += layer.second.cpu_uSec;
+        dumper << layer.node_type << layer.exec_type;
+        dumper << std::to_string(layer.real_time.count() / 1000.0) << std::to_string(layer.cpu_time.count() / 1000.0);
+        total += layer.real_time;
+        total_cpu += layer.cpu_time;
         dumper.endLine();
     }
     dumper << "Total"
            << ""
            << ""
            << "";
-    dumper << total / 1000.0 << total_cpu / 1000.0;
+    dumper << total.count() / 1000.0 << total_cpu.count() / 1000.0;
     dumper.endLine();
     dumper.endLine();
 }
@@ -114,24 +114,28 @@ void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCount
         }
     } else if (_config.report_type == averageCntReport) {
         auto getAveragePerformanceCounters = [&perfCounts]() {
-            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> performanceCountersAvg;
+            std::vector<ov::runtime::ProfilingInfo> performanceCountersAvg;
             // iterate over each processed infer request and handle its PM data
             for (size_t i = 0; i < perfCounts.size(); i++) {
-                auto performanceMapSorted = perfCountersSorted(perfCounts[i]);
                 // iterate over each layer from sorted vector and add required PM data
                 // to the per-layer maps
-                for (const auto& pm : performanceMapSorted) {
-                    if (performanceCountersAvg.count(pm.first) == 0) {
-                        performanceCountersAvg[pm.first] = perfCounts.at(i).at(pm.first);
-                    } else {
-                        performanceCountersAvg[pm.first].realTime_uSec += perfCounts.at(i).at(pm.first).realTime_uSec;
-                        performanceCountersAvg[pm.first].cpu_uSec += perfCounts.at(i).at(pm.first).cpu_uSec;
+                for (const auto& pm : perfCounts[i]) {
+                    int idx = 0;
+                    for (; idx < performanceCountersAvg.size(); idx++) {
+                        if (performanceCountersAvg[idx].node_name == pm.node_name) {
+                            performanceCountersAvg[idx].real_time += pm.real_time;
+                            performanceCountersAvg[idx].cpu_time += pm.cpu_time;
+                            break;
+                        }
+                    }
+                    if (idx == performanceCountersAvg.size()) {
+                        performanceCountersAvg.push_back(pm);
                     }
                 }
             }
             for (auto& pm : performanceCountersAvg) {
-                pm.second.realTime_uSec /= perfCounts.size();
-                pm.second.cpu_uSec /= perfCounts.size();
+                pm.real_time /= perfCounts.size();
+                pm.cpu_time /= perfCounts.size();
             }
             return performanceCountersAvg;
         };

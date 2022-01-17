@@ -53,14 +53,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const GatherElementsParams& params) {
-        std::shared_ptr<Function> function;
+    static std::shared_ptr<Model> CreateFunction(const GatherElementsParams& params) {
+        std::shared_ptr<Model> function;
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type,
                                                               PartialShape{params.dataTensor.shape});
         const auto indices = std::make_shared<op::v0::Parameter>(params.indicesTensor.type,
                                                                  PartialShape{params.indicesTensor.shape});
         const auto gatherElement = std::make_shared<op::v6::GatherElements>(data, indices, params.axis);
-        function = std::make_shared<ov::Function>(NodeVector {gatherElement}, ParameterVector {data, indices});
+        function = std::make_shared<ov::Model>(NodeVector {gatherElement}, ParameterVector {data, indices});
         return function;
     }
 };

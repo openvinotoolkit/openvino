@@ -10,10 +10,11 @@
 
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/serialize.hpp"
 
 class FunctionsComparator {
 public:
@@ -106,13 +107,13 @@ void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_
 
 namespace ngraph {
 namespace pass {
-class InjectionPass : public ov::pass::FunctionPass {
+class InjectionPass : public ov::pass::ModelPass {
 public:
     using injection_callback = std::function<void(std::shared_ptr<ngraph::Function>)>;
 
-    explicit InjectionPass(injection_callback callback) : FunctionPass(), m_callback(std::move(callback)) {}
+    explicit InjectionPass(injection_callback callback) : ModelPass(), m_callback(std::move(callback)) {}
 
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override {
         m_callback(f);
         return false;
     }
@@ -233,18 +234,18 @@ public:
     }
 };
 
-class InitUniqueNames : public ov::pass::FunctionPass {
+class InitUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
     InitUniqueNames(UniqueNamesHolder::Ptr unh) : m_unh(unh) {}
-    bool run_on_function(std::shared_ptr<Function> f) override {
+    bool run_on_model(const std::shared_ptr<Function>& f) override {
         m_unh->init_names(f);
         return false;
     }
 };
 
-class CheckUniqueNames : public ov::pass::FunctionPass {
+class CheckUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
@@ -252,7 +253,7 @@ public:
         if (soft_names_comparison)
             m_unh->enable_soft_names_comparison();
     }
-    bool run_on_function(std::shared_ptr<Function> f) override {
+    bool run_on_model(const std::shared_ptr<Function>& f) override {
         m_unh->check_unique_names(f);
         return false;
     }
@@ -425,7 +426,9 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<SubGraphOpInputDescription>,
                 private AttributeStorage<SubGraphOpOutputDescription>,
                 private AttributeStorage<ov::op::util::FrameworkNodeAttrs>,
-                private AttributeStorage<std::shared_ptr<ngraph::Variable>> {
+                private AttributeStorage<std::shared_ptr<ngraph::Variable>>,
+                private AttributeStorage<ov::PartialShape>,
+                private AttributeStorage<ov::Dimension> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -458,7 +461,8 @@ public:
                storage<SubGraphOpInputDescription>().get_attributes_number() +
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
                storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
-               storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number();
+               storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number() +
+               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number();
     }
 };
 
@@ -737,6 +741,22 @@ struct Equal<std::shared_ptr<Constant>> {
         return false;
     }
 };
+
+template <>
+struct Equal<std::shared_ptr<ov::Dimension>> {
+    static bool equal_value(const std::shared_ptr<ov::Dimension>& dim1, const std::shared_ptr<ov::Dimension>& dim2) {
+        return dim1 == dim2;
+    }
+};
+
+template <>
+struct Equal<std::shared_ptr<ov::PartialShape>> {
+    static bool equal_value(const std::shared_ptr<ov::PartialShape>& shape1,
+                            const std::shared_ptr<ov::PartialShape>& shape2) {
+        return shape1 == shape2;
+    }
+};
+
 }  // namespace equal
 
 namespace str {
@@ -797,6 +817,24 @@ struct Get<ov::op::util::FrameworkNodeAttrs, void> {
         }
         oss << "]";
         return "[" + oss.str() + "]";
+    }
+};
+
+template <>
+struct Get<ov::Dimension, void> {
+    static std::string value(const ov::Dimension& dim) {
+        std::stringstream dim_str;
+        dim_str << dim;
+        return dim_str.str();
+    }
+};
+
+template <>
+struct Get<ov::PartialShape, void> {
+    static std::string value(const ov::PartialShape& shape) {
+        std::stringstream shape_str;
+        shape_str << shape;
+        return shape_str.str();
     }
 };
 
@@ -885,9 +923,9 @@ private:
 
     void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
 
-    using FunctionAccessor = ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>;
+    using ModelAccessor = ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>;
 
-    void verify_function(const std::string& name, FunctionAccessor& adapter);
+    void verify_function(const std::string& name, ModelAccessor& adapter);
 
     void verify_others(const std::string& name, ngraph::ValueAccessor<void>& adapter);
     //-- DATA --

@@ -28,14 +28,14 @@ std::shared_ptr<ngraph::Function> CreateTestFunction(const std::string& name, co
     const auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ps);
     const auto convert = std::make_shared<ov::opset8::Convert>(param, ov::element::f32);
     const auto result = std::make_shared<ov::opset8::Result>(convert);
-    return std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{param}, name);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, name);
 }
 }  // namespace
 
 TEST_F(SerializationCleanupTest, SerializationShouldWork) {
     const auto f = CreateTestFunction("StaticFunction", ngraph::PartialShape{2, 2});
 
-    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_function(f);
+    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(f);
 
     // .xml & .bin files should be present
     ASSERT_TRUE(std::ifstream(m_out_xml_path, std::ios::in).good());
@@ -45,7 +45,7 @@ TEST_F(SerializationCleanupTest, SerializationShouldWork) {
 TEST_F(SerializationCleanupTest, SerializationShouldWorkWithDynamicFunction) {
     const auto f = CreateTestFunction("DynamicFunction", ngraph::PartialShape{ngraph::Dimension()});
 
-    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_function(f);
+    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(f);
 
     // .xml & .bin files should be present
     ASSERT_TRUE(std::ifstream(m_out_xml_path, std::ios::in).good());

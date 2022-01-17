@@ -50,12 +50,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const TileParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const TileParams& params) {
         const auto A = std::make_shared<opset1::Parameter>(params.A.type, params.A.shape);
         const auto repeats = std::make_shared<opset1::Constant>(params.repeats.type, params.repeats.shape,
                                                                 params.repeats.data.data());
         const auto tile = std::make_shared<opset1::Tile>(A, repeats);
-        const auto f = std::make_shared<Function>(NodeVector{tile}, ParameterVector{A});
+        const auto f = std::make_shared<Model>(NodeVector{tile}, ParameterVector{A});
         return f;
     }
 };
@@ -64,38 +64,258 @@ TEST_P(ReferenceTileTest, CompareWithRefs) {
     Exec();
 }
 
-template <element::Type_t ET>
+template <element::Type_t ET, element::Type_t ET_INT>
 std::vector<TileParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
+    using T_INT = typename element_type_traits<ET_INT>::value_type;
     std::vector<TileParams> params {
         TileParams(
-            Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
-            Tensor(element::i64, {3}, std::vector<int64_t>{2, 2, 1}),
-            Tensor(ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3}),
-            "tile_3d_small_data_rank"),
+            Tensor(ET, {}, std::vector<T>{
+                1
+            }),
+            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            Tensor(ET, {2}, std::vector<T>{
+                1, 1
+            }),
+            "tile_0d_to_1d_data_broadcast"),
         TileParams(
-            Tensor(ET, {2, 1, 3}, std::vector<T>{1, 2, 3, 4, 5, 6}),
-            Tensor(element::i64, {2}, std::vector<int64_t>{2, 1}),
-            Tensor(ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6}),
-            "tile_3d_few_repeats"),
+            Tensor(ET, {6}, std::vector<T>{
+                1, 2, 3, 4, 5, 6,
+            }),
+            Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+            Tensor(ET, {24}, std::vector<T>{
+                1, 2, 3, 4, 5, 6,
+                1, 2, 3, 4, 5, 6,
+                1, 2, 3, 4, 5, 6,
+                1, 2, 3, 4, 5, 6
+            }),
+            "tile_1d_to_1d_no_broadcast"),
+        TileParams(
+            Tensor(ET, {3}, std::vector<T>{
+                1, 2, 3
+            }),
+            Tensor(ET_INT, {3}, std::vector<T_INT>{2, 2, 1}),
+            Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3
+            }),
+            "tile_1d_to_3d_data_broadcast"),
+        TileParams(
+            Tensor(ET, {2, 1, 3}, std::vector<T>{
+                1, 2, 3, 4, 5, 6
+            }),
+            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6
+            }),
+            "tile_3d_to_3d_repeats_broadcast"),
+    };
+    return params;
+}
+
+template <element::Type_t ET, element::Type_t ET_INT>
+std::vector<TileParams> generateParamsFloatValue() {
+    using T = typename element_type_traits<ET>::value_type;
+    using T_INT = typename element_type_traits<ET_INT>::value_type;
+    std::vector<TileParams> params {
+        TileParams(
+            Tensor(ET, {2, 1, 3}, std::vector<T>{
+                1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f
+            }),
+            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1.1f, 2.2f, 3.3f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f, 4.4f, 5.5f, 6.6f
+            }),
+            "tile_3d_to_3d_repeats_broadcast_float_val"),
     };
     return params;
 }
 
 std::vector<TileParams> generateCombinedParams() {
     const std::vector<std::vector<TileParams>> generatedParams {
-        generateParams<element::Type_t::i8>(),
-        generateParams<element::Type_t::i16>(),
-        generateParams<element::Type_t::i32>(),
-        generateParams<element::Type_t::i64>(),
-        generateParams<element::Type_t::u8>(),
-        generateParams<element::Type_t::u16>(),
-        generateParams<element::Type_t::u32>(),
-        generateParams<element::Type_t::u64>(),
-        generateParams<element::Type_t::bf16>(),
-        generateParams<element::Type_t::f16>(),
-        generateParams<element::Type_t::f32>(),
-        generateParams<element::Type_t::f64>(),
+        // test each data type for each repeats type
+        // CVS-73511 - commented here due segmentation fault
+        // generateParams<element::Type_t::i4, element::Type_t::i4>(),
+        // generateParams<element::Type_t::i4, element::Type_t::i8>(),
+        // generateParams<element::Type_t::i4, element::Type_t::i16>(),
+        // generateParams<element::Type_t::i4, element::Type_t::i32>(),
+        // generateParams<element::Type_t::i4, element::Type_t::i64>(),
+        // generateParams<element::Type_t::i4, element::Type_t::u4>(),
+        // generateParams<element::Type_t::i4, element::Type_t::u8>(),
+        // generateParams<element::Type_t::i4, element::Type_t::u16>(),
+        // generateParams<element::Type_t::i4, element::Type_t::u32>(),
+        // generateParams<element::Type_t::i4, element::Type_t::u64>(),
+        generateParams<element::Type_t::i8, element::Type_t::i4>(),
+        generateParams<element::Type_t::i8, element::Type_t::i8>(),
+        generateParams<element::Type_t::i8, element::Type_t::i16>(),
+        generateParams<element::Type_t::i8, element::Type_t::i32>(),
+        generateParams<element::Type_t::i8, element::Type_t::i64>(),
+        generateParams<element::Type_t::i8, element::Type_t::u4>(),
+        generateParams<element::Type_t::i8, element::Type_t::u8>(),
+        generateParams<element::Type_t::i8, element::Type_t::u16>(),
+        generateParams<element::Type_t::i8, element::Type_t::u32>(),
+        generateParams<element::Type_t::i8, element::Type_t::u64>(),
+        generateParams<element::Type_t::i16, element::Type_t::i4>(),
+        generateParams<element::Type_t::i16, element::Type_t::i8>(),
+        generateParams<element::Type_t::i16, element::Type_t::i16>(),
+        generateParams<element::Type_t::i16, element::Type_t::i32>(),
+        generateParams<element::Type_t::i16, element::Type_t::i64>(),
+        generateParams<element::Type_t::i16, element::Type_t::u4>(),
+        generateParams<element::Type_t::i16, element::Type_t::u8>(),
+        generateParams<element::Type_t::i16, element::Type_t::u16>(),
+        generateParams<element::Type_t::i16, element::Type_t::u32>(),
+        generateParams<element::Type_t::i16, element::Type_t::u64>(),
+        generateParams<element::Type_t::i32, element::Type_t::i4>(),
+        generateParams<element::Type_t::i32, element::Type_t::i8>(),
+        generateParams<element::Type_t::i32, element::Type_t::i16>(),
+        generateParams<element::Type_t::i32, element::Type_t::i32>(),
+        generateParams<element::Type_t::i32, element::Type_t::i64>(),
+        generateParams<element::Type_t::i32, element::Type_t::u4>(),
+        generateParams<element::Type_t::i32, element::Type_t::u8>(),
+        generateParams<element::Type_t::i32, element::Type_t::u16>(),
+        generateParams<element::Type_t::i32, element::Type_t::u32>(),
+        generateParams<element::Type_t::i32, element::Type_t::u64>(),
+        generateParams<element::Type_t::i64, element::Type_t::i4>(),
+        generateParams<element::Type_t::i64, element::Type_t::i8>(),
+        generateParams<element::Type_t::i64, element::Type_t::i16>(),
+        generateParams<element::Type_t::i64, element::Type_t::i32>(),
+        generateParams<element::Type_t::i64, element::Type_t::i64>(),
+        generateParams<element::Type_t::i64, element::Type_t::u4>(),
+        generateParams<element::Type_t::i64, element::Type_t::u8>(),
+        generateParams<element::Type_t::i64, element::Type_t::u16>(),
+        generateParams<element::Type_t::i64, element::Type_t::u32>(),
+        generateParams<element::Type_t::i64, element::Type_t::u64>(),
+        // CVS-73511 - commented here due segmentation fault
+        // generateParams<element::Type_t::u4, element::Type_t::i4>(),
+        // generateParams<element::Type_t::u4, element::Type_t::i8>(),
+        // generateParams<element::Type_t::u4, element::Type_t::i16>(),
+        // generateParams<element::Type_t::u4, element::Type_t::i32>(),
+        // generateParams<element::Type_t::u4, element::Type_t::i64>(),
+        // generateParams<element::Type_t::u4, element::Type_t::u4>(),
+        // generateParams<element::Type_t::u4, element::Type_t::u8>(),
+        // generateParams<element::Type_t::u4, element::Type_t::u16>(),
+        // generateParams<element::Type_t::u4, element::Type_t::u32>(),
+        // generateParams<element::Type_t::u4, element::Type_t::u64>(),
+        generateParams<element::Type_t::u8, element::Type_t::i4>(),
+        generateParams<element::Type_t::u8, element::Type_t::i8>(),
+        generateParams<element::Type_t::u8, element::Type_t::i16>(),
+        generateParams<element::Type_t::u8, element::Type_t::i32>(),
+        generateParams<element::Type_t::u8, element::Type_t::i64>(),
+        generateParams<element::Type_t::u8, element::Type_t::u4>(),
+        generateParams<element::Type_t::u8, element::Type_t::u8>(),
+        generateParams<element::Type_t::u8, element::Type_t::u16>(),
+        generateParams<element::Type_t::u8, element::Type_t::u32>(),
+        generateParams<element::Type_t::u8, element::Type_t::u64>(),
+        generateParams<element::Type_t::u16, element::Type_t::i4>(),
+        generateParams<element::Type_t::u16, element::Type_t::i8>(),
+        generateParams<element::Type_t::u16, element::Type_t::i16>(),
+        generateParams<element::Type_t::u16, element::Type_t::i32>(),
+        generateParams<element::Type_t::u16, element::Type_t::i64>(),
+        generateParams<element::Type_t::u16, element::Type_t::u4>(),
+        generateParams<element::Type_t::u16, element::Type_t::u8>(),
+        generateParams<element::Type_t::u16, element::Type_t::u16>(),
+        generateParams<element::Type_t::u16, element::Type_t::u32>(),
+        generateParams<element::Type_t::u16, element::Type_t::u64>(),
+        generateParams<element::Type_t::u32, element::Type_t::i4>(),
+        generateParams<element::Type_t::u32, element::Type_t::i8>(),
+        generateParams<element::Type_t::u32, element::Type_t::i16>(),
+        generateParams<element::Type_t::u32, element::Type_t::i32>(),
+        generateParams<element::Type_t::u32, element::Type_t::i64>(),
+        generateParams<element::Type_t::u32, element::Type_t::u4>(),
+        generateParams<element::Type_t::u32, element::Type_t::u8>(),
+        generateParams<element::Type_t::u32, element::Type_t::u16>(),
+        generateParams<element::Type_t::u32, element::Type_t::u32>(),
+        generateParams<element::Type_t::u32, element::Type_t::u64>(),
+        generateParams<element::Type_t::u64, element::Type_t::i4>(),
+        generateParams<element::Type_t::u64, element::Type_t::i8>(),
+        generateParams<element::Type_t::u64, element::Type_t::i16>(),
+        generateParams<element::Type_t::u64, element::Type_t::i32>(),
+        generateParams<element::Type_t::u64, element::Type_t::i64>(),
+        generateParams<element::Type_t::u64, element::Type_t::u4>(),
+        generateParams<element::Type_t::u64, element::Type_t::u8>(),
+        generateParams<element::Type_t::u64, element::Type_t::u16>(),
+        generateParams<element::Type_t::u64, element::Type_t::u32>(),
+        generateParams<element::Type_t::u64, element::Type_t::u64>(),
+        generateParams<element::Type_t::f16, element::Type_t::i4>(),
+        generateParams<element::Type_t::f16, element::Type_t::i8>(),
+        generateParams<element::Type_t::f16, element::Type_t::i16>(),
+        generateParams<element::Type_t::f16, element::Type_t::i32>(),
+        generateParams<element::Type_t::f16, element::Type_t::i64>(),
+        generateParams<element::Type_t::f16, element::Type_t::u4>(),
+        generateParams<element::Type_t::f16, element::Type_t::u8>(),
+        generateParams<element::Type_t::f16, element::Type_t::u16>(),
+        generateParams<element::Type_t::f16, element::Type_t::u32>(),
+        generateParams<element::Type_t::f16, element::Type_t::u64>(),
+        generateParams<element::Type_t::f32, element::Type_t::i4>(),
+        generateParams<element::Type_t::f32, element::Type_t::i8>(),
+        generateParams<element::Type_t::f32, element::Type_t::i16>(),
+        generateParams<element::Type_t::f32, element::Type_t::i32>(),
+        generateParams<element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::f32, element::Type_t::u4>(),
+        generateParams<element::Type_t::f32, element::Type_t::u8>(),
+        generateParams<element::Type_t::f32, element::Type_t::u16>(),
+        generateParams<element::Type_t::f32, element::Type_t::u32>(),
+        generateParams<element::Type_t::f32, element::Type_t::u64>(),
+        generateParams<element::Type_t::f64, element::Type_t::i4>(),
+        generateParams<element::Type_t::f64, element::Type_t::i8>(),
+        generateParams<element::Type_t::f64, element::Type_t::i16>(),
+        generateParams<element::Type_t::f64, element::Type_t::i32>(),
+        generateParams<element::Type_t::f64, element::Type_t::i64>(),
+        generateParams<element::Type_t::f64, element::Type_t::u4>(),
+        generateParams<element::Type_t::f64, element::Type_t::u8>(),
+        generateParams<element::Type_t::f64, element::Type_t::u16>(),
+        generateParams<element::Type_t::f64, element::Type_t::u32>(),
+        generateParams<element::Type_t::f64, element::Type_t::u64>(),
+        generateParams<element::Type_t::bf16, element::Type_t::i4>(),
+        generateParams<element::Type_t::bf16, element::Type_t::i8>(),
+        generateParams<element::Type_t::bf16, element::Type_t::i16>(),
+        generateParams<element::Type_t::bf16, element::Type_t::i32>(),
+        generateParams<element::Type_t::bf16, element::Type_t::i64>(),
+        generateParams<element::Type_t::bf16, element::Type_t::u4>(),
+        generateParams<element::Type_t::bf16, element::Type_t::u8>(),
+        generateParams<element::Type_t::bf16, element::Type_t::u16>(),
+        generateParams<element::Type_t::bf16, element::Type_t::u32>(),
+        generateParams<element::Type_t::bf16, element::Type_t::u64>(),
+        // // test float values in data
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::i4>(),
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::i8>(),
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::i16>(),
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::i32>(),
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::i64>(),
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::u4>(),
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::u8>(),
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::u16>(),
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::u32>(),
+        generateParamsFloatValue<element::Type_t::f16, element::Type_t::u64>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::i4>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::i8>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::i16>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::i32>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::i64>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::u4>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::u8>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::u16>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::u32>(),
+        generateParamsFloatValue<element::Type_t::f32, element::Type_t::u64>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::i4>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::i8>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::i16>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::i32>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::i64>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::u4>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::u8>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::u16>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::u32>(),
+        generateParamsFloatValue<element::Type_t::f64, element::Type_t::u64>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::i4>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::i8>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::i16>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::i32>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::i64>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u4>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u8>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u16>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u32>(),
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u64>()
     };
     std::vector<TileParams> combinedParams;
 

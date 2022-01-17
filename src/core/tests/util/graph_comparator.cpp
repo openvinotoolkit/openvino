@@ -799,6 +799,10 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAc
     } else if (auto variable_ptr =
                    ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
         insert(name, variable_ptr->get());
+    } else if (auto shape_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+        insert(name, shape_ptr->get());
+    } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+        insert(name, dim_ptr->get());
     } else {
         m_read_result += "store   attr [ ERR ]: " + name + " [drop `void` comparison which is '" +
                          adapter.get_type_info().name + "']";
@@ -841,7 +845,7 @@ void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
     }
 }
 
-void ReadAndCompareAttributes::verify_function(const std::string& name, FunctionAccessor& adapter) {
+void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAccessor& adapter) {
     if (should_return()) {
         return;
     }
@@ -874,6 +878,10 @@ void ReadAndCompareAttributes::verify_others(const std::string& name, ngraph::Va
     } else if (auto variable_ptr =
                    ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
         verify(name, variable_ptr->get());
+    } else if (auto shape_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+        verify(name, shape_ptr->get());
+    } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+        verify(name, dim_ptr->get());
     } else {
         m_cmp_result += "compare attr [ ERR ]: " + name + " [drop `void` comparison which is '" +
                         adapter.get_type_info().name + "']";

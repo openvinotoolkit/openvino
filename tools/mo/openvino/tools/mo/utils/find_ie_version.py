@@ -106,7 +106,7 @@ def find_ie_version(silent=False):
             "libs": [
                 os.path.join(script_path, '../../../../../../bin/intel64'),
                 os.path.join(script_path, '../../../../../../bin/intel64/Debug'),
-                os.path.join(script_path, '../../../../../../temp/temp/tbb/bin'),
+                os.path.join(script_path, '../../../../../../temp/tbb/bin'),
             ]
         },
     ]

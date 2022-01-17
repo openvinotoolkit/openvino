@@ -42,5 +42,5 @@ class NGRAPH_API InitNodeInfo;
 class ngraph::pass::InitNodeInfo: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

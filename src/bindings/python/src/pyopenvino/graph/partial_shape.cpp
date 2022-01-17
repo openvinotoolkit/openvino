@@ -33,7 +33,7 @@ void regclass_graph_PartialShape(py::module m) {
     shape.def(py::init<const ov::Shape&>());
     shape.def(py::init<const ov::PartialShape&>());
 
-    shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("r") = ov::Dimension());
+    shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("rank") = ov::Dimension());
 
     shape.def_property_readonly("is_dynamic",
                                 &ov::PartialShape::is_dynamic,
@@ -63,14 +63,14 @@ void regclass_graph_PartialShape(py::module m) {
 
     shape.def("compatible",
               &ov::PartialShape::compatible,
-              py::arg("s"),
+              py::arg("shape"),
               R"(
                 Check whether this shape is compatible with the argument, i.e.,
                 whether it is possible to merge them.
 
                 Parameters
                 ----------
-                s : PartialShape
+                shape : PartialShape
                     The shape to be checked for compatibility with this shape.
 
 
@@ -81,13 +81,13 @@ void regclass_graph_PartialShape(py::module m) {
               )");
     shape.def("refines",
               &ov::PartialShape::refines,
-              py::arg("s"),
+              py::arg("shape"),
               R"(
                 Check whether this shape is a refinement of the argument.
 
                 Parameters
                 ----------
-                s : PartialShape
+                shape : PartialShape
                     The shape which is being compared against this shape.
 
                 Returns
@@ -97,13 +97,13 @@ void regclass_graph_PartialShape(py::module m) {
               )");
     shape.def("relaxes",
               &ov::PartialShape::relaxes,
-              py::arg("s"),
+              py::arg("shape"),
               R"(
                 Check whether this shape is a relaxation of the argument.
 
                 Parameters
                 ----------
-                s : PartialShape
+                shape : PartialShape
                     The shape which is being compared against this shape.
 
                 Returns
@@ -113,13 +113,13 @@ void regclass_graph_PartialShape(py::module m) {
               )");
     shape.def("same_scheme",
               &ov::PartialShape::same_scheme,
-              py::arg("s"),
+              py::arg("shape"),
               R"(
                 Check whether this shape represents the same scheme as the argument.
 
                 Parameters
                 ----------
-                s : PartialShape
+                shape : PartialShape
                     The shape which is being compared against this shape.
 
                 Returns
@@ -194,6 +194,10 @@ void regclass_graph_PartialShape(py::module m) {
 
     shape.def("__len__", [](const ov::PartialShape& self) {
         return self.size();
+    });
+
+    shape.def("__setitem__", [](ov::PartialShape& self, size_t key, ov::Dimension::value_type d) {
+        self[key] = d;
     });
 
     shape.def("__setitem__", [](ov::PartialShape& self, size_t key, ov::Dimension& d) {

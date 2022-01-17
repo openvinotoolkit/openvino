@@ -118,20 +118,20 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunctionWithParam(MatMulParams& p) {
+    static std::shared_ptr<Model> CreateFunctionWithParam(MatMulParams& p) {
         auto in1 = std::make_shared<op::v0::Parameter>(p.m_input_type1, p.m_input_shape1);
         auto in2 = std::make_shared<op::v0::Parameter>(p.m_input_type2, p.m_input_shape2);
         auto matmul = std::make_shared<op::v0::MatMul>(in1, in2, p.m_transpose1, p.m_transpose2);
 
-        return std::make_shared<ov::Function>(matmul, ParameterVector{in1, in2});
+        return std::make_shared<ov::Model>(matmul, ParameterVector{in1, in2});
     }
 
-    static std::shared_ptr<Function> CreateFunctionWithConst(MatMulParams& p) {
+    static std::shared_ptr<Model> CreateFunctionWithConst(MatMulParams& p) {
         auto in1 = std::make_shared<op::v0::Parameter>(p.m_input_type1, p.m_input_shape1);
         auto in2 = std::make_shared<op::v0::Constant>(p.m_input_type2, p.m_input_shape2, p.m_input_value2.data());
         auto matmul = std::make_shared<op::v0::MatMul>(in1, in2, p.m_transpose1, p.m_transpose2);
 
-        return std::make_shared<ov::Function>(matmul, ParameterVector{in1});
+        return std::make_shared<ov::Model>(matmul, ParameterVector{in1});
     }
 };
 

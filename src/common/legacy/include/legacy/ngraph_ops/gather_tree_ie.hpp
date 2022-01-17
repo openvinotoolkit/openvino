@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(GatherTreeIE) : public Op {
+class GatherTreeIE : public Op {
 public:
     OPENVINO_OP("GatherTreeIE", "legacy");
     BWDCMP_RTTI_DECLARATION;

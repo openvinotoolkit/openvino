@@ -19,14 +19,14 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOpti
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedSliceEraser", 0);
 
-bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::UselessStridedSliceEraser::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UselessStridedSliceEraser);
     bool rewritten = false;
     for (auto & node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
             if (auto sub_graph = sub_graph_node->get_function()) {
-                rewritten |= run_on_function(sub_graph);
+                rewritten |= run_on_model(sub_graph);
             }
         }
         auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node);
@@ -97,7 +97,7 @@ bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlic
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedStridedSliceEraser, "SharedStridedSliceEraser", 0);
 
-bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::SharedStridedSliceEraser::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SharedStridedSliceEraser);
     bool graph_rewritten = false;
 
@@ -106,7 +106,7 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
             if (auto sub_graph = sub_graph_node->get_function()) {
-                graph_rewritten |= run_on_function(sub_graph);
+                graph_rewritten |= run_on_model(sub_graph);
             }
         }
         if (auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node)) {
@@ -129,7 +129,7 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedStridedSliceOptimizer, "GroupedStridedSliceOptimizer", 0);
 
-bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(GroupedStridedSliceOptimizer);
     bool graph_rewritten = false;
     using planned_slice = std::pair<std::shared_ptr<ngraph::opset1::StridedSlice>, ngraph::SlicePlan>;
@@ -139,7 +139,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
             if (auto sub_graph = sub_graph_node->get_function()) {
-                graph_rewritten |= run_on_function(sub_graph);
+                graph_rewritten |= run_on_model(sub_graph);
             }
         }
         if (auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node)) {
@@ -253,7 +253,7 @@ ngraph::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes
     m_use_shapes = use_shapes;
 }
 
-bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
     ngraph::pass::Manager manager(get_pass_config());
     manager.register_pass<ngraph::pass::SliceToStridedSlice>(m_use_shapes);
@@ -261,9 +261,9 @@ bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngr
 
     bool rewritten = false;
     if (m_use_shapes) {
-        rewritten = UselessStridedSliceEraser().run_on_function(f);
-        rewritten |= SharedStridedSliceEraser().run_on_function(f);
-        rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
+        rewritten = UselessStridedSliceEraser().run_on_model(f);
+        rewritten |= SharedStridedSliceEraser().run_on_model(f);
+        rewritten |= GroupedStridedSliceOptimizer().run_on_model(f);
     }
     return rewritten;
 }

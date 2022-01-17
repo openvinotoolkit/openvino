@@ -48,7 +48,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
+void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");
 
@@ -79,8 +79,8 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
             // on on entire ngraph::Function
-            function_changed = GraphRewrite(matcher_pass).run_on_function(func);
-        } else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass)) {
+            function_changed = GraphRewrite(matcher_pass).run_on_model(func);
+        } else if (auto function_pass = dynamic_pointer_cast<ModelPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
@@ -91,11 +91,11 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
 
             if (dynamic_pointer_cast<Validate>(pass)) {
                 if (function_changed) {
-                    function_pass->run_on_function(func);
+                    function_pass->run_on_model(func);
                     function_changed = false;
                 }
             } else {
-                function_changed = function_pass->run_on_function(func);
+                function_changed = function_pass->run_on_model(func);
             }
         } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
@@ -119,7 +119,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
                 static const string format = ov::util::getenv_string("NGRAPH_VISUALIZE_TRACING_FORMAT");
                 auto file_ext = format.empty() ? "svg" : format;
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
-                vt.run_on_function(func);
+                vt.run_on_model(func);
             }
         }
         index++;

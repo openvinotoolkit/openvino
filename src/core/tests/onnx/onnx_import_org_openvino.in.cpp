@@ -44,15 +44,14 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
+static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
-using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/prior_box.onnx"));
-    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     std::vector<float> A(3 * 2 * 2);
     std::vector<float> B(3 * 6 * 6);
     std::vector<float> output = {
@@ -75,7 +74,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     std::vector<float> A{15.0};
     std::vector<float> B{10.0};
     std::vector<float> output = {
@@ -92,7 +91,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_most_attrs_default) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered_most_attrs_default.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     std::vector<float> A(1 * 1 * 2 * 1);
     std::iota(std::begin(A), std::end(A), 0.0f);
     std::vector<float> B(1 * 1 * 3 * 3);
@@ -146,7 +145,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/detection_output.onnx"));
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     auto gen_vector = [](size_t size, float min, float max) -> std::vector<float> {
         float step = (max - min) / size;
@@ -177,7 +176,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm.onnx"));
-    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
     int size = shape_size(shape);
     std::vector<float> data(size);
@@ -201,7 +200,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm_5d.onnx"));
-    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     Shape shape{2, 8, 1, 2, 1};
     int size = shape_size(shape);
     std::vector<float> data(size);
@@ -220,7 +219,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.onnx"));
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     std::vector<float> data(12);
     std::iota(data.begin(), data.end(), 1);
     std::vector<float> output = {
@@ -246,7 +245,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/swish_with_beta.onnx"));
 
     const Shape expected_output_shape{3};
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     std::vector<float> input_data{-0.5f, 0, 0.5f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(expected_output_shape, {-0.2036667, 0.0, 0.2963333});
@@ -259,7 +258,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta) {
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/swish_without_beta.onnx"));
 
     const Shape expected_output_shape{3};
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     std::vector<float> input_data{-0.5f, 0, 0.5f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(expected_output_shape, {-0.18877034, 0.0, 0.31122968});
@@ -271,7 +270,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/detection_output.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // rois
     test_case.add_input<float>({1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                                 1.0f, 1.0f, 1.0f,  4.0f,  1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -331,7 +330,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_
                                                             "onnx/org.openvinotoolkit/experimental_detectron/"
                                                             "detection_output_most_attrs_default.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // rois
     test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -373,7 +372,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
                                                             "onnx/org.openvinotoolkit/experimental_detectron/"
                                                             "generate_proposals_single_image.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
     // im_info
     test_case.add_input<float>({1.0f, 1.0f, 1.0f});
     // anchors
@@ -420,7 +419,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/group_norm.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
     int size = shape_size(shape);
     std::vector<float> data(size);
@@ -446,7 +445,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_genera
         file_util::path_join(SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/prior_grid_generator.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> priors(shape_size(Shape{3, 4}));
     std::iota(priors.begin(), priors.end(), 0);
@@ -472,7 +471,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extra
         file_util::path_join(SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> rois(shape_size(Shape{2, 4}));
     std::iota(rois.begin(), rois.end(), 0);
@@ -529,7 +528,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/topk_rios.onnx"));
 
-    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.0f, 1.0f, 3.0f, 4.0f, 2.0f, 1.0f, 5.0f, 7.0f});
     test_case.add_input<float>({0.5f, 0.3f});
@@ -542,7 +541,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/deformable_conv_2d.onnx"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase(function, s_device);
 
     // data
     test_case.add_input<float>(

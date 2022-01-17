@@ -11,7 +11,7 @@ import numpy as np
 from openvino.runtime import Core
 
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime import Function, Node, PartialShape, Type
+from openvino.runtime import Model, Node, PartialShape, Tensor, Type
 from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
 
 import tests
@@ -50,17 +50,17 @@ class Runtime(object):
     def __repr__(self) -> str:
         return "<Runtime: Backend='{}'>".format(self.backend_name)
 
-    def computation(self, node_or_function: Union[Node, Function], *inputs: Node) -> "Computation":
+    def computation(self, node_or_function: Union[Node, Model], *inputs: Node) -> "Computation":
         """Return a callable Computation object."""
         if isinstance(node_or_function, Node):
-            ng_function = Function(node_or_function, inputs, node_or_function.name)
+            ng_function = Model(node_or_function, inputs, node_or_function.name)
             return Computation(self, ng_function)
-        elif isinstance(node_or_function, Function):
+        elif isinstance(node_or_function, Model):
             return Computation(self, node_or_function)
         else:
             raise TypeError(
-                "Runtime.computation must be called with an nGraph Function object "
-                "or an nGraph node object an optionally Parameter node objects. "
+                "Runtime.computation must be called with an OpenVINO Model object "
+                "or an OpenVINO node object an optionally Parameter node objects. "
                 "Called with: %s",
                 node_or_function,
             )
@@ -69,7 +69,7 @@ class Runtime(object):
 class Computation(object):
     """nGraph callable computation object."""
 
-    def __init__(self, runtime: Runtime, ng_function: Function) -> None:
+    def __init__(self, runtime: Runtime, ng_function: Model) -> None:
         self.runtime = runtime
         self.function = ng_function
         self.parameters = ng_function.get_parameters()
@@ -87,10 +87,22 @@ class Computation(object):
             target_dtype = target_dtypes[i]
             # custom conversion for bf16
             if self.results[i].get_output_element_type(0) == Type.bf16:
-                converted_buffers.append((source_buffers[k].view(np.uint32) >> 16).astype(np.uint16))
+                converted_buffers.append((source_buffers[k].view(target_dtype)).astype(target_dtype))
             else:
                 converted_buffers.append(source_buffers[k].astype(target_dtype))
         return converted_buffers
+
+    def convert_to_tensors(self, input_values):
+        input_tensors = []
+        for parameter, input in zip(self.parameters, input_values):
+            if not isinstance(input, (np.ndarray)):
+                input = np.ndarray([], type(input), np.array(input))
+            if parameter.get_output_element_type(0) == Type.bf16:
+                input_tensors.append(Tensor(Type.bf16, input.shape))
+                input_tensors[-1].data[:] = input.view(np.float16)
+            else:
+                input_tensors.append(Tensor(input))
+        return input_tensors
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
@@ -122,6 +134,10 @@ class Computation(object):
                     input_shape,
                     parameter_shape,
                 )
+
+        is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
+        if is_bfloat16:
+            input_values = self.convert_to_tensors(input_values)
 
         request = executable_network.create_infer_request()
         result_buffers = request.infer(dict(zip(param_names, input_values)))

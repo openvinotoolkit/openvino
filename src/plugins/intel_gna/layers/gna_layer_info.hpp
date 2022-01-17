@@ -88,9 +88,9 @@ class LayerInfo {
         }
         return false;
     }
-    static bool isBatchSizeConstrained(const std::string name) {
+    bool isBatchSizeConstrained() {
         static InferenceEngine::details::caseless_set<std::string> layersWithConstrains = {"memory", "convolution"};
-        return layersWithConstrains.find(name) != layersWithConstrains.end();
+        return layersWithConstrains.find(layer->name) != layersWithConstrains.end();
     }
     size_t getOutputBatchSize() const {
         if (!layer) {
@@ -262,7 +262,7 @@ class LayerInfo {
     bool isFakeQuantize() const noexcept {
         return isOfType("FakeQuantize");
     }
-    bool isNonFunctional() const noexcept {
+    bool isNonFunctional() const {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
     bool isReshape() const noexcept {
@@ -280,7 +280,9 @@ class LayerInfo {
         if (layerOrder == std::vector<int>({ 0, 3, 2, 1 })) {
             return true;  // supported case
         }
-        IE_ASSERT(!layer->insData.empty());
+        if (layer->insData.empty()) {
+            return false;  // unsupported case
+        }
         auto inputs = layer->insData.begin()->lock();
         auto inputsOrder = inputs->getTensorDesc().getDims();
 
@@ -339,12 +341,14 @@ class LayerInfo {
     bool isCopy() const noexcept {
         return isOfType(CopyLayerName) || isOfType(DelayedCopyLayerName);
     }
-
     bool isCopyDelayed() const noexcept {
         return isOfType(DelayedCopyLayerName);
     }
     bool isWeightableIdentity() const noexcept {
         return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
+    }
+    bool isFusableWithConv() const noexcept {
+        return isActivation() || isMaxPooling();
     }
 
     bool isSynthetic() const noexcept {

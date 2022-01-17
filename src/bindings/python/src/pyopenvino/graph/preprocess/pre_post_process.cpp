@@ -7,7 +7,7 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
-#include "openvino/core/function.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "pyopenvino/core/common.hpp"
@@ -269,6 +269,9 @@ static void regclass_graph_InputTensorInfo(py::module m) {
                 const std::vector<std::string>& sub_names = {}) {
                  return &me.set_color_format(format, sub_names);
              });
+    info.def("set_memory_type", [](ov::preprocess::InputTensorInfo& me, const std::string& memory_type) {
+        return &me.set_memory_type(memory_type);
+    });
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {
@@ -390,7 +393,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         "PrePostProcessor");
     proc.doc() = "openvino.runtime.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
-    proc.def(py::init<const std::shared_ptr<ov::Function>&>());
+    proc.def(py::init<const std::shared_ptr<ov::Model>&>());
 
     proc.def("input", [](ov::preprocess::PrePostProcessor& me) {
         return &me.input();
@@ -423,4 +426,14 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
     proc.def("build", &ov::preprocess::PrePostProcessor::build);
+
+    proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
+        std::stringstream ss;
+        ss << self;
+        return ss.str();
+    });
+
+    proc.def("__repr__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
+        return "<PrePostProcessor: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
+    });
 }

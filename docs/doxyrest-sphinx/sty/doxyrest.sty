@@ -1,0 +1,26 @@
+\NeedsTeXFormat{LaTeX2e}[1995/12/01]
+\ProvidesPackage{doxyrest}[2016/09/05 Doxyrest package]
+
+% override \DURole
+% don't add \csname inside verbatim blocks (alltt environment)
+
+% \providecommand + \renewcommand pair works no matter \DUrole is defined or not
+
+\providecommand*{\DUrole}[2]{}
+
+\renewcommand*{\DUrole}[2]{%
+  \def\@tempa{alltt}%
+  \ifx\@tempa\@currenvir%
+    #2%
+  \else% default DURole implementation
+    \ifcsname DUrole#1\endcsname%
+      \csname DUrole#1\endcsname{#2}%
+    \else% backwards compatibility: try \docutilsrole#1{#2}
+      \ifcsname docutilsrole#1\endcsname%
+        \csname docutilsrole#1\endcsname{#2}%
+      \else%
+        #2%
+      \fi%
+    \fi%
+  \fi%
+}

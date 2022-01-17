@@ -10,15 +10,16 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
-import numpy.testing as npt
 
-from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, get_model_name, \
+from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
+    get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
-    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms
+    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value
 from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
-class TestingMeanScaleGetter(unittest.TestCase):
+class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
     def test_tuple_parser(self):
         tuple_values = "data(1.1,22.22,333.333),info[2.2,33.33,444.444]"
         result = parse_tuple_pairs(tuple_values)
@@ -27,7 +28,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
             'info': np.array([2.2, 33.33, 444.444])
         }
         for el in exp_res.keys():
-            npt.assert_array_equal(result[el], exp_res[el])
+            assert np.array_equal(result[el], exp_res[el])
 
     def test_tuple_parser_name_digits_only(self):
         tuple_values = "0448(1.1,22.22,333.333),0449[2.2,33.33,444.444]"
@@ -37,7 +38,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
             '0449': np.array([2.2, 33.33, 444.444])
         }
         for el in exp_res.keys():
-            npt.assert_array_equal(result[el], exp_res[el])
+            assert np.array_equal(result[el], exp_res[el])
 
     def test_tuple_parser_same_values(self):
         tuple_values = "data(1.1,22.22,333.333),info[1.1,22.22,333.333]"
@@ -47,7 +48,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
             'info': np.array([1.1, 22.22, 333.333])
         }
         for el in exp_res.keys():
-            npt.assert_array_equal(result[el], exp_res[el])
+            assert np.array_equal(result[el], exp_res[el])
 
     def test_tuple_parser_no_inputs(self):
         tuple_values = "(1.1,22.22,333.333),[2.2,33.33,444.444]"
@@ -55,7 +56,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         exp_res = [np.array([1.1, 22.22, 333.333]),
                    np.array([2.2, 33.33, 444.444])]
         for i in range(0, len(exp_res)):
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
 
     def test_tuple_parser_error_mixed_with_and_without_name(self):
         tuple_values = "(1.1,22.22,333.333),data[2.2,33.33,444.444]"
@@ -90,7 +91,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -111,7 +112,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -127,7 +128,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -143,7 +144,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -162,7 +163,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for i in range(len(exp_res)):
             for j in range(len(exp_res[i])):
                 if type(exp_res[i][j]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[i][j], result[i][j])
+                    assert np.array_equal(exp_res[i][j], result[i][j])
                 else:
                     self.assertEqual(exp_res[i][j], result[i][j])
 
@@ -181,7 +182,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -204,7 +205,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -227,7 +228,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -246,7 +247,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -269,7 +270,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for i in range(len(exp_res)):
             for j in range(len(exp_res[i])):
                 if type(exp_res[i][j]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[i][j], result[i][j])
+                    assert np.array_equal(exp_res[i][j], result[i][j])
                 else:
                     self.assertEqual(exp_res[i][j], result[i][j])
 
@@ -290,7 +291,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -312,7 +313,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -334,7 +335,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         for input in exp_res.keys():
             for key in exp_res[input].keys():
                 if type(exp_res[input][key]) is np.ndarray:
-                    npt.assert_array_equal(exp_res[input][key], result[input][key])
+                    assert np.array_equal(exp_res[input][key], result[input][key])
                 else:
                     self.assertEqual(exp_res[input][key], result[input][key])
 
@@ -354,7 +355,7 @@ class TestingMeanScaleGetter(unittest.TestCase):
         ]
         for i in range(0, len(exp_res)):
             for j in range(0, len(exp_res[i])):
-                npt.assert_array_equal(exp_res[i][j], result[i][j])
+                assert np.array_equal(exp_res[i][j], result[i][j])
 
     def test_scale_do_not_match_input(self):
         scale_values = parse_tuple_pairs("input_not_present(255),input2(255)")
@@ -375,12 +376,13 @@ class TestingMeanScaleGetter(unittest.TestCase):
         self.assertEqual(len(exp_res), len(res_values))
         for i, j in zip(exp_res, res_values):
             self.assertEqual(i, j)
-            npt.assert_array_equal(exp_res[i], res_values[j])
+            assert np.array_equal(exp_res[i], res_values[j])
 
     def test_input_without_values(self):
         self.assertRaises(Error, parse_tuple_pairs, "input1,input2")
 
-class TestSingleTupleParsing(unittest.TestCase):
+
+class TestSingleTupleParsing(UnitTestWithMockedTelemetry):
     def test_get_values_ideal(self):
         values = "(1.11, 22.22, 333.333)"
         result = get_tuple_values(values)
@@ -442,7 +444,7 @@ class TestSingleTupleParsing(unittest.TestCase):
         self.assertEqual(exp_res, result)
 
 
-class TestShapesParsing(unittest.TestCase):
+class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_shapes(self):
         argv_input = "inp1,inp2"
         input_shapes = "(1,22,333,123), (-1,45,7,1)"
@@ -450,7 +452,7 @@ class TestShapesParsing(unittest.TestCase):
         exp_res = {'inp1': np.array([1, 22, 333, 123]), 'inp2': np.array([-1, 45, 7, 1])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
 
     def test_get_shapes_several_inputs_several_shapes2(self):
         # shapes specified using --input command line parameter and no values
@@ -459,13 +461,45 @@ class TestShapesParsing(unittest.TestCase):
         exp_res = {'inp1': np.array([1, 22, 333, 123]), 'inp2': np.array([-1, 45, 7, 1])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
         placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
         placeholder_values_ref = {}
         input_node_names_ref = "inp1,inp2"
         self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
         for i in placeholder_values_ref.keys():
-            npt.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_and_freezing_with_scalar_and_without_shapes_in_input(self):
+        # shapes and value for freezing specified using --input command line parameter
+        argv_input = "inp1,inp2->157"
+        result_shapes, _ = get_placeholder_shapes(argv_input, None)
+        ref_shapes = {'inp1': None, 'inp2': None}
+        self.assertEqual(list(ref_shapes.keys()), list(result_shapes.keys()))
+        for i in ref_shapes.keys():
+            assert np.array_equal(result_shapes[i], ref_shapes[i])
+
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp2': 157}
+
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            self.assertEqual(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_and_freezing_with_scalar(self):
+        # shapes and value for freezing specified using --input command line parameter
+        argv_input = "inp1,inp2[]->157"
+        result_shapes, _ = get_placeholder_shapes(argv_input, None)
+        ref_shapes = {'inp1': None, 'inp2': ()}
+        self.assertEqual(list(ref_shapes.keys()), list(result_shapes.keys()))
+        for i in ref_shapes.keys():
+            assert np.array_equal(result_shapes[i], ref_shapes[i])
+
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp2': 157}
+
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            self.assertEqual(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_shapes3(self):
         # shapes and value for freezing specified using --input command line parameter
@@ -474,13 +508,14 @@ class TestShapesParsing(unittest.TestCase):
         exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': np.array([5])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
         placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']),
+                                  'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
         input_node_names_ref = "inp1,inp2,inp3"
         self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
         for i in placeholder_values_ref.keys():
-            npt.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_shapes4(self):
         # shapes specified using --input_shape and values for freezing using --input command line parameter
@@ -490,13 +525,14 @@ class TestShapesParsing(unittest.TestCase):
         exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': np.array([5])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
         placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']),
+                                  'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
         input_node_names_ref = "inp1,inp2,inp3"
         self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
         for i in placeholder_values_ref.keys():
-            npt.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
         self.assertEqual(input_node_names_ref, input_node_names_res)
 
     def test_get_shapes_several_inputs_several_shapes5(self):
@@ -509,29 +545,31 @@ class TestShapesParsing(unittest.TestCase):
         exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': np.array([5])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, argv_freeze_placeholder_with_value)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'],),
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input,
+                                                                                     argv_freeze_placeholder_with_value)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']),
+                                  'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'], ),
                                   'inp2': np.array(['5.0', '7.0', '3.0']), 'inp4': np.array(['100.0', '200.0'])}
         input_node_names_ref = "inp1,inp2,inp3"
         self.assertEqual(sorted(list(placeholder_values_res.keys())), sorted(list(placeholder_values_ref.keys())))
         for i in placeholder_values_ref.keys():
-            npt.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
         self.assertEqual(input_node_names_ref, input_node_names_res)
 
     def test_get_shapes_several_inputs_several_shapes6(self):
         # 0D value for freezing specified using --input command line parameter without shape
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3->False"
         result, _ = get_placeholder_shapes(argv_input, None)
-        exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': np.array(False).shape}
+        exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': None}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
         placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
         placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': False}
         self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
         for i in placeholder_values_ref.keys():
-            npt.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_shapes7(self):
         # 0D shape and value for freezing specified using --input command line parameter
@@ -540,12 +578,12 @@ class TestShapesParsing(unittest.TestCase):
         exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': np.array(False).shape}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
         placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
         placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': True}
         self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
         for i in placeholder_values_ref.keys():
-            npt.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_and_data_types1(self):
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3]{i32},inp3[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
@@ -554,7 +592,7 @@ class TestShapesParsing(unittest.TestCase):
         ref_result_data_types = {'inp2': np.int32, 'inp3': np.float32}
         self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
         for i in ref_result_shapes.keys():
-            npt.assert_array_equal(result_shapes[i], ref_result_shapes[i])
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
         self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
         for i in ref_result_data_types.keys():
             np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
@@ -566,7 +604,7 @@ class TestShapesParsing(unittest.TestCase):
         ref_result_data_types = {'inp2': np.int32, '0:inp3': np.float32}
         self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
         for i in ref_result_shapes.keys():
-            npt.assert_array_equal(result_shapes[i], ref_result_shapes[i])
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
         self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
         for i in ref_result_data_types.keys():
             np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
@@ -578,7 +616,7 @@ class TestShapesParsing(unittest.TestCase):
         ref_result_data_types = {'inp2': np.int32, 'inp3:4': np.float32}
         self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
         for i in ref_result_shapes.keys():
-            npt.assert_array_equal(result_shapes[i], ref_result_shapes[i])
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
         self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
         for i in ref_result_data_types.keys():
             np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
@@ -591,7 +629,7 @@ class TestShapesParsing(unittest.TestCase):
         ref_result_data_types = {}
         self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
         for i in ref_result_shapes.keys():
-            npt.assert_array_equal(result_shapes[i], ref_result_shapes[i])
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
         self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
         for i in ref_result_data_types.keys():
             np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
@@ -604,7 +642,7 @@ class TestShapesParsing(unittest.TestCase):
         ref_result_data_types = {}
         self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
         for i in ref_result_shapes.keys():
-            npt.assert_array_equal(result_shapes[i], ref_result_shapes[i])
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
         self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
         for i in ref_result_data_types.keys():
             np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
@@ -617,7 +655,7 @@ class TestShapesParsing(unittest.TestCase):
         ref_result_data_types = {'placeholder1': np.int32, 'placeholder3': np.int32}
         self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
         for i in ref_result_shapes.keys():
-            npt.assert_array_equal(result_shapes[i], ref_result_shapes[i])
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
         self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
         for i in ref_result_data_types.keys():
             np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
@@ -666,28 +704,28 @@ class TestShapesParsing(unittest.TestCase):
         exp_res = {'inp1': np.array([1, 22, 333, 123])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
 
     def test_get_shapes_no_input_no_shape(self):
         argv_input = ""
         input_shapes = ""
         result, _ = get_placeholder_shapes(argv_input, input_shapes)
-        exp_res = np.array([None])
-        npt.assert_array_equal(result, exp_res)
+        exp_res = None
+        assert np.array_equal(result, exp_res)
 
     def test_get_shapes_no_input_one_shape(self):
         argv_input = ""
         input_shapes = "(12,4,1)"
         result, _ = get_placeholder_shapes(argv_input, input_shapes)
         exp_res = np.array([12, 4, 1])
-        npt.assert_array_equal(result, exp_res)
+        assert np.array_equal(result, exp_res)
 
     def test_get_shapes_no_input_one_shape2(self):
         argv_input = ""
         input_shapes = "[12,4,1]"
         result, _ = get_placeholder_shapes(argv_input, input_shapes)
         exp_res = np.array([12, 4, 1])
-        npt.assert_array_equal(result, exp_res)
+        assert np.array_equal(result, exp_res)
 
     def test_get_shapes_no_input_two_shapes(self):
         argv_input = ""
@@ -698,10 +736,10 @@ class TestShapesParsing(unittest.TestCase):
         argv_input = "inp1"
         input_shapes = ""
         result, _ = get_placeholder_shapes(argv_input, input_shapes)
-        exp_res = {'inp1': np.array([None])}
+        exp_res = {'inp1': None}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
 
     def test_get_shapes_one_input_wrong_shape8(self):
         argv_input = "inp1"
@@ -760,17 +798,171 @@ class TestShapesParsing(unittest.TestCase):
         exp_res = {'inp1': np.array([-1, 4, 1]), 'inp2': np.array([4, 6, 8])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
-            npt.assert_array_equal(result[i], exp_res[i])
+            assert np.array_equal(result[i], exp_res[i])
 
     def test_get_shapes_one_input_first_neg_shape_not_one(self):
         argv_input = "inp1"
         input_shapes = "(-12,4,1),(4,6,8)"
         self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
 
+    def test_get_shapes_long_dimension_with_invalid_character(self):
+        # test for regular expression denial of service
+        argv_input = "inp1,inp2"
+        input_shapes = "(222222222222222222222222222222222222222222!,4,1),(4,6,8)"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
+
     def test_get_shapes_one_input_any_neg_shape(self):
         argv_input = "inp1, inp2"
         input_shapes = "(12,4,1),(4,-6,8)"
         self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
+
+    def test_get_shapes_several_inputs_several_partial_shapes(self):
+        argv_input = "inp1,inp2"
+        input_shapes = "(1,..22,1..100,?), (-1,45..,7,1)"
+        result, _ = get_placeholder_shapes(argv_input, input_shapes)
+        exp_res = {'inp1': (1, (0, 22), (1, 100), -1), 'inp2': (-1, (45, np.iinfo(np.int64).max), 7, 1)}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_shapes_several_inputs_several_partial_shapes2(self):
+        # shapes specified using --input command line parameter and no values
+        argv_input = "inp1[1 ? 50..100 123],inp2[-1 45.. ..7 1]"
+        result, _ = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': (1, -1, (50, 100), 123), 'inp2': (-1, (45,np.iinfo(np.int64).max), (0, 7), 1)}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {}
+        input_node_names_ref = "inp1,inp2"
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_several_inputs_several_partial_shapes3(self):
+        # shapes and value for freezing specified using --input command line parameter
+        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3.. ..2 5..10 ? -1],inp3[5]->[1.0 1.0 2.0 3.0 5.0]"
+        result, _ = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': (5,)}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
+        input_node_names_ref = "inp1,inp2,inp3"
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_several_inputs_several_partial_shapes4(self):
+        # shapes specified using --input_shape and values for freezing using --input command line parameter
+        argv_input = "inp1->[1.0 2.0 3.0],inp2,inp3->[1.0 1.0 2.0 3.0 5.0]"
+        input_shapes = "(3,1), (3..,..2,5..10,?,-1), (5)"
+        result, _ = get_placeholder_shapes(argv_input, input_shapes)
+        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': (5,)}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
+        input_node_names_ref = "inp1,inp2,inp3"
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+        self.assertEqual(input_node_names_ref, input_node_names_res)
+
+    def test_get_shapes_several_inputs_several_partial_shapes5(self):
+        # some values for freezing specified using --freeze_placeholder_with_value
+        argv_input = "inp1->[1.0 2.0 3.0],inp2,inp3->[1.0 1.0 2.0 3.0 5.0]"
+        input_shapes = "(3,1), (3..,..2,5..10,?,-1), (5)"
+        argv_freeze_placeholder_with_value = "inp2->[5.0 7.0 3.0],inp4->[100.0 200.0]"
+
+        result, _ = get_placeholder_shapes(argv_input, input_shapes)
+        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': (5,)}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, argv_freeze_placeholder_with_value)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'],),
+                                  'inp2': np.array(['5.0', '7.0', '3.0']), 'inp4': np.array(['100.0', '200.0'])}
+        input_node_names_ref = "inp1,inp2,inp3"
+        self.assertEqual(sorted(list(placeholder_values_res.keys())), sorted(list(placeholder_values_ref.keys())))
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+        self.assertEqual(input_node_names_ref, input_node_names_res)
+
+    def test_get_shapes_several_inputs_several_partial_shapes6(self):
+        # 0D value for freezing specified using --input command line parameter without shape
+        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3.. ..2 5..10 ? -1],inp3->False"
+        result, _ = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': None}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': False}
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_several_inputs_several_partial_shapes7(self):
+        # 0D shape and value for freezing specified using --input command line parameter
+        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3.. ..2 5..10 ? -1],inp3[]->True"
+        result, _ = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': np.array(False).shape}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': True}
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_and_data_types_partial_shape_with_input_port(self):
+        argv_input = "inp1:1[3 1]->[1.0 2.0 3.0],0:inp2[3.. ..2 5..10 ? -1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
+        result_shapes, result_data_types = get_placeholder_shapes(argv_input, "")
+        ref_result_shapes = {'inp1:1': np.array([3, 1]), '0:inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3:4': np.array([5])}
+        ref_result_data_types = {'0:inp2': np.int32, 'inp3:4': np.float32}
+        self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
+        for i in ref_result_shapes.keys():
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
+        self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
+        for i in ref_result_data_types.keys():
+            np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
+
+    def test_get_shapes_and_data_types_partial_shape_with_output_port(self):
+        argv_input = "inp1:1[3 1]->[1.0 2.0 3.0],inp2:3[3.. ..2 5..10 ? -1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
+        result_shapes, result_data_types = get_placeholder_shapes(argv_input, "")
+        ref_result_shapes = {'inp1:1': np.array([3, 1]), 'inp2:3': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3:4': np.array([5])}
+        ref_result_data_types = {'inp2:3': np.int32, 'inp3:4': np.float32}
+        self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
+        for i in ref_result_shapes.keys():
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
+        self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
+        for i in ref_result_data_types.keys():
+            np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
+
+    def test_partial_shapes_negative_case(self):
+        argv_input = "inp1"
+        input_shapes = "[6754fg..23ed]"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
+
+    def test_partial_shapes_freeze_dynamic_negative_case1(self):
+        argv_input = "inp1:1[3 1..10]->[1.0 2.0 3.0]"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, "")
+
+    def test_partial_shapes_freeze_dynamic_negative_case2(self):
+        argv_input = "inp1:1[1 2 -1]->[1.0 2.0 3.0]"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, "")
+
+    def test_partial_shapes_freeze_dynamic_negative_case3(self):
+        # some values for freezing specified using --freeze_placeholder_with_value
+        argv_input = "inp1->[1.0 2.0 3.0]"
+        input_shapes = "[3,1..10]"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
+
 
 class TestModelNameParsing(unittest.TestCase):
     def test_model_name_ideal(self):
@@ -923,9 +1115,9 @@ class TransformChecker(unittest.TestCase):
     def test_multiple_passes_with_args2(self):
         self.assertEqual(parse_transform("LowLatency2[use_const_initializer=True,False],DummyPass1,"
                                          "DummyPass2[types=ReLU,PReLU;values=1,2,3]"),
-                         [("LowLatency2",  {"use_const_initializer": [True, False]}),
-                          ("DummyPass1",  {}),
-                          ("DummyPass2",  {"types": ["ReLU", "PReLU"], "values": [1,2,3]})])
+                         [("LowLatency2", {"use_const_initializer": [True, False]}),
+                          ("DummyPass1", {}),
+                          ("DummyPass2", {"types": ["ReLU", "PReLU"], "values": [1, 2, 3]})])
 
     def test_multiple_passes_no_args(self):
         self.assertEqual(parse_transform("DummyPass,LowLatency22"),
@@ -967,3 +1159,297 @@ class TransformChecker(unittest.TestCase):
     def test_check_dummy_pass_is_available(self, available_transformations):
         available_transformations.return_value = {"LowLatency2": None}
         self.assertRaises(Error, check_available_transforms, [("DummyPass", "")])
+
+
+class TestLayoutParsing(unittest.TestCase):
+    def test_get_layout_1(self):
+        argv_layout = "name1([n,h,w,c]),name2([n,h,w,c]->[n,c,h,w])"
+        result = get_layout_values(argv_layout)
+        exp_res = {'name1': {'source_layout': '[n,h,w,c]', 'target_layout': None},
+                   'name2': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_2(self):
+        argv_layout = "name1(nhwc),name2(nhwc->nchw)"
+        result = get_layout_values(argv_layout)
+        exp_res = {'name1': {'source_layout': 'nhwc', 'target_layout': None},
+                   'name2': {'source_layout': 'nhwc', 'target_layout': 'nchw'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_3(self):
+        argv_layout = "name1(n...c),name2(n...c->nc...)"
+        result = get_layout_values(argv_layout)
+        exp_res = {'name1': {'source_layout': 'n...c', 'target_layout': None},
+                   'name2': {'source_layout': 'n...c', 'target_layout': 'nc...'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_4(self):
+        argv_layout = "nhwc"
+        result = get_layout_values(argv_layout)
+        exp_res = {'': {'source_layout': 'nhwc', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_5(self):
+        argv_layout = "[n,h,w,c]"
+        result = get_layout_values(argv_layout)
+        exp_res = {'': {'source_layout': '[n,h,w,c]', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_6(self):
+        argv_layout = "nhwc->nchw"
+        result = get_layout_values(argv_layout)
+        exp_res = {'': {'source_layout': 'nhwc', 'target_layout': 'nchw'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_7(self):
+        argv_layout = "[n,h,w,c]->[n,c,h,w]"
+        result = get_layout_values(argv_layout)
+        exp_res = {'': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_scalar(self):
+        argv_layout = "name1(nhwc),name2([])"
+        result = get_layout_values(argv_layout)
+        exp_res = {'name1': {'source_layout': 'nhwc', 'target_layout': None},
+                   'name2': {'source_layout': '[]', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_1(self):
+        argv_source_layout = "[n,h,w,c]"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = {'': {'source_layout': '[n,h,w,c]', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_2(self):
+        argv_source_layout = "nhwc"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = {'': {'source_layout': 'nhwc', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_3(self):
+        argv_source_layout = "name1(nhwc),name2(nchw)"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = {'name1': {'source_layout': 'nhwc', 'target_layout': None},
+                   'name2': {'source_layout': 'nchw', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_4(self):
+        argv_source_layout = "name1([n,h,w,c]),name2([n,c,h,w])"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = {'name1': {'source_layout': '[n,h,w,c]', 'target_layout': None},
+                   'name2': {'source_layout': '[n,c,h,w]', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_5(self):
+        argv_source_layout = "name1(nhwc),name2([n,c,h,w])"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = {'name1': {'source_layout': 'nhwc', 'target_layout': None},
+                   'name2': {'source_layout': '[n,c,h,w]', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_6(self):
+        argv_source_layout = "name1(nhwc),name2[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = {'name1': {'source_layout': 'nhwc', 'target_layout': None},
+                   'name2': {'source_layout': '[n,c,h,w]', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_layout_scalar(self):
+        argv_source_layout = "name1(nhwc),name2([])"
+        result = get_layout_values(argv_source_layout=argv_source_layout)
+        exp_res = {'name1': {'source_layout': 'nhwc', 'target_layout': None},
+                   'name2': {'source_layout': '[]', 'target_layout': None}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_1(self):
+        argv_target_layout = "[n,h,w,c]"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = {'': {'source_layout': None, 'target_layout': '[n,h,w,c]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_2(self):
+        argv_target_layout = "nhwc"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = {'': {'source_layout': None, 'target_layout': 'nhwc'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_3(self):
+        argv_target_layout = "name1(nhwc),name2(nchw)"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = {'name1': {'source_layout': None, 'target_layout': 'nhwc'},
+                   'name2': {'source_layout': None, 'target_layout': 'nchw'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_4(self):
+        argv_target_layout = "name1([n,h,w,c]),name2([n,c,h,w])"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = {'name1': {'source_layout': None, 'target_layout': '[n,h,w,c]'},
+                   'name2': {'source_layout': None, 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_5(self):
+        argv_target_layout = "name1(nhwc),name2([n,c,h,w])"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = {'name1': {'source_layout': None, 'target_layout': 'nhwc'},
+                   'name2': {'source_layout': None, 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_6(self):
+        argv_target_layout = "name1(nhwc),name2[n,c,h,w]"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = {'name1': {'source_layout': None, 'target_layout': 'nhwc'},
+                   'name2': {'source_layout': None, 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_target_layout_scalar(self):
+        argv_target_layout = "name1(nhwc),name2[]"
+        result = get_layout_values(argv_target_layout=argv_target_layout)
+        exp_res = {'name1': {'source_layout': None, 'target_layout': 'nhwc'},
+                   'name2': {'source_layout': None, 'target_layout': '[]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_1(self):
+        argv_source_layout = "[n,h,w,c]"
+        argv_target_layout = "[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_2(self):
+        argv_source_layout = "nhwc"
+        argv_target_layout = "nchw"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'': {'source_layout': 'nhwc', 'target_layout': 'nchw'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_3(self):
+        argv_source_layout = "name1(nhwc),name2(nhwc)"
+        argv_target_layout = "name1(nchw),name2(nchw)"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'name1': {'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   'name2': {'source_layout': 'nhwc', 'target_layout': 'nchw'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_4(self):
+        argv_source_layout = "name1([n,h,w,c]),name2([n,h,w,c])"
+        argv_target_layout = "name1([n,c,h,w]),name2([n,c,h,w])"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'name1': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'},
+                   'name2': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_5(self):
+        argv_source_layout = "name1(nhwc),name2[n,h,w,c]"
+        argv_target_layout = "name1(nchw),name2[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'name1': {'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   'name2': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_scalar(self):
+        argv_source_layout = "name1(nhwc),name2[]"
+        argv_target_layout = "name1(nchw),name2[]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'name1': {'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   'name2': {'source_layout': '[]', 'target_layout': '[]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_raises_if_layout_and_source_layout_provided(self):
+        argv_layout = "nhwc"
+        argv_source_layout = "nhwc"
+        with self.assertRaises(Error):
+            get_layout_values(argv_layout=argv_layout, argv_source_layout=argv_source_layout)
+
+    def test_get_layout_raises_if_layout_and_target_layout_provided(self):
+        argv_layout = "nhwc->nchw"
+        argv_target_layout = "nchw"
+        with self.assertRaises(Error):
+            get_layout_values(argv_layout=argv_layout, argv_target_layout=argv_target_layout)
+
+    def test_get_layout_raises_if_layout_with_source_and_target_layout_provided(self):
+        argv_layout = "nhwc->nchw"
+        argv_source_layout = "nhwc"
+        argv_target_layout = "nchw"
+        with self.assertRaises(Error):
+            get_layout_values(argv_layout=argv_layout, argv_source_layout=argv_source_layout,
+                              argv_target_layout=argv_target_layout)
+
+    def test_get_layout_raises_incorrect_format(self):
+        argv_layout = "name[n,h,w,c]->nchw"
+        with self.assertRaises(Error):
+            res = get_layout_values(argv_layout=argv_layout)
+            print(res)
+
+    def test_get_layout_raises_multiple_layouts_without_names(self):
+        argv_layout = "nhwc->nchw,nhwc->nchw"
+        with self.assertRaises(Error):
+            res = get_layout_values(argv_layout=argv_layout)
+            print(res)
+
+    def test_get_layout_raises_multiple_layouts_without_names_source_layout(self):
+        argv_source_layout = "nhwc,nhwc"
+        with self.assertRaises(Error):
+            res = get_layout_values(argv_source_layout=argv_source_layout)
+            print(res)
+
+    def test_get_layout_raises_multiple_layouts_without_names_target_layout(self):
+        argv_target_layout = "nchw,nchw"
+        with self.assertRaises(Error):
+            res = get_layout_values(argv_target_layout=argv_target_layout)
+            print(res)

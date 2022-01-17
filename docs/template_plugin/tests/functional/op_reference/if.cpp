@@ -14,40 +14,40 @@
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
+using namespace ov;
 using namespace InferenceEngine;
 
 struct IfFunctionalBase {
-    virtual std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
+    virtual std::shared_ptr<Model> create_function(const std::vector<Tensor>& if_inputs,
                                                       const std::vector<Tensor>& results) = 0;
     IfFunctionalBase() {}
 };
 
 struct IfCondConst : public IfFunctionalBase {
-    std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
+    std::shared_ptr<Model> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
         NGRAPH_CHECK(if_inputs.size() == 2, "Incorrect test case! Number of inputs is not 2.");
         NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
-        auto X = std::make_shared<op::Parameter>(if_inputs[0].type, if_inputs[0].shape);
-        auto Y = std::make_shared<op::Parameter>(if_inputs[1].type, if_inputs[1].shape);
-        auto cond = std::make_shared<op::Constant>(ngraph::element::boolean, Shape{1}, cond_value);
-        auto Xt = std::make_shared<op::Parameter>(if_inputs[0].type, PartialShape::dynamic());
-        auto Yt = std::make_shared<op::Parameter>(if_inputs[1].type, PartialShape::dynamic());
-        auto Xe = std::make_shared<op::Parameter>(if_inputs[0].type, PartialShape::dynamic());
+        auto X = std::make_shared<op::v0::Parameter>(if_inputs[0].type, if_inputs[0].shape);
+        auto Y = std::make_shared<op::v0::Parameter>(if_inputs[1].type, if_inputs[1].shape);
+        auto cond = std::make_shared<op::v0::Constant>(ngraph::element::boolean, Shape{1}, cond_value);
+        auto Xt = std::make_shared<op::v0::Parameter>(if_inputs[0].type, PartialShape::dynamic());
+        auto Yt = std::make_shared<op::v0::Parameter>(if_inputs[1].type, PartialShape::dynamic());
+        auto Xe = std::make_shared<op::v0::Parameter>(if_inputs[0].type, PartialShape::dynamic());
         auto then_op = std::make_shared<op::v1::Multiply>(Xt, Yt);
-        auto res0 = std::make_shared<op::Result>(then_op);
-        auto res1 = std::make_shared<op::Result>(Xe);
-        auto then_body = std::make_shared<ngraph::Function>(OutputVector{res0}, ParameterVector{Xt, Yt});
-        auto else_body = std::make_shared<ngraph::Function>(OutputVector{res1}, ParameterVector{Xe});
+        auto res0 = std::make_shared<op::v0::Result>(then_op);
+        auto res1 = std::make_shared<op::v0::Result>(Xe);
+        auto then_body = std::make_shared<ov::Model>(OutputVector{res0}, ParameterVector{Xt, Yt});
+        auto else_body = std::make_shared<ov::Model>(OutputVector{res1}, ParameterVector{Xe});
         auto if_op = std::make_shared<op::v8::If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
         if_op->set_input(X, Xt, Xe);
         if_op->set_input(Y, Yt, nullptr);
         auto result = if_op->set_output(res0, res1);
-        auto res = std::make_shared<op::Result>(result);
-        auto fun = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y});
+        auto res = std::make_shared<op::v0::Result>(result);
+        auto fun = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
         return fun;
     }
 
@@ -56,88 +56,88 @@ struct IfCondConst : public IfFunctionalBase {
 };
 
 struct IfCondIsNonConst : public IfFunctionalBase {
-    std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
+    std::shared_ptr<Model> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
         NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
         NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
-        auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        auto Y = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        auto cond = std::make_shared<op::Parameter>(element::boolean, Shape{1});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+        auto cond = std::make_shared<op::v0::Parameter>(element::boolean, Shape{1});
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto Xt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Xe = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Ye = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xt = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yt = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xe = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Ye = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         // Body
         auto then_op = std::make_shared<op::v1::Multiply>(Xt, Yt);
         auto else_op = std::make_shared<op::v1::Add>(Xe, Ye);
-        auto then_op_result = std::make_shared<op::Result>(then_op);
-        auto else_op_result = std::make_shared<op::Result>(else_op);
-        auto then_body = std::make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
-        auto else_body = std::make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
+        auto then_op_result = std::make_shared<op::v0::Result>(then_op);
+        auto else_op_result = std::make_shared<op::v0::Result>(else_op);
+        auto then_body = std::make_shared<ov::Model>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
+        auto else_body = std::make_shared<ov::Model>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
         auto if_op = std::make_shared<op::v8::If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
         if_op->set_input(X, Xt, Xe);
         if_op->set_input(Y, Yt, Ye);
         auto result = if_op->set_output(then_op_result, else_op_result);
-        auto res = std::make_shared<op::Result>(result);
-        auto fun = std::make_shared<Function>(OutputVector{res}, ParameterVector{cond, X, Y});
+        auto res = std::make_shared<op::v0::Result>(result);
+        auto fun = std::make_shared<Model>(OutputVector{res}, ParameterVector{cond, X, Y});
         return fun;
     }
 };
 
 struct IfWithoutAdditionalInputs : IfFunctionalBase {
-    std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
+    std::shared_ptr<Model> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
         NGRAPH_CHECK(if_inputs.size() == 1, "Incorrect test case! Number of inputs is not 1.");
         NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
-        auto cond = std::make_shared<op::Parameter>(element::boolean, Shape{1});
-        auto A = std::make_shared<op::Constant>(element::f32, Shape{1}, 8.0);
-        auto B = std::make_shared<op::Constant>(element::f32, Shape{1}, 2.0);
-        auto A_res = std::make_shared<op::Result>(A);
-        auto B_res = std::make_shared<op::Result>(B);
-        auto then_body = std::make_shared<ngraph::Function>(OutputVector{A_res}, ParameterVector{});
-        auto else_body = std::make_shared<ngraph::Function>(OutputVector{B_res}, ParameterVector{});
+        auto cond = std::make_shared<op::v0::Parameter>(element::boolean, Shape{1});
+        auto A = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, 8.0);
+        auto B = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, 2.0);
+        auto A_res = std::make_shared<op::v0::Result>(A);
+        auto B_res = std::make_shared<op::v0::Result>(B);
+        auto then_body = std::make_shared<ov::Model>(OutputVector{A_res}, ParameterVector{});
+        auto else_body = std::make_shared<ov::Model>(OutputVector{B_res}, ParameterVector{});
         auto if_op = std::make_shared<op::v8::If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
         auto res = if_op->set_output(A_res, B_res);
-        auto fun = std::make_shared<Function>(OutputVector{res}, ParameterVector{cond});
+        auto fun = std::make_shared<Model>(OutputVector{res}, ParameterVector{cond});
         return fun;
     }
 };
 
 struct IfDynamismCaseWithStaticInputs : public IfFunctionalBase {
-    std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
+    std::shared_ptr<Model> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
         NGRAPH_CHECK(if_inputs.size() == 4, "Incorrect test case! Number of inputs is not 4.");
         NGRAPH_CHECK(results.size() == 2, "Incorrect test case! Number of outputs is not 2.");
 
-        auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        auto Y = std::make_shared<op::Parameter>(element::f32, Shape{4, 2, 2});
-        auto Z = std::make_shared<op::Parameter>(element::f32, Shape{8, 8, 8});
-        auto cond = std::make_shared<op::Parameter>(element::boolean, Shape{1});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 2, 2});
+        auto Z = std::make_shared<op::v0::Parameter>(element::f32, Shape{8, 8, 8});
+        auto cond = std::make_shared<op::v0::Parameter>(element::boolean, Shape{1});
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto Xt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Xe = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Ze = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xt = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yt = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xe = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Ze = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         // Body
         auto then_op = std::make_shared<op::v1::Multiply>(Xt, Xt);
         auto else_op = std::make_shared<op::v1::Add>(Xe, Xe);
-        auto then_op_result1 = std::make_shared<op::Result>(then_op);
-        auto then_op_result2 = std::make_shared<op::Result>(Yt);
-        auto else_op_result1 = std::make_shared<op::Result>(else_op);
-        auto else_op_result2 = std::make_shared<op::Result>(Ze);
+        auto then_op_result1 = std::make_shared<op::v0::Result>(then_op);
+        auto then_op_result2 = std::make_shared<op::v0::Result>(Yt);
+        auto else_op_result1 = std::make_shared<op::v0::Result>(else_op);
+        auto else_op_result2 = std::make_shared<op::v0::Result>(Ze);
         auto then_body =
-            std::make_shared<ngraph::Function>(OutputVector{then_op_result1, then_op_result2}, ParameterVector{Xt, Yt});
+            std::make_shared<ov::Model>(OutputVector{then_op_result1, then_op_result2}, ParameterVector{Xt, Yt});
         auto else_body =
-            std::make_shared<ngraph::Function>(OutputVector{else_op_result1, else_op_result2}, ParameterVector{Xe, Ze});
+            std::make_shared<ov::Model>(OutputVector{else_op_result1, else_op_result2}, ParameterVector{Xe, Ze});
         auto if_op = std::make_shared<op::v8::If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
@@ -146,35 +146,35 @@ struct IfDynamismCaseWithStaticInputs : public IfFunctionalBase {
         if_op->set_input(Z, nullptr, Ze);
         auto res1 = if_op->set_output(then_op_result1, else_op_result1);
         auto res2 = if_op->set_output(then_op_result2, else_op_result2);
-        auto result_if1 = std::make_shared<op::Result>(res1);
-        auto result_if2 = std::make_shared<op::Result>(res2);
-        auto fun = std::make_shared<Function>(OutputVector{result_if1, result_if2}, ParameterVector{cond, X, Y, Z});
+        auto result_if1 = std::make_shared<op::v0::Result>(res1);
+        auto result_if2 = std::make_shared<op::v0::Result>(res2);
+        auto fun = std::make_shared<Model>(OutputVector{result_if1, result_if2}, ParameterVector{cond, X, Y, Z});
         return fun;
     }
 };
 
 struct IfConditionIsScalar : public IfFunctionalBase {
-    std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
+    std::shared_ptr<Model> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
         NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
         NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
-        auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        auto Y = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        auto cond = std::make_shared<op::Parameter>(element::boolean, Shape{});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+        auto cond = std::make_shared<op::v0::Parameter>(element::boolean, Shape{});
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto Xt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Xe = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Ye = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xt = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yt = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xe = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Ye = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         // Body
         auto then_op = std::make_shared<op::v1::Multiply>(Xt, Yt);
         auto else_op = std::make_shared<op::v1::Add>(Xe, Ye);
-        auto then_op_result = std::make_shared<op::Result>(then_op);
-        auto else_op_result = std::make_shared<op::Result>(else_op);
-        auto then_body = std::make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
-        auto else_body = std::make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
+        auto then_op_result = std::make_shared<op::v0::Result>(then_op);
+        auto else_op_result = std::make_shared<op::v0::Result>(else_op);
+        auto then_body = std::make_shared<ov::Model>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
+        auto else_body = std::make_shared<ov::Model>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
         auto if_op = std::make_shared<op::v8::If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
@@ -184,42 +184,42 @@ struct IfConditionIsScalar : public IfFunctionalBase {
         if_op->validate_and_infer_types();
         std::vector<float> X_v{1.0, 2.0, 3.0, 4.0};
         std::vector<float> Y_v{2.0, 1.0, 2.0, 3.0};
-        auto fun = std::make_shared<Function>(OutputVector{res}, ParameterVector{cond, X, Y});
+        auto fun = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{cond, X, Y});
         return fun;
     }
 };
 
 struct IfConditionIsDynamic : public IfFunctionalBase {
-    std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
+    std::shared_ptr<Model> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
         NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
         NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
-        auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        auto Y = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        auto cond = std::make_shared<op::Parameter>(element::boolean, PartialShape{Dimension::dynamic()});
-        // auto cond = std::make_shared<op::Parameter>(element::boolean, Shape{1});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+        auto cond = std::make_shared<op::v0::Parameter>(element::boolean, PartialShape{Dimension::dynamic()});
+        // auto cond = std::make_shared<op::v0::Parameter>(element::boolean, Shape{1});
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto Xt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yt = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Xe = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-        auto Ye = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xt = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yt = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xe = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Ye = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         // Body
         auto then_op = std::make_shared<op::v1::Multiply>(Xt, Yt);
         auto else_op = std::make_shared<op::v1::Add>(Xe, Ye);
-        auto then_op_result = std::make_shared<op::Result>(then_op);
-        auto else_op_result = std::make_shared<op::Result>(else_op);
-        auto then_body = std::make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
-        auto else_body = std::make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
+        auto then_op_result = std::make_shared<op::v0::Result>(then_op);
+        auto else_op_result = std::make_shared<op::v0::Result>(else_op);
+        auto then_body = std::make_shared<ov::Model>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
+        auto else_body = std::make_shared<ov::Model>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
         auto if_op = std::make_shared<op::v8::If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
         if_op->set_input(X, Xt, Xe);
         if_op->set_input(Y, Yt, Ye);
         auto rs = if_op->set_output(then_op_result, else_op_result);
-        auto result = std::make_shared<op::Result>(rs);
-        auto fun = std::make_shared<Function>(OutputVector{result}, ParameterVector{cond, X, Y});
+        auto result = std::make_shared<op::v0::Result>(rs);
+        auto fun = std::make_shared<Model>(OutputVector{result}, ParameterVector{cond, X, Y});
         return fun;
     }
 };

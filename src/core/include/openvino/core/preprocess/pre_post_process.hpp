@@ -10,21 +10,21 @@
 
 namespace ov {
 
-class Function;
+class Model;
 
 namespace preprocess {
 
-/// \brief Main class for adding pre- and post- processing steps to existing ov::Function
+/// \brief Main class for adding pre- and post- processing steps to existing ov::Model
 /// API has Builder-like style to allow chaining calls in client's code, like
 /// \code{.cpp}
 /// auto proc = PrePostProcessor(function).input(<for input1>).input(<input2>);
 /// \endcode
 ///
-/// This is a helper class for writing easy pre- and post- processing operations on ov::Function object assuming that
+/// This is a helper class for writing easy pre- and post- processing operations on ov::Model object assuming that
 /// any preprocess operation takes one input and produces one output.
 ///
 /// For advanced preprocessing scenarios, like combining several functions with multiple inputs/outputs into one,
-/// client's code can use transformation passes over ov::Function
+/// client's code can use transformation passes over ov::Model
 ///
 class OPENVINO_API PrePostProcessor final {
     class PrePostProcessorImpl;
@@ -34,7 +34,7 @@ public:
     /// \brief Default constructor
     ///
     /// \param function Existing function representing loaded model
-    explicit PrePostProcessor(const std::shared_ptr<Function>& function);
+    explicit PrePostProcessor(const std::shared_ptr<Model>& function);
 
     /// \brief Default move constructor
     PrePostProcessor(PrePostProcessor&&) noexcept;
@@ -93,8 +93,22 @@ public:
     /// \brief Adds pre/post-processing operations to function passed in constructor
     ///
     /// \return Function with added pre/post-processing operations
-    std::shared_ptr<Function> build();
+    std::shared_ptr<Model> build();
+
+private:
+    friend OPENVINO_API std::ostream& operator<<(std::ostream& str, const PrePostProcessor& prePostProcessor);
+    void dump(std::ostream&) const;
 };
+
+/// \brief Inserts a human-readable representation of a PrePostProcessors into an output stream. The output to the
+/// stream is in "informal" notation and can be used for debugging purposes
+///
+/// \param str The output stream targeted for insertion.
+///
+/// \param prePostProcessor The shape to be inserted into output stream.
+///
+/// \return A reference to same output stream after insertion.
+OPENVINO_API std::ostream& operator<<(std::ostream& str, const PrePostProcessor& prePostProcessor);
 
 }  // namespace preprocess
 }  // namespace ov

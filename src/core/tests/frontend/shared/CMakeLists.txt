@@ -9,9 +9,18 @@ file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
+add_subdirectory(test_builtin_extensions_1)
+add_subdirectory(test_builtin_extensions_2)
+
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../..)
-target_link_libraries(${TARGET_NAME} PUBLIC frontend_common
-        ngraph cnpy commonTestUtils ie_backend ngraph_test_util engines_test_util openvino::util)
+target_link_libraries(${TARGET_NAME} PUBLIC engines_test_util openvino::runtime
+        offline_transformations cnpy commonTestUtils ngraph_test_util openvino::util
+        nlohmann_json_schema_validator test_builtin_extensions_1 test_builtin_extensions_2)
+
+target_compile_definitions(${TARGET_NAME}
+    PRIVATE
+        SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
+        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

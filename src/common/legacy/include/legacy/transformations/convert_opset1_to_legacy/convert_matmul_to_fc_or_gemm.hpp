@@ -18,9 +18,9 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertMatMulToFCorGemm);
-class INFERENCE_ENGINE_API_CLASS(ConvertMatMulToFC);
-class INFERENCE_ENGINE_API_CLASS(ConvertMatMulToGemm);
+class ConvertMatMulToFCorGemm;
+class ConvertMatMulToFC;
+class ConvertMatMulToGemm;
 
 }  // namespace pass
 }  // namespace ngraph

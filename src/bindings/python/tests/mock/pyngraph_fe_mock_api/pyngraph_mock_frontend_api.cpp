@@ -5,24 +5,15 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../mock_py_ov_frontend/mock_py_frontend.hpp"
+#include "../ov_mock_py_frontend/mock_py_frontend.hpp"
 
 namespace py = pybind11;
 using namespace ngraph;
 using namespace ov::frontend;
 
 static void register_mock_frontend_stat(py::module m) {
-    m.def(
-        "get_fe_stat",
-        [](const std::shared_ptr<FrontEnd>& fe) {
-            std::shared_ptr<FrontEndMockPy> ptr = std::dynamic_pointer_cast<FrontEndMockPy>(fe);
-            if (ptr) {
-                auto stat = ptr->get_stat();
-                return stat;
-            }
-            return FeStat();
-        },
-        py::arg("frontend"));
+    m.def("get_fe_stat", &FrontEndMockPy::get_stat);
+    m.def("clear_fe_stat", &FrontEndMockPy::clear_stat);
 
     py::class_<FeStat> feStat(m, "FeStat", py::dynamic_attr());
     feStat.def_property_readonly("load_paths", &FeStat::load_paths);
@@ -36,17 +27,8 @@ static void register_mock_frontend_stat(py::module m) {
 }
 
 static void register_mock_model_stat(py::module m) {
-    m.def(
-        "get_mdl_stat",
-        [](const std::shared_ptr<InputModel>& mdl) {
-            std::shared_ptr<InputModelMockPy> ptr = std::dynamic_pointer_cast<InputModelMockPy>(mdl);
-            if (ptr) {
-                auto stat = ptr->get_stat();
-                return stat;
-            }
-            return ModelStat();
-        },
-        py::arg("model"));
+    m.def("get_mdl_stat", &InputModelMockPy::get_stat);
+    m.def("clear_mdl_stat", &InputModelMockPy::clear_stat);
 
     py::class_<ModelStat> mdlStat(m, "ModelStat", py::dynamic_attr());
     mdlStat.def_property_readonly("get_inputs", &ModelStat::get_inputs);
@@ -86,17 +68,8 @@ static void register_mock_model_stat(py::module m) {
 }
 
 static void register_mock_place_stat(py::module m) {
-    m.def(
-        "get_place_stat",
-        [](const Place::Ptr& fe) {
-            std::shared_ptr<PlaceMockPy> ptr = std::dynamic_pointer_cast<PlaceMockPy>(fe);
-            if (ptr) {
-                auto stat = ptr->get_stat();
-                return stat;
-            }
-            return PlaceStat();
-        },
-        py::arg("place"));
+    m.def("get_place_stat", &PlaceMockPy::get_stat);
+    m.def("clear_place_stat", &PlaceMockPy::clear_stat);
 
     py::class_<PlaceStat> placeStat(m, "PlaceStat", py::dynamic_attr());
 
