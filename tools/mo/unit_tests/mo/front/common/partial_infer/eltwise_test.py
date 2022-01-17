@@ -187,11 +187,10 @@ class TestElementwiseReverseInfer(unittest.TestCase):
                                                   ref_shape=None)
 
     def test_reverse_infer_7(self):
-        with self.assertRaisesRegex(AssertionError, "Shapes of Elementwise node '.*' are not compatible"):
-            self.build_and_test_reverse_inference(inp_shape_1=[4, dyn],
-                                                  inp_shape_2=None,
-                                                  out_shape=[1, dyn, dyn, 1],
-                                                  ref_shape=None)
+        self.build_and_test_reverse_inference(inp_shape_1=[4, dyn],
+                                              inp_shape_2=None,
+                                              out_shape=[1, dyn, dyn, 1],
+                                              ref_shape=[1, dyn, dyn, 1])
 
     def test_reverse_infer_8(self):
         with self.assertRaisesRegex(AssertionError, "Shapes of Elementwise node '.*' are not compatible"):

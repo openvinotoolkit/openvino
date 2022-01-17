@@ -41,7 +41,7 @@ class SliceLike(Op):
             new_shape = shape_like.copy()
         node.out_port(0).data.set_shape(new_shape)
 
-        if input_value is not None and is_fully_defined(shape_like):
+        if input_value is not None and is_fully_defined(new_shape):
             out_value = np.copy(input_value)
 
             slice_indexes = []

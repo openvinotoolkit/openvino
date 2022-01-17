@@ -4,7 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value, \
-    undefined_shape_of_rank, compatible_shapes
+    undefined_shape_of_rank, compatible_shapes, compatible_dims
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error
 
@@ -127,11 +127,7 @@ def eltwise_reverse_infer(node: Node):
 
             for i in range(-1, -defined_in_rank - 1, -1):
                 assert defined_in_shape[i] == 1 or np.ma.is_masked(defined_in_shape[i]) \
-                       or defined_in_shape[i] == output_shape[i], \
-                    "Shapes of Elementwise node '{}' are not compatible for reverse_infer.".format(node_name)
-
-                # output shape can be dynamic only if defined input is dynamic or has static size 1
-                assert not np.ma.is_masked(output_shape[i]) or np.ma.is_masked(defined_in_shape[i]) or defined_in_shape[i] == 1, \
+                       or compatible_dims(defined_in_shape[i], output_shape[i]), \
                     "Shapes of Elementwise node '{}' are not compatible for reverse_infer.".format(node_name)
 
                 # if defined_input_shape = [1] and output_shape = [N, 400, 400, 3]

@@ -155,11 +155,11 @@ class ConvolutionWithGroupsResolver(BackReplacementPattern):
     force_clean_up = True
 
     def run_before(self):
-        return [ReshapeMutation]
+        from openvino.tools.mo.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
+        return [ReshapeMutation, StridedSliceMasksNormalizer]
 
     def run_after(self):
-        from openvino.tools.mo.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
-        return [ApplyReverseChannels, StridedSliceMasksNormalizer]
+        return [ApplyReverseChannels]
 
     def find_and_replace_pattern(self, graph: Graph):
         V7ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)

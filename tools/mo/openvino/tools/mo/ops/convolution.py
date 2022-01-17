@@ -116,12 +116,8 @@ class Convolution(Op):
                 log.error('Cannot reshape kernel due to not all required attrs was set to {} node'.format(node.id))
                 return
 
-            #  in shape_array([..., num_in_channels / node.group, ...])
-            #  num_in_channels / node.group must be a scalar
-            if len(np.array(node.channel_dims).shape) == 0:  # if channel_dims is scalar
-                num_in_channels = input_shape[node.channel_dims]
-            else:  # if channel_dims is an array
-                num_in_channels = input_shape[node.channel_dims][0]
+            # since item() unmasks values, result should be masked back
+            num_in_channels = shape_array(input_shape[node.channel_dims].item())
 
             # layout for Convolution weights is OIHW
             kernel_shape = shape_array([node.output, num_in_channels / node.group,

@@ -108,7 +108,12 @@ class Gather(Op):
         indices_shape = node.in_port(1).data.get_shape()
         batch_dims = node.batch_dims
         batch_dims = batch_dims + len(indices_shape) if batch_dims < 0 else batch_dims
+
         axis = node.in_port(2).data.get_value()
+        # axis of Gather could be accepted as both scalar and 1D tensor
+        if isinstance(axis, np.ndarray):
+            axis = axis.item()
+        assert axis is not None, 'axis input is undefined'
 
         # we can deduce data or indices partial shapes from output shape calculation formula
         # out_shape = Concat(data_shape[:axis], indices_shape[batch_dims:batch_dims + indices_rank], data_shape[axis + 1:])
@@ -124,7 +129,7 @@ class Gather(Op):
             deduced_data_shape.insert(axis, dynamic_dimension_value)
             node.in_port(0).data.set_shape(shape_array(deduced_data_shape))
 
-        # indices partial shape are unknown
+        # indices partial shape is unknown
         if out_shape is not None and indices_shape is None and data_shape is not None:
             out_rank = len(out_shape)
             data_rank = len(data_shape)
