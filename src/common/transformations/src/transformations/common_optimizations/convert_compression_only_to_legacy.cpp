@@ -30,7 +30,6 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
 
 bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr<ov::Model>& f) {
     if (ngraph::op::util::has_decompression_converts(f)) {
-
         Manager manager(get_pass_config());
 
         const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
