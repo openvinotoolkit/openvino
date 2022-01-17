@@ -314,6 +314,7 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
     if (onnx_node.op_type() == "Identity") {
         for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
             ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(i)});
+            ng_subgraph_outputs[i].get_node_shared_ptr()->set_friendly_name(onnx_node.output(i));
         }
         return;
     }
