@@ -62,7 +62,7 @@ struct IdleGuard {
     }
     ~IdleGuard() {
         if (nullptr != _notBusyWorkerRequests) {
-            _notBusyWorkerRequests->try_push(_workerInferRequestPtr);
+            _notBusyWorkerRequests->try_push(std::make_pair(_workerInferRequestPtr->_index, _workerInferRequestPtr));
         }
     }
     MultiDeviceExecutableNetwork::NotBusyWorkerRequests* Release() {
@@ -118,10 +118,12 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
+    int num = 0;
     for (auto&& workerRequest : workerRequests) {
         workerRequest._inferRequest = {executableNetwork->CreateInferRequest(), executableNetwork._so};
         auto* workerRequestPtr = &workerRequest;
-        IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
+        workerRequestPtr->_index = num++;
+        IE_ASSERT(idleWorkerRequests.try_push(std::make_pair(workerRequestPtr->_index, workerRequestPtr)) == true);
         workerRequest._inferRequest->SetCallback(
             [workerRequestPtr, this, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
                 IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
@@ -131,7 +133,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
                     capturedTask();
                 }
                 // try to return the request to the idle list (fails if the overall object destruction has began)
-                if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                if (idleGuard.Release()->try_push(std::make_pair(workerRequestPtr->_index, workerRequestPtr))) {
                     // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                     // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                     Task t;
@@ -266,6 +268,30 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _inferPipelineTasksDeviceSpecific["CPU_HELP"] = nullptr;
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
+        auto recycleTask = [this]() mutable {
+            WaitActualNetworkReady();
+            while (!_exitFlag && _loadContext[ACTUALDEVICE].isAlready) {
+                // clean up helper infer requests
+                // first, wait for all the remaining requests to finish
+                for (auto& iter : _workerRequests["CPU_HELP"]) {
+                    iter._inferRequest._ptr->Wait(InferRequest::WaitMode::RESULT_READY);
+                }
+                // late enough to check the idle queue now
+                // second, check the idle queue if all requests are in place
+                size_t destroynum = 0;
+                std::pair<int, WorkerInferRequest*> worker;
+                while (_idleWorkerRequests["CPU_HELP"].try_pop(worker))
+                    destroynum++;
+                if (destroynum == _workerRequests["CPU_HELP"].size()) {
+                    std::lock_guard<std::mutex> lock(_confMutex);
+                    _workerRequests["CPU_HELP"].clear();
+                    _loadContext[CPU].executableNetwork._ptr.reset();
+                    _loadContext[CPU].executableNetwork._so.reset();
+                    break;
+                }
+            }
+        };
+        _executor->run(std::move(recycleTask));
     } else {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
@@ -454,7 +480,9 @@ bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
                                             NotBusyWorkerRequests& idleWorkerRequests,
                                             const DeviceName& preferred_device) {
   WorkerInferRequest *workerRequestPtr = nullptr;
-  if (idleWorkerRequests.try_pop(workerRequestPtr)) {
+  std::pair<int, WorkerInferRequest*> worker;
+  if (idleWorkerRequests.try_pop(worker)) {
+      workerRequestPtr = worker.second;
       IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
       _thisWorkerInferRequest = workerRequestPtr;
       {

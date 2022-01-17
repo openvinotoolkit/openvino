@@ -12,6 +12,7 @@
 
 #include "ie_parallel.hpp"
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#    include <tbb/concurrent_priority_queue.h>
 #    include <tbb/concurrent_queue.h>
 #endif
 
@@ -48,6 +49,33 @@ template <typename T>
 using ThreadSafeQueue = tbb::concurrent_queue<T>;
 template <typename T>
 using ThreadSafeBoundedQueue = tbb::concurrent_bounded_queue<T>;
+template <typename T>
+class ThreadSafeBoundedPriorityQueue {
+public:
+    ThreadSafeBoundedPriorityQueue() = default;
+    bool try_push(T value) {
+        _mutex.lock();
+        if (_capacity) {
+            _mutex.unlock();
+            _pqueue.push(std::move(value));
+        } else {
+            _mutex.unlock();
+        }
+        return _capacity;
+    }
+    bool try_pop(T& value) {
+        return _pqueue.try_pop(value);
+    }
+    void set_capacity(std::size_t newCapacity) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _capacity = newCapacity;
+    }
+
+protected:
+    tbb::concurrent_priority_queue<T, std::greater<T>> _pqueue;
+    std::mutex _mutex;
+    bool _capacity = false;
+};
 #else
 template <typename T>
 using ThreadSafeQueue = ThreadSafeQueueWithSize<T>;
@@ -79,6 +107,37 @@ public:
 
 protected:
     std::queue<T> _queue;
+    std::mutex _mutex;
+    bool _capacity = false;
+};
+template <typename T>
+class ThreadSafeBoundedPriorityQueue {
+public:
+    ThreadSafeBoundedPriorityQueue() = default;
+    bool try_push(T value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_capacity) {
+            _queue.push(std::move(value));
+        }
+        return _capacity;
+    }
+    bool try_pop(T& value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_capacity && !_queue.empty()) {
+            value = std::move(_queue.top());
+            _queue.pop();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    void set_capacity(std::size_t newCapacity) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _capacity = newCapacity;
+    }
+
+protected:
+    std::priority_queue<T, std::vector<T>, std::greater<T>> _queue;
     std::mutex _mutex;
     bool _capacity = false;
 };
