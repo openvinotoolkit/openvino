@@ -22,21 +22,19 @@
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 
 using ::testing::_;
-using ::testing::AllOf;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
-using ::testing::Eq;
-using ::testing::InvokeWithoutArgs;
-using ::testing::MatcherCast;
-using ::testing::Matches;
-using ::testing::Property;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::StrEq;
-using ::testing::Throw;
 using namespace MockMultiDevice;
 
 TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
+    Core ie;
+    std::string pluginXML{"mock_engine_valid.xml"};
+    std::string content{"<ie><plugins><plugin name=\"AUTO\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
+    std::ofstream outfile(pluginXML);
+    outfile << content;
+    outfile.close();
+    ASSERT_NO_THROW(ie.RegisterPlugins(pluginXML));
+    std::remove(pluginXML.c_str());
     std::string mockEngineName("mock_engine");
     std::string libraryName = CommonTestUtils::pre + mockEngineName + IE_BUILD_POSTFIX + CommonTestUtils::ext;
     std::shared_ptr<void> sharedObjectLoader = ov::util::load_shared_object(libraryName.c_str());
@@ -44,13 +42,17 @@ TEST(LoadNetworkToDefaultDeviceTest, LoadNetwork) {
         reinterpret_cast<void (*)(IInferencePlugin*)>(ov::util::get_symbol(sharedObjectLoader, "InjectProxyEngine")));
 
     // prepare mockicore and cnnNetwork for loading
-    Core ie;
     auto* origin_plugin = new MockMultiDeviceInferencePlugin();
     // replace core with mock Icore
     injectProxyEngine(origin_plugin);
-    //ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, "AUTO");
+    // ie.UnregisterPlugin("AUTO");
+    // ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, "AUTO");
 
-    EXPECT_CALL(*origin_plugin, LoadNetworkImpl(_, _, _, _)).Times(AnyNumber());
+    EXPECT_CALL(*origin_plugin, LoadNetwork(_, _))
+        .WillOnce([&](const std::string&,
+                      const std::map<std::string, std::string>&) -> InferenceEngine::IExecutableNetworkInternal::Ptr {
+            return nullptr;
+        });
 
     InferenceEngine::CNNNetwork actualCnnNetwork;
     std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
