@@ -1918,11 +1918,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDown) {
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
         auto weights = create_constant_with_zeros({
-                                                    weightsShape[0] - 3,
                                                     weightsShape[1],
-                                                    weightsShape[2],
-                                                    weightsShape[3],
-                                                   }, {{}, {}, {}, {}});
         auto first_conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),
                                                                 CoordinateDiff(2, 0),
                                                                 CoordinateDiff(2, 0),
@@ -1954,11 +1950,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDown) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDown.svg").run_on_function(function);
-    {
         pass::Manager m;
-        m.register_pass<pass::InitMasks>();
-        m.register_pass<pass::PropagateMasks>();
-        m.run_passes(function);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(first_conv->output(0)),  Mask({{}, {1, 2, 3}, {}, {}}));
