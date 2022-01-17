@@ -51,8 +51,9 @@ class TFLoader(Loader):
             meta_graph_file=argv.input_meta_graph,
             saved_model_tags=argv.saved_model_tags)
 
-        graph.inputs_order = inputs_outputs_order[0]
-        graph.outputs_order = inputs_outputs_order[1]
+        if inputs_outputs_order is not None and isinstance(inputs_outputs_order, tuple):
+            graph.inputs_order = inputs_outputs_order[0]
+            graph.outputs_order = inputs_outputs_order[1]
 
         send_framework_info(framework)
 
