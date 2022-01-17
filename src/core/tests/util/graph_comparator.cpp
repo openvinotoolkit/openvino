@@ -584,6 +584,13 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
                              to_str(f2_sinks.size()));
     }
 
+    // Compare sinks with order given in vectors
+    // Sorting sinks by friendly names doesn't look applicable here (these can be auto-generated)
+    for (size_t i = 0; i < f1_sinks.size(); i++) {
+        q.push({f1_sinks[i].get(), f2_sinks[i].get()});
+        used.insert(f1_sinks[i].get());
+    }
+
     for (size_t i = 0; i < f1_results.size(); ++i) {
         if (should_compare(CmpValues::NAMES)) {
             if (name(f1_results[i]->get_input_node_shared_ptr(0)) !=
