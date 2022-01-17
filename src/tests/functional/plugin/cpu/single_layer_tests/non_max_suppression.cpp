@@ -9,6 +9,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 using namespace ov::test;
 using namespace ngraph;
@@ -121,11 +122,12 @@ public:
 //            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
 //        }
 //    }
-//    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
-//        CompareBBoxes(expected, actual);
-//        inferRequestNum++;
-//    }
-//
+
+    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
+        CompareBBoxes(expected, actual);
+        inferRequestNum++;
+    }
+
 protected:
     void SetUp() override {
         InputShapeParams inShapeParams;
@@ -138,6 +140,7 @@ protected:
         element::Type outType;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType,
                  targetDevice) = this->GetParam();
+        ov::test::utils::inputRanges[ov::op::v5::NonMaxSuppression::get_type_info_static()] = {{maxOutBoxesPerClass}};
 
         element::Type paramsPrec, maxBoxPrec, thrPrec;
         std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -175,9 +178,6 @@ protected:
             params.push_back(std::make_shared<ngraph::opset1::Parameter>(element::Type_t::i32, inputDynamicShapes.back()));
             params[1]->set_friendly_name("param_3");
             maxOutBoxesPerClassNode = params.back();
-//            else if (port == 2) {
-//                tensor = ov::runtime::Tensor(elemType, targetShape, &maxOutBoxesPerClass);
-//            }
         } else {
             maxOutBoxesPerClassNode = builder::makeConstant(maxBoxPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
         }
@@ -406,7 +406,6 @@ private:
 
 TEST_P(NmsLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     // CheckPluginRelatedResults(executableNetwork, "NonMaxSuppression");
 };

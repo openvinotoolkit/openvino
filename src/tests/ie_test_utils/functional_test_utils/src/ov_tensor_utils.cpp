@@ -207,7 +207,6 @@ void compare(const ov::runtime::Tensor& expected,
             } else {
                 abs_median = abs_values.at(abs_values.size()/2);
             }
-            std::cout << "MEDIAN: " << abs_median << std::endl;
             abs_threshold = abs_median == 0.f ? 1e-5 : 0.05 * abs_median;
             if (std::is_integral<ExpectedT>::value) {
                 abs_threshold = std::ceil(abs_threshold);

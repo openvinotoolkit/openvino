@@ -593,31 +593,44 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::LSTMSequence>
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
-//ov::runtime::Tensor generate(const ngraph::op::v5::NonMaxSuppression node,
-//                             size_t port,
-//                             const ov::element::Type& elemType,
-//                             const ov::Shape& targetShape) {
-//    ov::runtime::Tensor tensor;
-//    if (port == 1) {
-//        tensor = ov::runtime::Tensor(elemType, targetShape);
-//
-//        const size_t range = 1;
-//        const size_t startFrom = 0;
-//        const size_t k = 1000;
-//        const int seed = 1;
-//        std::default_random_engine random(seed);
-//        std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
-//
-//        auto *dataPtr = tensor.data<float>();
-//        for (size_t i = 0; i < tensor.get_size(); i++) {
-//            auto value = static_cast<float>(distribution(random));
-//            dataPtr[i] = value / static_cast<float>(k);
-//        }
-//    } else {
-//        tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
-//    }
-//    return tensor;
-//}
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    ov::runtime::Tensor tensor;
+    switch (port) {
+        case 1: {
+            tensor = ov::runtime::Tensor(elemType, targetShape);
+
+            const size_t range = 1;
+            const size_t startFrom = 0;
+            const size_t k = 1000;
+            const int seed = 1;
+            std::default_random_engine random(seed);
+            std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
+
+            auto *dataPtr = tensor.data<float>();
+            for (size_t i = 0; i < tensor.get_size(); i++) {
+                auto value = static_cast<float>(distribution(random));
+                dataPtr[i] = value / static_cast<float>(k);
+            }
+            break;
+        }
+        case 2: {
+            auto maxOutBoxesPerClassVec = inputRanges.find(node->get_type_info())->second;
+            if (maxOutBoxesPerClassVec.empty() || maxOutBoxesPerClassVec.begin()->empty()) {
+                maxOutBoxesPerClassVec = {{3}};
+            }
+            tensor = ov::runtime::Tensor(elemType, targetShape, &maxOutBoxesPerClassVec.front().front().range);
+            break;
+        }
+        default: {
+            tensor = create_and_fill_tensor(elemType, targetShape);
+            break;
+        }
+    }
+    return tensor;
+}
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::RNNSequence> node,
                              size_t port,

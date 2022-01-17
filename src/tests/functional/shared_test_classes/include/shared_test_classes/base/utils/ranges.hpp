@@ -5,6 +5,13 @@
 #pragma once
 
 #include "ngraph/node.hpp"
+#include "ngraph/op/proposal.hpp"
+#include "ngraph/op/power.hpp"
+#include "ngraph/op/mod.hpp"
+#include "ngraph/op/floor_mod.hpp"
+#include "ngraph/op/divide.hpp"
+#include "ngraph/op/erf.hpp"
+#include "ngraph/op/non_max_suppression.hpp"
 
 namespace ov {
 namespace test {
@@ -28,6 +35,8 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> i
         { ov::op::v1::Mod::get_type_info_static(), {{{4, 2}}, {{2, 2, 128}}} },
         { ov::op::v1::Power::get_type_info_static(), {{{4, 2}}, {{2, 2, 128}}} },
         { ov::op::v4::Proposal::get_type_info_static(), {{{1, 0, 1000, 8234231}}, {{1, 0, 1000, 8234231}}} },
+        // maxOutBoxesPerClass
+        { ov::op::v5::NonMaxSuppression::get_type_info_static(), {{}} },
 };
 
 } // namespace utils
