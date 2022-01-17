@@ -54,27 +54,15 @@ def setup_env():
             log_mo_root_dir_not_found()
             sys.exit(1)
 
+    ie_found = True
     try:
-        # As we could update local PYTHONPATH with MO root directory we have to execute
-        # find_ie_version in a separate Process, so we have to use Queue to send/get
-        # os.environ variable. But as os.environ variable can not be transferred via
-        # Queue we use temporary dictionary.
         from openvino.tools.mo.utils.find_ie_version import find_ie_version  # pylint: disable=no-name-in-module
-        q = Queue()
-        q.put({x: os.environ[x] for x in os.environ.keys()})
-        p = Process(target=find_ie_version, args=(q, True))
-        p.start()
-        p.join()
-        # Receiving environment variables and return status
-        new_env, status = q.get(), q.get()
-        if not status:
-            log_ie_not_found()
-            sys.exit(1)
+        ie_found = find_ie_version(silent=True)
+    except Exception as e:
+        log.error(e)
+        ie_found = False
 
-        # Update os.environ with new keys
-        for k in new_env.keys():
-            os.environ[k] = new_env[k]
-    except Exception:
+    if not ie_found:
         log_ie_not_found()
         sys.exit(1)
 

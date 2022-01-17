@@ -2,35 +2,54 @@
 
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import multiprocessing
+
 import os
 import sys
 import platform
 import subprocess
-from multiprocessing import Queue
-from copy import copy
 
 lib_env_key = "PATH" if platform.system() == "Windows" else "LD_LIBRARY_PATH"
+if lib_env_key not in os.environ:
+    os.environ[lib_env_key] = ""
+
 python_path_key = "PYTHONPATH"
+if python_path_key not in os.environ:
+    os.environ[python_path_key] = ""
+
 ov_frontend_path_key = "OV_FRONTEND_PATH"
+if ov_frontend_path_key not in os.environ:
+    os.environ[ov_frontend_path_key] = ""
+
+lib_path_orig = os.environ[lib_env_key]
+python_path_orig = os.environ[python_path_key]
+ov_frontend_path_orig = os.environ[ov_frontend_path_key]
 
 
-def setup_env(env, module="", libs=[]):
+def setup_env(module="", libs=[]):
     """
-    Update env variables with given values.
+    Update os.environ variables with given values.
     :param module: path to python module
     :param libs: list with paths to libraries
     """
-    env[python_path_key] = os.pathsep.join([module, env[python_path_key]])
-    env[lib_env_key] = os.pathsep.join([*libs, env[lib_env_key]])
-    env[ov_frontend_path_key] = os.pathsep.join([*libs])
+    os.environ[python_path_key] = os.pathsep.join([module, os.environ[python_path_key]])
+    os.environ[lib_env_key] = os.pathsep.join([*libs, os.environ[lib_env_key]])
+    if len(os.getenv(ov_frontend_path_key)) == 0:
+        os.environ[ov_frontend_path_key] = os.pathsep.join([*libs])
 
 
-def try_to_import_ie(env: dict, module="", libs=[], silent=False):
+def reset_env():
+    """
+    Reset os.environ variables to default values
+    """
+    os.environ[python_path_key] = python_path_orig
+    os.environ[lib_env_key] = lib_path_orig
+    os.environ[ov_frontend_path_key] = ov_frontend_path_orig
+
+
+def try_to_import_ie(module="", libs=[], silent=False):
     """
     Check if Inference Engine Python API modules exists and in case of success
     environment will be set with given values.
-    :param env: dictionary with predefined environment variables
     :param module: path to python module
     :param libs: list with paths to libraries
     :param silent: hide all output
@@ -40,51 +59,31 @@ def try_to_import_ie(env: dict, module="", libs=[], silent=False):
     # in case if previous import was unsuccessful it can fail further imports even if sys.path
     # will be restored to initial default values.
     # To pass environment to sub-process PATH/LD_LIBRARY_PATH and PYTHONPATH are used from
-    # env that is set after setup_env()
-    env_orig = copy(env)
-    setup_env(env, module=module, libs=libs)
+    # os.environ that is set after setup_env()
+    setup_env(module=module, libs=libs)
     cmd_args = [sys.executable, path_to_script, "--path_to_module", "PYTHONPATH" if module == "" else module]
     if silent:
         cmd_args.append("--silent")
 
-    status = subprocess.run(cmd_args, env=env)
+    status = subprocess.run(cmd_args, env=os.environ)
     if status.returncode == 0:
         return True
     else:
-        # reset original values
-        for k in env_orig:
-            env[k] = env_orig[k]
+        reset_env()
         return False
 
 
-def find_ie_version(obj, silent=False):
+def find_ie_version(silent=False):
     """
     Tries to import Inference Engine Python API bindings. In case of successful import
     PATH/LD_LIBRARY_PATH and PYTHONPATH environment variables will be set
     This variables must be passed to subprocess in order to execute IE python bindings.
     Example:
         if find_ie_version():
-            subprocess.run([sys.executable, path_to_script], env=env)
+            subprocess.run([sys.executable, path_to_script], env=os.environ)
 
     """
-    env = obj
-
-    # Other types os comparison like isinstance is not working here, so
-    # using WA with type(Queue())
-    if type(obj) == type(Queue()):
-        env = obj.get()
-
-    if lib_env_key not in env:
-        env[lib_env_key] = ""
-    if python_path_key not in env:
-        env[python_path_key] = ""
-    if ov_frontend_path_key not in env:
-        env[ov_frontend_path_key] = ""
-
-    if try_to_import_ie(env, silent=silent):
-        if type(obj) == type(Queue()):
-            obj.put(env)
-            obj.put(True)
+    if try_to_import_ie(silent=silent):
         return True
 
     python_version = 'python{}.{}'.format(sys.version_info[0], sys.version_info[1])
@@ -141,17 +140,12 @@ def find_ie_version(obj, silent=False):
         module = item['module']
         if not os.path.exists(module):
             continue
-        if try_to_import_ie(env, module=os.path.normpath(module), libs=item['libs'] if 'libs' in item else [], silent=silent):
-            if type(obj) == type(Queue()):
-                obj.put(env)
-                obj.put(True)
+        if try_to_import_ie(module=os.path.normpath(module), libs=item['libs'] if 'libs' in item else [], silent=silent):
             return True
 
-    if type(obj) == type(Queue()):
-        obj.put(False)
     return False
 
 
 if __name__ == "__main__":
-    if not find_ie_version(os.environ):
+    if not find_ie_version():
         exit(1)
