@@ -479,10 +479,10 @@ int main(int argc, char* argv[]) {
                 auto type_to_set = ov::element::undefined;
                 std::string name;
                 try {
-                    // Some tensors might have no names, get_friendly_name will throw exception in that case.
+                    // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
                     name = item.get_any_name();
-                    iop_precision = getPrecision2(user_precisions_map.at(item.get_node()->get_friendly_name()));
+                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
 
@@ -514,9 +514,9 @@ int main(int argc, char* argv[]) {
                 const auto& item = outs[i];
                 auto iop_precision = ov::element::undefined;
                 try {
-                    // Some tensors might have no names, get_friendly_name will throw exception in that case.
+                    // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
-                    iop_precision = getPrecision2(user_precisions_map.at(item.get_node()->get_friendly_name()));
+                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
 

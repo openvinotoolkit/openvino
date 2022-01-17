@@ -476,7 +476,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 }
                 if (info_maps.empty()) {  // Show warnings only for 1st test case config, as for other test cases
                                           // they will be the same
-                    slog::warn << item.get_node()->get_friendly_name() << ": layout is not set explicitly"
+                    slog::warn << item.get_any_name() << ": layout is not set explicitly"
                                << (newLayout != "" ? std::string(", so it is defaulted to ") + newLayout : "")
                                << ". It is STRONGLY recommended to set layout manually to avoid further issues."
                                << slog::endl;
@@ -562,7 +562,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     })) {
                     throw std::logic_error("Not enough information in shape and image to determine tensor shape "
                                            "automatically autmatically. Input: " +
-                                           item.get_node()->get_friendly_name() +
+                                           item.get_any_name() +
                                            ", File name: " + namesVector[fileIdx - 1]);
                 }
 
@@ -594,7 +594,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                         reshape_required = true;
                     }
                 } else {
-                    slog::warn << "Input '" << item.get_node()->get_friendly_name()
+                    slog::warn << "Input '" << item.get_any_name()
                                << "' doesn't have batch dimension in layout. -b option will be ignored for this input."
                                << slog::endl;
                 }
