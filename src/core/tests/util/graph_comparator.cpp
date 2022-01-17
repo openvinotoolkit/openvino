@@ -589,14 +589,6 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
         q.push({f1_sinks[0].get(), f2_sinks[0].get()});
         used.insert(f1_sinks[0].get());
     } else {
-        // Find suitable sink by 'variable name'. Check only suffix (e.g. 'variable_2')
-        auto get_suffix = [](const std::string& name) {
-            auto pos = name.find_last_of('/');
-            if (pos != std::string::npos) {
-                return name.substr(pos + 1);
-            }
-            return name;
-        };
         // Cast to Assign and find those that have same variable_id suffix
         for (const auto& sink1 : f1_sinks) {
             auto assign1 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink1);
@@ -604,7 +596,7 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
                 return Result::error("Sink '" + name(sink1) +
                                      "' is not a variable - graph comparison is not supported");
             }
-            auto name1 = get_suffix(assign1->get_variable_id());
+            auto name1 = assign1->get_variable_id();
             std::shared_ptr<ov::op::Sink> found_sink2;
             for (const auto& sink2 : f2_sinks) {
                 auto assign2 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink2);
@@ -612,15 +604,14 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
                     return Result::error("Sink '" + name(sink2) +
                                          "' is not a variable - graph comparison is not supported");
                 }
-                auto name2 = get_suffix(assign2->get_variable_id());
-                if (name2 == name1) {
+                auto name2 = assign2->get_variable_id();
+                if (name2.find(name1) != std::string::npos || name1.find(name2) != std::string::npos) {
                     found_sink2 = sink2;
                     break;
                 }
             }
             if (!found_sink2) {
-                return Result::error("No suitable sink is found for: " + name(sink1) +
-                                     ", var=" + assign1->get_variable_id());
+                return Result::error("No suitable sink is found for: " + name(sink1) + ", var=" + name1);
             }
             q.push({sink1.get(), found_sink2.get()});
             used.insert(sink1.get());
