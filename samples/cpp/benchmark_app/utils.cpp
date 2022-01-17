@@ -562,8 +562,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     })) {
                     throw std::logic_error("Not enough information in shape and image to determine tensor shape "
                                            "automatically autmatically. Input: " +
-                                           item.get_any_name() +
-                                           ", File name: " + namesVector[fileIdx - 1]);
+                                           item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
                 }
 
             } else if (info.partialShape.is_static()) {
