@@ -270,6 +270,7 @@ class SplitBase(Op):
                 # if at least one output shape is None/undefined we cannot define
                 # exact value of shape along axis
                 splited_dim_size = dynamic_dimension
+                continue
 
             # if input is splitted into several outputs, e.g.
             # out_shape_1 = [dyn, 4, 3], out_shape_2 = [7, dyn, 3], axis = 2
@@ -277,10 +278,8 @@ class SplitBase(Op):
             # dimensions of axis = 2 must be summed while
             # for other dimensions clarify_partial_shape should be called
             splited_dim_size += shapes[-1][axis]
-            # if at least one output shape is None/undefined we cannot define
-            # exact value of shape along axis
-            # dynamic_dimension + any_exact_value == masked == dynamic_dimension
             shapes[-1][axis] = dynamic_dimension
+
         if len(shapes) == 0:
             return
         precise_shape = clarify_partial_shape(shapes)

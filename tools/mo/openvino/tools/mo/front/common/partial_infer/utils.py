@@ -6,7 +6,6 @@ from typing import Iterable, List, Union
 
 import numpy as np
 
-from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error
 
 dynamic_dimension = np.ma.masked
@@ -354,7 +353,7 @@ def clarify_partial_shape(shapes):
     return out_shape
 
 
-def set_input_shapes(node: Node, *shapes):
+def set_input_shapes(node, *shapes):
     for i, shape in enumerate(shapes):
         if node.is_in_port_connected(i) and node.in_port(i).data.get_shape() is None:
             node.in_port(i).data.set_shape(shape)

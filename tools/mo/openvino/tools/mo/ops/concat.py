@@ -27,7 +27,6 @@ class Concat(Op):
 
     @staticmethod
     def reverse_infer(node: Node):
-        assert hasattr(node, 'in_ports_count')
         assert hasattr(node, 'axis')
         out_shape = node.out_port(0).data.get_shape()
 
@@ -35,7 +34,8 @@ class Concat(Op):
             return
 
         out_shape[node.axis] = dynamic_dimension
-        for i in range(node['in_ports_count']):
-            in_shape = node.in_port(i).data.get_shape()
+
+        for in_port in node.in_ports().values():
+            in_shape = in_port.data.get_shape()
             if in_shape is None:
-                node.in_port(i).data.set_shape(out_shape)
+                in_port.data.set_shape(out_shape)
