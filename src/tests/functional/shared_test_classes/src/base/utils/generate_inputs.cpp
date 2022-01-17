@@ -427,49 +427,60 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::GatherTree> n
             return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
     }
 }
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::LogicalAnd> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::LogicalNot> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::LogicalOr> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::LogicalXor> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
-//}
 
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v3::Bucketize> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    InferenceEngine::Blob::Ptr blobPtr;
-//    switch (port) {
-//        case 0: {
-//            auto data_shape = info.getTensorDesc().getDims();
-//            auto data_size = std::accumulate(begin(data_shape), end(data_shape), 1, std::multiplies<uint64_t>());
-//            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_size * 5, 0, 10, 7235346);
-//        }
-//        case 1: {
-//            return FuncTestUtils::createAndFillBlobUniqueSequence(info.getTensorDesc(), 0, 10, 8234231);
-//        }
-//        default:
-//            return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
-//    }
-//}
-//
+namespace LogicalOp {
+ov::runtime::Tensor generate(const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return create_and_fill_tensor(elemType, targetShape, 2, 0);
+}
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::LogicalAnd> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return LogicalOp::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::LogicalNot> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return LogicalOp::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::LogicalOr> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return LogicalOp::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::LogicalXor> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return LogicalOp::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize> node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    InferenceEngine::Blob::Ptr blobPtr;
+    switch (port) {
+        case 0: {
+            unsigned long data_size = std::accumulate(begin(targetShape), end(targetShape), 1, std::multiplies<uint64_t>());
+            return create_and_fill_tensor(elemType, ov::Shape{data_size * 5}, 0, 10, 7235346);
+        }
+        case 1: {
+            return  create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 8234231);
+        }
+        default:
+            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+    }
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v3::ROIAlign> node,
                              size_t port,
                              const ov::element::Type& elemType,
@@ -563,25 +574,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::HSigmoid> nod
                              const ov::Shape& targetShape) {
     return Activation::generate(elemType, targetShape);
 }
-//
-//InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::Loop node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    auto tdesc = info.getTensorDesc();
-//    auto blob = make_blob_with_precision(tdesc);
-//    blob->allocate();
-//
-//    if (tdesc.getLayout() == InferenceEngine::SCALAR) {
-//        auto scalar_1d = CommonTestUtils::make_reshape_view(blob, {1});
-//        unsigned int max_iter_num = 10;
-//        CommonTestUtils::fill_data_with_broadcast(scalar_1d, 0, {static_cast<float>(max_iter_num)});
-//    } else {
-//        int start_value = 7;
-//        CommonTestUtils::fill_data_with_broadcast(blob, 0, {static_cast<float>(start_value)});
-//    }
-//    return blob;
-//}
-//
+
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::LSTMSequence> node,
                              size_t port,
                              const ov::element::Type& elemType,
