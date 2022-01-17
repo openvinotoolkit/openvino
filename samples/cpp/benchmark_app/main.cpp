@@ -349,9 +349,6 @@ int main(int argc, char* argv[]) {
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
                 else
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I16";
-
-                if (isFlagSetInCommandLine("nthreads"))
-                    device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
             } else {
                 std::vector<std::string> supported_config_keys =
                     core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
