@@ -128,7 +128,7 @@ void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCount
                             break;
                         }
                     }
-                    if (idx < performanceCountersAvg.size()) {
+                    if (idx == performanceCountersAvg.size()) {
                         performanceCountersAvg.push_back(pm);
                     }
                 }
