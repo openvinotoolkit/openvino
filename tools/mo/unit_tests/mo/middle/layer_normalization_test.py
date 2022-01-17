@@ -5,6 +5,7 @@ import unittest
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.middle.layer_normalization import LayerNormalization
+from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, shaped_parameter, regular_op_with_empty_data, shaped_const_with_data, \
     result, connect
@@ -16,7 +17,8 @@ class LayerNormalizationTest(unittest.TestCase):
         graph = build_graph(
             nodes_attrs={
                 **shaped_parameter('input', int64_array([1, 3, 15, 15])),
-                **regular_op_with_empty_data('layer_norm', {'op': 'LayerNorm', 'epsilon': 0.001, 'axis': -1}),
+                **regular_op_with_empty_data('layer_norm', {'op': 'LayerNorm', 'epsilon': 0.001, 'axis': -1,
+                                                            'output_mean_var': False}),
                 **shaped_const_with_data('gamma', None),
                 **shaped_const_with_data('beta', None),
                 **result('result')
@@ -72,7 +74,8 @@ class LayerNormalizationTest(unittest.TestCase):
         graph = build_graph(
             nodes_attrs={
                 **shaped_parameter('input', int64_array([1, 3, 15, 15])),
-                **regular_op_with_empty_data('layer_norm', {'op': 'LayerNorm', 'epsilon': 0.001, 'axis': 1}),
+                **regular_op_with_empty_data('layer_norm', {'op': 'LayerNorm', 'epsilon': 0.001, 'axis': 1,
+                                                            'output_mean_var': False}),
                 **shaped_const_with_data('gamma', None),
                 **shaped_const_with_data('beta', None),
                 **result('result')
@@ -123,3 +126,28 @@ class LayerNormalizationTest(unittest.TestCase):
         LayerNormalization().find_and_replace_pattern(graph)
         flag, resp = compare_graphs(graph, ref_graph, 'result', 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+    def test_negative(self):
+        graph = build_graph(
+            nodes_attrs={
+                **shaped_parameter('input', int64_array([1, 3, 15, 15])),
+                **regular_op_with_empty_data('layer_norm', {'op': 'LayerNorm', 'epsilon': 0.001, 'axis': -1,
+                                                            'output_mean_var': True}),
+                **shaped_const_with_data('gamma', None),
+                **shaped_const_with_data('beta', None),
+                **result('result'),
+                **result('result_1'),
+                **result('result_2')
+            },
+            edges=[
+                *connect('input', '0:layer_norm'),
+                *connect('gamma', '1:layer_norm'),
+                *connect('beta', '2:layer_norm'),
+                *connect('layer_norm:0', 'result'),
+                *connect('layer_norm:1', 'result_1'),
+                *connect('layer_norm:2', 'result_2')
+            ]
+        )
+
+        with self.assertRaises(Error):
+            LayerNormalization().find_and_replace_pattern(graph)

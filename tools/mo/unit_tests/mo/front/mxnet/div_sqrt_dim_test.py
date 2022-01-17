@@ -9,7 +9,7 @@ from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.mxnet.div_sqrt_dim import DivSqrtDim
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, shaped_parameter, regular_op_with_empty_data, result, connect, \
-    shaped_const_with_data, connect_data
+    shaped_const_with_data, connect_data, connect_front
 
 
 class DivSqrtDimTest(unittest.TestCase):
@@ -36,6 +36,7 @@ class DivSqrtDimTest(unittest.TestCase):
                 **regular_op_with_empty_data('gather', {'op': 'Gather', 'type': 'Gather'}),
                 **regular_op_with_empty_data('power', {'op': 'AttributedPower', 'power': 0.5, 'type': 'Power'}),
                 **regular_op_with_empty_data('cast', {'op': 'Cast', 'type': 'Convert', 'dst_type': np.float32}),
+                **regular_op_with_empty_data('z_convert_like', {'op': 'ConvertLike', 'type': 'ConvertLike'}),
                 **regular_op_with_empty_data('div', {'op': 'Div', 'type': 'Divide'}),
                 **result('result')
             },
@@ -47,7 +48,9 @@ class DivSqrtDimTest(unittest.TestCase):
                 *connect('gather_indices', '2:gather'),
                 *connect('gather', 'cast'),
                 *connect('cast', 'power'),
-                *connect('power', '1:div'),
+                *connect('power', '0:z_convert_like'),
+                *connect_front('input_d', '1:z_convert_like'),
+                *connect('z_convert_like', '1:div'),
                 *connect('div', 'result')
             ],
         )

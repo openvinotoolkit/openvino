@@ -3,9 +3,11 @@
 import numpy as np
 
 from openvino.tools.mo.front.PowerToEltwises import PowerToEltwises
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.ConvertLike import ConvertLike
 from openvino.tools.mo.ops.elementwise import Div
 from openvino.tools.mo.ops.power import AttributedPower
 from openvino.tools.mo.ops.shape import Shape
@@ -26,22 +28,26 @@ class DivSqrtDim(FrontReplacementOp):
         div_sqrt = match['op']
         div_sqrt_name = div_sqrt.soft_get('name', div_sqrt.id)
         shape_node = Shape(graph, dict(name=div_sqrt_name + '/Shape')).create_node()
-        shape_node.in_port(0).connect(div_sqrt.in_port(0).get_source())
+        data_out_port = div_sqrt.in_port(0).get_source()
+        shape_node.in_port(0).connect(data_out_port)
 
         shape_values_node = node_to_get_shape_value_of_indices(shape_node=shape_node, indices=[-1])
 
         pow_node = AttributedPower(graph, dict(name=div_sqrt_name + '/Sqrt',
-                                               power=np.array(0.5, dtype=np.float32))).create_node()
+                                               power=mo_array(0.5))).create_node()
 
         # Due to specification, Power must have inputs with the same data type.
         convert_pow_input = Cast(graph, dict(dst_type=np.float32,
                                              name=shape_values_node.name + '/ConvertToFP32')).create_node()
+        convert_pow_output = ConvertLike(graph, dict(name=pow_node.name + 'ConvertLike')).create_node()
         div_node = Div(graph, dict(name="Div")).create_node()
 
         shape_values_node.out_port(0).connect(convert_pow_input.in_port(0))
         convert_pow_input.out_port(0).connect(pow_node.in_port(0))
         div_sqrt.in_port(0).get_connection().set_destination(div_node.in_port(0))
-        div_node.in_port(1).connect(pow_node.out_port(0))
+        pow_node.out_port(0).connect(convert_pow_output.in_port(0))
+        convert_pow_output.in_port(1).connect(data_out_port)
+        div_node.in_port(1).connect(convert_pow_output.out_port(0))
         div_sqrt.out_port(0).get_connection().set_source(div_node.out_port(0))
 
         rename_nodes([(div_sqrt, div_sqrt_name + '/ShouldBeDeleted'), (div_node, div_sqrt_name)])

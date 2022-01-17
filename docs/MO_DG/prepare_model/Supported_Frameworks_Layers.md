@@ -96,7 +96,7 @@
 | max |  |
 | minus_scalar |  |
 | null | Not needed for inference |
-| LayerNorm |  |
+| LayerNorm | "output_mean_var" = True is not supported |
 | repeat |  |
 | rnn |  |
 | rnn_param_concat |  |

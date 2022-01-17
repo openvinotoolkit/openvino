@@ -20,6 +20,8 @@ class LayerNorm(Op):
     attributes:
     axis - axis to perform layer normalization
     eps - epsilon parameter to prevent division by zero
+    output_mean_var - output the mean and std calculated along the given axis. Default value is False. Non default value
+                      is not supported
     """
 
     op = 'LayerNorm'
@@ -31,7 +33,8 @@ class LayerNorm(Op):
             'type': None,
             'axis': -1,
             'epsilon': 0.001,
+            'output_mean_var': False,
             'infer': copy_shape_infer,
-            'in_ports_count': 3,
-            'out_ports_count': 1,
+            'in_ports_count': 3 if attrs.get('output_mean_var') is True else 1,
+            'out_ports_count': 3,
         }, attrs)
