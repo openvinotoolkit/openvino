@@ -2,13 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import openvino
 from openvino.tools.mo.main import prepare_ir
 from openvino.tools.mo.utils.error import Error
-from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
+from openvino.frontend import FrontEndManager, FrontEnd # pylint: disable=no-name-in-module,import-error
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 import argparse
 import os
@@ -82,6 +81,7 @@ class TestMoFallback(unittest.TestCase):
     def setUp(self):
         tm.Telemetry.__init__ = Mock(return_value=None)
         tm.Telemetry.send_event = Mock()
+        FrontEnd.add_extension = Mock()
 
         self.models = {}
         add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
@@ -109,18 +109,20 @@ class TestMoFallback(unittest.TestCase):
             "test_attribute": true
             },
             "id": "TransformationName1",
-            "library": "path_to_library",
+            "library": "path_to_library1.so",
             "match_kind": "scope"
             },
             { 
             "custom_attributes": {
             },
             "id": "TransfromationName2",
-            "library": "path_to_library",
+            "library": "path_to_library2.so",
             "match_kind": "scope"
             },
             {
-            "library": "path_to_library"
+            "id": "TransfromationName3",
+            "library": "path_to_library3.so",
+            "match_kind": "scope"
             }
         ]"""
 
@@ -129,7 +131,7 @@ class TestMoFallback(unittest.TestCase):
             "test_attribute": true
             },
             "id": "TransformationName1",
-            "library": "path_to_library",
+            "library": "path_to_library.so",
             "match_kind": "scope"
         }"""
 
@@ -165,7 +167,7 @@ class TestMoFallback(unittest.TestCase):
             "match_kind": "scope"
             },
             {
-            "library": "path_to_library"
+            "library": "path_to_library.so"
             }
         ]"""
 
@@ -275,7 +277,11 @@ class TestMoFallback(unittest.TestCase):
             args.transformations_config = trans_config
 
             with patch('openvino.tools.mo.utils.class_registration.apply_transform'): # skip applying transforms
-                prepare_ir(args)
+                if conversion_method == 'onnx_frontend':
+                    with pytest.raises(RuntimeError): # workaround to use in tests not existed libaries
+                        prepare_ir(args)
+                else:
+                    prepare_ir(args)
 
             tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
             if fallback_reason:

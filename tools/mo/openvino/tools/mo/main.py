@@ -45,7 +45,7 @@ from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension
+from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -391,6 +391,12 @@ def prepare_ir(argv : argparse.Namespace):
             t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
             moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
             moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
+            # after check_fallback call only new kind of extensions and transformations_config can processed here
+            if hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config):
+                #import pudb;pudb.set_trace()
+                moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
+            if hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0:
+                moc_front_end.add_extension(argv.extensions)
             ngraph_function = moc_pipeline(argv, moc_front_end)
             return graph, ngraph_function
         else: # apply fallback
