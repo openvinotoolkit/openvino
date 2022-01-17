@@ -1,6 +1,6 @@
 flake8==3.9.2
 flake8-bugbear==21.4.3
-flake8-comprehensions==3.3.0
+flake8-comprehensions==3.8.0
 flake8-docstrings==1.6.0
 flake8-quotes==3.2.0
 mypy==0.812
