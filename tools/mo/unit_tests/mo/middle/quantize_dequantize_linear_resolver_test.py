@@ -12,7 +12,6 @@ from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, res
     valued_const_with_data, regular_op_with_empty_data
 
 nodes_attributes = {
-    **regular_op_with_empty_data('input', {'op': 'Parameter', 'type': 'Parameter'}),
     **valued_const_with_data('y_scale_1', float32_array(1.0 / 255.0)),
     **valued_const_with_data('y_scale_2', float32_array(1.0 / 255.0)),
     **valued_const_with_data('y_zeropoint_1', int8_array(0)),

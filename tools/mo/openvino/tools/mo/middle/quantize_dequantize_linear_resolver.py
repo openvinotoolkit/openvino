@@ -26,8 +26,10 @@ class QuantizeDequantizeLinearResolver(MiddleReplacementPattern):
                    ('quantize_d', dict(kind='data')),
                    ('dequantize', dict(kind='op', op='DequantizeLinear')),
                    ],
-            edges=[*connect('const_input', '0:quantize'),
-                   *connect('quantize', '0:dequantize'),
+            edges=[('const_input', 'const_input_d'),
+                   ('const_input_d', 'quantize', {'in': 0}),
+                   ('quantize', 'quantize_d'),
+                   ('quantize_d', 'dequantize', {'in': 0})
                    ]
         )
 
