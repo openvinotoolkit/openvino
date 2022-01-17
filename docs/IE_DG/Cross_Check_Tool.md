@@ -1,5 +1,4 @@
-Cross Check Tool {#openvino_docs_IE_DG_Cross_Check_Tool}
-================
+# Cross Check Tool {#openvino_docs_IE_DG_Cross_Check_Tool}
 
 Cross Check Tool is a console application that enables comparing accuracy and performance metrics for two successive
 model inferences that are performed

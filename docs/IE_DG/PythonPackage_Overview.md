@@ -1,5 +1,4 @@
-OpenVINO™ Python* package {#openvino_docs_IE_DG_PythonPackage_Overview}
-========================
+# OpenVINO™ Python* package {#openvino_docs_IE_DG_PythonPackage_Overview}
 
 OpenVINO™ Python\* package includes types to measure model and calibrate to low precision. 
 

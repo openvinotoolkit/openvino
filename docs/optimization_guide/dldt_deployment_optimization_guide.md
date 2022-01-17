@@ -72,7 +72,7 @@ There are important performance caveats though: for example, the tasks that run 
 
 Also, if the inference is performed on the graphics processing unit (GPU), it can take little gain to do the encoding, for instance, of the resulting video, on the same GPU in parallel, because the device is already busy.
 
-Refer to the [Object Detection SSD Demo](@ref omz_demos_object_detection_demo_ssd_async_README) (latency-oriented Async API showcase) and [Benchmark App Sample](../../samples/benchmark_app/README.md) (which has both latency and throughput-oriented modes) for complete examples of the Async API in action.
+Refer to the [Object Detection SSD Demo](@ref omz_demos_object_detection_demo_ssd_async_README) (latency-oriented Async API showcase) and [Benchmark App Sample](../../samples/cpp/benchmark_app/README.md) (which has both latency and throughput-oriented modes) for complete examples of the Async API in action.
 
 ### Request-Based API and “GetBlob” Idiom <a name="new-request-based-api"></a>
 
@@ -237,10 +237,10 @@ For general details on the heterogeneous plugin, refer to the [corresponding sec
 
 Every Inference Engine sample supports the `-d` (device) option.
 
-For example, here is a command to run an [Object Detection Sample SSD Sample](../../inference-engine/samples/object_detection_sample_ssd/README.md):
+For example, here is a command to run an [Classification Sample Async](../../samples/cpp/classification_sample_async/README.md):
 
 ```sh
-./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:GPU,CPU
+./classification_sample_async -m <path_to_model>/Model.xml -i <path_to_pictures>/picture.jpg -d HETERO:GPU,CPU
 ```
 
 where:
@@ -270,7 +270,7 @@ The following tips are provided to give general guidance on optimizing execution
 
 ### Analyzing Heterogeneous Execution <a name="analyzing-heterogeneous-execution"></a>
 
-There is a dedicated configuration option that enables dumping the visualization of the subgraphs created by the heterogeneous plugin, please see code example in the [HETERO plugin documentation](https://docs.openvino.ai/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution)
+There is a dedicated configuration option that enables dumping the visualization of the subgraphs created by the heterogeneous plugin, please see code example in the [HETERO plugin documentation](../IE_DG/supported_plugins/HETERO.md)
 
 After enabling the configuration key, the heterogeneous plugin generates two files:
 
@@ -279,7 +279,7 @@ After enabling the configuration key, the heterogeneous plugin generates two fil
 
 You can use GraphViz\* utility or `.dot` converters (for example, to `.png` or `.pdf`), like xdot\*, available on Linux\* OS with `sudo apt-get install xdot`. 
 
-You can also use performance data (in the [Benchmark App](../../samples/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](https://docs.openvino.ai/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
+You can also use performance data (in the [Benchmark App](../../samples/cpp/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](../IE_DG/supported_plugins/HETERO.md) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
 
 ## Multi-Device Execution <a name="multi-device-optimizations"></a>
 OpenVINO&trade; toolkit supports automatic multi-device execution, please see [MULTI-Device plugin description](../IE_DG/supported_plugins/MULTI.md).
@@ -290,9 +290,9 @@ for the multi-device execution:
     (e.g. the number of request in the flight is not enough to saturate all devices).
 - It is highly recommended to query the optimal number of inference requests directly from the instance of the ExecutionNetwork 
   (resulted from the LoadNetwork call with the specific multi-device configuration as a parameter). 
-Please refer to the code of the [Benchmark App](../../samples/benchmark_app/README.md) sample for details.    
+Please refer to the code of the [Benchmark App](../../samples/cpp/benchmark_app/README.md) sample for details.    
 -   Notice that for example CPU+GPU execution performs better with certain knobs 
-    which you can find in the code of the same [Benchmark App](../../samples/benchmark_app/README.md) sample.
+    which you can find in the code of the same [Benchmark App](../../samples/cpp/benchmark_app/README.md) sample.
     One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams (which is already a default for the GPU) to amortize slower 
     inference completion from the device to the host.
 -	Multi-device logic always attempts to save on the (e.g. inputs) data copies between device-agnostic, user-facing inference requests 

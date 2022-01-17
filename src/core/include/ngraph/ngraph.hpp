@@ -6,11 +6,6 @@
 // The public API for ngraph++
 //
 
-/**
- *  @defgroup ngraph_cpp_api nGraph C++ API
- *  nGraph C++ API
- */
-
 #pragma once
 
 #include <string>
