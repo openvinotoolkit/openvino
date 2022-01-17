@@ -17,7 +17,7 @@ addIeTargetTest(
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE}
         DEPENDENCIES
-            myriadPlugin
+            ov_intel_vpu_plugin
         LINK_LIBRARIES
             vpu_graph_transformer
             vpu_common_lib

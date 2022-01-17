@@ -23,6 +23,11 @@ class UserDataRepack(FrontReplacementPattern):
             graph, argv.placeholder_shapes, argv.placeholder_data_types,
             argv.output, argv.freeze_placeholder_with_value)
 
+        # save packed user shapes in arguments since nodes names and their ports
+        # will be required to compose placeholder names with custom types
+        # for MOCLegacyTransformations
+        argv.packed_user_shapes = packed_user_shapes
+
         graph.graph['user_shapes'] = packed_user_shapes
         graph.graph['packed_outputs'] = packed_outputs
         graph.graph['freeze_placeholder'] = freeze_placeholder
