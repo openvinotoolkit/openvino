@@ -365,11 +365,19 @@ public:
      * @return Blob's size in bytes
      */
     size_t byteSize() const noexcept override {
-        return (size() * tensorDesc.getPrecision().bitsSize() + 7) >> 3;
+        try {
+            return (size() * tensorDesc.getPrecision().bitsSize() + 7) >> 3;
+        } catch (...) {
+            return 0;
+        }
     }
 
     size_t element_size() const noexcept override {
-        return tensorDesc.getPrecision().size();
+        try {
+            return tensorDesc.getPrecision().size();
+        } catch (...) {
+            return 0;
+        }
     }
 
     /**
