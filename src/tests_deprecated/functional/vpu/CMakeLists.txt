@@ -72,7 +72,7 @@ addIeTargetTest(
         VPUCommonTests
     DEPENDENCIES
         ${VPU_DEPENDENCIES}
-        myriadPlugin
+        ov_intel_vpu_plugin
     LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
         VPU
         MYRIAD
