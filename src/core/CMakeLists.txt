@@ -29,11 +29,7 @@ set(MIXED_SRC
 set_property(SOURCE ${MIXED_SRC}
     APPEND PROPERTY INCLUDE_DIRECTORIES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
-        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
-
-set_source_files_properties(${MIXED_SRC}
-    PROPERTIES COMPILE_DEFINITIONS IMPLEMENT_INFERENCE_ENGINE_API)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
