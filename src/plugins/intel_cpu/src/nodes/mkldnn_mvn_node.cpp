@@ -862,9 +862,8 @@ MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
                                               MVNExecutor(mvnAttrs) {
     is_ncsp = jcp.planar_layout;
     auto jcp_new = jcp;
-    jit_attr = attr;
     if (mayiuse(cpu::x64::avx512_common)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp_new, *jit_attr.get()));
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp_new, *attr.get()));
         jcp_new.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp_new));
         if (normalizeVariance_) {
@@ -872,7 +871,7 @@ MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp_new));
         }
     } else if (mayiuse(cpu::x64::avx2)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp_new, *jit_attr.get()));
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp_new, *attr.get()));
         jcp_new.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp_new));
         if (normalizeVariance_) {
@@ -880,7 +879,7 @@ MKLDNNMVNNode::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp_new));
         }
     } else if (mayiuse(cpu::x64::sse41)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp_new, *jit_attr.get()));
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp_new, *attr.get()));
         jcp_new.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp_new));
         if (normalizeVariance_) {

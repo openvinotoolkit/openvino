@@ -158,7 +158,6 @@ private:
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
             std::shared_ptr<jit_uni_mvn_kernel> mvn_kernel;
-            mkldnn::primitive_attr jit_attr;
     };
 
     class MVNRefExecutor : public MVNExecutor {
