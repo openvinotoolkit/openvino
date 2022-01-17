@@ -41,8 +41,8 @@ struct InputInfo {
     ov::Layout layout;
     std::vector<float> scale;
     std::vector<float> mean;
-    bool isImage() const;
-    bool isImageInfo() const;
+    bool is_image() const;
+    bool is_image_info() const;
     size_t width() const;
     size_t height() const;
     size_t channels() const;

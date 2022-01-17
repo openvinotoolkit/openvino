@@ -373,7 +373,7 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors(std::map<std::strin
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
     for (auto& inputs_info : app_inputs_info) {
         for (auto& input : inputs_info) {
-            if (input.second.isImage()) {
+            if (input.second.is_image()) {
                 net_input_im_sizes.push_back(std::make_pair(input.second.width(), input.second.height()));
             }
         }
@@ -388,9 +388,9 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors(std::map<std::strin
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
         auto input = app_inputs_info[0].at(input_name);
         if (!files.second.empty() && files.second[0] != "random" && files.second[0] != "image_info") {
-            if (input.isImage()) {
+            if (input.is_image()) {
                 files.second = filter_files_by_extensions(files.second, supported_image_extensions);
-            } else if (input.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
+            } else if (input.is_image_info() && net_input_im_sizes.size() == app_inputs_info.size()) {
                 slog::info << "Input '" << input_name
                            << "' probably is image info. All files for this input will"
                               " be ignored."
@@ -472,7 +472,7 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors(std::map<std::strin
             if (files.second[0] == "random") {
                 // Fill random
                 tensor_src_info =
-                    "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
+                    "random (" + std::string((input_info.is_image() ? "image" : "binary data")) + " is expected)";
                 tensors[input_name].push_back(get_random_tensor({input_name, input_info}));
             } else if (files.second[0] == "image_info") {
                 // Most likely it is image info: fill with image information
@@ -480,7 +480,7 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors(std::map<std::strin
                 tensor_src_info =
                     "Image size tensor " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
                 tensors[input_name].push_back(get_im_info_tensor(image_size, batchSize, {input_name, input_info}));
-            } else if (input_info.isImage()) {
+            } else if (input_info.is_image()) {
                 // Fill with Images
                 tensors[input_name].push_back(
                     get_image_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
@@ -527,7 +527,7 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const s
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
     for (auto& item : app_inputs_info) {
-        if (item.second.partialShape.is_static() && item.second.isImage()) {
+        if (item.second.partialShape.is_static() && item.second.is_image()) {
             net_input_im_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
         }
     }
@@ -594,7 +594,7 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const s
     size_t imageInputsCount = 0;
     size_t binaryInputsCount = 0;
     for (auto& input : app_inputs_info) {
-        if (input.second.isImage()) {
+        if (input.second.is_image()) {
             mappedFiles[input.first] = {};
             for (size_t i = 0; i < imageFiles.size(); i += imageInputsNum) {
                 mappedFiles[input.first].push_back(
@@ -632,7 +632,7 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const s
 
         for (size_t i = 0; i < test_configs_num; ++i) {
             std::string blob_src_info;
-            if (input_info.isImage()) {
+            if (input_info.is_image()) {
                 if (!imageFiles.empty()) {
                     // Fill with Images
                     blobs[input_name].push_back(get_image_tensor(files.second,
@@ -656,7 +656,7 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const s
                     logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
                     continue;
                 }
-                if (input_info.isImageInfo() && (net_input_im_sizes.size() == 1)) {
+                if (input_info.is_image_info() && (net_input_im_sizes.size() == 1)) {
                     // Most likely it is image info: fill with image information
                     auto image_size = net_input_im_sizes.at(0);
                     blob_src_info = "Image size blob " + std::to_string(image_size.first) + " x " +
@@ -668,7 +668,7 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const s
             }
             // Fill random
             blob_src_info =
-                "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
+                "random (" + std::string((input_info.is_image() ? "image" : "binary data")) + " is expected)";
             blobs[input_name].push_back(get_random_tensor({input_name, input_info}));
             logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
         }

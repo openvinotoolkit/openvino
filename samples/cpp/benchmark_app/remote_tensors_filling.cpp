@@ -25,10 +25,10 @@ using uniformDistribution = typename std::conditional<
     typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
 
 template <typename T, typename T2>
-void fillBufferRandom(void* inputBuffer,
-                      size_t elementsNum,
-                      T rand_min = std::numeric_limits<uint8_t>::min(),
-                      T rand_max = std::numeric_limits<uint8_t>::max()) {
+void fill_buffer_random(void* inputBuffer,
+                        size_t elementsNum,
+                        T rand_min = std::numeric_limits<uint8_t>::min(),
+                        T rand_max = std::numeric_limits<uint8_t>::max()) {
     std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);
     auto inputBufferData = static_cast<T*>(inputBuffer);
@@ -39,27 +39,27 @@ void fillBufferRandom(void* inputBuffer,
 
 void fill_buffer(void* inputBuffer, size_t elementsNum, const ov::element::Type& type) {
     if (type == ov::element::f32) {
-        fillBufferRandom<float, float>(inputBuffer, elementsNum);
+        fill_buffer_random<float, float>(inputBuffer, elementsNum);
     } else if (type == ov::element::f16) {
-        fillBufferRandom<short, short>(inputBuffer, elementsNum);
+        fill_buffer_random<short, short>(inputBuffer, elementsNum);
     } else if (type == ov::element::i32) {
-        fillBufferRandom<int32_t, int32_t>(inputBuffer, elementsNum);
+        fill_buffer_random<int32_t, int32_t>(inputBuffer, elementsNum);
     } else if (type == ov::element::i64) {
-        fillBufferRandom<int64_t, int64_t>(inputBuffer, elementsNum);
+        fill_buffer_random<int64_t, int64_t>(inputBuffer, elementsNum);
     } else if (type == ov::element::u8) {
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
-        fillBufferRandom<uint8_t, uint32_t>(inputBuffer, elementsNum);
+        fill_buffer_random<uint8_t, uint32_t>(inputBuffer, elementsNum);
     } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
-        fillBufferRandom<int8_t, int32_t>(inputBuffer, elementsNum);
+        fill_buffer_random<int8_t, int32_t>(inputBuffer, elementsNum);
     } else if (type == ov::element::u16) {
-        fillBufferRandom<uint16_t, uint16_t>(inputBuffer, elementsNum);
+        fill_buffer_random<uint16_t, uint16_t>(inputBuffer, elementsNum);
     } else if (type == ov::element::i16) {
-        fillBufferRandom<int16_t, int16_t>(inputBuffer, elementsNum);
+        fill_buffer_random<int16_t, int16_t>(inputBuffer, elementsNum);
     } else if (type == ov::element::boolean) {
-        fillBufferRandom<uint8_t, uint32_t>(inputBuffer, elementsNum, 0, 1);
+        fill_buffer_random<uint8_t, uint32_t>(inputBuffer, elementsNum, 0, 1);
     } else {
         IE_THROW() << "Requested type is not supported";
     }

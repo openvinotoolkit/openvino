@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
         if (!FLAGS_report_type.empty()) {
             statistics =
                 std::make_shared<StatisticsReport>(StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder});
-            statistics->addParameters(StatisticsReport::Category::COMMAND_LINE_PARAMETERS, command_line_arguments);
+            statistics->add_parameters(StatisticsReport::Category::COMMAND_LINE_PARAMETERS, command_line_arguments);
         }
         auto isFlagSetInCommandLine = [&command_line_arguments](const std::string& name) {
             return (std::find_if(command_line_arguments.begin(),
@@ -397,8 +397,8 @@ int main(int argc, char* argv[]) {
             auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {{"load network time (ms)", duration_ms}});
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {{"load network time (ms)", duration_ms}});
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
                                               batchSize,
@@ -423,8 +423,8 @@ int main(int argc, char* argv[]) {
             auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {{"read network time (ms)", duration_ms}});
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {{"read network time (ms)", duration_ms}});
 
             const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
             if (inputInfo.empty()) {
@@ -455,8 +455,8 @@ int main(int argc, char* argv[]) {
                 duration_ms = double_to_string(get_duration_ms_till_now(startTime));
                 slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
                 if (statistics)
-                    statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                              {{"reshape network time (ms)", duration_ms}});
+                    statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                               {{"reshape network time (ms)", duration_ms}});
             }
 
             // ----------------- 6. Configuring inputs and outputs
@@ -489,8 +489,12 @@ int main(int argc, char* argv[]) {
                 if (iop_precision != ov::element::undefined) {
                     type_to_set = iop_precision;
                 } else if (input_precision != ov::element::undefined) {
+                    for (auto& info : app_inputs_info) {
                     type_to_set = input_precision;
+                        info.at(name).type = input_precision;
                 } else if (!name.empty() && app_inputs_info[0].at(name).isImage()) {
+                    }
+                } else if (app_inputs_info[0].at(name).is_image()) {
                     // image input, set U8
                     type_to_set = ov::element::u8;
                 }
@@ -557,8 +561,8 @@ int main(int argc, char* argv[]) {
             duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {{"load network time (ms)", duration_ms}});
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {{"load network time (ms)", duration_ms}});
         } else {
             next_step();
             slog::info << "Skipping the step for compiled network" << slog::endl;
@@ -581,8 +585,8 @@ int main(int argc, char* argv[]) {
             auto duration_ms = double_to_string(get_duration_ms_till_now(startTime));
             slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {{"import network time (ms)", duration_ms}});
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {{"import network time (ms)", duration_ms}});
 
             app_inputs_info = get_inputs_info(FLAGS_shape,
                                               FLAGS_layout,
@@ -684,7 +688,7 @@ int main(int argc, char* argv[]) {
         uint64_t duration_nanoseconds = get_duration_in_nanoseconds(duration_seconds);
 
         if (statistics) {
-            statistics->addParameters(
+            statistics->add_parameters(
                 StatisticsReport::Category::RUNTIME_CONFIG,
                 {
                     {"benchmark mode", inferenceOnly ? "inference only" : "full"},
@@ -700,10 +704,10 @@ int main(int argc, char* argv[]) {
             for (auto& nstreams : device_nstreams) {
                 std::stringstream ss;
                 ss << "number of " << nstreams.first << " streams";
-                statistics->addParameters(StatisticsReport::Category::RUNTIME_CONFIG,
-                                          {
-                                              {ss.str(), nstreams.second},
-                                          });
+                statistics->add_parameters(StatisticsReport::Category::RUNTIME_CONFIG,
+                                           {
+                                               {ss.str(), nstreams.second},
+                                           });
             }
         }
 
@@ -870,8 +874,8 @@ int main(int argc, char* argv[]) {
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
 
         if (statistics) {
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {{"first inference time (ms)", duration_ms}});
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {{"first inference time (ms)", duration_ms}});
         }
         inferRequestsQueue.reset_times();
 
@@ -974,11 +978,11 @@ int main(int argc, char* argv[]) {
                                            : 1000.0 * processedFramesN / totalDuration;
 
         if (statistics) {
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {
-                                          {"total execution time (ms)", double_to_string(totalDuration)},
-                                          {"total number of iterations", std::to_string(iteration)},
-                                      });
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {
+                                           {"total execution time (ms)", double_to_string(totalDuration)},
+                                           {"total number of iterations", std::to_string(iteration)},
+                                       });
             if (device_name.find("MULTI") == std::string::npos) {
                 std::string latency_label;
                 if (FLAGS_latency_percentile == 50) {
@@ -986,62 +990,62 @@ int main(int argc, char* argv[]) {
                 } else {
                     latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
                 }
-                statistics->addParameters(
+                statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
                     {
                         {latency_label, double_to_string(generalLatency.percentile(FLAGS_latency_percentile))},
                     });
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {
-                                              {"Average latency (ms)", double_to_string(generalLatency.average())},
-                                          });
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {
-                                              {"Min latency (ms)", double_to_string(generalLatency.min())},
-                                          });
-                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {
-                                              {"Max latency (ms)", double_to_string(generalLatency.max())},
-                                          });
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {
+                                               {"Average latency (ms)", double_to_string(generalLatency.average())},
+                                           });
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {
+                                               {"Min latency (ms)", double_to_string(generalLatency.min())},
+                                           });
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {
+                                               {"Max latency (ms)", double_to_string(generalLatency.max())},
+                                           });
 
                 if (FLAGS_pcseq && app_inputs_info.size() > 1) {
-                    statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                              {
-                                                  {"Latency for each data shape group:", ""},
-                                              });
+                    statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                               {
+                                                   {"Latency for each data shape group:", ""},
+                                               });
                     for (size_t i = 0; i < app_inputs_info.size(); ++i) {
                         std::string data_shapes_string = "";
                         data_shapes_string += std::to_string(i + 1) + ". ";
                         for (auto& item : app_inputs_info[i]) {
                             data_shapes_string += item.first + " : " + get_shape_string(item.second.dataShape) + " ";
                         }
-                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                                  {
-                                                      {data_shapes_string, ""},
-                                                  });
-                        statistics->addParameters(
+                        statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                   {
+                                                       {data_shapes_string, ""},
+                                                   });
+                        statistics->add_parameters(
                             StatisticsReport::Category::EXECUTION_RESULTS,
                             {
                                 {latency_label,
                                  double_to_string(groupLatencies[i].percentile(FLAGS_latency_percentile))},
                             });
-                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                                  {
-                                                      {"Average (ms)", double_to_string(groupLatencies[i].average())},
-                                                  });
-                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                                  {
-                                                      {"Min (ms)", double_to_string(groupLatencies[i].min())},
-                                                  });
-                        statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                                  {
-                                                      {"Max (ms)", double_to_string(groupLatencies[i].max())},
-                                                  });
+                        statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                   {
+                                                       {"Average (ms)", double_to_string(groupLatencies[i].average())},
+                                                   });
+                        statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                   {
+                                                       {"Min (ms)", double_to_string(groupLatencies[i].min())},
+                                                   });
+                        statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                                   {
+                                                       {"Max (ms)", double_to_string(groupLatencies[i].max())},
+                                                   });
                     }
                 }
             }
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {{"throughput", double_to_string(fps)}});
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {{"throughput", double_to_string(fps)}});
         }
         progressBar.finish();
 
@@ -1076,7 +1080,7 @@ int main(int argc, char* argv[]) {
                 perfCounts.push_back(reqPerfCounts);
             }
             if (statistics) {
-                statistics->dumpPerformanceCounters(perfCounts);
+                statistics->dump_performance_counters(perfCounts);
             }
         }
 
@@ -1088,7 +1092,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Duration:   " << double_to_string(totalDuration) << " ms" << slog::endl;
         if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency: " << slog::endl;
-            generalLatency.logTotal(FLAGS_latency_percentile);
+            generalLatency.log_total(FLAGS_latency_percentile);
 
             if (FLAGS_pcseq && app_inputs_info.size() > 1) {
                 slog::info << "Latency for each data shape group:" << slog::endl;
@@ -1103,7 +1107,7 @@ int main(int argc, char* argv[]) {
                     }
                     slog::info << slog::endl;
 
-                    groupLatencies[i].logTotal(FLAGS_latency_percentile);
+                    groupLatencies[i].log_total(FLAGS_latency_percentile);
                 }
             }
         }
@@ -1113,10 +1117,10 @@ int main(int argc, char* argv[]) {
         slog::err << ex.what() << slog::endl;
 
         if (statistics) {
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {
-                                          {"error", ex.what()},
-                                      });
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {
+                                           {"error", ex.what()},
+                                       });
             statistics->dump();
         }
 

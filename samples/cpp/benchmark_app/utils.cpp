@@ -25,13 +25,13 @@
 #endif
 
 namespace benchmark_app {
-bool InputInfo::isImage() const {
+bool InputInfo::is_image() const {
     if ((layout != "NCHW") && (layout != "NHWC") && (layout != "CHW") && (layout != "HWC"))
         return false;
     // If tensor_shape is still empty, assume this is still an Image and tensor shape will be filled later
     return (dataShape.empty() || channels() == 3);
 }
-bool InputInfo::isImageInfo() const {
+bool InputInfo::is_image_info() const {
     if (layout != "NC")
         return false;
     return (channels() >= 2);
@@ -94,7 +94,7 @@ std::vector<std::string> split(const std::string& s, char delim) {
     return result;
 }
 
-std::vector<float> splitFloat(const std::string& s, char delim) {
+std::vector<float> split_float(const std::string& s, char delim) {
     std::vector<float> result;
     std::stringstream ss(s);
     std::string item;
@@ -196,7 +196,7 @@ std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string&
             break;
         auto input_name = search_string.substr(0, start_pos);
         auto input_value_string = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
-        auto input_value = splitFloat(input_value_string, ',');
+        auto input_value = split_float(input_value_string, ',');
 
         if (!input_name.empty()) {
             if (inputs_info.count(input_name)) {
@@ -205,7 +205,7 @@ std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string&
             // ignore wrong input name
         } else {
             for (auto& item : inputs_info) {
-                if (item.second.isImage())
+                if (item.second.is_image())
                     return_value[item.first] = input_value;
             }
             search_string.clear();
@@ -506,7 +506,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
             // Tensor Shape
             if (info.partialShape.is_dynamic() && data_shapes_map.count(name)) {
                 info.dataShape = parse_data_shape(data_shapes_map.at(name)[i % data_shapes_map.at(name).size()]);
-            } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.isImage()) {
+            } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.is_image()) {
                 auto& namesVector = fileNames.at(filesInputName);
                 if (contains_binaries(namesVector)) {
                     throw std::logic_error("Input files list for input " + item.get_any_name() +
@@ -607,7 +607,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
         std::map<std::string, std::vector<float>> mean_map = parse_scale_or_mean(mean_string, info_map);
 
         for (auto& item : info_map) {
-            if (item.second.isImage()) {
+            if (item.second.is_image()) {
                 item.second.scale.assign({1, 1, 1});
                 item.second.mean.assign({0, 0, 0});
 
@@ -748,20 +748,20 @@ const std::vector<std::string> supported_image_extensions = {"bmp"};
 #endif
 const std::vector<std::string> supported_binary_extensions = {"bin"};
 
-std::string getExtension(const std::string& name) {
+std::string get_extension(const std::string& name) {
     auto extensionPosition = name.rfind('.', name.size());
     return extensionPosition == std::string::npos ? "" : name.substr(extensionPosition + 1, name.size() - 1);
 };
 
 bool is_binary_file(const std::string& filePath) {
-    auto extension = getExtension(filePath);
+    auto extension = get_extension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
     return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
            supported_binary_extensions.end();
 }
 
 bool is_image_file(const std::string& filePath) {
-    auto extension = getExtension(filePath);
+    auto extension = get_extension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
     return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
            supported_binary_extensions.end();
@@ -770,7 +770,7 @@ bool is_image_file(const std::string& filePath) {
 bool contains_binaries(const std::vector<std::string>& filePaths) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
-        auto extension = getExtension(filePath);
+        auto extension = get_extension(filePath);
         std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
         if (std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
             supported_binary_extensions.end()) {
@@ -780,10 +780,10 @@ bool contains_binaries(const std::vector<std::string>& filePaths) {
     return false;
 }
 std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
-                                                 const std::vector<std::string>& extensions) {
+                                                    const std::vector<std::string>& extensions) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
-        auto extension = getExtension(filePath);
+        auto extension = get_extension(filePath);
         std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
         if (std::find(extensions.begin(), extensions.end(), extension) != extensions.end()) {
             filtered.push_back(filePath);
