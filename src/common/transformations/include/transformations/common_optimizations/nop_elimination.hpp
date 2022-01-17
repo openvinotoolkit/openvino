@@ -23,6 +23,7 @@ class TRANSFORMATIONS_API EliminateSplit;
 class TRANSFORMATIONS_API EliminateSqueeze;
 class TRANSFORMATIONS_API EliminateTranspose;
 class TRANSFORMATIONS_API EliminateEltwise;
+class TRANSFORMATIONS_API EliminateReshape;
 class TRANSFORMATIONS_API NopElimination;
 
 }  // namespace pass
@@ -106,6 +107,16 @@ class ngraph::pass::EliminateEltwise: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     EliminateEltwise();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief EliminateReshape eliminates reshape that does nothing
+ */
+class ngraph::pass::EliminateReshape: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    EliminateReshape();
 };
 
 class ngraph::pass::NopElimination: public GraphRewrite {
