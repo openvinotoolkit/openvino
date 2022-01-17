@@ -8,4 +8,5 @@
 
 namespace MultiDevicePlugin {
 uint32_t Log::defaultLogLevel = static_cast<uint32_t>(LogLevel::LOG_NONE);
+std::vector<std::string> Log::validFormat = {"u", "d", "s", "ld", "lu"};
 } // namespace MultiDevicePlugin
