@@ -57,10 +57,18 @@ def main():
     # - precision of tensor is supposed to be 'u8'
     # - layout of data is 'NHWC'
     # - set static spatial dimensions to input tensor to resize from
-    ppp.input().tensor() \
-        .set_element_type(Type.u8) \
-        .set_layout(Layout('NHWC')) \
-        .set_spatial_static_shape(h, w)  # noqa: ECE001, N400
+    if (device_name != 'MYRIAD'):
+        ppp.input().tensor() \
+            .set_element_type(Type.u8) \
+            .set_layout(Layout('NHWC')) \
+            .set_spatial_static_shape(h, w)  # noqa: ECE001, N400
+    else:
+        # Since there is a 'Insert Transpose layers around the Interpolate layer' transformation used for MYRIAD plugin
+        # we have to make sure input and output have same data type as this is required for the Transpose stage.
+        ppp.input().tensor() \
+            .set_element_type(Type.f32) \
+            .set_layout(Layout('NHWC')) \
+            .set_spatial_static_shape(h, w)  # noqa: ECE001, N400
 
     # 2) Adding explicit preprocessing steps:
     # - apply linear resize from tensor spatial dims to model spatial dims

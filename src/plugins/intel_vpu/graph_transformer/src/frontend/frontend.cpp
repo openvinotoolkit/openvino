@@ -38,6 +38,8 @@
 #include <transformations/convert_precision.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
@@ -185,6 +187,8 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<vpu::ConvertGatherND8ToGatherND5>();
     manager.register_pass<vpu::MergeGatherGatherElements>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+    manager.register_pass<ngraph::pass::TransposeSinking>();
 
     manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t> {
         ngraph::opset5::MatMul::get_type_info_static(),
