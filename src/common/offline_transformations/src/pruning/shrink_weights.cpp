@@ -51,7 +51,31 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
 #endif
 
         if (!mask) continue;
+        // Case mask should adjust value from constant instead of constant pruning
+        if (mask->adjust_value() && !mask->all_dims_are_empty()) {
+            std::vector<int64_t> new_const_value;
+            auto value = const_node->cast_vector<int64_t>();
+            for (size_t i = 0; i < mask->size(); i++)
+                new_const_value.push_back(value[i] - mask->at(i).size());
 
+            const auto new_const = opset6::Constant::create(const_node->get_element_type(),
+                                                            const_node->get_shape(), new_const_value);
+            new_const->set_friendly_name(const_node->get_friendly_name());
+            ngraph::copy_runtime_info(const_node, new_const);
+            ngraph::replace_node(const_node, new_const);
+
+            auto to_str = [](const std::vector<int64_t> v) -> std::string {
+                std::ostringstream out;
+                out << "[ ";
+                for (auto & val : v)
+                    out << val << ' ';
+                out << "]";
+                return out.str();
+            };
+            NGRAPH_DEBUG << "Adjust value in (" << const_node->get_friendly_name() << "): "
+                         << to_str(value) << " to " << to_str(new_const_value);
+            continue;
+        }
         auto last_output = const_node->output(0);
         auto consumers = last_output.get_target_inputs();
 

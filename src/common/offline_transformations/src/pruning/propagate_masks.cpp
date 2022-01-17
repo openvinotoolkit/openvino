@@ -25,6 +25,7 @@ class GroupConvolutionReshape;
 class Elementwise;
 class PassThrough;
 class Reduce;
+class Reshape;
 class StopPropagation;
 class FakeQuantize;
 class Concat;
@@ -604,7 +605,6 @@ public:
             const auto & m_input = pattern_map.at(inputs);
             const auto & m_output = pattern_map.at(pooling_by_reduce);
 
-
             // Check reduce operation reduces only dimension without masks
             if (auto input_mask = getMask(m_input)) {
                 auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
@@ -640,6 +640,89 @@ public:
     }
 };
 
+class ngraph::pass::mask_propagation::Reshape : public MatcherPass {
+public:
+    Reshape() {
+        auto inputs = pattern::any_input(pattern::has_static_shape());
+        auto weights = pattern::wrap_type<opset6::Constant>();
+        auto reshape = pattern::wrap_type<opset6::Reshape>({inputs, weights});
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto & pattern_map = m.get_pattern_value_map();
+            const auto m_weights = pattern_map.at(weights);
+            const auto & m_input = pattern_map.at(inputs);
+            const auto & m_output = pattern_map.at(reshape);
+
+            // Check if this reshape is before group convolution
+            // In such case this reshape should be processed by GroupConvolutionReshape pass
+            for (const auto inp : m_output.get_target_inputs())
+                if (is_type<opset6::GroupConvolution>(inp.get_node()))
+                    return false;
+
+
+            // Check reshape operation reshape only dimension without masks
+            if (auto input_mask = getMask(m_input)) {
+                auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+                auto weights_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length(), true);
+
+                const auto input_shape = m_input.get_shape();
+                const auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
+                const auto output_shape = constant->cast_vector<size_t>();
+
+                // Check dimensions equality from the begining and allow
+                // to propagate masks only for dimensions which equal from the begining
+                size_t i = 0;
+                for (; i < std::min(input_shape.size(), output_shape.size()); ++i) {
+                    if (input_shape[i] != output_shape[i])
+                        break;
+                }
+                auto not_reshaped_dims = i;
+
+                auto input_mask_row = input_mask.get();
+                auto weights_mask_row = weights_mask.get();
+                auto output_mask_row = output_mask.get();
+                input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                    cur_mask->copy_value_from_mask(weights_mask_row);
+                    return true;
+                }, weights_mask);
+                weights_mask->add_callback([input_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool{
+                    // Propagate masks down through dimension only if this dimension isn't reshaped
+                    for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
+                        if (dim < not_reshaped_dims)
+                            cur_mask->at(dim) = input_mask_row->at(dim);
+                        else if (cur_mask->at(dim) != input_mask_row->at(dim))
+                            cur_mask->initialize_dependencies();
+                    return true;
+                }, input_mask);
+
+                output_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                    cur_mask->copy_value_from_mask(weights_mask_row);
+                    return true;
+                }, weights_mask);
+
+                weights_mask->add_callback([output_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                    // Propagate masks up through dimension only if this dimension isn't reshaped
+                    for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
+                        if (dim < not_reshaped_dims)
+                            cur_mask->at(dim) = output_mask_row->at(dim);
+                        else if (cur_mask->at(dim) != output_mask_row->at(dim))
+                            cur_mask->initialize_dependencies();
+                    return true;
+                }, output_mask);
+
+                weights_mask->apply_callback(input_mask);
+                setMask(m_output, output_mask);
+                setMask(m_weights, weights_mask);
+            }
+
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(reshape, "ReshapeMaskPropagation");
+        register_matcher(m, callback);
+    }
+};
+
 class ngraph::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
     StopPropagation() {
@@ -655,8 +738,11 @@ public:
             for (const auto & input : node->input_values()) {
                 if (auto input_mask = getMask(input)) {
                         auto input_mask_row = input_mask.get();
-                        input_mask->add_callback([](Mask::Ptr cur_mask) -> bool {
+                        auto output_mask_row = output_mask.get();
+                        input_mask->add_callback([output_mask_row](Mask::Ptr cur_mask) -> bool {
                             cur_mask->clean_dim_values();
+                            if (!output_mask_row->all_dims_are_empty())
+                                cur_mask->initialize_dependencies();
                             return true;
                         }, output_mask);
                         output_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool{
@@ -693,6 +779,7 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::Elementwise>();
     add_matcher<mask_propagation::PassThrough>();
     add_matcher<mask_propagation::Reduce>();
+    add_matcher<mask_propagation::Reshape>();
     add_matcher<mask_propagation::FakeQuantize>();
     add_matcher<mask_propagation::Concat>();
     add_matcher<mask_propagation::StopPropagation>();
