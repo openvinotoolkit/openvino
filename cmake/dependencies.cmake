@@ -51,7 +51,7 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
     update_deps_cache(SYSTEM_PROTOC "${SYSTEM_PROTOC}" "Path to host protoc for ONNX Importer")
 endif()
 
-if(ENABLE_MYRIAD)
+if(ENABLE_INTEL_VPU)
     include(${IE_MAIN_SOURCE_DIR}/cmake/vpu_dependencies.cmake)
 endif()
 
@@ -276,8 +276,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.00.00.1455")
-        set(GNA_HASH "8ac1af18eb32777b00193f4f8c252ee4f8bd64a9069138b4a5aaeebd82ead464")
+        set(GNA_VERSION "03.00.00.1455.0")
+        set(GNA_HASH "99891696269d8fa10116c96e6b7bda4362736881f0df8df8b56c751ee18e5820")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)

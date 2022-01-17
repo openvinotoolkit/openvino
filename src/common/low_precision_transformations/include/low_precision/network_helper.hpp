@@ -173,6 +173,16 @@ public:
         const bool updatePrecision,
         const bool moveSubtract);
 
+    static InsertDequantizationResult moveDequantizationBefore(
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool updatePrecision,
+        const bool moveSubtract);
+
+    static std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> splitConstantsBeforeConcat(
+        const std::shared_ptr<ov::Node> concat,
+        const std::vector<std::shared_ptr<opset1::Constant>> currConstants);
+
     static bool checkConstantValuePrecision(const element::Type expectedPrecision, const std::shared_ptr<Node>& constant);
 
     static size_t getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
@@ -220,7 +230,7 @@ public:
                 continue;
             }
             attribute->sharedValue = sharedValue;
-            sharedValue->attributes.push_back(attribute);
+            sharedValue->addAttribute(attribute);
         }
     }
 

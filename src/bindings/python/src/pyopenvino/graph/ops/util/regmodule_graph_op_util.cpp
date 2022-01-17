@@ -20,4 +20,5 @@ void regmodule_graph_op_util(py::module m) {
     regclass_graph_op_util_UnaryElementwiseArithmetic(m_util);
     regclass_graph_op_util_IndexReduction(m_util);
     regclass_graph_op_util_Variable(m_util);
+    regclass_graph_op_util_MultiSubgraphOp(m_util);
 }
