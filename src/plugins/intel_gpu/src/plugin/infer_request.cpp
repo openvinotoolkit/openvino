@@ -412,10 +412,6 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
         IE_THROW() << "SetBlobs method doesn't support outputs";
     }
 
-    if (is_buffer) {
-        IE_THROW(NotImplemented) << "SetBlobs method doesn't support buffer blobs";
-    }
-
     const TensorDesc& desc = foundInput->getTensorDesc();
 
     size_t dataBinSize = blobs.front()->size() * blobs.front()->element_size() * blobs.size();
@@ -445,8 +441,7 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
             }
         }
     }
-
-    inputTensorsMap.insert({ name, blobs });
+    inputTensorsMap[name] = blobs;
 }
 
 void InferRequest::checkBlobs() {
@@ -618,18 +613,55 @@ void InferRequest::enqueue() {
     std::vector<cldnn::event::ptr> dependencies;
 
     for (const auto& inputTensor : inputTensorsMap) {
+        const std::string name = inputTensor.first;
         const auto& blobs = inputTensor.second;
+
         auto blobsDesc = blobs.front()->getTensorDesc();
+        blobsDesc.getDims().front() = blobs.size();
 
         bool is_surface = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob->is<gpu::ClImage2DBlob>();
         });
+        bool is_buffer = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+            return blob->is<gpu::ClBufferBlob>();
+        });
+        bool is_remote = is_buffer || is_surface;
 
         if (is_surface) {
             for (size_t i = 0; i < blobs.size(); ++i) {
-                std::string new_name = inputTensor.first + "_" + std::to_string(i);
+                std::string new_name = name + "_" + std::to_string(i);
                 _inputs[new_name] = blobs[i];
                 _deviceInputs[new_name] = blobs[i];
+            }
+        } else {
+            uint8_t* dst = nullptr;
+            if (_deviceInputs.find(name) != _deviceInputs.end()) {
+                if (_deviceInputs[name]->getTensorDesc() == blobsDesc) {
+                    dst = _deviceInputs[name]->buffer().as<uint8_t*>();
+                }
+            }
+            if (dst == nullptr) {
+                cldnn::layout layout(DataTypeFromPrecision(blobsDesc.getPrecision()),
+                                     FormatFromTensorDesc(blobsDesc),
+                                     tensor_from_dims(blobsDesc.getDims()));
+
+                auto mergedBlobs = std::make_shared<RemoteCLbuffer>(m_graph->GetContext(),
+                                                                    m_graph->GetNetwork()->get_stream(),
+                                                                    blobsDesc,
+                                                                    layout);
+                mergedBlobs->allocate();
+                dst = mergedBlobs->buffer().as<uint8_t*>();
+
+                _inputs[name] = mergedBlobs;
+                if (is_remote) {
+                    _deviceInputs[name] = mergedBlobs;
+                }
+            }
+
+            for (auto& blob : blobs) {
+                const uint8_t* src = blob->cbuffer().as<const uint8_t*>();
+                std::copy(src, src + blob->byteSize(), dst);
+                dst += blob->byteSize();
             }
         }
     }
@@ -801,7 +833,7 @@ Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorD
                                                   usm_host_mem,
                                                   0,
                                                   0,
-                                                  RemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
+                                                  RemoteBlobImpl::BlobType::BT_USM_SHARED);
     if (!blob)
         IE_THROW(NotAllocated) << "Failed to allocate shared host <-> device blob";
     blob->allocate();
