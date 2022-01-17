@@ -11,6 +11,8 @@ using namespace ngraph::op;
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
+namespace SubgraphTestsDefinitions {
+
 struct InputTensorROIParamType {
     ov::PartialShape shape;
     ov::element::Type type;
@@ -123,3 +125,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_InputTensorROI,
                          InputTensorROI,
                          ::testing::ValuesIn(InputTensorROIParams),
                          InputTensorROI::getTestCaseName);
+
+} // namespace SubgraphTestsDefinitions

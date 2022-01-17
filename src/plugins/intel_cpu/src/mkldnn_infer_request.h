@@ -15,9 +15,9 @@ namespace MKLDNNPlugin {
 class MKLDNNExecNetwork;
 class MKLDNNAsyncInferRequest;
 
-class MKLDNNInferRequest : public InferenceEngine::IInferRequestInternal {
+class MKLDNNInferRequestBase : public InferenceEngine::IInferRequestInternal {
 public:
-    ~MKLDNNInferRequest();
+    virtual ~MKLDNNInferRequestBase();
 
     void InferImpl() override;
 
@@ -39,24 +39,25 @@ public:
     void ThrowIfCanceled() const;
 
 protected:
-    explicit MKLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs,
-                                InferenceEngine::OutputsDataMap networkOutputs,
-                                std::shared_ptr<MKLDNNExecNetwork> execNetwork_)
+    MKLDNNInferRequestBase(InferenceEngine::InputsDataMap networkInputs,
+                           InferenceEngine::OutputsDataMap networkOutputs,
+                           std::shared_ptr<MKLDNNExecNetwork> execNetwork_)
     : IInferRequestInternal(networkInputs, networkOutputs), execNetwork(execNetwork_) {}
 
-    explicit MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                std::shared_ptr<MKLDNNExecNetwork> execNetwork_)
+    MKLDNNInferRequestBase(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                           const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                           std::shared_ptr<MKLDNNExecNetwork> execNetwork_)
     : IInferRequestInternal(inputs, outputs), execNetwork(execNetwork_) {}
 
     void CreateInferRequest();
+    InferenceEngine::Precision normToInputSupportedPrec(const std::pair<const std::string, InferenceEngine::Blob::Ptr>& input) const;
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 
-    virtual void fillBlobs() = 0;
+    virtual void initBlobs() = 0;
     virtual void PushInputData() = 0;
 
     MKLDNNGraph* graph = nullptr;
-    std::map<std::string, void*> externalPtr;
+    std::unordered_map<std::string, void*> externalPtr;
 
 private:
     void PushStates();
@@ -70,30 +71,30 @@ private:
     MKLDNNAsyncInferRequest*            _asyncRequest = nullptr;
 };
 
-class MKLDNNInferRequestOldApi : public MKLDNNInferRequest {
+class MKLDNNLegacyInferRequest : public MKLDNNInferRequestBase {
 public:
-    explicit MKLDNNInferRequestOldApi(InferenceEngine::InputsDataMap networkInputs,
-                                      InferenceEngine::OutputsDataMap networkOutputs,
-                                      std::shared_ptr<MKLDNNExecNetwork> execNetwork);
+    MKLDNNLegacyInferRequest(InferenceEngine::InputsDataMap networkInputs,
+                             InferenceEngine::OutputsDataMap networkOutputs,
+                             std::shared_ptr<MKLDNNExecNetwork> execNetwork);
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
 private:
     void PushInputData() override;
-    void fillBlobs() override;
+    void initBlobs() override;
 };
 
-class MKLDNNInferRequestNewApi : public MKLDNNInferRequest {
+class MKLDNNInferRequest : public MKLDNNInferRequestBase {
 public:
-    explicit MKLDNNInferRequestNewApi(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                      std::shared_ptr<MKLDNNExecNetwork> execNetwork);
+    MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                       const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                       std::shared_ptr<MKLDNNExecNetwork> execNetwork);
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
 private:
     void PushInputData() override;
-    void fillBlobs() override;
+    void initBlobs() override;
 
     std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelInputsMap;
     std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelOutputsMap;

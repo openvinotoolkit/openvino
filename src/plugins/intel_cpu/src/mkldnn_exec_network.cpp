@@ -37,13 +37,13 @@ MKLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<cons
                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
         return nullptr;
-    return std::make_shared<MKLDNNInferRequestNewApi>(inputs, outputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+    return std::make_shared<MKLDNNInferRequest>(inputs, outputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
 
 InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                           InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<MKLDNNInferRequestOldApi>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+    return std::make_shared<MKLDNNLegacyInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
 
 struct ImmediateSerialExecutor : public ITaskExecutor {
