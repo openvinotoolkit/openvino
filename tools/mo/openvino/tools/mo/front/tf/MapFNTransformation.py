@@ -389,7 +389,7 @@ class TensorListOutputConcatenation(FrontReplacementSubgraph):
                 external_match = {'while': loop_node,
                                   'reserve': reserve_node}
                 # check that back edges connect Parameter node (or container with intermediate output results)
-                # and concatenation result produced by TensorListPushBach node
+                # and concatenation result produced by TensorListPushBack node
                 if Loop.back_edge_exists(loop_node.back_edges, internal_match['concatenation_result'].internal_layer_id,
                                          internal_match['container'].internal_layer_id):
                     TensorListOutputConcatenation.transform_tensor_list_output_concatenation(external_match,
