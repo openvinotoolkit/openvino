@@ -79,6 +79,7 @@ public:
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath = {}) const;
+
     /**
      * @brief Reads models from IR and ONNX formats
      * @param model string with model in IR or ONNX format

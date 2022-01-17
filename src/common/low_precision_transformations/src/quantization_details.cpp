@@ -49,11 +49,19 @@ QuantizationDetails::QuantizationDetails(const size_t levels, const std::vector<
       outputLowValues(outputLowValues),
       outputHighValues(outputHighValues) {}
 
-bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize) {
-    return ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(1)) &&
-        ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(2)) &&
-        ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(3)) &&
-        ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(4));
+bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize, bool isConvertExpected) {
+    const auto inputs = quantize->inputs();
+    for (size_t i = 1; i < inputs.size(); ++i) {
+        const auto node = inputs[i].get_source_output().get_node_shared_ptr();
+        bool supported = ov::is_type<opset1::Constant>(node);
+        if (!supported && isConvertExpected) {
+            supported = ov::is_type<op::Convert>(node) && ov::is_type<opset1::Constant>(node->get_input_node_ptr(0));
+        }
+        if (!supported) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void QuantizationDetails::getInputIntervals(
@@ -163,6 +171,7 @@ bool QuantizationDetails::empty() const noexcept {
 }
 
 bool QuantizationDetails::isSupportedLevel(const size_t level) {
+    using ngraph::pass::low_precision::levels;
     static const std::unordered_set<size_t> supported_levels = {
         levels::int4,  levels::int4_narrow_range,
         levels::int8,  levels::int8_narrow_range,
