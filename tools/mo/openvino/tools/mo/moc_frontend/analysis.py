@@ -28,6 +28,7 @@ def json_model_analysis_dump(framework_model: Model):
         json_dump['inputs'][param_name]['value'] = 'None' # not supported in 22.1
 
     json_dump['intermediate'] = {}
+    #TODO: extend model analysis dump for operations with body graphs (If, Loop, and TensorIterator)
     for op in framework_model.get_ordered_ops():
         for out_idx in range(op.get_output_size()):
             output = op.output(out_idx)

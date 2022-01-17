@@ -21,7 +21,6 @@ openvino/tools/mo/analysis/__init__.py
 openvino/tools/mo/analysis/boolean_input.py
 openvino/tools/mo/analysis/inputs.py
 openvino/tools/mo/analysis/json_print.py
-openvino/tools/mo/analysis/json_print_new_frontend.py
 openvino/tools/mo/analysis/nodes.py
 openvino/tools/mo/analysis/tf_od_api.py
 openvino/tools/mo/analysis/tf_retinanet.py
@@ -837,6 +836,7 @@ openvino/tools/mo/mo_onnx.py
 openvino/tools/mo/mo_paddle.py
 openvino/tools/mo/mo_tf.py
 openvino/tools/mo/moc_frontend/__init__.py
+openvino/tools/mo/moc_frontend/analysis.py
 openvino/tools/mo/moc_frontend/extractor.py
 openvino/tools/mo/moc_frontend/pipeline.py
 openvino/tools/mo/moc_frontend/serialize.py

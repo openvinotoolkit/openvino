@@ -2,17 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import onnx
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 import os
 from os import environ
 import json
+import argparse
 from openvino.tools.mo.main import prepare_ir
 from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
-import argparse
-from openvino.tools.mo.analysis.json_print_new_frontend import json_model_analysis_print
+from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
 
 try:
     import openvino_telemetry as tm
@@ -82,7 +81,7 @@ class TestMoFallback(unittest.TestCase):
         self.models["test_model.onnx"] = model
 
         input_tensors_2 = [
-            make_tensor_value_info("in1", onnx.TensorProto.INT64, (1, None, 3)),
+            make_tensor_value_info("in1", onnx.TensorProto.INT64, (1, 'dyn_dim', 3)),
             make_tensor_value_info("in2", onnx.TensorProto.INT64, None),
             make_tensor_value_info("in3", onnx.TensorProto.INT64, ()),
         ]
@@ -100,10 +99,10 @@ class TestMoFallback(unittest.TestCase):
         split_2 = onnx.helper.make_node("Split", inputs=["mul_out"],
                                   outputs=["out3", "out4"], axis=0)
         output_tensors_3 = [
-            make_tensor_value_info("out1", onnx.TensorProto.FLOAT, None),
-            make_tensor_value_info("out2", onnx.TensorProto.FLOAT, None),
-            make_tensor_value_info("out3", onnx.TensorProto.FLOAT, None),
-            make_tensor_value_info("out4", onnx.TensorProto.FLOAT, None),
+            make_tensor_value_info("out1", onnx.TensorProto.FLOAT, 'dyn_dim'),
+            make_tensor_value_info("out2", onnx.TensorProto.FLOAT, 'dyn_dim'),
+            make_tensor_value_info("out3", onnx.TensorProto.FLOAT, 'dyn_dim'),
+            make_tensor_value_info("out4", onnx.TensorProto.FLOAT, 'dyn_dim'),
         ]
         graph_3 = make_graph([add, mul, split_1, split_2], "test_graph_3", input_tensors_2, output_tensors_3)
         model_3 = make_model(graph_3, producer_name="MO tests",
@@ -118,7 +117,8 @@ class TestMoFallback(unittest.TestCase):
         for name in self.models.keys():
             os.remove(name)
 
-    @patch('openvino.tools.mo.analysis.json_print_new_frontend.json_model_analysis_print')
+
+    @patch('openvino.tools.mo.moc_frontend.analysis.json_model_analysis_print')
     def test_model(self, json_print):
         args = base_args_config()
         args.input_model = "test_model.onnx"
@@ -138,7 +138,7 @@ class TestMoFallback(unittest.TestCase):
                                                       "add_out": {"shape": "None", "data_type": "None", "value": "None"}}')
 
 
-    @patch('openvino.tools.mo.analysis.json_print_new_frontend.json_model_analysis_print')
+    @patch('openvino.tools.mo.moc_frontend.analysis.json_model_analysis_print')
     def test_model_with_dyn_shapes(self, json_print):
         args = base_args_config()
         args.input_model = "test_model_2.onnx"
@@ -162,7 +162,7 @@ class TestMoFallback(unittest.TestCase):
                                                       "add_out": {"shape": "None", "data_type": "None", "value": "None"}}')
 
 
-    @patch('openvino.tools.mo.analysis.json_print_new_frontend.json_model_analysis_print')
+    @patch('openvino.tools.mo.moc_frontend.analysis.json_model_analysis_print')
     def test_multi_outputs_model(self, json_print):
         args = base_args_config()
         args.input_model = "test_model_3.onnx"
