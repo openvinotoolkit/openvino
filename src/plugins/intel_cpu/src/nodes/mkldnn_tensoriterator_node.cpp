@@ -52,9 +52,9 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     return config;
 }
 
-static void redefineToMemories(const std::vector<MKLDNNMemoryPtr>& to_mems, const std::shared_ptr<MemoryDesc> new_desc) {
+static void redefineToMemories(const std::vector<MKLDNNMemoryPtr>& to_mems, const MemoryDesc& new_desc) {
     const auto &currDesc = to_mems.front()->getDesc();
-    if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != new_desc->getShape().getStaticDims()) {
+    if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != new_desc.getShape().getStaticDims()) {
         // WA [DS] : need to rewrite it. Updated copypaste is from MKLDNNNode::redefineOutputMemory
         // this path is necessary if there are several edges per one port
         // in this case edge memory share same physical memory
@@ -75,6 +75,14 @@ static void redefineToMemories(const std::vector<MKLDNNMemoryPtr>& to_mems, cons
             to_mems[j]->redefineDesc(new_desc, data);
         }
     }
+}
+
+// this method get all memory ptrs of childs of one port to redefine descs for them
+static std::vector<MKLDNNMemoryPtr> getToMemories(const MKLDNNNode* node, const size_t port) {
+    std::vector<MKLDNNMemoryPtr> memories;
+    for (auto& edge : node->getChildEdgesAtPort(port))
+        memories.push_back(edge->getMemoryPtr());
+    return memories;
 }
 
 class PortIteratorHelper : public PortMapHelper {
@@ -307,7 +315,7 @@ void DynamicBuffer::move_data() {
 void DynamicBuffer::transfer(const MKLDNNNode* node) {
     const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
             MKLDNNExtensionUtils::convertToVectorDims(mem_holder_buffer->get_desc().dims()));
-    redefineToMemories(to, desc);
+    redefineToMemories(to, *desc);
 
     copy(get_ptr(*mem_holder_buffer.get()), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());
 }
@@ -566,7 +574,7 @@ void MKLDNNTensorIteratorNode::prepareInputPorts() {
     const auto &eng = getEngine();
     for (auto map_rule : inputPortMap) {
         auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &to_mem = input_mems[map_rule.to].front();  // first memory is enough to get common memory ptr
+        auto &to_mem = input_mems[map_rule.to].front();  // first memory is enough to access the shared underlying physical memory
 
         if (map_rule.axis == -1)
             first_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
@@ -607,7 +615,7 @@ void MKLDNNTensorIteratorNode::prepareDynamicBackEdges() {
         auto to_mems = input_mems[map_rule.to];
 
         const auto& desc = from_mem->getDesc();
-        redefineToMemories(to_mems, desc.clone());
+        redefineToMemories(to_mems, desc);
 
         // first memory is enough to get common memory ptr
         back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mems.front(), eng));
@@ -668,7 +676,7 @@ void MKLDNNTensorIteratorNode::reshapeSubgraphInput() {
             new_dims[map_rule.axis] = abs(map_rule.stride);
 
         const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
-        redefineToMemories(to_mems, desc);
+        redefineToMemories(to_mems, *desc);
     }
 }
 
@@ -680,7 +688,7 @@ void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
             auto &from_mem = output_mem[map_rule.to];
 
             const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(from_mem->getStaticDims());
-            redefineToMemories(to_mems, desc);
+            redefineToMemories(to_mems, *desc);
 
             BackEdgePortHelper mapper(from_mem, to_mems.front(), eng);
             mapper.execute(strm);
@@ -775,13 +783,6 @@ int MKLDNNTensorIteratorNode::getNumIteration(const std::vector<PortMap>& inputP
     }
 
     return numIterations;
-}
-
-std::vector<MKLDNNMemoryPtr> MKLDNNTensorIteratorNode::getToMemories(const MKLDNNNode* node, const size_t port) const {
-    std::vector<MKLDNNMemoryPtr> memories;
-    for (auto edge : node->getChildEdgesAtPort(port))
-        memories.push_back(edge->getMemoryPtr());
-    return memories;
 }
 
 bool MKLDNNTensorIteratorNode::created() const {

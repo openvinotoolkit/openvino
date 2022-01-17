@@ -131,9 +131,6 @@ private:
     void reshapeAndFillOutput(mkldnn::stream strm);
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
 
-    // this method get all memory ptrs of childs of one port to redefine descs for them
-    std::vector<MKLDNNMemoryPtr> getToMemories(const MKLDNNNode* node, const size_t port) const;
-
     MKLDNNExtensionManager::Ptr ext_mng;
     MKLDNNGraph sub_graph;
     std::vector<std::vector<MKLDNNMemoryPtr>> input_mems;
