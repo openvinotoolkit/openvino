@@ -63,8 +63,8 @@ def main():
             .set_layout(Layout('NHWC')) \
             .set_spatial_static_shape(h, w)  # noqa: ECE001, N400
     else:
-        # Since there is a 'Insert Transpose layers around the Interpolate layer' transformation used for MYRIAD plugin
-        # we have to make sure input and output have same data type as this is required for the Transpose stage.
+        # Since the MYRIAD plugin uses the 'Insert Transpose layers around the Interpolate layer' transformation
+        # we need to make sure the input and output are of the same data type as this is required for the Transpose stage.
         ppp.input().tensor() \
             .set_element_type(Type.f32) \
             .set_layout(Layout('NHWC')) \
