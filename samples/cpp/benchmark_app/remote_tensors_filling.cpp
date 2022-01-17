@@ -86,7 +86,7 @@ std::map<std::string, ov::runtime::TensorVector> get_remote_input_tensors(
         for (auto& input : inputs_info) {
             // Fill random
             slog::info << "Prepare remote blob for input '" << input.first << "' with random values ("
-                       << std::string((input.second.isImage() ? "image" : "some binary data")) << " is expected)"
+                       << std::string((input.second.is_image() ? "image" : "some binary data")) << " is expected)"
                        << slog::endl;
 
             auto tensor = oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
@@ -110,7 +110,7 @@ std::map<std::string, ov::runtime::TensorVector> get_remote_input_tensors(
                                                                    (cl::size_type)inputSize);
             if (inputFiles.empty()) {
                 // Filling in random data
-                fillBuffer(mappedPtr, elementsNum, input.second.type);
+                fill_buffer(mappedPtr, elementsNum, input.second.type);
             } else {
                 // TODO: add filling with real image data
             }
