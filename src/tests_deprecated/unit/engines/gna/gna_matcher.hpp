@@ -183,12 +183,6 @@ class GNATestConfigurability : public GNATestBase{
         _env.config[CONFIG_KEY(PERF_COUNT)] = InferenceEngine::PluginConfigParams::YES;
         return *dynamic_cast<T*>(this);
     }
-
-    T & enable_omp_multithreading() {
-        _env.is_setup_of_omp_theads_expected = true;
-        _env.config[CONFIG_KEY(SINGLE_THREAD)] = InferenceEngine::PluginConfigParams::NO;
-        return *dynamic_cast<T*>(this);
-    }
 };
 
 /**

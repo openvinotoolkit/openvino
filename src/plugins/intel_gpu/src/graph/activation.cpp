@@ -27,6 +27,7 @@ layout activation_inst::calc_output_layout(activation_node const& node) {
         activation_func::negative,
         activation_func::negation,
         activation_func::relu,
+        activation_func::floor,
         activation_func::clamp };
 
     if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::i32) {

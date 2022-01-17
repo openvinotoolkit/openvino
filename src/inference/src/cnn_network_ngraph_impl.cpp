@@ -439,8 +439,8 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
                 manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
-                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
+                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(false);
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
                 manager.register_pass<::ov::pass::DisableDecompressionConvertConstantFolding>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();
