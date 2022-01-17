@@ -47,6 +47,8 @@ def setup_env():
         else:
             os.environ[python_path_key] = os.pathsep.join([os.environ[python_path_key], mo_root_path])
 
+        sys.path.append(mo_root_path)
+
         status = subprocess.run([sys.executable, "-c", "try: import openvino.tools.mo \nexcept: exit(1)"], env=os.environ)
         if status.returncode != 0:
             log_mo_root_dir_not_found()
@@ -57,7 +59,7 @@ def setup_env():
         # find_ie_version in a separate Process, so we have to use Queue to send/get
         # os.environ variable. But as os.environ variable can not be transferred via
         # Queue we use temporary dictionary.
-        from utils.find_ie_version import find_ie_version
+        from openvino.tools.mo.utils.find_ie_version import find_ie_version  # pylint: disable=no-name-in-module
         q = Queue()
         q.put({x: os.environ[x] for x in os.environ.keys()})
         p = Process(target=find_ie_version, args=(q, True))
