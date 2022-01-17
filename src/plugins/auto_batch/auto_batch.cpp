@@ -349,6 +349,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
                     } else if ((status == std::cv_status::timeout) && sz) {
+                        std::cout << "timeout!!!" << std::endl;
                         // timeout to collect the batch is over, have to execute the requests in the batch1 mode
                         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
                         // popping all tasks collected by the moment of the time-out and execute each with batch1

@@ -16,7 +16,37 @@
 #endif
 
 namespace InferenceEngine {
+template <typename T>
+class ThreadSafeBoundedPriorityQueue {
+public:
+    ThreadSafeBoundedPriorityQueue() = default;
+    bool try_push(T value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_capacity) {
+            _queue.push(std::move(value));
+        }
+        return _capacity;
+    }
+    bool try_pop(T& value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_capacity && !_queue.empty()) {
+            value = std::move(_queue.top());
+            _queue.pop();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    void set_capacity(std::size_t newCapacity) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _capacity = newCapacity;
+    }
 
+protected:
+    std::priority_queue<T, std::vector<T>, std::greater<T>> _queue;
+    std::mutex _mutex;
+    bool _capacity = false;
+};
 template <typename T>
 class ThreadSafeQueueWithSize {
 public:
@@ -79,6 +109,37 @@ public:
 
 protected:
     std::queue<T> _queue;
+    std::mutex _mutex;
+    bool _capacity = false;
+};
+template <typename T>
+class ThreadSafeBoundedPriorityQueue {
+public:
+    ThreadSafeBoundedPriorityQueue() = default;
+    bool try_push(T value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_capacity) {
+            _queue.push(std::move(value));
+        }
+        return _capacity;
+    }
+    bool try_pop(T& value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_capacity && !_queue.empty()) {
+            value = std::move(_queue.top());
+            _queue.pop();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    void set_capacity(std::size_t newCapacity) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _capacity = newCapacity;
+    }
+
+protected:
+    std::priority_queue<T, vector<T>, std::greater<T>> _queue;
     std::mutex _mutex;
     bool _capacity = false;
 };
