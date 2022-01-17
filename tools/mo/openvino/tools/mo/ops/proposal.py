@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank
+from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank, set_input_shapes
 from openvino.tools.mo.front.extractor import attr_getter, bool_to_str
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
@@ -70,8 +70,4 @@ class ProposalOp(Op):
 
     @staticmethod
     def reverse_infer(node):
-        if node.in_port(0).data.get_shape() is None:
-            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))
-
-        if node.in_port(1).data.get_shape() is None:
-            node.in_port(1).data.set_shape(undefined_shape_of_rank(4))
+        set_input_shapes(node, undefined_shape_of_rank(4), undefined_shape_of_rank(4))

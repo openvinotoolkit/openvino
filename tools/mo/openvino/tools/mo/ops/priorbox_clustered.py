@@ -4,7 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.layout import get_width_dim, get_height_dim
-from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank
+from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank, set_input_shapes
 from openvino.tools.mo.front.extractor import attr_getter
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
@@ -77,8 +77,4 @@ class PriorBoxClusteredOp(Op):
 
     @staticmethod
     def reverse_infer(node):
-        if node.in_port(0).data.get_shape() is None:
-            node.in_port(0).data.set_shape(undefined_shape_of_rank(1))
-
-        if node.in_port(1).data.get_shape() is None:
-            node.in_port(1).data.set_shape(undefined_shape_of_rank(1))
+        set_input_shapes(node, undefined_shape_of_rank(1), undefined_shape_of_rank(1))

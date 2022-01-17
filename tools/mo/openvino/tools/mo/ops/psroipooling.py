@@ -3,7 +3,7 @@
 
 from openvino.tools.mo.front.common.layout import get_batch_dim, shape_for_layout
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array, \
-    undefined_shape_of_rank
+    undefined_shape_of_rank, set_input_shapes
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -62,11 +62,7 @@ class PSROIPoolingOp(Op):
 
     @staticmethod
     def reverse_infer(node):
-        if node.in_port(0).data.get_shape() is None:
-            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))
-
-        if node.in_port(1).data.get_shape() is None:
-            node.in_port(1).data.set_shape(shape_array([dynamic_dimension_value, 5]))
+        set_input_shapes(node, undefined_shape_of_rank(4), shape_array([dynamic_dimension_value, 5]))
 
 
 class DeformablePSROIPoolingOp(PSROIPoolingOp):
@@ -90,14 +86,10 @@ class DeformablePSROIPoolingOp(PSROIPoolingOp):
 
     @staticmethod
     def reverse_infer(node):
-        if node.in_port(0).data.get_shape() is None:
-            node.in_port(0).data.set_shape(undefined_shape_of_rank(4))
+        transformation_values_shape = shape_array(
+            [dynamic_dimension_value, dynamic_dimension_value, int(node.group_size), int(node.group_size)])
 
-        if node.in_port(1).data.get_shape() is None:
-            node.in_port(1).data.set_shape(shape_array([dynamic_dimension_value, 5]))
-
-        if node.is_in_port_connected(2) and node.in_port(2).data.get_shape() is None:
-            node.in_port(2).data.set_shape(shape_array([dynamic_dimension_value,
-                                                        dynamic_dimension_value,
-                                                        int(node.group_size),
-                                                        int(node.group_size)]))
+        set_input_shapes(node,
+                         undefined_shape_of_rank(4),
+                         shape_array([dynamic_dimension_value, 5]),
+                         transformation_values_shape)

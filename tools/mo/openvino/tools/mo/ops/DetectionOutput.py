@@ -4,7 +4,7 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, compatible_dims, \
-    undefined_shape_of_rank
+    undefined_shape_of_rank, set_input_shapes
 from openvino.tools.mo.front.extractor import bool_to_str
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.graph.graph import Node
@@ -109,17 +109,9 @@ class DetectionOutput(Op):
 
     @staticmethod
     def reverse_infer(node):
-        if node.in_port(0).data.get_shape() is None:
-            node.in_port(0).data.set_shape(undefined_shape_of_rank(2))
-
-        if node.in_port(1).data.get_shape() is None:
-            node.in_port(1).data.set_shape(undefined_shape_of_rank(2))
-
-        if node.in_port(2).data.get_shape() is None:
-            node.in_port(2).data.set_shape(undefined_shape_of_rank(3))
-
-        if node.is_in_port_connected(3) and node.in_port(3).data.get_shape() is None:
-            node.in_port(3).data.set_shape(undefined_shape_of_rank(2))
-
-        if node.is_in_port_connected(4) and node.in_port(4).data.get_shape() is None:
-            node.in_port(4).data.set_shape(undefined_shape_of_rank(2))
+        set_input_shapes(node,
+                         undefined_shape_of_rank(2),
+                         undefined_shape_of_rank(2),
+                         undefined_shape_of_rank(3),
+                         undefined_shape_of_rank(2),
+                         undefined_shape_of_rank(2))
