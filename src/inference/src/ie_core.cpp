@@ -522,32 +522,32 @@ public:
 
     void ApplyAutoBatching(const ie::CNNNetwork& network,
                            std::string& deviceName,
-                           std::map<std::string, std::string>& config_with_batch) {
+                           std::map<std::string, std::string>& config) {
         if (deviceName.find("BATCH") != std::string::npos)  // explicitly enabled Auto-Batching e.g. in the tests
             return;
         // check whether the Auto-Batching is disabled explicitly
-        const auto& batch_mode = config_with_batch.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-        if (batch_mode != config_with_batch.end()) {
+        const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+        if (batch_mode != config.end()) {
             const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
             // no need for this config key in the rest of loading
-            config_with_batch.erase(batch_mode);
+            config.erase(batch_mode);
             if (disabled)
                 return;
         }
         // if the Auto-Batching is applicable to the device
         auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
-        auto pluginName = device._deviceName;
-        std::vector<std::string> metrics = GetCPPPluginByName(pluginName).get_metric(METRIC_KEY(SUPPORTED_METRICS), {});
+        auto plugin = device._deviceName;
+        std::vector<std::string> metrics = GetCPPPluginByName(plugin).get_metric(METRIC_KEY(SUPPORTED_METRICS), {});
         auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
         if (metrics.end() == it)
             return;
         // when applicable, the Auto-Batching is implicitly enabled via the performance hints
-        bool bThroughputEnabledInPlugin =
-            GetConfig(pluginName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
-        const auto& mode = config_with_batch.find(CONFIG_KEY(PERFORMANCE_HINT));
-        bool bThroughputEnabledInLoadCfg =
-            (mode != config_with_batch.end() && mode->second == CONFIG_VALUE(THROUGHPUT));
-        if (!bThroughputEnabledInPlugin && !bThroughputEnabledInLoadCfg)
+        bool bTputInPlg = GetConfig(plugin, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+        const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+        bool bTputInLoadCfg = (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT));
+        const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
+        bool bExclReqsEnabled = (excl != config.end() && excl->second == CONFIG_VALUE(YES));
+        if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
             return;
         // the rest of logic (batch size, reshapebility of the network, HETERO if needed) is handled by the BATCH plugin
         deviceName = "BATCH:" + deviceName;

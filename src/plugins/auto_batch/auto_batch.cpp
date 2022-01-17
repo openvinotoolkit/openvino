@@ -705,11 +705,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         }
     }
     if (bDetectionOutput) {
-        auto config_with_batch = config;
-        //        if (config_with_batch.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) == config_with_batch.end()) // when
-        //        enabled via tput hint
-        //            config_with_batch[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = deviceName;
-        return GetCore()->LoadNetwork(network, "HETERO:BATCH," + deviceName, config_with_batch)._ptr;
+        auto config_without_autobatch = config;
+        config_without_autobatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);  // avoid recursive auto-batching
+        return GetCore()->LoadNetwork(network, "HETERO:BATCH," + deviceName, config_without_autobatch)._ptr;
     }
 
     if (!metaDevice.batchForDevice) {
