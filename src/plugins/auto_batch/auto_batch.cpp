@@ -681,7 +681,51 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     auto metaDevice = ParseMetaDevice(device_batch->second, fullConfig);
     const auto& deviceName = metaDevice.deviceName;
     const auto& deviceConfig = metaDevice.config;
+    auto config_without_autobatch = config, deviceConfigNoAutoBatch = deviceConfig;
+    // avoid recursive auto-batching
+    config_without_autobatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
+    deviceConfigNoAutoBatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
+
     auto function = network.getFunction();
+    // check that the auto-batching is applicable in general
+    try {
+        // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
+        // the below code is a placeholder for the WIP (22.1) functionality
+        // that will check the reshaping by the batch is robust (CVS-51744)
+        const InputsDataMap inputInfo = network.getInputsInfo();
+        bool atLeastOneInputIsBatched = false;
+        for (const InputsDataMap::value_type& item : inputInfo) {
+            auto layout = item.second->getTensorDesc().getLayout();
+            if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
+                layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+                layout == InferenceEngine::Layout::NDHWC) {
+                if (1 != item.second->getTensorDesc().getDims()[0])  // do not reshape/re-batch batched networks
+                    IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
+                else
+                    atLeastOneInputIsBatched = true;
+            }
+        }
+        bool atLeastOneOutputIsBatched = false;
+        const OutputsDataMap outputInfo = network.getOutputsInfo();
+        for (const OutputsDataMap::value_type& item : outputInfo) {
+            auto layout = item.second->getTensorDesc().getLayout();
+            if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW ||
+                layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+                layout == InferenceEngine::Layout::NDHWC) {
+                if (1 != item.second->getTensorDesc().getDims()[0])  // do not reshape/re-batch batched networks
+                    IE_THROW(NotImplemented) << "Auto-batching does not reshape/re-batch originally batched networks!";
+                else
+                    atLeastOneOutputIsBatched = true;
+            }
+        }
+        if (!atLeastOneInputIsBatched || !atLeastOneOutputIsBatched)
+            IE_THROW(NotImplemented)
+                << "Auto-batching supports only networks featuring inputs/outputs with the batched layouts !";
+    } catch (...) {
+        // fallback to loading as if no Auto-Batching was invloved
+        return GetCore()->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch)._ptr;
+    }
+
     // have to execute the DetectionOutput separately (without batching)
     // as this layer mix-in the values from the different inputs (batch id)
     bool bDetectionOutput = false;
@@ -704,11 +748,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             node->get_rt_info()["affinity"] = "BATCH";
         }
     }
-    if (bDetectionOutput) {
-        auto config_without_autobatch = config;
-        config_without_autobatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);  // avoid recursive auto-batching
+    if (bDetectionOutput)  //'BATCH' will be configured via AUTO_BATCH_DEVICE_CONFIG, so (further) ALLOW_BATCHING is NO
         return GetCore()->LoadNetwork(network, "HETERO:BATCH," + deviceName, config_without_autobatch)._ptr;
-    }
 
     if (!metaDevice.batchForDevice) {
         unsigned int requests = 0;
@@ -735,10 +776,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         PluginConfigParams::YES;
     const bool enablePerfCounters = perfConfigInTargetPlugin || ((fullConfig.end() != perfConfig) &&
                                                                  (perfConfig->second == PluginConfigParams::YES));
-    auto deviceConfigNoAutoBatch = deviceConfig;
-    // avoid recursive auto-batching
-    deviceConfigNoAutoBatch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(NO);
-
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
         size_t footprint = 0;
         // TODO: use the per-network metric (22.2) rather than plugin-level
