@@ -62,7 +62,7 @@ protected:
  */
 class DynamicBuffer {
 public:
-    DynamicBuffer(const MKLDNNMemoryPtr &from, const std::vector<MKLDNNMemoryPtr> &to, const PortMap &map_rule);
+    DynamicBuffer(const MKLDNNMemoryPtr &from_, const std::vector<MKLDNNMemoryPtr> &to_, const PortMap &map_rule_);
     ~DynamicBuffer() = default;
 
     void execute(const mkldnn::engine& eng, const int iter);

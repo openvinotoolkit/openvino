@@ -320,7 +320,7 @@ const std::vector<ElementType> inputPrecisions = {
 };
 
 std::vector<InputLayerType> trip_count_type { InputLayerType::CONSTANT, InputLayerType::PARAMETER };
-std::vector<int64_t> trip_count { 1, 5 }; // works only if trip_count_type is constant
+std::vector<int64_t> trip_count { /*0,*/ 1, 5 }; // works only if trip_count_type is constant. Zero count of iteration not supported in reference
 
 // dim[axis] = 1 because loop supports concatenation only with stride = part_size = 1
 // the first loop suit test is with output concatenation
