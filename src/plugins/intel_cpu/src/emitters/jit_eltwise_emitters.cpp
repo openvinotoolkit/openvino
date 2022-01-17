@@ -18,8 +18,8 @@ namespace MKLDNNPlugin {
 /// ADD ///
 jit_add_emitter::jit_add_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_add_emitter::jit_add_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_add_emitter::jit_add_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_add_emitter::get_inputs_num() const { return 2; }
 
@@ -55,8 +55,8 @@ void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 /// MUL_ADD ///
 jit_mul_add_emitter::jit_mul_add_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_mul_add_emitter::jit_mul_add_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_mul_add_emitter::jit_mul_add_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_mul_add_emitter::get_inputs_num() const { return 3; }
 
@@ -117,8 +117,8 @@ size_t jit_mul_add_emitter::aux_vecs_count() const {
 /// SUB ///
 jit_subtract_emitter::jit_subtract_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_subtract_emitter::jit_subtract_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_subtract_emitter::jit_subtract_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_subtract_emitter::get_inputs_num() const { return 2; }
 
@@ -155,8 +155,8 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
 /// MULTIPLY ///
 jit_multiply_emitter::jit_multiply_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_multiply_emitter::jit_multiply_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_multiply_emitter::jit_multiply_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_multiply_emitter::get_inputs_num() const { return 2; }
 
@@ -193,8 +193,8 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
 /// DIVIDE ///
 jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_divide_emitter::get_inputs_num() const { return 2; }
 
@@ -260,8 +260,8 @@ size_t jit_divide_emitter::aux_vecs_count() const {
 /// FLOOR_MOD ///
 jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_floor_mod_emitter::get_inputs_num() const { return 2; }
 
@@ -312,8 +312,8 @@ size_t jit_floor_mod_emitter::aux_vecs_count() const {
 /// MOD ///
 jit_mod_emitter::jit_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_mod_emitter::jit_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_mod_emitter::jit_mod_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_mod_emitter::get_inputs_num() const { return 2; }
 
@@ -364,8 +364,8 @@ size_t jit_mod_emitter::aux_vecs_count() const {
 /// MAXIMUM ///
 jit_maximum_emitter::jit_maximum_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_maximum_emitter::jit_maximum_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_maximum_emitter::jit_maximum_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_maximum_emitter::get_inputs_num() const { return 2; }
 
@@ -414,8 +414,8 @@ std::set<InferenceEngine::Precision> jit_maximum_emitter::get_supported_precisio
 /// MINIMUM ///
 jit_minimum_emitter::jit_minimum_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_minimum_emitter::jit_minimum_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_minimum_emitter::jit_minimum_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_minimum_emitter::get_inputs_num() const { return 2; }
 
@@ -465,8 +465,8 @@ std::set<InferenceEngine::Precision> jit_minimum_emitter::get_supported_precisio
 jit_squared_difference_emitter::jit_squared_difference_emitter(
     jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_squared_difference_emitter::jit_squared_difference_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_squared_difference_emitter::jit_squared_difference_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_squared_difference_emitter::get_inputs_num() const { return 2; }
 
@@ -506,8 +506,8 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_
 /// POWER_DYNAMIC ///
 jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_power_dynamic_emitter::get_inputs_num() const { return 2; }
 
@@ -617,8 +617,8 @@ jit_equal_emitter::jit_equal_emitter(jit_generator *host, cpu_isa_t host_isa, co
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_equal_emitter::jit_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_equal_emitter::jit_equal_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -678,8 +678,8 @@ jit_not_equal_emitter::jit_not_equal_emitter(jit_generator *host, cpu_isa_t host
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_not_equal_emitter::jit_not_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_not_equal_emitter::jit_not_equal_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -739,8 +739,8 @@ jit_greater_emitter::jit_greater_emitter(jit_generator *host, cpu_isa_t host_isa
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_greater_emitter::jit_greater_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_greater_emitter::jit_greater_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -800,8 +800,8 @@ jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator *host, cpu_is
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -861,8 +861,8 @@ jit_less_emitter::jit_less_emitter(jit_generator *host, cpu_isa_t host_isa, cons
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_less_emitter::jit_less_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_less_emitter::jit_less_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -922,8 +922,8 @@ jit_less_equal_emitter::jit_less_equal_emitter(jit_generator *host, cpu_isa_t ho
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_less_equal_emitter::jit_less_equal_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_less_equal_emitter::jit_less_equal_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -984,8 +984,8 @@ jit_logical_and_emitter::jit_logical_and_emitter(jit_generator *host, cpu_isa_t 
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_and_emitter::jit_logical_and_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_and_emitter::jit_logical_and_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -1066,8 +1066,8 @@ jit_logical_or_emitter::jit_logical_or_emitter(jit_generator *host, cpu_isa_t ho
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_or_emitter::jit_logical_or_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_or_emitter::jit_logical_or_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -1147,8 +1147,8 @@ jit_logical_xor_emitter::jit_logical_xor_emitter(jit_generator *host, cpu_isa_t 
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_xor_emitter::jit_logical_xor_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_xor_emitter::jit_logical_xor_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -1228,8 +1228,8 @@ jit_logical_not_emitter::jit_logical_not_emitter(jit_generator *host, cpu_isa_t 
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_logical_not_emitter::jit_logical_not_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_logical_not_emitter::jit_logical_not_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
@@ -1298,16 +1298,10 @@ jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_
     prepare_table();
 }
 
-jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
-    const MKLDNNEltwiseNode *powerNode = dynamic_cast<const MKLDNNEltwiseNode *>(node);
-    if (powerNode == nullptr) {
-        IE_THROW() << "Can't cast to MKLDNNEltwiseNode";
-    }
-    power = powerNode->getAlpha();
-    scale = powerNode->getBeta();
-    shift = powerNode->getGamma();
-
+jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa,
+                                                   float inpPower, float inpScale, float inpShift,
+                                                   Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc), power(inpPower), scale(inpScale), shift(inpShift) {
     prepare_table();
 }
 
@@ -1483,8 +1477,8 @@ jit_prelu_emitter::jit_prelu_emitter(jit_generator *host, cpu_isa_t host_isa, co
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
-jit_prelu_emitter::jit_prelu_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_prelu_emitter::jit_prelu_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 size_t jit_prelu_emitter::get_inputs_num() const { return 2; }
@@ -1541,8 +1535,8 @@ size_t jit_prelu_emitter::aux_vecs_count() const {
 /// SQRT ///
 jit_sqrt_emitter::jit_sqrt_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_sqrt_emitter::jit_sqrt_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
+jit_sqrt_emitter::jit_sqrt_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_sqrt_emitter::get_inputs_num() const { return 1; }
 
@@ -1599,8 +1593,8 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
 }
 
 /// ERF ///
-jit_erf_emitter::jit_erf_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+jit_erf_emitter::jit_erf_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 

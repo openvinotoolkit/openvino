@@ -47,6 +47,9 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         :param places An object containing Places and names that will be used for model modification
         """
         for new_input in places:
+            if not hasattr(new_input, 'input_name'):
+                continue
+
             try:
                 model.add_name_for_tensor(new_input['node'], new_input['input_name'])
             except NotImplementedFailure as e:

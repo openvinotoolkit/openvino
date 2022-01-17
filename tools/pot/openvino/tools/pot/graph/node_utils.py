@@ -286,3 +286,6 @@ def get_node_data_type(node, port_id=0):
 
 def reset_node_fullname(old_fullname, node_name):
     return '|'.join(old_fullname.split('|')[:-1] + [node_name])
+
+def convert_to_outputs_name(node_name):
+    return node_name if isinstance(node_name, tuple) else (node_name, 0)

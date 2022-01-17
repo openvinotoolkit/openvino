@@ -8,11 +8,11 @@ Image Classification Async C++ sample application demonstrates how to use the fo
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-|Inference Engine Version| `InferenceEngine::GetInferenceEngineVersion` | Get Inference Engine API version
-|Available Devices|`InferenceEngine::Core::GetAvailableDevices`| Get version information of the devices for inference
-| Asynchronous Infer | `InferenceEngine::InferRequest::StartAsync`, `InferenceEngine::InferRequest::SetCompletionCallback` | Do asynchronous inference with callback
-|Custom Extension Kernels|`InferenceEngine::Core::AddExtension`, `InferenceEngine::Core::SetConfig`| Load extension library and config to the device
-| Network Operations | `InferenceEngine::CNNNetwork::setBatchSize`, `InferenceEngine::CNNNetwork::getBatchSize`, `InferenceEngine::CNNNetwork::getFunction` |  Managing of network, operate with its batch size. Setting batch size using input image count.
+|OpenVINO Runtime Version| `ov::get_openvino_version` | Get Openvino API version
+|Available Devices| `ov::runtime::Core::get_available_devices`| Get version information of the devices for inference
+| Asynchronous Infer | `ov::runtime::InferRequest::start_async`, `ov::runtime::InferRequest::set_callback` | Do asynchronous inference with callback
+|Custom Extension Kernels| `ov::runtime::Core::add_extension`, `ov::runtime::Core::set_config`| Load extension library and config to the device
+| Model Operations | `ov::set_batch`, `ov::get_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count.
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 

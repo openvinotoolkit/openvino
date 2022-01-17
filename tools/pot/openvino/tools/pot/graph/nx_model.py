@@ -186,7 +186,7 @@ class NXModel:
             for model_dict in self._models:
                 model_name, model = model_dict['name'], model_dict['model']
                 for node in ge.get_all_operation_nodes(model, recursively=False):
-                    rename_node(node, f'{model_name}_{node.name}')
+                    node.name = f'{model_name}_{node.name}'
 
     def _remove_models_prefix(self):
         """Removes model name prefix from node names"""
