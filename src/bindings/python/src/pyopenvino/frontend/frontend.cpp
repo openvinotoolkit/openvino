@@ -160,7 +160,6 @@ void regclass_frontend_FrontEnd(py::module m) {
                     A path to extension.
             )");
 
-
     fem.def("__repr__", [](const FrontEnd& self) -> std::string {
         return "<FrontEnd '" + self.get_name() + "'>";
     });
