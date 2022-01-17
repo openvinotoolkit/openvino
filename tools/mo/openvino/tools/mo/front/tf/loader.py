@@ -217,6 +217,12 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
         if model_dir:
             # saved model directory
             try:
+                # Try to import Keras model.
+                # Not applicable for TF1
+                saved_model = tf.keras.models.load_model(model_dir)
+            except IndexError:
+                saved_model = None
+            try:
                 env_setup = get_environment_setup("tf")
                 # enable eager execution temporarily while TensorFlow 2 model is being loaded
                 tf_v1.enable_eager_execution()
@@ -238,16 +244,20 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 # disable eager execution since next steps are executed with a graph in non-eager mode
                 tf_v1.disable_eager_execution()
 
-                saved_model = tf.keras.models.load_model(model_dir, custom_objects=None)
-                input_names = [tensor.name for tensor in saved_model.inputs]
+                inputs_outputs_order = None
+                if saved_model is not None:
+                    # Extract tensor names order from Keras model
+                    input_names = [tensor.name for tensor in saved_model.inputs]
 
-                # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
-                # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
-                # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
-                # order alignment.
-                output_names = [tensor.name for tensor in frozen_func.outputs]
+                    # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
+                    # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
+                    # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
+                    # order alignment.
+                    output_names = [tensor.name for tensor in frozen_func.outputs]
 
-                return graph_def, variables_values, 'tf2', (input_names, output_names)
+                    inputs_outputs_order = (input_names, output_names)
+
+                return graph_def, variables_values, 'tf2', inputs_outputs_order
             except (TypeError, KeyError):
                 # disable eager execution since TensorFlow 1 model is handled
                 tf_v1.disable_eager_execution()
