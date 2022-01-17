@@ -117,7 +117,13 @@ std::vector<fusingSpecificParams> fusingParamsSet {
 std::vector<fusingSpecificParams> fusingParamsSetDynamic {
     emptyFusingSpec,
     fusingMultiplyPerTensor,
-    fusingRelu
+    fusingRelu,
+    fusingFakeQuantizePerTensor
+};
+
+std::vector<fusingSpecificParams> fusingParamsSetPerChannel {
+    fusingPReluPerChannel,
+    fusingFakeQuantizePerChannel
 };
 
 const float epsilon = 1e-4f;
@@ -179,7 +185,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_2D_FusingPerChannel, NormalizeL2LayerCPUT
                                  ::testing::Values(epsilon),
                                  ::testing::Values(epsMode),
                                  ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::Values(fusingPReluPerChannel)),
+                                 ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 3D ============= */
@@ -236,7 +242,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_3D_FusingPerChannel, NormalizeL2LayerCPUT
                                  ::testing::Values(epsilon),
                                  ::testing::Values(epsMode),
                                  ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::Values(fusingPReluPerChannel)),
+                                 ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 4D ============= */
@@ -307,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_4D_FusingPerChannel, NormalizeL2LayerCPUT
                                  ::testing::Values(epsilon),
                                  ::testing::Values(epsMode),
                                  ::testing::ValuesIn(getCPUSpecificParams()),
-                                 ::testing::Values(fusingPReluPerChannel)),
+                                 ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
 } // namespace
