@@ -42,8 +42,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
 
-        // TODO: Issue 57363 (Param -> Result subgraphs)
-        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=1_.*)",
         // TODO: Issue 57368 (accuracy)
         R"(.*smoke_MemoryTest.*LOW_LATENCY.*IS=\(1.10\).*)",
         R"(.*smoke_MemoryTest.*iteration_count=3.*IS=\(1.10\).*)",

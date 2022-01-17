@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -879,6 +879,7 @@ void InsertCopyLayerPass::run() {
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
     // and copies before concat layers (one less copy than outputs)
     // Concat has multiple connections to the same input
+    // Subgraph has only non-functional layers
     for (auto & l : *pLayers) {
         if (!LayerInfo(l).isConcat()) continue;
 
@@ -975,6 +976,33 @@ void InsertCopyLayerPass::run() {
                     InsertCopyLayer(l, concatLayer, inputIdx, this->getPassManager(), CopyLayerName);
                 }
                 currentCopyIdx++;
+            }
+        }
+    }
+
+    for (auto & l : *pLayers) {
+        if (!l->insData.empty()) continue;
+
+        for (auto output : l->outData) {
+            auto& inputTo = getInputTo(output);
+            for (auto& childLayer : inputTo) {
+                auto current_layer = childLayer.second;
+                auto previous_layer = l;
+                std::vector<int> connections = CNNLayerFindInsDataIdxes(output, childLayer.second);
+
+                for (auto input_idx : connections) {
+                    while (LayerInfo(current_layer).isNonFunctional()) {
+                        if (current_layer->outData.size() == 0) break;
+                        if (getInputTo(current_layer->outData[0]).size() == 0) break;
+                        previous_layer = current_layer;
+                        current_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, input_idx, [](CNNLayerPtr origin){return false;}).first;
+                    }
+                    // exit by a while condition -> we found functional layer
+                    if (!LayerInfo(current_layer).isNonFunctional()) continue;
+
+                    // exit by break -> subgraph has only non-func layers -> need to insert copy-layer
+                    InsertCopyLayer(previous_layer, current_layer, input_idx, this->getPassManager(), CopyLayerName);
+                }
             }
         }
     }
