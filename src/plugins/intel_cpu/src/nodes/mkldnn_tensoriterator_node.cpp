@@ -328,6 +328,8 @@ void DynamicBuffer::transfer(const MKLDNNNode* node) {
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
         redefineToMemories(to, *desc);
     }
+
+    mem_holder_buffer.reset();
 }
 
 void DynamicBuffer::copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len) {
@@ -473,8 +475,10 @@ void MKLDNNTensorIteratorNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNTensorIteratorNode::createPrimitive() {
     if (loopBodyConditionOutputIdx == -1)
         continue_cond_check.reset(new staticValueCheck(true)); // always true
-    if (loopExecutionConditionIdx == -1)
+    if (loopExecutionConditionIdx == -1) {
         initial_cond_check.reset(new staticValueCheck(true));
+        lastUsedCond = initial_cond_check->getStatus();
+    }
 
     if (isDynamicNode())
         prepareDynamicBuffers();
@@ -494,19 +498,18 @@ bool MKLDNNTensorIteratorNode::needPrepareParams() const {
 }
 
 void MKLDNNTensorIteratorNode::prepareParams() {
-    prepareInitialCond();
     prepareTripCount();
+    prepareInitialCond();
 
-    if (lastUsedCond && lastUsedTripCount != 0) {
+    first_mappers.clear();
+    before_mappers.clear();
+    back_mappers.clear();
+
+    if (lastUsedCond && lastUsedTripCount != 0 || !isDynamicNode()) {
         reshapeSubgraphInput();
-
-        first_mappers.clear();
-        before_mappers.clear();
-        back_mappers.clear();
 
         prepareInputPorts();
         prepareContinueCond();
-        // special purpose ports
         prepareLoopBodyCurrentIteration();
 
         if (!isDynamicNode()) {
