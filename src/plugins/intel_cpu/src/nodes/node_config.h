@@ -34,7 +34,7 @@ template<class T>
 class PortDescBase_ : public PortDescBase {
 protected:
     PortDescBase_() = default;
-    bool compareImpl(const PortDescBase& rhs) const override final {
+    bool compareImpl(const PortDescBase& rhs) const override /*final*/ {
         return static_cast<const T&>(*this).compare(static_cast<const T&>(rhs));
     }
 };
