@@ -269,6 +269,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         auto recycleTask = [this]() mutable {
             WaitActualNetworkReady();
             while (!_exitFlag && _loadContext[ACTUALDEVICE].isAlready) {
+                // handle the case of ACTUAL faster than CPU
+                _loadContext[CPU].future.wait();
                 // clean up helper infer requests
                 // first, wait for all the remaining requests to finish
                 for (auto& iter : _workerRequests["CPU_HELP"]) {

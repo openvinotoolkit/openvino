@@ -11,6 +11,7 @@
 #include <vector>
 
 // clang-format off
+#include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
 
 #include "gna/gna_config.hpp"
@@ -173,10 +174,8 @@ int main(int argc, char* argv[]) {
         ov::runtime::Core core;
 
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
-            // pointer to base extension
-            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
-            core.add_extension(extension_ptr);
+            // CPU (MKLDNN) extensions is loaded as a shared library
+            core.add_extension(FLAGS_l);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
 
@@ -350,9 +349,6 @@ int main(int argc, char* argv[]) {
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
                 else
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I16";
-
-                if (isFlagSetInCommandLine("nthreads"))
-                    device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
             } else {
                 std::vector<std::string> supported_config_keys =
                     core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
@@ -468,13 +464,25 @@ int main(int argc, char* argv[]) {
             next_step();
             auto preproc = ov::preprocess::PrePostProcessor(model);
 
-            processPrecision(*model, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            ov::runtime::ConfigMap user_precisions_map;
+            if (!FLAGS_iop.empty()) {
+                user_precisions_map = parseArgMap(FLAGS_iop);
+            }
+
+            const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
+            const auto output_precision = FLAGS_op.empty() ? ov::element::undefined : getPrecision2(FLAGS_op);
+
             for (auto& item : model->inputs()) {
                 // if precision for input set by user, then set it to app_inputs
                 const auto& name = item.get_any_name();
-                if (!FLAGS_ip.empty() || FLAGS_iop.find(name) != std::string::npos) {
+                if (user_precisions_map.count(name)) {
+                    const auto precision = getPrecision2(user_precisions_map.at(name));
                     for (auto& info : app_inputs_info) {
-                        info.at(name).type = item.get_element_type();
+                        info.at(name).type = precision;
+                    }
+                } else if (input_precision != ov::element::undefined) {
+                    for (auto& info : app_inputs_info) {
+                        info.at(name).type = input_precision;
                     }
                 } else if (app_inputs_info[0].at(name).isImage()) {
                     // image input, set U8
@@ -489,6 +497,17 @@ int main(int argc, char* argv[]) {
                 in.model().set_layout(app_inputs_info[0].at(name).layout);
             }
 
+            for (auto& item : model->outputs()) {
+                // if precision for input set by user, then set it to app_inputs
+                const auto& name = item.get_any_name();
+                if (user_precisions_map.count(name)) {
+                    const auto precision = getPrecision2(user_precisions_map.at(name));
+                    preproc.output(name).tensor().set_element_type(precision);
+                } else if (output_precision != ov::element::undefined) {
+                    preproc.output(name).tensor().set_element_type(output_precision);
+                }
+            }
+
             model = preproc.build();
 
             // Check if network has dynamic shapes
@@ -500,9 +519,10 @@ int main(int argc, char* argv[]) {
                                            });
 
             topology_name = model->get_friendly_name();
-            // use batch size according to provided layout and shapes (static case)
-            if (!isDynamicNetwork) {
-                batchSize = getModelInputBatchSize(*model);
+
+            // Calculate batch size according to provided layout and shapes (static case)
+            if (!isDynamicNetwork && app_inputs_info.size()) {
+                batchSize = getBatchSize(app_inputs_info.front());
 
                 slog::info << "Network batch size: " << batchSize << slog::endl;
             } else if (batchSize == 0) {
@@ -532,7 +552,7 @@ int main(int argc, char* argv[]) {
             next_step();
             auto startTime = Time::now();
 
-            std::ifstream modelStream(FLAGS_m);
+            std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
             }
