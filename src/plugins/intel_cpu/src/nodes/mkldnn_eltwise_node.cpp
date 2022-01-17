@@ -1749,7 +1749,8 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         };
 
         // TODO [DS]: inplace
-        size_t offset = isDynamicNode() ? 0 : std::numeric_limits<size_t>::max();
+        uint32_t mask = 0xffffffff ^ (1 << 31); // accepts any offset
+        size_t offset = 0;
         NodeConfig config;
         if (!isDynamicNode()) {
             config.dynBatchSupport = getOutputShapeAtPort(0).getRank() > 1 && getOutputShapeAtPort(0) ==
@@ -1764,19 +1765,10 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             portConfig.constant(false);
 
             const auto &srcShape = getInputShapeAtPort(i);
-            portConfig.setMemDesc(createMemoryDesc(srcShape, inputPrecisions[i], offset));
             if (!isDynamicNode() && srcShape.getDims()[0] == 1) {
-                const auto denseDesc = portConfig.getMemDesc()->as<BlockedMemoryDesc>();
-                auto strides = denseDesc->getStrides();
-                strides[0] = Shape::UNDEFINED_DIM;
-                portConfig.setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                         denseDesc->getShape(),
-                                                                         denseDesc->getBlockDims(),
-                                                                         denseDesc->getOrder(),
-                                                                         denseDesc->getOffsetPadding(),
-                                                                         denseDesc->getOffsetPaddingToData(),
-                                                                         strides));
+                mask ^= (0x1); // accepts any stride on the batch axis
             }
+            portConfig.setMemDesc(createMemoryDesc(srcShape, inputPrecisions[i], offset), mask);
 
             config.inConfs.push_back(portConfig);
         }
@@ -1964,7 +1956,7 @@ void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
-    if (!isConfigDefined(config)) {
+    if (!isDynamicNode()) { //isConfigDefined(config)
         for (size_t i = 0; i < config.inConfs.size(); i++) {
             config.inConfs[i].setMemDesc(getDefinedInputDesc(config, i));
         }

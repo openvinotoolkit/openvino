@@ -579,12 +579,14 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
             return;
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
-            if (!selectedConfig.inConfs[i].getMemDesc()->isCompatible(*config.inConfs[i].getMemDesc()))
+            //if (!selectedConfig.inConfs[i].getMemDesc()->isCompatible(*config.inConfs[i].getMemDesc()))
+            if (!selectedConfig.inConfs[i].getPortDesc()->compare(*config.inConfs[i].getPortDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
-            if (!selectedConfig.outConfs[i].getMemDesc()->isCompatible(*config.outConfs[i].getMemDesc()))
+            //if (!selectedConfig.outConfs[i].getMemDesc()->isCompatible(*config.outConfs[i].getMemDesc()))
+            if (!selectedConfig.outConfs[i].getPortDesc()->compare(*config.outConfs[i].getPortDesc()))
                 IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
         rightConfig = config;

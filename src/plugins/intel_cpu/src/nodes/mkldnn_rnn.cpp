@@ -865,13 +865,11 @@ void MKLDNNRNN::prepareParams() {
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNRNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
-    auto desc = supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
-    return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+    return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNRNN::getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
-    auto desc = supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
-    return desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+    return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 
 void MKLDNNRNN::execute(mkldnn::stream strm) {
