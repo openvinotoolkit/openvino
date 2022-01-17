@@ -708,7 +708,8 @@ def create_bias_node(graph: Graph, src_node):
 
     for destination_port in destination_ports:
         add_op.out_port(0).connect(destination_port)
-    add_bias.out_node(0)['Insert_Convert_operation_after'] = True
+    if bias_dtype != np.float32:
+        add_bias.out_node(0)['Insert_Convert_operation_after'] = True
 
 
 def create_fake_quantize_node(graph: Graph, name, data_type=np.float32):
@@ -913,7 +914,7 @@ def add_removed_converts(graph: Graph):
                 format(const_op.soft_get('name'), const_op.soft_get('type')))
             continue
 
-        if const_op.data_type == np.float32:
+        if const_op.data_type != np.float32:
             logger.debug('Error when try to insert Convert operation after Const: {}'.\
                 format(const_op.soft_get('name')))
             continue
