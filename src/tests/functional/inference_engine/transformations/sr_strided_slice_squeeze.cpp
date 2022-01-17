@@ -37,12 +37,12 @@ TEST(SmartReshapeTests, SS_Squeeze) {
                 ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 1}),
                 std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
         auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
+        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
-
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3})) <<
         network.getFunction()->get_results()[0]->get_output_partial_shape(0);
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3}));
@@ -68,8 +68,9 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
                 ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {1, 1, 1}),
                 std::vector<int64_t>{0}, std::vector<int64_t>{1});  // begin_mask.size() is no larger than axis that is going to be squeezed.
         auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}));
+        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -101,8 +102,9 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
                 ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}),
                 std::vector<int64_t>{1, 1, 1}, std::vector<int64_t>{1, 1, 1});
         auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}));
+        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -162,8 +164,9 @@ TEST(SmartReshapeTests, SS_Squeeze_negative_stride_negative) {
                 ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {-1, -1}),
                 std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
         auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
+        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
 
@@ -191,8 +194,9 @@ TEST(SmartReshapeTests, SS_SharedSqueezes) {
                 std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
         auto squeeze_1 = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
         auto squeeze_2 = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
-
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze_1, squeeze_2}, ngraph::ParameterVector{input});
+        auto relu_1 = std::make_shared<ngraph::opset5::Relu>(squeeze_1);
+        auto relu_2 = std::make_shared<ngraph::opset5::Relu>(squeeze_2);
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu_1, relu_2}, ngraph::ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -203,7 +207,9 @@ TEST(SmartReshapeTests, SS_SharedSqueezes) {
 
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
+    network.serialize("/tmp/model1.xml", "/tmp/model.bin");
     ASSERT_NO_THROW(network.setBatchSize(2));
+    network.serialize("/tmp/model2.xml", "/tmp/model.bin");
     check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3})) <<
@@ -223,8 +229,9 @@ TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
                 ngraph::opset5::Constant::create(ngraph::element::i64, {6}, {1, 1, 1, 1, 1, 1}),
                 std::vector<int64_t>{1, 1, 1, 1, 1, 1}, std::vector<int64_t>{1, 1, 1, 1, 1, 1});
         auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {-2, 0, -4}));
+        auto relu = std::make_shared<ngraph::opset5::Relu>(squeeze);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
