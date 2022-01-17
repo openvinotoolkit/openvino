@@ -28,7 +28,7 @@ def infer_data(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: i
     batch_size = infer_request.get_input_tensor(0).shape[0]
     num_of_frames = next(iter(data.values())).shape[0]
 
-    for output in infer_request.outputs:
+    for output in infer_request.model_outputs:
         result[output.any_name] = np.ndarray((num_of_frames, np.prod(tuple(output.shape)[1:])))
 
     for i in range(-cw_l, num_of_frames + cw_r, batch_size):
@@ -39,7 +39,7 @@ def infer_data(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: i
         else:
             index = i
 
-        for _input in infer_request.inputs:
+        for _input in infer_request.model_inputs:
             frames_to_infer[_input.any_name] = data[_input.any_name][index:index + batch_size]
             num_of_frames_to_infer = len(frames_to_infer[_input.any_name])
 
