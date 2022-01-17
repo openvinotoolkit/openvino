@@ -102,7 +102,6 @@ void parseInputFilesArguments(std::vector<std::string>& files) {
     }
 }
 
-namespace {
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
     if (str.empty())
         return {};
@@ -199,8 +198,6 @@ ov::element::Type getType(const std::string& value) {
 
     return getType(value, supported_types);
 }
-
-}  // namespace
 
 namespace {
 using supported_layouts_t = std::unordered_map<std::string, InferenceEngine::Layout>;
@@ -458,57 +455,4 @@ ov::element::Type getPrecision2(const std::string& value) {
     };
 
     return getPrecision(value, supported_precisions);
-}
-
-void setPrecisions(const ov::Model& network, const std::string& iop) {
-    const auto user_precisions_map = parseArgMap(iop);
-
-    for (auto&& item : user_precisions_map) {
-        const auto& layer_name = item.first;
-        const auto& user_precision = item.second;
-
-        auto& params = network.get_parameters();
-        auto& results = network.get_results();
-
-        const auto input =
-            std::find_if(params.begin(), params.end(), [&item](const std::shared_ptr<ov::op::v0::Parameter>& a) {
-                return a->get_friendly_name() == item.first;
-            });
-        const auto output =
-            std::find_if(results.begin(), results.end(), [&layer_name](const std::shared_ptr<ov::op::v0::Result>& a) {
-                return a->get_friendly_name() == layer_name;
-            });
-
-        if (input != params.end()) {
-            (*input)->set_element_type(getPrecision2(user_precision));
-        } else if (output != results.end()) {
-            for (int i = 0; i < (*output)->get_output_size(); i++) {
-                (*output)->set_output_type(i, getPrecision2(user_precision), (*output)->get_output_shape(i));
-            }
-        } else {
-            throw std::logic_error(layer_name + " is not an input neither output");
-        }
-    }
-}
-
-void processPrecision(const ov::Model& network, const std::string& ip, const std::string& op, const std::string& iop) {
-    if (!ip.empty()) {
-        const auto user_precision = getPrecision2(ip);
-        for (auto&& layer : network.get_parameters()) {
-            layer->set_element_type(user_precision);
-        }
-    }
-
-    if (!op.empty()) {
-        auto user_precision = getPrecision2(op);
-        for (auto&& layer : network.get_results()) {
-            for (int i = 0; i < layer->get_output_size(); i++) {
-                layer->set_output_type(i, user_precision, layer->get_output_shape(i));
-            }
-        }
-    }
-
-    if (!iop.empty()) {
-        setPrecisions(network, iop);
-    }
 }
