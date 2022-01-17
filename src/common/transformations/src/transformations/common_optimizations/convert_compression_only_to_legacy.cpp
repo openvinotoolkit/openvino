@@ -12,15 +12,6 @@
 
 using namespace ov;
 
-bool ov::pass::ConvertPrecisionCompressedOnly::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    if (ngraph::op::util::has_decompression_converts(f)) {
-        const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
-        auto convert_precision = ngraph::pass::ConvertPrecision(convert_precision_list);
-        return convert_precision.run_on_model(f);
-    }
-    return false;
-}
-
 ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertConstantFolding() {
     MATCHER_SCOPE(EnableDecompressionConvertConstantFolding);
     auto convert = pattern::wrap_type<opset8::Convert>();
@@ -38,13 +29,16 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
 }
 
 bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    Manager manager(get_pass_config());
+    if (ngraph::op::util::has_decompression_converts(f)) {
 
-    manager.register_pass<ov::pass::ConvertPrecisionCompressedOnly>();
-    manager.register_pass<ov::pass::EnableDecompressionConvertConstantFolding>();
-    manager.register_pass<ov::pass::ConstantFolding>();
+        Manager manager(get_pass_config());
 
-    manager.run_passes(f);
+        const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
+        manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
+        manager.register_pass<ov::pass::EnableDecompressionConvertConstantFolding>();
+        manager.register_pass<ov::pass::ConstantFolding>();
 
+        manager.run_passes(f);
+    }
     return false;
 }
