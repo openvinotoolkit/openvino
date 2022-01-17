@@ -16,4 +16,4 @@ try:
     from openvino.frontend.onnx.py_onnx_frontend import ConversionExtensionONNX as ConversionExtension
 except ImportError as err:
     raise ImportError("OpenVINO ONNX frontend is not available, please make sure the frontend is built. "
-                      "{}".format(err.msg))
+                      "{}".format(err))

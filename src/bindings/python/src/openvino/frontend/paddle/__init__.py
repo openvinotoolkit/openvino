@@ -17,4 +17,4 @@ try:
     from openvino.frontend.paddle.py_paddle_frontend import ConversionExtensionPaddle as ConversionExtension
 except ImportError as err:
     raise ImportError("OpenVINO ONNX frontend is not available, please make sure the frontend is built."
-                      "{}".format(err.msg))
+                      "{}".format(err))
