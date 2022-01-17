@@ -32,6 +32,8 @@ class SkipPropagation;
 class FakeQuantize;
 class Concat;
 
+std::pair<std::set<size_t>, bool> squeeze_mask(const std::set<size_t> mask_dim, const size_t elems_per_ch, const bool squeeze);
+
 } // namespace mask_propagation
 } // namespace pass
 } // namespace ngraph
@@ -646,6 +648,39 @@ public:
     }
 };
 
+
+std::pair<std::set<size_t>, bool> ngraph::pass::mask_propagation::squeeze_mask(
+    const std::set<size_t> mask_dim, const size_t elems_per_ch, const bool squeeze) {
+    bool should_init_dep = false;
+    auto ret_set = std::set<size_t>();
+    auto mask_dim_copy = std::set<size_t>();
+    std::copy(mask_dim.begin(), mask_dim.end(), std::inserter(mask_dim_copy, mask_dim_copy.begin()));
+    while (mask_dim_copy.size()) {
+        const auto elem = *mask_dim_copy.begin();
+        const auto ch = elem / elems_per_ch;
+        // Check all channel is zeroed
+        const auto low = mask_dim_copy.lower_bound(ch * elems_per_ch);
+        const auto upper = mask_dim_copy.upper_bound((ch + 1) * elems_per_ch);
+        auto channel_zeros = std::set<size_t>();
+        std::copy(low, upper, std::inserter(channel_zeros, channel_zeros.begin()));
+
+        // Remove all zeros related to current channel from iter mask
+        mask_dim_copy.erase(low, upper);
+        // In case any of elements are not zeroed - skip entire channel
+        if (channel_zeros.size() != elems_per_ch) {
+            should_init_dep = true;
+            continue;
+        }
+        // Add zeros for current channel in current mask
+        if (squeeze)
+            ret_set.insert(ch);
+        else
+            ret_set.insert(channel_zeros.begin(), channel_zeros.end());
+    }
+    return std::make_pair(ret_set, should_init_dep);
+}
+
+
 class ngraph::pass::mask_propagation::Reshape : public MatcherPass {
 public:
     Reshape() {
@@ -685,44 +720,144 @@ public:
 
                 // Check dimensions equality from the begining and allow
                 // to propagate masks only for dimensions which equal from the begining
-                size_t i = 0;
-                for (; i < std::min(input_shape.size(), output_shape.size()); ++i) {
-                    if (input_shape[i] != output_shape[i])
-                        break;
+
+                size_t not_reshaped_dims;
+                {
+                    size_t i = 0;
+                    for (; i < std::min(input_shape.size(), output_shape.size()); ++i) {
+                        if (input_shape[i] != output_shape[i])
+                            break;
+                    }
+                    not_reshaped_dims = i;
                 }
-                auto not_reshaped_dims = i;
+
+
+                //auto elems_per_ch = std::accumulate(input_shape.begin() + not_reshaped_dims + 1, input_shape.end(), 1, std::multiplies<int>());
+                ////auto channels_count = input_shape[not_reshaped_dims];
+                ////NGRAPH_DEBUG << elems_per_ch << channels_count;
+                //for (auto &ch : input_mask->at(not_reshaped_dims))
+                //    for (auto idx = ch * elems_per_ch; idx < (ch + 1) * elems_per_ch; ++idx)
+                //        output_mask->at(not_reshaped_dims).insert(idx);
 
                 auto input_mask_row = input_mask.get();
                 auto weights_mask_row = weights_mask.get();
                 auto output_mask_row = output_mask.get();
-                input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                    cur_mask->copy_value_from_mask(weights_mask_row);
-                    return true;
-                }, weights_mask);
-                weights_mask->add_callback([input_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool{
-                    // Propagate masks down through dimension only if this dimension isn't reshaped
-                    for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
-                        if (dim < not_reshaped_dims)
-                            cur_mask->at(dim) = input_mask_row->at(dim);
-                        else if (cur_mask->at(dim) != input_mask_row->at(dim))
-                            cur_mask->initialize_dependencies();
-                    return true;
-                }, input_mask);
 
-                output_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                    cur_mask->copy_value_from_mask(weights_mask_row);
-                    return true;
-                }, weights_mask);
 
-                weights_mask->add_callback([output_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
-                    // Propagate masks up through dimension only if this dimension isn't reshaped
-                    for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
-                        if (dim < not_reshaped_dims)
-                            cur_mask->at(dim) = output_mask_row->at(dim);
-                        else if (cur_mask->at(dim) != output_mask_row->at(dim))
-                            cur_mask->initialize_dependencies();
-                    return true;
-                }, output_mask);
+                // Case when reshape make flatten last dimension
+                if (input_shape.size() > output_shape.size() &&
+                    output_shape.size() == not_reshaped_dims + 1) {
+                    const size_t elems_per_ch = std::accumulate(input_shape.begin() + not_reshaped_dims + 1,
+                                                                input_shape.end(), 1, std::multiplies<int>());
+
+                    input_mask->add_callback([weights_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
+                        for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
+                            if (dim < not_reshaped_dims)
+                                cur_mask->at(dim) = weights_mask_row->at(dim);
+
+                        auto output_mask_last_dim_copy = std::set<size_t>();
+                        std::copy(weights_mask_row->at(not_reshaped_dims).begin(), weights_mask_row->at(not_reshaped_dims).end(),
+                                  std::inserter(output_mask_last_dim_copy, output_mask_last_dim_copy.begin()));
+                        while (output_mask_last_dim_copy.size()) {
+                            const auto elem = *output_mask_last_dim_copy.begin();
+                            const auto ch = elem / elems_per_ch;
+                            // Check all channel is zeroed
+                            const auto low = output_mask_last_dim_copy.lower_bound(ch * elems_per_ch);
+                            const auto upper = output_mask_last_dim_copy.upper_bound((ch + 1) * elems_per_ch);
+                            auto channel_zeros = std::set<size_t>();
+                            std::copy(low, upper, std::inserter(channel_zeros, channel_zeros.begin()));
+
+                            // Remove all zeros related to current channel from iter mask
+                            output_mask_last_dim_copy.erase(low, upper);
+                            // In case any of elements are not zeroed - skip entire channel
+                            if (channel_zeros.size() != elems_per_ch) {
+                                cur_mask->initialize_dependencies();
+                                continue;
+                            }
+                            // Add zeros for current channel in current mask
+                            cur_mask->at(not_reshaped_dims).insert(ch);
+                        }
+                        return true;
+                    }, weights_mask);
+
+                    weights_mask->add_callback([input_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
+                        // Propagate masks down through dimension only if this dimension isn't reshaped
+                        for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
+                            if (dim < not_reshaped_dims)
+                                cur_mask->at(dim) = input_mask_row->at(dim);
+                            // Flat the last mask
+                        for (auto &ch : input_mask_row->at(not_reshaped_dims))
+                            for (auto idx = ch * elems_per_ch; idx < (ch + 1) * elems_per_ch; ++idx)
+                                cur_mask->at(not_reshaped_dims).insert(idx);
+                        return true;
+                    }, input_mask);
+
+                    output_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                        cur_mask->copy_value_from_mask(weights_mask_row);
+                        return true;
+                    }, weights_mask);
+
+                    weights_mask->add_callback([output_mask_row, not_reshaped_dims, elems_per_ch](Mask::Ptr cur_mask) -> bool {
+                        // Propagate masks up through dimension only if this dimension isn't reshaped
+                        for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
+                            if (dim < not_reshaped_dims)
+                                cur_mask->at(dim) = output_mask_row->at(dim);
+                        // For the last dimension keep only those zeros which completely
+                        // covering a channel
+                        auto output_mask_last_dim_copy = std::set<size_t>();
+                        std::copy(output_mask_row->at(not_reshaped_dims).begin(), output_mask_row->at(not_reshaped_dims).end(),
+                                  std::inserter(output_mask_last_dim_copy, output_mask_last_dim_copy.begin()));
+                        while (output_mask_last_dim_copy.size()) {
+                            const auto elem = *output_mask_last_dim_copy.begin();
+                            const auto ch = elem / elems_per_ch;
+                            // Check all channel is zeroed
+                            const auto low = output_mask_last_dim_copy.lower_bound(ch * elems_per_ch);
+                            const auto upper = output_mask_last_dim_copy.upper_bound((ch + 1) * elems_per_ch);
+                            auto channel_zeros = std::set<size_t>();
+                            std::copy(low, upper, std::inserter(channel_zeros, channel_zeros.begin()));
+
+                            // Remove all zeros related to current channel from iter mask
+                            output_mask_last_dim_copy.erase(low, upper);
+                            // In case any of elements are not zeroed - skip entire channel
+                            if (channel_zeros.size() != elems_per_ch) {
+                                cur_mask->initialize_dependencies();
+                                continue;
+                            }
+                            // Add zeros for current channel in current mask
+                            cur_mask->at(not_reshaped_dims).insert(channel_zeros.begin(), channel_zeros.end());
+                        }
+                        return true;
+                    }, output_mask);
+                } else {
+                    input_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                        cur_mask->copy_value_from_mask(weights_mask_row);
+                        return true;
+                    }, weights_mask);
+                    weights_mask->add_callback([input_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool{
+                        // Propagate masks down through dimension only if this dimension isn't reshaped
+                        for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
+                            if (dim < not_reshaped_dims)
+                                cur_mask->at(dim) = input_mask_row->at(dim);
+                            else if (cur_mask->at(dim) != input_mask_row->at(dim))
+                                cur_mask->initialize_dependencies();
+                        return true;
+                    }, input_mask);
+
+                    output_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                        cur_mask->copy_value_from_mask(weights_mask_row);
+                        return true;
+                    }, weights_mask);
+
+                    weights_mask->add_callback([output_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                        // Propagate masks up through dimension only if this dimension isn't reshaped
+                        for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
+                            if (dim < not_reshaped_dims)
+                                cur_mask->at(dim) = output_mask_row->at(dim);
+                            else if (cur_mask->at(dim) != output_mask_row->at(dim))
+                                cur_mask->initialize_dependencies();
+                        return true;
+                    }, output_mask);
+                }
 
                 weights_mask->apply_callback(input_mask);
                 setMask(m_output, output_mask);
