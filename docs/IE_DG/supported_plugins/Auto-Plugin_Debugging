@@ -1,0 +1,104 @@
+# Debugging Auto-Device Plugin {#openvino_docs_IE_DG_supported_plugins_AUTO_debugging}
+
+## Debug log
+In case of execution problems, just like all other plugins, Auto-Device provides the user with information on exceptions and error values. If the returned data is not enough for debugging purposes, more information may be acquired by means of LOG_LEVEL.
+
+There are six levels of logs, which can be called explicitly or set via the OPENVINO_LOG_LEVEL  environment variable (can be overwritten by compile_model or set_config):  
+0 - LOG_NONE 
+1 - LOG_ERROR 
+2 - LOG_WARNING
+3 - LOG_INFO
+4 - LOG_DEBUG
+5 - LOG_TRACE
+
+@sphinxdirective
+.. tab:: C++ API
+   .. code-block:: sh
+      ov::runtime::Core core
+      
+      // read a network in IR, PaddlePaddle, or ONNX format
+      std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
+      
+      // load a network to AUTO and set log level to debug
+      ov::runtime::CompiledModel compiled_model = core.compile_model(model, “AUTO”, {{"LOG_LEVEL ", "LOG_DEBUG"}});
+      
+      // or set log level with set_config and load network
+      core.set_config({"LOG_LEVEL", "LOG_DEBUG"}}, "AUTO");
+      ov::runtime::CompiledModel compiled_model = core.compile_model(model, “AUTO”);
+	  
+.. tab:: Python API
+   .. code-block:: sh
+      from openvino.runtime import Core
+      core = Core()
+      
+      # read a network in IR, PaddlePaddle, or ONNX format
+      model = core.read_model(model_path)
+      
+      # load a network to AUTO and set log level to debug
+      compiled_model = core.compile_model(model=model, device_name="AUTO", config={"LOG_LEVEL":"LOG_DEBUG"});
+      
+      // or set log level with set_config and load network
+      ie.SetConfig(config={"LOG_LEVEL":"LOG_DEBUG"}, device_name="AUTO");
+      compiled_model = core.compile_model(model=model, device_name="AUTO");
+	  
+.. tab:: OS environment variable
+   .. code-block:: sh
+      When defining it via the variable, the number needs to be used instead of a log level name, e.g.:
+      
+      Linux
+      export OPENVINO_LOG_LEVEL=0
+      
+      Windows
+      set OPENVINO_LOG_LEVEL=0
+@endsphinxdirective
+
+The parameter returns information in the following format: 
+
+@sphinxdirective
+.. code-block:: sh
+   [time]LOG_LEVEL[file] [PLUGIN]: message
+@endsphinxdirective
+in which the “LOG_LEVEL” is represented by the first letter of its name (ERROR being an exception and using its full name). For example:
+
+@sphinxdirective
+.. code-block:: sh
+   [17:09:36.6188]D[plugin.cpp:167] deviceName:MYRIAD, defaultDeviceID:, uniqueName:MYRIAD_
+   [17:09:36.6242]I[executable_network.cpp:181] [AUTOPLUGIN]:select device:MYRIAD
+   [17:09:36.6809]ERROR[executable_network.cpp:384] [AUTOPLUGIN] load failed, MYRIAD:[ GENERAL_ERROR ]
+@endsphinxdirective
+
+For more details on the LOG_LEVEL, please refer to [ie_plugin_config.hpp](https://github.com/openvinotoolkit/openvino/blob/77f6a007/src/inference/include/ie/ie_plugin_config.hpp#L329)
+
+## Instrumentation and Tracing Technology
+
+All major performance calls of both Inference Engine and the AUTO plugin are instrumented with Instrumentation and Tracing Technology (ITT) APIs. To enable ITT in Inference Engine, please compile OpenVINO with the following option:
+@sphinxdirective
+.. code-block:: sh
+   -DENABLE_PROFILING_ITT=ON
+@endsphinxdirective
+
+For more information, please refer to:
+*. [OpenVINO profiling](https://docs.openvino.ai/latest/groupie_dev_profiling.html)
+*. [Intel® VTune™ Profiler User Guide](https://www.intel.com/content/www/us/en/develop/documentation/vtune-help/top/api-support/instrumentation-and-tracing-technology-apis.html)
+
+### Analyze code performance on Linux
+
+You can analyze code performance using VTUNE. For more information and installation instructions [[download the PDF]](https://software.intel.com/content/www/us/en/develop/download/intel-vtune-install-guide-linux-os.html)
+With VTUNE installed you can configure your analysis with the following steps:
+
+1. Open VTune Profiler GUI on the host machine with the following command:
+@sphinxdirective
+.. code-block:: sh
+   cd /vtune install dir/intel/oneapi/vtune/2021.6.0/env
+   source vars.sh
+   vtune-gui
+@endsphinxdirective
+2. select “Configure Analysis”
+3. In the “where” pane, select “Local Host”
+
+
+
+
+
+
+
