@@ -67,7 +67,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
-        // Gather does not support enforce precision feature.
+        // Gather does not support enforce precision feature yet.
         R"(.*GatherLayerTestCPU.*ENFORCE_BF16=YES.*)",
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
