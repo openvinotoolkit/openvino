@@ -3303,6 +3303,13 @@ bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
               const HostTensorVector& inputs) {
     element::Type input_et = op->get_input_element_type(0);
     switch (input_et) {
+    case element::Type_t::f64:
+        ngraph::runtime::reference::interpolate<double>(inputs[0]->get_data_ptr<double>(),
+                                                        op->get_input_partial_shape(0),
+                                                        outputs[0]->get_data_ptr<double>(),
+                                                        op->get_output_shape(0),
+                                                        op->get_attrs());
+        break;
     case element::Type_t::f32:
         ngraph::runtime::reference::interpolate<float>(inputs[0]->get_data_ptr<float>(),
                                                        op->get_input_partial_shape(0),
@@ -3317,19 +3324,12 @@ bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
                                                          op->get_output_shape(0),
                                                          op->get_attrs());
         break;
-    case element::Type_t::i8:
-        ngraph::runtime::reference::interpolate<int8_t>(inputs[0]->get_data_ptr<int8_t>(),
+    case element::Type_t::bf16:
+        ngraph::runtime::reference::interpolate<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
                                                         op->get_input_partial_shape(0),
-                                                        outputs[0]->get_data_ptr<int8_t>(),
+                                                          outputs[0]->get_data_ptr<bfloat16>(),
                                                         op->get_output_shape(0),
                                                         op->get_attrs());
-        break;
-    case element::Type_t::u8:
-        ngraph::runtime::reference::interpolate<uint8_t>(inputs[0]->get_data_ptr<uint8_t>(),
-                                                         op->get_input_partial_shape(0),
-                                                         outputs[0]->get_data_ptr<uint8_t>(),
-                                                         op->get_output_shape(0),
-                                                         op->get_attrs());
         break;
     default: {
     };

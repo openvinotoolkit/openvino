@@ -229,10 +229,10 @@ std::vector<InterpolateV4Params> generateParamsForInterpolateV4() {
 
 std::vector<InterpolateV1Params> generateCombinedParamsForInterpolateV1() {
     const std::vector<std::vector<InterpolateV1Params>> allTypeParams{
+        generateParamsForInterpolateV1<element::Type_t::f64>(),
         generateParamsForInterpolateV1<element::Type_t::f32>(),
         generateParamsForInterpolateV1<element::Type_t::f16>(),
-        generateParamsForInterpolateV1<element::Type_t::i8>(),
-        generateParamsForInterpolateV1<element::Type_t::u8>()};
+        generateParamsForInterpolateV1<element::Type_t::bf16>()};
 
     std::vector<InterpolateV1Params> combinedParams;
 
@@ -247,6 +247,7 @@ std::vector<InterpolateV4Params> generateCombinedParamsForInterpolateV4() {
     const std::vector<std::vector<InterpolateV4Params>> allTypeParams{
         generateParamsForInterpolateV4<element::Type_t::f32>(),
         generateParamsForInterpolateV4<element::Type_t::f16>(),
+        generateParamsForInterpolateV4<element::Type_t::bf16>(),
         generateParamsForInterpolateV4<element::Type_t::i8>(),
         generateParamsForInterpolateV4<element::Type_t::u8>()};
 
