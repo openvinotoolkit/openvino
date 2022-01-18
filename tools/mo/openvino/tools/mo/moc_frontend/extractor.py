@@ -27,17 +27,19 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
         if tensor:
             return tensor
         if node_name.count(":"):
-            split = node_name.split(":")
-            # assuming that there are at max 10 ports
-            if split[0].isnumeric() and len(split[0]) == 1:
-                node = input_model.get_place_by_operation_name(split[1])
+            regexp_pre = r'(\b\d\b):(.+)'
+            match_pre = re.search(regexp_pre, node_name)
+            if match_pre:
+                port, name = node_name.split(":")
+                node = input_model.get_place_by_operation_name(name)
                 if node:
-                    return node.get_source_tensor(input_port_index=int(split[0]))
-                return input_model.get_place_by_tensor_name(split[1])
-            node = input_model.get_place_by_operation_name(split[0])
+                    return node.get_source_tensor(input_port_index=int(port))
+                return input_model.get_place_by_tensor_name(name)
+            name, port = node_name.split(":")
+            node = input_model.get_place_by_operation_name(name)
             if node:
-                return node.get_target_tensor(output_port_index=int(split[1]))
-            return input_model.get_place_by_tensor_name(split[0])
+                return node.get_target_tensor(output_port_index=int(port))
+            return input_model.get_place_by_tensor_name(name)
         node = input_model.get_place_by_operation_name(node_name)
         if node:
             return node.get_target_tensor(output_port_index=0)
