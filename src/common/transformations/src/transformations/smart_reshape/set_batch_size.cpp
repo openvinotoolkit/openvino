@@ -15,9 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SetBatchSize, "SetBatchSize", 0);
 
 bool ngraph::pass::SetBatchSize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    // TODO: enable conditional compile
-    // RUN_ON_FUNCTION_SCOPE(SetBatchSize);
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "ngraph::pass::SetBatchSize");
+    RUN_ON_FUNCTION_SCOPE(SetBatchSize);
 
     ngraph::pass::Manager manager;
     // This pass must be called first in pipeline
