@@ -387,12 +387,9 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
 
     IE_EXPECT_OK(ie_core_import_network_from_memory(core, buffer.data(), buffer.size(), "GNA", &conf2, &network));
     EXPECT_NE(nullptr, network);
-    if (network != nullptr) {
-        ie_exec_network_free(&network);
-    }
-    if (exe_network != nullptr) {
-        ie_exec_network_free(&exe_network);
-    }
+
+    ie_exec_network_free(&network);
+    ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
 
@@ -414,19 +411,20 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     ie_config_t conf1 = {"GNA_DEVICE_MODE", "GNA_SW_EXACT", nullptr};
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "32767", &conf1};
 
-    ie_executable_network_t *exe_network = nullptr;
+    ie_executable_network_t *network = nullptr;
     std::string model_path_str = TestDataHelpers::generate_model_path("test_model", "gna_basic_fp32.xml");
     const char *model_path = model_path_str.c_str();
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
-
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &network));
+    EXPECT_NE(nullptr, network);
     std::string exported_model = TestDataHelpers::generate_gna_model_path("exported_model.blob");
-    IE_EXPECT_OK(ie_core_export_network(exe_network, exported_model.c_str()));
+    IE_EXPECT_OK(ie_core_export_network(network, exported_model.c_str()));
     std::ifstream file(exported_model);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
-
+    ie_executable_network_t *exe_network = nullptr;
     IE_EXPECT_OK(ie_core_import_network(core, exported_model.c_str(), "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
+
+    ie_exec_network_free(&network);
     ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
@@ -470,6 +468,7 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
     IE_EXPECT_OK(ie_core_import_network(core, file_name, "GNA", nullptr, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
+    ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
 

@@ -1,0 +1,85 @@
+/* overrides */
+.switcher-set {display: none;}
+
+.prev-next-bottom {
+	display: none;
+}
+
+
+/* === listing  ================================================================ */
+#eco_list {
+	margin: 0 auto;
+	width: 100%;
+}
+#eco_list a {
+	display: block;
+	width: 100%;
+	padding: 15px 15px 5px 15px;
+}
+#eco_list a h4 {
+	display: inline-block;
+    height: 30px;	
+    color: #0068B5;
+    font-size: 1.1em;
+    line-height: 2em;
+    font-weight: bold;
+    margin: 0;
+
+    border-bottom: 1px solid #0068B5;
+	
+	transition: all 0.5s;
+	-webkit-transition: all 0.5s;
+	-moz-transition: all 0.5s;
+	-o-transition: all 0.5s;
+	-ms-transition: all 0.5s;
+	
+}
+
+
+#eco_list a:hover h4 {padding-left: 15px;}
+
+#eco_list a:hover,
+#eco_list a:hover h4,
+/*#eco_list a:hover p*/ {
+	text-decoration:none;	
+}
+
+
+
+/* === the ECOSYSTEM page elements ================================================ */
+#eco_list a + p {
+	text-align: left;
+	line-height:1.3em;
+	margin: 0 15px;
+}
+
+p.linkparagraph {
+	color: #0068B5;
+	line-height:1.3em;
+	text-align: left;
+	margin: 0 0 0 15px;
+	padding: 0;
+}
+p.linkparagraph a {
+	display: inline !important;
+    padding: 0 10px 0 0 !important;
+	font-size: 0.8em;
+	font-weight: bold;
+}
+p.linkparagraph a:hover {
+	text-decoration: underline;
+}
+
+
+
+
+
+
+/* === screen narrow =========================================================================== */
+@media only screen and (max-width: 800px) {
+	#eco_list a {						/* === further steps height === */
+		height: 140px;
+	}
+	
+}
+

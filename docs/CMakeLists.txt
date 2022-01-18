@@ -65,7 +65,7 @@ function(build_docs)
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(DOCS_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/docs")
-    set(DOXYGEN_DIR "${DOCS_SOURCE_DIR}/doxygen")
+    set(SCRIPTS_DIR "${DOCS_SOURCE_DIR}/scripts")
 
     # API INPUT
 
@@ -81,14 +81,15 @@ function(build_docs)
     set(IE_C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
     
     # Preprocessing scripts
-    set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
-    set(PYNGRAPH_REF_SCRIPT "${DOXYGEN_DIR}/pyngraph_ref.py")
-    set(DOXY_LOG_SCRIPT "${DOXYGEN_DIR}/log.py")
-    set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
-    set(PREPARE_XML_SCRIPT "${DOXYGEN_DIR}/prepare_xml.py")
-    set(REMOVE_XML_SCRIPT "${DOXYGEN_DIR}/remove_xml.py")
-    set(COPY_IMAGES_SCRIPT "${DOXYGEN_DIR}/copy_images.py")
-    set(DOXYGEN_MAPPING_SCRIPT "${DOXYGEN_DIR}/create_mapping.py")
+    set(DOXY_MD_FILTER "${SCRIPTS_DIR}/doxy_md_filter.py")
+    set(PYNGRAPH_REF_SCRIPT "${SCRIPTS_DIR}/pyngraph_ref.py")
+    set(DOXY_LOG_SCRIPT "${SCRIPTS_DIR}/log.py")
+    set(PYX_FILTER "${SCRIPTS_DIR}/pyx_filter.py")
+    set(PREPARE_XML_SCRIPT "${SCRIPTS_DIR}/prepare_xml.py")
+    set(REMOVE_XML_SCRIPT "${SCRIPTS_DIR}/remove_xml.py")
+    set(COPY_IMAGES_SCRIPT "${SCRIPTS_DIR}/copy_images.py")
+    set(DOC_TEST_DIR "${SCRIPTS_DIR}/tests")
+    set(DOXYGEN_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_mapping.py")
     set(DOXYGEN_MAPPING_FILE "${DOCS_BUILD_DIR}/mapping.json")
 
     # out dirs
@@ -115,15 +116,14 @@ function(build_docs)
     configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
 
     # Doxygen config
-    set(DOXYFILE_SOURCE "${DOXYGEN_DIR}/Doxyfile.config")
+    set(DOXYFILE_SOURCE "${DOCS_SOURCE_DIR}/Doxyfile.config")
     set(DOXYFILE_BUILD "${DOCS_BUILD_DIR}/Doxyfile.config")
     configure_file(${DOXYFILE_SOURCE} ${DOXYFILE_BUILD} @ONLY)
 
     list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
         --input_dir=${OpenVINO_MAIN_SOURCE_DIR}
         --output_dir=${DOCS_BUILD_DIR}/openvino
-        --exclude_dir=${CMAKE_CURRENT_BINARY_DIR}
-        --exclude_dir=${OpenVINO_MAIN_SOURCE_DIR}/out)
+        --exclude_dir=${DOCS_BUILD_DIR})
 
     # include additional repositories
 
@@ -226,11 +226,6 @@ function(build_docs)
     add_custom_target(sphinx_docs
                       DEPENDS doxygen_xml
                       COMMAND sphinx-build -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
-                      WORKING_DIRECTORY ${RST_OUTPUT}
-                      VERBATIM)
-
-    add_custom_target(linkcheck
-                      COMMAND sphinx-build -b linkcheck ${RST_OUTPUT} ${SPHINX_OUTPUT}
                       WORKING_DIRECTORY ${RST_OUTPUT}
                       VERBATIM)
 

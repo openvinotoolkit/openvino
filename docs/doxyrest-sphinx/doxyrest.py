@@ -90,8 +90,18 @@ def visit_highlighted_text_node(self, node):
             self.body.append(text_node)
         else:
             self.body.append(match.group(1))
-
     raise nodes.SkipNode
+
+
+
+def visit_doxyrest_literalblock_node(self, node):
+    classes = ' '.join(node.attributes['classes'])
+    self.body.append('<div class="{}"><div class="highlight"><pre>'.format(classes))
+
+
+def depart_doxyrest_literalblock_node(self, node):
+    self.body.append('</pre></div></div>')
+
 
 def create_ref_node(raw_text, text, target):
     if not target:
@@ -108,6 +118,7 @@ def create_ref_node(raw_text, text, target):
     node['refexplicit'] = True
     node += nodes.Text(text, text)
     return node
+
 
 def create_target_node(raw_text, text, target, highlight_language, lineno, document, extra_classes=[]):
     node = nodes.target(raw_text, '')
@@ -129,6 +140,11 @@ def create_target_node(raw_text, text, target, highlight_language, lineno, docum
 #
 #  Sphinx directives
 #
+
+
+class DoxyrestLiteralBlock(nodes.literal_block):
+    pass
+
 
 class RefCodeBlock(Directive):
     has_content = True
@@ -161,7 +177,7 @@ class RefCodeBlock(Directive):
         config = self.state.document.settings.env.config
         code = u'\n'.join(self.content)
         pos = 0
-        node = nodes.literal_block('.', '') # single char to prevent sphinx from trying to highlight it
+        node = DoxyrestLiteralBlock('.', '') # single char to prevent sphinx from trying to highlight it
         node['classes'] += ['highlight']    # we are stripping pyments-generated <div>
         node['classes'] += self.options.get('class', [])
 
@@ -442,6 +458,7 @@ def on_config_inited(app, config):
 #  Doxyrest extenstion setup
 #
 
+
 def setup(app):
     app.add_domain(DoxyrestDomain)
 
@@ -450,6 +467,12 @@ def setup(app):
         html=(visit_highlighted_text_node, None),
         latex=(visit_highlighted_text_node, None)
         )
+
+    app.add_node(
+        DoxyrestLiteralBlock,
+        html=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node),
+        latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
+    )
 
     app.add_role('cref', cref_role)
     app.add_role('target', target_role)

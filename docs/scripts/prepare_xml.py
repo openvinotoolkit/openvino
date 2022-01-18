@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import re
 import logging
 import argparse
@@ -7,6 +10,9 @@ from xml.sax import saxutils
 
 
 def prepare_xml(xml_dir: Path):
+    """
+    A preprocessing xml function
+    """
     pattern = r'\<sphinxdirective\>(.+?)\<\/sphinxdirective>'
     xml_files = xml_dir.glob('*.xml')
 

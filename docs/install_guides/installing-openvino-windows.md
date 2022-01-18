@@ -35,7 +35,7 @@ Optimized for these processors:
 - Microsoft Windows* 10, 64-bit
 
 **Software**
-- [Microsoft Visual Studio 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
+- [Microsoft Visual Studio 2019 with MSBuild](https://visualstudio.microsoft.com/vs/older-downloads/#visual-studio-2019-and-other-products)
 - [CMake 3.14 or higher, 64-bit](https://cmake.org/download/)
 - [Python 3.6 - 3.8, 64-bit](https://www.python.org/downloads/windows/)
     > **IMPORTANT**: As part of this installation, make sure you click the option **Add Python 3.x to PATH** to [add Python](https://docs.python.org/3/using/windows.html#installation-steps) to your `PATH` environment variable.
@@ -60,7 +60,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
     
 Install these dependencies:
 
-1. [Microsoft Visual Studio* 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
+1. [Microsoft Visual Studio* 2019 with MSBuild](https://visualstudio.microsoft.com/vs/older-downloads/#visual-studio-2019-and-other-products)
    > **NOTE**: You can choose to download Community version. Use [Microsoft Visual Studio installation guide](https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019) to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
    
 2. [CMake 3.14 or higher 64-bit](https://cmake.org/download/)

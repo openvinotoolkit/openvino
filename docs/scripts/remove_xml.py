@@ -1,8 +1,14 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import shutil
 
 
 def remove_xml_dir(path):
+    """
+    Remove doxygen xml folder
+    """
     if os.path.exists(path):
         shutil.rmtree(path, ignore_errors=True)
 

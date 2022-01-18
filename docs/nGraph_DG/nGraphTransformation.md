@@ -37,7 +37,7 @@ To decide where to store your transformation code, please follow these rules:
 
 After you decide where to store your transformation code, you can start developing your own nGraph transformation.
 
-## ngraph::Function and graph representation <a name="ngraph_function"></a>
+## ngraph\:\:Function and graph representation <a name="ngraph_function"></a>
 
 nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Parameter`, `ngraph::op::Result` and  `ngraph::op::Sink` operations that are inputs, outputs and sinks of the graph.
 Sinks of the graph have no consumers and not included into results vector. All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result or Sink operation
@@ -55,7 +55,7 @@ nGraph has three main transformation types:
 
 ![transformations_structure]
 
-### ngraph::pass::FunctionPass <a name="function_pass"></a>
+### ngraph\:\:pass\:\:FunctionPass <a name="function_pass"></a>
 
 `ngraph::pass::FunctionPass` is used for transformations that take entire `ngraph::Function` as an input and process it.
 
@@ -70,7 +70,7 @@ Return value is `true` if the original function has changed during transformatio
 For transformation API, please follow the [working with ngraph::Function](#working_with_ngraph_function) section.
 Also `ngraph::FunctionPass` based transformations can be executed via `pass::Manager`. See the examples in the [Using pass manager](#using_pass_manager) section.
 
-### ngraph::pass::MatcherPass <a name="matcher_pass"></a>
+### `ngraph\:\:pass\:\:MatcherPass` <a name="matcher_pass"></a>
 
 `ngraph::pass::MatcherPass` is used for pattern-based transformations.
 
@@ -135,7 +135,7 @@ MatcherPass has multiple ways to be executed:
 @snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager
 
 
-### ngraph::pass::GraphRewrite <a name="graph_rewrite_pass"></a>
+### ngraph\:\:pass\:\:GraphRewrite <a name="graph_rewrite_pass"></a>
 
 GraphRewrite pass serves for running multiple matcher passes on `ngraph::Function` in a single graph traversal.
 Example:
@@ -187,11 +187,11 @@ This example shows how to use predicate to construct a pattern. Also it shows ho
 
 > **NOTE**: Be careful with manual matching because Matcher object holds matched nodes. To clear a match, use the m->clear_state() method.
 
-## Working with ngraph::Function <a name="working_with_ngraph_function"></a>
+## Working with ngraph\:\:Function <a name="working_with_ngraph_function"></a>
 
 In this chapter we will review nGraph API that allows us to manipulate with `ngraph::Function`.
 
-### ngraph::Node input and output ports
+### ngraph\:\:Node input and output ports
 
 First of all let's talk about `ngraph::Node` input/output ports. Each nGraph operation has input and output ports except cases when operation has `Result`, `Parameter`, or `Constant` type.
 
@@ -211,7 +211,7 @@ auto neg = std::make_shared<ngraph::opset1::Multiply>(data, neg_const);
 In this example, the `opset3::Multiply` operation takes `Output<Node>` and `std::shared_ptr<Node>` as inputs. But the constructor takes both as `Output<Node>`. 
 In this case, `std::shared_ptr<Node>` will be automatically converted to `Output<Node>` if node has exactly one output port; otherwise, conversion raises an exception.   
 
-### ngraph::Node replacement
+### ngraph\:\:Node replacement
 
 nGraph provides two ways for node replacement: via nGraph helper function and directly via port methods. We are going to review both of them.
 
@@ -242,7 +242,7 @@ The alternative way to the insert operation is to make a node copy and use `repl
 
 @snippet example_ngraph_utils.cpp ngraph:insert_node_with_copy
 
-### ngraph::Node elimination
+### ngraph\:\:Node elimination
 
 Another type of node replacement is its elimination.
 
