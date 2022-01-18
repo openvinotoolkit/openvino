@@ -24,6 +24,8 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
 
     apply_user_transformations(ngraph_function, parse_transform(argv.transform))
     apply_moc_transformations(ngraph_function)
+    from openvino.offline_transformations import compress_quantize_weights_transformation
+    compress_quantize_weights_transformation(ngraph_function)
 
     if argv.framework == "onnx":
         # set OldApi map in IR to be executed via OV API 1.x and for parity with legacy MO
@@ -37,7 +39,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
 
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-    from openvino.offline_transformations_pybind import serialize # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import serialize # pylint: disable=import-error,no-name-in-module
     serialize(ngraph_function, (orig_model_name + ".xml").encode('utf-8'), (orig_model_name + ".bin").encode('utf-8'))
 
     del argv.feManager

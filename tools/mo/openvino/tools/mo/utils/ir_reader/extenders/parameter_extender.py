@@ -26,7 +26,7 @@ class Parameter_extender(Extender):
                     shape[i] = -1
                     if ".." in dim:
                         has_shapes_with_boundaries = True
-            shape = shape_array([d if d != -1 else dynamic_dimension_value for d in shape])
+            shape = shape_array([d if d not in [-1, '?'] else dynamic_dimension_value for d in shape])
 
             if has_shapes_with_boundaries:
                 shape_list = []

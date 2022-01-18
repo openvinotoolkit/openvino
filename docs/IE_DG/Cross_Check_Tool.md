@@ -129,7 +129,7 @@ InferenceEngine:
 
   API version ............ 0.1
   Build .................. ###
-  Description ....... myriadPlugin
+  Description ....... ov_intel_vpu_plugin
 
 
   API version ............ 1.0
@@ -166,7 +166,7 @@ InferenceEngine:
 
   API version ............ 0.1
   Build .................. custom_releases/cvsdk-2018-r2_e28ec0278fb749d6b999c688a8e90a8a25c0f2b5
-  Description ....... myriadPlugin
+  Description ....... ov_intel_vpu_plugin
 
 [ INFO ] Inputs detected: <list_of_input_layers>
 [ INFO ] Statistics will be dumped for X layers: <comma_separated_list_of_layers>
@@ -198,7 +198,7 @@ InferenceEngine:
 
   API version ............ 0.1
   Build .................. ###
-  Description ....... myriadPlugin
+  Description ....... ov_intel_vpu_plugin
 
 [ INFO ] Inputs detected: <list_of_input_layers>
 [ INFO ] Statistics will be dumped for X layers: <layer_1_name>, <layer_2_name>, ... , <layer_X_name>
