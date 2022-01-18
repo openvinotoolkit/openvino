@@ -91,6 +91,7 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(mkldnn::stream strm) override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
     bool canBeInPlace() const override {

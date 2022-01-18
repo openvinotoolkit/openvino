@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
 #include <utility>
@@ -476,7 +477,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 }
                 if (info_maps.empty()) {  // Show warnings only for 1st test case config, as for other test cases
                                           // they will be the same
-                    slog::warn << item.get_node()->get_friendly_name() << ": layout is not set explicitly"
+                    slog::warn << item.get_any_name() << ": layout is not set explicitly"
                                << (newLayout != "" ? std::string(", so it is defaulted to ") + newLayout : "")
                                << ". It is STRONGLY recommended to set layout manually to avoid further issues."
                                << slog::endl;
@@ -562,8 +563,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     })) {
                     throw std::logic_error("Not enough information in shape and image to determine tensor shape "
                                            "automatically autmatically. Input: " +
-                                           item.get_node()->get_friendly_name() +
-                                           ", File name: " + namesVector[fileIdx - 1]);
+                                           item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
                 }
 
             } else if (info.partialShape.is_static()) {
@@ -594,7 +594,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                         reshape_required = true;
                     }
                 } else {
-                    slog::warn << "Input '" << item.get_node()->get_friendly_name()
+                    slog::warn << "Input '" << item.get_any_name()
                                << "' doesn't have batch dimension in layout. -b option will be ignored for this input."
                                << slog::endl;
                 }
@@ -648,6 +648,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
 
 #ifdef USE_OPENCV
 void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
+    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
     auto plugin_to_opencv_format = [](const std::string& str) -> std::string {
         if (str.find("_") != std::string::npos) {
             slog::warn
@@ -675,6 +676,7 @@ void dump_config(const std::string& filename, const std::map<std::string, std::m
 }
 
 void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
+    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
     auto opencv_to_plugin_format = [](const std::string& str) -> std::string {
         std::string new_str(str);
         auto pos = new_str.find("_");
@@ -695,6 +697,44 @@ void load_config(const std::string& filename, std::map<std::string, std::map<std
         for (auto iit = device.begin(); iit != device.end(); ++iit) {
             auto item = *iit;
             config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
+        }
+    }
+}
+#else
+void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
+    nlohmann::json jsonConfig;
+    for (const auto& item : config) {
+        std::string deviceName = item.first;
+        for (const auto& option : item.second) {
+            jsonConfig[deviceName][option.first] = option.second;
+        }
+    }
+
+    std::ofstream ofs(filename);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+    }
+
+    ofs << jsonConfig;
+}
+
+void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
+    std::ifstream ifs(filename);
+    if (!ifs.is_open()) {
+        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+    }
+
+    nlohmann::json jsonConfig;
+    try {
+        ifs >> jsonConfig;
+    } catch (const nlohmann::json::parse_error& e) {
+        throw std::runtime_error("Can't parse config file \"" + filename + "\".\n" + e.what());
+    }
+
+    for (const auto& item : jsonConfig.items()) {
+        std::string deviceName = item.key();
+        for (const auto& option : item.value().items()) {
+            config[deviceName][option.key()] = option.value().get<std::string>();
         }
     }
 }
