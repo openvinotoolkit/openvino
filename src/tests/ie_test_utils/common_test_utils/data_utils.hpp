@@ -94,8 +94,8 @@ void fill_data_const(InferenceEngine::Blob::Ptr &blob, float val);
 size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
 
 template<typename T>
-inline fill_roi_raw_ptr(T* data, size_t data_size, const uint32_t range, const int height, const int width, const float omega,
-                        const bool is_roi_max_mode, const int seed = 1) {
+inline void fill_roi_raw_ptr(T* data, size_t data_size, const uint32_t range, const int32_t height, const int32_t width, const float omega,
+                             const bool is_roi_max_mode, const int32_t seed = 1) {
     std::default_random_engine random(seed);
     std::uniform_int_distribution<int32_t> distribution(0, range);
 
@@ -106,30 +106,30 @@ inline fill_roi_raw_ptr(T* data, size_t data_size, const uint32_t range, const i
     float center_w = (max_x) / 2.0f;
 
     for (size_t i = 0; i < data_size; i += 5) {
-    data[i] = static_cast<T>(distribution(random));
-    const float x0 = (center_w + width * 0.3f * sin(static_cast<float>(i + 1) * omega));
-    const float x1 = (center_w + width * 0.3f * sin(static_cast<float>(i + 3) * omega));
-    data[i + 1] = static_cast<T>(is_roi_max_mode ? std::floor(x0) : x0);
-    data[i + 3] = static_cast<T>(is_roi_max_mode ? std::floor(x1) : x1);
-    if (data[i + 3] < data[i + 1]) {
-        std::swap(data[i + 1], data[i + 3]);
-    }
-    if (data[i + 1] < 0)
-        data[i + 1] = 0;
-    if (data[i + 3] > max_x)
-        data[i + 3] = static_cast<T>(max_x);
+        data[i] = static_cast<T>(distribution(random));
+        const float x0 = (center_w + width * 0.3f * sin(static_cast<float>(i + 1) * omega));
+        const float x1 = (center_w + width * 0.3f * sin(static_cast<float>(i + 3) * omega));
+        data[i + 1] = static_cast<T>(is_roi_max_mode ? std::floor(x0) : x0);
+        data[i + 3] = static_cast<T>(is_roi_max_mode ? std::floor(x1) : x1);
+        if (data[i + 3] < data[i + 1]) {
+            std::swap(data[i + 1], data[i + 3]);
+        }
+        if (data[i + 1] < 0)
+            data[i + 1] = 0;
+        if (data[i + 3] > max_x)
+            data[i + 3] = static_cast<T>(max_x);
 
-    const float y0 = (center_h + height * 0.3f * sin(static_cast<float>(i + 2) * omega));
-    const float y1 = (center_h + height * 0.3f * sin(static_cast<float>(i + 4) * omega));
-    data[i + 2] = static_cast<T>(is_roi_max_mode ? std::floor(y0) : y0);
-    data[i + 4] = static_cast<T>(is_roi_max_mode ? std::floor(y1) : y1);
-    if (data[i + 4] < data[i + 2]) {
-        std::swap(data[i + 2], data[i + 4]);
-    }
-    if (data[i + 2] < 0)
-        data[i + 2] = 0;
-    if (data[i + 4] > max_y)
-        data[i + 4] = static_cast<T>(max_y);
+        const float y0 = (center_h + height * 0.3f * sin(static_cast<float>(i + 2) * omega));
+        const float y1 = (center_h + height * 0.3f * sin(static_cast<float>(i + 4) * omega));
+        data[i + 2] = static_cast<T>(is_roi_max_mode ? std::floor(y0) : y0);
+        data[i + 4] = static_cast<T>(is_roi_max_mode ? std::floor(y1) : y1);
+        if (data[i + 4] < data[i + 2]) {
+            std::swap(data[i + 2], data[i + 4]);
+        }
+        if (data[i + 2] < 0)
+            data[i + 2] = 0;
+        if (data[i + 4] > max_y)
+            data[i + 4] = static_cast<T>(max_y);
     }
 }
 
