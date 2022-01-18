@@ -217,18 +217,19 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
         if model_dir:
             # saved model directory
             try:
-                # Try to import Keras model.
-                # Not applicable for TF1
-                saved_model = tf.keras.models.load_model(model_dir)
-            except IndexError:
-                saved_model = None
-            try:
                 env_setup = get_environment_setup("tf")
                 # enable eager execution temporarily while TensorFlow 2 model is being loaded
                 tf_v1.enable_eager_execution()
-                # code to extract GraphDef for TF 2.0 SavedModel format
-                # tf.saved_model.load function throws TypeError for TF 1.x SavedModel format in case TF 1.x installed
-                imported = tf.saved_model.load(model_dir, saved_model_tags) # pylint: disable=E1120
+
+                try:
+                    # Try to import Keras model.
+                    # Not applicable for TF1
+                    imported = tf.keras.models.load_model(model_dir)
+                except:
+                    # code to extract GraphDef for TF 2.0 SavedModel format
+                    # tf.saved_model.load function throws TypeError for TF 1.x SavedModel format in case TF 1.x installed
+                    imported = tf.saved_model.load(model_dir, saved_model_tags) # pylint: disable=E1120
+
                 # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
                 concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
                 # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
@@ -245,9 +246,11 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 tf_v1.disable_eager_execution()
 
                 inputs_outputs_order = None
-                if saved_model is not None:
+
+
+                if hasattr(imported, 'inputs'):
                     # Extract tensor names order from Keras model
-                    input_names = [tensor.name for tensor in saved_model.inputs]
+                    input_names = [tensor.name for tensor in imported.inputs]
 
                     # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
                     # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
