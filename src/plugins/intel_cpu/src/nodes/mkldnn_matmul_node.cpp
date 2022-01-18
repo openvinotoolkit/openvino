@@ -864,7 +864,7 @@ void MKLDNNMatMulNode::prepareCustomKernel(const MemoryDescPtr& srcTransposedDes
     inputBatch1 = std::accumulate(srcTransposedDims1.begin(), srcTransposedDims1.begin() + lastBatchIdx1,
                                   1, std::multiplies<size_t>());
 
-    if (inputBatch0 != inputBatch1 && (inputBatch0 != 1 && inputBatch1 != 1))
+    if (inputBatch0 != inputBatch1 && inputBatch0 != 1 && inputBatch1 != 1)
         return;
 
     if (inputBatch0 != 1 && inputBatch0 == inputBatch1) {
