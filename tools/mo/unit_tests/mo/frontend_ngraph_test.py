@@ -68,3 +68,12 @@ def test_mo_fallback_test():
 
     status = subprocess.run(args, env=os.environ)
     assert not status.returncode
+
+
+def test_mo_model_analysis():
+    setup_env()
+    args = [sys.executable, '-m', 'pytest',
+            os.path.join(os.path.dirname(__file__), 'utils/test_mo_model_analysis_actual.py'), '-s']
+
+    status = subprocess.run(args, env=os.environ)
+    assert not status.returncode

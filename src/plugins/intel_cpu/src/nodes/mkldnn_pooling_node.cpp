@@ -297,32 +297,6 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     }
 }
 
-std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> MKLDNNPoolingNode::getPaddingFromNode(std::shared_ptr<ov::Node> node) const {
-    const auto convertPadding = [](const VectorDims &newPads) {
-        std::vector<ptrdiff_t> pads(newPads.size());
-        for (int i = 0; i < newPads.size(); i++) {
-            pads[i] = static_cast<ptrdiff_t>(newPads[i]);
-        }
-        return pads;
-    };
-
-    VectorDims padsBegin, padsEnd;
-    if (isMaxPool8) {
-        const auto pool = ov::as_type_ptr<const ov::op::v8::MaxPool>(opToShapeInfer);
-        padsBegin = pool->get_pads_begin();
-        padsEnd = pool->get_pads_end();
-    } else if (getAlgorithm() == PoolingMax) {
-        const auto pool = ov::as_type_ptr<const ov::op::v1::MaxPool>(opToShapeInfer);
-        padsBegin = pool->get_pads_begin();
-        padsEnd = pool->get_pads_end();
-    } else if (getAlgorithm() == PoolingAvg) {
-        const auto pool = ov::as_type_ptr<const ov::op::v1::AvgPool>(opToShapeInfer);
-        padsBegin = pool->get_pads_begin();
-        padsEnd = pool->get_pads_end();
-    }
-    return {convertPadding(padsBegin), convertPadding(padsEnd)};
-}
-
 void MKLDNNPoolingNode::prepareParams() {
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
@@ -343,7 +317,8 @@ void MKLDNNPoolingNode::prepareParams() {
 
     if (isDynamicNode()) {
         if (auto_pad) {
-            std::tie(data_pad_begin, data_pad_end) = getPaddingFromNode(opToShapeInfer);
+            data_pad_begin = shapeInference->get_pads_begin();
+            data_pad_end = shapeInference->get_pads_end();
         }
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
@@ -462,7 +437,8 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &input
         auto outDims = shapeInferGeneric({Shape(inDesc->getShape().getStaticDims())});
         outDesc = outDesc->cloneWithNewDims(outDims[0]);
         if (auto_pad) {
-            std::tie(data_pad_begin, data_pad_end) = getPaddingFromNode(opToShapeInfer);
+            data_pad_begin = shapeInference->get_pads_begin();
+            data_pad_end = shapeInference->get_pads_end();
         }
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
