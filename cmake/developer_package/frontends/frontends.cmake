@@ -57,7 +57,7 @@ function(ov_generate_frontends_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for frontend_common
     add_custom_target(_ov_frontends_hpp DEPENDS ${ov_frontends_hpp})
-    add_dependencies(frontend_common _ov_frontends_hpp)
+    add_dependencies(frontend_common_obj _ov_frontends_hpp)
 
     # add dependency for object files
     get_target_property(sources frontend_common_obj SOURCES)
@@ -89,7 +89,7 @@ unset(protobuf_installed CACHE)
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
-    set(options LINKABLE_FRONTEND PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
+    set(options LINKABLE_FRONTEND SHUTDOWN_PROTOBUF PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
     set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -149,6 +149,11 @@ macro(ov_add_frontend)
         add_library(openvino::frontend::${OV_FRONTEND_NAME} ALIAS ${TARGET_NAME})
     endif()
 
+    # Shutdown protobuf when unloading the front dynamic library
+    if(OV_FRONTEND_SHUTDOWN_PROTOBUF AND BUILD_SHARED_LIBS)
+        target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
+    endif()
+
     if(NOT BUILD_SHARED_LIBS)
         # override default function names
         target_compile_definitions(${TARGET_NAME} PRIVATE
@@ -160,7 +165,7 @@ macro(ov_add_frontend)
         # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
     else()
         ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                            INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                             ADDITIONAL_INCLUDE_DIRECTORIES
                                 $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()

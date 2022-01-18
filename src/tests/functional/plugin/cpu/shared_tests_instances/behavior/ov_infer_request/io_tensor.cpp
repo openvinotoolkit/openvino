@@ -23,6 +23,8 @@ const std::vector<std::map<std::string, std::string>> Autoconfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
 };
 
+const std::vector<std::map<std::string, std::string>> emptyConfigs = {{}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -81,4 +83,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorSetPrec
                                  ::testing::ValuesIn(Autoconfigs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::ValuesIn(emptyConfigs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                 ::testing::ValuesIn(Multiconfigs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                 ::testing::ValuesIn(Autoconfigs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
 }  // namespace
