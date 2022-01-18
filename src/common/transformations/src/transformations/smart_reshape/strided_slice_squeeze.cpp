@@ -106,9 +106,8 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             shrink_axis_mask,
             ellipsis_mask);
 
-        replace_output_update_name(slice->output(0), slice->input_value(0));
-        replace_node(squeeze, new_slice);
-        return true;
+        return replace_output_update_name(squeeze->output(0),
+                                          new_slice->output(squeeze->input_value(0).get_index()));
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label /*, matcher_name */);
     register_matcher(m, callback);

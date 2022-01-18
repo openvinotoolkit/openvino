@@ -8,23 +8,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <cpp/ie_cnn_network.h>
 
-#include <ngraph/pass/manager.hpp>
-#include "graph_comparator.hpp"
-
-namespace {
-
-    void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
-        manager.run_passes(f);
-    }
-
-    void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::CheckUniqueNames>(unh, true);
-        manager.run_passes(f);
-    }
-} // namespace
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 TEST(SmartReshapeTests, SS_Squeeze) {
     std::shared_ptr<ngraph::Function> f(nullptr);
@@ -207,9 +191,7 @@ TEST(SmartReshapeTests, SS_SharedSqueezes) {
 
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    network.serialize("/tmp/model1.xml", "/tmp/model.bin");
     ASSERT_NO_THROW(network.setBatchSize(2));
-    network.serialize("/tmp/model2.xml", "/tmp/model.bin");
     check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({3})) <<
