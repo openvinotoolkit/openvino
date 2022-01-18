@@ -120,7 +120,6 @@ protected:
             auto state = query_state.GetState();
             auto state_data = state->cbuffer().as<int16_t *>();
             for (int i = 0; i < state->size(); i++) {
-                // float elem = state_data[i];
                 EXPECT_NEAR(0, state_data[i], 1e-5);
             }
         }
