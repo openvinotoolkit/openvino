@@ -28,10 +28,10 @@ def is_conformance(content: str):
 
 def is_hung_test(content: str):
     if content == '' or \
-            "SKIPPED" in content or \
-            "FAILED" in content or \
-            "Unexpected application crash!" in content or \
-            "PASSED" in content:
+        "SKIPPED" in content or \
+        "FAILED" in content or \
+        "Unexpected application crash!" in content or \
+        "PASSED" in content:
         return False
     return True
 
