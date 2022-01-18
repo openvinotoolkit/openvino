@@ -327,7 +327,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
 //            if (config.inConfs[i].getMemDesc()->isDefined())
 //                continue;
 
-            int num = getParentEdgeAt(i)->getOutputNum();
+            int num = getParentEdgeAt(i)->getInputNum();
             if (getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()) {
                 if (num >= 0) {
                     const auto& parentConfig = getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
