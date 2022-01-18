@@ -188,9 +188,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::FakeQuantize>
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    auto constShapes = node->get_input_shape(0);
     int seed = 1;
-    size_t constDataSize = ngraph::shape_size(constShapes);
+    size_t constDataSize = ngraph::shape_size(targetShape);
     std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
     inputLowData = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(constDataSize, 10, 1, seed);
     if (node->get_levels() != 2) {
