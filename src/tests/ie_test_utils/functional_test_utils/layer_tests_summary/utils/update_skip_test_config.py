@@ -19,6 +19,13 @@ def parse_arguments():
 
     return parser.parse_args()
 
+
+def is_conformance(content: str):
+    if 'conformance' in content:
+        return True
+    return False
+
+
 def is_hung_test(content: str):
     if content == '' or \
             "SKIPPED" in content or \
@@ -51,7 +58,7 @@ def get_conformance_hung_test(test_log_dirs: list):
         for log_file in glob.glob(os.path.join(test_log_dir, '*/*')):
             with open(log_file) as log:
                 content = log.read()
-                if not (is_hung_test(content)):
+                if not (is_hung_test(content) and is_conformance(content)):
                     continue
                 device = get_device_name(content)
                 if 'arm' in content or 'arm' in log_file:

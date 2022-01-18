@@ -67,7 +67,7 @@ void ReadIRTest::query_model() {
         s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::CRASHED);
     }
     try {
-        query_model();
+        SubgraphBaseTest::query_model();
         s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::PASSED);
     } catch (...) {
         s.updateOPsStats(functionRefs, LayerTestsUtils::PassRate::Statuses::FAILED);

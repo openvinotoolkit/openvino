@@ -35,6 +35,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_CachingSupportCase, LoadNetworkCacheTest
                                  ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                  ::testing::ValuesIn(precisionsTemplate),
                                  ::testing::ValuesIn(batchSizesTemplate),
-                                 ::testing::Values(ConformanceTests::targetDevice)),
+                                 ::testing::Values(ov::test::conformance::targetDevice)),
                          LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

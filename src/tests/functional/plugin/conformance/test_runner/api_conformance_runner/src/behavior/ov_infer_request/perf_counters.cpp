@@ -11,7 +11,7 @@ using namespace ov::test::conformance;
 namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestPerfCountersTest,
                         ::testing::Combine(
-                                ::testing::Values(ConformanceTests::targetDevice),
+                                ::testing::Values(ov::test::conformance::targetDevice),
                                 ::testing::ValuesIn(emptyConfig)),
                          OVInferRequestPerfCountersTest::getTestCaseName);
 

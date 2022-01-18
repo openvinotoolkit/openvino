@@ -28,7 +28,7 @@ struct InputGenerateData {
 };
 
 static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> inputRanges = {
-        // NodeTypeInfo: {IntRanges{}, RealRanges{}}
+        // NodeTypeInfo: {IntRanges{}, RealRanges{}} (Ranges are used by generate<ov::Node>)
         { ov::op::v0::Erf::get_type_info_static(), {{{6, -3}}, {{6, -3, 10}}} },
         { ov::op::v1::Divide::get_type_info_static(), {{{100, 101}}, {{2, 2, 128}}} },
         { ov::op::v1::FloorMod::get_type_info_static(), {{{4, 2}}, {{2, 2, 128}}} },
@@ -44,7 +44,7 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> i
         { ov::op::v4::Proposal::get_type_info_static(), {{{1, 0, 1000, 8234231}}, {{1, 0, 1000, 8234231}}} },
         { ov::op::v4::ReduceL1::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
         { ov::op::v4::ReduceL2::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
-        // maxOutBoxesPerClass
+        // using ranges approach to set maxOutBoxesPerClass from NMS Single Layer Test
         { ov::op::v5::NonMaxSuppression::get_type_info_static(), {{}} },
 };
 

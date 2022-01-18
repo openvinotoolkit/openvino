@@ -7,6 +7,10 @@
 #include <gflags/gflags.h>
 #include <iostream>
 
+namespace ov {
+namespace test {
+namespace conformance {
+
 static const char help_message[] = "Print a usage message.";
 static const char disable_test_config_message[] = "Optional. Ignore tests skipping rules and run all the test (except those which are skipped with DISABLED "
                                                   "prefix). Default value is true";
@@ -62,3 +66,7 @@ static void showUsage() {
     std::cout << "    --output_folder \"<path>\"         " << output_folder_message << std::endl;
     std::cout << "    --plugin_lib_name                " << output_folder_message << std::endl;
 }
+
+}  // namespace conformance
+}  // namespace test
+}  // namespace ov

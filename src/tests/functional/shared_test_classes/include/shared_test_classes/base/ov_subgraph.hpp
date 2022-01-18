@@ -34,7 +34,7 @@ public:
 
 protected:
     virtual void compare(const std::vector<ov::runtime::Tensor> &expected,
-                 const std::vector<ov::runtime::Tensor> &actual);
+                         const std::vector<ov::runtime::Tensor> &actual);
 
     virtual void configure_model();
     virtual void compile_model();

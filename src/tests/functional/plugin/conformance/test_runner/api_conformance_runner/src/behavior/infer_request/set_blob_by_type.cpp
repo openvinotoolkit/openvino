@@ -8,7 +8,6 @@
 
 namespace {
 using namespace ov::test::conformance;
-using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
 const std::vector<FuncTestUtils::BlobType> setBlobTypes = {
