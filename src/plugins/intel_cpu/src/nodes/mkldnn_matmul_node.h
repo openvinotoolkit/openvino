@@ -97,7 +97,7 @@ private:
     DnnlBlockedMemoryDescPtr outDataDesc;
 
     /* custom matmul */
-    /* he supports only not transposed first input and
+    /* it supports only not transposed first input and
      * small matrices which are placed in L1 cache to execute in 1 thread */
     MKLDNNMemoryPtr memSrc0 = nullptr;
     MKLDNNMemoryPtr memSrc1 = nullptr;

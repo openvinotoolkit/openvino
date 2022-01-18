@@ -39,10 +39,11 @@ using namespace Xbyak;
 
 
 template <cpu_isa_t isa>
-struct jit_uni_matmul_kernel_f32 : public jit_uni_matmul_kernel, public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_matmul_kernel_f32)
+struct jit_uni_small_matmul_kernel_f32 : public jit_uni_matmul_kernel, public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_small_matmul_kernel_f32)
 
-    explicit jit_uni_matmul_kernel_f32(jit_matmul_config_params jcp_, const mkldnn_primitive_attr &attr) : jit_uni_matmul_kernel(jcp_, attr), jit_generator() {}
+    explicit jit_uni_small_matmul_kernel_f32(jit_matmul_config_params jcp_, const mkldnn_primitive_attr &attr) :
+        jit_uni_matmul_kernel(jcp_, attr), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -89,7 +90,7 @@ struct jit_uni_matmul_kernel_f32 : public jit_uni_matmul_kernel, public jit_gene
             cmp(batch, jcp_.b);
             je(label_batch_end, T_NEAR);
 
-            body();
+            body_m();
 
             // strides for batch
             if (jcp_.stride0 == 0)  // ptr for the first matrix is automatically incremented after each iteration by m,
@@ -162,7 +163,7 @@ private:
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
 
-    inline void body() {
+    inline void body_m() {
         Xbyak::Label label_m;
         Xbyak::Label label_m_end;
 
@@ -172,9 +173,9 @@ private:
             je(label_m_end, T_NEAR);
 
             if (jcp_.scalar_product) {
-                optimized_body_loop();
+                loop_n();
             } else {
-                body_loop();
+                loop_k();
             }
 
             add(reg_src_0, jcp_.k * sizeof(float));
@@ -185,7 +186,7 @@ private:
     }
 
     // common execution : broadcast(a) * vmm_b
-    inline void body_loop() {
+    inline void loop_k() {
         Xbyak::Label label_k;
         Xbyak::Label label_k_end;
 
@@ -204,7 +205,7 @@ private:
             uni_vbroadcastss(get_src_vmm(0), ptr[reg_src_aux_0]);  // src0
 
             for (int i = 0; i < amount_full; ++i) {
-                load_ptr(get_src_vmm(1), ptr[reg_src_aux_1 + i * vlen]);  // src1
+                load_by_address(get_src_vmm(1), ptr[reg_src_aux_1 + i * vlen]);  // src1
                 uni_vfmadd231ps(get_dst_vmm(i), get_src_vmm(0), get_src_vmm(1));  // broadcast(a) * vmm_1
             }
             add(reg_src_aux_1, amount_full * vlen);
@@ -223,7 +224,7 @@ private:
 
         for (int i = 0; i < amount_full; ++i) {
             apply_post_ops(get_dst_vmm(i).getIdx());
-            store_ptr(ptr[reg_dst + i * vlen], get_dst_vmm(i));
+            store_by_address(ptr[reg_dst + i * vlen], get_dst_vmm(i));
         }
         add(reg_dst, amount_full * vlen);
 
@@ -235,7 +236,7 @@ private:
     }
 
     // optimized execution for cases with transposed matrix b or k = 1
-    inline void optimized_body_loop() {
+    inline void loop_n() {
         Xbyak::Label label_n;
         Xbyak::Label label_n_end;
 
@@ -250,7 +251,7 @@ private:
             cmp(n, full_n_amount);
             je(label_n_end, T_NEAR);
 
-            optimized_vectorization_body_loop(vec_step);
+            loop_n_body(vec_step);
 
             if (attr_.post_ops_.len() != 0) {
                 load(reg_dst_aux, get_dst_vmm(0), vec_step);
@@ -265,7 +266,7 @@ private:
         L(label_n_end);
 
         if (tail_n_amount != 0) {
-            optimized_vectorization_body_loop(tail_n_amount);
+            loop_n_body(tail_n_amount);
 
             if (attr_.post_ops_.len() != 0) {
                 load(reg_dst_aux, get_dst_vmm(0), tail_n_amount);
@@ -276,7 +277,7 @@ private:
         }
     }
 
-    inline void optimized_vectorization_body_loop(const int amount) {
+    inline void loop_n_body(const int amount) {
         Xbyak::Label label_o;
         Xbyak::Label label_o_end;
 
@@ -289,8 +290,8 @@ private:
             uni_vpxor(get_dst_vmm(), get_dst_vmm(), get_dst_vmm());
 
             for (int i = 0; i < amount_full; ++i) {
-                load_ptr(get_src_vmm(0), ptr[reg_src_aux_0 + i * vlen]);  // src0
-                load_ptr(get_src_vmm(1), ptr[reg_src_aux_1 + i * vlen]);  // src1
+                load_by_address(get_src_vmm(0), ptr[reg_src_aux_0 + i * vlen]);  // src0
+                load_by_address(get_src_vmm(1), ptr[reg_src_aux_1 + i * vlen]);  // src1
 
                 uni_vfmadd231ps(get_dst_vmm(), get_src_vmm(0), get_src_vmm(1));
             }
@@ -365,11 +366,11 @@ private:
                                  store_pool_vec_idxs, store_pool_gpr_idxs);
     }
 
-    inline void load_ptr(Vmm vmm_src, const Xbyak::Address &op) {
+    inline void load_by_address(Vmm vmm_src, const Xbyak::Address &op) {
         uni_vmovups(vmm_src, op);
     }
 
-    inline void store_ptr(const Xbyak::Address &op, Vmm vmm_dst) {
+    inline void store_by_address(const Xbyak::Address &op, Vmm vmm_dst) {
         uni_vmovups(op, vmm_dst);
     }
 };
@@ -770,12 +771,11 @@ void MKLDNNMatMulNode::prepareParams() {
         attr = initPrimitiveAttr();
         src0TransposedDesc = inDataDesc[0];
         src1TransposedDesc = inDataDesc[1];
-    }
 
-    matmul_kernel.reset();
-    prepareCustomKernel(src0TransposedDesc, src1TransposedDesc, *attr);
-    if (matmul_kernel)
-        return;
+        prepareCustomKernel(src0TransposedDesc, src1TransposedDesc, *attr);
+        if (matmul_kernel)
+            return;
+    }
 
     auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
 
@@ -936,11 +936,11 @@ void MKLDNNMatMulNode::prepareCustomKernel(const MemoryDescPtr& srcTransposedDes
     memDst = getChildEdgeAt(0)->getMemoryPtr();
 
     if (mayiuse(x64::avx512_common)) {
-        matmul_kernel.reset(new jit_uni_matmul_kernel_f32<x64::avx512_common>(jep, *attrs.get()));
+        matmul_kernel.reset(new jit_uni_small_matmul_kernel_f32<x64::avx512_common>(jep, *attrs.get()));
     } else if (mayiuse(x64::avx2)) {
-        matmul_kernel.reset(new jit_uni_matmul_kernel_f32<x64::avx2>(jep, *attrs.get()));
+        matmul_kernel.reset(new jit_uni_small_matmul_kernel_f32<x64::avx2>(jep, *attrs.get()));
     } else if (mayiuse(x64::sse41)) {
-        matmul_kernel.reset(new jit_uni_matmul_kernel_f32<x64::sse41>(jep, *attrs.get()));
+        matmul_kernel.reset(new jit_uni_small_matmul_kernel_f32<x64::sse41>(jep, *attrs.get()));
     }
 
     if (matmul_kernel)
