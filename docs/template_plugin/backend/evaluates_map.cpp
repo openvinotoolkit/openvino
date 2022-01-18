@@ -3326,10 +3326,10 @@ bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
         break;
     case element::Type_t::bf16:
         ngraph::runtime::reference::interpolate<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
-                                                        op->get_input_partial_shape(0),
+                                                          op->get_input_partial_shape(0),
                                                           outputs[0]->get_data_ptr<bfloat16>(),
-                                                        op->get_output_shape(0),
-                                                        op->get_attrs());
+                                                          op->get_output_shape(0),
+                                                          op->get_attrs());
         break;
     default: {
     };
