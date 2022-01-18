@@ -200,9 +200,7 @@ openvino/tools/mo/front/interpolate_reshape.py
 openvino/tools/mo/front/InterpolateNormalizer.py
 openvino/tools/mo/front/InterpolateV1ToInterpolate.py
 openvino/tools/mo/front/kaldi/__init__.py
-openvino/tools/mo/front/kaldi/add_permute_after_convolution.py
-openvino/tools/mo/front/kaldi/add_reshape_around_convolution.py
-openvino/tools/mo/front/kaldi/add_reshape_around_pooling.py
+openvino/tools/mo/front/kaldi/add_reshape_transpose_around_conv_pool.py
 openvino/tools/mo/front/kaldi/apply_counts.py
 openvino/tools/mo/front/kaldi/extractor.py
 openvino/tools/mo/front/kaldi/extractors/__init__.py
@@ -273,6 +271,7 @@ openvino/tools/mo/front/mxnet/arange_ext.py
 openvino/tools/mo/front/mxnet/arange_like_ext.py
 openvino/tools/mo/front/mxnet/arange_like_replacer.py
 openvino/tools/mo/front/mxnet/arange_replacer.py
+openvino/tools/mo/front/mxnet/batch_dot_ext.py
 openvino/tools/mo/front/mxnet/block_grad_ext.py
 openvino/tools/mo/front/mxnet/box_nms_ext.py
 openvino/tools/mo/front/mxnet/cast_ext.py
@@ -287,6 +286,7 @@ openvino/tools/mo/front/mxnet/custom.py
 openvino/tools/mo/front/mxnet/custom_rpn_proposal.py
 openvino/tools/mo/front/mxnet/deformable_conv_ext.py
 openvino/tools/mo/front/mxnet/deformable_psroi_pooling_ext.py
+openvino/tools/mo/front/mxnet/div_sqrt_dim.py
 openvino/tools/mo/front/mxnet/dropout_ext.py
 openvino/tools/mo/front/mxnet/einsum_ext.py
 openvino/tools/mo/front/mxnet/elementwise_ext.py
@@ -311,6 +311,7 @@ openvino/tools/mo/front/mxnet/gather.py
 openvino/tools/mo/front/mxnet/gather_ext.py
 openvino/tools/mo/front/mxnet/gluoncv_ssd_anchors.py
 openvino/tools/mo/front/mxnet/instance_norm_ext.py
+openvino/tools/mo/front/mxnet/layer_norm_ext.py
 openvino/tools/mo/front/mxnet/leaky_relu.py
 openvino/tools/mo/front/mxnet/loader.py
 openvino/tools/mo/front/mxnet/lrn_ext.py
@@ -752,6 +753,7 @@ openvino/tools/mo/middle/InsertLayoutPropagationTransposes.py
 openvino/tools/mo/middle/InsertSelect.py
 openvino/tools/mo/middle/InterpolateSequenceToInterpolate.py
 openvino/tools/mo/middle/L2NormFusing.py
+openvino/tools/mo/middle/layer_normalization.py
 openvino/tools/mo/middle/LayoutChangeForConstantShapePaths.py
 openvino/tools/mo/middle/LayoutChangeForEinsum.py
 openvino/tools/mo/middle/LeakyReluPattern.py
@@ -837,6 +839,7 @@ openvino/tools/mo/mo_onnx.py
 openvino/tools/mo/mo_paddle.py
 openvino/tools/mo/mo_tf.py
 openvino/tools/mo/moc_frontend/__init__.py
+openvino/tools/mo/moc_frontend/analysis.py
 openvino/tools/mo/moc_frontend/extractor.py
 openvino/tools/mo/moc_frontend/pipeline.py
 openvino/tools/mo/moc_frontend/serialize.py
@@ -880,6 +883,7 @@ openvino/tools/mo/ops/dequantize_linear.py
 openvino/tools/mo/ops/detection_output_onnx.py
 openvino/tools/mo/ops/DetectionOutput.py
 openvino/tools/mo/ops/dft.py
+openvino/tools/mo/ops/div_sqrt_dim.py
 openvino/tools/mo/ops/dropoutmask.py
 openvino/tools/mo/ops/einsum.py
 openvino/tools/mo/ops/elementwise.py
@@ -910,6 +914,7 @@ openvino/tools/mo/ops/If.py
 openvino/tools/mo/ops/instance_normalization.py
 openvino/tools/mo/ops/interp.py
 openvino/tools/mo/ops/interpolate.py
+openvino/tools/mo/ops/layer_norm.py
 openvino/tools/mo/ops/log_softmax.py
 openvino/tools/mo/ops/LookupTableInsert.py
 openvino/tools/mo/ops/loop.py

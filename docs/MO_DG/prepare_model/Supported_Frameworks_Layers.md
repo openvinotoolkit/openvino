@@ -57,6 +57,7 @@
 | _contrib_box_nms |  |
 | _contrib_DeformableConvolution |  |
 | _contrib_DeformablePSROIPooling |  |
+| _contrib_div_sqrt_dim |  |
 | _contrib_MultiBoxDetection | "force_suppress" = 1 is not supported, non-default variances are not supported |
 | _contrib_MultiBoxPrior |  |
 | _contrib_Proposal |  |
@@ -78,6 +79,7 @@
 | arccosh |  |
 | arcsinh |  |
 | arctanh |  |
+| batch_dot |  |
 | broadcast_add |  |
 | broadcast_div |  |
 | broadcast_mul |  |
@@ -95,6 +97,7 @@
 | max |  |
 | minus_scalar |  |
 | null | Not needed for inference |
+| LayerNorm | "output_mean_var" = True is not supported |
 | repeat |  |
 | rnn |  |
 | rnn_param_concat |  |
