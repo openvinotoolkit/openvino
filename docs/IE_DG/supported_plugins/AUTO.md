@@ -6,11 +6,9 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_IE_DG_supported_plugins_AUTO_debugging
+   Auto Plugin Debugging <openvino_docs_IE_DG_supported_plugins_AUTO_debugging>
 
 @endsphinxdirective
-
-v2 
 
 The Auto-Device plugin is a virtual device which automatically selects the processing unit to use for inference with OpenVINO. It chooses from a list of available devices defined by the user and aims at finding the most suitable hardware for the given model. The best device is chosen using the following logic:  
 1. Check which supported devices are available. 
@@ -18,24 +16,13 @@ The Auto-Device plugin is a virtual device which automatically selects the proce
 3. From the priority list, select the first device capable of supporting the given precision. 
 4. If the network’s precision is FP32 but there is no device capable of supporting it, offload the network to a device supporting FP16. 
 
-+----------------+-------------------------------------------------------------+-------------------------------------+
-| Choice<br>Priority| Supported Device                                            | Supported model precision           |
-+================+=============================================================+=====================================+
-| 1              | dGPU                                                        | FP32, FP16, INT8, BIN, BATCHED_BLOB |
-|                | (e.g. Intel® Iris® Xe MAX)                                  |                                     |
-+----------------+-------------------------------------------------------------+-------------------------------------+
-| 2              | VPUX                                                        | INT8                                |
-|                | (e.g. Intel® Movidius® VPU 3700VE)                          |                                     |
-+----------------+-------------------------------------------------------------+-------------------------------------+
-| 3              | iGPU                                                        | FP32, FP16, BIN, BATCHED_BLOB       |
-|                | (e.g. Intel® UHD Graphics 620 (iGPU))                       |                                     |
-+----------------+-------------------------------------------------------------+-------------------------------------+
-| 4              | Myriad                                                      | FP16                                |
-|                | (Intel® Neural Compute Stick 2 (Intel® NCS2))               |                                     |
-+----------------+-------------------------------------------------------------+-------------------------------------+
-| 5              | IA CPU                                                      | FP32, FP16, INT8, BIN               |
-|                | (e.g. Intel® Core™ i7-1165G7)                               |                                     |
-+----------------+-------------------------------------------------------------+-------------------------------------+
+| Choice<br>Priority| Supported Device                                         | Supported model precision           |
+:---             |:---                                                         |:---                                 |
+| 1              | dGPU<br>(e.g. Intel® Iris® Xe MAX)                          | FP32, FP16, INT8, BIN, BATCHED_BLOB |
+| 2              | VPUX<br>(e.g. Intel® Movidius® VPU 3700VE)                  | INT8                                |
+| 3              | iGPU<br>(e.g. Intel® UHD Graphics 620 (iGPU))               | FP32, FP16, BIN, BATCHED_BLOB       |
+| 4              | Myriad<br>(Intel® Neural Compute Stick 2 (Intel® NCS2))     | FP16                                |
+| 5              | IA CPU<br>(e.g. Intel® Core™ i7-1165G7)                     | FP32, FP16, INT8, BIN               |
 
 To put it simply, when loading the network to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. For example: 
 If you have dGPU in your system, it will be selected for most jobs (first on the priority list and supports multiple precisions). But if you want to run a WINOGRAD-enabled IR, your CPU will be selected (WINOGRAD optimization is not supported by dGPU). If you have Myriad and IA CPU in your system, Myriad will be selected for FP16 models, but IA CPU will be chosen for FP32 ones.  
@@ -68,10 +55,10 @@ Following the OpenVINO naming convention, the Auto-device plugin is assigned the
 
 | Parameter               | Parameter values                                            | Supported model precision           |
 | :---------------------- | :---------------------------------------------------------- | :---------------------------------- |
-| <device candidate list> | AUTO: <comma-separated device names with no spaces>         | Lists the devices available for selection. <br> If not specified, “AUTO” will be used as the default device name and all devices will be included. |
+| <device candidate list> | AUTO: <comma-separated device names with no spaces>         | Lists the devices available for selection.<br>If not specified, “AUTO” will be used as the default device name and all devices will be included. |
 | MULTI_DEVICE_PRIORITIES | comma-separated device names with no spaces                 | Specifies the devices for Auto-Device plugin to select. This configuration is optional. |
-| PERFORMANCE_HINT        | THROUGHPUT (or TPUT) <br> LATENCY                           | Specifies the performance mode preferred by application.  |
-| AUTO_NETWORK_PRIORITY   | An integer starting from 0                                  | Indicates the priority for a network, where “0” is the highest possible priority. <br> Important! This parameter is still not fully supported, and caution is advised when using it.  |
+| PERFORMANCE_HINT        | THROUGHPUT (or TPUT)<br>LATENCY                           | Specifies the performance mode preferred by application.  |
+| AUTO_NETWORK_PRIORITY   | An integer starting from 0                                  | Indicates the priority for a network, where “0” is the highest possible priority.<br>Important! This parameter is still not fully supported, and caution is advised when using it.  |
 
 ### Device candidate list 
 The device candidate list allows users to limit the choice of devices available to the AUTO plugin. If not specified, the plugin assumes all the devices present in the system can be used. Note, that Inference Engine lets you use “GPU” as an alias for “GPU.0” in function calls. 
@@ -79,6 +66,7 @@ The following commands are accepted by the API:
 
 @sphinxdirective
 .. tab:: C++ API
+
    .. code-block:: cpp
 
       /*********************
@@ -104,6 +92,7 @@ The following commands are accepted by the API:
       core.set_config({{"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}, "AUTO");
 
 .. tab:: C++ legacy API
+
    .. code-block:: cpp
 
       /*********************
@@ -129,6 +118,7 @@ The following commands are accepted by the API:
       ie.SetConfig({{"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}, "AUTO");
 	  
 .. tab:: Python API
+
    .. code-block:: python
 
       ##################
@@ -156,6 +146,7 @@ The following commands are accepted by the API:
       core.set_config(config={"MULTI_DEVICE_PRIORITIES":"CPU,GPU"}, device_name="AUTO")
     
 .. tab:: Python legacy API
+
    .. code-block:: python
 
       ######################
@@ -214,6 +205,7 @@ Note that currently the PERFORMANCE_HINT parameter is not supported by VPUX and 
 To enable Performance Hints for your application, use the following code: 
 @sphinxdirective
 .. tab:: C++ API
+
    .. code-block:: cpp
 
       ov::runtime::Core core
@@ -228,6 +220,7 @@ To enable Performance Hints for your application, use the following code:
       ov::runtime::CompiledModel compiledModel3 = core.compile_model(model, "AUTO:CPU,GPU", {{"PERFORMANCE_HINT", "LATENCY"}});
 
 .. tab:: Python API
+
    .. code-block:: python
 
       from openvino.runtime import Core
@@ -250,6 +243,7 @@ The parameter enables you to control the priorities of networks in Auto-Device P
 
 @sphinxdirective
 .. tab:: C++ API
+
    .. code-block:: cpp
 
       // Example 1
@@ -272,6 +266,7 @@ The parameter enables you to control the priorities of networks in Auto-Device P
       Result: compiled_model0 will use GPU, compiled_model1 will use GPU, compiled_model3 will use MYRIAD.
       ************/
 .. tab:: Python API
+
    .. code-block:: python
 
       # Example 1
@@ -296,6 +291,7 @@ Although the methods described above are currently the preferred way to execute 
 
 @sphinxdirective
 .. tab:: C++ API
+
    .. code-block:: cpp
 
       ov::runtime::Core core
@@ -315,7 +311,9 @@ Although the methods described above are currently the preferred way to execute 
       
       // To query the optimization capabilities:
       std::vector
+
 .. tab:: Python API
+
    .. code-block:: python
 
       from openvino.runtime import Core
