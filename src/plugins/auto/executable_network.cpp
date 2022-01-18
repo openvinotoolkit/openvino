@@ -266,11 +266,36 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _inferPipelineTasksDeviceSpecific["CPU_HELP"] = nullptr;
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
+        auto recycleTask = [this]() mutable {
+            WaitActualNetworkReady();
+            while (!_exitFlag && _loadContext[ACTUALDEVICE].isAlready) {
+                // handle the case of ACTUAL faster than CPU
+                _loadContext[CPU].future.wait();
+                // clean up helper infer requests
+                // first, wait for all the remaining requests to finish
+                for (auto& iter : _workerRequests["CPU_HELP"]) {
+                    iter._inferRequest._ptr->Wait(InferRequest::WaitMode::RESULT_READY);
+                }
+                // late enough to check the idle queue now
+                // second, check the idle queue if all requests are in place
+                size_t destroynum = 0;
+                WorkerInferRequest *workerRequestPtr = nullptr;
+                while (_idleWorkerRequests["CPU_HELP"].try_pop(workerRequestPtr))
+                    destroynum++;
+                if (destroynum == _workerRequests["CPU_HELP"].size()) {
+                    std::lock_guard<std::mutex> lock(_confMutex);
+                    _workerRequests["CPU_HELP"].clear();
+                    _loadContext[CPU].executableNetwork._ptr.reset();
+                    _loadContext[CPU].executableNetwork._so.reset();
+                    break;
+                }
+            }
+        };
+        _executor->run(std::move(recycleTask));
     } else {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
     }
-
     WaitFirstNetworkReady();
 }
 void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
@@ -396,12 +421,6 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                if (_loadContext[ACTUALDEVICE].future.valid()) {
                    _loadContext[ACTUALDEVICE].future.wait();
                }
-               // if _loadContext[ACTUALDEVICE] load failed,  fall back to _loadContext[CPU]
-               if (!_loadContext[ACTUALDEVICE].isAlready) {
-                   _loadContext[ACTUALDEVICE].executableNetwork = _loadContext[CPU].executableNetwork;
-                   _loadContext[ACTUALDEVICE].deviceInfo = _loadContext[CPU].deviceInfo;
-                   _loadContext[ACTUALDEVICE].isAlready = true;
-               }
                });
 }
 
@@ -475,6 +494,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     if (_workModeIsAUTO) {
         // this is necessary to guarantee member destroyed after getting future
         if (_loadContext[CPU].isEnabled) {
+            _exitFlag = true;
             _loadContext[CPU].future.wait();
             WaitActualNetworkReady();
             // it's necessary to wait the loading network threads to stop here.
@@ -495,7 +515,10 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
-    _workerRequests.clear();
+    {
+        std::lock_guard<std::mutex> lock(_confMutex);
+        _workerRequests.clear();
+    }
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {

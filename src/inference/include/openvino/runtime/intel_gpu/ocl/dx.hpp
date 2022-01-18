@@ -40,7 +40,7 @@ namespace ocl {
 class D3DBufferTensor : public ClBufferTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
@@ -67,7 +67,7 @@ public:
 class D3DSurface2DTensor : public ClImage2DTensor {
 public:
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @brief Checks that type defined runtime parameters are presented in remote object
      * @param remote_tensor remote tensor to check
      */
     static void type_check(const Tensor& remote_tensor) {
@@ -98,7 +98,7 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with Direct3D 11 device.
  * The plugin object derived from this class can be obtained either with
- * ExecutableNetwork::get_context() or Core::create_context() calls.
+ * CompiledModel::get_context() or Core::create_context() calls.
  * @note User can also obtain OpenCL context handle from this class.
  */
 class D3DContext : public ClContext {
@@ -107,8 +107,8 @@ public:
     using ClContext::create_tensor;
 
     /**
-     * @brief Checks that type defined runtime paramters are presented in remote object
-     * @param remote_context remote context to check
+     * @brief Checks that type defined runtime parameters are presented in remote object
+     * @param remote_context A remote context to check
      */
     static void type_check(const RemoteContext& remote_context) {
         RemoteContext::type_check(

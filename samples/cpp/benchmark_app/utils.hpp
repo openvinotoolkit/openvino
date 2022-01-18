@@ -58,7 +58,6 @@ std::vector<std::string> parseDevices(const std::string& device_string);
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
 std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
                                                                const std::string& values_string);
-size_t getModelInputBatchSize(const ov::Model& model);
 std::string getShapeString(const ov::Shape& shape);
 std::string getShapesString(const benchmark_app::PartialShapes& shapes);
 size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info);
@@ -123,10 +122,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                                      const std::string& mean_string,
                                                      const std::vector<ov::Output<const ov::Node>>& input_info);
 
-#ifdef USE_OPENCV
 void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config);
 void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config);
-#endif
 
 extern const std::vector<std::string> supported_image_extensions;
 extern const std::vector<std::string> supported_binary_extensions;
