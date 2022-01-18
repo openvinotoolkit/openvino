@@ -326,7 +326,7 @@ class BiasCorrection(Algorithm):
 
     def _reshape_model_by_feed_dict(self, feed_dict, model_copy):
         current_inputs = self._launcher.model.inputs
-        current_shapes = {input_const.get_node().friendly_name: tuple(input_const.shape) for input_const in
+        current_shapes = {input_const.get_node().friendly_name: tuple(input_const.partial_shape) for input_const in
                           current_inputs}
         feed_shapes = {input_name: tuple(feed_dict[input_name].shape) for input_name in feed_dict}
         if feed_shapes != current_shapes:
