@@ -55,6 +55,9 @@ private:
     void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
                                   const mkldnn::memory::desc &outputDesc);
 
+    VectorDims makeDummyInputDims() const;
+    VectorDims makeDummyOutputDims(const VectorDims& inDims) const;
+
     VectorDims inDims;
     VectorDims outDims;
 
