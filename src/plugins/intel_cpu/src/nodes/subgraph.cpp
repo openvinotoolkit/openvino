@@ -138,31 +138,31 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         };
 
         size_t offset = 0;
-        uint32_t mask = 0xffffffff ^ (1 << 31); // accepts any offset
+        constexpr uint32_t anyOffsetMask = 0xffffffff ^ (1 << 31); // accepts any offset
         NodeConfig config;
         config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
+            uint32_t inputMask = anyOffsetMask;
             PortConfig portConfig;
             portConfig.inPlace((!i && canBeInPlace()) ? 0 : -1);
             portConfig.constant(false);
-            portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset));
             if (inputShapes[i].getDims()[0] == 1) {
-                mask ^= 0x1; // accepts any stride on batch axis
-                portConfig.setMemDesc(std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(portConfig.getMemDesc()), mask);
+                inputMask ^= 0x1; // accepts any stride on batch axis
             }
+            portConfig.setMemDesc(createMemoryDesc(inputShapes[i], supportedPrecision, offset), inputMask);
             config.inConfs[i] = portConfig;
         }
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
+            uint32_t outputMask = anyOffsetMask;
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
-            portConfig.setMemDesc(createMemoryDesc(outputShapes[i], supportedPrecision, offset));
             if (outputShapes[i].getDims()[0] == 1) {
-                mask ^= 0x1; // accepts any stride on batch axis
-                portConfig.setMemDesc(std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(portConfig.getMemDesc()), mask);
+                outputMask ^= 0x1; // accepts any stride on batch axis
             }
+            portConfig.setMemDesc(createMemoryDesc(outputShapes[i], supportedPrecision, offset), outputMask);
             config.outConfs[i] = portConfig;
         }
 
