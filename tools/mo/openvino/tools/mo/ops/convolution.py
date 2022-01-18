@@ -7,7 +7,6 @@ import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mark_input_bins, assign_dims_to_weights, \
     tf_window_op_pad_infer, dynamic_dimension_value, shape_array, is_fully_defined, undefined_shape_of_rank
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs

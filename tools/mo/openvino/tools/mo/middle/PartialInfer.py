@@ -7,7 +7,6 @@ from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined,
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.infer import partial_infer
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
-from openvino.tools.mo.ops.parameter import Parameter
 
 
 class PartialInfer(MiddleReplacementPattern):

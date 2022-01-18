@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer, shape_array
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 

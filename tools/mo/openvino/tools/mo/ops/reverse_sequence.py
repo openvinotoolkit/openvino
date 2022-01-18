@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
-from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 
 
 class ReverseSequence(Op):

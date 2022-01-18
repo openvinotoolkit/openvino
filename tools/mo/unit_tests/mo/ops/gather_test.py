@@ -3,7 +3,8 @@
 
 import numpy.testing as npt
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors, \
+    dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.middle.passes.infer import partial_infer
 from openvino.tools.mo.ops.gather import Gather

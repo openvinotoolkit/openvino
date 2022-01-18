@@ -4,15 +4,14 @@
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
-from openvino.tools.mo.ops.split import AttributedSplit, AttributedVariadicSplit, VariadicSplit
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, \
     dynamic_dimension_value, dynamic_dimension, strict_compare_tensors
 from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.split import AttributedSplit, AttributedVariadicSplit, VariadicSplit
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
-
-from generator import generator, generate
 
 
 class TestSplitOp(unittest.TestCase):

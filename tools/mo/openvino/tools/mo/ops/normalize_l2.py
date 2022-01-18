@@ -3,10 +3,11 @@
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op
-from openvino.tools.mo.front.common.partial_infer.utils import reverse_bypass_infer
+
 
 class NormalizeL2Op(Op):
     op = 'NormalizeL2'
