@@ -92,14 +92,6 @@ find_package( Cython REQUIRED
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
 
-# Use the Python interpreter to find the libs.
-#if(NOT PythonLibsNew_FIND_VERSION)
-#  set(PythonLibsNew_FIND_VERSION "3")
-#endif()
-#message(STATUS "AAAA ${PythonLibsNew_FIND_VERSION}")
-#find_package(PythonInterp ${PythonLibsNew_FIND_VERSION} REQUIRED)
-#find_package(PythonLibs ${PythonLibsNew_FIND_VERSION} REQUIRED)
-
 find_package(Python3 COMPONENTS Interpreter Development)
 
 # Create a *.c or *.cxx file from a *.pyx file.
