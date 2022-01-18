@@ -31,7 +31,6 @@
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
-#include <transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
@@ -379,7 +378,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     pass_config->disable<ngraph::pass::ConvertGather7ToGather1>();
     pass_config->disable<ngraph::pass::ConvertGather8ToGather7>();
-    pass_config->disable<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
     pass_config->disable<ngraph::pass::ConvertMinimum>();
     pass_config->disable<ngraph::pass::ConvertBroadcastToTiles>();
     pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();

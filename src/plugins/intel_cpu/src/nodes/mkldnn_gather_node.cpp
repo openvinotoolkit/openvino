@@ -463,10 +463,14 @@ void MKLDNNGatherNode::execReference() {
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * dstIdxAndAfterAxisSize;
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
         int ii = srcIndices[b * specIndicesSize + j];
-        if (ii < 0)
-            ii += axisDim;
-        size_t idx = ii;
-        size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
+        if (ii < 0) {
+            if (reverseIndexing)
+                ii += axisDim;
+            else
+                ii = axisDim;
+        }
+        const size_t idx = ii;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
         if (idx < axisDim) {
             size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {

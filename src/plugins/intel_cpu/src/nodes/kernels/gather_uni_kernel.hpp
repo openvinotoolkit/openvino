@@ -2,6 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// Gather kernel implements two approaches for indices calculation: "Short" and "Long".
+// 1. Short approach is applicable for cases when the number of elements less or equal to vector register length.
+// It just uses permutation of current indices vector to retrieve the next.
+// 2. Long approach is applicable for cases when the number of elements is greater than vector register length.
+// It increases indices in vector on vector length and normalizes upper bound of indices.
+//
+//                    SUPPORTED CASES
+//--------------------------------------------------------------
+//  After axis |         AVX512        |         AVX2          |
+// (block) size| 32bit | 16bit |  8bit | 32bit | 16bit |  8bit |
+//                      STATIC SHAPES
+//      1      |   X   |   X   |   X   |   X   |   X   |   X   |
+// >1 & <=vlen |   X   |   X   |   X   |   X   |       |       |
+//                      DYNAMIC SHAPES
+//      1      |   X   |   X   |   X   |   X   |   X   |   X   |
+//--------------------------------------------------------------
+
+
 #pragma once
 
 #include "cpu/x64/jit_generator.hpp"
