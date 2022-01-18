@@ -90,7 +90,6 @@
 
 #include "debug_use_new_pass.hpp"
 
-#if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
 
 inline uint32_t ToByteSize(const Gna2DataType type) {

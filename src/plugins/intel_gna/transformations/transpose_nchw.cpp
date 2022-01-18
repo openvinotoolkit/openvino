@@ -8,7 +8,6 @@
 
 #include "transformations/utils/transformation_helper.hpp"
 
-#include <ngraph_ops/convolution_ie.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>

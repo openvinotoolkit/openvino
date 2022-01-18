@@ -57,7 +57,7 @@ namespace {
 
 using Graph = std::unordered_map<std::string, std::unordered_set<std::string>>;
 
-Graph BuildGraph(std::shared_ptr<Function> function)
+Graph BuildGraph(std::shared_ptr<ngraph::Function> function)
 {
     Graph graph;
 
@@ -161,7 +161,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
         ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE") || ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
 
 #ifdef EMUTEX_TRACE_ENABLED
-    FunctionTracer<shared_ptr<ov::Function>> func_tracer(func);
+    FunctionTracer<shared_ptr<ngraph::Function>> func_tracer(func);
 #endif
 
     size_t index = 0;

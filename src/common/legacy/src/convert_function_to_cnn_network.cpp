@@ -1491,10 +1491,7 @@ CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): n
         res->params = params;
 
         auto && rt_info = node->get_rt_info();
-        bool keep_constants(false);
-        if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
-            keep_constants = attr->get();
-        }
+        bool keep_constants = rt_info["keep_constants"].as<bool>();
 
         // Restore output and kernel size
         auto shape = node->get_input_shape(1);
