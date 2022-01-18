@@ -3331,7 +3331,8 @@ bool evaluate(const shared_ptr<op::v0::Interpolate>& op,
                                                          op->get_output_shape(0),
                                                          op->get_attrs());
         break;
-    default:{};
+    default: {
+    };
     }
     return true;
 }
