@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.ops.elementwise import Add, Div
+from openvino.tools.mo.ops.elementwise import Add, Div, Mul
 from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.range import Range
 from openvino.tools.mo.ops.reshape import Reshape
@@ -27,8 +27,8 @@ class ArangeLikeReplacer(FrontReplacementOp):
         axis = node.axis
         data_out_port = node.in_port(0).get_source()
         input_shape_node = Shape(graph, {'name': name + '/ShapeOf'}).create_node()
-        range_node = create_op_with_const_inputs(graph, Range, {0: int64_array(node.start),
-                                                                2: int64_array(node.step)}, {'name': name + '/Range'})
+        range_node = create_op_with_const_inputs(graph, Range, {0: mo_array(node.start),
+                                                                2: mo_array(node.step)}, {'name': name + '/Range'})
         node.in_port(0).disconnect()
         input_shape_node.in_port(0).connect(data_out_port)
 
@@ -75,6 +75,11 @@ class ArangeLikeReplacer(FrontReplacementOp):
             rename_nodes([(node, name + '/ShouldBeDeleted'), (reshape_backward_node, name)])
 
         if node.repeat != 1:
+            r"""
+            First, we generate the correct stop value for Range like new_stop_value = stop_value // repeat + 1.
+            Then repeats each value of the interval using Tile. After that we can get a longer interval
+            so we reduce it with Slice 
+            """
             div_node = create_op_with_const_inputs(graph, Div, {1: int64_array([node.repeat])},
                                                    {'name': name + '/Divide'})
             add_node = create_op_with_const_inputs(graph, Add, {1: int64_array([1])},
@@ -92,8 +97,8 @@ class ArangeLikeReplacer(FrontReplacementOp):
                                                {'name': tile_forward_reshape.name + '/Tile'})
             tile_backward_reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array([-1])},
                                                                 {'name': tile.name + '/BackwardReshape'})
-            slice_node = create_op_with_const_inputs(graph, Slice, {1: int64_array([0]), 3: int64_array([1]),
-                                                                    4: int64_array([0])},
+            slice_node = create_op_with_const_inputs(graph, Slice, {1: int64_array([0]), 3: int64_array([0]),
+                                                                    4: int64_array([1])},
                                                      {'name': tile_backward_reshape.name + '/Slice'})
 
             tile_forward_reshape.out_port(0).connect(tile.in_port(0))
@@ -105,10 +110,25 @@ class ArangeLikeReplacer(FrontReplacementOp):
             range_node.out_port(0).connect(tile_forward_reshape.in_port(0))
 
         # MXNet arange_like op has no stop attribute and the result tensor always matches the input shape, so
-        # we have to correct the stop value for the Range node if start > 0
-        if node.start > 0:
-            correct_stop_value = create_op_with_const_inputs(graph, Add, port_value_dict={1: int64_array(node.start)},
-                                                             op_attrs={'name': range_node.name + '/Stop'})
+        # we have to correct the stop value for the Range node if step != 1 or start != 0
+        if node.step != 1:
+            # If step attribute is not integer, we will generate an interval with a larger size and then reduce it
+            # using Slice
+            true_elements_count_port = range_node.in_port(1).get_source()
+            mul_value = np.ceil(node.step) if node.step > 0 else np.floor(node.step)
+            stop_value = create_op_with_const_inputs(graph, Mul, port_value_dict={1: mo_array(np.ceil(mul_value))},
+                                                     op_attrs={'name': range_node.name + '/Stop'})
+            range_node.in_port(1).get_connection().insert_node(stop_value)
+
+            slice_range_values = create_op_with_const_inputs(graph, Slice, {1: int64_array([0]), 3: int64_array([0]),
+                                                                            4: int64_array([1])},
+                                                             {'name': range_node.name + '/Slice'})
+            slice_range_values.in_port(2).connect(true_elements_count_port)
+            range_node.out_port(0).get_connection().insert_node(slice_range_values)
+
+        if node.start != 0:
+            correct_stop_value = create_op_with_const_inputs(graph, Add, port_value_dict={1: mo_array(node.start)},
+                                                             op_attrs={'name': range_node.name + '/Correct_Stop'})
             range_node.in_port(1).get_connection().insert_node(correct_stop_value)
 
         # Range node supports only scalar inputs
