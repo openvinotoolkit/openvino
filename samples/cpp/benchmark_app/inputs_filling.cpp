@@ -24,12 +24,12 @@ using uniformDistribution = typename std::conditional<
     typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
 
 template <typename T>
-ov::runtime::Tensor createTensorFromImage(const std::vector<std::string>& files,
-                                          size_t inputId,
-                                          size_t batchSize,
-                                          const benchmark_app::InputInfo& inputInfo,
-                                          const std::string& inputName,
-                                          std::string* filenames_used = nullptr) {
+ov::runtime::Tensor create_tensor_from_image(const std::vector<std::string>& files,
+                                             size_t inputId,
+                                             size_t batchSize,
+                                             const benchmark_app::InputInfo& inputInfo,
+                                             const std::string& inputName,
+                                             std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -97,10 +97,10 @@ ov::runtime::Tensor createTensorFromImage(const std::vector<std::string>& files,
 }
 
 template <typename T>
-ov::runtime::Tensor createTensorImInfo(const std::pair<size_t, size_t>& image_size,
-                                       size_t batchSize,
-                                       const benchmark_app::InputInfo& inputInfo,
-                                       const std::string& inputName) {
+ov::runtime::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image_size,
+                                          size_t batchSize,
+                                          const benchmark_app::InputInfo& inputInfo,
+                                          const std::string& inputName) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -132,12 +132,12 @@ ov::runtime::Tensor createTensorImInfo(const std::pair<size_t, size_t>& image_si
 }
 
 template <typename T>
-ov::runtime::Tensor createTensorFromBinary(const std::vector<std::string>& files,
-                                           size_t inputId,
-                                           size_t batchSize,
-                                           const benchmark_app::InputInfo& inputInfo,
-                                           const std::string& inputName,
-                                           std::string* filenames_used = nullptr) {
+ov::runtime::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
+                                              size_t inputId,
+                                              size_t batchSize,
+                                              const benchmark_app::InputInfo& inputInfo,
+                                              const std::string& inputName,
+                                              std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -190,9 +190,9 @@ ov::runtime::Tensor createTensorFromBinary(const std::vector<std::string>& files
 }
 
 template <typename T, typename T2>
-ov::runtime::Tensor createTensorRandom(const benchmark_app::InputInfo& inputInfo,
-                                       T rand_min = std::numeric_limits<uint8_t>::min(),
-                                       T rand_max = std::numeric_limits<uint8_t>::max()) {
+ov::runtime::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
+                                         T rand_min = std::numeric_limits<uint8_t>::min(),
+                                         T rand_max = std::numeric_limits<uint8_t>::max()) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -215,40 +215,40 @@ ov::runtime::Tensor get_image_tensor(const std::vector<std::string>& files,
                                      std::string* filenames_used = nullptr) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
-        return createTensorFromImage<float>(files,
-                                            inputId,
-                                            batchSize,
-                                            inputInfo.second,
-                                            inputInfo.first,
-                                            filenames_used);
+        return create_tensor_from_image<float>(files,
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
     } else if (type == ov::element::f16) {
-        return createTensorFromImage<short>(files,
-                                            inputId,
-                                            batchSize,
-                                            inputInfo.second,
-                                            inputInfo.first,
-                                            filenames_used);
+        return create_tensor_from_image<short>(files,
+                                               inputId,
+                                               batchSize,
+                                               inputInfo.second,
+                                               inputInfo.first,
+                                               filenames_used);
     } else if (type == ov::element::i32) {
-        return createTensorFromImage<int32_t>(files,
-                                              inputId,
-                                              batchSize,
-                                              inputInfo.second,
-                                              inputInfo.first,
-                                              filenames_used);
+        return create_tensor_from_image<int32_t>(files,
+                                                 inputId,
+                                                 batchSize,
+                                                 inputInfo.second,
+                                                 inputInfo.first,
+                                                 filenames_used);
     } else if (type == ov::element::i64) {
-        return createTensorFromImage<int64_t>(files,
-                                              inputId,
-                                              batchSize,
-                                              inputInfo.second,
-                                              inputInfo.first,
-                                              filenames_used);
+        return create_tensor_from_image<int64_t>(files,
+                                                 inputId,
+                                                 batchSize,
+                                                 inputInfo.second,
+                                                 inputInfo.first,
+                                                 filenames_used);
     } else if (type == ov::element::u8) {
-        return createTensorFromImage<uint8_t>(files,
-                                              inputId,
-                                              batchSize,
-                                              inputInfo.second,
-                                              inputInfo.first,
-                                              filenames_used);
+        return create_tensor_from_image<uint8_t>(files,
+                                                 inputId,
+                                                 batchSize,
+                                                 inputInfo.second,
+                                                 inputInfo.first,
+                                                 filenames_used);
     } else {
         IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
@@ -259,13 +259,13 @@ ov::runtime::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_si
                                        const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
-        return createTensorImInfo<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
+        return create_tensor_im_info<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else if (type == ov::element::f16) {
-        return createTensorImInfo<short>(image_size, batchSize, inputInfo.second, inputInfo.first);
+        return create_tensor_im_info<short>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else if (type == ov::element::i32) {
-        return createTensorImInfo<int32_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
+        return create_tensor_im_info<int32_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else if (type == ov::element::i64) {
-        return createTensorImInfo<int64_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
+        return create_tensor_im_info<int64_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else {
         IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
@@ -278,40 +278,40 @@ ov::runtime::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                       std::string* filenames_used = nullptr) {
     const auto& type = inputInfo.second.type;
     if (type == ov::element::f32) {
-        return createTensorFromBinary<float>(files,
-                                             inputId,
-                                             batchSize,
-                                             inputInfo.second,
-                                             inputInfo.first,
-                                             filenames_used);
+        return create_tensor_from_binary<float>(files,
+                                                inputId,
+                                                batchSize,
+                                                inputInfo.second,
+                                                inputInfo.first,
+                                                filenames_used);
     } else if (type == ov::element::f16) {
-        return createTensorFromBinary<short>(files,
-                                             inputId,
-                                             batchSize,
-                                             inputInfo.second,
-                                             inputInfo.first,
-                                             filenames_used);
+        return create_tensor_from_binary<short>(files,
+                                                inputId,
+                                                batchSize,
+                                                inputInfo.second,
+                                                inputInfo.first,
+                                                filenames_used);
     } else if (type == ov::element::i32) {
-        return createTensorFromBinary<int32_t>(files,
-                                               inputId,
-                                               batchSize,
-                                               inputInfo.second,
-                                               inputInfo.first,
-                                               filenames_used);
+        return create_tensor_from_binary<int32_t>(files,
+                                                  inputId,
+                                                  batchSize,
+                                                  inputInfo.second,
+                                                  inputInfo.first,
+                                                  filenames_used);
     } else if (type == ov::element::i64) {
-        return createTensorFromBinary<int64_t>(files,
-                                               inputId,
-                                               batchSize,
-                                               inputInfo.second,
-                                               inputInfo.first,
-                                               filenames_used);
+        return create_tensor_from_binary<int64_t>(files,
+                                                  inputId,
+                                                  batchSize,
+                                                  inputInfo.second,
+                                                  inputInfo.first,
+                                                  filenames_used);
     } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
-        return createTensorFromBinary<uint8_t>(files,
-                                               inputId,
-                                               batchSize,
-                                               inputInfo.second,
-                                               inputInfo.first,
-                                               filenames_used);
+        return create_tensor_from_binary<uint8_t>(files,
+                                                  inputId,
+                                                  batchSize,
+                                                  inputInfo.second,
+                                                  inputInfo.first,
+                                                  filenames_used);
     } else {
         IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
@@ -320,27 +320,27 @@ ov::runtime::Tensor get_binary_tensor(const std::vector<std::string>& files,
 ov::runtime::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
-        return createTensorRandom<float, float>(inputInfo.second);
+        return create_tensor_random<float, float>(inputInfo.second);
     } else if (type == ov::element::f16) {
-        return createTensorRandom<short, short>(inputInfo.second);
+        return create_tensor_random<short, short>(inputInfo.second);
     } else if (type == ov::element::i32) {
-        return createTensorRandom<int32_t, int32_t>(inputInfo.second);
+        return create_tensor_random<int32_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::i64) {
-        return createTensorRandom<int64_t, int64_t>(inputInfo.second);
+        return create_tensor_random<int64_t, int64_t>(inputInfo.second);
     } else if (type == ov::element::u8) {
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
-        return createTensorRandom<uint8_t, uint32_t>(inputInfo.second);
+        return create_tensor_random<uint8_t, uint32_t>(inputInfo.second);
     } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
-        return createTensorRandom<int8_t, int32_t>(inputInfo.second);
+        return create_tensor_random<int8_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::u16) {
-        return createTensorRandom<uint16_t, uint16_t>(inputInfo.second);
+        return create_tensor_random<uint16_t, uint16_t>(inputInfo.second);
     } else if (type == ov::element::i16) {
-        return createTensorRandom<int16_t, int16_t>(inputInfo.second);
+        return create_tensor_random<int16_t, int16_t>(inputInfo.second);
     } else if (type == ov::element::boolean) {
-        return createTensorRandom<uint8_t, uint32_t>(inputInfo.second, 0, 1);
+        return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else {
         IE_THROW() << "Input type is not supported for " << inputInfo.first;
     }
