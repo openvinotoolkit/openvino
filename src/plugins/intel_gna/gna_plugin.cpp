@@ -85,7 +85,6 @@
 #include "transformations/transpose_nchw.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 
-#include "transformations/pass_debug.hpp"
 #include <ngraph/opsets/opset7.hpp>
 #include <ops/gna_convolution.hpp>
 
@@ -708,9 +707,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
 #ifdef DEBUG_USE_NEW_PASS
         manager.register_pass<TransposeNCHW>();
-        manager.register_pass<PassDebug>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
-        //manager.register_pass<PassDebug>();
 #endif // DEBUG_USE_NEW_PASS
 
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
@@ -749,8 +746,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::TransposeReduction>();
         // Operations Max and Min aren't supported
         pass_config->disable<ngraph::pass::ConcatReduceFusion>();
-        manager.register_pass<ngraph::pass::Serialize>("/home/ekotov/ngraph_debug/final.xml", "/home/ekotov/ngraph_debug/final.bin"); // DEBUG
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/ngraph_final.png"); // DEBUG
         manager.run_passes(graph);
 
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
