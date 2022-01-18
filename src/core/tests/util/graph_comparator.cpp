@@ -584,6 +584,40 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
                              to_str(f2_sinks.size()));
     }
 
+    // Compare sinks
+    if (f1_sinks.size() == 1) {
+        q.push({f1_sinks[0].get(), f2_sinks[0].get()});
+        used.insert(f1_sinks[0].get());
+    } else {
+        // Cast to Assign and find those that have same variable_id suffix
+        for (const auto& sink1 : f1_sinks) {
+            auto assign1 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink1);
+            if (!assign1) {
+                return Result::error("Sink '" + name(sink1) +
+                                     "' is not a variable - graph comparison is not supported");
+            }
+            auto name1 = assign1->get_variable_id();
+            std::shared_ptr<ov::op::Sink> found_sink2;
+            for (const auto& sink2 : f2_sinks) {
+                auto assign2 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink2);
+                if (!assign2) {
+                    return Result::error("Sink '" + name(sink2) +
+                                         "' is not a variable - graph comparison is not supported");
+                }
+                auto name2 = assign2->get_variable_id();
+                if (name2.find(name1) != std::string::npos || name1.find(name2) != std::string::npos) {
+                    found_sink2 = sink2;
+                    break;
+                }
+            }
+            if (!found_sink2) {
+                return Result::error("No suitable sink is found for: " + name(sink1) + ", var=" + name1);
+            }
+            q.push({sink1.get(), found_sink2.get()});
+            used.insert(sink1.get());
+        }
+    }
+
     for (size_t i = 0; i < f1_results.size(); ++i) {
         if (should_compare(CmpValues::NAMES)) {
             if (name(f1_results[i]->get_input_node_shared_ptr(0)) !=
