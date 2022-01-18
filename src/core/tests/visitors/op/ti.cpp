@@ -64,7 +64,6 @@ TEST(attributes, tensor_iterator_lstm) {
     EXPECT_EQ(g_tensor_iterator->get_body(), tensor_iterator->get_body());
     EXPECT_EQ(g_tensor_iterator->get_input_descriptions(), tensor_iterator->get_input_descriptions());
     EXPECT_EQ(g_tensor_iterator->get_output_descriptions(), tensor_iterator->get_output_descriptions());
-    //EXPECT_EQ(g_tensor_iterator->get_num_iterations(), tensor_iterator->get_num_iterations());
 }
 
 TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2) {
@@ -95,7 +94,7 @@ TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2) {
     tensor_iterator->set_sliced_input(Yi, Y, 0, 2, 2, -1, 1);
     tensor_iterator->set_invariant_input(M_body, M);
 
-    NodeBuilder builder(tensor_iterator);    
+    NodeBuilder builder(tensor_iterator);
     const auto g_tensor_iterator = ov::as_type_ptr<op::v0::TensorIterator>(builder.create());
 
     EXPECT_EQ(g_tensor_iterator->get_body(), tensor_iterator->get_body());
@@ -130,7 +129,7 @@ TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
     tensor_iterator->set_sliced_input(Yi, Y, 0, 2, 2, -2, 1);
     tensor_iterator->set_invariant_input(M_body, M);
 
-    NodeBuilder builder(tensor_iterator);    
+    NodeBuilder builder(tensor_iterator);
     const auto g_tensor_iterator = ov::as_type_ptr<op::v0::TensorIterator>(builder.create());
 
     EXPECT_EQ(g_tensor_iterator->get_body(), tensor_iterator->get_body());
