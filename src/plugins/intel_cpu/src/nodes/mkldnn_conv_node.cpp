@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1066,15 +1066,10 @@ void MKLDNNConvolutionNode::executeDynamicImpl(mkldnn::stream strm) {
 }
 
 void MKLDNNConvolutionNode::updatePadding() {
-    //update padding. TODO [DS] : rewrite when the final shape inference interface is available
+    //update padding.
     if (isDynamicNode() && autoPadding) {
-        if (auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(opToShapeInfer)) {
-            paddingL = convolutionOp->get_pads_begin();
-            paddingR = convolutionOp->get_pads_end();
-        } else if (auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(opToShapeInfer)) {
-            paddingL = groupConvolutionOp->get_pads_begin();
-            paddingR = groupConvolutionOp->get_pads_end();
-        }
+        paddingL = shapeInference->get_pads_begin();
+        paddingR = shapeInference->get_pads_end();
     }
 }
 

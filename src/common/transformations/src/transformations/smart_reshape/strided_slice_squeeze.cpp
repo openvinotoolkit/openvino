@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -223,9 +223,7 @@ bool squeezes_perform_the_same(std::shared_ptr<ngraph::opset5::Squeeze> lhs,
 }  // namespace
 
 bool ngraph::pass::SharedSqueeze::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    // TODO: enable conditional compile
-    // RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "ngraph::pass::SharedSqueeze");
+    RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
 
     bool graph_rewritten = false;
 

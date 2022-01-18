@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
 
             if (!options.count(KEY_DEVICE_ID)) {
                 if (availableDevices.size() == 1 || availableDevices.size() == 2) {
-                    return availableDevices.back(); // detection order is GNA_SW, GNA_HW
+                    return availableDevices.back(); // detection order is GNA_SW_EXACT, GNA_HW
                 } else {
                     THROW_GNA_EXCEPTION << "KEY_DEVICE_ID not set in request for FULL_DEVICE_NAME";
                 }
@@ -67,15 +67,11 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
 
 Parameter GNAPlugin::GetAvailableDevices() const {
     std::vector<std::string> devices;
-    // probing for gna-sw-exact, or gna-sw implementation part of libgna
-    try {
-        GNADeviceHelper swHelper;
-        devices.push_back("GNA_SW");
-    }catch(...) {}
 
     try {
-        GNADeviceHelper hwHelper;
-        if (hwHelper.hasGnaHw()) {
+        GNADeviceHelper helper;
+        devices.push_back("GNA_SW_EXACT");
+        if (helper.hasGnaHw()) {
             devices.push_back("GNA_HW");
         }
     }catch(...) {}

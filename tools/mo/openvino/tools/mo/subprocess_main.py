@@ -1,12 +1,21 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import os
 import subprocess
+from multiprocessing import Process, Queue
 import sys
 
-from openvino.tools.mo.utils.versions_checker import check_python_version  # pylint: disable=no-name-in-module
+
+def check_python_version():
+    """
+    Checks python version to be greater or equal than 3.4
+    :return: exit code (1 - error, None - successful)
+    """
+    if sys.version_info < (3, 4):
+        print('Python version should be of version 3.4 or newer')
+        return 1
 
 
 def log_ie_not_found():
@@ -16,30 +25,47 @@ def log_ie_not_found():
               .format("bat" if sys.platform == "windows" else "sh"))
 
 
+def log_mo_root_dir_not_found():
+    log.error("Could not find the ModelOptimizer root module directory.\n"
+              "Consider setting PYTHONPATH to the openvino tools folder (usually openvino/tools/mo)")
+
+
 def setup_env():
     ret_code = check_python_version()
     if ret_code:
         sys.exit(ret_code)
 
-    from openvino.tools.mo.utils.find_ie_version import find_ie_version
+    mo_root_path = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir)
+
+    # Check that MO root directory already set to the PYTHONPATH
+    status = subprocess.run([sys.executable, "-c", "try: import openvino.tools.mo \nexcept: exit(1)"], env=os.environ)
+    if status.returncode != 0:
+        # If no, we try to set it manually based on relative path
+        python_path_key = 'PYTHONPATH'
+        if python_path_key not in os.environ:
+            os.environ[python_path_key] = mo_root_path
+        else:
+            os.environ[python_path_key] = os.pathsep.join([os.environ[python_path_key], mo_root_path])
+
+        sys.path.append(mo_root_path)
+
+        status = subprocess.run([sys.executable, "-c", "try: import openvino.tools.mo \nexcept: exit(1)"], env=os.environ)
+        if status.returncode != 0:
+            log_mo_root_dir_not_found()
+            sys.exit(1)
 
     ie_found = True
     try:
+        from openvino.tools.mo.utils.find_ie_version import find_ie_version  # pylint: disable=no-name-in-module
         ie_found = find_ie_version(silent=True)
-    except Exception:
+    except Exception as e:
+        log.error(e)
         ie_found = False
 
     if not ie_found:
         log_ie_not_found()
         sys.exit(1)
 
-    mo_root_path = os.path.join(os.path.dirname(__file__), os.pardir)
-
-    python_path_key = 'PYTHONPATH'
-    if python_path_key not in os.environ:
-        os.environ[python_path_key] = mo_root_path
-    else:
-        os.environ[python_path_key] = os.pathsep.join([os.environ[python_path_key], mo_root_path])
     return True
 
 
