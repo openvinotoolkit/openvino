@@ -88,10 +88,6 @@ private:
     reg64_t reg_weights     = r13;
 
     reg64_t reg_buf  = r9;
-
-    reg64_t reg_src_oc      = rdx;
-    reg64_t reg_weights_oc  = rsi;
-
     reg64_t reg_src_stride  = r15;
 
     reg64_t reg_work_amount = r14;
@@ -202,23 +198,14 @@ private:
         Xbyak::Label out_loop_label;
         Xbyak::Label out_loop_end_label;
 
-        mov(reg_src_oc, 0);
-        mov(reg_weights_oc, 0);
-
         L(out_loop_label);
         {
             cmp(reg_num_samples, 1);
             jl(out_loop_end_label, T_NEAR);
 
             // get 4 src address and 4 vmm_weights
-            get_src(reg_src0);
-            get_src(reg_src1);
-            get_src(reg_src2);
-            get_src(reg_src3);
-            get_weights(vmm_weights0);
-            get_weights(vmm_weights1);
-            get_weights(vmm_weights2);
-            get_weights(vmm_weights3);
+            get_src();
+            get_weights();
 
             // inner loop for channels of one sample
             Xbyak::Label in_loop_main_label;
@@ -395,18 +382,20 @@ private:
         L(store_loop_tail_end_label);
     }
 
-    void get_src(reg64_t& reg_src) {
-        mov(reg_src, reg_src_address);
-        add(reg_src, reg_src_oc);
-        mov(reg_src, ptr[reg_src]);
-        add(reg_src_oc, sizeof(size_t));
+    void get_src() {
+        mov(reg_src0, ptr[reg_src_address + 0 * sizeof(void*)]);
+        mov(reg_src1, ptr[reg_src_address + 1 * sizeof(void*)]);
+        mov(reg_src2, ptr[reg_src_address + 2 * sizeof(void*)]);
+        mov(reg_src3, ptr[reg_src_address + 3 * sizeof(void*)]);
+        add(reg_src_address, 4 * sizeof(void*));
     }
 
-    void get_weights(Vmm& vmm_weights) {
-        mov(reg_tmp_64, reg_weights);
-        add(reg_tmp_64, reg_weights_oc);
-        uni_vbroadcastss(vmm_weights, ptr[reg_tmp_64]);
-        add(reg_weights_oc, sizeof(float));
+    void get_weights() {
+        uni_vbroadcastss(vmm_weights0, ptr[reg_weights + 0 * sizeof(float)]);
+        uni_vbroadcastss(vmm_weights1, ptr[reg_weights + 1 * sizeof(float)]);
+        uni_vbroadcastss(vmm_weights2, ptr[reg_weights + 2 * sizeof(float)]);
+        uni_vbroadcastss(vmm_weights3, ptr[reg_weights + 3 * sizeof(float)]);
+        add(reg_weights, 4 * sizeof(float));
     }
 
     void generate_samples(int num) {
@@ -875,6 +864,8 @@ void MKLDNNROIAlignNode::executeSpecified() {
     const int batchInputStride = srcStrides[0];
     const int batchOutputStride = dstStrides[0];
     const int lastBlockDim = srcBlockDesc->getBlockDims().back();
+    // bilinear interpolate parameters number
+    const int BLIParamsNum = 4;
 
     for (; realRois < nominalRoiCount; realRois++) {
         auto roiBatchInd = srcRoiIdx[realRois];
@@ -911,13 +902,24 @@ void MKLDNNROIAlignNode::executeSpecified() {
         float sampleDistanceX = binWidth / samplingRatioX;
         float sampleDistanceY = binHeight / samplingRatioY;
         // prepare arrays for sampling points and weights
-        std::vector<int> pointVectorY;
-        std::vector<int> pointVectorX;
-        std::vector<float> weightVector;
-        pointVectorY.reserve(4 * numSamplesInBin * binCount);
-        pointVectorX.reserve(4 * numSamplesInBin * binCount);
-        weightVector.reserve(4 * numSamplesInBin * binCount);
+        size_t paramsSize = BLIParamsNum * numSamplesInBin * binCount;
+        std::vector<float>weightVector(paramsSize);
+        std::vector<size_t> srcAddressList;
+        std::vector<int> srcIndex;
+        if (!isPlainFmt)
+            srcAddressList.resize(paramsSize, 0);
+        else
+            srcIndex.resize(paramsSize, 0);
 
+        size_t batchSrcOffset = roiBatchInd * batchInputStride;
+        int idxIter = 0;
+
+        // |__|__|     |     |
+        // |__|__|__ __|__ __|
+        // |     | bin |     |
+        // |__ __|__ __|__ __|
+        // |     |     |     |
+        // |__ __|__ __|__ __|
         for (int yBinInd = 0; yBinInd < pooledH; ++yBinInd) {
             for (int xBinInd = 0; xBinInd < pooledW; ++xBinInd) {
                 // run into bin
@@ -927,10 +929,15 @@ void MKLDNNROIAlignNode::executeSpecified() {
                         float sampleX = x1 + xBinInd * binWidth + sampleDistanceX * (0.5f + xSampleInd);
                         if (sampleX < -1.0 || sampleX > W ||
                             sampleY < -1.0 || sampleY > H) {
-                            // For this sample we save 4x point (0,0) with weight 0
-                            pointVectorY.insert(pointVectorY.end(), 4, 0);
-                            pointVectorX.insert(pointVectorX.end(), 4, 0);
-                            weightVector.insert(weightVector.end(), 4, float{0});
+                            // For this sample we save 4 index of (0,0) and 4 weight of 0
+                            if (!isPlainFmt) {
+                                auto startPoint = reinterpret_cast<size_t>(&srcData[batchSrcOffset]);
+                                srcAddressList.insert(srcAddressList.begin() + idxIter, BLIParamsNum, startPoint);
+                            } else {
+                                srcIndex.insert(srcIndex.begin() + idxIter, BLIParamsNum, 0);
+                            }
+                            weightVector.insert(weightVector.begin() + idxIter, BLIParamsNum, 0.f);
+                            idxIter += BLIParamsNum;
                             continue;
                         }
                         sampleX = std::max(sampleX, float{0});
@@ -952,14 +959,25 @@ void MKLDNNROIAlignNode::executeSpecified() {
                         } else {
                             sampleXHigh = sampleXLow + 1;
                         }
-                        pointVectorY.push_back(sampleYLow);
-                        pointVectorY.push_back(sampleYLow);
-                        pointVectorY.push_back(sampleYHigh);
-                        pointVectorY.push_back(sampleYHigh);
-                        pointVectorX.push_back(sampleXLow);
-                        pointVectorX.push_back(sampleXHigh);
-                        pointVectorX.push_back(sampleXLow);
-                        pointVectorX.push_back(sampleXHigh);
+
+                        if (!isPlainFmt) {
+                            size_t srcOffset = batchSrcOffset + sampleYLow * W * lastBlockDim + sampleXLow * lastBlockDim;
+                            srcAddressList[idxIter] = reinterpret_cast<size_t>(&srcData[srcOffset]);
+
+                            srcOffset = batchSrcOffset + sampleYLow * W * lastBlockDim + sampleXHigh * lastBlockDim;
+                            srcAddressList[idxIter + 1] = reinterpret_cast<size_t>(&srcData[srcOffset]);
+
+                            srcOffset = batchSrcOffset + sampleYHigh * W * lastBlockDim + sampleXLow * lastBlockDim;
+                            srcAddressList[idxIter + 2] = reinterpret_cast<size_t>(&srcData[srcOffset]);
+
+                            srcOffset = batchSrcOffset + sampleYHigh * W * lastBlockDim + sampleXHigh * lastBlockDim;
+                            srcAddressList[idxIter + 3] = reinterpret_cast<size_t>(&srcData[srcOffset]);
+                        } else {
+                            srcIndex[idxIter] = sampleYLow  * W + sampleXLow;
+                            srcIndex[idxIter + 1] = sampleYLow  * W + sampleXHigh;
+                            srcIndex[idxIter + 2] = sampleYHigh * W + sampleXLow;
+                            srcIndex[idxIter + 3] = sampleYHigh * W + sampleXHigh;
+                        }
 
                         // weight calculation for bilinear interpolation
                         auto ly = sampleY - sampleYLow;
@@ -967,70 +985,62 @@ void MKLDNNROIAlignNode::executeSpecified() {
                         auto hy = 1.0f - ly;
                         auto hx = 1.0f - lx;
 
-                        weightVector.push_back(hy * hx);
-                        weightVector.push_back(hy * lx);
-                        weightVector.push_back(ly * hx);
-                        weightVector.push_back(ly * lx);
+                        weightVector[idxIter] = hy * hx;
+                        weightVector[idxIter + 1] = hy * lx;
+                        weightVector[idxIter + 2] = ly * hx;
+                        weightVector[idxIter + 3] = ly * lx;
+
+                        idxIter += BLIParamsNum;
                     }
                 }
             }
         }
 
-        const int interp_values = 4;
-        // batch offset
-        size_t batchSrcOffset = roiBatchInd * batchInputStride;
+        // out batch offset
         size_t batchDstOffset = n * batchOutputStride;
         float numSamplesInBinInvert = 1.f / numSamplesInBin;
+
+        std::vector<float> workingBuf;
+        int bufSize = rnd_up(C, 16);
+        if (!isPlainFmt) {
+            size_t threadsNum = parallel_get_num_threads();
+            workingBuf.resize(bufSize * threadsNum, 0.f);
+        }
 
         if (roi_align_kernel) {
             if (!isPlainFmt) {
                 parallel_for2d(pooledH, pooledW, [&](int yBinInd, int xBinInd) {
-                    // each sample have 4 values for Y, X, weight
-                    size_t binOffset = numSamplesInBin * interp_values * pooledW * yBinInd + numSamplesInBin * interp_values * xBinInd;
-
-                    std::vector<size_t> srcAddressList(numSamplesInBin * interp_values, 0);
-                    for (int sample = 0; sample < numSamplesInBin; sample++) {
-                        for (int i = 0; i < interp_values; i++) {
-                            size_t srcOffset = batchSrcOffset +
-                                pointVectorY[binOffset + sample * interp_values + i] * W * lastBlockDim +
-                                pointVectorX[binOffset + sample * interp_values + i] * lastBlockDim;
-                            srcAddressList[sample * interp_values + i] = reinterpret_cast<size_t>(&srcData[srcOffset]);
-                        }
-                    }
+                    // each sample have 4 values for srcAddressList and weight
+                    size_t binOffset = numSamplesInBin * BLIParamsNum * pooledW * yBinInd + numSamplesInBin * BLIParamsNum * xBinInd;
 
                     auto arg = jit_roi_align_call_args();
-                    arg.src = static_cast<const void*>(&srcAddressList[0]);
+                    arg.src = static_cast<const void*>(&srcAddressList[binOffset]);
                     arg.weights = static_cast<const float*>(&weightVector[binOffset]);
 
                     arg.work_amount = C;
                     arg.num_samples = numSamplesInBin;
                     arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
-                    std::vector<float> workingBuf(rnd_up(C, 16), 0.f);
-                    arg.buffer = static_cast<float*>(&workingBuf[0]);
+                    float *threadBuf = static_cast<float*>(&workingBuf[parallel_get_thread_num() * bufSize]);
+                    memset(threadBuf, 0, bufSize * sizeof(float));
+                    arg.buffer = threadBuf;
                     size_t dstOffset = batchDstOffset + yBinInd * pooledW * lastBlockDim + xBinInd * lastBlockDim;
                     arg.dst = static_cast<void*>(&dst[dstOffset]);
                     arg.src_stride = lastBlockDim * W * H; // only valid for blk, nspc generate inside
                     (*roi_align_kernel)(&arg);
                 });
             } else {
-                int indexNum = 4 * numSamplesInBin * binCount;
-                std::vector<int> index(indexNum, 0);
-                for (int i = 0; i < indexNum; i++) {
-                    index[i] = pointVectorY[i] * W + pointVectorX[i];
-                }
-
                 // one lane for one sample generation, then pooling all samples.
                 parallel_for3d(C, pooledH, pooledW, [&](int cIdx, int yBinInd, int xBinInd) {
                     size_t channelSrcOffset = batchSrcOffset + cIdx * H * W;
                     size_t binOffset = yBinInd * pooledW + xBinInd;
                     size_t binDstOffset = batchDstOffset + cIdx * binCount + binOffset;
-                    size_t paramOffset = binOffset * 4 * numSamplesInBin;
+                    size_t paramOffset = binOffset * BLIParamsNum * numSamplesInBin;
 
                     auto arg = jit_roi_align_call_args();
                     arg.src = static_cast<const void*>(&srcData[channelSrcOffset]);
                     arg.dst = static_cast<void*>(&dst[binDstOffset]);
                     // buffer with absolute index
-                    arg.buffer = static_cast<void*>(&index[paramOffset]);
+                    arg.buffer = static_cast<void*>(&srcIndex[paramOffset]);
                     arg.weights = static_cast<const float*>(&weightVector[paramOffset]);
                     arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
                     arg.num_samples = numSamplesInBin;
@@ -1039,30 +1049,25 @@ void MKLDNNROIAlignNode::executeSpecified() {
             }
         } else {
             // ref with planar
-            int indexNum = 4 * numSamplesInBin * binCount;
-            std::vector<int> index(indexNum, 0);
-            for (int i = 0; i < indexNum; i++) {
-                index[i] = pointVectorY[i] * W + pointVectorX[i];
-            }
             parallel_for3d(C, pooledH, pooledW, [&](int cIdx, int yBinInd, int xBinInd) {
                 size_t channelSrcOffset = batchSrcOffset + cIdx * H * W;
                 size_t binOffset = yBinInd * pooledW + xBinInd;
                 size_t binDstOffset = batchDstOffset + cIdx * binCount + binOffset;
-                int paramOffset = binOffset * 4 * numSamplesInBin;
+                int paramOffset = binOffset * BLIParamsNum * numSamplesInBin;
 
                 float pooledValue = 0;
                 for (unsigned int binSampleInd = 0; binSampleInd < numSamplesInBin; binSampleInd++) {
-                    float src0 = srcData[channelSrcOffset + index[paramOffset]];
-                    float src1 = srcData[channelSrcOffset + index[paramOffset + 1]];
-                    float src2 = srcData[channelSrcOffset + index[paramOffset + 2]];
-                    float src3 = srcData[channelSrcOffset + index[paramOffset + 3]];
+                    float src0 = srcData[channelSrcOffset + srcIndex[paramOffset]];
+                    float src1 = srcData[channelSrcOffset + srcIndex[paramOffset + 1]];
+                    float src2 = srcData[channelSrcOffset + srcIndex[paramOffset + 2]];
+                    float src3 = srcData[channelSrcOffset + srcIndex[paramOffset + 3]];
 
                     float sampleValue =
                             weightVector[paramOffset] * src0 +
                             weightVector[paramOffset + 1] * src1 +
                             weightVector[paramOffset + 2] * src2 +
                             weightVector[paramOffset + 3] * src3;
-                    paramOffset += 4;
+                    paramOffset += BLIParamsNum;
 
                     switch (getAlgorithm()) {
                         case Algorithm::ROIAlignMax:

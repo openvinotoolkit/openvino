@@ -29,6 +29,8 @@ struct jit_roi_align_params {
 };
 
 struct jit_roi_align_call_args {
+    // point to srcData for planar
+    // point to srcData address list for other layouts
     const void *src;
     const float *weights;
     const float *scale;
