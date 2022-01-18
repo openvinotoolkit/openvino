@@ -221,6 +221,11 @@ static constexpr char inference_only_message[] =
     " To enable full mode for static models pass \"false\" value to this argument:"
     " ex. \"-inference_only=false\".\n";
 
+static const char frames_per_second[] =
+    "Optional. Specifies number of frames per second (FPS)."
+    "If not specified it will be calculated as a derivative from:"
+    "reported latency in the Sync mode and the total execution time in the Async mode.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -356,6 +361,10 @@ DEFINE_string(imean, "", input_image_mean_message);
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
+/// @brief Specify numebr of frames per second (FPS). If not specified it will be calculated as a derivative from:
+///        reported latency in the Sync mode and the total execution time in the Async mode.
+DEFINE_uint32(fps, 0, frames_per_second);
+
 /**
  * @brief This function show a help message
  */
@@ -390,6 +399,7 @@ static void showUsage() {
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -enforcebf16=<true/false>     " << enforce_bf16_message << std::endl;
     std::cout << "    -pin \"YES\"/\"HYBRID_AWARE\"/\"NO\"/\"NUMA\"   " << infer_threads_pinning_message << std::endl;
+    std::cout << "    -fps                      " << frames_per_second << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif

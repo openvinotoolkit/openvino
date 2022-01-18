@@ -907,6 +907,12 @@ int main(int argc, char* argv[]) {
             }
 
             if (FLAGS_api == "sync") {
+                // setting target latency allow to get required number of FPS.
+                // if number of required FPS is not set it will be calculated from reported latency.
+                if (fps_number > 0) {
+                    double target_latency = double(batchSize * 1000 / fps_number);
+                    inferRequest->setTargetLatency(target_latency);
+                }
                 inferRequest->infer();
             } else {
                 // As the inference request is currently idle, the wait() adds no
@@ -917,7 +923,17 @@ int main(int argc, char* argv[]) {
                 // method of `std::exception` So, rechecking for any exceptions here.
                 inferRequest->wait();
                 inferRequest->startAsync();
-            }
+                // setting target duration allow to get required number of FPS.
+                // if number of required FPS is not set it will be calculated from reported duration and number of
+                // iterations.
+                if (fps_number > 0) {
+                    double targetDuration = double(batchSize * 1000 / fps_number);
+                    auto exec = std::chrono::duration_cast<ns>(Time::now() - startTime2).count() * 0.000001;
+                    double difference = targetDuration - exec;
+                    if (difference > 0) {
+                        Sleep(unsigned long(difference));
+                    }
+                }
             ++iteration;
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();

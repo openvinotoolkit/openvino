@@ -57,9 +57,15 @@ public:
 
     void infer() {
         _startTime = Time::now();
-        _request.infer();
+        _request.Infer();
         _endTime = Time::now();
-        _callbackQueue(_id, _lat_group_id, getExecutionTimeInMilliseconds());
+        double _execTime = getExecutionTimeInMilliseconds();
+        double difference = _targetLatency - _execTime;
+        if (difference > 0) {
+            Sleep(unsigned long(difference));
+            _execTime = _execTime + difference;
+        }
+        _callbackQueue(_id, _lat_group_id, _execTime);
     }
 
     std::vector<ov::runtime::ProfilingInfo> getPerformanceCounts() {
@@ -84,6 +90,10 @@ public:
         return static_cast<double>(execTime.count()) * 0.000001;
     }
 
+    void setTargetLatency(double targetLatency) {
+        _targetLatency = targetLatency;
+    }
+
     void setLatencyGroupId(size_t id) {
         _lat_group_id = id;
     }
@@ -103,6 +113,7 @@ private:
     size_t _lat_group_id;
     QueueCallbackFunction _callbackQueue;
     std::map<std::string, ::gpu::BufferType> outputClBuffer;
+    double _targetLatency;
 };
 
 class InferRequestsQueue final {
