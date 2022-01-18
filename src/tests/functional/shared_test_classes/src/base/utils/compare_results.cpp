@@ -13,7 +13,7 @@ namespace test {
 namespace utils {
 
 namespace {
-void compare(const std::shared_ptr<ov::Node> node,
+void compare(const std::shared_ptr<ov::Node> &node,
              size_t port,
              const ov::runtime::Tensor &expected,
              const ov::runtime::Tensor &actual,
@@ -22,7 +22,7 @@ void compare(const std::shared_ptr<ov::Node> node,
     ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
 }
 
-void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> node,
+void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> &node,
              size_t port,
              const ov::runtime::Tensor &expected,
              const ov::runtime::Tensor &actual,
@@ -53,7 +53,7 @@ void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> node,
 }
 
 template<typename T>
-void compareResults(const std::shared_ptr<ov::Node> node,
+void compareResults(const std::shared_ptr<ov::Node> &node,
                     size_t port,
                     const ov::runtime::Tensor &expected,
                     const ov::runtime::Tensor &actual,
@@ -74,6 +74,8 @@ CompareMap getCompareMap() {
 #include "ngraph/opsets/opset4_tbl.hpp"
 #include "ngraph/opsets/opset5_tbl.hpp"
 #include "ngraph/opsets/opset6_tbl.hpp"
+#include "ngraph/opsets/opset7_tbl.hpp"
+#include "ngraph/opsets/opset8_tbl.hpp"
 
 #undef NGRAPH_OP
     };

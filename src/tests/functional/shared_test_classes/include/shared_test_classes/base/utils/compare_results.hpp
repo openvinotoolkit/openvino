@@ -12,7 +12,7 @@ namespace test {
 namespace utils {
 
 using CompareMap = std::map<ov::NodeTypeInfo, std::function<void(
-        const std::shared_ptr<ov::Node> node,
+        const std::shared_ptr<ov::Node> &node,
         size_t port,
         const ov::runtime::Tensor &expected,
         const ov::runtime::Tensor &actual,
