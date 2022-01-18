@@ -7,8 +7,7 @@ import cv2 as cv
 import requests
 import tarfile
 
-from copy import deepcopy
-from joblib import Parallel, delayed
+from multiprocessing import Pool
 
 from openvino.tools.pot.utils.logger import get_logger
 from openvino.tools.pot.data_loaders.image_loader import ImageLoader
@@ -35,6 +34,7 @@ class IFSFunction:
     def calculate(self, iteration):
         rand = np.random.random(iteration)
         prev_x, prev_y = 0, 0
+        next_x, next_y = 0, 0
 
         for i in range(iteration):
             for func_params, select_func in zip(self.function, self.select_function):
@@ -80,7 +80,7 @@ class IFSFunction:
 
     def draw(self, draw_type, image_x, image_y, pad_x=6, pad_y=6):
         self.rescale(image_x, image_y, pad_x, pad_y)
-        image = np.empty((image_x, image_y))
+        image = np.zeros((image_x, image_y), dtype=np.uint8)
 
         for i in range(len(self.xs)):
             if draw_type == 'point':
@@ -93,14 +93,6 @@ class IFSFunction:
                 image[x_start:x_start+3, y_start:y_start+3] = patch
 
         return image
-
-    def make_patch3_3(self, mask, patch_color):
-        patch_color = np.array(patch_color)
-        patch = np.zeros((3, 3, 3), np.uint8)
-        for i in range(3):
-            for j in range(3):
-                patch[i ,j, :] = patch_color * int(mask[i*3+j])
-        return patch
 
 
 class SyntheticImageLoader(ImageLoader):
@@ -139,25 +131,19 @@ class SyntheticImageLoader(ImageLoader):
             1, 1, 1, 1, 1, 1.8,
         ]).reshape(-1, 6)
 
-        self._net = cv.dnn.readNetFromCaffe('colorization_deploy_v2.prototxt', 'colorization_release_v2.caffemodel')
-        pts_in_hull = np.load('pts_in_hull.npy').transpose().reshape(2, 313, 1, 1)
-        self._net.getLayer(self._net.getLayerId('class8_ab')).blobs = [pts_in_hull.astype(np.float32)]
-        self._net.getLayer(self._net.getLayerId('conv8_313_rh')).blobs = [np.full([1, 313], 2.606, np.float32)]
-
         if not os.path.exists(self.data_source):
-            logger.info(f'synthetic dataset will be stored in {self.data_source}')
+            logger.info(f'Synthetic dataset will be stored in {self.data_source}')
             os.mkdir(self.data_source)
         else:
             logger.info(f'Dataset was found in {self.data_source}')
 
         assert os.path.isdir(self.data_source)
-        if not os.listdir(self.data_source): # folder is empty
-            if config.generate_data:
-                # progress bar?
-                self.generate_dataset()
-            else:
-                # self.download_images()
-                raise NotImplementedError
+        if config.generate_data:
+            # progress bar?
+            self.generate_dataset()
+        elif not os.listdir(self.data_source): # folder is empty
+            # self.download_images()
+            raise NotImplementedError
 
         self._img_files = collect_img_files(self.data_source)
 
@@ -190,25 +176,44 @@ class SyntheticImageLoader(ImageLoader):
             self._categories = np.ceil(self.subset_size / (self._instances * self._weights.shape[0])).astype(int)
 
     def generate_dataset(self):
-        height, width = self._shape[-2], self._shape[-1]
         self.initialize_params()
-        n_jobs = min(self._categories, self._cpu_count)
-        params = Parallel(n_jobs=1)(delayed(self._generate_category)() for _ in range(self._categories))
+
+        with Pool(processes=self._cpu_count) as pool:
+            params = pool.map(self._generate_category, [1e-5] * self._categories)
 
         instances_weights = np.repeat(self._weights, self._instances, axis=0)
         weight_per_img = np.tile(instances_weights, (self._categories, 1))
-        repeated_params = np.repeat(params, self._weights.shape[0] * self._instances)
-        assert weight_per_img.shape[0] == len(repeated_params)
+        repeated_params = np.repeat(params, self._weights.shape[0] * self._instances, axis=0)
+        repeated_params = repeated_params[:self.subset_size]
+        weight_per_img = weight_per_img[:self.subset_size]
+        assert weight_per_img.shape[0] == len(repeated_params) == self.subset_size
 
-        # Parallel(n_jobs=self._cpu_count)(delayed(self.generate_image)(param, w, height, width, i)
-        Parallel(n_jobs=1)(delayed(self.generate_image)(param, w, height, width, i)
-                                   for i, (param, w) in enumerate(zip(repeated_params, weight_per_img)))
+        params_per_proc = np.array_split(repeated_params, self._cpu_count)
+        weights_per_proc = np.array_split(weight_per_img, self._cpu_count)
 
-    def generate_image(self, param, weight, height, width, i):
-        image = self._generator(param, 'gray', self._iterations, height, width, weight)
-        color_image = self._colorize(image)
-        aug_image = self._augment(color_image)
-        cv.imwrite(os.path.join(self.data_source, "{:06d}.png".format(i)), aug_image)
+        generation_params = []
+        offset = 0
+        height, width = self._shape[-2], self._shape[-1]
+        for param, w in zip(params_per_proc, weights_per_proc):
+            indices = list(range(offset, offset + len(param)))
+            offset += len(param)
+            generation_params.append((param, w, height, width, indices))
+
+        with Pool(processes=self._cpu_count) as pool:
+            pool.starmap(self.generate_image_batch, generation_params)
+
+    def generate_image_batch(self, params, weights, height, width, indices):
+        pts_in_hull = np.load('pts_in_hull.npy').transpose().reshape(2, 313, 1, 1).astype(np.float32)
+        net = cv.dnn.readNetFromCaffe('colorization_deploy_v2.prototxt',
+                                      'colorization_release_v2.caffemodel')
+        net.getLayer(net.getLayerId('class8_ab')).blobs = [pts_in_hull]
+        net.getLayer(net.getLayerId('conv8_313_rh')).blobs = [np.full([1, 313], 2.606, np.float32)]
+
+        for i, param, weight in zip(indices, params, weights):
+            image = self._generator(param, 'gray', self._iterations, height, width, weight)
+            color_image = self._colorize(image, net)
+            aug_image = self._augment(color_image)
+            cv.imwrite(os.path.join(self.data_source, "{:06d}.png".format(i)), aug_image)
 
     @staticmethod
     def _generator(params, draw_type, iterations, height=512, width=512, weight=None):
@@ -219,13 +224,13 @@ class SyntheticImageLoader(ImageLoader):
         img = generators.draw(draw_type, height, width)
         return img
 
-    def _generate_category(self, height=512, width=512):
+    def _generate_category(self, eps, height=512, width=512):
         pixels = -1
         while pixels < self._threshold:
             param_size = np.random.randint(2, 8)
-            params = np.zeros((param_size, 7), dtype=float)
+            params = np.zeros((param_size, 7), dtype=np.float32)
 
-            sum_proba = 1e-5
+            sum_proba = eps
             for i in range(param_size):
                 a, b, c, d, e, f = np.random.uniform(-1.0, 1.0, 6)
                 prob = abs(a * d - b * c)
@@ -235,35 +240,35 @@ class SyntheticImageLoader(ImageLoader):
 
             fracral_img = self._generator(params, 'point', self._num_of_points, height, width)
             pixels = np.count_nonzero(fracral_img) / (height * width)
-
         return params
 
-    def _colorize(self, frame):
-        # -----------preprocessing-----------
+    @staticmethod
+    def _rgb2lab(frame):
+        y_coeffs = np.array([0.212671, 0.715160, 0.072169], dtype=np.float32)
+        frame = np.where(frame > 0.04045, np.power((frame + 0.055) / 1.055, 2.4), frame / 12.92)
+        y = frame @ y_coeffs.T
+        L = np.where(y > 0.008856, 116 * np.cbrt(y) - 16, 903.3 * y)
+        return L
+
+    def _colorize(self, frame, net):
         H_orig, W_orig = frame.shape[:2] # original image size
         if len(frame.shape) == 2 or frame.shape[-1] == 1:
             frame = np.tile(frame.reshape(H_orig, W_orig, 1), (1, 1, 3))
-            # cv.cvtColor(frame, cv.COLOR_GRAY2BGR)
 
         frame = frame.astype(np.float32) / 255
-        img_lab = cv.cvtColor(frame, cv.COLOR_BGR2Lab)
-        img_rs = cv.resize(img_lab, (224, 224)) # resize image to network input size
-        img_l_rs = img_rs[:,:,0] - 50  # subtract 50 for mean-centering
+        img_l = self._rgb2lab(frame) # get L from Lab image
+        img_rs = cv.resize(img_l, (224, 224)) # resize image to network input size
+        img_l_rs = img_rs - 50  # subtract 50 for mean-centering
 
-        # -----------run network-----------
-        # net = deepcopy(self._net)
-        net = self._net
         net.setInput(cv.dnn.blobFromImage(img_l_rs))
         ab_dec = net.forward()[0,:,:,:].transpose((1,2,0))
 
-        # -----------postprocessing-----------
-        img_l = img_lab[:,:,0] # pull out L channel
         ab_dec_us = cv.resize(ab_dec, (W_orig, H_orig))
-        img_lab_out = np.concatenate((img_l[:,:,np.newaxis],ab_dec_us),axis=2) # concatenate with original image L
+        img_lab_out = np.concatenate((img_l[:,:,np.newaxis], ab_dec_us), axis=2) # concatenate with original image L
         img_bgr_out = np.clip(cv.cvtColor(img_lab_out, cv.COLOR_Lab2BGR), 0, 1)
         frame_normed = 255 * (img_bgr_out - img_bgr_out.min()) / (img_bgr_out.max() - img_bgr_out.min())
-        frame_normed = np.array(frame_normed, dtype='uint8')
-        return cv.resize(frame_normed, frame.shape[:2])
+        frame_normed = np.array(frame_normed, dtype=np.uint8)
+        return cv.resize(frame_normed, (H_orig, W_orig))
 
     @staticmethod
     def _augment(image):
@@ -276,7 +281,7 @@ class SyntheticImageLoader(ImageLoader):
         k_size = np.random.choice(list(range(1, 16, 2)))
         image = cv.GaussianBlur(image, (k_size, k_size), 0)
 
-        height, width, _ = image.shape
+        height, width = image.shape[:2]
         angle = np.random.uniform(-30, 30)
         rotate_matrix = cv.getRotationMatrix2D(center=(width / 2, height / 2), angle=angle, scale=1)
         image = cv.warpAffine(src=image, M=rotate_matrix, dsize=(width, height))
