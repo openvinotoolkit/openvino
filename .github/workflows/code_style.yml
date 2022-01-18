@@ -66,14 +66,14 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_VPU=OFF ..
+          cmake -DENABLE_INTEL_VPU=OFF ..
 
       - name: ShellCheck
         run: cmake --build . --target ie_shellcheck -j8
         working-directory: build
 
   NamingConventionCheck:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -82,7 +82,7 @@ jobs:
       - name: Install Clang dependency
         run: |
           sudo apt update
-          sudo apt --assume-yes install libclang-9-dev
+          sudo apt --assume-yes install libclang-11-dev
 
       - name: Install Python-based dependencies
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
@@ -91,7 +91,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_VPU=OFF ..
+          cmake -DENABLE_INTEL_VPU=OFF ..
 
       - name: Naming convention check
         run: cmake --build . --target ncc_all -j8

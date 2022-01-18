@@ -8,7 +8,8 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Function
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, Type
+from openvino.preprocess import PrePostProcessor
 
 from ..conftest import model_path, read_image
 
@@ -22,7 +23,7 @@ def create_function_with_memory(input_shape, data_type):
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    func = Model(results=[res], sinks=[node], parameters=[input_data], name="name")
     return func
 
 
@@ -172,6 +173,30 @@ def test_start_async(device):
         request.wait()
         assert request.latency > 0
     assert callbacks_info["finished"] == jobs
+
+
+def test_infer_list_as_inputs(device):
+    num_inputs = 4
+    input_shape = [2, 1]
+    dtype = np.float32
+    params = [ops.parameter(input_shape, dtype) for _ in range(num_inputs)]
+    model = Model(ops.relu(ops.concat(params, 1)), params)
+    core = Core()
+    compiled_model = core.compile_model(model, device)
+
+    def check_fill_inputs(request, inputs):
+        for input_idx in range(len(inputs)):
+            assert np.array_equal(request.get_input_tensor(input_idx).data, inputs[input_idx])
+
+    request = compiled_model.create_infer_request()
+
+    inputs = [np.random.normal(size=input_shape).astype(dtype)]
+    request.infer(inputs)
+    check_fill_inputs(request, inputs)
+
+    inputs = [np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)]
+    request.infer(inputs)
+    check_fill_inputs(request, inputs)
 
 
 def test_infer_mixed_keys(device):
@@ -351,3 +376,84 @@ def test_results_async_infer(device):
 
     for i in range(num_request):
         np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
+
+
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"],
+                    reason="Device independent test")
+def test_infer_float16(device):
+    model = bytes(b"""<net name="add_model" version="10">
+    <layers>
+    <layer id="0" name="x" type="Parameter" version="opset1">
+        <data element_type="f16" shape="2,2,2"/>
+        <output>
+            <port id="0" precision="FP16">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="1" name="y" type="Parameter" version="opset1">
+        <data element_type="f16" shape="2,2,2"/>
+        <output>
+            <port id="0" precision="FP16">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="2" name="sum" type="Add" version="opset1">
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+            <port id="1">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </input>
+        <output>
+            <port id="2" precision="FP16">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="3" name="sum/sink_port_0" type="Result" version="opset1">
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>2</dim>
+                <dim>2</dim>
+            </port>
+        </input>
+    </layer>
+    </layers>
+    <edges>
+    <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+    <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+    <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+    </edges>
+</net>""")
+    core = Core()
+    func = core.read_model(model=model)
+    p = PrePostProcessor(func)
+    p.input(0).tensor().set_element_type(Type.f16)
+    p.input(0).preprocess().convert_element_type(Type.f16)
+    p.input(1).tensor().set_element_type(Type.f16)
+    p.input(1).preprocess().convert_element_type(Type.f16)
+    p.output(0).tensor().set_element_type(Type.f16)
+    p.output(0).postprocess().convert_element_type(Type.f16)
+
+    func = p.build()
+    exec_net = core.compile_model(func, device)
+    input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
+    request = exec_net.create_infer_request()
+    outputs = request.infer({0: input_data, 1: input_data})
+    assert np.allclose(list(outputs.values()), list(request.results.values()))
+    assert np.allclose(list(outputs.values()), input_data + input_data)

@@ -49,12 +49,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DepthToSpaceParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const DepthToSpaceParams& params) {
         opset1::DepthToSpace::DepthToSpaceMode mode = params.mode == "DEPTH_FIRST" ?
             opset1::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST : opset1::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
         const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto depthToSpace = std::make_shared<opset1::DepthToSpace>(data, mode, params.blockSize);
-        return std::make_shared<Function>(NodeVector {depthToSpace}, ParameterVector {data});
+        return std::make_shared<Model>(NodeVector {depthToSpace}, ParameterVector {data});
     }
 };
 

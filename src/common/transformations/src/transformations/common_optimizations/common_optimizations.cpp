@@ -45,6 +45,7 @@
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
+#include "transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/strides_optimization.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
@@ -52,7 +53,10 @@
 #include "transformations/common_optimizations/interpolate_sequence_fusion.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
+#include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_divides.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -63,12 +67,15 @@
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_softmax_downgrade.hpp"
+#include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
+#include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 #include "transformations/op_conversions/einsum_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
@@ -82,6 +89,7 @@
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
+#include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
 
@@ -97,7 +105,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
-bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
@@ -108,7 +116,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // before CommonOptimization pipeline execution
     manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
 
-    manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy, false>();
+    // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
+    // after support for FP16 IR is implemented
+    manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy>();
+
+    manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
@@ -119,7 +131,10 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::InterpolateSequenceFusion>();
+    common_fusions->add_matcher<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
+
+    manager.register_pass<ngraph::pass::ConcatReduceFusion>();
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
@@ -160,16 +175,17 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
     manager.register_pass<ngraph::pass::UnrollIf>();
 
-    auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
-    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
-    conv_fusions->set_name("ngraph::pass::ConvFusions");
+    auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    multiply_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
+    multiply_fusions->add_matcher<ngraph::pass::MatMulMultiplyFusion>();
+    multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();  // not plugins implemented gather8
@@ -177,8 +193,12 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
     manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
+    manager.register_pass<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
+    manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8, false>();
     manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
+    manager.register_pass<ngraph::pass::ConvertMaxPool1ToMaxPool8, false>();
     manager.register_pass<ngraph::pass::ConvertPriorBox8To0>();  // not plugins implemented priorbox8
+    manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8, false>();
     manager.register_pass<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();

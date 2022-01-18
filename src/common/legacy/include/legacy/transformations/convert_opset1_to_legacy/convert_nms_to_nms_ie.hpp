@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertNMSToNMSIEMatcher);
+class ConvertNMSToNMSIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph

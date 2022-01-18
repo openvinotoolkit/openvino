@@ -22,6 +22,15 @@ class LP_TRANSFORMATIONS_API MarkupPerTensorQuantization;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MarkupPerTensorQuantization transformation marks operations as required per-tensor quantization according to the
+ * provided restrictions.
+ *
+ * For more details about the transformation, refer to
+ * [MarkupPerTensorQuantization](@ref openvino_docs_IE_DG_lpt_MarkupPerTensorQuantization) page
+ * in the Inference Engine Developer Guide.
+ */
 class ngraph::pass::low_precision::MarkupPerTensorQuantization : public ngraph::pass::FunctionPass {
 public:
     class PerTensorQuantization {
@@ -37,7 +46,7 @@ public:
 
     NGRAPH_RTTI_DECLARATION;
     explicit MarkupPerTensorQuantization(const std::vector<OperationPerTensorQuantizationRestriction>& restrictions = {});
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 
 private:
     std::unordered_map<std::string, PerTensorQuantization> restrictionsByOperation;

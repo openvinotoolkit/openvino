@@ -22,6 +22,7 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -31,17 +32,6 @@ namespace low_precision {
 bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types) {
     for (auto another : types) {
         if (type.is_castable(another)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool NetworkHelper::notAllChildrensAreFQ(const NodeVector& childrens) {
-    // NOTE: This check was added for models that don't have FQ after AvgPool
-    //       They will have transparent precision as it was in old LPT.
-    for (const auto& child : childrens) {
-        if (!ov::is_type<opset1::FakeQuantize>(child)) {
             return true;
         }
     }
@@ -72,7 +62,9 @@ bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
             ov::is_type<opset1::Convolution>(node) ||
             ov::is_type<opset1::GroupConvolution>(node) ||
             ov::is_type<opset1::MatMul>(node) ||
-            ov::is_type<opset1::ConvolutionBackpropData>(node);
+            ov::is_type<opset1::ConvolutionBackpropData>(node) ||
+            ov::is_type<opset3::ReadValue>(node) ||
+            ov::is_type<opset6::ReadValue>(node);
     };
 
     if (isNotConstantPathOperation(op)) {
@@ -197,15 +189,6 @@ size_t NetworkHelper::getGroupsCount(std::shared_ptr<Node> layer) {
     } else {
         THROW_TRANSFORMATION_EXCEPTION << "Invalid layer type of " << layer->get_friendly_name() << "; expected Convolution or GroupConvolution";
     }
-}
-
-// Assumin tensor in NC... layout, append necessary number of 1s to shape to align it to a give rank
-Shape NetworkHelper::alignShapeForChannelDim(const Shape& shape, Rank rank) {
-    assert(shape.size() == 1);
-    assert(rank.is_static());
-    Shape result = shape;
-    result.resize(rank.get_length() - 1, 1);
-    return result;
 }
 
 void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
@@ -390,24 +373,41 @@ std::shared_ptr<opset1::Constant> NetworkHelper::toScalar(std::shared_ptr<opset1
     return std::make_shared<opset1::Constant>(constant->get_element_type(), Shape{}, constant->get_data_ptr());
 }
 
-std::shared_ptr<Node> NetworkHelper::getConstantInput(std::shared_ptr<Node> node) {
-    std::shared_ptr<Node> constant1 = ov::as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr());
-    if (!constant1) {
-        constant1 = ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr());
-    }
-    return constant1;
-}
-
-int NetworkHelper::getConstantInputIndex(std::shared_ptr<Node> node) {
-    if (ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1)) != nullptr) {
-        return 1;
+std::shared_ptr<Node> NetworkHelper::getConstantInput(const std::shared_ptr<Node>& node, const bool convertIsExpected) {
+    std::shared_ptr<Node> parent = ov::as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr());
+    if (parent != nullptr) {
+        return parent;
     }
 
-    if (ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(0)) != nullptr) {
-        return 0;
+    parent = ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr());
+    if (parent != nullptr) {
+        return parent;
     }
 
-    return -1;
+    if (convertIsExpected) {
+        auto getConstantBeforeConvert = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
+            std::shared_ptr<Node> parent = ov::as_type_ptr<opset1::Convert>(node);
+            if (parent != nullptr) {
+                parent = ov::as_type_ptr<opset1::Constant>(parent->input_value(0).get_node_shared_ptr());
+                if (parent != nullptr) {
+                    return parent;
+                }
+            }
+            return nullptr;
+        };
+
+        parent = getConstantBeforeConvert(node->input_value(0).get_node_shared_ptr());
+        if (parent != nullptr) {
+            return parent;
+        }
+
+        parent = getConstantBeforeConvert(node->input_value(1).get_node_shared_ptr());
+        if (parent != nullptr) {
+            return parent;
+        }
+    }
+
+    return nullptr;
 }
 
 std::vector<size_t> NetworkHelper::updateReshapeValues(
@@ -1342,8 +1342,12 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
 
     const std::shared_ptr<opset1::Convert> convert = ov::as_type_ptr<opset1::Convert>(dataNode.get_node_shared_ptr());
     if (convert != nullptr) {
-        if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
-            (convert->output(0).get_element_type() != element::f32)) {
+        auto defaultPrecisions = LayerTransformation::getDefaultPrecisions();
+        auto el_type = convert->input(0).get_element_type();
+        auto foundIt = std::find(defaultPrecisions.begin(), defaultPrecisions.end(), el_type);
+        if (foundIt == defaultPrecisions.end() &&
+            el_type != element::i4  && el_type != element::u4 &&
+            el_type != element::f32 && el_type != element::f16) {
             return FakeQuantizeDequantization(dataNode, nullptr, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
         }
         dataNode = convert->get_input_source_output(0);
@@ -1430,9 +1434,18 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
     return dequantization;
 }
 
-std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise) {
-    const size_t constantIdx = getConstantInputIndex(eltwise);
-    const auto constant = ov::as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(constantIdx));
+std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(
+        const std::shared_ptr<Node>& eltwise,
+        const bool convertIsExpected) {
+    auto constantNode = getConstantInput(eltwise, convertIsExpected);
+    if (constantNode == nullptr) {
+        return nullptr;
+    }
+
+    auto constant = ov::as_type_ptr<opset1::Constant>(constantNode);
+    if (constant == nullptr) {
+        return nullptr;
+    }
 
     const auto getConstWithNormalizeShape = [](
         const std::shared_ptr<Node>& eltwise,
@@ -1649,6 +1662,144 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     return InsertDequantizationResult(newOperation, parent);
 }
 
+NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefore(
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization,
+    const bool updatePrecision,
+    const bool moveSubtract) {
+    assert(
+        (NetworkHelper::getDequantizationBelow(operation).subtractConstant == nullptr) ||
+        (NetworkHelper::getDequantizationBelow(operation).subtractConstant.get() == dequantization.subtractConstant.get()));
+
+    assert(
+        (NetworkHelper::getDequantizationBelow(operation).multiplyConstant == nullptr) ||
+        (NetworkHelper::getDequantizationBelow(operation).multiplyConstant.get() == dequantization.multiplyConstant.get()));
+    std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> multiplyConstants, subtractConstants;
+    if (is_type<opset1::Concat>(operation)) {
+        const auto concatNode = as_type_ptr<opset1::Concat>(operation);
+        auto axis = concatNode->get_concatenation_axis();
+        if (dequantization.multiply && dequantization.multiplyConstant->get_shape().size() > 1 && dequantization.multiplyConstant->get_shape()[axis] != 1) {
+            multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
+        }
+        if (dequantization.subtract && dequantization.subtractConstant->get_shape().size() > 1 && dequantization.subtractConstant->get_shape()[axis] != 1) {
+            subtractConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.subtractConstant });
+        }
+    } else {
+        multiplyConstants = {{ dequantization.multiplyConstant }};
+        subtractConstants = {{ dequantization.subtractConstant }};
+    }
+    std::vector<std::shared_ptr<ngraph::Node>> newNodes;
+    for (size_t i = 0; i < operation->get_input_size(); ++i) {
+        auto parent = operation->get_input_node_shared_ptr(i);
+        const element::Type deqPrecision = dequantization.multiplyConstant->get_element_type();
+        const bool shouldConvert = (operation->get_output_element_type(0) != deqPrecision);
+        if (shouldConvert) {
+            const auto convertOutputPrecision = dequantization.convert != nullptr ?
+                dequantization.convert->get_output_element_type(0) :
+                deqPrecision;
+            parent = std::make_shared<opset1::Convert>(parent, convertOutputPrecision);
+            parent->set_friendly_name(dequantization.convert->get_friendly_name() + "_" + std::to_string(i + 1));
+            ngraph::copy_runtime_info(dequantization.convert, parent);
+        }
+        if (moveSubtract && (dequantization.subtract != nullptr)) {
+            if (dequantization.subtractConvert == nullptr) {
+                const element::Type parentPrecision = parent->get_output_element_type(0);
+                if (parentPrecision.bitwidth() < dequantization.subtractConstant->get_element_type().bitwidth()) {
+                    THROW_IE_LPT_EXCEPTION(*parent) <<
+                        "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
+                        ", subtract dequantization constant " << dequantization.subtractConstant->get_friendly_name() << ":" <<
+                        dequantization.subtractConstant->get_element_type();
+                }
+                auto subtractConstant = subtractConstants.size() ? subtractConstants[0][i] : dequantization.subtractConstant;
+                parent = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+                    std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
+                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                    ngraph::op::TemporaryReplaceOutputType(
+                        subtractConstant->output(0).get_element_type() == parentPrecision ?
+                        subtractConstant :
+                        foldConvert(subtractConstant, parentPrecision), element::f32).get());
+                parent->set_friendly_name(dequantization.subtract->get_friendly_name() + "_" + std::to_string(i + 1));
+            } else {
+                parent = std::make_shared<opset1::Subtract>(parent, dequantization.subtractConvert);
+            }
+            ngraph::copy_runtime_info(dequantization.subtract, parent);
+        }
+
+        if (dequantization.multiply != nullptr) {
+            auto multiplyConstant = multiplyConstants.size() ? multiplyConstants[0][i] : dequantization.multiplyConstant;
+            const element::Type parentPrecision = parent->get_output_element_type(0);
+            if (parentPrecision.bitwidth() < multiplyConstant->get_element_type().bitwidth()) {
+                THROW_IE_LPT_EXCEPTION(*parent) <<
+                    "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
+                    ", multiply dequantization constant " << multiplyConstant->get_friendly_name() << ":" << multiplyConstant->get_element_type();
+            }
+
+            parent = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+                opset1::Multiply(parent,
+                    multiplyConstant->output(0).get_element_type() == parentPrecision ?
+                    multiplyConstant :
+                    foldConvert(multiplyConstant->output(0), parentPrecision)),
+                dequantization.multiply->get_output_element_type(0));
+            ngraph::copy_runtime_info(dequantization.multiply, parent);
+            parent->set_friendly_name(dequantization.multiply->get_friendly_name() + "_" + std::to_string(i + 1));
+        }
+        if ((!moveSubtract) && (dequantization.convert != nullptr) && (dequantization.subtract != nullptr)) {
+            // issue #43088
+            // NetworkHelper::optimizeElementwise(dequantization.subtract);
+        }
+        newNodes.push_back(parent);
+    }
+    auto newOperation = operation->clone_with_new_inputs(ngraph::OutputVector(newNodes.begin(), newNodes.end()));
+    NetworkHelper::copyInfo(operation, newOperation);
+    replace_node(dequantization.multiply, newOperation);
+
+    if (const auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation)) {
+        op->set_overridden_output_type(updatePrecision ?
+            newOperation->get_input_element_type(0) :
+            dequantization.multiplyConstant->get_element_type());
+        newOperation->validate_and_infer_types();
+    }
+
+    return InsertDequantizationResult(newOperation, dequantization.multiply);
+}
+
+std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelper::splitConstantsBeforeConcat(const std::shared_ptr<ov::Node> concat,
+    const std::vector<std::shared_ptr<opset1::Constant>> currConstants) {
+    std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> newConstants(currConstants.size());
+    auto number_of_concat_inputs = concat->get_input_size();
+    const auto concatNode = as_type_ptr<opset1::Concat>(concat);
+    const auto concat_axis = concatNode->get_concatenation_axis();
+    std::vector<unsigned int> shape_axis(number_of_concat_inputs);
+    for (size_t i{ 0 }; i < number_of_concat_inputs; ++i) {
+        auto shape = concat->get_input_shape(i);
+        shape_axis[i] = shape[concat_axis];
+    }
+    for (size_t i = 0; i < currConstants.size(); ++i) {
+        std::vector<std::shared_ptr<ngraph::opset1::Constant>> newConstant;
+        if (currConstants[i]->output(0).get_shape()[concat_axis] == 1) {
+            newConstant.push_back(currConstants[i]);
+            newConstants[i] = newConstant;
+            continue;
+        }
+        auto split = std::make_shared<opset1::VariadicSplit>(currConstants[i],
+            opset1::Constant::create(element::i64, Shape{}, { concat_axis }),
+            opset1::Constant::create(element::i64, Shape{ number_of_concat_inputs }, shape_axis));
+        OutputVector outputResults(split->get_output_size());
+        auto foldResult = split->constant_fold(outputResults, split->input_values());
+        if (!foldResult) {
+            THROW_IE_LPT_EXCEPTION(*concat) << "error when splitting constants before concat " <<
+                concat->get_friendly_name();
+        }
+        for (auto outputResult : outputResults) {
+            auto constant = as_type_ptr<opset1::Constant>(outputResult.get_node_shared_ptr());
+            newConstant.push_back(constant);
+        }
+
+        newConstants[i] = newConstant;
+    }
+    return newConstants;
+}
+
 bool NetworkHelper::checkConstantValuePrecision(const element::Type expectedPrecision, const std::shared_ptr<Node>& constant) {
     if (expectedPrecision.is_signed()) {
         return true;
@@ -1720,8 +1871,8 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
         const auto intNode = ov::is_type<opset1::Convert>(parent) ? parent : node;
         const auto type = intNode->get_input_element_type(0);
         if (type == element::u8 || type == element::i8) {
-            min = DataPrecision::getMinValue(type, 256) - 0.5f;
-            max = DataPrecision::getMaxValue(type, 256) + 0.5f;
+            min = DataPrecision::getMinValue(type, levels::int8) - 0.5f;
+            max = DataPrecision::getMaxValue(type, levels::int8) + 0.5f;
         } else {
             return type == element::f32 || type == element::f16;
         }

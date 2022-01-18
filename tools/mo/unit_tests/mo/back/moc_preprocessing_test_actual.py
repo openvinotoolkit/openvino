@@ -1,13 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 from argparse import Namespace
 
-from openvino.tools.mo.utils.error import Error
-
 import numpy as np
-
+from openvino.tools.mo.utils.error import Error
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 try:
     # pylint: disable=no-name-in-module,import-error
@@ -15,7 +13,7 @@ try:
 
     # pylint: disable=no-name-in-module,import-error
     import openvino.runtime.opset8 as ops
-    from openvino.runtime import Function, Layout, PartialShape
+    from openvino.runtime import Model, Layout, PartialShape
 
 except Exception:
     print("No OpenVINO API available,"
@@ -34,47 +32,46 @@ def create_function2(shape1=[2, 2], shape2=[2, 2], dtype1=np.float32, dtype2=np.
     relu2 = ops.relu(input2)
     res2 = ops.result(relu2, "res2")
     res2.get_output_tensor(0).set_names({'res2', 'res2a'})
-    function = Function(results=[res1, res2], parameters=[input1, input2], name="TestFunction")
+    function = Model(results=[res1, res2], parameters=[input1, input2], name="TestFunction")
     return function
 
 
 def create_function1(shape1=[2, 2]):
     input1 = ops.parameter(shape1, dtype=np.float32, name="input1")
-    input1.get_output_tensor(0).set_names({'input1', 'input1a'})
+    input1.get_output_tensor(0).set_names({'input1a', 'input1b'})
     relu1 = ops.relu(input1)
     res1 = ops.result(relu1, "res1")
     res1.get_output_tensor(0).set_names({'res1', 'res1a'})
-    function = Function(results=[res1], parameters=[input1], name="TestFunction")
+    function = Model(results=[res1], parameters=[input1], name="TestFunction")
     return function
 
 
-def process_function(ov_function: Function, argv: Namespace):
+def process_function(ov_function: Model, argv: Namespace):
     apply_preprocessing(ov_function=ov_function, argv=argv)
 
 
-class TestPreprocessingMOC(unittest.TestCase):
+class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
     def setUp(self):
+        super(TestPreprocessingMOC, self).setUp()
         pass
+
+    def check_constant(self, const_node, expected, shape=None):
+        self.assertEqual(const_node.get_type_name(), 'Constant')
+        self.assertTrue(np.allclose(const_node.get_vector(), expected))
+        if shape is not None:
+            assert const_node.shape == PartialShape(shape)
 
     def check_scale_constant(self, node, expected, shape=None):
         const_node = node.input(1).get_source_output().get_node()
-        self.assertEqual(const_node.get_type_name(), 'Constant')
-        if node.get_type_name() == 'Divide':
-            self.assertTrue(np.allclose(const_node.get_vector(), expected))
-        else:
-            self.assertTrue(np.allclose(const_node.get_vector(), 1. / expected))
-        if shape:
-            assert const_node.shape == PartialShape(shape)
+        if node.get_type_name() != 'Divide':
+            expected = 1. / expected
+        self.check_constant(const_node, expected, shape)
 
     def check_mean_constant(self, node, expected, shape=None):
         const_node = node.input(1).get_source_output().get_node()
-        self.assertEqual(const_node.get_type_name(), 'Constant')
-        if node.get_type_name() == 'Subtract':
-            self.assertTrue(np.allclose(const_node.get_vector(), expected))
-        else:
-            self.assertTrue(np.allclose(const_node.get_vector(), -expected.toList()))
-        if shape:
-            self.assertEqual(const_node.shape, PartialShape(shape))
+        if node.get_type_name() != 'Subtract':
+            expected = -expected.toList()
+        self.check_constant(const_node, expected, shape)
 
     def test_scale_single_value(self):
         argv = Namespace(mean_scale_values=None, scale=2.0)
@@ -615,3 +612,55 @@ class TestPreprocessingMOC(unittest.TestCase):
         self.assertTrue(op_node0.get_type_name() == 'Relu')
         op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node1.get_type_name() == 'Relu')
+
+    def test_reverse_channels_and_mean_scale(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values={
+                                                        'input2a': {
+                                                           'mean': np.array([1., 2., 3.]),
+                                                           'scale': np.array([2., 4., 8.])}},
+                         scale=None)
+        function = create_function2(shape2=[1, 3, 224, 224])
+        process_function(ov_function=function, argv=argv)
+
+        # Verify that first is gather, then subtract 'mean', then 'scale'
+        gather = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(gather.get_type_name() == 'Gather')
+        range_node = gather.input(1).get_source_output().get_node()
+        self.assertTrue(range_node.get_type_name() == 'Range')
+        start = range_node.input(0).get_source_output().get_node()
+        end = range_node.input(1).get_source_output().get_node()
+        step = range_node.input(2).get_source_output().get_node()
+        self.check_constant(start, expected=[2], shape=[])
+        self.check_constant(end, expected=[-1], shape=[])
+        self.check_constant(step, expected=[-1], shape=[])
+        axes = gather.input(2).get_source_output().get_node()
+        self.check_constant(axes, expected=[1], shape=[1])
+
+        op_node = list(gather.output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[1., 2., 3.], shape=[1, 3, 1, 1])
+
+        op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=[2., 4., 8.], shape=[1, 3, 1, 1])
+
+        # Verify that input1 is not affected
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertEqual(op_node.get_type_name(), 'Relu')
+
+        # Verify that guessed layout (?C??) is not appeared in input2
+        self.assertEqual(function.get_parameters()[1].layout, Layout())
+
+    def test_friendly_name(self):
+        argv = Namespace(mean_scale_values={'input1': {'mean': np.array([2., 4., 8.]), 'scale': None}},
+                         layout_values={'input1': {'source_layout': 'nchw'}},
+                         scale=None)
+        function = create_function1(shape1=[1, 3, 224, 224])
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[2., 4., 8.], shape=[1, 3, 1, 1])
+
+        # Verify that layout (nchw) is appeared in input1
+        self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))
+

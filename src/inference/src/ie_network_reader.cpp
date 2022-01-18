@@ -18,7 +18,7 @@
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
-#include "manager.hpp"
+#include "openvino/frontend/manager.hpp"
 #ifdef ENABLE_IR_V7_READER
 #    include "legacy/ie_ir_version.hpp"
 #endif
@@ -111,7 +111,7 @@ class Reader : public IReader {
             std::shared_ptr<IReader> plugin_impl;
             using createFunc = void(std::shared_ptr<IReader>&);
             reinterpret_cast<createFunc*>(ov::util::get_symbol(so, "CreateReader"))(plugin_impl);
-            ptr = {so, plugin_impl};
+            ptr = {plugin_impl, so};
 #    endif  // OPENVINO_STATIC_LIBRARY
         });
 
@@ -299,38 +299,20 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         using namespace ov::preprocess;
         PrePostProcessor prepost(function);
 
-        auto ir_version_impl = it->second.as<std::shared_ptr<ov::RuntimeAttributeWrapper<int64_t>>>();
-        OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
-        const int64_t ir_version = ir_version_impl->get();
+        const int64_t ir_version = it->second.as<int64_t>();
 
         if (ir_version == 10 && newAPI) {
+            std::unordered_set<std::string> leaf_names;
             const auto inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
                 const auto ngraph_type = inputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, true);
                 prepost.input(i).tensor().set_element_type(legacy_type);
-            }
-
-            // in order to support the following scenarios for IR v10 cases:
-            // ov::Function f = ie.read_model(..);
-            // f.input("input_operation_name");
-            // f.output("output_operation_name");
-            // f.add_output("operation_name[].port_index]");
-            // f.reshape({ { "input_operation_name", ov::PartialShape{} } });
-            // we need to add operation names as tensor names for inputs and outputs
-            {
-                std::vector<std::string> result_names;
-                std::vector<ov::Output<ov::Node>> prevPorts;
-                result_names.reserve(function->get_results().size());
-                prevPorts.reserve(function->get_results().size());
-
-                for (const auto& result : function->get_results()) {
-                    result_names.emplace_back(ngraph::op::util::create_ie_output_name(result->input_value(0)));
-                    result->output(0).get_tensor().add_names({result_names.back()});
-                    prevPorts.emplace_back(result->input_value(0));
-                }
-                for (const auto& param : function->get_parameters()) {
-                    param->output(0).get_tensor().add_names({param->get_friendly_name()});
+                for (const auto& name : inputs[i].get_names()) {
+                    OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
+                                    "Model tensor names have collisions.",
+                                    " Please use MO to generate new IR version, it should allow to avoid the issue");
+                    leaf_names.insert(name);
                 }
             }
 
@@ -340,16 +322,53 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto legacy_type = details::toLegacyType(ngraph_type, false);
 
                 prepost.output(i).tensor().set_element_type(legacy_type);
+                for (const auto& name : outputs[i].get_names()) {
+                    OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
+                                    "Model tensor names have collisions.",
+                                    " Please use MO to generate new IR version, it should allow to avoid the issue");
+                    leaf_names.insert(name);
+                }
+            }
+
+            // in order to support the following scenarios for IR v10 cases:
+            // ov::Model f = ie.read_model(..);
+            // f.input("input_operation_name");
+            // f.output("output_operation_name");
+            // f.add_output("operation_name[].port_index]");
+            // f.reshape({ { "input_operation_name", ov::PartialShape{} } });
+            // we need to add operation names as tensor names for inputs and outputs
+            {
+                for (const auto& result : function->get_results()) {
+                    auto res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+                    OPENVINO_ASSERT(
+                        leaf_names.find(res_name) == leaf_names.end() ||
+                            result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
+                        "Model operation names have collisions with tensor names.",
+                        " Please use MO to generate new IR version, it should allow to avoid the issue");
+                    leaf_names.insert(res_name);
+                    result->output(0).get_tensor().add_names({res_name});
+                }
+                for (const auto& param : function->get_parameters()) {
+                    auto param_name = param->get_friendly_name();
+                    OPENVINO_ASSERT(
+                        leaf_names.find(param_name) == leaf_names.end() ||
+                            param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
+                        "Model operation names have collisions with tensor names.",
+                        " Please use MO to generate new IR version, it should allow to avoid the issue");
+                    leaf_names.insert(param_name);
+                    param->output(0).get_tensor().add_names({param_name});
+                }
             }
 
             function = prepost.build();
 
             // Set version to 10
-            rt_info["version"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(10);
+            rt_info["version"] = int64_t(10);
         } else if (ir_version == 11 && !newAPI) {
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 
+            bool need_validate_nodes_and_infer_types = false;
             auto& parameters = function->get_parameters();
             for (size_t i = 0; i < parameters.size(); ++i) {
                 const auto& parameter = parameters[i];
@@ -357,10 +376,20 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto it_type = rtInfo.find(old_api_map_key_type);
                 auto& pre_input = prepost.input(i);
                 if (it_type != rtInfo.end()) {
-                    auto type = it_type->second.as<ov::OldApiMapElementType>().value;
-                    pre_input.tensor().set_element_type(type);
+                    const auto old_api_map_type = it_type->second.as<ov::OldApiMapElementType>().value;
+                    const auto param_type = parameter->get_element_type();
 
-                    OPENVINO_ASSERT(!type.is_dynamic(), "Old API map does not support dynamic type");
+                    // In the following code we add Convert node from old_api_map_type to Parameter type
+                    // using PrePostProcessor. As some plugins do not support uint8 type, Convert to uint8 leads
+                    // to error, so for such case type is set directly to Parameter node instead of inserting Convert.
+                    if ((param_type == ngraph::element::u8 && old_api_map_type.is_real())) {
+                        parameter->set_element_type(old_api_map_type);
+                        need_validate_nodes_and_infer_types = true;
+                    } else {
+                        pre_input.tensor().set_element_type(old_api_map_type);
+                    }
+
+                    OPENVINO_ASSERT(!old_api_map_type.is_dynamic(), "Old API map does not support dynamic type");
                     rtInfo.erase(it_type);
                 }
                 const auto it_order = rtInfo.find(old_api_map_key_order);
@@ -387,8 +416,11 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 rtInfo.erase(it);
             }
 
+            if (need_validate_nodes_and_infer_types)
+                function->validate_nodes_and_infer_types();
+
             // Set version to 10
-            rt_info["version"] = std::make_shared<ov::RuntimeAttributeWrapper<int64_t>>(10);
+            rt_info["version"] = int64_t(10);
 
             function = prepost.build();
         }
@@ -451,7 +483,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::RuntimeAttributeVector params{model_path};
+    ov::AnyVector params{model_path};
 
     if (!binPath.empty()) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -517,7 +549,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::RuntimeAttributeVector params{&modelStream};
+    ov::AnyVector params{&modelStream};
     if (weights) {
         char* data = weights->cbuffer().as<char*>();
         std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =

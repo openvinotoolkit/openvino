@@ -18,10 +18,10 @@ public:
     OPENVINO_OP("SubGraphOp", "util", op::util::MultiSubGraphOp);
     BWDCMP_RTTI_DECLARATION;
 
-    virtual const std::shared_ptr<Function>& get_function() const {
+    virtual const std::shared_ptr<Model>& get_function() const {
         return m_bodies[0];
     };
-    virtual void set_function(const std::shared_ptr<Function>& func) {
+    virtual void set_function(const std::shared_ptr<Model>& func) {
         m_bodies[0] = func;
     };
     /// \return a reference to the input descriptions.

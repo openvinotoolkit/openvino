@@ -8,12 +8,12 @@
 #include "exceptions.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
-#include "tensorflow_frontend/utility.hpp"
 #include "types.pb.h"
 
 namespace ov {
 namespace frontend {
-namespace tf {
+namespace tensorflow {
+
 using InPortName = size_t;
 using OutPortName = size_t;
 using NamedOutputs = std::map<OutPortName, OutputVector>;
@@ -103,6 +103,6 @@ public:
     }
 };
 
-}  // namespace tf
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

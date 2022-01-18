@@ -40,9 +40,8 @@ packages = [
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
     "openvino",
-    # TODO: change the module name according to the description in 69196
     "openvino.frontend",
-    "openvino.offline_transformations_pybind",
+    "openvino.offline_transformations",
     "openvino.runtime.opset1",
     "openvino.runtime.opset2",
     "openvino.runtime.opset3",
@@ -52,10 +51,9 @@ packages = [
     "openvino.runtime.opset7",
     "openvino.runtime.opset8",
     "openvino.runtime.utils",
-    "openvino.runtime.impl",
-    "openvino.runtime.impl.op",
-    "openvino.runtime.impl.op.util",
-    "openvino.runtime.impl.passes",
+    "openvino.runtime.op",
+    "openvino.runtime.op.util",
+    "openvino.runtime.passes",
 ]
 
 

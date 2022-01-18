@@ -25,7 +25,7 @@ set(ONNX_COMMON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON_INCLUDE_DIR}>
                                                  $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 
 if(ONNX_USE_LITE_PROTO)
     link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx ${Protobuf_LITE_LIBRARIES})
@@ -36,4 +36,4 @@ endif()
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
-ov_install_static_lib(${TARGET_NAME} ngraph)
+ov_install_static_lib(${TARGET_NAME} core)

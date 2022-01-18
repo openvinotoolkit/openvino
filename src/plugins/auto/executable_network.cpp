@@ -119,7 +119,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
     for (auto&& workerRequest : workerRequests) {
-        workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
+        workerRequest._inferRequest = {executableNetwork->CreateInferRequest(), executableNetwork._so};
         auto* workerRequestPtr = &workerRequest;
         IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
         workerRequest._inferRequest->SetCallback(
@@ -149,18 +149,21 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            const std::vector<DeviceInformation>&      metaDevices,
                                                            const std::string&                         strDevices,
                                                            MultiDeviceInferencePlugin*                plugin,
-                                                           const bool                                needPerfCounters)
+                                                           const AutoContext&                         context,
+                                                           const bool                                 needPerfCounters)
                                                            : _devicePriorities{metaDevices}
                                                            , _devicePrioritiesInitial{metaDevices}
                                                            , _needPerfCounters(needPerfCounters)
                                                            , _multiPlugin(plugin)
-                                                           , _workModeIsAUTO(true) {
+                                                           , _context(context)
+                                                           , _workModeIsAUTO(true)
+                                                           , _network(network) {
     if (_multiPlugin->GetCore() == nullptr) {
-        IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
+        IE_THROW() << "Please, work with " << _multiPlugin->GetName() << " device via InferencEngine::Core object";
     }
 
     if (modelPath.empty() && network.getFunction() == nullptr) {
-        IE_THROW() << "MULTI device supports just ngraph network representation";
+        IE_THROW() << "MULTI " << _multiPlugin->GetName() << " device supports just ngraph network representation";
     }
 
     _core = _multiPlugin->GetCore(); // shared_ptr that holds the Core
@@ -173,7 +176,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _loadContext[ACTUALDEVICE].isEnabled = true;
     _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
     _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
-    _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
+    _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices,
+            _loadContext[ACTUALDEVICE].networkPrecision, _context.modelPriority);
     LOG_INFO("[AUTOPLUGIN]:select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
@@ -262,11 +266,36 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _inferPipelineTasksDeviceSpecific["CPU_HELP"] = nullptr;
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
+        auto recycleTask = [this]() mutable {
+            WaitActualNetworkReady();
+            while (!_exitFlag && _loadContext[ACTUALDEVICE].isAlready) {
+                // handle the case of ACTUAL faster than CPU
+                _loadContext[CPU].future.wait();
+                // clean up helper infer requests
+                // first, wait for all the remaining requests to finish
+                for (auto& iter : _workerRequests["CPU_HELP"]) {
+                    iter._inferRequest._ptr->Wait(InferRequest::WaitMode::RESULT_READY);
+                }
+                // late enough to check the idle queue now
+                // second, check the idle queue if all requests are in place
+                size_t destroynum = 0;
+                WorkerInferRequest *workerRequestPtr = nullptr;
+                while (_idleWorkerRequests["CPU_HELP"].try_pop(workerRequestPtr))
+                    destroynum++;
+                if (destroynum == _workerRequests["CPU_HELP"].size()) {
+                    std::lock_guard<std::mutex> lock(_confMutex);
+                    _workerRequests["CPU_HELP"].clear();
+                    _loadContext[CPU].executableNetwork._ptr.reset();
+                    _loadContext[CPU].executableNetwork._so.reset();
+                    break;
+                }
+            }
+        };
+        _executor->run(std::move(recycleTask));
     } else {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
     }
-
     WaitFirstNetworkReady();
 }
 void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
@@ -292,6 +321,13 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         return;
     }
 
+    // need to reload network, unregister it's priority
+    // there maybe potential issue.
+    // for example they are dGPU, VPUX, iGPU, customer want to LoadNetwork with
+    // configure 0 dGPU, 1 VPUX, if dGPU load failed,
+    // the result will be not sure, maybe two network are loaded into VPUX,
+    // maybe 0 is loaded to VPUX, 1 is loaded to iGPU
+    _multiPlugin->UnregisterPriority(_context.modelPriority, context.deviceInfo.uniqueName);
     // remove the current device from deviceList
     auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(),
             [device](DeviceInformation& d){
@@ -305,7 +341,8 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
 
     // select next candidate device
     try {
-        context.deviceInfo = _multiPlugin->SelectDevice(deviceList, context.networkPrecision);
+        context.deviceInfo = _multiPlugin->SelectDevice(deviceList,
+                context.networkPrecision, _context.modelPriority);
     }
     catch (const std::exception& e) {
         return;
@@ -382,13 +419,7 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
     // for every MultiDeviceExecutableNetwork instance
     std::call_once(_oc, [this] () {
                if (_loadContext[ACTUALDEVICE].future.valid()) {
-                   _loadContext[ACTUALDEVICE].future.get();
-               }
-               // if _loadContext[ACTUALDEVICE] load failed,  fall back to _loadContext[CPU]
-               if (!_loadContext[ACTUALDEVICE].isAlready) {
-                   _loadContext[ACTUALDEVICE].executableNetwork = _loadContext[CPU].executableNetwork;
-                   _loadContext[ACTUALDEVICE].deviceInfo = _loadContext[CPU].deviceInfo;
-                   _loadContext[ACTUALDEVICE].isAlready = true;
+                   _loadContext[ACTUALDEVICE].future.wait();
                }
                });
 }
@@ -402,7 +433,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             WaitActualNetworkReady();
             // the preferred_device should be the selected device in AUTO work mode
             if (preferred_device != _loadContext[ACTUALDEVICE].deviceInfo.deviceName) {
-                IE_THROW(NotFound) << "The preferred_device should be the selected device";
+                IE_THROW(NotFound) << "The preferred device should be the selected device";
             }
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         } else {
@@ -460,13 +491,18 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 }
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
-    // this is necessary to guarantee member destroyed after getting future
-    if (_workModeIsAUTO && _loadContext[CPU].isEnabled) {
-        _loadContext[CPU].future.get();
-        WaitActualNetworkReady();
-        // it's necessary to wait the loading network threads to stop here.
-        InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
-        _executor.reset();
+    if (_workModeIsAUTO) {
+        // this is necessary to guarantee member destroyed after getting future
+        if (_loadContext[CPU].isEnabled) {
+            _exitFlag = true;
+            _loadContext[CPU].future.wait();
+            WaitActualNetworkReady();
+            // it's necessary to wait the loading network threads to stop here.
+            InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
+            _executor.reset();
+        }
+        _multiPlugin->UnregisterPriority(_context.modelPriority,
+                _loadContext[ACTUALDEVICE].deviceInfo.uniqueName);
     }
     {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -479,7 +515,10 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }
-    _workerRequests.clear();
+    {
+        std::lock_guard<std::mutex> lock(_confMutex);
+        _workerRequests.clear();
+    }
 }
 
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
@@ -500,7 +539,7 @@ std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::Ge
             return n->GetContext();
         } catch (const NotImplemented&) {}
     }
-    IE_THROW(NotImplemented) << "None of the devices in the MULTI has an associated remote context."
+    IE_THROW(NotImplemented) << "None of the devices in the MULTI device has an associated remote context."
                              << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
@@ -615,33 +654,33 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
             _devicePriorities = metaDevices;
 
             // update value in config
-            _confMutex.lock();
+            std::lock_guard<std::mutex> lockConf(_confMutex);
             _config[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = priorities->second;
-            _confMutex.unlock();
         }
     }
 }
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::string &name) const {
-    _confMutex.lock();
-    auto it = _config.find(name);
-    if (it != _config.end()) {
-        _confMutex.unlock();
-        return it->second;
-    } else {
-        _confMutex.unlock();
-        // find config key among networks config keys
-        for (const auto& desc : _networksPerDevice) {
-            const auto& execNetwork = desc.second;
-            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-            for (auto &&configKey : param.as<std::vector<std::string>>()) {
-                if (configKey == name) {
-                    return execNetwork->GetConfig(configKey);
-                }
+    {
+        std::lock_guard<std::mutex> lock(_confMutex);
+        auto it = _config.find(name);
+        if (it != _config.end()) {
+            return it->second;
+        }
+    }
+
+    // find config key among networks config keys
+    for (const auto& desc : _networksPerDevice) {
+        const auto& execNetwork = desc.second;
+        auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        for (auto &&configKey : param.as<std::vector<std::string>>()) {
+            if (configKey == name) {
+                return execNetwork->GetConfig(configKey);
             }
         }
-        IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
+        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
+    IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
 }
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
@@ -652,10 +691,30 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 real = _loadContext[ACTUALDEVICE].
                     executableNetwork->GetMetric(name).as<unsigned int>();
             } else {
+                IE_ASSERT(_loadContext[CPU].isAlready == true);
                 real = _loadContext[CPU].
                     executableNetwork->GetMetric(name).as<unsigned int>();
+                std::unique_lock<std::mutex> lock(_confMutex);
+                auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
+                lock.unlock();
+                if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
+                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
+                    if (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)) {
+                         std::map<std::string, InferenceEngine::Parameter> options;
+                         options["MODEL_PTR"] = _network.getFunction(); // CNNntework
+                         try {
+                             auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
+                                     METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
+                             auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
+                                     METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                             real = (std::max)(real, std::get<1>(rangeOfStreams) * optimalBatchSize);
+                         } catch (const InferenceEngine::Exception &iie) {
+                             LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
+                         }
+                    }
+                }
             }
-            unsigned int res = std::max(8u, real);
+            unsigned int res = (std::max)(8u, real);
             IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
         }
 
@@ -694,7 +753,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         std::vector<std::string> configKeys = { MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else {
-        IE_THROW() << "Unsupported Network metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
     }
 }
 }  // namespace MultiDevicePlugin

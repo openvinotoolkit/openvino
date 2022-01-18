@@ -294,7 +294,7 @@ PyAny from_ov_any(const ov::Any& any) {
     }
 }
 
-uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual) {
+uint32_t get_optimal_number_of_requests(const ov::runtime::CompiledModel& actual) {
     try {
         auto parameter_value = actual.get_metric(METRIC_KEY(SUPPORTED_METRICS));
         auto supported_metrics = parameter_value.as<std::vector<std::string>>();
@@ -319,71 +319,66 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
     py::dict res;
     for (const auto& out : outputs) {
         ov::runtime::Tensor t{request.get_tensor(out)};
-        std::cout << t.get_element_type() << " !\n";
         switch (t.get_element_type()) {
         case ov::element::Type_t::i8: {
-            py::array arr(t.get_shape(), t.data<int8_t>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<int8_t>(t.get_shape(), t.data<int8_t>());
+            ;
             break;
         }
         case ov::element::Type_t::i16: {
-            py::array arr(t.get_shape(), t.data<int16_t>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<int16_t>(t.get_shape(), t.data<int16_t>());
+            ;
             break;
         }
         case ov::element::Type_t::i32: {
-            py::array arr(t.get_shape(), t.data<int32_t>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<int32_t>(t.get_shape(), t.data<int32_t>());
+            ;
             break;
         }
         case ov::element::Type_t::i64: {
-            py::array arr(t.get_shape(), t.data<int64_t>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<int64_t>(t.get_shape(), t.data<int64_t>());
+            ;
             break;
         }
         case ov::element::Type_t::u8: {
-            py::array arr(t.get_shape(), t.data<uint8_t>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<uint8_t>(t.get_shape(), t.data<uint8_t>());
+            ;
             break;
         }
         case ov::element::Type_t::u16: {
-            py::array arr(t.get_shape(), t.data<uint16_t>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<uint16_t>(t.get_shape(), t.data<uint16_t>());
             break;
         }
         case ov::element::Type_t::u32: {
-            py::array arr(t.get_shape(), t.data<uint32_t>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<uint32_t>(t.get_shape(), t.data<uint32_t>());
+            ;
             break;
         }
         case ov::element::Type_t::u64: {
-            py::array arr(t.get_shape(), t.data<uint64_t>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<uint64_t>(t.get_shape(), t.data<uint64_t>());
             break;
         }
         case ov::element::Type_t::bf16: {
-            py::array arr(t.get_shape(), t.data<ov::bfloat16>());
-            res[py::cast(out)] = arr.view("int16");
+            res[py::cast(out)] = py::array(py::dtype("float16"), t.get_shape(), t.data<ov::bfloat16>());
             break;
         }
         case ov::element::Type_t::f16: {
-            py::array arr(t.get_shape(), t.data<ov::float16>());
-            res[py::cast(out)] = arr.view("int16");
+            res[py::cast(out)] = py::array(py::dtype("float16"), t.get_shape(), t.data<ov::float16>());
             break;
         }
         case ov::element::Type_t::f32: {
-            py::array arr(t.get_shape(), t.data<float>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<float>(t.get_shape(), t.data<float>());
+            ;
             break;
         }
         case ov::element::Type_t::f64: {
-            py::array arr(t.get_shape(), t.data<double>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<double>(t.get_shape(), t.data<double>());
+            ;
             break;
         }
         case ov::element::Type_t::boolean: {
-            py::array arr(t.get_shape(), t.data<bool*>());
-            res[py::cast(out)] = arr;
+            res[py::cast(out)] = py::array_t<bool>(t.get_shape(), t.data<bool>());
+            ;
             break;
         }
         default: {

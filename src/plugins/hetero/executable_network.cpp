@@ -93,7 +93,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         if (it != _config.end()) {
             queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
         } else {
-            IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+            IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous device";
         }
     }
 
@@ -131,7 +131,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             affinities[node.get()] = itAffinity->second;
             devices.emplace(itAffinity->second);
         } else if (allEmpty) {
-            IE_THROW() << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:"
+            IE_THROW() << "Hetero device used default fallback policy, but some layers eg: \n(Name:"
                        << node->get_friendly_name() << ", Type: " << node->get_type_name()
                        << ") were not able to be assigned on any pointed device.\n"
                        << "It happened because these layers are not supported in plugins by default.\n"
@@ -187,7 +187,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     colorIndex++;
                 }
             }}
-            .run_on_function(ngraph::clone_function(*function));
+            .run_on_model(ngraph::clone_function(*function));
     }
 
     NodeMap<InputSet> nodeInputDependencies;
@@ -303,29 +303,37 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     // Break graph using insertion of result parameter split
     NodeMap<ngraph::Node*> subgraphParameterToPrevResult;
     std::vector<std::shared_ptr<ngraph::op::Result>> results;
-    for (auto&& input : subgraphInputs) {
-        if (!ngraph::op::is_parameter(input.get_node()) && !ngraph::op::is_constant(input.get_node())) {
-            auto output = input.get_source_output();
-            output.remove_target_input(input);
+    {
+        std::set<ngraph::Output<ngraph::Node>> subgraphOutputs;
+        for (auto&& input : subgraphInputs) {
+            if (!ngraph::op::is_parameter(input.get_node()) && !ngraph::op::is_constant(input.get_node())) {
+                subgraphOutputs.insert(input.get_source_output());
+            }
+        }
+        for (auto&& output : subgraphOutputs) {
+            auto inputs = output.get_target_inputs();
             auto result = std::make_shared<ngraph::op::Result>(output);
             result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
                                       std::to_string(output.get_index()) + "_result");
             ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
-            auto parameter =
-                std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_partial_shape());
-            parameter->set_friendly_name(input.get_node()->get_friendly_name() + "_" +
-                                         std::to_string(input.get_index()) + "_parameter");
-            ngraph::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
-            input.replace_source_output(parameter->output(0));
-            results.push_back(result);
             subgraphIds.emplace(result.get(), subgraphIds[output.get_node()]);
-            subgraphIds.emplace(parameter.get(), subgraphIds[input.get_node()]);
-            subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
-            _blobNameMap.emplace(
-                parameter->get_friendly_name(),
-                output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
-                                                              ? ("." + std::to_string(output.get_index()))
-                                                              : std::string{}));
+            results.push_back(result);
+            for (auto&& input : inputs) {
+                output.remove_target_input(input);
+                auto parameter =
+                    std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_partial_shape());
+                parameter->set_friendly_name(input.get_node()->get_friendly_name() + "_" +
+                                             std::to_string(input.get_index()) + "_parameter");
+                ngraph::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
+                input.replace_source_output(parameter->output(0));
+                subgraphIds.emplace(parameter.get(), subgraphIds[input.get_node()]);
+                subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
+                _blobNameMap.emplace(
+                    parameter->get_friendly_name(),
+                    output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
+                                                                  ? ("." + std::to_string(output.get_index()))
+                                                                  : std::string{}));
+            }
         }
     }
 
@@ -353,6 +361,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             subgraph._affinity = itAffinity->second;
         }
     }
+    results = {};
 
     // Subgraph topological sort
     std::vector<Subgraph> allSubgraphs;
@@ -479,7 +488,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     }
                 }
             }}
-            .run_on_function(ngraph::clone_function(*function));
+            .run_on_model(ngraph::clone_function(*function));
     }
     for (auto&& network : _networks) {
         auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
@@ -501,7 +510,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        IE_THROW(NetworkNotRead) << "Error reading HETERO plugin xml header";
+        IE_THROW(NetworkNotRead) << "Error reading HETERO device xml header";
     }
 
     using namespace XMLParseUtils;
@@ -751,13 +760,13 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
         } else {
             auto subnet = subnetwork._clonedNetwork;
             if (!subnet.getFunction()) {
-                IE_THROW() << "Hetero plugin supports only ngraph function representation";
+                IE_THROW() << "Hetero device supports only ngraph function representation";
             }
 
             // Note: custom ngraph extensions are not supported
             std::stringstream xmlFile, binFile;
             ov::pass::Serialize serializer(xmlFile, binFile, ov::pass::Serialize::Version::IR_V10);
-            serializer.run_on_function(subnet.getFunction());
+            serializer.run_on_model(subnet.getFunction());
 
             auto m_constants = binFile.str();
             auto m_model = xmlFile.str();
@@ -937,6 +946,6 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
             }
         }
 
-        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
     }
 }

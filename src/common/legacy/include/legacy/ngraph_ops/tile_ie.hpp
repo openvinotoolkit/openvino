@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(TileIE) : public Op {
+class TileIE : public Op {
 public:
     OPENVINO_OP("TileIE", "legacy");
     BWDCMP_RTTI_DECLARATION;

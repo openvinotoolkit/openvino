@@ -9,7 +9,7 @@
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
+using namespace ov;
 using namespace InferenceEngine;
 
 struct EmbeddingBagPackedSumParams {
@@ -63,19 +63,19 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(
+    static std::shared_ptr<Model> CreateFunction(
         const PartialShape& input_shape,
         const element::Type& input_type,
         const std::shared_ptr<ngraph::opset1::Constant> indices,
         const std::shared_ptr<ngraph::opset1::Constant> per_sample_weights) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
 
         if (per_sample_weights) {
             const auto ess = std::make_shared<op::v3::EmbeddingBagPackedSum>(in, indices, per_sample_weights);
-            return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
         } else {
             const auto ess = std::make_shared<op::v3::EmbeddingBagPackedSum>(in, indices);
-            return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
         }
     }
 };

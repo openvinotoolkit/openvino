@@ -41,16 +41,11 @@ public:
 
     static std::vector<Input<Node>> consumer_inputs(std::shared_ptr<Node> node);
 
-    // returns true if at least one child is not FQ
-    static bool notAllChildrensAreFQ(const NodeVector& layer);
-
     // Collect and return a vector with all nodes that consumes any of the `node` output
     static std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node);
 
     // return true if op is on a constant path
     static bool isConstantPath(const std::shared_ptr<Node>& op);
-
-    static Shape alignShapeForChannelDim(const Shape& shape, Rank rank);
 
     template <typename OperationType>
     static std::shared_ptr<Node> setOutDataPrecisionForTypeRelaxed(std::shared_ptr<OperationType> operation, const element::Type& precision);
@@ -92,9 +87,7 @@ public:
 
     static std::shared_ptr<opset1::Constant> toScalar(std::shared_ptr<opset1::Constant> constant);
 
-    static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
-
-    static int getConstantInputIndex(std::shared_ptr<Node> node);
+    static std::shared_ptr<Node> getConstantInput(const std::shared_ptr<Node>& node, const bool convertIsExpected = false);
 
     static std::vector<size_t> updateReshapeValues(
         const Shape& elementwiseConstantShape,
@@ -155,7 +148,9 @@ public:
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
-    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
+    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(
+            const std::shared_ptr<Node>& eltwise,
+            const bool convertIsExpected = false);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
@@ -177,6 +172,16 @@ public:
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract);
+
+    static InsertDequantizationResult moveDequantizationBefore(
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool updatePrecision,
+        const bool moveSubtract);
+
+    static std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> splitConstantsBeforeConcat(
+        const std::shared_ptr<ov::Node> concat,
+        const std::vector<std::shared_ptr<opset1::Constant>> currConstants);
 
     static bool checkConstantValuePrecision(const element::Type expectedPrecision, const std::shared_ptr<Node>& constant);
 
@@ -215,98 +220,17 @@ public:
         const std::shared_ptr<Node>& dequantization,
         const std::shared_ptr<Node>& newNode);
 
-    static void replaceAttributeInNodes(
-        std::shared_ptr<ngraph::Function> f,
-        const std::string& name,
-        const ov::Any& newAttribute,
-        const ov::Any& oldAttribute,
-        const std::shared_ptr<ngraph::Node>& initialNode) {
-        std::set<std::shared_ptr<Node>> visited;
-        std::deque<std::shared_ptr<Node>> nodes;
-        nodes.emplace_back(initialNode);
-
-        while (!nodes.empty()) {
-            auto node = nodes.front();
-            nodes.pop_front();
-
-            if (visited.count(node) || ov::is_type<op::Constant>(node)) {
-                continue;
-            }
-
-            visited.insert(node);
-
-            bool handleConnectedNodes = false;
-            if (NetworkHelper::isPrecisionPreserved(node) || ov::is_type<opset1::FakeQuantize>(node)) {
-                auto& rt = node->get_rt_info();
-
-                if (node == initialNode) {
-                    rt[name] = newAttribute;
-                    handleConnectedNodes = true;
-                } else {
-                    auto it = rt.find(name);
-                    if (it != rt.end()) {
-                        const auto currentAttribute = it->second;
-                        if (oldAttribute == currentAttribute) {
-                            rt[name] = newAttribute;
-                        }
-                        handleConnectedNodes = true;
-                    }
-                }
-            }
-
-            if (!handleConnectedNodes) {
-                continue;
-            }
-
-            if (!ov::is_type<opset1::FakeQuantize>(node)) {
-                for (size_t index = 0ul; index < node->get_input_size(); ++index) {
-                    auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
-                        const auto dequantization = NetworkHelper::getDequantization(node, index);
-                        if (!dequantization.empty() &&
-                            (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
-                            ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
-                            const auto input = dequantization.data.get_node()->input(0);
-                            return input;
-                        }
-                        return node->input(index);
-                    };
-
-                    const auto& input = getInput(node, index);
-                    const auto& input_node = input.get_source_output().get_node_shared_ptr();
-
-                    //const auto& input_node = input.get_source_output().get_node_shared_ptr();
-                    if (visited.count(input_node) || ov::is_type<op::Constant>(input_node)) {
-                        continue;
-                    }
-
-                    nodes.push_front(input_node);
-                }
-            }
-
-            for (auto& output : node->outputs()) {
-                for (auto& input_value : output.get_target_inputs()) {
-                    const auto& output_node = input_value.get_node()->shared_from_this();
-                    if (visited.count(output_node) || ov::is_type<op::Constant>(output_node)) {
-                        continue;
-                    }
-
-                    nodes.push_front(output_node);
-                }
-            }
-        }
-    }
-
     template <typename SharedAttribute>
     static void reassign(
         const std::shared_ptr<typename SharedAttribute::SharedValueAttribute::SharedValue>& sharedValue,
         const std::vector<std::weak_ptr<typename SharedAttribute::SharedValueAttribute>>& attributes) {
-        for (const auto attributeWeakPtr : attributes) {
+        for (const auto& attributeWeakPtr : attributes) {
             auto attribute = attributeWeakPtr.lock();
             if (attribute == nullptr) {
                 continue;
             }
             attribute->sharedValue = sharedValue;
-            sharedValue->attributes.push_back(attribute);
+            sharedValue->addAttribute(attribute);
         }
     }
 
@@ -368,14 +292,6 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
 template <typename T>
 std::shared_ptr<Node> make_op_pattern(const ngraph::NodeVector& args) {
     return std::make_shared<ngraph::pattern::op::Any>(element::undefined, PartialShape{}, [](std::shared_ptr<Node> n) {return !!ov::as_type_ptr<T>(n); }, args);
-}
-
-template <typename T>
-std::shared_ptr<Node> make_op_label() {
-    return std::make_shared<ngraph::pattern::op::Label>(
-            element::undefined,
-            PartialShape{},
-            [](std::shared_ptr<Node> n) {return !!ov::as_type_ptr<T>(n); });
 }
 
 template <typename T, typename... Args>

@@ -62,7 +62,7 @@ int main() {
     //! [ov_api_2_0:create_core]
 
     //! [ov_api_2_0:read_model]
-    std::shared_ptr<ov::Function> network = core.read_model("model.xml");
+    std::shared_ptr<ov::Model> network = core.read_model("model.xml");
     //! [ov_api_2_0:read_model]
 
     //! [ov_api_2_0:get_inputs_outputs]
@@ -71,11 +71,11 @@ int main() {
     //! [ov_api_2_0:get_inputs_outputs]
 
     //! [ov_api_2_0:compile_model]
-    ov::runtime::ExecutableNetwork exec_network = core.compile_model(network, "CPU");
+    ov::runtime::CompiledModel compiled_model = core.compile_model(network, "CPU");
     //! [ov_api_2_0:compile_model]
 
     //! [ov_api_2_0:create_infer_request]
-    ov::runtime::InferRequest infer_request = exec_network.create_infer_request();
+    ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
     //! [ov_api_2_0:create_infer_request]
 
     inputs_aligned(infer_request);

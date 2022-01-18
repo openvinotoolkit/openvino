@@ -9,9 +9,9 @@ from typing import List, Union
 import numpy as np
 
 from openvino.runtime.exceptions import NgraphTypeError
-from openvino.runtime.impl import Node, Shape, Output
-from openvino.runtime.impl import Type as NgraphType
-from openvino.runtime.impl.op import Constant
+from openvino.runtime import Node, Shape, Output
+from openvino.runtime import Type as NgraphType
+from openvino.runtime.op import Constant
 
 log = logging.getLogger(__name__)
 

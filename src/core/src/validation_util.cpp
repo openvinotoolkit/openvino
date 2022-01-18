@@ -1287,13 +1287,20 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;
     if (lb && ub) {
-        const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
-        const auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
+        auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
-            NGRAPH_CHECK(lower_bound[i] >= 0 && upper_bound[i] >= 0);
-            resulting_pshape[i] = {lower_bound[i], upper_bound[i]};
+            auto low = lower_bound[i], up = upper_bound[i];
+            NGRAPH_CHECK(low >= 0 && up >= 0);
+            if (output.get_element_type() == element::i32 && low != up) {
+                if (up == std::numeric_limits<std::int32_t>::max())
+                    up = std::numeric_limits<std::int64_t>::max();
+                if (low == std::numeric_limits<std::int32_t>::max())
+                    low = std::numeric_limits<std::int64_t>::max();
+            }
+            resulting_pshape[i] = {low, up};
         }
         pshape = PartialShape(resulting_pshape);
         shape_defined = true;
@@ -1341,9 +1348,6 @@ shared_ptr<op::Constant> ngraph::get_constant_max_of_type(element::Type_t t) {
         NGRAPH_TYPE_TO_MAX_CONST(element::u16);
         NGRAPH_TYPE_TO_MAX_CONST(element::u32);
         NGRAPH_TYPE_TO_MAX_CONST(element::u64);
-
-    case element::undefined:
-    case element::dynamic:
     default:
         return nullptr;
     }
@@ -1370,9 +1374,6 @@ shared_ptr<op::Constant> ngraph::get_constant_min_of_type(element::Type_t t) {
         NGRAPH_TYPE_TO_MIN_CONST(element::u16);
         NGRAPH_TYPE_TO_MIN_CONST(element::u32);
         NGRAPH_TYPE_TO_MIN_CONST(element::u64);
-
-    case element::undefined:
-    case element::dynamic:
     default:
         return nullptr;
     }

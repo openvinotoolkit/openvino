@@ -65,7 +65,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const VariadicSplitParams& params) {
+    static std::shared_ptr<Model> CreateFunction(const VariadicSplitParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto axis = std::make_shared<op::v0::Constant>(params.axisTensor.type,
                                                              params.axisTensor.shape,
@@ -74,15 +74,15 @@ private:
                                                                      params.splitLengthTensor.shape,
                                                                      params.splitLengthTensor.data.data());
         const auto split = std::make_shared<op::v1::VariadicSplit>(data, axis, splitLengths);
-        return std::make_shared<ov::Function>(split->outputs(), ParameterVector{data});
+        return std::make_shared<ov::Model>(split->outputs(), ParameterVector{data});
     }
 
-    static std::shared_ptr<Function> CreateDynamicFunction(const VariadicSplitParams& params) {
+    static std::shared_ptr<Model> CreateDynamicFunction(const VariadicSplitParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dynamicDataShape);
         const auto axis = std::make_shared<op::v0::Parameter>(params.axisTensor.type, params.axisTensor.shape);
         const auto splitLengths = std::make_shared<op::v0::Parameter>(params.splitLengthTensor.type, params.splitLengthTensor.shape);
         const auto split = std::make_shared<op::v1::VariadicSplit>(data, axis, splitLengths);
-        return std::make_shared<ov::Function>(split->outputs(), ParameterVector{data, axis, splitLengths});
+        return std::make_shared<ov::Model>(split->outputs(), ParameterVector{data, axis, splitLengths});
     }
 };
 

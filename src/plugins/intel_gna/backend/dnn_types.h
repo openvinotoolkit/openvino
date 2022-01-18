@@ -216,7 +216,6 @@ OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
     return r->second;
 }
 
-#if GNA_LIB_VER == 2
 enum OvGnaMode {
     OvGnaModeDefault = 0,
     OvGnaModeDisabled = -1
@@ -253,12 +252,9 @@ inline std::string OvGnaModeToString(OvGnaMode mode) {
     }
     return r->second;
 }
-#endif
 
 struct intel_dnn_component_t {
-#if GNA_LIB_VER == 2
     std::vector < OvGnaTensor > tensors;
-#endif
     uint32_t num_rows_in;
     uint32_t num_columns_in;
     uint32_t num_rows_out;

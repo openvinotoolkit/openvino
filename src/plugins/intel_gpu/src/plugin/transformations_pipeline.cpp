@@ -103,7 +103,7 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
+void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
@@ -134,15 +134,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
             manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
         }
 
-        manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
-        manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
-        manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
+        manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+        manager.register_pass<ngraph::pass::ConvertTensorIteratorToSequence>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::RNNCellDecomposition>();
@@ -317,9 +313,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
         pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
         if (!config.enable_loop_unrolling) {
-            pass_config->disable<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
-            pass_config->disable<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
-            pass_config->disable<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+            pass_config->disable<ngraph::pass::ConvertTensorIteratorToSequence>();
         }
 
         pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
@@ -343,7 +337,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
 
         // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
         // With this key users can work-around such issues
-        if (!config.enable_fp16_for_quantized_models || use_onednn) {
+        if (!config.enable_fp16_for_quantized_models) {
             ngraph::pass::Manager manager;
             manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
             manager.run_passes(func);

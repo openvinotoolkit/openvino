@@ -9,7 +9,7 @@ namespace py = pybind11;
 
 void regclass_graph_Layout(py::module m) {
     py::class_<ov::Layout, std::shared_ptr<ov::Layout>> layout(m, "Layout");
-    layout.doc() = "openvino.impl.Layout wraps ov::Layout";
+    layout.doc() = "openvino.runtime.Layout wraps ov::Layout";
 
     layout.def(py::init<>());
     layout.def(py::init<const std::string&>(), py::arg("layout_str"));

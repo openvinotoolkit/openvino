@@ -326,7 +326,7 @@ XLinkError_t addEvent(xLinkEvent_t *event, unsigned int timeoutMs)
     if (timeoutMs != XLINK_NO_RW_TIMEOUT) {
         ASSERT_XLINK(event->header.type == XLINK_READ_REQ);
         xLinkDesc_t* link;
-        getLinkByStreamId(event->header.streamId, &link);
+        XLINK_RET_IF(getLinkByStreamId(event->header.streamId, &link));
 
         if (DispatcherWaitEventComplete(&event->deviceHandle, timeoutMs))  // timeout reached
         {

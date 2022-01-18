@@ -32,7 +32,7 @@ class RuntimeAttribute;
 class ParamMap;
 
 namespace runtime {
-class ExecutableNetwork;
+class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
 class InferencePlugin;
@@ -83,6 +83,17 @@ class OPENVINO_API Any {
         template <typename U>
         static long test(...);
         constexpr static const bool value = sizeof(test<std::map<T...>>(nullptr)) == sizeof(char);
+    };
+
+    template <typename... T>
+    struct EqualityComparable<std::vector<T...>> {
+        static void* conv(bool);
+        template <typename U>
+        static char test(decltype(conv(std::declval<typename U::value_type>() ==
+                                       std::declval<typename U::value_type>())));
+        template <typename U>
+        static long test(...);
+        constexpr static const bool value = sizeof(test<std::vector<T...>>(nullptr)) == sizeof(char);
     };
 
     template <typename T>
@@ -328,12 +339,12 @@ class OPENVINO_API Any {
     friend class ::ov::ParamMap;
     friend class ::InferenceEngine::InferencePlugin;
     friend class ::InferenceEngine::ExecutableNetwork;
-    friend class ::ov::runtime::ExecutableNetwork;
+    friend class ::ov::runtime::CompiledModel;
     friend class ::ov::runtime::RemoteContext;
     friend class ::ov::runtime::RemoteTensor;
     friend class ::ov::runtime::InferencePlugin;
 
-    Any(const std::shared_ptr<void>& so, const Any& other);
+    Any(const Any& other, const std::shared_ptr<void>& so);
 
     void impl_check() const;
 
@@ -342,10 +353,31 @@ class OPENVINO_API Any {
     Base::Ptr _impl;
 
 public:
-    /**
-     * @brief Default constructor
-     */
+    /// @brief Default constructor
     Any() = default;
+
+    /// @brief Default copy constructor
+    /// @param other other Any object
+    Any(const Any& other) = default;
+
+    /// @brief Default copy assignment operator
+    /// @param other other Any object
+    /// @return reference to the current object
+    Any& operator=(const Any& other) = default;
+
+    /// @brief Default move constructor
+    /// @param other other Any object
+    Any(Any&& other) = default;
+
+    /// @brief Default move assignment operator
+    /// @param other other Any object
+    /// @return reference to the current object
+    Any& operator=(Any&& other) = default;
+
+    /**
+     * @brief Destructor preserves unloading order of implementation object and reference to library
+     */
+    ~Any();
 
     /**
      * @brief Constructor creates any with object
@@ -687,6 +719,7 @@ namespace util {
 template <>
 struct AsTypePtr<Any> {
     template <typename T>
+    OPENVINO_DEPRECATED("Please use ov::Any::as() method")
     static std::shared_ptr<T> call(const Any& any) {
         try {
             return any.as<std::shared_ptr<T>>();
@@ -699,10 +732,13 @@ struct AsTypePtr<Any> {
 
 using RTMap = std::map<std::string, Any>;
 
+using AnyVector = std::vector<ov::Any>;
+
 }  // namespace ov
 
 namespace std {
 template <typename T>
+OPENVINO_DEPRECATED("Please use ov::Any::as() method")
 std::shared_ptr<T> dynamic_pointer_cast(const ::ov::Any& any) {
     try {
         return any.as<std::shared_ptr<T>>();
@@ -712,6 +748,7 @@ std::shared_ptr<T> dynamic_pointer_cast(const ::ov::Any& any) {
 }
 
 template <typename T>
+OPENVINO_DEPRECATED("Please use ov::Any::as() method")
 std::shared_ptr<T> static_pointer_cast(const ::ov::Any& any) {
     return any.as<std::shared_ptr<T>>();
 }

@@ -49,6 +49,8 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, 
     , m_stream_id(stream_id)
     , m_state(0) {
     m_program = std::make_shared<Program>(network, GetEngine(), m_config);
+    if (m_program->m_max_batch > 1)
+        m_config.max_dynamic_batch = m_program->m_max_batch;
     Build();
 }
 
@@ -394,14 +396,12 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         info[ExecGraphInfoSerialization::PERF_COUNTER] = exec_time;
 
         for (auto&& kvp : info) {
-            auto variant = std::make_shared<::ngraph::VariantWrapper<std::string>>(kvp.second);
-            return_node->get_rt_info()[kvp.first] = variant;
+            return_node->get_rt_info()[kvp.first] = kvp.second;
             if (is_output)
-                results.back()->get_rt_info()[kvp.first] = variant;
+                results.back()->get_rt_info()[kvp.first] = kvp.second;
         }
         if (is_output)
-            results.back()->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE] =
-                std::make_shared<::ngraph::VariantWrapper<std::string>>("Result");
+            results.back()->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE] = "Result";
 
         nodes.push_back(return_node);
         node2layer[prim_info.original_id] = return_node;

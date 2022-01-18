@@ -74,7 +74,7 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 if(ENABLE_OV_CORE_UNIT_TESTS OR ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
-    openvino_developer_export_targets(COMPONENT inference_engine_tests
+    openvino_developer_export_targets(COMPONENT tests
                                       TARGETS gmock gmock_main gtest gtest_main)
 endif()
 
@@ -82,7 +82,7 @@ endif()
 # Protobuf
 #
 
-if(ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
+if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
     if(ENABLE_SYSTEM_PROTOBUF)
         set(Protobuf_USE_STATIC_LIBS ON)
         if(VERBOSE_BUILD)
@@ -107,6 +107,7 @@ if(ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
     set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_LITE_LIBRARIES ${Protobuf_LITE_LIBRARIES} PARENT_SCOPE)
     set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
+    set(Protobuf_IN_FRONTEND ON PARENT_SCOPE)
 
     # set public / interface compile options
     foreach(target IN LISTS Protobuf_LITE_LIBRARIES Protobuf_LIBRARIES)
@@ -129,90 +130,37 @@ if(ENABLE_OV_ONNX_FRONTEND)
 endif()
 
 #
-# oneDNN for GPU plugin
-#
-
-if(ENABLE_ONEDNN_FOR_GPU)
-    function(build_onednn_gpu)
-        include(ExternalProject)
-        set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build/")
-        set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install/")
-        set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
-        if(CMAKE_COMPILER_IS_GNUCXX)
-            ie_add_compiler_flags(-Wno-undef)
-        endif()
-        ExternalProject_Add(onednn_gpu_build
-            SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
-            BINARY_DIR "${ONEDNN_BUILD_DIR}"
-            INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
-            PREFIX "${ONEDNN_PREFIX_DIR}"
-            EXCLUDE_FROM_ALL ON
-            CMAKE_ARGS
-                "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
-                "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
-                "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
-                "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-                "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
-                "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
-                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
-                "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
-                "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}"
-                "-DDNNL_CPU_RUNTIME=NONE"
-                "-DDNNL_GPU_RUNTIME=OCL"
-                "-DDNNL_LIBRARY_NAME=onednn_gpu"
-                "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
-                "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
-                "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-                "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
-                "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
-                "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
-                "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"
-                "-DDNNL_BUILD_TESTS=OFF"
-                "-DDNNL_BUILD_EXAMPLES=OFF"
-                "-DDNNL_BLAS_VENDOR=NONE"
-                "-DDNNL_LIBRARY_TYPE=STATIC"
-                "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
-                "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
-                "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
-        )
-        add_library(onednn_gpu_tgt INTERFACE)
-        set_target_properties(onednn_gpu_tgt PROPERTIES
-            INTERFACE_LINK_DIRECTORIES "${ONEDNN_INSTALL_DIR}/lib/$<CONFIG>"
-            INTERFACE_LINK_LIBRARIES "onednn_gpu"
-            INTERFACE_INCLUDE_DIRECTORIES "${ONEDNN_INSTALL_DIR}/include"
-            INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
-        )
-        add_dependencies(onednn_gpu_tgt onednn_gpu_build)
-        # TODO: install onednn_gpu in static builds
-    endfunction()
-    build_onednn_gpu()
-endif()
-
-#
 # nlohmann json
 #
-if(ENABLE_SAMPLES OR ENABLE_OV_PDPD_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
-    add_subdirectory(nlohmann_json EXCLUDE_FROM_ALL)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
-endif()
+
+add_subdirectory(json)
+
+openvino_developer_export_targets(COMPONENT openvino_common
+                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
+
+ov_install_static_lib(nlohmann_json openvino_common)
+ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
 
 #
 # Install
 #
 
-ie_cpack_add_component(cpp_samples_deps)
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
         DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples_deps
+        COMPONENT cpp_samples
+        USE_SOURCE_PERMISSIONS)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
+        DESTINATION "samples/cpp/thirdparty"
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)

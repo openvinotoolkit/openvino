@@ -1018,6 +1018,10 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*, QUANT_DESC> {
             THROW_GNA_EXCEPTION << "layers entered into concat have different scale factors. Layer name: " << concatLayer->name;
         }
 
+        if (sourceQuantParams == nullptr) {
+            THROW_GNA_EXCEPTION << "Source quantization parameters have not been initialized";
+        }
+
         quantData->_dst_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
         quantData->_src_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
 

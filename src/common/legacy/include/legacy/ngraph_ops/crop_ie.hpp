@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(CropIE) : public Op {
+class CropIE : public Op {
 public:
     OPENVINO_OP("CropIE", "legacy");
     BWDCMP_RTTI_DECLARATION;

@@ -9,7 +9,7 @@
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
+using namespace ov;
 using namespace InferenceEngine;
 
 struct EmbeddingBagOffsetsSumParams {
@@ -74,14 +74,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(
+    static std::shared_ptr<ov::Model> CreateFunction(
         const PartialShape& input_shape,
         const element::Type& input_type,
         const std::shared_ptr<ngraph::opset1::Constant> indices,
         const std::shared_ptr<ngraph::opset1::Constant> offsets,
         const std::shared_ptr<ngraph::opset1::Constant> default_index,
         const std::shared_ptr<ngraph::opset1::Constant> per_sample_weights) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
 
         if (default_index) {
             if (per_sample_weights) {
@@ -90,14 +90,14 @@ private:
                                                                                   offsets,
                                                                                   default_index,
                                                                                   per_sample_weights);
-                return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
             } else {
                 const auto ess = std::make_shared<op::v3::EmbeddingBagOffsetsSum>(in, indices, offsets, default_index);
-                return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
             }
         } else {
             const auto ess = std::make_shared<op::v3::EmbeddingBagOffsetsSum>(in, indices, offsets);
-            return std::make_shared<Function>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
         }
     }
 };

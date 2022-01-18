@@ -51,7 +51,7 @@ if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_
     update_deps_cache(SYSTEM_PROTOC "${SYSTEM_PROTOC}" "Path to host protoc for ONNX Importer")
 endif()
 
-if(ENABLE_MYRIAD)
+if(ENABLE_INTEL_VPU)
     include(${IE_MAIN_SOURCE_DIR}/cmake/vpu_dependencies.cmake)
 endif()
 
@@ -265,7 +265,7 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake)
+include(${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake)
 
 if(ENABLE_INTEL_GNA)
     reset_deps_cache(
@@ -276,20 +276,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-    if(GNA_LIBRARY_VERSION STREQUAL "GNA1")
-        RESOLVE_DEPENDENCY(GNA
-                ARCHIVE_UNIFIED "GNA/gna_20181120.zip"
-                TARGET_PATH "${TEMP}/gna"
-                SHA256 "b631d6cc5f6cca4a89a3f5dfa383066f3282fee25d633d9085c605bdd8090210")
-    else()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
-            set(GNA_VERSION "01.00.00.1401")
-            set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
-        endif()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "03.00.00.1455")
-            set(GNA_HASH "8ac1af18eb32777b00193f4f8c252ee4f8bd64a9069138b4a5aaeebd82ead464")
-        endif()
+        set(GNA_VERSION "03.00.00.1455.0")
+        set(GNA_HASH "99891696269d8fa10116c96e6b7bda4362736881f0df8df8b56c751ee18e5820")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)
@@ -304,7 +292,6 @@ if(ENABLE_INTEL_GNA)
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
                 SHA256 ${GNA_HASH})
-    endif()
     update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA})
 endif()

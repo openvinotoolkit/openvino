@@ -60,22 +60,9 @@ def pytest_addoption(parser):
         default=3
     )
     test_args_parser.addoption(
-        "--cpu_cache",
+        "--model_cache",
         action='store_true',
-        help="Enable model CPU cache usage",
-    )
-    test_args_parser.addoption(
-        "--perf_hint",
-        choices=['LATENCY', 'THROUGHPUT'],
-        default='LATENCY',
-        type=str,
-        help='Enables performance hint for specified device. Default hint is LATENCY'
-    )
-    test_args_parser.addoption(
-        "--vpu_compiler",
-        choices=["MCM", "MLIR"],
-        type=str,
-        help="Change VPUX compiler type",
+        help="Enable model cache usage",
     )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
@@ -133,21 +120,10 @@ def niter(request):
 
 
 @pytest.fixture(scope="session")
-def cpu_cache(request):
+def model_cache(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('cpu_cache')
+    return request.config.getoption('model_cache')
 
-
-@pytest.fixture(scope="session")
-def perf_hint(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('perf_hint')
-
-
-@pytest.fixture(scope="session")
-def vpu_compiler(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('vpu_compiler')
 
 # -------------------- CLI options --------------------
 
@@ -273,6 +249,9 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     if db_meta_path:
         with open(db_meta_path, "r") as db_meta_f:
             test_info["db_info"].update(json.load(db_meta_f))
+
+    # add model cache status
+    test_info["db_info"].update({"model_cache": request.config.getoption("model_cache")})
 
     # add test info
     info = {

@@ -242,13 +242,13 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name,
 }
 
 void util::DictAttributeDeserializer::on_adapter(const std::string& name,
-                                                 ov::ValueAccessor<std::shared_ptr<ov::Function>>& adapter) {
+                                                 ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) {
     if (m_attributes.contains(name)) {
         if (name == "body" || name == "then_body" || name == "else_body") {
             const py::dict& body_attrs = m_attributes[name.c_str()].cast<py::dict>();
             const auto& body_outputs = as_output_vector(body_attrs["results"].cast<ov::NodeVector>());
             const auto& body_parameters = body_attrs["parameters"].cast<ov::ParameterVector>();
-            auto body = std::make_shared<ov::Function>(body_outputs, body_parameters);
+            auto body = std::make_shared<ov::Model>(body_outputs, body_parameters);
             adapter.set(body);
         } else {
             NGRAPH_CHECK(false, "No AttributeVisitor support for accessing attribute named: ", name);

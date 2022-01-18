@@ -11,7 +11,7 @@ import numpy as np
 
 from openvino.preprocess import PrePostProcessor        # pylint: disable=no-name-in-module,import-error
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import Function, Layout, PartialShape, layout_helpers
+from openvino.runtime import Model, Layout, PartialShape, layout_helpers
 
 
 def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
@@ -59,7 +59,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
-def check_keys_valid(ov_function: Function, keys: list, search_outputs: bool):
+def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs: bool):
     """
     Internal function: checks if keys from cmd line arguments correspond to ov_function's inputs/outputs
     Throws if some key is not found
@@ -70,7 +70,28 @@ def check_keys_valid(ov_function: Function, keys: list, search_outputs: bool):
     if search_outputs:
         nodes += ov_function.outputs
 
-    for name in keys:
+    # We need to replace all node names from dict to tensor names
+    rename_dict = {}
+    # Find names for replacing
+    for name in dict_to_validate.keys():
+        for ov_node in nodes:
+            if name in ov_node.get_tensor().get_names():
+                break
+            elif name == ov_node.get_node().get_friendly_name():
+                assert len(ov_node.get_tensor().get_names()) > 0, 'Node must have at least one tensor name'
+                new_name = list(ov_node.get_tensor().get_names())[0]
+                rename_dict[name] = new_name
+                break
+
+    # Replace found node names with tensor names
+    for name, new_name in rename_dict.items():
+        assert name in dict_to_validate, 'Key {} is not in initial dict'.format(name)
+        assert new_name not in dict_to_validate, 'Key {} is already in initial dict'.format(new_name)
+        dict_to_validate[new_name] = dict_to_validate[name]
+        del dict_to_validate[name]
+
+    # validate the dict
+    for name in dict_to_validate.keys():
         node_found = False
         for ov_node in nodes:
             if name in ov_node.get_tensor().get_names():
@@ -88,7 +109,7 @@ def check_keys_valid(ov_function: Function, keys: list, search_outputs: bool):
                 raise Error('Input/Output with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
 
 
-def update_layout_is_input_flag(ov_function: Function, layout_values: dict):
+def update_layout_is_input_flag(ov_function: Model, layout_values: dict):
     """
     Internal function: updates layout_values with flag whether each layout belongs to input or to output
     """
@@ -162,7 +183,7 @@ def find_channels_dimension(shape: PartialShape, num_channels: int, name: str, l
     return layout_values
 
 
-def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mean_scale_values: dict):
+def guess_source_layouts_by_mean_scale(ov_function: Model, layout_values, mean_scale_values: dict):
     """
     Internal function. Try to guess source layout for input by its shape and/or framework
     :param: ov_function Original model
@@ -241,7 +262,7 @@ def check_suitable_for_reverse(layout: Layout, ov_input):
     return c_num.is_dynamic or c_num.get_length() == 3
 
 
-def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_values):
+def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values):
     """
     Internal function. Try to guess source layout for input by finding dimension with size=3 (RGB/BGR)
     Additionally checks existing layouts and detects suitable inputs for reversing of input channels
@@ -297,7 +318,7 @@ def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_valu
     return suitable_params
 
 
-def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
+def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     """
     Applies pre-processing of model inputs by adding appropriate operations
     On return, 'ov_function' object will be updated
@@ -349,8 +370,8 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
                 'target_layout': layout_values[''].get('target_layout')
             }
         }
-    check_keys_valid(ov_function=ov_function, keys=mean_scale_values.keys(), search_outputs=False)
-    check_keys_valid(ov_function=ov_function, keys=layout_values.keys(), search_outputs=True)
+    check_keys_valid(ov_function=ov_function, dict_to_validate=mean_scale_values, search_outputs=False)
+    check_keys_valid(ov_function=ov_function, dict_to_validate=layout_values, search_outputs=True)
 
     layout_values = update_layout_is_input_flag(ov_function, layout_values)
     layout_values = guess_source_layouts_by_mean_scale(ov_function, layout_values, mean_scale_values)
@@ -372,6 +393,12 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
             else:
                 prep.output(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
 
+    # Apply reverse_input_channels
+    if need_reverse:
+        for name, _ in suitable_params_ric:
+            prep.input(name).preprocess().reverse_channels()
+            log.debug('reverse_input_channels pre-processing applied to {}'.format(name))
+
     for node_name, node_mean_scale_values in mean_scale_values.items():
         # Apply mean first, then scale
         if node_mean_scale_values['mean'] is not None:
@@ -379,12 +406,6 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
         if node_mean_scale_values['scale'] is not None:
             prep.input(node_name).preprocess().scale(node_mean_scale_values['scale'])
         log.debug('Mean/Scale pre-processing applied to {}'.format(node_name))
-
-    # Apply reverse_input_channels
-    if need_reverse:
-        for name, _ in suitable_params_ric:
-            prep.input(name).preprocess().reverse_channels()
-            log.debug('reverse_input_channels pre-processing applied to {}'.format(name))
 
     # Apply pre-processing builder to a function
     ov_function = prep.build()

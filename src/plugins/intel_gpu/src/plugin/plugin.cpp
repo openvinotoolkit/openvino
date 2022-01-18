@@ -28,6 +28,7 @@
 
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include <performance_heuristics.hpp>
 #ifdef __linux__
 # include <dlfcn.h>
 #endif
@@ -375,61 +376,76 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     }
 
     auto clonedNetwork = CloneAndTransformNetwork(network, conf);
-    auto ops = clonedNetwork.getFunction()->get_ordered_ops();
+    auto func = clonedNetwork.getFunction();
+    auto ops = func->get_ordered_ops();
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
 
-    std::unordered_set<std::string> splitNames;
-    std::unordered_set<std::string> concatNames;
     std::unordered_set<std::string> constantsNames;
-    std::unordered_set<std::string> depLayerNames;
-
-    std::vector<std::shared_ptr<ngraph::Node>> splits;
-    std::vector<std::shared_ptr<ngraph::Node>> concats;
     std::vector<std::shared_ptr<ngraph::Node>> constants;
-    std::vector<std::shared_ptr<ngraph::Node>> nextLayerDependent;
 
+    std::map<std::string, ngraph::PartialShape> shapes;
+    std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
+    bool dyn_shape_batch_found = prog.IsDynBatchModel(func, shapes, batch_dim);
     auto layerIsSupported = [&](std::shared_ptr<ngraph::Node> node) {
-        if (ngraph::is_type<const ngraph::op::v0::DetectionOutput>(node) ||
-            ngraph::is_type<const ngraph::op::v0::PriorBox>(node) ||
+        if (node->is_dynamic()) {
+            if (!dyn_shape_batch_found)
+                return false;
+
+            auto pshape = node->get_output_partial_shape(0);
+            if (pshape.rank().is_dynamic())
+                return false;
+
+            int dynCount = 0;
+            int64_t batch_idx = -1;
+            for (size_t i = 0; i < pshape.size(); i++) {
+                if (pshape[i].is_dynamic()) {
+                    dynCount++;
+                    if (batch_idx < 0) {
+                        batch_idx = i;
+                    }
+                }
+            }
+
+            if (dynCount != 1)
+                return false;  // more than one dimension is dynamic
+
+            int64_t max_batch = pshape[batch_idx].get_max_length();
+            if (max_batch <= 1)
+                return false;
+
+            return true;
+        }
+        if (ngraph::is_type<const ngraph::op::v0::PriorBox>(node) ||
             ngraph::is_type<const ngraph::op::v0::PriorBoxClustered>(node) ||
             ngraph::is_type<const ngraph::op::v0::Proposal>(node)) {
             return false;
-        } else if (ngraph::is_type<const ngraph::op::v1::Split>(node)) {
-            splitNames.emplace(node->get_friendly_name());
-            splits.push_back(node);
-            return false;
-        } else if (ngraph::is_type<const ngraph::op::v0::Concat>(node)) {
-            concatNames.emplace(node->get_friendly_name());
-            concats.push_back(node);
-            return false;
-        } else if (ngraph::is_type<const ngraph::op::v1::Reshape>(node) ||
-                   ngraph::is_type<const ngraph::op::v0::Squeeze>(node) ||
-                   ngraph::is_type<const ngraph::op::v0::Unsqueeze>(node) ||
-                   ngraph::is_type<const ngraph::op::v1::Transpose>(node)) {
-            depLayerNames.emplace(node->get_friendly_name());
-            nextLayerDependent.push_back(node);
-            return false;
-        } else if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
+        }
+        if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
             constantsNames.emplace(node->get_friendly_name());
             constants.push_back(node);
             return false;
-        } else if (prog.IsOpSupported(network, node) &&
-                   !ngraph::op::is_parameter(node) &&
-                   !ngraph::op::is_output(node)) {
-            return true;
-        } else {
-            return false;
         }
+        return prog.IsOpSupported(network, node) &&
+               !ngraph::op::is_parameter(node) &&
+               !ngraph::op::is_output(node);
     };
 
     // Get ops after transformations and check if it's supported
     // Transformations might lead to the situation when single node is merged to multiple operations,
     // so we mark original op as supported only if all nodes that it was merged into are supported
+    bool wasNodeAlreadyChecked = false;
+    bool isSupported = false;
     for (auto&& op : ops) {
+        wasNodeAlreadyChecked = false;
+        isSupported = false;
         for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
             if (InferenceEngine::details::contains(originalOpNames, fusedLayerName)) {
-                if (layerIsSupported(op)) {
+                if (!wasNodeAlreadyChecked) {
+                    isSupported = layerIsSupported(op);
+                    wasNodeAlreadyChecked = true;
+                }
+                if (isSupported) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
@@ -445,77 +461,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     }
     unsupported.clear();
 
-    // Check set of heuristics to produce more efficient hetero sub-graph. Note: checks order is important.
-    // 1. Split is marked as supported when all output ops can be offloaded to GPU
-    for (const auto & op : splits) {
-        bool is_supported = true;
-        for (size_t i = 0; i < op->get_output_size(); i++) {
-            auto outTensors = op->get_output_target_inputs(i);
-            for (auto& t : outTensors) {
-                auto output = t.get_node();
-                const auto& name = output->get_friendly_name();
-                if (!InferenceEngine::details::contains(supported, name) &&
-                    !InferenceEngine::details::contains(depLayerNames, name) &&
-                    !InferenceEngine::details::contains(concatNames, name) &&
-                    !InferenceEngine::details::contains(splitNames, name)) {
-                    is_supported = false;
-                    break;
-                }
-            }
-        }
-        if (is_supported) {
-            supported.emplace(op->get_friendly_name());
-        }
-    }
-
-    // 2. Concat is marked as supported when all inputs can be offloaded to GPU
-    for (const auto& op : concats) {
-        bool is_supported = true;
-        for (size_t i = 0; i < op->get_input_size(); i++) {
-            auto input = op->get_input_node_shared_ptr(i);
-            const auto& name = input->get_friendly_name();
-            if (!InferenceEngine::details::contains(supported, name) &&
-                !InferenceEngine::details::contains(depLayerNames, name) &&
-                !InferenceEngine::details::contains(concatNames, name)) {
-                is_supported = false;
-                break;
-            }
-        }
-        if (is_supported) {
-            supported.emplace(op->get_friendly_name());
-        }
-    }
-
-    // 3. Some layers are marked as supported when all inputs and outputs can be offloaded to GPU
-    for (const auto& op : nextLayerDependent) {
-        bool is_supported = true;
-        // both inputs and output should be GPU to remain on GPU
-        for (size_t i = 0; i < op->get_input_size(); i++) {
-            auto input = op->get_input_node_shared_ptr(i);
-            const auto& name = input->get_friendly_name();
-            // All inputs must be supported or be a constant
-            if (!InferenceEngine::details::contains(supported, name) && !InferenceEngine::details::contains(constantsNames, name)) {
-                is_supported = false;
-                break;
-            }
-        }
-        for (size_t i = 0; i < op->get_output_size(); i++) {
-            auto outTensors = op->get_output_target_inputs(i);
-            for (auto& t : outTensors) {
-                auto output = t.get_node();
-                const auto& name = output->get_friendly_name();
-                if (!InferenceEngine::details::contains(supported, name)) {
-                    is_supported = false;
-                    break;
-                }
-            }
-        }
-        if (is_supported) {
-            supported.emplace(op->get_friendly_name());
-        }
-    }
-
-    // 4. Constants are marked as supported when all outputs can be offloaded to GPU
+    // 1. Constants are marked as supported when all outputs can be offloaded to GPU
     for (const auto& op : constants) {
         bool is_supported = true;
         for (size_t i = 0; i < op->get_output_size(); i++) {
@@ -553,14 +499,14 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
         }
 
         if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            } else if (ngraph::op::is_output(node)) {
-                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
+            if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+                supported.erase(node->get_friendly_name());
             }
+        } else if (ngraph::op::is_output(node)) {
+            if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
+                supported.erase(node->get_friendly_name());
+            }
+        }
     }
 
     for (auto&& layerName : supported) {
@@ -659,12 +605,12 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
 
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string device_id = GetConfig(CONFIG_KEY(DEVICE_ID), options);
 
     auto iter = device_map.find(device_id);
-    auto device_info = iter != device_map.end() ?
-        iter->second->get_info() :
-        device_map.begin()->second->get_info();
+    auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
+    auto device_info = device->get_info();
 
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
@@ -677,6 +623,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         metrics.push_back(METRIC_KEY(DEVICE_TYPE));
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
+        metrics.push_back(METRIC_KEY(OPTIMAL_BATCH_SIZE));
         metrics.push_back(GPU_METRIC_KEY(MAX_BATCH_SIZE));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
@@ -712,6 +659,77 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
               << static_cast<int>(device_info.gfx_ver.revision);
         }
         IE_SET_METRIC_RETURN(GPU_UARCH_VERSION, s.str());
+    } else if (name == METRIC_KEY(OPTIMAL_BATCH_SIZE)) {
+        auto next_pow_of_2 = [] (float x) {
+            return pow(2, ceil(log(x)/log(2)));
+        };
+        auto closest_pow_of_2 = [] (float x) {
+            return pow(2, floor(log(x)/log(2)));
+        };
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        auto model_param = options.find("MODEL_PTR");
+        if (model_param == options.end()) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "[GPU_OPTIMAL_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
+            }
+            IE_SET_METRIC_RETURN(OPTIMAL_BATCH_SIZE, static_cast<unsigned int>(1));
+        }
+        std::shared_ptr<ngraph::Function> model;
+        try {
+            model = model_param->second.as<std::shared_ptr<ngraph::Function>>();
+        } catch (...) {
+            IE_THROW() << "[GPU_OPTIMAL_BATCH_SIZE] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
+        }
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << "DEVICE_INFO:"
+                           << "gfx_version.major, " << device_info.gfx_ver.major
+                           << "gfx_version.minor " << std::to_string(device_info.gfx_ver.minor) << std::endl;
+        }
+        static std::map<cldnn::gfx_version, size_t> gen_kbytes_per_bank = {
+                {{12, 0, 0}, 480},  // TGL
+                {{12, 1, 0}, 2048}, // DG1
+                {{12, 5, 0}, 320},
+                {{12, 7, 0}, 512},
+        };
+        size_t L3_cache_size = device_info.gfx_ver.major && (device_info.gfx_ver.major <= 9)
+                ? 768 * 1024 // Gen9
+                : 2 * 768 * 1024;  //reasonable default when no arch has been detected (e.g. due to old driver ver)
+        cldnn::gfx_version gen = {device_info.gfx_ver.major, device_info.gfx_ver.minor, 0 /*ignore the revision*/};
+        auto val = gen_kbytes_per_bank.find(gen);
+        if (gen_kbytes_per_bank.end() != val) {
+            auto kbytes_per_bank = val->second;
+            auto num_banks_per_slice = device_info.num_sub_slices_per_slice > 4
+                                       ? next_pow_of_2(device_info.num_sub_slices_per_slice)
+                                       : 2 * device_info.num_sub_slices_per_slice;
+            L3_cache_size = kbytes_per_bank * 1024 * num_banks_per_slice * device_info.num_slices;
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "DEVICE_INFO:"
+                               << "num_slices " << device_info.num_slices
+                               << ", num_sub_slices_per_slice " << device_info.num_sub_slices_per_slice
+                               << ", num_banks_per_slice " << num_banks_per_slice
+                               << ", gen_kbytes_per_bank : " << kbytes_per_bank
+                               << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
+            }
+        }
+        Config config = _impl->m_configs.GetConfig(device_id);
+        auto networkCloned = CloneAndTransformNetwork(CNNNetwork(model), config);
+        ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(networkCloned.getFunction(), L3_cache_size);
+        unsigned int batch = 1;
+        if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
+            batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));
+        std::map<std::string, InferenceEngine::Parameter> options_for_max_batch;
+        options_for_max_batch["MODEL_PTR"] = model;
+        options_for_max_batch["GPU_THROUGHPUT_STREAMS"] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
+        auto max_batch_size = GetMetric(GPU_METRIC_KEY(MAX_BATCH_SIZE), options_for_max_batch).as<unsigned int>();
+        unsigned int closest = closest_pow_of_2(max_batch_size);
+        batch = std::min(closest, batch);
+        batch = std::min(256u, batch); //batch 256 is a max
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << memPressure.max_mem_tolerance << std::endl;
+            GPU_DEBUG_COUT << "MAX_BATCH: " << max_batch_size << std::endl;
+            GPU_DEBUG_COUT << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
+        }
+        IE_SET_METRIC_RETURN(OPTIMAL_BATCH_SIZE, batch);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
@@ -756,7 +774,6 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         }
         IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
     } else if (name == GPU_METRIC_KEY(MAX_BATCH_SIZE)) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
         const auto& config = _impl->m_configs.GetConfig(device_id);
         uint32_t n_streams = static_cast<uint32_t>(config.throughput_streams);
         uint64_t occupied_device_mem = 0;
@@ -772,19 +789,27 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                            << " (occupied: " << occupied_device_mem << ")" << std::endl;
         }
 
-        int64_t max_batch_size = 0;
+        int64_t max_batch_size = 1;
 
         if (options.find("MODEL_PTR") == options.end()) {
             GPU_DEBUG_IF(debug_config->verbose >= 1) {
                 GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
             }
-            IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(1));
+            IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
         }
         if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
             try {
                 n_streams = options.find("GPU_THROUGHPUT_STREAMS")->second.as<uint32_t>();
             } catch (...) {
-                IE_THROW() << "[GPU] bad casting: GPU_THROUGHPUT_STREAMS should be uint32_t type";
+                try {
+                    std::string n_streams_str = options.find("GPU_THROUGHPUT_STREAMS")->second.as<std::string>();
+                    if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO)) {
+                        IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+                    }
+                    n_streams = config.GetDefaultNStreamsForThroughputMode();
+                } catch (...) {
+                    IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+                }
             }
         }
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -798,10 +823,10 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                     GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
                 }
             } catch (...) {
-                IE_THROW() << "[GPU] bad casting: AVAILABLE_DEVICE_MEM_SIZE should be int64_t type";
+                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: AVAILABLE_DEVICE_MEM_SIZE should be int64_t type";
             }
             if (available_device_mem < 0) {
-                IE_THROW() << "[GPU] AVAILABLE_DEVICE_MEM_SIZE value should be greater than 0 for max batch size calculation";
+                IE_THROW() << "[GPU_MAX_BATCH_SIZE] AVAILABLE_DEVICE_MEM_SIZE value should be greater than 0 for max batch size calculation";
             }
         }
 
@@ -810,13 +835,13 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         try {
             model = model_param.as<std::shared_ptr<ngraph::Function>>();
         } catch (...) {
-            IE_THROW() << "[GPU] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
+            IE_THROW() << "[GPU_MAX_BATCH_SIZE] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
         }
 
         InferenceEngine::CNNNetwork network(model);
         size_t base_batch_size = 16; // empirically decided for DG1
-        auto engine_params = Plugin::GetParams(config, iter->second, nullptr);
-        auto engine = cldnn::engine::create(engine_params.engine_type, engine_params.runtime_type, iter->second,
+        auto engine_params = Plugin::GetParams(config, device, nullptr);
+        auto engine = cldnn::engine::create(engine_params.engine_type, engine_params.runtime_type, device,
                                 cldnn::engine_configuration(false, engine_params.queue_type, std::string(),
                                 config.queuePriority, config.queueThrottle, config.memory_pool_on,
                                 engine_params.use_unified_shared_memory, std::string(), config.throughput_streams),
@@ -856,31 +881,37 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             }
             new_shapes[name] = shape;
         }
-        if (batch_detected) { // reshape only for batched layout
-            cloned_network.reshape(new_shapes);
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Reshaped base batch size to " << base_batch_size << std::endl;
+        try {
+            if (batch_detected) { // reshape only for batched layout
+                cloned_network.reshape(new_shapes);
+                GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Reshaped base batch size to " << base_batch_size << std::endl;
+                }
+            } else {
+                base_batch_size = 1;
+                GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Batch dimension is not used in inputs." << std::endl;
+                }
             }
-        } else {
-            base_batch_size = 1;
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Batch dimension is not used in inputs." << std::endl;
-            }
-        }
 
-        auto nGraphFunc = cloned_network.getFunction();
-        TransformationsPipeline transformations(config, device_info);
-        transformations.apply(nGraphFunc);
-        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
-        std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
-        int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
-                                  static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
-        int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
-        max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
-        GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Base batch size: " << base_batch_size  << std::endl;
-            GPU_DEBUG_COUT << "Const mem usage: " << device_memory_usage.first  << std::endl;
-            GPU_DEBUG_COUT << "General mem usage: " << device_memory_usage.second  << std::endl;
+            auto nGraphFunc = cloned_network.getFunction();
+            TransformationsPipeline transformations(config, device_info);
+            transformations.apply(nGraphFunc);
+            program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+            std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
+            int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
+                    static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
+            int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
+            max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Base batch size: " << base_batch_size  << std::endl;
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Const mem usage: " << device_memory_usage.first  << std::endl;
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] General mem usage: " << device_memory_usage.second  << std::endl;
+            }
+        } catch (std::exception& e) {
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
+            }
         }
         IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
     } else {

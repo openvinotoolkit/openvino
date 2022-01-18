@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "engines_util/execute_tools.hpp"
+#include "engines_util/test_case.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/node.hpp"
@@ -48,6 +49,7 @@
 #include "ngraph/op/sign.hpp"
 #include "ngraph/op/sin.hpp"
 #include "ngraph/op/sinh.hpp"
+#include "ngraph/op/softmax.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/tan.hpp"
@@ -173,23 +175,14 @@ TEST(eval, interpret_dynamic_range_sum) {
     auto range = make_shared<op::v0::Range>(p_start, p_stop, p_step);
     auto add = make_shared<op::v1::Add>(range, p1);
     auto fun = make_shared<Function>(OutputVector{add}, ParameterVector{p_start, p_stop, p_step, p1});
-    auto backend = runtime::Backend::create("INTERPRETER");
-    auto p_start_val = backend->create_tensor(element::f32, Shape{});
-    copy_data(p_start_val, vector<float>{1.0f});
-    auto p_stop_val = backend->create_tensor(element::f32, Shape{});
-    copy_data(p_stop_val, vector<float>{10.0f});
-    auto p_step_val = backend->create_tensor(element::f32, Shape{});
-    copy_data(p_step_val, vector<float>{3.0f});
-    auto p1_val = backend->create_tensor(element::f32, Shape{});
-    copy_data(p1_val, vector<float>{7.0f});
-    auto result = backend->create_tensor();
-    auto cfun = backend->compile(fun);
-    cfun->call({result}, {p_start_val, p_stop_val, p_step_val, p1_val});
-    EXPECT_EQ(result->get_element_type(), element::f32);
-    EXPECT_EQ(result->get_partial_shape(), (PartialShape{3}));
-    auto result_val = read_vector<float>(result);
+    auto test_case = test::TestCase(fun);
+    test_case.add_input(std::vector<float>{1.0f});
+    test_case.add_input(std::vector<float>{10.0f});
+    test_case.add_input(std::vector<float>{3.0f});
+    test_case.add_input(std::vector<float>{7.0f});
     vector<float> seq{8.0f, 11.0f, 14.0f};
-    ASSERT_EQ(result_val, seq);
+    test_case.add_expected_output({3}, seq);
+    test_case.run();
 }
 
 TEST(eval, evaluate_broadcast_v3_bidirectional) {
@@ -1786,4 +1779,19 @@ TEST(eval, evaluate_dynamic_scatter_update_one_elem_i32) {
     auto cval = read_vector<int32_t>(result_tensor);
     vector<int32_t> out{0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0};
     ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_softmax_8) {
+    const Shape data_shape{1, 2};
+    auto arg = std::make_shared<ngraph::op::Parameter>(element::f32, PartialShape::dynamic());
+    auto softmax = std::make_shared<ngraph::op::v8::Softmax>(arg, -1);
+    auto fun = std::make_shared<Function>(OutputVector{softmax}, ParameterVector{arg});
+    auto result_tensor = std::make_shared<HostTensor>();
+
+    ASSERT_TRUE(fun->evaluate({result_tensor}, {make_host_tensor<element::Type_t::f32>(data_shape, {1, 1})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{1, 2}));
+    auto val = read_vector<float>(result_tensor);
+    vector<float> out{0.5, 0.5};
+    ASSERT_EQ(val, out);
 }

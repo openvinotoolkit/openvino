@@ -6,13 +6,10 @@ import datetime
 import logging as log
 import os
 import platform
-import subprocess
 import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
-
-import numpy as np
 
 try:
     import openvino_telemetry as tm
@@ -28,24 +25,25 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.pipeline.common import prepare_emit_ir, get_ir_version
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
-from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
-    get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
-    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info, \
-    parse_transform, check_available_transforms
+from openvino.tools.mo.utils.cli_parser import check_available_transforms, get_caffe_cli_options, \
+    get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
+    get_mean_scale_dictionary, get_meta_info, get_model_name, get_mxnet_cli_options, get_onnx_cli_options, \
+    get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
 from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message
 from openvino.tools.mo.utils.guess_framework import deduce_framework_by_namespace
-from openvino.tools.mo.utils.logger import init_logger
+from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
 from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version
 from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, TelemetryExtension
+from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -97,6 +95,15 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines), flush=True)
 
 
+def get_default_frontends():
+    # Set which frontend to use by default, values should be 'new' or 'legacy'
+    default_frontends = {
+        'onnx': 'legacy',
+        'tf': 'legacy'
+    }
+    return default_frontends
+
+
 def get_moc_frontends(argv: argparse.Namespace):
     fem = argv.feManager
 
@@ -119,13 +126,9 @@ def get_moc_frontends(argv: argparse.Namespace):
     else:
         return None, []
 
-    # Set which frontend to use by default, values should be 'new' or 'legacy'
-    frontend_defaults = {
-        'onnx': 'legacy',
-        'tf': 'legacy'
-    }
+    default_frontends = get_default_frontends()
     # Disable MOC frontend if default is set to legacy and no user override
-    if frontend_defaults.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
+    if default_frontends.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
         moc_front_end = None
 
     return moc_front_end, available_moc_front_ends
@@ -203,10 +206,10 @@ def arguments_post_parsing(argv: argparse.Namespace):
         if not find_ie_version(silent=argv.silent):
             raise_ie_not_found()
     except Exception as e:
+        log.error(e)
         raise_ie_not_found()
 
-    # temporary disable new FP16 generation
-    if False and 'data_type' in argv and argv.data_type in ['FP16', 'half']:
+    if 'data_type' in argv and argv.data_type in ['FP16', 'half']:
         argv.data_type = 'FP32'
         argv.compress_fp16 = True
     else:
@@ -234,7 +237,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
                     refer_to_faq_msg(17))
     elif is_caffe and argv.mean_file and argv.mean_file_offsets:
         values = get_tuple_values(argv.mean_file_offsets, t=int, num_exp_values=2)
-        mean_file_offsets = np.array([int(x) for x in values[0].split(',')])
+        mean_file_offsets = mo_array([int(x) for x in values[0].split(',')])
         if not all([offset >= 0 for offset in mean_file_offsets]):
             raise Error("Negative value specified for --mean_file_offsets option. "
                         "Please specify positive integer values in format '(x,y)'. " +
@@ -268,6 +271,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     scale_values = parse_tuple_pairs(argv.scale_values)
     mean_scale = get_mean_scale_dictionary(mean_values, scale_values, argv.input)
     argv.mean_scale_values = mean_scale
+    argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
 
     if not os.path.exists(argv.output_dir):
         try:
@@ -283,13 +287,17 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
-    if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
-        extensions = argv.extensions.split(',')
-    else:
-        extensions = None
-
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
+
+    load_extensions(argv, is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx)
+
+    return argv
+
+def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool, is_onnx:bool):
+    extensions = None
+    if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
+        extensions = argv.extensions.split(',')
     if is_tf:
         from openvino.tools.mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
@@ -310,24 +318,54 @@ def arguments_post_parsing(argv: argparse.Namespace):
         from openvino.tools.mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
-    return argv
+
+def check_fallback(argv : argparse.Namespace):
+    fallback_reasons = {}
+
+    # Some frontend such as PDPD does not have legacy path so it has no reasons to fallback
+    if not any(deduce_framework_by_namespace(argv)):
+        return fallback_reasons
+
+    # There is no possibility for fallback if a user strictly wants to use new frontend
+    if argv.use_new_frontend:
+        return fallback_reasons
+
+    fallback_reasons['extensions'] = \
+        lambda argv : hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0 \
+            and argv.extensions != import_extensions.default_path() # extensions arg has default value
+    fallback_reasons['transformations_config'] = \
+        lambda argv: hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config) > 0
+
+    reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
+    return reasons
 
 
-def prepare_ir(argv):
+def prepare_ir(argv : argparse.Namespace):
     argv = arguments_post_parsing(argv)
-
     t = tm.Telemetry()
     graph = None
     ngraph_function = None
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
-
     if moc_front_end:
-        t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
-        moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
-        ngraph_function = moc_pipeline(argv, moc_front_end)
-    else:
-        t.send_event("mo", "conversion_method", "mo_legacy")
-        graph = unified_pipeline(argv)
+        fallback_reasons = check_fallback(argv)
+        if len(fallback_reasons) == 0:
+            t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
+            moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
+            moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
+            ngraph_function = moc_pipeline(argv, moc_front_end)
+            return graph, ngraph_function
+        else: # apply fallback
+            reasons_message = ", ".join(fallback_reasons)
+            load_extensions(argv, *list(deduce_framework_by_namespace(argv)))
+            t.send_event("mo", "fallback_reason", reasons_message)
+            log.warning("The IR preparation was executed by the legacy MO path. "
+                        "This is a fallback scenario applicable only for some specific cases. "
+                       f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
+                        "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
+                        refer_to_faq_msg(105))
+
+    t.send_event("mo", "conversion_method", "mo_legacy")
+    graph = unified_pipeline(argv)
 
     return graph, ngraph_function
 
@@ -360,22 +398,14 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
         return_code = "not executed"
-        # This try-except is additional reinsurance that the IE
-        # dependency search does not break the MO pipeline
         try:
             if not argv.legacy_ir_generation:
-                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
-                                                               'offline_transformations.py')
-                cmd = [sys.executable, path_to_offline_transformations,
-                                         "--input_model", orig_model_name,
-                                         "--framework", argv.framework,
-                                         "--transform", argv.transform]
+                from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
+                apply_offline_transformations(orig_model_name, argv)
                 if "compress_fp16" in argv and argv.compress_fp16:
-                    cmd += ["--compress_fp16"]
                     # restore data_type cmd parameter
                     argv.data_type = 'FP16'
-                status = subprocess.run(cmd, env=os.environ)
-                return_code = status.returncode
+                return_code = 0
         except Exception as e:
             return_code = "failed"
             log.error(e)

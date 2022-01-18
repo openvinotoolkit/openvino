@@ -63,7 +63,7 @@ class EltwiseChecker(MiddleReplacementPattern):
         feature_dim = min(1, tensor_shape.size - 1) if node.graph.graph['layout'] == 'NCHW' else -1
         if feature_channel is not None:
             feature_dim = feature_channel
-        ones = np.ones(len(tensor_shape))
+        ones = np.ones(len(tensor_shape), dtype=np.float32)
         possible_shape = ones.copy()
         np.put(possible_shape, feature_dim, tensor_shape.item(feature_dim))
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_FE_NAME "mock_py_ov_frontend")
+set(TARGET_FE_NAME "ov_mock_py_frontend")
 set(PYBIND_FE_NAME "pybind_mock_frontend")
 
 set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/pyngraph_mock_frontend_api.cpp)

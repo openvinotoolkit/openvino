@@ -18,8 +18,18 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MarkupCanBeQuantized transformation marks Convolution, ConvolutionBackpropData, GroupConvolution and Concat
+ * operations as able to be quantized or not. If an operation is not quantized, then PrecisionsAttribute attribute instance
+ * is created with empty precisions.
+ *
+ * For more details about the transformation, refer to
+ * [MarkupCanBeQuantized](@ref openvino_docs_IE_DG_lpt_MarkupCanBeQuantized) page
+ * in the Inference Engine Developer Guide.
+ */
 class ngraph::pass::low_precision::MarkupCanBeQuantized : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

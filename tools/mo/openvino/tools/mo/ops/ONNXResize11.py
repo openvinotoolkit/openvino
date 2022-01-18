@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.op import Op
 
@@ -48,7 +48,7 @@ class ONNXResize11Op(Op):
             input2_value = node.in_port(2).data.get_value()
             assert input2_value is not None, \
                 "Node {} with op {} has no value in input port 2".format(node.soft_get('name', node.id), node.op)
-            scale = np.array(input2_value)
+            scale = mo_array(input2_value)
             output_shape = np.floor(input_shape * scale + 1.0e-6).astype(np.int64)
         else:
             # i.e. input 'sizes' is given

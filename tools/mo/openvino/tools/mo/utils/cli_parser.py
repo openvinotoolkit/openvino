@@ -13,6 +13,7 @@ from typing import List, Union
 
 import numpy as np
 
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.utils import import_extensions
@@ -257,10 +258,12 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'models. Model Optimizer performs necessary transformations to convert the shape to '
                                    'the layout required by Inference Engine (N,C,H,W). The shape could contain '
                                    'undefined dimensions (-1) and should fit the dimensions defined in the input '
-                                   'operation of the graph. If there are multiple inputs in the model, --input_shape '
-                                   'should contain definition of shape for each input separated by a comma, for '
-                                   'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes. '
-                                   'Alternatively, specify shapes with the --input option.')
+                                   'operation of the graph. Boundaries of undefined dimension can be specified with '
+                                   'ellipsis, for example [1,1..10,128,128]. One boundary can be undefined, for '
+                                   'example [1,..100] or [1,3,1..,1..]. If there are multiple inputs in the model, '
+                                   '--input_shape should contain definition of shape for each input separated by a '
+                                   'comma, for example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D '
+                                   'shapes. Alternatively, specify shapes with the --input option.')
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
@@ -268,13 +271,18 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'value. When a list of inputs is overridden by the --input ' +
                                    'parameter, this scale ' +
                                    'is not applied for any input that does not match with ' +
-                                   'the original input of the model.')
+                                   'the original input of the model.' +
+                                   'If both --mean and --scale  are specified, ' +
+                                   'the mean is subtracted first and then scale is applied ' +
+                                   'regardless of the order of options in command line.')
     common_group.add_argument('--reverse_input_channels',
                               help='Switch the input channels order from RGB to BGR (or vice versa). Applied to '
-                                   'original inputs of the model if and only if a number of channels equals 3. Applied '
-                                   'after application of --mean_values and --scale_values options, so numbers in '
-                                   '--mean_values and --scale_values go in the order of channels used in the original '
-                                   'model.',
+                                   'original inputs of the model if and only if a number of channels equals 3. '
+                                   'When --mean_values/--scale_values are also specified, reversing of channels will '
+                                   'be applied to user\'s input data first, so that numbers in --mean_values '
+                                   'and --scale_values go in the order of channels used in the original model. '
+                                   'In other words, if both options are specified, then the data flow in the model '
+                                   'looks as following: Parameter -> ReverseInputChannels -> Mean apply-> Scale apply -> the original body of the model.',
                               action='store_true')
     common_group.add_argument('--log_level',
                               help='Logger level',
@@ -284,10 +292,18 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--input',
                               help='Quoted list of comma-separated input nodes names with shapes, data types, '
                                    'and values for freezing. The shape and value are specified as space-separated '
-                                   'lists. The data type of input node is specified in braces and can have one of the '
-                                   'values: f64 (float64), f32 (float32), f16 (float16), i64 (int64), i32 (int32), u8 '
-                                   '(uint8), boolean. For example, use the following format to set input port 0 of the '
-                                   'node `node_name1` with the shape [3 4] as an input node and freeze output port 1 '
+                                   'lists. The data type of input node is specified in braces and '
+                                   'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
+                                   'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
+                                   'If it\'s not specified explicitly then there are two options: '
+                                   'if input node is a parameter, data type is taken from the original node dtype, '
+                                   'if input node is not a parameter, data type is set to f32. '
+                                   'Example, to set `input_1` with shape [1 100], and Parameter node `sequence_len` '
+                                   'with scalar input with value `150`, and boolean input `is_training` with '
+                                   '`False` value use the following format: '
+                                   '"input_1[1 10],sequence_len->150,is_training->False". '
+                                   'Another example, use the following format to set input port 0 of the node '
+                                   '`node_name1` with the shape [3 4] as an input node and freeze output port 1 '
                                    'of the node `node_name2` with the value [20 15] of the int32 type and shape [2]: '
                                    '"0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
     common_group.add_argument('--output',
@@ -307,7 +323,32 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Can be defined for desired input of the model, for example: ' +
                                    '"--scale_values data[255,255,255],info[255,255,255]". ' +
                                    'The exact meaning and order ' +
-                                   'of channels depend on how the original model was trained.',
+                                   'of channels depend on how the original model was trained.' +
+                                   'If both --mean_values and --scale_values are specified, ' +
+                                   'the mean is subtracted first and then scale is applied ' +
+                                   'regardless of the order of options in command line.',
+                              default=())
+    common_group.add_argument('--source_layout',
+                              help='Layout of the input or output of the model in the framework. Layout can'
+                                   ' be specified in the short form, e.g. nhwc, or in complex form, e.g. [n,h,w,c].'
+                                   ' Example for many names: '
+                                   'in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc). Layout can be '
+                                   'partially defined, "?" can be used to specify undefined layout for one dimension, '
+                                   '"..." can be used to specify undefined layout for multiple dimensions, for example '
+                                   '?c??, nc..., n...c, etc.',
+                              default=())
+    common_group.add_argument('--target_layout',
+                              help='Same as --source_layout, but specifies target layout that will be in the model '
+                                   'after processing by ModelOptimizer.',
+                              default=())
+    common_group.add_argument('--layout',
+                              help='Combination of --source_layout and --target_layout. Can\'t be used with either of '
+                                   'them. If model has one input it is sufficient to specify layout of this input, for'
+                                   ' example --layout nhwc. To specify layouts of many tensors, names must be provided,'
+                                   ' for example: --layout name1(nchw),name2(nc). It is possible to instruct '
+                                   'ModelOptimizer to change layout, for example: '
+                                   '--layout name1(nhwc->nchw),name2(cn->nc). Also "*" in long layout form can be used'
+                                   ' to fuse dimensions, for example [n,c,...]->[n*c,…].',
                               default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
@@ -417,6 +458,9 @@ def get_common_cli_options(model_name):
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['input_shape'] = ['- Input shapes', lambda x: x if x else 'Not specified, inherited from the model']
+    d['source_layout'] = ['- Source layout', lambda x: x if x else 'Not specified']
+    d['target_layout'] = ['- Target layout', lambda x: x if x else 'Not specified']
+    d['layout'] = ['- Layout', lambda x: x if x else 'Not specified']
     d['mean_values'] = ['- Mean values', lambda x: x if x else 'Not specified']
     d['scale_values'] = ['- Scale values', lambda x: x if x else 'Not specified']
     d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
@@ -753,12 +797,12 @@ def remove_shape_from_input_value(input_value: str):
     :return: string without shape specification
     """
     assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
-    return re.sub(r'[(\[]([0-9  -]*)[)\]]', '', input_value)
+    return re.sub(r'[(\[]([0-9\.?  -]*)[)\]]', '', input_value)
 
 
 def get_shape_from_input_value(input_value: str):
     """
-    Returns the numpy array with shape corresponding to the shape specified in the input value string
+    Returns the list of tuples corresponding to the shape specified in the input value string
     :param input_value: string passed as input to the --input command line parameter
     :return: the corresponding shape and None if the shape is not specified in the input value
     """
@@ -766,11 +810,13 @@ def get_shape_from_input_value(input_value: str):
     input_value = input_value.split('->')[0]
 
     # parse shape
-    shape = re.findall(r'[(\[]([0-9  -]*)[)\]]', input_value)
+    shape = re.findall(r'[(\[]([0-9\.\?  -]*)[)\]]', input_value)
     if len(shape) == 0:
         shape = None
+    elif len(shape) == 1 and shape[0] in ['', ' ']:
+        shape = ()
     elif len(shape) == 1:
-        shape = np.fromstring(shape[0], dtype=np.int64, sep=' ')
+        shape = tuple(map(parse_dimension, shape[0].split(' ')))
     else:
         raise Error("Wrong syntax to specify shape. Use --input "
                     "\"node_name[shape]->value\"")
@@ -826,13 +872,149 @@ def parse_input_value(input_value: str):
     data_type = get_data_type_from_input_value(input_value)
     node_name = get_node_name_with_port_from_input_value(input_value)
     value = get_value_from_input_value(input_value)
-    shape = get_shape_from_input_value(input_value.split('->')[0])
+    shape = get_shape_from_input_value(input_value)
     value_size = np.prod(len(value)) if isinstance(value, list) else 1
+
+    if value is not None and shape is not None:
+        for dim in shape:
+            if isinstance(dim, tuple) or dim == -1:
+                raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
 
     if shape is not None and value is not None and np.prod(shape) != value_size:
         raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
                     "value: {}".format(shape, node_name, value_size, value))
     return node_name, shape, value, data_type
+
+
+def split_str_avoiding_square_brackets(s: str) -> list:
+    """
+    Splits a string by comma, but skips commas inside square brackets.
+    :param s: string to split
+    :return: list of strings split by comma
+    """
+    res = list()
+    skipping = 0
+    last_idx = 0
+    for i, c in enumerate(s):
+        if c == '[':
+            skipping += 1
+        elif c == ']':
+            skipping -= 1
+        elif c == ',' and skipping == 0:
+            res.append(s[last_idx:i])
+            last_idx = i + 1
+    res.append(s[last_idx:])
+    return res
+
+
+def split_layouts_by_arrow(s: str) -> tuple:
+    """
+    Splits a layout string by first arrow (->).
+    :param s: string to split
+    :return: tuple containing source and target layouts
+    """
+    arrow = s.find('->')
+    if arrow != -1:
+        source_layout = s[:arrow]
+        target_layout = s[arrow + 2:]
+        if source_layout == '':
+            source_layout = None
+        if target_layout == '':
+            target_layout = None
+        return source_layout, target_layout
+    else:
+        return s, None
+
+
+def validate_layout(layout: str):
+    """
+    Checks if layout is of valid format.
+    :param layout: string containing layout
+    :raises: if layout is incorrect
+    """
+    valid_layout_re = re.compile(r'\[?[^\[\]\(\)\s]*\]?')
+    if layout and not valid_layout_re.fullmatch(layout):
+        raise Error('Invalid layout parsed: {}'.format(layout))
+
+
+def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = None):
+    """
+    Writes found layout data to the 'parsed' dict.
+    :param name: name of the node to add layout
+    :param found_layout: string containing layout for the node
+    :param parsed: dict where result will be stored
+    :param dest: type of the command line:
+      * 'source' is --source_layout
+      * 'target' is --target_layout
+      * None is --layout
+    """
+    s_layout = None
+    t_layout = None
+    if name in parsed:
+        s_layout = parsed[name]['source_layout']
+        t_layout = parsed[name]['target_layout']
+    if dest == 'source':
+        s_layout = found_layout
+    elif dest == 'target':
+        t_layout = found_layout
+    else:
+        s_layout, t_layout = split_layouts_by_arrow(found_layout)
+    validate_layout(s_layout)
+    validate_layout(t_layout)
+    parsed[name] = {'source_layout': s_layout, 'target_layout': t_layout}
+
+
+def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None:
+    """
+    Parses layout command line to get all names and layouts from it. Adds all found data in the 'parsed' dict.
+    :param s: string to parse
+    :param parsed: dict where result will be stored
+    :param dest: type of the command line:
+      * 'source' is --source_layout
+      * 'target' is --target_layout
+      * None is --layout
+    """
+    list_s = split_str_avoiding_square_brackets(s)
+    if len(list_s) == 1 and (list_s[0][-1] not in ')]' or (list_s[0][0] == '[' and list_s[0][-1] == ']')):
+        # single layout case
+        write_found_layout('', list_s[0], parsed, dest)
+    else:
+        for layout_str in list_s:
+            # case for: "name1(nhwc->[n,c,h,w])"
+            p1 = re.compile(r'(\S+)\((\S+)\)')
+            m1 = p1.match(layout_str)
+            # case for: "name1[n,h,w,c]->[n,c,h,w]"
+            p2 = re.compile(r'(\S+)(\[\S*\])')
+            m2 = p2.match(layout_str)
+            if m1:
+                found_g = m1.groups()
+            elif m2:
+                found_g = m2.groups()
+            else:
+                raise Error("More then one layout provided for --{}layout without providing name.".format(
+                    dest + '_' if dest else ''))
+            write_found_layout(found_g[0], found_g[1], parsed, dest)
+
+
+def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_target_layout: str = ''):
+    """
+    Parses layout string.
+    :param argv_layout: string with a list of layouts passed as a --layout.
+    :param argv_source_layout: string with a list of layouts passed as a --source_layout.
+    :param argv_target_layout: string with a list of layouts passed as a --target_layout.
+    :return: dict with names and layouts associated
+    """
+    if argv_layout and (argv_source_layout or argv_target_layout):
+        raise Error("--layout is used as well as --source_layout and/or --target_layout which is not allowed, please "
+                    "use one of them.")
+    res = {}
+    if argv_layout:
+        parse_layouts_by_destination(argv_layout, res)
+    if argv_source_layout:
+        parse_layouts_by_destination(argv_source_layout, res, 'source')
+    if argv_target_layout:
+        parse_layouts_by_destination(argv_target_layout, res, 'target')
+    return res
 
 
 def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):
@@ -887,6 +1069,33 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     return placeholder_values, input_node_names
 
 
+def parse_dimension(dim: str):
+    if '..' in dim:
+        numbers_reg = r'^[0-9]+$'
+        dims = dim.split('..')
+        match_res0 = re.match(numbers_reg, dims[0])
+        match_res1 = re.match(numbers_reg, dims[1])
+        if len(dims[0].strip()) > 0 and match_res0 is None:
+            Error("Incorrect min value of dimension '{}'".format(dims[0]))
+        if len(dims[1].strip()) > 0 and match_res1 is None:
+            Error("Incorrect max value of dimension '{}'".format(dims[1]))
+
+        min_val = np.int64(dims[0]) if match_res0 else np.int64(0)
+        max_val = np.int64(dims[1]) if match_res1 else np.iinfo(np.int64).max
+        assert min_val >= 0, "Incorrect min value of the dimension {}".format(dim)
+
+        if min_val == np.int64(0) and max_val == np.iinfo(np.int64).max:
+            return np.int64(-1)
+
+        assert min_val < max_val, "Min value should be less than max value. Got min value: {}, " \
+                                  "max value: {}".format(min_val, max_val)
+
+        return min_val, max_val
+    if '?' in dim:
+        return np.int64(-1)
+    return np.int64(dim)
+
+
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
     """
     Parses input layers names and input shapes from the cli and returns the parsed object.
@@ -899,16 +1108,18 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         E.g. 'inp1,inp2', 'node_name1[shape1]->value1,node_name2[shape2]->value2'
     argv_input_shape
         string with a list of input shapes: either an empty string, or tuples separated with comma.
-        E.g. '(1,2),(3,4)'.
-        Only positive integers are accepted except -1, which can be on any position in a shape.
+        E.g. '[1,2],[3,4]'.
+        Only positive integers are accepted.
+        '?' marks dynamic dimension.
+        Partial shape is specified with ellipsis. E.g. '[1..10,2,3]'
     argv_batch
         integer that overrides batch size in input shape
 
     Returns
     -------
-        parsed shapes in form of {'name of input':ndarray} if names of inputs are provided with shapes
+        parsed shapes in form of {'name of input':tuple} if names of inputs are provided with shapes
         parsed shapes in form of {'name of input':None} if names of inputs are provided without shapes
-        ndarray if only one shape is provided and no input name
+        tuple if only one shape is provided and no input name
         None if neither shape nor input were provided
     """
     if argv_input_shape and argv_batch:
@@ -943,7 +1154,8 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     inputs = list()
     placeholder_shapes = None
 
-    first_digit_reg = r'([0-9 ]+|-1)'
+    range_reg = r'([0-9]*\.\.[0-9]*)'
+    first_digit_reg = r'([0-9 ]+|-1|\?|{})'.format(range_reg)
     next_digits_reg = r'(,{})*'.format(first_digit_reg)
     tuple_reg = r'((\({}{}\))|(\[{}{}\]))'.format(first_digit_reg, next_digits_reg,
                                                   first_digit_reg, next_digits_reg)
@@ -951,7 +1163,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
         if not re.match(full_reg, argv_input_shape):
             raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
-        shapes = re.findall(r'[(\[]([0-9, -]+)[)\]]', argv_input_shape)
+        shapes = re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
 
     if argv_input:
         inputs = argv_input.split(',')
@@ -962,14 +1174,25 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         if len(shapes) > 1:
             raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
         else:
-            placeholder_shapes = np.fromstring(shapes[0], dtype=np.int64, sep=',')
+            placeholder_shapes = tuple(map(parse_dimension, shapes[0].split(',')))
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing
-        inputs = list(map(lambda x: x.split('->')[0], inputs))
-        placeholder_shapes = dict(zip_longest(inputs,
-                                              map(lambda x: np.fromstring(x, dtype=np.int64,
-                                                                          sep=',') if x else None, shapes)))
+        inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
+        placeholder_shapes = dict(zip_longest(inputs_without_value,
+                                              map(lambda x: tuple(map(parse_dimension, x.split(','))) if x else None,
+                                                  shapes)))
+        for inp in inputs:
+            if '->' not in inp:
+                continue
+            shape = placeholder_shapes[inp.split('->')[0]]
+
+            if shape is None:
+                continue
+            for dim in shape:
+                if isinstance(dim, tuple) or dim == -1:
+                    raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
+
     elif argv_input:
         raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
 
@@ -992,7 +1215,7 @@ def parse_tuple_pairs(argv_values: str):
         dictionary with input name and tuple of values or list of values if mean/scale value is specified with input,
         e.g.:
         "data(10,20,30),info(11,22,33)" -> { 'data': [10,20,30], 'info': [11,22,33] }
-        "(10,20,30),(11,22,33)" -> [np.array(10,20,30), np.array(11,22,33)]
+        "(10,20,30),(11,22,33)" -> [mo_array(10,20,30), mo_array(11,22,33)]
     """
     res = {}
     if not argv_values:

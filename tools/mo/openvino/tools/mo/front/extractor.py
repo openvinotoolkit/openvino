@@ -525,6 +525,49 @@ def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int 
     return '{}/placeholder{}_port_{}'.format(node_id, port_type, port)
 
 
+def create_params_with_custom_types(packed_user_shapes: [None, dict]):
+    """
+    Compute a list of placeholder names for which an user specifies custom type
+    :param packed_user_shapes: packed data that contains input node names,
+    their port numbers, shapes and data types
+    :return: a list of placeholder names for which an user specifies custom type
+    Example of packed_user_shapes dictionary:
+    packed_user_shapes =
+    {
+        'node_ID':
+            [
+                {'shape': None, 'in': 0},
+                {'shape': None, 'in': 1},
+            ],
+        'node_1_ID':
+            [
+                {'shape': [1, 227, 227, 3], 'port': None, 'data_type': np.int32}
+            ],
+        'node_2_ID':
+            [
+                {'shape': None, 'out': 3}
+            ]
+    }
+    For which the function returns a list ['node_1_ID'] because this node only has custom data type
+    """
+    if packed_user_shapes is None:
+        return []
+
+    params_with_custom_types = []
+    for input_name in packed_user_shapes:
+        for desc in packed_user_shapes[input_name]:
+            p_name = input_name
+            if 'port' in desc and desc['port'] is None:  # neither input nor output port specified
+                user_defined_type = desc.get('data_type', None)
+            else:  # need to check the particular port the Parameter was created for
+                p_name = get_new_placeholder_name(input_name, 'out' in desc,
+                                                  desc['out'] if 'out' in desc else desc['in'])
+                user_defined_type = desc.get('data_type', None)
+            if user_defined_type is not None:
+                params_with_custom_types.append(p_name)
+    return params_with_custom_types
+
+
 def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.ndarray],
                            freeze_placeholder: dict, input_user_data_types = dict()):
     """
@@ -605,7 +648,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
              if ph_id not in _input_shapes]
     else:
         # np.ndarray is a shape. User provided only --input_shape key
-        assert isinstance(input_user_shapes, np.ndarray)
+        assert isinstance(input_user_shapes, tuple)
         if len(placeholders_ids) == 1:
             # There is only one placeholder in the original network
             _input_shapes[placeholders_ids[0]].append({'shape': input_user_shapes, 'port': None})
@@ -861,7 +904,7 @@ def add_input_op_output_port_with_data(graph: Graph, node_id: str, input_op, por
 
 
 def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
-                 shape=None, data_type=None, is_out_port: bool = False):
+                 shape=None, user_shape=None, data_type=None, is_out_port: bool = False):
     """
     This function adds Input node to node with id==node_id to specified port (in or out defined with is_out_port).
     :param graph: graph to operate on.
@@ -869,6 +912,8 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     :param port: number of port of node_id node for adding input node.
     :param data: flag that define whether data nodes is needed or not.
     :param shape: shape for new input node.
+    :param user_shape: shape provided by user which may contain boundaries of dynamic dimension.
+    :param data_type: data type of input node.
     :param is_out_port: flag that define whether port is output port or not.
     :return: id of new Input operation
     """
@@ -876,7 +921,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     from openvino.tools.mo.ops.parameter import Parameter
     if data_type is None:
         data_type = np.float32
-    input_op = Parameter(graph, dict(shape=shape, data_type=data_type, initial_node_name=node_id,
+    input_op = Parameter(graph, dict(shape=shape, user_shape=user_shape, data_type=data_type, initial_node_name=node_id,
                                      name=get_new_placeholder_name(node_id, is_out_port, port)))
 
     fw_name = Node(graph, node_id).soft_get('name')
@@ -901,7 +946,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
 
 
 def add_input_ops_helper_before_infer_input_port(graph: Graph, smart_node: Node, port: int, node_id: str,
-                                                 shape: np.array, data_type,
+                                                 shape: np.array, user_shape: tuple, data_type,
                                                  inputs: list, edges_to_remove: list):
     n_inputs = len(smart_node.in_nodes())
     if n_inputs > 1 and port is None:
@@ -912,7 +957,7 @@ def add_input_ops_helper_before_infer_input_port(graph: Graph, smart_node: Node,
     port = port if port is not None else 0
     edges_to_remove.append((smart_node.in_node(port).id, smart_node.id))
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False,
-                               shape=shape, data_type=data_type))
+                               shape=shape, user_shape=user_shape, data_type=data_type))
 
 
 def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, port:int, node_id: str,
@@ -934,13 +979,14 @@ def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, 
     edges_to_remove.append((in_node.id, node_id))
 
 
-def add_input_ops_helper_before_infer_output_port(graph: Graph, port:int, node_id: str,
-                                                  shape: np.array, data_type, inputs: list, edges_to_remove: list):
+def add_input_ops_helper_before_infer_output_port(graph: Graph, port: int, node_id: str,
+                                                  shape: np.array, user_shape: tuple, data_type: tuple,
+                                                  inputs: list, edges_to_remove: list):
     for u, v, edge_attrs in graph.out_edges(node_id, data=True):
         if edge_attrs['out'] == port:
             edges_to_remove.append((u, v))  # we need to remove all edges from this port
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False,
-                               shape=shape, data_type=data_type, is_out_port=True))
+                               shape=shape, user_shape=user_shape, data_type=data_type, is_out_port=True))
 
 
 def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node, port:int, node_id: str,
@@ -987,8 +1033,11 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
 
                 is_out_port = 'out' in port_and_shape_info  # by default we assume input port or input node without port
                 shape = port_and_shape_info['shape'] if 'shape' in port_and_shape_info else None
+                user_shape = None
                 if shape is not None:
-                    shape = shape_array([dim if dim >= 0 else dynamic_dimension_value for dim in shape])
+                    user_shape = shape
+                    shape = shape_array(
+                        [dim if type(dim) != tuple and dim >= 0 else dynamic_dimension_value for dim in shape])
                 data_type = port_and_shape_info['data_type'] if 'data_type' in port_and_shape_info else None
                 smart_node = Node(graph, node_id)
 
@@ -1016,6 +1065,7 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                             refer_to_faq_msg(28), node_id, port)
                     if shape is not None:
                         smart_node['shape'] = shape
+                        smart_node['user_shape'] = user_shape
                     if data_type is not None:
                         smart_node['data_type'] = data_type
                     inputs.append(node_id)
@@ -1027,10 +1077,11 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                         continue
                     # We cut with shapes provided by user and there is no need to wait till infer
                     if is_out_port:
-                        add_input_ops_helper_before_infer_output_port(graph, port, node_id, shape, data_type, inputs,
-                                                                      edges_to_remove)
+                        add_input_ops_helper_before_infer_output_port(graph, port, node_id, shape, user_shape,
+                                                                      data_type, inputs, edges_to_remove)
                     else:
-                        add_input_ops_helper_before_infer_input_port(graph, smart_node, port, node_id, shape, data_type, inputs,
+                        add_input_ops_helper_before_infer_input_port(graph, smart_node, port, node_id, shape,
+                                                                     user_shape, data_type, inputs,
                                                                      edges_to_remove)
                 else:
                     # We cut after infer and we need inferred shapes in nodes

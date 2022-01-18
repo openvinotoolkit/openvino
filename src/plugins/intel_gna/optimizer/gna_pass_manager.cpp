@@ -633,11 +633,11 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 
         if (prev == nullptr || next == nullptr) continue;
 
-        if (LayerInfo(prev).isPermute()) {
+        if (LayerInfo(prev).isPermute() || LayerInfo(prev).isPermuteViaReshape()) {
             permutations_to_remove.insert(prev);
         }
 
-        if (LayerInfo(next).isPermute()) {
+        if (LayerInfo(next).isPermute() || LayerInfo(prev).isPermuteViaReshape()) {
             permutations_to_remove.insert(next);
         }
 
@@ -654,6 +654,8 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 THROW_GNA_EXCEPTION << data->getName() <<
                     " unexpected dimensions size in Permute - Conv - Permute pattern";
             }
+            // HWC layout enum is used here as the only available in CNNNetwork for 3D vectors,
+            // but the real layout is NCW and it's the one used in order vector later
             return dims_size == 4 ? Layout::NHWC : Layout::HWC;
         };
 
@@ -661,6 +663,15 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             auto layout = getTransposedLayout(data);
             if (data->getLayout() == layout) return;
 
+            auto current_layer = getCreatorLayer(data).lock();
+            if (LayerInfo(current_layer).isConcat()) {
+                auto concat_layer = dynamic_cast<InferenceEngine::ConcatLayer*> (current_layer.get());
+                auto dims_size = data->getDims().size();
+                concat_layer->_axis = (dims_size == 4 ? GetPermuteOrder(Layout::NHWC, Layout::NCHW) :
+                    std::vector<int32_t>{0, 2, 1})[concat_layer->_axis];
+            }
+
+            // NWC->NCW layouts are used here for order vector, see comments a few lines above
             auto dims = data->getDims();
             auto order = dims.size() == 4 ? GetPermuteOrder(Layout::NCHW, Layout::NHWC) :
                 std::vector<int32_t>{0, 2, 1};
@@ -688,7 +699,8 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         };
         propogateNHWCOrderRecursive(current_layer);
 
-        if (LayerInfo(pattern_start).isPermute() && !getInputTo(pattern_start->outData.front()).empty()) {
+        if ((LayerInfo(pattern_start).isPermute() || LayerInfo(pattern_start).isPermuteViaReshape()) &&
+         !getInputTo(pattern_start->outData.front()).empty()) {
             auto layer_before_permute = CNNNetPrevLayer(pattern_start);
             DataPtr output = nullptr;
             for (auto before_output : layer_before_permute->outData) {
@@ -971,11 +983,13 @@ void InsertCopyLayerPass::run() {
 void FlattenTrivialConcatPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FlattenTrivialConcatPass");
     // change all trivial concatenations (concatenation where output buffer is a buffer made by appending input buffers)
-    // by reshaping its inputs to 1 x total_input_size and its output to 1 x total_cocat_size and chaning the axis to 1
-    // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used if sizes before
-    // axis are all ones then concat can be changed to 2D for example, lets say all unputs have same shape equal to:
+    // by reshaping its inputs to 1 x total_input_size and its output to 1 x total_concat_size and changing the axis to 1
+    // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used; if sizes before concat
+    // axis are all ones then concat can be changed to 2D for example, let's say all inputs have the same shape equal to:
     // 1, 1, 5, 3 then for axis 0, 1, 2 the change will be made and inputs will be reshaped to 1, 15,
-    // but for shape 2, 1, 5, 3 only axis 0 is valid and inputs will reshape to 1, 30
+    // but for shape 2, 1, 5, 3 only axis 0 is valid and in such case inputs will be reshaped to 1, 30
+    // TODO: detection of trivial cases could be moved to one common place when all transformations are migrated to ngraph.
+    // See as well code for detection of unsupported concat
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
 
     auto getLayerByIndex = [](int idx, ConcatLayer* concatLayer) {
@@ -993,21 +1007,26 @@ void FlattenTrivialConcatPass::run() {
         if (!concatLayer) continue;
         if (concatLayer->insData.size() < 1) continue;
 
+        // Skip obvious supported cases
         auto dims_size = concatLayer->insData[0].lock()->getDims().size();
         if (dims_size < 2 || concatLayer->_axis == dims_size - 1) continue;
 
+        // Skip cases which cannot be flattened (these might be unsupported at all)
         auto axis = concatLayer->_axis;
         bool skip_layer = false;
         for (unsigned int i = 0; i < axis; i++) {
             if (concatLayer->insData[0].lock()->getDims()[i] != 1) skip_layer = true;
         }
         if (skip_layer) continue;
+
+        // Calculate total input sizes
         std::vector<size_t> total_sizes;
         for (auto& input : concatLayer->insData) {
             auto input_dims = input.lock()->getDims();
             total_sizes.push_back(std::accumulate(input_dims.begin(), input_dims.end(), size_t(1), std::multiplies<size_t>()));
         }
 
+        // Reshape concat inputs
         for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
             auto concatInput = getLayerByIndex(input_idx, concatLayer);
 
@@ -1020,6 +1039,7 @@ void FlattenTrivialConcatPass::run() {
             gnalog() << "\tInserted " << reshapeName << " between " << getCreatorLayer(concatInput).lock()->name << " and " << l->name << std::endl;
         }
 
+        // Reshape concat outputs back to the original size
         for (auto output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
             auto output = concatLayer->outData[output_idx];
             auto output_tensor_copy = TensorDesc(output->getTensorDesc());
@@ -1636,9 +1656,6 @@ void BroadcastConstPass::run() {
 
 void BreakFusingOfOutputLayersPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BreakFusingOfOutputLayersPass");
-#if GNA_LIB_VER == 1
-    return;
-#endif
     OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
     for (auto layer : *pLayers) {
         /* Inserion of the second activation after pooling will break Conv - Pooling - Activation component
@@ -1722,6 +1739,9 @@ void RemoveSingleInputConcatPass::run() {
     for (auto &l : *pLayers) {
         if (l->type == "Concat") {
             auto concat = dynamic_cast<ConcatLayer*>(l.get());
+            if (concat == nullptr) {
+                THROW_GNA_EXCEPTION << "Layer has type Concat but faild during casting to ConcatLayer";
+            }
             if (concat->insData.size() == 1 && concat->outData.size() > 0) {
                 auto in = concat->insData[0];
                 auto in_layer = getCreatorLayer(in.lock());
@@ -1998,11 +2018,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
     };
 
     auto allowFQFuse = [](CNNLayerPtr layer) -> bool {
-        auto doNotSkup = [](CNNLayerPtr layer) {
+        auto doNotSkip = [](CNNLayerPtr layer) {
             return false;
         };
 
-        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkup).empty()) {
+        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkip).empty()) {
             return false;
         }
 
@@ -2123,7 +2143,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 
         // Before FQ layer is removed, the previous functional layer has to be updated with its quantization data
         auto prevFuncLayer = CNNNetPrevLayerSkipCertain(*fqLayer, 0, [](CNNLayerPtr layer) {
-            return LayerInfo(layer).isNonFunctional();
+            return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isPooling();
         });
         auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevFuncLayer);
         quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);

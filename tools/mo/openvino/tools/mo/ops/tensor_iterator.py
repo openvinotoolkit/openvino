@@ -3,11 +3,11 @@
 from copy import copy, deepcopy
 from math import ceil
 
-from openvino.tools.mo.ops.parameter import Parameter
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, is_fully_defined, dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node, dict_includes, Graph
 from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.parameter import Parameter
 from openvino.tools.mo.utils.error import Error
 
 
@@ -371,6 +371,10 @@ class TensorIterator(Op):
             elif check_field(in_rec, 'start') and in_rec['start'] >= 0:
                 in_rec_end = in_shape[in_rec['axis']] if not check_field(in_rec, 'end') else \
                     in_shape[in_rec['axis']] + 1 + in_rec['end']
+                in_rec_start = in_rec['start']
+            elif check_field(in_rec, 'end') and in_rec['end'] < 0 and \
+                    check_field(in_rec, 'start') and in_rec['start'] < 0:
+                in_rec_end = in_rec['end']
                 in_rec_start = in_rec['start']
             else:
                 in_rec_end = ti_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]

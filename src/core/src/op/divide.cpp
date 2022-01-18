@@ -4,7 +4,14 @@
 
 #include "ngraph/op/divide.hpp"
 
+#include <ngraph/validation_util.hpp>
+
 #include "itt.hpp"
+#include "ngraph/op/and.hpp"
+#include "ngraph/op/equal.hpp"
+#include "ngraph/op/less.hpp"
+#include "ngraph/op/not.hpp"
+#include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/divide.hpp"
 
@@ -49,6 +56,132 @@ bool evaluate_divide(const HostTensorPtr& arg0,
         break;
     }
     return rc;
+}
+
+bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper) {
+    // for positive arg2 divide will have limits [low/up , up/low]
+    // for negative arg2 limits for divide will be [up/low, low/up]
+    // for arg2 range with both positive and negative values, divide can give any result [-inf, inf]
+    NGRAPH_CHECK(node, validate_host_tensor_vector(output_values, 1));
+    const auto& input1 = node->input_value(0);
+    const auto& input2 = node->input_value(1);
+
+    // broadcast shapes to allocate tensors of correct size for operations with both inputs
+    PartialShape input_shape = input1.get_partial_shape();
+    NGRAPH_CHECK(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
+                 "Argument shapes in divide operation are inconsistent.");
+
+    const auto& input2_low = input2.get_tensor().get_lower_value();
+    if (input2_low == nullptr)
+        return false;
+    const auto& input2_up = input2.get_tensor().get_upper_value();
+    if (input2_up == nullptr)
+        return false;
+    const auto& input1_low = input1.get_tensor().get_lower_value();
+    if (input1_low == nullptr)
+        return false;
+    const auto& input1_up = input1.get_tensor().get_upper_value();
+    if (input1_up == nullptr)
+        return false;
+
+    auto zeros_const = op::Constant::create(input2.get_element_type(), {}, {0});
+
+    // mask to find out positive values for arg2
+    auto input2_positive_up_mask = std::make_shared<HostTensor>(element::boolean, input2.get_shape());
+    // mask to find out ranges around 0 for arg2
+    auto input2_low_negative_up_positive_mask = std::make_shared<HostTensor>(element::boolean, input2.get_shape());
+
+    bool status =
+        op::v1::Less().evaluate({input2_positive_up_mask}, {std::make_shared<HostTensor>(zeros_const), input2_up});
+    if (!status)
+        return status;
+
+    // mask to find out negative values for arg2
+    auto input2_negative_low_mask = std::make_shared<HostTensor>(element::boolean, input2.get_shape());
+    status =
+        op::v1::Less().evaluate({input2_negative_low_mask}, {input2_low, std::make_shared<HostTensor>(zeros_const)});
+    if (!status)
+        return status;
+    status = op::v1::LogicalAnd().evaluate({input2_low_negative_up_positive_mask},
+                                           {input2_negative_low_mask, input2_positive_up_mask});
+    if (!status)
+        return status;
+
+    if (!is_upper) {
+        auto value1 = std::make_shared<HostTensor>(input1.get_element_type(), input_shape);
+        status = op::v1::Select().evaluate({value1}, {input2_positive_up_mask, input1_low, input1_up});
+        if (!status)
+            return status;
+
+        auto value2 = std::make_shared<HostTensor>(input2.get_element_type(), input2.get_shape());
+        status = op::v1::Select().evaluate({value2}, {input2_positive_up_mask, input2_up, input2_low});
+        if (!status)
+            return status;
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        status = node->evaluate(output_values, {value1, value2});
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (!status)
+            return status;
+
+        // replace values where zeros inside range of second arg to maximum values
+        auto output_minimum_value = get_constant_min_of_type(output_values[0]->get_element_type());
+        if (output_minimum_value == nullptr)
+            return false;
+        status = op::v1::Select().evaluate(output_values,
+                                           {input2_low_negative_up_positive_mask,
+                                            std::make_shared<HostTensor>(output_minimum_value),
+                                            output_values[0]});
+        if (!status)
+            return status;
+    } else {
+        auto value1 = std::make_shared<HostTensor>(input1.get_element_type(), input_shape);
+        status = op::v1::Select().evaluate({value1}, {input2_positive_up_mask, input1_up, input1_low});
+        if (!status)
+            return status;
+
+        auto value2 = std::make_shared<HostTensor>(input2.get_element_type(), input2.get_shape());
+        status = op::v1::Select().evaluate({value2}, {input2_positive_up_mask, input2_low, input2_up});
+        if (!status)
+            return status;
+
+        // create mask where zeros in the second argument are placed
+        auto input2_zeros_mask = std::make_shared<HostTensor>(element::boolean, input2.get_shape());
+        bool status =
+            op::v1::Equal().evaluate({input2_zeros_mask}, {value2, std::make_shared<HostTensor>(zeros_const)});
+        if (!status)
+            return status;
+
+        // replace zeros by 1 values to get result of divide for other values of arguments
+        auto ones = op::Constant::create(input2.get_element_type(), input2.get_shape(), {1});
+        status = op::v1::Select().evaluate({value2}, {input2_zeros_mask, std::make_shared<HostTensor>(ones), value2});
+        if (!status)
+            return status;
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        status = node->evaluate(output_values, {value1, value2});
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (!status)
+            return status;
+
+        // replace values where zeros were found in the second argument to maximum values
+        auto output_maximum_value = get_constant_max_of_type(output_values[0]->get_element_type());
+        if (output_maximum_value == nullptr)
+            return false;
+        status = op::v1::Select().evaluate(
+            output_values,
+            {input2_zeros_mask, std::make_shared<HostTensor>(output_maximum_value), output_values[0]});
+        return status;
+
+        // replace values where zeros inside [low, ip] values range of second arg to maximum values
+        status = op::v1::Select().evaluate(output_values,
+                                           {input2_low_negative_up_positive_mask,
+                                            std::make_shared<HostTensor>(output_maximum_value),
+                                            output_values[0]});
+        if (!status)
+            return status;
+    }
+    return status;
 }
 }  // namespace
 }  // namespace divide
@@ -104,4 +237,12 @@ bool op::v1::Divide::has_evaluate() const {
         break;
     }
     return false;
+}
+
+bool ov::op::v1::Divide::evaluate_lower(const HostTensorVector& outputs) const {
+    return divide::evaluate_bound(this, outputs, false);
+}
+
+bool ov::op::v1::Divide::evaluate_upper(const HostTensorVector& outputs) const {
+    return divide::evaluate_bound(this, outputs, true);
 }

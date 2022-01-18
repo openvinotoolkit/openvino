@@ -10,6 +10,7 @@
 #include <legacy/graph_tools.hpp>
 #include <layers/gna_layer_type.hpp>
 #include <layers/gna_layer_info.hpp>
+#include "gna_graph_tools.hpp"
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -167,7 +168,182 @@ void Validator::ThrowIfNotEmpty(const std::string prefix, const std::string erro
 
 } // namespace Cnn2D
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
+IE_SUPPRESS_DEPRECATED_START
+static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage) {
+    LayerInfo info(layer);
+    auto concat_layer = info.as<InferenceEngine::ConcatLayer*>();
+    IE_ASSERT(concat_layer);
+    auto dims_size = concat_layer->insData[0].lock()->getDims().size();
+    auto in_dims = concat_layer->insData[0].lock()->getDims();
+    auto concat_axis = concat_layer->_axis;
+
+    if (dims_size >= 2) {
+        InferenceEngine::CNNLayerPtr prev_layer, pre_prev_layer;
+        // Skip all convolutions in this check, they will be handled during concat primitive creation
+        auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
+            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
+                (LayerInfo(ptr).isPermute() && ((ptr->input()->getLayout() == InferenceEngine::Layout::NCHW &&
+                    ptr->GetParamAsInts("order") == GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) ||
+                    (ptr->input()->getLayout() == InferenceEngine::Layout::CHW &&
+                        ptr->GetParamAsInts("order") == std::vector<int32_t>{0, 2, 1} /* NCW to NWC */))));
+        };
+
+        for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+            prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(layer, input_idx, isFusableWithConv);
+            if (prev_layer && LayerInfo(prev_layer).isConvolution())
+                return true;
+        }
+
+        // Look for trivial cases which will be flattened later
+        // for explanation of what is meant by trivial case,
+        // look to FlattenTrivialConcatPass comments
+        // TODO: detection of trivial cases could be moved to one common place
+        // when all transformations are migrated to ngraph
+        bool is_not_trivial_concat = false;
+
+        // Concatentaion of consts and input parameters only is supported, even if first dimentsion of input parameter > 1
+        bool concat_all_const_or_inputs = false;
+
+        // If concat axis > 0, detect any dimension > 1 before the concat axis
+        if (concat_axis > 0) {
+            for (auto axis = 0; axis < concat_axis; axis++) {
+                if (in_dims[axis] > 1) {
+                    is_not_trivial_concat = true;
+                    break;
+                }
+            }
+        // If concat axis == 0, detect any preceding functional layer's input
+        // with 0'th dimension > 1, but take into account that some layers need to be skipped
+        } else {
+            concat_all_const_or_inputs = true;
+
+            for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+                if (concat_layer->insData[input_idx].lock()->getDims()[0] != 1) {
+                    // First we're checking concat input layers
+                    prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(concat_layer, input_idx,
+                        [](InferenceEngine::CNNLayerPtr ptr) {
+                            return LayerInfo(ptr).isNonFunctional() || LayerInfo(ptr).isFakeQuantize();
+                        });
+
+                    IE_ASSERT(prev_layer);
+
+                    if (LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] == 1 ||
+                        LayerInfo(prev_layer).isConst()) {
+                        continue;
+                    } else if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] != 1)) {
+                        is_not_trivial_concat = true;
+                        break;
+                    }
+
+                    // If it's not clear still if concat is supported,
+                    // we're moving one more layer back to see the dimensions
+                    pre_prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(prev_layer, 0,
+                        [](InferenceEngine::CNNLayerPtr ptr) {
+                            return LayerInfo(ptr).isNonFunctional() || LayerInfo(ptr).isFakeQuantize() ||
+                                LayerInfo(ptr).isSplit();
+                        });
+
+                    IE_ASSERT(pre_prev_layer);
+
+                    if (LayerInfo(pre_prev_layer).isConst()) {
+                        continue;
+                    }
+
+                    concat_all_const_or_inputs = false;
+
+                    if (LayerInfo(pre_prev_layer).isInput() && pre_prev_layer->outData[0]->getDims()[0] == 1)
+                        continue;
+
+                    if (pre_prev_layer->outData[0]->getDims()[0] != 1) {
+                        is_not_trivial_concat = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // This is a trivial concat or it isn't a 'not trivial one' :-)
+        // it can be flattened and we're allowing it
+        if (!is_not_trivial_concat || concat_all_const_or_inputs)
+            return true;
+
+        // For interleaved inputs start checking from axis 1
+        // and allow concatenation on axis 0 only when all other dimesions = 1
+        std::rotate(in_dims.begin(), in_dims.begin() + 1, in_dims.end());
+        concat_axis == 0 ? concat_axis = dims_size - 1 : concat_axis--;
+
+        // Looking for any axis with dimension > 1 before concatentaion axis;
+        // in general such concatenation is unsupported
+        auto end_dim = in_dims.begin() + concat_axis;
+        auto unsupported_concat_axis = std::find_if(in_dims.begin(), end_dim, [](const size_t& in_dim) {
+            return (in_dim > 1);
+            });
+
+        if (unsupported_concat_axis != end_dim) {
+            auto dims = concat_layer->insData[0].lock()->getDims();
+            std::ostringstream in_dims_oss;
+            std::copy(dims.begin(), dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
+            errMessage = "[ WARNING ] Topology with layer: " + layer->name + ", type: " + layer->type +
+                ", and concatenation axis(" + std::to_string(concat_layer->_axis) +
+                ") for input dimensions(" + in_dims_oss.str() + ") not supported\n";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
+    IE_ASSERT(concat_layer);
+    auto dims_size = concat_layer->insData[0].lock()->getDims().size();
+
+    if (dims_size >= 2) {
+        InferenceEngine::CNNLayerPtr prev_layer;
+
+        // Skipping here all layers which would disappear or otherwise fuse with convolution in the final GNA graph
+        auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
+            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional());
+        };
+
+        auto in_dims = concat_layer->insData[0].lock()->getDims();
+        auto concat_axis = concat_layer->_axis;
+        auto concat_layout = concat_layer->input()->getLayout();
+
+        for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+            // Supported cases for concatenation of a convolution
+            prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(concat_layer, input_idx, isFusableWithConv);
+            if (prev_layer && LayerInfo(prev_layer).isConvolution()) {
+                // Allow concatenation along N axis for non-interleaved primitives
+                // (currently only convolution)
+                if (concat_layer->_axis == 0)
+                    break;
+
+                // Convert dims to NHWC layout to allow later verification
+                auto new_order = GetPermuteOrder(concat_layout, InferenceEngine::Layout::NHWC);
+                InferenceEngine::SizeVector new_dims;
+                for (size_t i = 0; i < dims_size; ++i) {
+                    new_dims.push_back(in_dims[new_order[i]]);
+                }
+                concat_axis = GetPermuteOrder(InferenceEngine::Layout::NHWC, concat_layout)[concat_axis];
+
+                // Looking for any axis with dimension > 1 before concatentaion axis;
+                // in general such concatenation is unsupported
+                auto end_dim = new_dims.begin() + concat_axis;
+                auto unsupportedconcat_axis = std::find_if(new_dims.begin(), end_dim, [](const size_t& inDim) {
+                    return (inDim > 1);
+                    });
+
+                if (unsupportedconcat_axis != end_dim) {
+                    return false;
+                }
+
+                break;
+            }
+        }
+    }
+    return true;
+}
+
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning) {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
@@ -197,32 +373,36 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
         startLayer = secondLayers.begin()->second;
     }
     auto batch_size = network.getBatchSize();
-
     bool check_result = true;
     InferenceEngine::details::UnorderedDFS(allLayers,
                                            startLayer,
                                            [&](const InferenceEngine::CNNLayerPtr layer) {
+                                               LayerInfo info(layer);
                                                if (GNAPluginNS::LayerTypeFromStr(layer->type) == GNAPluginNS::LayerType::NO_TYPE) {
                                                    errMessage = "The plugin does not support layer: " + layer->name + ":" + layer->type + "\n";
                                                    check_result =  false;
                                                }
-                                               if (batch_size != 1 && GNAPluginNS::LayerInfo::isBatchSizeConstrained(layer->type)) {
+                                               if (batch_size != 1 && info.isBatchSizeConstrained()) {
                                                    errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
                                                                 ", and batch size(" + std::to_string(batch_size) + ") != 1 not supported";
                                                    check_result =  false;
                                                }
-                                               if (GNAPluginNS::LayerInfo(layer).isFullyConnected()) {
-                                                   size_t output_batch_size = GNAPluginNS::LayerInfo(layer).getOutputBatchSize();
+                                               if (info.isFullyConnected()) {
+                                                   size_t output_batch_size = info.getOutputBatchSize();
                                                    if (output_batch_size > 8) {
-                                                        errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
-                                                                     ", and batch size(" + std::to_string(output_batch_size) + ") not supported";
-                                                        check_result =  false;
+                                                       errMessage = "topology with layer: " + layer->name + ", type: " + layer->type +
+                                                           ", and batch size(" + std::to_string(output_batch_size) + ") not supported";
+                                                       check_result = false;
+                                                   }
+                                               } else if (info.isConcat()) {
+                                                   if (!ValidateConcatAxis(layer, errMessage) && userWarning) {
+                                                       std::cout << errMessage;
                                                    }
                                                }
                                            }, false);
-    IE_SUPPRESS_DEPRECATED_END
     return check_result;
 }
+IE_SUPPRESS_DEPRECATED_END
 
 } // namespace GNALimitations
 } // namespace GNAPluginNS

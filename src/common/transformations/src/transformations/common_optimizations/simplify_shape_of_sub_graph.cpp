@@ -20,7 +20,10 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedShapeOf, "SharedShapeOf", 0);
 
-bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Function> f) {
+static constexpr size_t index_for_int32 = 0;
+static constexpr size_t index_for_int64 = 1;
+
+bool ngraph::pass::SharedShapeOf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SharedShapeOf);
     bool graph_rewritten = false;
 
@@ -29,7 +32,7 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
             if (auto sub_graph = sub_graph_node->get_function())
-                graph_rewritten |= run_on_function(sub_graph);
+                graph_rewritten |= run_on_model(sub_graph);
 
         if (ov::is_type<ngraph::opset1::ShapeOf>(node) || ov::is_type<ngraph::opset3::ShapeOf>(node))
             source_to_shape_of[node->input_value(0)].push_back(node);
@@ -38,10 +41,21 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
     for (const auto& pair : source_to_shape_of) {
         if (pair.second.size() < 2)
             continue;
-        const auto& root_ss = pair.second[0];
-        for (const auto& child_ss : pair.second)
-            if (root_ss->get_instance_id() != child_ss->get_instance_id() && root_ss->get_output_element_type(0) == root_ss->get_output_element_type(0))
-                graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
+
+        NodeVector nodes_for_different_types[2];
+        for (const auto& child : pair.second) {
+            const auto& type_of_output = child->get_output_element_type(0);
+            size_t index = (type_of_output == element::i32) ? index_for_int32 : index_for_int64;
+            nodes_for_different_types[index].push_back(child);
+        }
+        for (const auto& v : nodes_for_different_types) {
+            if (v.empty())
+                continue;
+            const auto& root_ss = v[0];
+            for (const auto& child_ss : v)
+                if (root_ss->get_instance_id() != child_ss->get_instance_id())
+                    graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
+        }
     }
     return graph_rewritten;
 }
@@ -60,20 +74,31 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
         while (inputs.size() > i + 1) {
             auto curr = inputs[i].get_node_shared_ptr(), next = inputs[i + 1].get_node_shared_ptr();
             if (curr->get_type_info() != next->get_type_info() ||
-                (!ov::is_type<opset1::Gather>(curr) && !ov::is_type<opset7::Gather>(curr)) ||
+                (!ov::is_type<opset1::Gather>(curr) && !ov::is_type<opset7::Gather>(curr) && !ov::is_type<opset8::Gather>(curr)) ||
                 (curr->input_value(0) != next->input_value(0))) {
                 ++i;
                 continue;
             } // curr and next are the same type of gather which takes data from the same source
-            bool is_opset1 = ov::is_type<opset1::Gather>(curr);
             auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(OutputVector{curr->input_value(1), next->input_value(1)}, 0);
             std::shared_ptr<Node> new_gather;
-            if (is_opset1)
+            if (ov::is_type<opset1::Gather>(curr)) {
                 new_gather = register_new_node<ngraph::opset1::Gather>(
-                    curr->input_value(0), joint_indices->output(0), ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
-            else
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+            } else if (ov::is_type<opset7::Gather>(curr)) {
                 new_gather = register_new_node<ngraph::opset7::Gather>(
-                        curr->input_value(0), joint_indices->output(0), ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+            } else if (ov::is_type<opset8::Gather>(curr)) {
+                new_gather = register_new_node<ngraph::opset8::Gather>(
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ngraph::opset1::Constant::create(element::i64, {}, {0})->output(0));
+            } else {
+                OPENVINO_UNREACHABLE("Unexpected Gather version");
+            }
             new_ops.push_back(joint_indices);
             new_ops.push_back(new_gather);
             inputs.erase(inputs.begin() + i);
@@ -225,8 +250,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
         auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
             auto shape_of = gather->get_input_node_shared_ptr(0);
-            if ((!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) ||
-                (shape_of->get_output_target_inputs(0).size() > 1)) {
+            if (!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) {
                 return false;
             }
             return shape_of->input_value(0) == data;
@@ -290,7 +314,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSubGraph", 0);
 
-bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
