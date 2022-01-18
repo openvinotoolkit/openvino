@@ -410,7 +410,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
 
                 auto nextLayers = CNNNetGetAllNextLayersSkipCertain(cnnLayer, -1, donotSkip);
                 for (auto &l : nextLayers) {
-                    auto nextQuantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*l);
+                    auto nextQuantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*l.first);
                     if (nextQuantParams->_src_quant.IsStatsSet()) {
                         quantizedParams->_dst_quant.CopyStats(nextQuantParams->_src_quant);
                         quantizedParams->_src_quant.CopyStats(nextQuantParams->_src_quant);
@@ -419,7 +419,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
 
                     // Take output statistics only if a next layer does not modify input values
                     if (nextQuantParams->_dst_quant.IsStatsSet() &&
-                        (LayerInfo(l).isNonFunctional() || LayerInfo(l).isMemory())) {
+                        (LayerInfo(l.first).isNonFunctional() || LayerInfo(l.first).isMemory())) {
                         quantizedParams->_dst_quant.CopyStats(nextQuantParams->_dst_quant);
                         quantizedParams->_src_quant.CopyStats(nextQuantParams->_dst_quant);
                         break;

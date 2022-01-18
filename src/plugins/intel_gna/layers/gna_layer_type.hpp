@@ -87,7 +87,7 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         { "Abs", Abs },
         { "SoftSign", SoftSign },
         { "FakeQuantize", FakeQuantize },
-        {"Gemm", Gemm},
+        { "Gemm", Gemm },
 };
 
 GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);

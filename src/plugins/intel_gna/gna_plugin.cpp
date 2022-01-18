@@ -1074,7 +1074,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
             std::vector<intel_dnn_orientation_t> orientations;
             for (auto &nextLayer : nextLayers) {
-                auto dnnLayer = graphCompiler.dnnComponents.findComponent(nextLayer);
+                auto dnnLayer = graphCompiler.dnnComponents.findComponent(nextLayer.first);
                 // non functional layer - skipped by gna
                 if (nullptr == dnnLayer) {
                     THROW_GNA_LAYER_EXCEPTION(inputLayer) << " gna mapped layer search connection failed";

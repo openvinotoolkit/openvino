@@ -144,47 +144,33 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     for (size_t i = 0; i < layer->outData.size(); ++i) {
         size_t padding = 0;
         size_t output_layer_size = 0;
+        auto precision_size = layer->outData[i]->getPrecision().size();
 
-        for (int j = 0; j != getInputTo(layer->outData[i]).size(); j++) {
-            auto outFunctionalLayer = CNNNetCheckNextLayerSkipCertain(layer, i, j, true, [](CNNLayerPtr l) {
-                return LayerInfo(l).isNonFunctional();
-            });
+        // We need to properly increment size in case of unconnected split
+        // or a split ending with non-functional layer
+        output_layer_size =
+                InferenceEngine::details::product(begin(layer->outData[i]->getDims()),
+                                                    end(layer->outData[i]->getDims())) * precision_size;
 
-            if (!outFunctionalLayer.first) {
-                output_layer_size =
-                    InferenceEngine::details::product(begin(layer->outData[i]->getDims()),
-                                                      end(layer->outData[i]->getDims())) * layer->outData[i]->getPrecision().size();
-                continue;
-            }
+        auto allFunctionalLayersConns = CNNNetGetAllNextLayersSkipCertain(layer, i, [](CNNLayerPtr l) {
+            return LayerInfo(l).isNonFunctional();
+        });
 
+        for (auto &&outFunctionalLayer : allFunctionalLayersConns) {
             for (int idx : outFunctionalLayer.second) {
-                auto dataOutput = outFunctionalLayer.first->insData[idx].lock();
-
-                padding = std::max(padding, LayerInfo(outFunctionalLayer.first).paddingSize())
-                                                            * dataOutput->getPrecision().size();
-                output_layer_size =
-                        InferenceEngine::details::product(begin(dataOutput->getDims()),
-                                                        end(dataOutput->getDims())) * dataOutput->getPrecision().size();
-
+                padding = std::max(padding, LayerInfo(outFunctionalLayer.first).paddingSize()) * precision_size;
                 if (LayerInfo(outFunctionalLayer.first).isConvolutionFilter()) {
                     size_t aligned64_offset = outFunctionalLayer.first->GetParamAsInt("offset");
                     layerInfoItem.splitOutputLayers.emplace_back(
                         outFunctionalLayer.first,
                         idx,
-                        aligned64_offset * dataOutput->getPrecision().size(),
+                        aligned64_offset * precision_size,
                         output_layer_size);
                 } else {
                     layerInfoItem.splitOutputLayers.emplace_back(
                         outFunctionalLayer.first, idx, split_size, output_layer_size);
                 }
-             }
-        }
-
-        // in case of unconnected split - we need properly increment size
-        if (getInputTo(layer->outData[i]).empty()) {
-            output_layer_size =
-                    InferenceEngine::details::product(begin(layer->outData[i]->getDims()),
-                                                      end(layer->outData[i]->getDims())) * layer->outData[i]->getPrecision().size();
+            }
         }
 
         split_size += padding + output_layer_size;

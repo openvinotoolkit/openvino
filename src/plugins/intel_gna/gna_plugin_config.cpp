@@ -208,7 +208,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             if (value == PluginConfigParams::LOG_WARNING || value == PluginConfigParams::LOG_NONE) {
                 gnaFlags.log_level = value;
             } else {
-                log << "Currently only LOG_LEVEL = LOG_WARNING or LOG_NONE is supported, not " << value;
+                log << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
                 THROW_GNA_EXCEPTION << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
             }
         } else {

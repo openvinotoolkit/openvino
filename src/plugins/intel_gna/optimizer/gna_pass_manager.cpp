@@ -1302,7 +1302,7 @@ void InsertSplitAligningFilterPass::run() {
         });
         size_t padding = 0;
         for (auto &&outFunctionalLayer : outFunctionalLayers) {
-            padding = std::max(padding, LayerInfo(outFunctionalLayer).paddingSize());
+            padding = std::max(padding, LayerInfo(outFunctionalLayer.first).paddingSize());
         }
 
         size_t currentOffset = 0;
@@ -1813,14 +1813,14 @@ void FuseMultipleIdentitiesPass::run() {
         if (!LayerInfo(prevLayer).has32BOutput())
             continue;
 
-        std::vector<CNNLayerPtr> resultSet = CNNNetGetAllNextLayersSkipCertain(prevLayer, outDataIdx, isNonFunctional);
+        auto resultSet = CNNNetGetAllNextLayersSkipCertain(prevLayer, outDataIdx, isNonFunctional);
 
         // now result set should have all needed layers
         // checking that result set consist of already identity
         CNNLayerPtr  alreadyIdentity;
         for (auto &&res : resultSet) {
-            if (LayerInfo(res).isIdentity()) {
-                alreadyIdentity = res;
+            if (LayerInfo(res.first).isIdentity()) {
+                alreadyIdentity = res.first;
                 break;
             }
         }
@@ -2037,7 +2037,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer, -1, skipNonFunctional);
         for (auto& l : nextLayers) {
-            if (!LayerInfo(l).isActivation()) {
+            if (!LayerInfo(l.first).isActivation()) {
                 return false;
             }
         }
@@ -2086,7 +2086,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             !LayerInfo(layer).isActivation() && !LayerInfo(layer).isFakeQuantize()) {
             auto doNotSetDstStats = false;
             for (auto& l : nextLayers) {
-                if (LayerInfo(l).isFakeQuantize()) {
+                if (LayerInfo(l.first).isFakeQuantize()) {
                     doNotSetDstStats = true;
                     continue;
                 }
@@ -2099,11 +2099,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             quantParams->_dst_quant.CopyStats(quantParams->_src_quant);
 
             for (auto& l : nextLayers) {
-                if (LayerInfo(l).isFakeQuantize()) {
+                if (LayerInfo(l.first).isFakeQuantize()) {
                     continue;
                 }
 
-                propagateStatistics(quantParams, l);
+                propagateStatistics(quantParams, l.first);
             }
         }
     };
@@ -2195,18 +2195,18 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // and propagate quantization data
         for (size_t i = 0; i < nextLayers.size(); ++i) {
             if (isFQFuseAllowed) {
-                auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
+                auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i].first);
                 if (insDatas.empty()) {
                     THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
-                        << LAYER_NAME(nextLayers[i]) << " is not correct";
+                        << LAYER_NAME(nextLayers[i].first) << " is not correct";
                 }
                 for (int insDataIdx : insDatas) {
-                    nextLayers[i]->insData[insDataIdx] = prevData;
+                    nextLayers[i].first->insData[insDataIdx] = prevData;
                 }
-                getInputTo(prevData)[nextLayers[i]->name] = nextLayers[i];
+                getInputTo(prevData)[nextLayers[i].first->name] = nextLayers[i].first;
             }
 
-            propagateStatistics(quantParamsPrevLayer, nextLayers[i]);
+            propagateStatistics(quantParamsPrevLayer, nextLayers[i].first);
         }
     }
 }

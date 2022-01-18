@@ -8,10 +8,7 @@
 
 #include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
 namespace testing {

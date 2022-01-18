@@ -196,12 +196,13 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>  CNNNetCheckNex
  * @param layer
  * @param oDataIdx - -1 means iterate over all odata indexes
  * @param shouldSkip
- * @return
+ * @return vector of pairs containing all found layers and for each layer a vector of input indexes to previous layer
  */
     template <class Layer>
-    inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer, int oDataIdx, const std::function<bool(CNNLayerPtr)> &shouldSkip)  {
+    inline std::vector<std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>> CNNNetGetAllNextLayersSkipCertain(Layer layer,
+        int oDataIdx, const std::function<bool(CNNLayerPtr)> &shouldSkip)  {
         std::list<CNNLayerPtr> currentSet;
-        std::vector<CNNLayerPtr> resultSet;
+        std::vector<std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>> resultSet;
 
         std::vector<std::map<std::string, CNNLayerPtr>> start;
         if (oDataIdx == -1) {
@@ -212,13 +213,15 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>  CNNNetCheckNex
             start.push_back(getInputTo(layer->outData[oDataIdx]));
         }
 
-        auto separate_layers = [&currentSet, &resultSet, &shouldSkip](std::map<std::string, CNNLayerPtr>& inputTo) {
+        auto separate_layers = [&currentSet, &resultSet, &shouldSkip](auto outData) {
+            auto inputTo = getInputTo(outData);
             for (auto &&bfsLayer : inputTo) {
                 if (shouldSkip(bfsLayer.second)) {
                     currentSet.push_back(bfsLayer.second);
                     continue;
                 }
-                resultSet.push_back(bfsLayer.second);
+                auto insDataIdx = CNNLayerFindInsDataIdxes(outData, bfsLayer.second);
+                resultSet.push_back({bfsLayer.second, insDataIdx});
             }
         };
 
@@ -232,7 +235,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>  CNNNetCheckNex
         }
 
         for (int i = startIdx; i != endIdx; i++) {
-            separate_layers(getInputTo(layer->outData[i]));
+            separate_layers(layer->outData[i]);
         }
 
         std::set< CNNLayerPtr > visited;
@@ -243,8 +246,8 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>  CNNNetCheckNex
                 continue;
             }
             visited.insert(currentLayer);
-            for (auto && oData : currentLayer->outData) {
-                separate_layers(getInputTo(oData));
+            for (auto && outData : currentLayer->outData) {
+                separate_layers(outData);
             }
         }
         return resultSet;
@@ -279,7 +282,7 @@ inline std::pair<DataPtr, std::map<std::string, CNNLayerPtr>::iterator> CNNLayer
     auto oDataIdx  = CNNLayerFindOutDataIdx(layer, insDataIdx);
     auto prevLayer = CNNNetPrevLayer(layer, insDataIdx);
     auto oData = prevLayer->outData[oDataIdx];
-    for (auto inputTo  = getInputTo(oData).begin();
+    for (auto inputTo = getInputTo(oData).begin();
     inputTo != getInputTo(oData).end();
     inputTo++) {
         if (inputTo->second == layer) {
