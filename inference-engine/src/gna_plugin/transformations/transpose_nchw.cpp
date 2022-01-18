@@ -78,7 +78,7 @@ bool DoTransformation(Node convolution)
     const ngraph::Shape convolution_input_shape = convolution_node->get_input_shape(0);
     const ngraph::Shape convolution_out_shape = convolution_node->get_output_shape(0);
 
-    if (convolution_input_shape.size() < 3 || convolution_input_shape.size() > 5)
+   if (convolution_input_shape.size() != 4)
         return false;
 
     const ngraph::Shape transpose_before_order = GenerateTransposeOrderNCHW2NHWC(convolution_input_shape.size());
@@ -86,8 +86,6 @@ bool DoTransformation(Node convolution)
     auto transpose_const = ngraph::opset8::Constant::create(ngraph::element::i64,
                                                             ngraph::Shape{transpose_before_order.size()},
                                                             transpose_before_order);
-
-    EMUTEX_DEBUG_VAL(transpose_before_order);
 
     auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(convolution_input_data_node,
                                                                         transpose_const);
