@@ -6,8 +6,7 @@ import numpy as np
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, compatible_dims, \
     undefined_shape_of_rank, set_input_shapes
 from openvino.tools.mo.front.extractor import bool_to_str
-from openvino.tools.mo.graph.graph import Graph
-from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.error import Error
 
@@ -109,9 +108,17 @@ class DetectionOutput(Op):
 
     @staticmethod
     def reverse_infer(node):
-        set_input_shapes(node,
-                         undefined_shape_of_rank(2),
-                         undefined_shape_of_rank(2),
-                         undefined_shape_of_rank(3),
-                         undefined_shape_of_rank(2),
-                         undefined_shape_of_rank(2))
+        num_in_ports = len(node.in_ports())
+        assert num_in_ports in [3, 6], 'incorrect number of input ports for DetectionOutput node {}'.format(node.soft_get('name', node.id))
+        if num_in_ports == 3:
+            set_input_shapes(node,
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(3))
+        elif num_in_ports == 6:
+            set_input_shapes(node,
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(3),
+                             undefined_shape_of_rank(2),
+                             undefined_shape_of_rank(2))

@@ -5,7 +5,8 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value, reverse_bypass_infer
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value, \
+    set_input_shapes, undefined_shape_of_rank
 from openvino.tools.mo.front.extractor import bool_to_str
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
@@ -120,9 +121,4 @@ class NonMaxSuppression(Op):
 
     @staticmethod
     def reverse_infer(node):
-        in_shape_1 = node.in_port(0).data.get_shape()
-        in_shape_2 = node.in_port(1).data.get_shape()
-        if in_shape_1 is None:
-            node.in_port(0).data.set_shape(undefined_shape_of_rank(3))
-        if in_shape_2 is None:
-            node.in_port(1).data.set_shape(undefined_shape_of_rank(3))
+        set_input_shapes(node, undefined_shape_of_rank(3), undefined_shape_of_rank(3))

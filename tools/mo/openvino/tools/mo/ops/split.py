@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension, shape_delete, \
-    clarify_partial_shape
+    clarify_partial_shape, shape_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op, PermuteAttrs
@@ -118,32 +118,8 @@ class VariadicSplitBase(Op):
         split_lengths = node.in_port(2).data.get_value() if node.op == 'VariadicSplit' else node.soft_get('split_lengths', None)
         assert split_lengths is not None, '{} `split_lengths` is unknown for node {}'.format(node.op, node.soft_get('name', node.id))
 
-        shapes = []
-        splited_dim_size = 0
-        for i in range(len(split_lengths)):
-            shape = node.out_port(i).data.get_shape()
-            if shape is not None:
-                shapes.append(shape)
-            else:
-                # if at least one output shape is None/undefined we cannot define
-                # exact value of shape along axis
-                splited_dim_size = dynamic_dimension
-                continue
-
-            # if input is splitted into several outputs, e.g.
-            # out_shape_1 = [dyn, 4, 3], out_shape_2 = [7, dyn, 3], axis = 2
-            # to get the original source shape [7, 4, 6]
-            # dimensions of axis = 2 must be summed while
-            # for other dimensions clarify_partial_shape should be called
-            splited_dim_size += shapes[-1][axis]
-            shapes[-1][axis] = dynamic_dimension
-
-        if len(shapes) == 0:
-            return
-
-        precise_pshape = clarify_partial_shape(shapes)
-        precise_pshape[axis] = splited_dim_size
-        node.in_port(0).data.set_shape(precise_pshape)
+        if node.in_port(0).data.get_value() is None:
+            split_reverse_infer(node, len(split_lengths), axis)
 
 
 class VariadicSplit(VariadicSplitBase):
@@ -257,32 +233,8 @@ class SplitBase(Op):
         assert hasattr(node, 'num_splits')
         axis = node.in_port(1).data.get_value() if node.op == 'Split' else node.soft_get('axis', None)
         assert axis is not None, '{} `axis` is unknown for node {}'.format(node.op, node.soft_get('name', node.id))
-
-        shapes = []
-        splited_dim_size = 0
-        for i in range(node['num_splits']):
-            shape = node.out_port(i).data.get_shape()
-            if shape is not None:
-                shapes.append(shape)
-            else:
-                # if at least one output shape is None/undefined we cannot define
-                # exact value of shape along axis
-                splited_dim_size = dynamic_dimension
-                continue
-
-            # if input is splitted into several outputs, e.g.
-            # out_shape_1 = [dyn, 4, 3], out_shape_2 = [7, dyn, 3], axis = 2
-            # to get the original source shape [7, 4, 6]
-            # dimensions of axis = 2 must be summed while
-            # for other dimensions clarify_partial_shape should be called
-            splited_dim_size += shapes[-1][axis]
-            shapes[-1][axis] = dynamic_dimension
-
-        if len(shapes) == 0:
-            return
-        precise_shape = clarify_partial_shape(shapes)
-        precise_shape[axis] = splited_dim_size
-        node.in_port(0).data.set_shape(precise_shape)
+        if node.in_port(0).data.get_value() is None:
+            split_reverse_infer(node, node['num_splits'], axis)
 
 
 class Split(SplitBase):
@@ -337,3 +289,32 @@ class AttributedSplit(SplitBase):
 
     def supported_attrs(self):
         return ['num_splits', 'axis']
+
+
+def split_reverse_infer(node: Node, num_splits: int, axis: int):
+    aggregated_size_along_axis = 0
+    shapes = []
+    for i in range(num_splits):
+        shape = node.out_port(i).data.get_shape()
+        if shape is not None:
+            # if out_shape_1 = [dyn, 4, 3], out_shape_2 = [7, dyn, 3], axis = 2
+            # to get the original source shape [7, 4, 6]
+            # dimensions along axis must be summed while
+            # for other dimensions clarify_partial_shape should be called
+            aggregated_size_along_axis += shape[axis]
+            # in order to be able to call clarify_partial_shape axis dimension is masked into dynamic
+            shape[axis] = dynamic_dimension
+            shapes.append(shape_array(shape))
+        else:
+            # if at least one output shape is None/undefined
+            # set value of shape along axis into dynamic
+            # dynamic_dimension + static_value = dynamic_dimension
+            aggregated_size_along_axis = dynamic_dimension
+            continue
+
+    if len(shapes) == 0:
+        return
+
+    res_partial_shape = clarify_partial_shape(shapes)
+    res_partial_shape[axis] = aggregated_size_along_axis
+    node.in_port(0).data.set_shape(res_partial_shape)

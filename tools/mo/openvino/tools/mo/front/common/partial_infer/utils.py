@@ -316,7 +316,7 @@ def is_dynamic_slice(s: [slice, int, None]):
                                      s.step is dynamic_dimension)
 
 
-def reverse_bypass_infer(node, in_ports: List[int] = None):
+def reverse_bypass_infer(node, in_ports: List[int]):
     """
     Copies shapes from the out_port 0 into ports specified in the in_ports
 
@@ -325,23 +325,24 @@ def reverse_bypass_infer(node, in_ports: List[int] = None):
     :param in_ports: input ports for which shape will be updated
     :return:
     """
-    if in_ports is None:
-        in_ports = [0]
+    assert node.is_out_port_connected(0)
 
     output_shape = node.out_port(0).data.get_shape()
     if output_shape is not None:
         for port in in_ports:
+            assert node.is_in_port_connected(port)
             if node.in_port(port).data.get_shape() is None:
                 node.in_port(port).data.set_shape(output_shape)
 
 
-def clarify_partial_shape(shapes):
+def clarify_partial_shape(shapes: List):
     """
     returns more precise partial shape from a set of partial shapes,
     e.g. pshape_1 = [dyn, 2, dyn], pshape_2 = [10, dyn, dyn] => out_shape = [10, 2, dyn]
     :param shapes:
     :return:
     """
+    assert len(shapes) > 0
     out_shape = shapes[0]
     for shape in shapes:
         assert compatible_shapes(shape, out_shape), "shapes {} and {} are not compatible".format(
@@ -353,7 +354,9 @@ def clarify_partial_shape(shapes):
     return out_shape
 
 
-def set_input_shapes(node, *shapes):
+def set_input_shapes(node, *shapes: List):
+    assert len(shapes) <= len(node.in_ports())
+    
     for i, shape in enumerate(shapes):
         if node.is_in_port_connected(i) and node.in_port(i).data.get_shape() is None:
             node.in_port(i).data.set_shape(shape)
