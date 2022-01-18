@@ -159,11 +159,11 @@ int main(int argc, char* argv[]) {
 
         // Load device config file if specified
         std::map<std::string, std::map<std::string, std::string>> config;
-#ifdef USE_OPENCV
+
         if (!FLAGS_load_config.empty()) {
             load_config(FLAGS_load_config, config);
         }
-#endif
+
         /** This vector stores paths to the processed images with input names**/
         auto inputFiles = parseInputArguments(gflags::GetArgvs());
 
@@ -349,9 +349,6 @@ int main(int argc, char* argv[]) {
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
                 else
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I16";
-
-                if (isFlagSetInCommandLine("nthreads"))
-                    device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
             } else {
                 std::vector<std::string> supported_config_keys =
                     core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
@@ -475,39 +472,58 @@ int main(int argc, char* argv[]) {
             const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
             const auto output_precision = FLAGS_op.empty() ? ov::element::undefined : getPrecision2(FLAGS_op);
 
-            for (auto& item : model->inputs()) {
-                // if precision for input set by user, then set it to app_inputs
-                const auto& name = item.get_any_name();
-                if (user_precisions_map.count(name)) {
-                    const auto precision = getPrecision2(user_precisions_map.at(name));
-                    for (auto& info : app_inputs_info) {
-                        info.at(name).type = precision;
-                    }
-                } else if (input_precision != ov::element::undefined) {
-                    for (auto& info : app_inputs_info) {
-                        info.at(name).type = input_precision;
-                    }
-                } else if (app_inputs_info[0].at(name).isImage()) {
-                    // image input, set U8
-                    for (auto& info : app_inputs_info) {
-                        info.at(name).type = ov::element::u8;
-                    }
+            const auto& inputs = model->inputs();
+            for (int i = 0; i < inputs.size(); i++) {
+                const auto& item = inputs[i];
+                auto iop_precision = ov::element::undefined;
+                auto type_to_set = ov::element::undefined;
+                std::string name;
+                try {
+                    // Some tensors might have no names, get_any_name will throw exception in that case.
+                    // -iop option will not work for those tensors.
+                    name = item.get_any_name();
+                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
+                } catch (...) {
                 }
-                auto& in = preproc.input(name);
-                in.tensor().set_element_type(app_inputs_info[0].at(name).type);
 
-                // Explicitly set inputs layout.
-                in.model().set_layout(app_inputs_info[0].at(name).layout);
+                if (iop_precision != ov::element::undefined) {
+                    type_to_set = iop_precision;
+                } else if (input_precision != ov::element::undefined) {
+                    type_to_set = input_precision;
+                } else if (!name.empty() && app_inputs_info[0].at(name).isImage()) {
+                    // image input, set U8
+                    type_to_set = ov::element::u8;
+                }
+
+                auto& in = preproc.input(item.get_index());
+                if (type_to_set != ov::element::undefined) {
+                    in.tensor().set_element_type(type_to_set);
+
+                    if (!name.empty()) {
+                        for (auto& info : app_inputs_info) {
+                            info.at(name).type = type_to_set;
+                        }
+                    }
+                    // Explicitly set inputs layout.
+                    in.model().set_layout(app_inputs_info[0].at(name).layout);
+                }
             }
 
-            for (auto& item : model->outputs()) {
-                // if precision for input set by user, then set it to app_inputs
-                const auto& name = item.get_any_name();
-                if (user_precisions_map.count(name)) {
-                    const auto precision = getPrecision2(user_precisions_map.at(name));
-                    preproc.output(name).tensor().set_element_type(precision);
+            const auto& outs = model->outputs();
+            for (int i = 0; i < outs.size(); i++) {
+                const auto& item = outs[i];
+                auto iop_precision = ov::element::undefined;
+                try {
+                    // Some tensors might have no names, get_any_name will throw exception in that case.
+                    // -iop option will not work for those tensors.
+                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
+                } catch (...) {
+                }
+
+                if (iop_precision != ov::element::undefined) {
+                    preproc.output(i).tensor().set_element_type(iop_precision);
                 } else if (output_precision != ov::element::undefined) {
-                    preproc.output(name).tensor().set_element_type(output_precision);
+                    preproc.output(i).tensor().set_element_type(output_precision);
                 }
             }
 
@@ -1031,12 +1047,10 @@ int main(int argc, char* argv[]) {
         // -------------------------------------------------------------
         next_step();
 
-#ifdef USE_OPENCV
         if (!FLAGS_dump_config.empty()) {
             dump_config(FLAGS_dump_config, config);
             slog::info << "Inference Engine configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
         }
-#endif
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {

@@ -165,7 +165,7 @@ public:
         std::stringstream target_impl_type_ss;
         target_impl_type_ss << target_impl_type;
         throw std::runtime_error(std::string("implementation_map for ") + typeid(primitive_kind).name() +
-                                    "could not find any implementation to match key: " +
+                                    " could not find any implementation to match key: " +
                                     get_key_name(key) + ", impl_type: " + target_impl_type_ss.str() + ", node_id: " + primitive.id());
     }
 
