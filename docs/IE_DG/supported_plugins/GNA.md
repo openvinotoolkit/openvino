@@ -450,7 +450,7 @@ In future releases, it will be changed to a more meaningful status code.
 Any application working with GNA must properly react to this code.
 One of the strategies to adapt an application:
 
-1. Immediately switch to the GNA_SW emulation mode:
+1. Immediately switch to the GNA_SW_EXACT emulation mode:
 @sphinxdirective
 .. tab:: C++
 

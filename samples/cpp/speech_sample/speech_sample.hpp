@@ -265,12 +265,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
                                                  "GNA_HW",
                                                  "GNA_HW_WITH_SW_FBACK",
                                                  "GNA_SW_EXACT",
-                                                 "GNA_SW",
                                                  "GNA_SW_FP32",
                                                  "HETERO:GNA,CPU",
                                                  "HETERO:GNA_HW,CPU",
                                                  "HETERO:GNA_SW_EXACT,CPU",
-                                                 "HETERO:GNA_SW,CPU",
                                                  "HETERO:GNA_SW_FP32,CPU",
                                                  "MYRIAD"};
 

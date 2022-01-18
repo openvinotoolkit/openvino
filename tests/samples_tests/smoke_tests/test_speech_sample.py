@@ -26,7 +26,7 @@ test_data = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.ark')],
                                            'o': ['res_output.ark'],
                                            'r': [os.path.join('ark', 'dev93_scores_10.ark')],
                                            'qb': [8, 16],
-                                           'd': ['GNA_SW']},
+                                           'd': ['GNA_SW_EXACT']},
                                use_device=False
                                )
 
