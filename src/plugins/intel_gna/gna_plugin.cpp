@@ -769,7 +769,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         UpdateInputScaleFromNetwork(network);
     }
 
-    if (MustBeConvertedFromNCHWToNHWC(details::CNNNetSortTopologically(network))) {
+    if (MustBeConvertedFromNCHWToNHWC(CNNNetSortTopologically(network))) {
         FillInputsAndOutputsTranspositionInfo(network);
     }
 
