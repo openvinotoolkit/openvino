@@ -26,7 +26,7 @@ TEST_MODELS_DEFAULT = [
     ('mobilenet-v1-1.0-224-tf', 'tf', 'FP32', {
         'performance': {'accuracy@top1': 0.70896, 'accuracy@top5': 0.89792},
         'mixed': {'accuracy@top1': 0.70922, 'accuracy@top5': 0.89806}}),
-    ('mobilenet-v2-pytorch', 'pytorch', 'FP32', {
+    ('mobilenet-v2-pytorch', 'pytorch', 'FP16', {
         'performance': {'accuracy@top1': 0.71552, 'accuracy@top5': 0.90222},
         'mixed': {'accuracy@top1': 0.71512, 'accuracy@top5': 0.90172}}),
     ('resnet-50-pytorch', 'pytorch', 'FP32', {
