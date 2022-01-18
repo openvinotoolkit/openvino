@@ -475,6 +475,7 @@ set(OP_EVAL_TEST_SRC
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
+    op_eval/loop.cpp
     op_eval/matmul.cpp
     op_eval/memory.cpp
     op_eval/mish.cpp
