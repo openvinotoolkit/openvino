@@ -33,6 +33,7 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {
         { { {3}, false }, { {2, 2, 3, 1}, false } },
         { { {3}, false }, { {2, 2, 1, 3}, true } },
         { { {2, 2, 1, 3}, false }, { {3}, false } },
+        { { {1, 15, 3}, false }, { {2, 3, 17}, false } },
         { { {1, 1}, false }, { {1, 4}, false } },
         { { {1, 4}, false }, { {4, 5}, false } },
         { { {2, 1}, false }, { {1, 16}, false } },

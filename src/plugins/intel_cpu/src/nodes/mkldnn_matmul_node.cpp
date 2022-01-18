@@ -93,7 +93,7 @@ struct jit_uni_small_matmul_kernel_f32 : public jit_uni_matmul_kernel, public ji
             body_m();
 
             // strides for batch
-            if (jcp_.stride0 == 0)  // ptr for the first matrix is automatically incremented after each iteration by m,
+            if (jcp_.stride0 != 0)  // ptr for the first matrix is automatically incremented after each iteration by m,
                 sub(reg_src_0, jcp_.stride0 * sizeof(float)); // but if there should be no shift, we return ptr to the previous position
             if (jcp_.stride1 != 0)
                 add(reg_src_1, jcp_.stride1 * sizeof(float));
@@ -864,7 +864,7 @@ void MKLDNNMatMulNode::prepareCustomKernel(const MemoryDescPtr& srcTransposedDes
     inputBatch1 = std::accumulate(srcTransposedDims1.begin(), srcTransposedDims1.begin() + lastBatchIdx1,
                                   1, std::multiplies<size_t>());
 
-    if (inputBatch0 != inputBatch1 && (inputBatch0 != 1 || inputBatch1 != 1))
+    if (inputBatch0 != inputBatch1 && (inputBatch0 != 1 && inputBatch1 != 1))
         return;
 
     if (inputBatch0 != 1 && inputBatch0 == inputBatch1) {
@@ -918,7 +918,7 @@ void MKLDNNMatMulNode::prepareCustomKernel(const MemoryDescPtr& srcTransposedDes
     jep.m = m;
     jep.k = k;
     jep.n = n;
-    jep.stride0 = inputBatch0 > 1 ? m * k : 0;
+    jep.stride0 = inputBatch0 > 1 ? 0 : m * k;
     jep.stride1 = inputBatch1 > 1 ? k * n : 0;
     jep.scalar_product = isAlgorithmWithScalarProduct;
 
