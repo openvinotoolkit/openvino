@@ -78,7 +78,12 @@ class ArangeLikeReplacer(FrontReplacementOp):
             r"""
             First, we generate the correct stop value for Range like new_stop_value = stop_value // repeat + 1.
             Then repeats each value of the interval using Tile. After that we can get a longer interval
-            so we reduce it with Slice 
+            so we reduce it with Slice.
+            
+            Sub-graph after Range node will be look like
+            
+            Range - Reshape([-1, 1]) - Tile([1, repeat]) - Reshape(-1) - Slice
+            
             """
             div_node = create_op_with_const_inputs(graph, Div, {1: int64_array([node.repeat])},
                                                    {'name': name + '/Divide'})
@@ -108,6 +113,8 @@ class ArangeLikeReplacer(FrontReplacementOp):
 
             range_node.out_port(0).get_connection().set_source(slice_node.out_port(0))
             range_node.out_port(0).connect(tile_forward_reshape.in_port(0))
+
+            rename_nodes([(range_node, name + '/Range'), (slice_node, name)])
 
         # MXNet arange_like op has no stop attribute and the result tensor always matches the input shape, so
         # we have to correct the stop value for the Range node if step != 1 or start != 0
