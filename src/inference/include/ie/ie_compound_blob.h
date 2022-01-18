@@ -52,13 +52,13 @@ public:
      * @brief Always returns `0`
      * @return Returns `0`
      */
-    size_t byteSize() const noexcept override;
+    size_t byteSize() const override;
 
     /**
      * @brief Always returns `0`
      * @return Returns `0`
      */
-    size_t element_size() const noexcept override;
+    size_t element_size() const override;
 
     /**
      * @brief No operation is performed. Compound blob does not allocate/deallocate any data
