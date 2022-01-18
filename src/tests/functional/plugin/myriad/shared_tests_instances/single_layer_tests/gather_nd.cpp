@@ -13,10 +13,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::U8,
     InferenceEngine::Precision::FP16,
     InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::I32,
+    InferenceEngine::Precision::I64,
+    InferenceEngine::Precision::U64,
 };
 
 const std::vector<InferenceEngine::Precision> indicesPrecisions = {
     InferenceEngine::Precision::I32,
+    InferenceEngine::Precision::I64,
 };
 
 const std::vector<GatherNDParamsSubset> layerParams = {

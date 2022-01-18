@@ -100,7 +100,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 def get_default_frontends():
     # Set which frontend to use by default, values should be 'new' or 'legacy'
     default_frontends = {
-        'onnx': 'legacy',
+        'onnx': 'new',
         'tf': 'legacy'
     }
     return default_frontends
