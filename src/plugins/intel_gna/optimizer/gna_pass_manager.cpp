@@ -2512,7 +2512,6 @@ void FunctionTracer<GraphFunctionT>::OnNextPassReturn(const std::string& pass_na
 
 } // namespace
 
-
 int PassManager::run(int index) {
 #if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {

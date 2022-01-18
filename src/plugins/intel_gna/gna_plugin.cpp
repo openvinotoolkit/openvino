@@ -89,11 +89,10 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ops/gna_convolution.hpp>
 
+#include "debug_use_new_pass.hpp"
+
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
-
-//#undef DEBUG_USE_NEW_PASS
-#define DEBUG_USE_NEW_PASS 1
 
 inline uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -646,9 +645,6 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 }
 #endif
 
-//#undef DEBUG_USE_NEW_PASS
-#define DEBUG_USE_NEW_PASS 1
-
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
@@ -711,13 +707,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SubstituteSoftsign>();
 
 #ifdef DEBUG_USE_NEW_PASS
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/ngraph_before.png"); // DEBUG
         manager.register_pass<TransposeNCHW>();
-#ifdef DEBUG_USE_NEW_PASS_TRANSPOSE_SINK
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/ngraph_before_transpose_sinking.png"); // DEBUG
+        manager.register_pass<PassDebug>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
-#endif // DEBUG_USE_NEW_PASS_TRANSPOSE_SINK
-        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/ngraph_after.png"); // DEBUG
+        //manager.register_pass<PassDebug>();
 #endif // DEBUG_USE_NEW_PASS
 
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
@@ -759,6 +752,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::Serialize>("/home/ekotov/ngraph_debug/final.xml", "/home/ekotov/ngraph_debug/final.bin"); // DEBUG
         manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/ngraph_final.png"); // DEBUG
         manager.run_passes(graph);
+
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
         isNgraphPassesUsed = true;
     }
@@ -953,6 +947,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     for (auto && input : inputs_data_map_) {
         inputs_ptr_->at(input.first).ptrs.resize(gnaFlags->num_requests);
     }
+
+
 
     // Creating Layer primitives
     for (auto & layer : sortedNoMem) {

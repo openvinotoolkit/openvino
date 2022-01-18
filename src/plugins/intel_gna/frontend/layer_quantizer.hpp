@@ -19,6 +19,8 @@
 #include "weights_converter.hpp"
 #include <legacy/layer_transform.hpp>
 
+#include "debug_use_new_pass.hpp"
+
 namespace GNAPluginNS {
 namespace frontend {
 
@@ -380,7 +382,6 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
     }
 }
 
-
 template<class QuantDesc, class QuantFunc>
 inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
                                   InferenceEngine::WeightableLayer *conv,
@@ -399,8 +400,11 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
             return wl->_biases->size();
         }
         // calculating biases len using outdata dims: biases number should be equal to output channels number
-        std::cout << __FILE__ << ":" << __LINE__ << " " << InferenceEngine::GetDataDimSizeNHWC(wl->outData.front(), InferenceEngine::DataDimName::C) << std::endl;
+#ifdef DEBUG_USE_NEW_PASS
         return InferenceEngine::GetDataDimSizeNHWC(wl->outData.front(), InferenceEngine::DataDimName::C);
+#else
+        return InferenceEngine::GetDataDimSize(wl->outData.front(), InferenceEngine::DataDimName::C);
+#endif
     };
 
     using BiasesPrecision = typename QuantDesc::BiasesPrecision;
@@ -453,6 +457,7 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
 
     // TODO: replace this into fixed scale quantizer then
 
+
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*conv);
     {
         auto weightsStats = !quantData->_weights_quant.GetMinValues().empty();
@@ -460,6 +465,7 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
         auto dstScale = quantData->_dst_quant.GetScale();
         auto blob_precision = conv->_weights->getTensorDesc().getPrecision();
         auto quantizedWeights = blob_precision != InferenceEngine::Precision::FP32 && blob_precision != InferenceEngine::Precision::FP16;
+
         fnc(conv->_weights->buffer().as<float*>(),
             conv->_biases ? conv->_biases->buffer().as<float*>() : nullptr,
             intWeights->buffer(),

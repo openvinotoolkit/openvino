@@ -787,7 +787,7 @@ inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, uint32_t backOffse
 }
 
 enum class DataDimName {
-    N, C, H, W
+    N, C, H, W // N H W C
 };
 
 /**

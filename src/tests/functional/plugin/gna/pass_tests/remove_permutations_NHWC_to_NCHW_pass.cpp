@@ -496,7 +496,8 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
             {"GNA_SCALE_FACTOR_0", "327.67"}
         },
         {
-            {"GNA_DEVICE_MODE", "GNA_SW_FP32"}
+            {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
+            {"GNA_COMPACT_MODE", "NO"}
         }
     };
 

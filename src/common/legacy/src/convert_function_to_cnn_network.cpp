@@ -53,6 +53,7 @@
 #include "legacy/net_pass.h"
 #include "ie_legacy_itt.hpp"
 
+
 namespace Builder {
 
 template <class T>

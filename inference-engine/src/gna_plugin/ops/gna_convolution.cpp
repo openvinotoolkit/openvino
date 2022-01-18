@@ -214,9 +214,6 @@ void shape_infer(const GNAConvolution* op,
     // Channel is the last in NHWC layout
     *(output_shape.rbegin()) = filters_shape[0]; // NHWC C is last instead of filters_shape[0] for NCHW layout
 
-    EMUTEX_DEBUG_VAL(input_shape);
-    EMUTEX_DEBUG_VAL(filters_shape);
-
     const auto n_data_channel = *(input_shape.rbegin());
     const auto n_filter_channel = *(filters_shape.rbegin());
 

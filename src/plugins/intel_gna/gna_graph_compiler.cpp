@@ -39,8 +39,9 @@
 #include "descriptions/gna_desc.hpp"
 #include "ops/pwl.hpp"
 
-//#undef DEBUG_USE_NEW_PASS
-#define DEBUG_USE_NEW_PASS 1
+#include "debug_use_new_pass.hpp"
+
+#include <iostream>
 
 using namespace InferenceEngine;
 using namespace std;
@@ -336,6 +337,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         return finalizeConvolution2DPrimitive(layer, in_batch, in_channels, in_height, in_width,
                                               out_batch, out_channels, out_height, out_width);
     }
+
     finalizeConvolution1DPrimitive(layer, in_batch, in_channels, in_width,
                                    out_batch, out_channels, out_width, in_kernel_w, in_kernel_h, transpose_h_w);
 }
@@ -2644,3 +2646,4 @@ GNAGraphCompiler::copyMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t 
     ::memcpy(temp_buffer.data(), ptr_matrix, dest_size);
     return temp_buffer;
 }
+
