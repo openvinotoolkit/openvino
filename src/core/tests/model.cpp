@@ -1523,3 +1523,26 @@ TEST(model, set_batch_size_validation_throw) {
         FAIL() << "Expected ov::Exception";
     }
 }
+
+TEST(model, generate_unique_names) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    const auto gen_friendly_name = arg0->get_friendly_name();
+
+    std::string name = "Parameter_";
+    EXPECT_NE(std::string::npos, gen_friendly_name.find("Parameter_"));
+    unsigned long long index = std::stoull(gen_friendly_name.substr(name.length()));
+    name += std::to_string(++index);
+
+    arg0->set_friendly_name(name);
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto f = std::make_shared<ov::Model>(ov::ResultVector{result1}, ov::ParameterVector{arg0, arg1});
+
+    f->validate_nodes_and_infer_types();
+    EXPECT_EQ(name, arg0->get_friendly_name());
+    EXPECT_NE(arg1->get_friendly_name(), arg0->get_friendly_name());
+}
