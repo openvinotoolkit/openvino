@@ -125,7 +125,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
         workerRequestPtr->_index = num++;
         IE_ASSERT(idleWorkerRequests.try_push(std::make_pair(workerRequestPtr->_index, workerRequestPtr)) == true);
         workerRequest._inferRequest->SetCallback(
-            [workerRequestPtr, this, device, idleWorkerRequestsPtr, num] (std::exception_ptr exceptionPtr) mutable {
+            [workerRequestPtr, this, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
                 IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
                 {
