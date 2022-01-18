@@ -60,7 +60,7 @@
         "runtime/3rdparty/97-myriad-usbboot.rules",
         "runtime/lib/intel64/usb-ma2x8x.mvcmd",
         "runtime/lib/intel64/pcie-ma2x8x.mvcmd",
-        "runtime/lib/intel64/libmyriadPlugin.so",
+        "runtime/lib/intel64/libov_intel_vpu_plugin.so",
         "runtime/lib/intel64/vpu_custom_kernels",
         "install_dependencies/install_NCS_udev_rules.sh"
       ]

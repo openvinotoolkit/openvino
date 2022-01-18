@@ -1137,10 +1137,8 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNDeformableConvolutionNode::updatePadding() {
-    //update padding. TODO [DS] : rewrite when the final shape inference interface is available
     if (isDynamicNode() && autoPadding) {
-        auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(opToShapeInfer);
-        defConvAttr.padL = defConvNodeBase->get_pads_begin();
+        defConvAttr.padL = shapeInference->get_pads_begin();
     }
 }
 
