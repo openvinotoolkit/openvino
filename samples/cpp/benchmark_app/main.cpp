@@ -159,11 +159,11 @@ int main(int argc, char* argv[]) {
 
         // Load device config file if specified
         std::map<std::string, std::map<std::string, std::string>> config;
-#ifdef USE_OPENCV
+
         if (!FLAGS_load_config.empty()) {
             load_config(FLAGS_load_config, config);
         }
-#endif
+
         /** This vector stores paths to the processed images with input names**/
         auto inputFiles = parseInputArguments(gflags::GetArgvs());
 
@@ -1028,12 +1028,10 @@ int main(int argc, char* argv[]) {
         // -------------------------------------------------------------
         next_step();
 
-#ifdef USE_OPENCV
         if (!FLAGS_dump_config.empty()) {
             dump_config(FLAGS_dump_config, config);
             slog::info << "Inference Engine configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
         }
-#endif
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
