@@ -206,6 +206,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
         if not find_ie_version(silent=argv.silent):
             raise_ie_not_found()
     except Exception as e:
+        log.error(e)
         raise_ie_not_found()
 
     if 'data_type' in argv and argv.data_type in ['FP16', 'half']:
