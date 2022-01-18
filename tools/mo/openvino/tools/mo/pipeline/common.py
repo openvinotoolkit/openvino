@@ -10,7 +10,6 @@ import networkx as nx
 
 from openvino.tools.mo.back.RemoveUselessConvert import RemoveUselessConvert
 from openvino.tools.mo.back.ResultRename import ResultRename
-from openvino.tools.mo.back.TensorNamesCheck import TensorNamesCheck
 from openvino.tools.mo.back.TensorNamesInputOutputCheck import TensorNamesInputOutputCheck
 from openvino.tools.mo.back.op_versioning import OpVersioning
 from openvino.tools.mo.ops.Cast import Cast

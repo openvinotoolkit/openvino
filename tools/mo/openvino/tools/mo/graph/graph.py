@@ -1089,7 +1089,8 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
 
     if user_defined_name is not None:
         prev_op_tensor_names = set()
-        if 'fw_tensor_debug_info' in opoutput_node.in_edge():
+        in_edge_attrs = opoutput_node.in_edge()
+        if 'fw_tensor_debug_info' in in_edge_attrs:
             for _, tensor_name in opoutput_node.in_edge()['fw_tensor_debug_info']:
                 prev_op_tensor_names.add(tensor_name)
         if user_defined_name not in prev_op_tensor_names:
@@ -1099,7 +1100,9 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
                             'graph contains tensor name with same name.'.format(user_defined_name,
                                                                                 opoutput_node.soft_get('name')))
             else:
-                opoutput_node.in_edge()['fw_tensor_debug_info'].append([user_defined_name, user_defined_name])
+                if 'fw_tensor_debug_info' not in in_edge_attrs:
+                    in_edge_attrs['fw_tensor_debug_info'] = []
+                in_edge_attrs['fw_tensor_debug_info'].append([user_defined_name, user_defined_name])
 
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
     log.debug(str(graph.node[opoutput_node.id]))

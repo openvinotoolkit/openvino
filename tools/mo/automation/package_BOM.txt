@@ -80,6 +80,7 @@ openvino/tools/mo/back/ShapeOfConstFolding.py
 openvino/tools/mo/back/ShuffleChannelPatternOptimization.py
 openvino/tools/mo/back/SpecialNodesFinalization.py
 openvino/tools/mo/back/StridedSliceMasksNormalizer.py
+openvino/tools/mo/back/TensorNamesInputOutputCheck.py
 openvino/tools/mo/back/TopKNormalizer.py
 openvino/tools/mo/back/TransposeDFT.py
 openvino/tools/mo/back/TransposeReduceFusing.py
