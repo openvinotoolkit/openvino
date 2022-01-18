@@ -56,9 +56,7 @@ size_t NormalizeKey::hash() const {
     seed = hash_combine(seed, attrs.across_spatial);
     seed = hash_combine(seed, attrs.cornerCase);
     seed = hash_combine(seed, attrs.eps);
-    seed = hash_combine(seed, attrs.is_nchw);
-    seed = hash_combine(seed, attrs.is_nhwc);
-    seed = hash_combine(seed, attrs.is_blk);
+    seed = hash_combine(seed, attrs.layout);
     seed = hash_combine(seed, attrs.input_prec.getPrecVal());
     seed = hash_combine(seed, attrs.output_prec.getPrecVal());
 
@@ -70,8 +68,7 @@ size_t NormalizeKey::hash() const {
 bool NormalizeKey::operator==(const NormalizeKey& rhs) const {
     return (attrs.epsMode == rhs.attrs.epsMode) && (attrs.across_spatial == rhs.attrs.across_spatial) &&
            (attrs.cornerCase == rhs.attrs.cornerCase) && (attrs.eps == rhs.attrs.eps) &&
-           (attrs.is_nchw == rhs.attrs.is_nchw) && (attrs.is_nhwc == rhs.attrs.is_nhwc) &&
-           (attrs.is_blk == rhs.attrs.is_blk) && (attrs.input_prec == rhs.attrs.input_prec) &&
+           (attrs.layout == rhs.attrs.layout) && (attrs.input_prec == rhs.attrs.input_prec) &&
            (attrs.output_prec == rhs.attrs.output_prec) && (*kernel_attrs.get() == *(rhs.kernel_attrs.get())) &&
            (dims == rhs.dims);
 }
@@ -887,12 +884,13 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
 
     if (!attrs.cornerCase) {
         if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
-            attrs.is_nchw = true;
-        } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c) ||
-                   srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c)) {
-            attrs.is_blk = true;
+            attrs.layout = LayoutType::ncsp;
+        } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c)) {
+            attrs.layout = LayoutType::nCsp8c;
+        } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)) {
+            attrs.layout = LayoutType::nCsp16c;
         } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
-            attrs.is_nhwc = true;
+            attrs.layout = LayoutType::nspc;
         } else {
             THROW_ERROR << "has selected layout which is not supported";
         }
@@ -912,29 +910,14 @@ bool MKLDNNNormalizeL2Node::isExecutable() const {
 void MKLDNNNormalizeL2Node::prepareParams() {
     const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
 
-    // appendPostOps() also generate neccessary arguments for each op
-    mkldnn::post_ops postOps;
-    for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
-        if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(postOps);
-            continue;
-        }
-
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode) {
-            eltwiseNode->appendPostOps(postOps, dims);
-            continue;
-        }
-
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
-    }
+    setPostOps(kernel_attrs, dims, true);
 
     // move pointer address from compile time kernel_attrs into runtime kernel args
     // and clear pointer address to remove it from cache key
+    auto &postOps = (*kernel_attrs.get()).post_ops_;
     postOpsDataPtrs.clear();
     for (int i = 0; i < postOps.len(); ++i) {
-        auto &post_op = postOps.get()->entry_[i];
+        auto &post_op = postOps.entry_[i];
         if (post_op.is_quantization()) {
             auto &data = post_op.quantization.data;
             postOpsDataPtrs.insert(postOpsDataPtrs.end(), std::begin(data), std::end(data));
@@ -948,8 +931,6 @@ void MKLDNNNormalizeL2Node::prepareParams() {
             biases = 0;
         }
     }
-
-    kernel_attrs.set_post_ops(postOps);
 
     NormalizeKey key = {attrs, kernel_attrs, dims};
 
@@ -994,7 +975,7 @@ public:
         workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
     }
 
-    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void *post_ops_data) override {
+    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void **post_ops_data) override {
         normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
     }
 private:
@@ -1018,7 +999,8 @@ public:
                            const mkldnn::primitive_attr& kernel_attrs,
                            const VectorDims& dims)
         : attrs(attrs_) {
-        if (!attrs.is_nchw && !attrs.is_nhwc && !attrs.is_blk) {
+        if (attrs.layout != LayoutType::ncsp && attrs.layout != LayoutType::nspc &&
+            attrs.layout != LayoutType::nCsp8c && attrs.layout != LayoutType::nCsp16c) {
             IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
 
@@ -1028,9 +1010,9 @@ public:
         jcp.dst_data_size = attrs.output_prec.size();
         jcp.across_spatial = attrs.across_spatial;
 
-        jcp.is_nchw = attrs.is_nchw;
-        jcp.is_nhwc = attrs.is_nhwc;
-        jcp.is_blk = attrs.is_blk;
+        jcp.is_nchw = (attrs.layout == LayoutType::ncsp);
+        jcp.is_nhwc = (attrs.layout == LayoutType::nspc);
+        jcp.is_blk = (attrs.layout == LayoutType::nCsp8c || attrs.layout == LayoutType::nCsp16c);
 
         size_t dims_size = dims.size();
         jcp.n = dims[0];
@@ -1064,7 +1046,7 @@ public:
             normalize_modulo_kernel->create_ker();
     }
 
-    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void *post_ops_data) override {
+    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void **post_ops_data) override {
         if (jcp.is_nchw) {
             normalize_nchw(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr), post_ops_data);
         } else if (jcp.is_nhwc) {
@@ -1075,7 +1057,7 @@ public:
     }
 
 private:
-    void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const void *post_ops_data) {
+    void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const void **post_ops_data) {
         const size_t spatial_dims = jcp.h * jcp.w;
         for (size_t b = 0lu; b < jcp.n; b++) {
             const in_data_t *src_data_b = src_data + b * jcp.c * spatial_dims;
@@ -1167,7 +1149,7 @@ private:
         }
     }
 
-    void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const void *post_ops_data) {
+    void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const void **post_ops_data) {
         const size_t spatial_dims = jcp.h * jcp.w;
         const size_t c_w_dims = jcp.c * jcp.w;
         for (size_t b = 0lu; b < jcp.n; b++) {
@@ -1249,7 +1231,7 @@ private:
         }
     }
 
-    void normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const void *post_ops_data) {
+    void normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const void **post_ops_data) {
         const size_t CB = div_up(jcp.c, blk_size);
         const size_t spatial_dims = jcp.h * jcp.w;
         const size_t w_blk_dims = jcp.w * blk_size;
@@ -1353,7 +1335,7 @@ class MKLDNNNormalizeL2Node::NormalizeL2ReferenceExecutor : public MKLDNNNormali
 public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) :
         attrs(attrs), kernel_attrs(kernel_attrs), dims(dims) {
-        if (!attrs.is_nchw) {
+        if (attrs.layout != LayoutType::ncsp) {
             IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
         }
 
@@ -1369,12 +1351,12 @@ public:
         }
     }
 
-    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void *post_ops_data) override {
+    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void **post_ops_data) override {
         normalize_nchw_ref(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr), post_ops_data);
     }
 
 private:
-    void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const void *post_ops_data) {
+    void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const void **post_ops_data) {
         size_t dims_size = dims.size();
         const size_t N = dims[0];
         const size_t C = dims[1];
@@ -1450,12 +1432,12 @@ private:
         }
     }
 
-    inline void apply_post_ops_scalar(float &dst_value, int index_c, const void *post_ops_data_) {
+    inline void apply_post_ops_scalar(float &dst_value, int index_c, const void **post_ops_data_) {
         const auto &p = (*kernel_attrs.get()).post_ops_;
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         // reinterpret cast from (pointer to const void) to (pointer to const pointer to const float)
-        const float* const* post_ops_data = reinterpret_cast<const float* const*>(post_ops_data_);
+        const float** post_ops_data = reinterpret_cast<const float**>(post_ops_data_);
         for (int i = 0; i < p.len(); i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
@@ -1539,7 +1521,7 @@ std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Nod
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
     else if (mayiuse(cpu::x64::sse41))
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
-    else if (attrs.is_nchw)
+    else if (attrs.layout == LayoutType::ncsp)
         return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
     else
         IE_THROW() << "'NormalizeL2' cannot create Executor";

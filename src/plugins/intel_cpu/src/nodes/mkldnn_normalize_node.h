@@ -40,7 +40,7 @@ struct jit_normalize_call_args {
     size_t work_amount;
     size_t oc_off;
     //ptr to array of post op inputs pointers (flat list)
-    const void* post_op_data;
+    const void** post_op_data;
 };
 
 struct jit_uni_normalize_modulo_kernel {
@@ -103,14 +103,11 @@ public:
     };
 
     struct NormalizeL2Attrs {
+        LayoutType layout = LayoutType::ncsp;
         NormEpsMode epsMode = NormEpsMode::ADD;
         bool across_spatial = true;
         bool cornerCase = false;
         float eps = 1e-10f;
-
-        bool is_nchw = false;
-        bool is_nhwc = false;
-        bool is_blk = false;
 
         InferenceEngine::Precision input_prec = Precision::UNSPECIFIED;
         InferenceEngine::Precision output_prec = Precision::UNSPECIFIED;
@@ -124,7 +121,7 @@ private:
     class NormalizeL2Executor {
     public:
         NormalizeL2Executor() = default;
-        virtual void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void *post_ops_data) = 0;
+        virtual void exec(const uint8_t *src_ptr, uint8_t *dst_ptr, const void **post_ops_data) = 0;
         virtual ~NormalizeL2Executor() = default;
 
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
