@@ -10,6 +10,7 @@
 
 @endsphinxdirective
 
+v2 
 
 The Auto-Device plugin is a virtual device which automatically selects the processing unit to use for inference with OpenVINO. It chooses from a list of available devices defined by the user and aims at finding the most suitable hardware for the given model. The best device is chosen using the following logic:  
 1. Check which supported devices are available. 
@@ -17,29 +18,24 @@ The Auto-Device plugin is a virtual device which automatically selects the proce
 3. From the priority list, select the first device capable of supporting the given precision. 
 4. If the network’s precision is FP32 but there is no device capable of supporting it, offload the network to a device supporting FP16. 
 
-@sphinxdirective
-
-.. table::
-   :widths: 10 50 40
-   +--------------------+-------------------------------------------------------------+-------------------------------------+
-   | Choice Priority    | Supported Device                                            | Supported model precision           |
-   +--------------------+-------------------------------------------------------------+-------------------------------------+
-   | 1                  | dGPU <br> (e.g. Intel® Iris® Xe MAX)                        | FP32, FP16, INT8, BIN, BATCHED_BLOB |
-   | 2                  | VPUX <br> (e.g. Intel® Movidius® VPU 3700VE)                | INT8                                |
-   | 3                  | iGPU <br> (e.g. Intel® UHD Graphics 620 (iGPU))             | FP32, FP16, BIN, BATCHED_BLOB       |
-   | 4                  | Myriad <br> (Intel® Neural Compute Stick 2 (Intel® NCS2))   | FP16                                |
-   | 5                  | IA CPU <br> (e.g. Intel® Core™ i7-1165G7)                   | FP32, FP16, INT8, BIN               |
-
-@endsphinxdirective
-
-| Choice Priority     | Supported Device                                            | Supported model precision           |
-| :------------------ | :---------------------------------------------------------- | :---------------------------------- |
-| 1                   | dGPU <br> (e.g. Intel® Iris® Xe MAX)                        | FP32, FP16, INT8, BIN, BATCHED_BLOB |
-| 2                   | VPUX <br> (e.g. Intel® Movidius® VPU 3700VE)                | INT8                                |
-| 3                   | iGPU <br> (e.g. Intel® UHD Graphics 620 (iGPU))             | FP32, FP16, BIN, BATCHED_BLOB       |
-| 4                   | Myriad <br> (Intel® Neural Compute Stick 2 (Intel® NCS2))   | FP16                                |
-| 5                   | IA CPU <br> (e.g. Intel® Core™ i7-1165G7)                   | FP32, FP16, INT8, BIN               |
-
++----------------+-------------------------------------------------------------+-------------------------------------+
+| Choice<br>Priority| Supported Device                                            | Supported model precision           |
++================+=============================================================+=====================================+
+| 1              | dGPU                                                        | FP32, FP16, INT8, BIN, BATCHED_BLOB |
+|                | (e.g. Intel® Iris® Xe MAX)                                  |                                     |
++----------------+-------------------------------------------------------------+-------------------------------------+
+| 2              | VPUX                                                        | INT8                                |
+|                | (e.g. Intel® Movidius® VPU 3700VE)                          |                                     |
++----------------+-------------------------------------------------------------+-------------------------------------+
+| 3              | iGPU                                                        | FP32, FP16, BIN, BATCHED_BLOB       |
+|                | (e.g. Intel® UHD Graphics 620 (iGPU))                       |                                     |
++----------------+-------------------------------------------------------------+-------------------------------------+
+| 4              | Myriad                                                      | FP16                                |
+|                | (Intel® Neural Compute Stick 2 (Intel® NCS2))               |                                     |
++----------------+-------------------------------------------------------------+-------------------------------------+
+| 5              | IA CPU                                                      | FP32, FP16, INT8, BIN               |
+|                | (e.g. Intel® Core™ i7-1165G7)                               |                                     |
++----------------+-------------------------------------------------------------+-------------------------------------+
 
 To put it simply, when loading the network to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. For example: 
 If you have dGPU in your system, it will be selected for most jobs (first on the priority list and supports multiple precisions). But if you want to run a WINOGRAD-enabled IR, your CPU will be selected (WINOGRAD optimization is not supported by dGPU). If you have Myriad and IA CPU in your system, Myriad will be selected for FP16 models, but IA CPU will be chosen for FP32 ones.  
@@ -50,14 +46,18 @@ This mechanism can be easily observed in our Benchmark Application sample (see h
 
 @sphinxdirective
 .. code-block:: sh
+
    ./benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d GPU -niter 128
-@endsphinxdirective   
+@endsphinxdirective 
+
 first-inference latency - **2594.29 ms + 9.21 ms** 
 
 @sphinxdirective
 .. code-block:: sh
+
    ./benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO:CPU,GPU -niter 128
-@endsphinxdirective   
+@endsphinxdirective 
+
 first-inference latency - **173.13 ms + 13.20 ms**
 
 ## Using the Auto-Device Plugin 
@@ -79,7 +79,8 @@ The following commands are accepted by the API:
 
 @sphinxdirective
 .. tab:: C++ API
-   .. code-block:: sh
+   .. code-block:: cpp
+
       /*********************
 	  * With Inference Engine 2.0 API
       *********************/
@@ -103,7 +104,8 @@ The following commands are accepted by the API:
       core.set_config({{"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}, "AUTO");
 
 .. tab:: C++ legacy API
-   .. code-block:: sh
+   .. code-block:: cpp
+
       /*********************
       * With API Prior to 2022.1 Release
       *********************/
@@ -127,7 +129,8 @@ The following commands are accepted by the API:
       ie.SetConfig({{"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}, "AUTO");
 	  
 .. tab:: Python API
-   .. code-block:: sh
+   .. code-block:: python
+
       ##################
       ## New IE 2.0 API#
       ##################
@@ -153,7 +156,8 @@ The following commands are accepted by the API:
       core.set_config(config={"MULTI_DEVICE_PRIORITIES":"CPU,GPU"}, device_name="AUTO")
     
 .. tab:: Python legacy API
-   .. code-block:: sh
+   .. code-block:: python
+
       ######################
       ## API before 2022.1 #
       ######################
@@ -184,12 +188,14 @@ To check what devices are present in the system, you can use Inference Engine De
 For C++ API
 @sphinxdirective
 .. code-block:: sh
+
    ov::runtime::Core::get_available_devices() (see Hello Query Device C++ Sample)
 @endsphinxdirective
 
 For Python API
 @sphinxdirective
 .. code-block:: sh
+
    openvino.runtime.Core.available_devices (see Hello Query Device Python Sample)
 @endsphinxdirective
 
@@ -208,7 +214,8 @@ Note that currently the PERFORMANCE_HINT parameter is not supported by VPUX and 
 To enable Performance Hints for your application, use the following code: 
 @sphinxdirective
 .. tab:: C++ API
-   .. code-block:: sh
+   .. code-block:: cpp
+
       ov::runtime::Core core
       
       // Read a network in IR, PaddlePaddle, or ONNX format:
@@ -221,7 +228,8 @@ To enable Performance Hints for your application, use the following code:
       ov::runtime::CompiledModel compiledModel3 = core.compile_model(model, "AUTO:CPU,GPU", {{"PERFORMANCE_HINT", "LATENCY"}});
 
 .. tab:: Python API
-   .. code-block:: sh
+   .. code-block:: python
+
       from openvino.runtime import Core
       
       core = Core()
@@ -242,7 +250,8 @@ The parameter enables you to control the priorities of networks in Auto-Device P
 
 @sphinxdirective
 .. tab:: C++ API
-   .. code-block:: sh
+   .. code-block:: cpp
+
       // Example 1
       //Compile and load networks:
       ov::runtime::CompiledModel compiled_model0 = core.compile_model(model, "AUTO:CPU,GPU,MYRIAD", {{"AUTO_NETWORK_PRIORITY", "0"}});
@@ -263,7 +272,8 @@ The parameter enables you to control the priorities of networks in Auto-Device P
       Result: compiled_model0 will use GPU, compiled_model1 will use GPU, compiled_model3 will use MYRIAD.
       ************/
 .. tab:: Python API
-   .. code-block:: sh
+   .. code-block:: python
+
       # Example 1
       # Compile and load networks:
       compiled_model0 = core.compile_model(model=model, device_name="AUTO:CPU,GPU,MYRIAD", config={"AUTO_NETWORK_PRIORITY":"0"})
@@ -286,7 +296,8 @@ Although the methods described above are currently the preferred way to execute 
 
 @sphinxdirective
 .. tab:: C++ API
-   .. code-block:: sh
+   .. code-block:: cpp
+
       ov::runtime::Core core
       
       // Read a network in IR, PaddlePaddle, or ONNX format:
@@ -305,7 +316,8 @@ Although the methods described above are currently the preferred way to execute 
       // To query the optimization capabilities:
       std::vector
 .. tab:: Python API
-   .. code-block:: sh
+   .. code-block:: python
+
       from openvino.runtime import Core
       
       core = Core()
@@ -333,12 +345,14 @@ To see how Auto-Device is used in practice and test its performance, take a look
 For unlimited device choice:
 @sphinxdirective
 .. code-block:: sh
+
    ./benchmark_app –d AUTO –m <model> -i <input> -niter 1000
 @endsphinxdirective 
   
 For limited device choice:
 @sphinxdirective
 .. code-block:: sh
+
    ./benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
 @endsphinxdirective
 
