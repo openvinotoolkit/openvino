@@ -461,7 +461,6 @@ endif()
 # TODO: Enable these tests in new infrastructure
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/interpolate.in.cpp
     backend/sqrt.in.cpp
 )
 
