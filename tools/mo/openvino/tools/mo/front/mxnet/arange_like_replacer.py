@@ -114,7 +114,8 @@ class ArangeLikeReplacer(FrontReplacementOp):
             range_node.out_port(0).get_connection().set_source(slice_node.out_port(0))
             range_node.out_port(0).connect(tile_forward_reshape.in_port(0))
 
-            rename_nodes([(range_node, name + '/Range'), (slice_node, name)])
+            if axis is not None:
+                rename_nodes([(range_node, name + '/Range'), (slice_node, name)])
 
         # MXNet arange_like op has no stop attribute and the result tensor always matches the input shape, so
         # we have to correct the stop value for the Range node if step != 1 or start != 0
@@ -132,6 +133,9 @@ class ArangeLikeReplacer(FrontReplacementOp):
                                                              {'name': range_node.name + '/Slice'})
             slice_range_values.in_port(2).connect(true_elements_count_port)
             range_node.out_port(0).get_connection().insert_node(slice_range_values)
+
+            if axis is not None and node.repeat == 1:
+                rename_nodes([(range_node, name + '/Range'), (slice_range_values, name)])
 
         if node.start != 0:
             correct_stop_value = create_op_with_const_inputs(graph, Add, port_value_dict={1: mo_array(node.start)},
