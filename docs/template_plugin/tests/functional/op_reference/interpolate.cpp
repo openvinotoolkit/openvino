@@ -23,15 +23,26 @@ struct InterpolateV1Params {
                         const std::vector<IT>& iValues,
                         const std::vector<IT>& oValues,
                         const std::shared_ptr<op::v0::Constant>& outShapeInput,
-                        const op::v0::Interpolate::Attributes& attrs)
+                        const AxisSet& axes,
+                        const std::string& mode,
+                        const bool& align_corners,
+                        const bool& antialias,
+                        const std::vector<size_t>& pads_begin,
+                        const std::vector<size_t>& pads_end)
         : inShape(iShape),
           outShape(oShape),
           inType(iType),
           outType(oType),
           inData(CreateTensor(iType, iValues)),
           outData(CreateTensor(oType, oValues)),
-          outShapeInput(outShapeInput),
-          attrs(attrs) {}
+          outShapeInput(outShapeInput) {
+        attrs.axes = axes;
+        attrs.mode = mode;
+        attrs.align_corners = align_corners;
+        attrs.antialias = antialias;
+        attrs.pads_begin = pads_begin;
+        attrs.pads_end = pads_end;
+    }
 
     Shape inShape;
     Shape outShape;
@@ -178,12 +189,12 @@ std::vector<InterpolateV1Params> generateParamsForInterpolateV1() {
                             std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},
                             std::vector<T>{1, 3},
                             op::v0::Constant::create(element::i64, {4}, {1, 1, 1, 2}),
-                            op::v0::Interpolate::Attributes({AxisSet{0, 1, 2, 3},
-                                                             "nearest",
-                                                             false,
-                                                             false,
-                                                             std::vector<size_t>{0, 0, 0, 0},
-                                                             std::vector<size_t>{0, 0, 0, 0}}))};
+                            AxisSet{0, 1, 2, 3},
+                            "nearest",
+                            false,
+                            false,
+                            std::vector<size_t>{0, 0, 0, 0},
+                            std::vector<size_t>{0, 0, 0, 0})};
     return params;
 }
 
