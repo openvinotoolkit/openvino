@@ -152,7 +152,6 @@ private:
         const auto node_input = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto node_output_shape_input = op::v0::Constant::create(outShapeInputType, outShapeInput, output_shape);
         const auto node_scales = op::v0::Constant::create(element::Type_t::f32, {scales.size()}, scales);
-        ;
         auto interpolate =
             std::make_shared<op::v4::Interpolate>(node_input, node_output_shape_input, node_scales, attrs);
         return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{node_input});
