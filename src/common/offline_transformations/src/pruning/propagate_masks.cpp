@@ -660,7 +660,7 @@ std::pair<std::set<size_t>, bool> ngraph::pass::mask_propagation::squeeze_mask(
         const auto ch = elem / elems_per_ch;
         // Check all channel is zeroed
         const auto low = mask_dim_copy.lower_bound(ch * elems_per_ch);
-        const auto upper = mask_dim_copy.upper_bound((ch + 1) * elems_per_ch);
+        const auto upper = mask_dim_copy.lower_bound((ch + 1) * elems_per_ch);
         auto channel_zeros = std::set<size_t>();
         std::copy(low, upper, std::inserter(channel_zeros, channel_zeros.begin()));
 
@@ -720,7 +720,6 @@ public:
 
                 // Check dimensions equality from the begining and allow
                 // to propagate masks only for dimensions which equal from the begining
-
                 size_t not_reshaped_dims;
                 {
                     size_t i = 0;
@@ -730,14 +729,6 @@ public:
                     }
                     not_reshaped_dims = i;
                 }
-
-
-                //auto elems_per_ch = std::accumulate(input_shape.begin() + not_reshaped_dims + 1, input_shape.end(), 1, std::multiplies<int>());
-                ////auto channels_count = input_shape[not_reshaped_dims];
-                ////NGRAPH_DEBUG << elems_per_ch << channels_count;
-                //for (auto &ch : input_mask->at(not_reshaped_dims))
-                //    for (auto idx = ch * elems_per_ch; idx < (ch + 1) * elems_per_ch; ++idx)
-                //        output_mask->at(not_reshaped_dims).insert(idx);
 
                 auto input_mask_row = input_mask.get();
                 auto weights_mask_row = weights_mask.get();
@@ -755,28 +746,12 @@ public:
                             if (dim < not_reshaped_dims)
                                 cur_mask->at(dim) = weights_mask_row->at(dim);
 
-                        auto output_mask_last_dim_copy = std::set<size_t>();
-                        std::copy(weights_mask_row->at(not_reshaped_dims).begin(), weights_mask_row->at(not_reshaped_dims).end(),
-                                  std::inserter(output_mask_last_dim_copy, output_mask_last_dim_copy.begin()));
-                        while (output_mask_last_dim_copy.size()) {
-                            const auto elem = *output_mask_last_dim_copy.begin();
-                            const auto ch = elem / elems_per_ch;
-                            // Check all channel is zeroed
-                            const auto low = output_mask_last_dim_copy.lower_bound(ch * elems_per_ch);
-                            const auto upper = output_mask_last_dim_copy.upper_bound((ch + 1) * elems_per_ch);
-                            auto channel_zeros = std::set<size_t>();
-                            std::copy(low, upper, std::inserter(channel_zeros, channel_zeros.begin()));
+                        bool should_init_dep;
+                        std::set<size_t> updated_mask;
+                        std::tie(updated_mask, should_init_dep) = squeeze_mask(weights_mask_row->at(not_reshaped_dims), elems_per_ch, true);
 
-                            // Remove all zeros related to current channel from iter mask
-                            output_mask_last_dim_copy.erase(low, upper);
-                            // In case any of elements are not zeroed - skip entire channel
-                            if (channel_zeros.size() != elems_per_ch) {
-                                cur_mask->initialize_dependencies();
-                                continue;
-                            }
-                            // Add zeros for current channel in current mask
-                            cur_mask->at(not_reshaped_dims).insert(ch);
-                        }
+                        cur_mask->at(not_reshaped_dims) = updated_mask;
+                        if (should_init_dep) cur_mask->initialize_dependencies();
                         return true;
                     }, weights_mask);
 
@@ -804,28 +779,12 @@ public:
                                 cur_mask->at(dim) = output_mask_row->at(dim);
                         // For the last dimension keep only those zeros which completely
                         // covering a channel
-                        auto output_mask_last_dim_copy = std::set<size_t>();
-                        std::copy(output_mask_row->at(not_reshaped_dims).begin(), output_mask_row->at(not_reshaped_dims).end(),
-                                  std::inserter(output_mask_last_dim_copy, output_mask_last_dim_copy.begin()));
-                        while (output_mask_last_dim_copy.size()) {
-                            const auto elem = *output_mask_last_dim_copy.begin();
-                            const auto ch = elem / elems_per_ch;
-                            // Check all channel is zeroed
-                            const auto low = output_mask_last_dim_copy.lower_bound(ch * elems_per_ch);
-                            const auto upper = output_mask_last_dim_copy.upper_bound((ch + 1) * elems_per_ch);
-                            auto channel_zeros = std::set<size_t>();
-                            std::copy(low, upper, std::inserter(channel_zeros, channel_zeros.begin()));
+                        bool should_init_dep;
+                        std::set<size_t> updated_mask;
+                        std::tie(updated_mask, should_init_dep) = squeeze_mask(output_mask_row->at(not_reshaped_dims), elems_per_ch, false);
 
-                            // Remove all zeros related to current channel from iter mask
-                            output_mask_last_dim_copy.erase(low, upper);
-                            // In case any of elements are not zeroed - skip entire channel
-                            if (channel_zeros.size() != elems_per_ch) {
-                                cur_mask->initialize_dependencies();
-                                continue;
-                            }
-                            // Add zeros for current channel in current mask
-                            cur_mask->at(not_reshaped_dims).insert(channel_zeros.begin(), channel_zeros.end());
-                        }
+                        cur_mask->at(not_reshaped_dims) = updated_mask;
+                        if (should_init_dep) cur_mask->initialize_dependencies();
                         return true;
                     }, output_mask);
                 } else {
