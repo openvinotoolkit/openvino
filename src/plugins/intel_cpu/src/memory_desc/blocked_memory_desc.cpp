@@ -19,10 +19,6 @@ bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, uint3
         return false;
     }
 
-    if (!dimsEqualWeak(this->getStrides(), rhs.getStrides())) {
-        return false;
-    }
-
     auto& thisStrides = this->getStrides();
     auto& rhsStrides = rhs.getStrides();
 
