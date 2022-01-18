@@ -20,7 +20,7 @@ from utils import (GNA_ATOM_FREQUENCY, GNA_CORE_FREQUENCY,
                    set_scale_factors)
 
 
-def infer_data(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
+def do_inference(data: Dict[str, np.ndarray], infer_request: InferRequest, cw_l: int = 0, cw_r: int = 0) -> np.ndarray:
     """Do a synchronous matrix inference"""
     frames_to_infer = {}
     result = {}
@@ -79,8 +79,8 @@ def main():
 
 # --------------------------- Step 3. Apply preprocessing -------------------------------------------------------------
         if args.output_layers:
-            output_names, output_ports = parse_outputs_from_args(args)
-            model.add_outputs(list(zip(output_names, output_ports)))
+            output_layer_names, output_layer_ports = parse_outputs_from_args(args)
+            model.add_outputs(list(zip(output_layer_names, output_layer_ports)))
 
         ppp = PrePostProcessor(model)
 
@@ -163,59 +163,57 @@ def main():
 
 # --------------------------- Step 6. Set up input --------------------------------------------------------------------
     if args.input_layers:
-        input_names = re.split(', |,', args.input_layers)
+        input_layer_names = re.split(', |,', args.input_layers)
     else:
-        input_names = [_input.any_name for _input in compiled_model.inputs]
+        input_layer_names = [_input.any_name for _input in compiled_model.inputs]
+
+    input_file_names = re.split(', |,', args.input)
+
+    if len(input_layer_names) != len(input_file_names):
+        log.error(f'Number of network inputs ({len(compiled_model.inputs)}) is not equal '
+                  f'to number of ark files ({len(input_file_names)})')
+        sys.exit(-3)
+
+    input_file_data = [read_utterance_file(file_name) for file_name in input_file_names]
+
+    infer_data = [
+        {
+            input_layer_names[j]: input_file_data[j].utterances[i]
+            for j in range(len(input_layer_names))
+        }
+        for i in range(len(input_file_data[0].utterances))
+    ]
 
     if args.output_layers:
-        output_names, output_ports = parse_outputs_from_args(args)
-        # If a name of output layer contains a port number then concatenate output_names and output_ports
+        output_layer_names, output_layer_ports = parse_outputs_from_args(args)
+        # If a name of output layer contains a port number then concatenate output_layer_names and output_layer_ports
         if ':' in compiled_model.outputs[0].any_name:
-            output_names = [f'{output_names[i]}:{output_ports[i]}' for i in range(len(output_names))]
+            output_layer_names = [f'{output_layer_names[i]}:{output_layer_ports[i]}' for i in range(len(output_layer_names))]
     else:
-        output_names = [compiled_model.outputs[-1].any_name]
-
-    if args.input:
-        input_files = re.split(', |,', args.input)
-
-        if len(input_names) != len(input_files):
-            log.error(f'Number of network inputs ({len(compiled_model.inputs)}) is not equal '
-                      f'to number of ark files ({len(input_files)})')
-            sys.exit(-3)
-
-    if args.reference:
-        reference_files = re.split(', |,', args.reference)
-
-        if len(output_names) != len(reference_files):
-            log.error('The number of reference files is not equal to the number of network outputs.')
-            sys.exit(-5)
+        output_layer_names = [compiled_model.outputs[0].any_name]
 
     if args.output:
-        output_files = re.split(', |,', args.output)
+        output_file_names = re.split(', |,', args.output)
 
-        if len(output_names) != len(output_files):
+        if len(output_layer_names) != len(output_file_names):
             log.error('The number of output files is not equal to the number of network outputs.')
             sys.exit(-6)
 
-    file_data = [read_utterance_file(file_name) for file_name in input_files]
-
-    input_data = [
-        {
-            input_names[j]: file_data[j].utterances[i]
-            for j in range(len(input_names))
-        }
-        for i in range(len(file_data[0].utterances))
-    ]
-
     if args.reference:
-        reference_data = [read_utterance_file(file_name) for file_name in reference_files]
+        reference_file_names = re.split(', |,', args.reference)
+
+        if len(output_layer_names) != len(reference_file_names):
+            log.error('The number of reference files is not equal to the number of network outputs.')
+            sys.exit(-5)
+
+        reference_file_data = [read_utterance_file(file_name) for file_name in reference_file_names]
 
         references = [
             {
-                output_names[j]: reference_data[j].utterances[i]
-                for j in range(len(output_names))
+                output_layer_names[j]: reference_file_data[j].utterances[i]
+                for j in range(len(output_layer_names))
             }
-            for i in range(len(file_data[0].utterances))
+            for i in range(len(input_file_data[0].utterances))
         ]
 
 # --------------------------- Step 7. Create infer request ------------------------------------------------------------
@@ -226,15 +224,15 @@ def main():
     results = []
     total_infer_time = 0
 
-    for i in range(len(input_data)):
+    for i in range(len(infer_data)):
         start_infer_time = default_timer()
 
         # Reset states between utterance inferences to remove a memory impact
         for state in infer_request.query_state():
             state.reset()
 
-        results.append(infer_data(
-            input_data[i],
+        results.append(do_inference(
+            infer_data[i],
             infer_request,
             args.context_window_left,
             args.context_window_right,
@@ -242,7 +240,7 @@ def main():
 
         infer_time = default_timer() - start_infer_time
         total_infer_time += infer_time
-        num_of_frames = input_data[i][input_names[0]].shape[0]
+        num_of_frames = infer_data[i][input_layer_names[0]].shape[0]
         avg_infer_time_per_frame = infer_time / num_of_frames
 
 # --------------------------- Step 9. Process output ------------------------------------------------------------------
@@ -252,7 +250,7 @@ def main():
         log.info(f'Frames in utterance: {num_of_frames}')
         log.info(f'Average Infer time per frame: {avg_infer_time_per_frame * 1000:.2f}ms')
 
-        for name in output_names:
+        for name in output_layer_names:
             log.info('')
             log.info(f'Output blob name: {name}')
             log.info(f'Number scores per frame: {results[i][name].shape[1]}')
@@ -284,10 +282,10 @@ def main():
     log.info(f'Total sample time: {total_infer_time * 1000:.2f}ms')
 
     if args.output:
-        for i, name in enumerate(output_names):
-            data = [results[i][name] for i in range(len(file_data[0].utterances))]
-            write_utterance_file(output_files[i], file_data[0].keys, data)
-            log.info(f'File {output_files[i]} was created!')
+        for i, name in enumerate(output_layer_names):
+            data = [results[i][name] for i in range(len(input_file_data[0].utterances))]
+            write_utterance_file(output_file_names[i], input_file_data[0].keys, data)
+            log.info(f'File {output_file_names[i]} was created!')
 
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, '
