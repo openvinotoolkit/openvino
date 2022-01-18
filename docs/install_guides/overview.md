@@ -11,23 +11,22 @@ Intel® Distribution of OpenVINO™ Toolkit is a comprehensive toolkit for quick
 You can install OpenVINO on major operating systems:
 
 * **If you have already finished your model development and want to deploy your applications on various devices, install OpenVINO Runtime**, which contains the Inference Engine to run deep learning models. Inference Engine includes a set of libraries for an easy inference integration into your applications.
-
-** For C++ users, you can use one of the following ways to install OpenVINO Runtime:
-
-*** Installer for Linux, Windows, macOS or Raspbian OS
-*** APT
-*** YUM
-*** Docker
-
-** For Python users, see the Install from PyPI page for details.
+  * For C++ users, you can use one of the following ways to install OpenVINO Runtime:
+    * Installer for [Linux](../installing-openvino-linux.md), [Windows](../installing-openvino-windows.md) or [macOS](../installing-openvino-macos.md)
+    * [APT for Linux](../installing-openvino-apt.md)
+    * [YUM for Linux](../installing-openvino-yum.md)
+    * Docker for [Linux](../installing-openvino-docker-linux.md) and [Windows](../installing-openvino-docker-windows.md)
+    * Install on [Raspbian OS](../installing-openvino-raspbian.md)
+  * For Python users, see [Install from PyPI](../installing-openvino-pip.md) for details.
+  * You can also install OpenVINO Runtime from [Anaconda Cloud](../installing-openvino-conda.md).
 
 * **If you want to develop or optimize your models with OpenVINO and deploy your applications after that, install OpenVINO Model Development Tools**, which provides the following tools:
-
-** Model Optimizer
-** Benchmark Tool
-** Accuracy Checker and Annotation Converter
-** Post-Training Optimization Tool
-** Model Downloader and other Open Model Zoo tools
-> **NOTE**: From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. See Install OpenVINO Model Development Tools for detailed steps.
+  * Model Optimizer
+  * Benchmark Tool
+  * Accuracy Checker and Annotation Converter
+  * Post-Training Optimization Tool
+  * Model Downloader and other Open Model Zoo tools
+  
+  > **NOTE**: From 2022.1 release, the OpenVINO Model Development Tools can only be installed via PyPI. See Install OpenVINO Model Development Tools for detailed steps.
 
 * The open source version is available in the OpenVINO™ toolkit GitHub repository and you can build it for supported platforms using the Inference Engine Build Instructions.
