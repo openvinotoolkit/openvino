@@ -16,7 +16,8 @@ void copy_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std:
 
 template <class OpType, class T>
 void first_input_passthrough_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, output_shapes.size() == 1, "Incorrect number of output shapes");
+    NODE_VALIDATION_CHECK(op, output_shapes.size() == 1 && input_shapes.size() >= 1,
+                          "Incorrect number of input and output shapes");
     output_shapes[0] = input_shapes[0];
 }
 

@@ -189,9 +189,11 @@ inline std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inp
     return fnPtr;
 }
 
-inline std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20}) {
-    auto ngPrc = ngraph::element::Type_t::f32;
+inline std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
+                                                                  ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    params.front()->set_friendly_name("Param_1");
+    params.front()->get_output_tensor(0).set_names({ "input_tensor" });
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
     auto conv1_0 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},

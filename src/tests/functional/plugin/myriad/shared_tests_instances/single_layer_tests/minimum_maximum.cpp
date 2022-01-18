@@ -46,4 +46,43 @@ INSTANTIATE_TEST_SUITE_P(smoke_maximum, MaxMinLayerTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         MaxMinLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_maximumU32, MaxMinLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes),
+                                ::testing::ValuesIn(opType),
+                                ::testing::Values(InferenceEngine::Precision::U32),
+                                ::testing::Values(InferenceEngine::Precision::U32),
+                                ::testing::Values(InferenceEngine::Precision::U32),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputType),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                        MaxMinLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_maximumI64, MaxMinLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes),
+                                ::testing::ValuesIn(opType),
+                                ::testing::Values(InferenceEngine::Precision::I64),
+                                ::testing::Values(InferenceEngine::Precision::I64),
+                                ::testing::Values(InferenceEngine::Precision::I64),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputType),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                        MaxMinLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_maximumU64, MaxMinLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes),
+                                ::testing::ValuesIn(opType),
+                                ::testing::Values(InferenceEngine::Precision::U64),
+                                ::testing::Values(InferenceEngine::Precision::U64),
+                                ::testing::Values(InferenceEngine::Precision::U64),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputType),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                        MaxMinLayerTest::getTestCaseName);
+
 }  // namespace
