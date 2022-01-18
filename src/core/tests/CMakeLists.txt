@@ -401,6 +401,7 @@ set(SRC
     visitors/op/swish.cpp
     visitors/op/tan.cpp
     visitors/op/tanh.cpp
+    visitors/op/ti.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     visitors/op/unsqueeze.cpp
