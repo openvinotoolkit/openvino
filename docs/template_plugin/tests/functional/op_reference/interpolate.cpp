@@ -178,12 +178,12 @@ std::vector<InterpolateV1Params> generateParamsForInterpolateV1() {
                             std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},
                             std::vector<T>{1, 3},
                             op::v0::Constant::create(element::i64, {4}, {1, 1, 1, 2}),
-                            op::v0::Interpolate::Attributes{AxisSet{0, 1, 2, 3},
-                                                            "nearest",
-                                                            false,
-                                                            false,
-                                                            std::vector<size_t>{0, 0, 0, 0},
-                                                            std::vector<size_t>{0, 0, 0, 0}})};
+                            op::v0::Interpolate::Attributes({AxisSet{0, 1, 2, 3},
+                                                             "nearest",
+                                                             false,
+                                                             false,
+                                                             std::vector<size_t>{0, 0, 0, 0},
+                                                             std::vector<size_t>{0, 0, 0, 0}}))};
     return params;
 }
 
