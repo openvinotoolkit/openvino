@@ -31,6 +31,9 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "cache/multi_cache.h"
 
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
+
 namespace MKLDNNPlugin {
 
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
@@ -750,7 +753,8 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims, uint32_t value_port_mask = 0) const;
+    std::vector<VectorDims> shapeInferGeneric(uint32_t value_port_mask = 0) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(mkldnn::stream strm) {
@@ -770,7 +774,7 @@ protected:
 
     std::vector<VectorDims> lastInputDims = {};
 
-    std::shared_ptr<ngraph::Node> opToShapeInfer;
+    std::shared_ptr<IShapeInfer> shapeInference;
 
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
@@ -797,8 +801,6 @@ private:
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
-    void createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op);
-
     template <class PD, class D, typename FPD>
     typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
     createPd(MKLDNNDescriptor desc) {
@@ -817,10 +819,22 @@ private:
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<ov::StaticShape>& input_shapes,
+                                              uint32_t input_value_port_mask) const;
+
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;
 #endif
 };
+
+constexpr uint64_t PortMask(int n) {
+    return 1 << n;
+}
+
+template <class... T>
+constexpr uint64_t PortMask(int n, T... rest) {
+    return PortMask(rest...) | (1 << n);
+}
 
 class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
                                             MKLDNNNode*(const std::shared_ptr<ngraph::Node>& op,
