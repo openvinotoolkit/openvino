@@ -209,7 +209,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const MKLDNNGraph &graph) {
-    const std::string& path = graph.getConfig().debugCaps.execGraphPath;
+    const std::string& path = graph.getConfig().execGraphPath;
 
     if (path.empty())
         return;
