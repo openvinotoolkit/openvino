@@ -108,13 +108,6 @@ const std::vector<std::map<std::string, std::string>> configs = {
     }
 };
 
-const std::vector<std::map<std::string, std::string>> gnaPwlUniformDesignConfigs = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_PWL_UNIFORM_DESIGN", "YES"}
-    }
-};
-
 const std::vector<std::vector<size_t>> inputShape = {
     {1, 1, 1, 1024},
     {1, 8, 1, 168},
@@ -132,11 +125,6 @@ const std::vector<ngraph::helpers::ActivationTypes> activationTypes = {
     ngraph::helpers::ActivationTypes::Abs
 };
 
-const std::vector<ngraph::helpers::ActivationTypes> gnaPwlUniformDesignActivationTypes = {
-    ngraph::helpers::ActivationTypes::Sigmoid,
-    ngraph::helpers::ActivationTypes::Tanh
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_act_maxpool_reordering, ActMaxpoolReordering,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
@@ -145,15 +133,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_act_maxpool_reordering, ActMaxpoolReordering,
         ::testing::ValuesIn(inputShape),
         ::testing::ValuesIn(addBiases),
         ::testing::ValuesIn(activationTypes)),
-    ActMaxpoolReordering::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(gna_pwl_uniform_design_smoke_act_maxpool_reordering, ActMaxpoolReordering,
-    ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(gnaPwlUniformDesignConfigs),
-        ::testing::ValuesIn(inputShape),
-        ::testing::ValuesIn(addBiases),
-        ::testing::ValuesIn(gnaPwlUniformDesignActivationTypes)),
     ActMaxpoolReordering::getTestCaseName);
 } // namespace LayerTestsDefinitions

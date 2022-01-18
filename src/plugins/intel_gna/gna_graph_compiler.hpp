@@ -115,7 +115,6 @@ public:
     void ConvolutionPrimitive(InferenceEngine::CNNLayerPtr);
     void PermutePrimitive(InferenceEngine::CNNLayerPtr);
     void PoolingPrimitive(InferenceEngine::CNNLayerPtr);
-    void PowerPrimitive(InferenceEngine::CNNLayerPtr);
     void ConcatPrimitive(InferenceEngine::CNNLayerPtr);
     void CropPrimitive(InferenceEngine::CNNLayerPtr);
     void EltwisePrimitive(InferenceEngine::CNNLayerPtr);

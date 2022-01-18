@@ -6,14 +6,11 @@
 
 #include <vector>
 #include <cstdint>
+#include <ngraph/node.hpp>
 
 #include "backend/dnn_types.h"
 #include "backend/gna_types.h"
 
-#define SIGMOID_NUM_SEGMENTS 65
-#define SIGMOID_DOMAIN 10.0f  // portion of input to be approximated (-10,10)
-#define TANH_NUM_SEGMENTS 65
-#define TANH_DOMAIN 5.0f  // portion of input to be approximated (-5,5)
 #define SOFTSIGN_NUM_SEGMENTS 65
 #define SOFTSIGN_DOMAIN 10.0f  // portion of input to be approximated (-10,10)
 #define RELU_NUM_SEGMENTS 2
@@ -32,11 +29,6 @@
 #define KALDI_LSTM_CLIP_LOWER (-50.0)
 #define KALDI_LSTM_CLIP_UPPER (50.0)
 #define LOG_DOMAIN (2981.0)
-#define EXP_DOMAIN (8.0)
-#define EXP_BREAK (0.045)
-#define POW_NUM_SEGMENTS 65
-#define POW_BREAK 0
-#define POW_DOMAIN (16.0)
 
 typedef struct {
     double t;
@@ -46,9 +38,6 @@ typedef struct {
     double b;
 } pwl_t;
 
-double first_deriv_tanh(const double x);
-double sigmoid(const double x);
-double first_deriv_sigmoid(const double x);
 double softsign(const double x);
 double first_deriv_softsign(const double x);
 double relu(const double x);
@@ -102,4 +91,5 @@ void PwlDesignOpt(const DnnActivation activation_type,
                 const float scale_in,
                 const float scale_out,
                 const float pwlMaxErrorPercent,
-                const bool low_precision);
+                const bool low_precision,
+                const std::shared_ptr<ngraph::Node>& node);

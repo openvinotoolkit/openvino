@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "transformations/common_optimizations/transpose_to_pwl.hpp"
+#include "transformations/transpose_to_pwl.hpp"
 
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -13,7 +13,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/serialize.hpp>
 #include <transformations/init_node_info.hpp>
-#include <frontend_manager/frontend_manager.hpp>
 
 namespace pwl_test {
 std::shared_ptr<ngraph::Function> CreateSigmoid(const ngraph::Shape& input_shape) {
@@ -57,10 +56,11 @@ void RunTest(const std::shared_ptr<ngraph::Function>& func,
              const std::shared_ptr<ngraph::Function>& reference_func,
              float lower_bound,
              float upper_bound) {
+    double max_error_percent = 0.05;
     {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::TransposeToPwl>();
+        m.register_pass<GNAPluginNS::TransposeToPwl>(max_error_percent);
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -79,12 +79,12 @@ void RunTest(const std::shared_ptr<ngraph::Function>& func,
     for (size_t i = 0; i < result[0].get_size(); i++) {
         double delta = std::abs(result_data[i] - result_ref_data[i]);
         std::cout << "delta: " << delta << " " << result_data[i] << " " << result_ref_data[i] << '\n';
-        ASSERT_TRUE(delta <= 0.005);
+        ASSERT_TRUE(delta <= max_error_percent);
     }
 }
 } // namespace
 
-TEST(PwlTest, Sigmoid) {
+TEST(GnaPwlTest, Sigmoid) {
     RunTest(
         pwl_test::CreateSigmoid({1, 100}),
         pwl_test::CreateSigmoid({1, 100}),
@@ -92,7 +92,7 @@ TEST(PwlTest, Sigmoid) {
         10);
 }
 
-TEST(PwlTest, Tanh) {
+TEST(GnaPwlTest, Tanh) {
     RunTest(
         pwl_test::CreateTanh({1, 32}),
         pwl_test::CreateTanh({1, 32}),
@@ -100,15 +100,15 @@ TEST(PwlTest, Tanh) {
         5);
 }
 
-/*TEST(PwlTest, Exp) {
+TEST(GnaPwlTest, Exp) {
     RunTest(
         pwl_test::CreateExp({1, 32}),
         pwl_test::CreateExp({1, 32}),
-        0,
+        -log(INT16_MAX),
         log(INT16_MAX));
-}*/
+}
 
-TEST(PwlTest, Abs) {
+TEST(GnaPwlTest, Abs) {
     RunTest(
         pwl_test::CreateAbs({1, 32}),
         pwl_test::CreateAbs({1, 32}),
@@ -116,7 +116,7 @@ TEST(PwlTest, Abs) {
         1);
 }
 
-TEST(PwlTest, Sign) {
+TEST(GnaPwlTest, Sign) {
     RunTest(
         pwl_test::CreateSign({1, 32}),
         pwl_test::CreateSign({1, 32}),

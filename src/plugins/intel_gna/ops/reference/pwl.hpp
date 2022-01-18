@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <iostream>
 
-namespace ngraph {
+namespace GNAPluginNS {
 namespace runtime {
 namespace reference {
 template <typename T, typename A>
@@ -52,4 +52,4 @@ void pwl(const T* args,
 }
 }  // namespace reference
 }  // namespace runtime
-}  // namespace ngraph
+}  // namespace GNAPluginNS

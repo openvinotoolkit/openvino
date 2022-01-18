@@ -136,7 +136,8 @@ class LayerInfo {
              "neghalflog",
              "softsign",
              "power",
-             "fakequantize"};
+             "fakequantize",
+             "Pwl"};
 
         if (isPower()) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
