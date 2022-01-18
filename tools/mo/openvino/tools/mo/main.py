@@ -98,7 +98,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 def get_default_frontends():
     # Set which frontend to use by default, values should be 'new' or 'legacy'
     default_frontends = {
-        'onnx': 'legacy',
+        'onnx': 'new',
         'tf': 'legacy'
     }
     return default_frontends
@@ -206,6 +206,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
         if not find_ie_version(silent=argv.silent):
             raise_ie_not_found()
     except Exception as e:
+        log.error(e)
         raise_ie_not_found()
 
     if 'data_type' in argv and argv.data_type in ['FP16', 'half']:

@@ -1868,6 +1868,10 @@ bool MKLDNNReduceNode::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
 }
 
+std::vector<VectorDims> MKLDNNReduceNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(REDUCE_INDEXES));
+}
+
 void MKLDNNReduceNode::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;

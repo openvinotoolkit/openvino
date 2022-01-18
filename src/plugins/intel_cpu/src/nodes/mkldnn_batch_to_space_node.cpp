@@ -96,6 +96,10 @@ void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+std::vector<VectorDims> MKLDNNBatchToSpaceNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(1, 2, 3));
+}
+
 static std::vector<size_t> getShape5D(const SizeVector &shape) {
     std::vector<size_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
