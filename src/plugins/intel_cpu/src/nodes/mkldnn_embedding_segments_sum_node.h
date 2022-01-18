@@ -27,6 +27,7 @@ public:
 
 protected:
     void prepareParams() override;
+    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:

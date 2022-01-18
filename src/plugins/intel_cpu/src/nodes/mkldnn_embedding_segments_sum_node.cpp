@@ -121,6 +121,10 @@ void MKLDNNEmbeddingSegmentsSumNode::getIndices(int embIndex, const int*& indice
     }
 }
 
+std::vector<VectorDims> MKLDNNEmbeddingSegmentsSumNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(NUM_SEGMENTS_IDX));
+}
+
 void MKLDNNEmbeddingSegmentsSumNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
