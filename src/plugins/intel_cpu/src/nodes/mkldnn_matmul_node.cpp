@@ -205,7 +205,7 @@ private:
             uni_vbroadcastss(get_src_vmm(0), ptr[reg_src_aux_0]);  // src0
 
             for (int i = 0; i < amount_full; ++i) {
-                load_by_address(get_src_vmm(1), ptr[reg_src_aux_1 + i * vlen]);  // src1
+                load(reg_src_aux_1, get_src_vmm(1), vec_step, i * vlen);  // src1
                 uni_vfmadd231ps(get_dst_vmm(i), get_src_vmm(0), get_src_vmm(1));  // broadcast(a) * vmm_1
             }
             add(reg_src_aux_1, amount_full * vlen);
@@ -224,7 +224,7 @@ private:
 
         for (int i = 0; i < amount_full; ++i) {
             apply_post_ops(get_dst_vmm(i).getIdx());
-            store_by_address(ptr[reg_dst + i * vlen], get_dst_vmm(i));
+            store(get_dst_vmm(i), reg_dst, vec_step, i * vlen);
         }
         add(reg_dst, amount_full * vlen);
 
@@ -290,8 +290,8 @@ private:
             uni_vpxor(get_dst_vmm(), get_dst_vmm(), get_dst_vmm());
 
             for (int i = 0; i < amount_full; ++i) {
-                load_by_address(get_src_vmm(0), ptr[reg_src_aux_0 + i * vlen]);  // src0
-                load_by_address(get_src_vmm(1), ptr[reg_src_aux_1 + i * vlen]);  // src1
+                load(reg_src_aux_0, get_src_vmm(0), vec_step, i * vlen);
+                load(reg_src_aux_1, get_src_vmm(1), vec_step, i * vlen);
 
                 uni_vfmadd231ps(get_dst_vmm(), get_src_vmm(0), get_src_vmm(1));
             }
@@ -299,8 +299,8 @@ private:
 
             if (amount_tail != 0) {
                 add(reg_src_aux_0, amount_full * vlen);
-                load(reg_src_aux_0, get_src_vmm(0), amount_tail, true);
-                load(reg_src_aux_1, get_src_vmm(1), amount_tail, true);
+                load(reg_src_aux_0, get_src_vmm(0), amount_tail, 0, true);
+                load(reg_src_aux_1, get_src_vmm(1), amount_tail, 0, true);
                 uni_vfmadd231ps(get_dst_vmm(), get_src_vmm(0), get_src_vmm(1));
 
                 add(reg_src_aux_1, amount_tail * sizeof(float));
@@ -354,24 +354,16 @@ private:
         }
     }
 
-    inline void load(Xbyak::Reg64 reg, Vmm vmm, int load_num, bool is_fill = false) {
+    inline void load(Xbyak::Reg64 reg, Vmm vmm, int load_num, int offset_byte = 0, bool is_fill = false) {
         load_emitter->emit_code({static_cast<size_t>(reg.getIdx())}, {static_cast<size_t>(vmm.getIdx())},
-                                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, load_num, 0, is_fill),
+                                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, load_num, offset_byte, is_fill),
                                 {}, load_pool_gpr_idxs);
     }
 
-    inline void store(Vmm vmm, Xbyak::Reg64 reg, int load_num) {
+    inline void store(Vmm vmm, Xbyak::Reg64 reg, int store_num, int offset_byte = 0) {
         store_emitter->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(reg.getIdx())},
-                                 std::make_shared<store_emitter_context>(Precision::FP32, Precision::FP32, load_num),
+                                 std::make_shared<store_emitter_context>(Precision::FP32, Precision::FP32, store_num, offset_byte),
                                  store_pool_vec_idxs, store_pool_gpr_idxs);
-    }
-
-    inline void load_by_address(Vmm vmm_src, const Xbyak::Address &op) {
-        uni_vmovups(vmm_src, op);
-    }
-
-    inline void store_by_address(const Xbyak::Address &op, Vmm vmm_dst) {
-        uni_vmovups(op, vmm_dst);
     }
 };
 
