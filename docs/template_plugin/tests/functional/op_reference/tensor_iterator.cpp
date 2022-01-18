@@ -4,15 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <fstream>
-#include <iostream>
-
 #include "openvino/op/tensor_iterator.hpp"
 #include "base_reference_test.hpp"
 #include <ngraph/op/util/attr_types.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph/runtime/reference/sequences.hpp"
 
 using namespace reference_tests;
 using namespace ov;
