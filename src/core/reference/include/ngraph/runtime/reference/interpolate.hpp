@@ -574,43 +574,6 @@ void InterpolateEval<T>::nearest_func(const T* input_data, T* out) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-template <typename T>
-void interpolate(const T* input_data,
-                 const Shape& input_data_shape,
-                 const std::vector<float>& scales,
-                 const std::vector<int64_t>& axes,
-                 T* out,
-                 const Shape& out_shape,
-                 const op::v4::Interpolate::InterpolateAttrs& attrs) {
-    InterpolateEval<T> evaluator{attrs};
-    evaluator(input_data, input_data_shape, scales, axes, out, out_shape);
-}
-
-template <typename T>
-void interpolate(T* input_data,
-                 const PartialShape& input_data_shape,
-                 T* out,
-                 const Shape& out_shape,
-                 const op::v0::Interpolate::Attributes& attrs) {
-    InterpolateEval<T> evaluator{transform_v0_to_v4(input_data_shape, attrs)};
-
-    Shape padded_input_shape = get_padded_input_shape(input_data_shape, attrs).to_shape();
-    std::vector<float> scales = get_scales(padded_input_shape, out_shape, attrs);
-    std::vector<int64_t> axes{attrs.axes.begin(), attrs.axes.end()};
-
-    size_t bytes_in_padded_input = shape_size(padded_input_shape) * sizeof(T);
-    std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
-    uint8_t* padded_data_ptr = padded_input_data.data();
-    pad_input_data(reinterpret_cast<uint8_t*>(input_data),
-                   padded_data_ptr,
-                   sizeof(T),
-                   input_data_shape.to_shape(),
-                   padded_input_shape,
-                   attrs.pads_begin);
-
-    evaluator(reinterpret_cast<T*>(padded_data_ptr), padded_input_shape, scales, axes, out, out_shape);
-}
-
 static void pad_input_data(const uint8_t* data_ptr,
                            uint8_t* padded_data_ptr,
                            size_t type_size,
@@ -714,6 +677,43 @@ static op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialSha
     }
 
     return attrs_v4;
+}
+
+template <typename T>
+void interpolate(const T* input_data,
+                 const Shape& input_data_shape,
+                 const std::vector<float>& scales,
+                 const std::vector<int64_t>& axes,
+                 T* out,
+                 const Shape& out_shape,
+                 const op::v4::Interpolate::InterpolateAttrs& attrs) {
+    InterpolateEval<T> evaluator{attrs};
+    evaluator(input_data, input_data_shape, scales, axes, out, out_shape);
+}
+
+template <typename T>
+void interpolate(T* input_data,
+                 const PartialShape& input_data_shape,
+                 T* out,
+                 const Shape& out_shape,
+                 const op::v0::Interpolate::Attributes& attrs) {
+    InterpolateEval<T> evaluator{transform_v0_to_v4(input_data_shape, attrs)};
+
+    Shape padded_input_shape = get_padded_input_shape(input_data_shape, attrs).to_shape();
+    std::vector<float> scales = get_scales(padded_input_shape, out_shape, attrs);
+    std::vector<int64_t> axes{attrs.axes.begin(), attrs.axes.end()};
+
+    size_t bytes_in_padded_input = shape_size(padded_input_shape) * sizeof(T);
+    std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
+    uint8_t* padded_data_ptr = padded_input_data.data();
+    pad_input_data(reinterpret_cast<uint8_t*>(input_data),
+                   padded_data_ptr,
+                   sizeof(T),
+                   input_data_shape.to_shape(),
+                   padded_input_shape,
+                   attrs.pads_begin);
+
+    evaluator(reinterpret_cast<T*>(padded_data_ptr), padded_input_shape, scales, axes, out, out_shape);
 }
 }  // namespace reference
 }  // namespace runtime
