@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, shape_array
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.graph.perm_inputs import PermuteInputs
 from openvino.tools.mo.ops.op import Op
@@ -47,7 +47,13 @@ class Broadcast(Op):
         input_shape = node.in_port(0).data.get_shape()
         input_value = node.in_port(0).data.get_value()
         target_shape = node.in_port(1).data.get_value()
-        assert target_shape is not None, 'Output shape is not defined for node "{}"'.format(node_name)
+        if target_shape is None:
+            target_shape_shape = node.in_port(1).data.get_shape()
+            assert len(target_shape_shape) == 1
+            assert target_shape_shape.item(0) > 0
+            new_shape = [-1] * target_shape_shape.item(0)
+            node.out_port(0).data.set_shape(shape_array(new_shape))
+            return
         assert node.has_and_set('mode'), 'Broadcasting mode is not defined for node "{}"'.format(node_name)
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
