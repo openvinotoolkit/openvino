@@ -190,11 +190,11 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
 
-    if (!isNewApi) {
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
-        manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-        manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
-    }
+    // if (!isNewApi) {
+    //     manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+    //     manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+    //     manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+    // }
 
     manager.register_pass<ngraph::pass::TransposeMatMul>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
