@@ -29,8 +29,11 @@ class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
             region_layer_node = region_layer.create_node([last_node])
             # here we remove 'axis' from 'dim_attrs' to avoid permutation from axis = 1 to axis = 2
             region_layer_node.dim_attrs.remove('axis')
-            Result(graph).create_node([region_layer_node])
+            tensor_name = op_params['name'] + ":0"
+            Result(graph).create_node([region_layer_node], edge_attrs={'fw_tensor_debug_info':[(tensor_name, tensor_name)],
+                                                                       'data_attrs': ['fw_tensor_debug_info']})
             graph.remove_node(op_output)
+            print('ok')
 
 
 class YoloV3RegionAddon(FrontReplacementFromConfigFileGeneral):
@@ -59,4 +62,7 @@ class YoloV3RegionAddon(FrontReplacementFromConfigFileGeneral):
             region_layer_node = RegionYoloOp(graph, op_params).create_node([last_node])
             # TODO: do we need change axis for further permutation
             region_layer_node.dim_attrs.remove('axis')
-            Result(graph, {'name': region_layer_node.id + '/Result'}).create_node([region_layer_node])
+            tensor_name = op_params['name'] + ":0"
+            Result(graph, {'name': region_layer_node.id + '/Result'}).create_node(
+                [region_layer_node], edge_attrs={'fw_tensor_debug_info':[(tensor_name, tensor_name)],
+                                                 'data_attrs': ['fw_tensor_debug_info']})

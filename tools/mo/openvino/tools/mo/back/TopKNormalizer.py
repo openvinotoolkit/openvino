@@ -46,6 +46,12 @@ class TopKNormalizer(BackReplacementPattern):
             output = Result(node.graph, {'name': node.name + '/Result_port_0/',
                                          'keep_output_port': node.has_and_set('remove_values_output')}).create_node()
             node.out_port(0).get_connection().set_destination(output.in_port(0))
+            tensor_name = node.name + ":0"
+            data_node = node.out_node(0)
+            data_node['fw_tensor_debug_info'] = [(tensor_name, tensor_name)]
         if node.out_port(1).disconnected():
             output = Result(node.graph, {'name': node.name + '/Result_port_1/'}).create_node()
             node.out_port(1).get_connection().set_destination(output.in_port(0))
+            tensor_name = node.name + ":1"
+            data_node = node.out_node(1)
+            data_node['fw_tensor_debug_info'] = [(tensor_name, tensor_name)]

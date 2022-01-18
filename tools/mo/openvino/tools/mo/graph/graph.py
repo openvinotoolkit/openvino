@@ -1001,6 +1001,24 @@ class Graph(nx.MultiDiGraph):
         # Add Const op for constant data nodes
         add_constant_operations(self)
 
+    def get_tensor_names_set(self, use_ports = False):
+        """
+        Get set of tensor names of the graph.
+        """
+        tensor_names_set = set()
+        for node in self.get_op_nodes():
+            if self.stage is None:
+                for out_edge_idx in node.out_edges():
+                    out_edge = node.out_edge(out_edge_idx)
+                    if "fw_tensor_debug_info" in out_edge:
+                        for _, tensor_name in out_edge["fw_tensor_debug_info"]:
+                            tensor_names_set.add(tensor_name)
+            else:
+                for _, port in node.out_ports().items():
+                    tensor_names = port.get_tensor_names()
+                    tensor_names_set = tensor_names_set.union(set(tensor_names))
+        return tensor_names_set
+
 
 def fill_graph_with_nodes(graph, src_nodes, get_id: callable, get_attrs: callable):
     """
@@ -1036,7 +1054,7 @@ def dict_includes(big: dict, sub_dict: dict, skip_attr_names=[]):
     )
 
 
-def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port: bool = False):
+def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port: bool = False, user_defined_name = None):
     """
     Creates and connects Result node to node_name port. Cuts existing port if requested.
     :param graph: graph to operate with
@@ -1055,6 +1073,20 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
         opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port),
                                                                    'keep_output_port': keep_output_port})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
+
+    if user_defined_name is not None:
+        prev_op_tensor_names = set()
+        if 'fw_tensor_debug_info' in opoutput_node.in_edge():
+            for _, tensor_name in opoutput_node.in_edge()['fw_tensor_debug_info']:
+                prev_op_tensor_names.add(tensor_name)
+        if user_defined_name not in prev_op_tensor_names:
+            graph_tensor_names = graph.get_tensor_names_set()
+            if user_defined_name in graph_tensor_names:
+                log.warning('Could not add user defined output name {} to tensor names list of {} node as '
+                            'graph contains tensor name with same name.'.format(user_defined_name,
+                                                                                opoutput_node.soft_get('name')))
+            else:
+                opoutput_node.in_edge()['fw_tensor_debug_info'].append([user_defined_name, user_defined_name])
 
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
     log.debug(str(graph.node[opoutput_node.id]))

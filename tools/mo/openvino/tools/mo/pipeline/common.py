@@ -10,6 +10,8 @@ import networkx as nx
 
 from openvino.tools.mo.back.RemoveUselessConvert import RemoveUselessConvert
 from openvino.tools.mo.back.ResultRename import ResultRename
+from openvino.tools.mo.back.TensorNamesCheck import TensorNamesCheck
+from openvino.tools.mo.back.TensorNamesInputOutputCheck import TensorNamesInputOutputCheck
 from openvino.tools.mo.back.op_versioning import OpVersioning
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, serialize_mean_image
@@ -199,6 +201,8 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
     for_graph_and_each_sub_graph_recursively(graph, RemoveUselessConvert().find_and_replace_pattern)
 
     ResultRename().find_and_replace_pattern(graph)
+    TensorNamesInputOutputCheck().find_and_replace_pattern(graph)
+    #TensorNamesCheck().find_and_replace_pattern(graph)
 
     for sub_graph in [graph] + collect_sub_graphs(graph):
         op_order, data_order = determined_sort(get_sorted_outputs(sub_graph))
