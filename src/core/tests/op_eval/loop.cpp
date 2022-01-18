@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
 #include "engines_util/execute_tools.hpp"
+#include "gtest/gtest.h"
 #include "openvino/opsets/opset8.hpp"
 #include "util/all_close_f.hpp"
 
@@ -27,8 +27,7 @@ TEST(op_eval, loop_dynamic_shapes) {
     // Body
     auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
     auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
-    auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo},
-                                            ov::ParameterVector{Xi, Yi, M_body});
+    auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo}, ov::ParameterVector{Xi, Yi, M_body});
 
     auto loop = std::make_shared<ov::opset8::Loop>(trip_count, exec_condition);
     loop->set_function(body);
@@ -45,15 +44,16 @@ TEST(op_eval, loop_dynamic_shapes) {
 
     std::vector<float> inputX{0, 1, 2, 3}, inputY{1, 2, 3, 4}, inputM{5, 4, 3, 2};
     std::vector<float> expected_result{5, 108, 375, 686};
-    std::vector<float> actual_result(ov::shape_size(ov::Shape{2,2}), 2);
+    std::vector<float> actual_result(ov::shape_size(ov::Shape{2, 2}), 2);
 
     auto r0 = std::make_shared<ov::HostTensor>();
     using namespace ngraph;
-    ASSERT_TRUE(f->evaluate({r0}, {make_host_tensor<ngraph::element::Type_t::f32>(ov::Shape{2,2}, inputX),
-                                   make_host_tensor<ngraph::element::Type_t::f32>(ov::Shape{2,2}, inputY),
-                                   make_host_tensor<ngraph::element::Type_t::f32>(ov::Shape{2,2}, inputM)}));
+    ASSERT_TRUE(f->evaluate({r0},
+                            {make_host_tensor<ngraph::element::Type_t::f32>(ov::Shape{2, 2}, inputX),
+                             make_host_tensor<ngraph::element::Type_t::f32>(ov::Shape{2, 2}, inputY),
+                             make_host_tensor<ngraph::element::Type_t::f32>(ov::Shape{2, 2}, inputM)}));
 
-    EXPECT_EQ(r0->get_shape(), (ov::Shape{2,2}));
-    memcpy(actual_result.data(), r0->get_data_ptr<float>(), ov::shape_size(ov::Shape{2,2}) * sizeof(float));
+    EXPECT_EQ(r0->get_shape(), (ov::Shape{2, 2}));
+    memcpy(actual_result.data(), r0->get_data_ptr<float>(), ov::shape_size(ov::Shape{2, 2}) * sizeof(float));
     EXPECT_TRUE(ngraph::test::all_close_f(expected_result, actual_result));
 }
