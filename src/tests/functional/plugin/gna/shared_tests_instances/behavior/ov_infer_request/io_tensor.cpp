@@ -33,6 +33,12 @@ std::vector<ov::element::Type> prcs = {
     ov::element::u64,
 };
 
+std::vector<ov::element::Type> input_prcs = {
+    ov::element::f32,
+    ov::element::i16,
+    ov::element::u8
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -45,5 +51,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecision
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                  ::testing::ValuesIn(configs)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(input_prcs),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                 ::testing::ValuesIn(configs)),
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
 
 }  // namespace
