@@ -245,20 +245,18 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 # disable eager execution since next steps are executed with a graph in non-eager mode
                 tf_v1.disable_eager_execution()
 
-                inputs_outputs_order = None
-
-
+                input_names = []
                 if hasattr(imported, 'inputs'):
                     # Extract tensor names order from Keras model
                     input_names = [tensor.name for tensor in imported.inputs]
 
-                    # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
-                    # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
-                    # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
-                    # order alignment.
-                    output_names = [tensor.name for tensor in frozen_func.outputs]
+                # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
+                # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
+                # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
+                # order alignment.
+                output_names = [tensor.name for tensor in frozen_func.outputs]
 
-                    inputs_outputs_order = (input_names, output_names)
+                inputs_outputs_order = (input_names, output_names)
 
                 return graph_def, variables_values, 'tf2', inputs_outputs_order
             except (TypeError, KeyError):
