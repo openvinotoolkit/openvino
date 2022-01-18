@@ -13,6 +13,7 @@ There are six levels of logs, which can be called explicitly or set via the OPEN
 
 @sphinxdirective
 .. tab:: C++ API
+
    .. code-block:: cpp
 
       ov::runtime::Core core
@@ -28,6 +29,7 @@ There are six levels of logs, which can be called explicitly or set via the OPEN
       ov::runtime::CompiledModel compiled_model = core.compile_model(model, “AUTO”);
 	  
 .. tab:: Python API
+
    .. code-block:: python
 
       from openvino.runtime import Core
@@ -44,6 +46,7 @@ There are six levels of logs, which can be called explicitly or set via the OPEN
       compiled_model = core.compile_model(model=model, device_name="AUTO");
 	  
 .. tab:: OS environment variable
+
    .. code-block:: sh
 
       When defining it via the variable, the number needs to be used instead of a log level name, e.g.:
@@ -95,6 +98,7 @@ With VTUNE installed you can configure your analysis with the following steps:
 
 1. Open VTune Profiler GUI on the host machine with the following command:
 @sphinxdirective
+
 .. code-block:: sh
 
    cd /vtune install dir/intel/oneapi/vtune/2021.6.0/env
@@ -104,12 +108,6 @@ With VTUNE installed you can configure your analysis with the following steps:
 
 2. select “Configure Analysis”
 3. In the “where” pane, select “Local Host”
-
-
-
-
-
-
 
 
 
