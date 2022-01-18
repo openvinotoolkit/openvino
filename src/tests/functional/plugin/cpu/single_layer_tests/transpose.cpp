@@ -36,7 +36,11 @@ public:
 
         std::ostringstream result;
         result << "IS=" << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
-        result << "TS=" << CommonTestUtils::vec2str(inputShapes.second) << "_";
+        result << "TS=(";
+        for (const auto& shape : inputShapes.second) {
+            result << CommonTestUtils::vec2str(shape) << "_";
+        }
+        result << ")_";
         result << "inputOrder=" << CommonTestUtils::vec2str(inputOrder) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "trgDev=" << targetDevice;
@@ -60,11 +64,7 @@ protected:
 
         selectedType = makeSelectedTypeStr("unknown", inType);
 
-        targetStaticShapes.reserve(inputShapes.second.size());
-        for (const auto& staticShape : inputShapes.second) {
-            targetStaticShapes.push_back({staticShape});
-        }
-        inputDynamicShapes = { inputShapes.first };
+        init_input_shapes({inputShapes});
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeDynamicParams(inType, { inputDynamicShapes[0] });
