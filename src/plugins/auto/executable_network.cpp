@@ -530,7 +530,6 @@ bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
   std::pair<int, WorkerInferRequest*> worker;
   if (idleWorkerRequests.try_pop(worker)) {
       workerRequestPtr = worker.second;
-      //std::cout << "index: " << worker.first << std::endl;
       IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
       _thisWorkerInferRequest = workerRequestPtr;
       {
