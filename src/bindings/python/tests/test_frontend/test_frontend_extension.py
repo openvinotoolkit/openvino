@@ -14,7 +14,6 @@ except Exception:
 # FrontEndManager shall be initialized and destroyed after all tests finished
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
-ONNX_FRONTEND_NAME = "onnx"
 TENSORFLOW_FRONTEND_NAME = "tf"
 PADDLE_FRONTEND_NAME = "paddle"
 
