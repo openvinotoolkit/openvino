@@ -1749,7 +1749,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         };
 
         // TODO [DS]: inplace
-        uint32_t mask = 0xffffffff ^ (1 << 31); // accepts any offset
+        constexpr uint32_t anyOffsetMask = 0xffffffff ^ (1 << 31); // accepts any offset
         size_t offset = 0;
         NodeConfig config;
         if (!isDynamicNode()) {
@@ -1758,6 +1758,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         }
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
+            uint32_t inputMask = anyOffsetMask;
             PortConfig portConfig;
             // TODO [DS]: inplace
             if (!isDynamicNode())
@@ -1766,9 +1767,9 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
             const auto &srcShape = getInputShapeAtPort(i);
             if (!isDynamicNode() && srcShape.getDims()[0] == 1) {
-                mask ^= (0x1); // accepts any stride on the batch axis
+                inputMask ^= (0x1); // accepts any stride on the batch axis
             }
-            portConfig.setMemDesc(createMemoryDesc(srcShape, inputPrecisions[i], offset), mask);
+            portConfig.setMemDesc(createMemoryDesc(srcShape, inputPrecisions[i], offset), inputMask);
 
             config.inConfs.push_back(portConfig);
         }
@@ -1778,19 +1779,11 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         portConfig.constant(false);
 
         const auto &dstShape = getOutputShapeAtPort(0);
-        portConfig.setMemDesc(createMemoryDesc(dstShape, outputPrecision, offset));
+        uint32_t outputMask = anyOffsetMask;
         if (!isDynamicNode() && dstShape.getDims()[0] == 1) {
-            const auto denseDesc = portConfig.getMemDesc()->as<BlockedMemoryDesc>();
-            auto strides = denseDesc->getStrides();
-            strides[0] = Shape::UNDEFINED_DIM;
-            portConfig.setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
-                                                                     denseDesc->getShape(),
-                                                                     denseDesc->getBlockDims(),
-                                                                     denseDesc->getOrder(),
-                                                                     denseDesc->getOffsetPadding(),
-                                                                     denseDesc->getOffsetPaddingToData(),
-                                                                     strides));
+            outputMask ^= (0x1); // accepts any stride on the batch axis
         }
+        portConfig.setMemDesc(createMemoryDesc(dstShape, outputPrecision, offset), outputMask);
 
         config.outConfs.push_back(portConfig);
 
