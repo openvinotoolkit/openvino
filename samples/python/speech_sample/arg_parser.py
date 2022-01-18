@@ -70,10 +70,10 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
 
     if args.context_window_left < 0:
-        parser.error('Invalid value for -cw_l argument. It must be greater than or equal to 0')
+        parser.error('Invalid value for argument -cw_l/--context_window_left: Must be an integer >= 0.')
 
     if args.context_window_right < 0:
-        parser.error('Invalid value for -cw_r argument. It must be greater than or equal to 0')
+        parser.error('Invalid value for argument -cw_r/--context_window_right: Must be an integer >= 0.')
 
     if args.pwl_me < 0.0 or args.pwl_me > 100.0:
         parser.error('Invalid value for -pwl_me argument. It must be greater than 0.0 and less than 100.0')
