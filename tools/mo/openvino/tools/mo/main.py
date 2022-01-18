@@ -396,7 +396,8 @@ def prepare_ir(argv : argparse.Namespace):
             # after check_fallback call only new kind of extensions and transformations_config can processed here
             if hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config):
                 moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
-            if hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0:
+            if hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0 \
+                and argv.extensions != import_extensions.default_path():
                 for extension in argv.extensions.split(','):
                     moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
