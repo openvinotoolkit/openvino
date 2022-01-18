@@ -722,34 +722,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             IE_THROW(NotImplemented)
                 << "Auto-batching supports only networks featuring inputs/outputs with the batched layouts !";
     } catch (...) {
-        // fallback to loading as if no Auto-Batching was invloved
-        return GetCore()->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch)._ptr;
+        // fallback to loading as if no Auto-Batching was involved
+        auto res = GetCore()->LoadNetwork(network, deviceName, deviceConfigNoAutoBatch);
+        _additionalSOPtrs.push_back(res._so);
+        return res._ptr;
     }
-
-    // have to execute the DetectionOutput separately (without batching)
-    // as this layer mix-in the values from the different inputs (batch id)
-    bool bDetectionOutput = false;
-    const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
-    const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
-    for (auto&& node : function->get_ops()) {
-        auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
-            for (size_t n = 0; n < nd->get_input_size(); n++) {
-                if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
-                    return true;
-            }
-            return false;
-        };
-
-        if ((detectionOutputOpName == node->get_type_info().name) ||
-            ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
-            node->get_rt_info()["affinity"] = deviceName;
-            bDetectionOutput = true;
-        } else {
-            node->get_rt_info()["affinity"] = "BATCH";
-        }
-    }
-    if (bDetectionOutput)  //'BATCH' will be configured via AUTO_BATCH_DEVICE_CONFIG, so (further) ALLOW_BATCHING is NO
-        return GetCore()->LoadNetwork(network, "HETERO:BATCH," + deviceName, config_without_autobatch)._ptr;
 
     if (!metaDevice.batchForDevice) {
         unsigned int requests = 0;
