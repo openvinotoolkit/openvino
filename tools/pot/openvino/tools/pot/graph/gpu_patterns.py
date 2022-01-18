@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from .pattern_utils import check_fused_scale_shift_patterns, get_fused_scale_shift_patterns, \

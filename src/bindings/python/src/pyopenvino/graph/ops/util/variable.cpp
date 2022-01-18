@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "pyopenvino/graph/ops/util/variable.hpp"
 
 #include <pybind11/numpy.h>
