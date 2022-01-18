@@ -329,11 +329,12 @@ def check_fallback(argv : argparse.Namespace):
             and argv.extensions != import_extensions.default_path() # extensions arg has default value
         if not any_extension_used:
             return False
-        path = Path(argv.extensions)
-        new_ext_used = path.is_file() and (path.suffix == '.so' or path.suffix == '.dll')
-        if new_ext_used:
-            return False
-        return True
+        for extension in argv.extensions.split(','):
+            path = Path(extension)
+            new_ext_used = path.is_file() and (path.suffix == '.so' or path.suffix == '.dll')
+            if not new_ext_used:
+                return True
+        return False
 
     def is_new_json_config(json_file_path: Path):
         with open(json_file_path) as stream:
@@ -394,10 +395,10 @@ def prepare_ir(argv : argparse.Namespace):
             moc_front_end.add_extension(ProgressReporterExtension(progress_printer(argv)))
             # after check_fallback call only new kind of extensions and transformations_config can processed here
             if hasattr(argv, 'transformations_config') and argv.transformations_config is not None and len(argv.transformations_config):
-                #import pudb;pudb.set_trace()
                 moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
             if hasattr(argv, 'extensions') and argv.extensions is not None and len(argv.extensions) > 0:
-                moc_front_end.add_extension(argv.extensions)
+                for extension in argv.extensions.split(','):
+                    moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
             return graph, ngraph_function
         else: # apply fallback

@@ -100,10 +100,10 @@ class TestMoFallback(unittest.TestCase):
         for name, model in self.models.items():
             onnx.save(model, name)
 
-        self.trans_config_files = {}
-        self.trans_config_files['fake_config.json'] = '[]' # json format
+        self.test_config_files = {}
+        self.test_config_files['fake_config.json'] = '[]' # json format
 
-        self.trans_config_files['test_config_1.json'] = """[
+        self.test_config_files['test_config_1.json'] = """[
             {
             "custom_attributes": {
             "test_attribute": true
@@ -126,7 +126,7 @@ class TestMoFallback(unittest.TestCase):
             }
         ]"""
 
-        self.trans_config_files['test_config_2.json'] = """{
+        self.test_config_files['test_config_2.json'] = """{
             "custom_attributes": {
             "test_attribute": true
             },
@@ -135,7 +135,7 @@ class TestMoFallback(unittest.TestCase):
             "match_kind": "scope"
         }"""
 
-        self.trans_config_files['test_config_3.json'] = """[
+        self.test_config_files['test_config_3.json'] = """[
             {
             "custom_attributes": {
             "test_attribute": true
@@ -151,7 +151,7 @@ class TestMoFallback(unittest.TestCase):
             }
         ]"""
 
-        self.trans_config_files['test_config_4.json'] = """[
+        self.test_config_files['test_config_4.json'] = """[
         {
             "custom_attributes": {
             "test_attribute": true
@@ -171,14 +171,12 @@ class TestMoFallback(unittest.TestCase):
             }
         ]"""
 
-        for file, content in self.trans_config_files.items():
+        self.test_config_files['onnx_fe_ext.so'] = 'binary_content'
+        self.test_config_files['onnx_fe_ext_2.so'] = 'binary_content'
+
+        for file, content in self.test_config_files.items():
             with open(file, 'w') as f:
                 f.write(content)
-
-        new_fe_extension = 'onnx_fe_ext.so'
-        with open(new_fe_extension, 'w') as f:
-            f.write("binary_content")
-        self.new_fe_extension_file = os.path.abspath(new_fe_extension)
 
         self.paddle_dir = "paddle_dir"
         paddle.enable_static()
@@ -198,9 +196,8 @@ class TestMoFallback(unittest.TestCase):
     def tearDown(self):
         for name in self.models.keys():
             os.remove(name)
-        for name in self.trans_config_files:
+        for name in self.test_config_files:
             os.remove(name)
-        os.remove(self.new_fe_extension_file)
         shutil.rmtree(self.paddle_dir)
 
 
@@ -235,7 +232,22 @@ class TestMoFallback(unittest.TestCase):
         with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_legacy, use_new_fe)
-            args.extensions = self.new_fe_extension_file
+            args.extensions = 'onnx_fe_ext.so'
+            args.input_model = "test_model.onnx"
+            prepare_ir(args)
+
+            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+
+
+    @generate(*[(None, None, 'onnx_frontend'),
+                (True, None, 'mo_legacy'),
+                (None, True, 'onnx_frontend'),
+    ])
+    def test_fallback_if_two_new_extension_specified(self, use_legacy, use_new_fe, conversion_method):
+        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+            args = base_args_config(use_legacy, use_new_fe)
+            args.extensions = 'onnx_fe_ext.so,onnx_fe_ext_2.so'
             args.input_model = "test_model.onnx"
             prepare_ir(args)
 
