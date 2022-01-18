@@ -26,6 +26,7 @@ public:
     bool isExecutable() const override;
 
 protected:
+    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:

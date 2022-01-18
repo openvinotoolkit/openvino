@@ -83,6 +83,10 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+std::vector<VectorDims> MKLDNNRangeNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA));
+}
+
 void MKLDNNRangeNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }

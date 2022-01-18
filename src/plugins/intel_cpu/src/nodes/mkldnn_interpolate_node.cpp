@@ -2044,33 +2044,8 @@ bool MKLDNNInterpolateNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
-    std::vector<ov::StaticShape> input_shapes = {
-            getParentEdgesAtPort(DATA_ID)[0]->getMemory().GetShape().getStaticDims(),
-            getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().GetShape().getStaticDims(),
-            getParentEdgesAtPort(SCALES_ID)[0]->getMemory().GetShape().getStaticDims()
-    };
-
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
-    const auto &memory = getParentEdgesAtPort(port)[0]->getMemory();
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values = {
-            {port, std::make_shared<ngraph::runtime::HostTensor>(InferenceEngine::details::convertPrecision(memory.getDesc().getPrecision()),
-                                                                 memory.getStaticDims(), memory.GetPtr())}
-    };
-
-    if (getParentEdges().size() > AXES_ID) {
-        const auto &memory = getParentEdgesAtPort(AXES_ID)[0]->getMemory();
-        input_shapes.push_back(memory.getStaticDims());
-        input_values.insert({3, std::make_shared<ngraph::runtime::HostTensor>(InferenceEngine::details::convertPrecision(memory.getDesc().getPrecision()),
-                                                                              memory.getStaticDims(), memory.GetPtr())});
-    }
-
-    std::vector<ov::StaticShape> output_shapes = {{}};
-    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
-
-    std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s){ return s.to_shape(); });
-
-    return result;
+    return shapeInferGeneric(PortMask(port, AXES_ID));
 }
 
 void MKLDNNInterpolateNode::executeDynamicImpl(mkldnn::stream strm) {

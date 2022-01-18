@@ -21,6 +21,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; };
     void executeDynamicImpl(mkldnn::stream strm) override;
 

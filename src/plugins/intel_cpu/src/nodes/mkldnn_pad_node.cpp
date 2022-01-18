@@ -331,6 +331,10 @@ void MKLDNNPadNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
+std::vector<VectorDims> MKLDNNPadNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(PADS_BEGIN_ID, PADS_END_ID));
+}
+
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; j--) {
         indexes[j] = start % dims[j];
