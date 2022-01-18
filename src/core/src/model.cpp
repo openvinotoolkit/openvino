@@ -877,10 +877,10 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
         ssr_manager.run_passes(shared_from_this());
 
         reshape_only(new_param_shapes);
-    } catch (std::exception& ex) {
+    } catch (...) {
         // restore shapes to original ones
         reshape_only(original_input_shapes);
-        throw ex;
+        throw;
     }
 }
 
