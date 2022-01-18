@@ -489,12 +489,8 @@ int main(int argc, char* argv[]) {
                 if (iop_precision != ov::element::undefined) {
                     type_to_set = iop_precision;
                 } else if (input_precision != ov::element::undefined) {
-                    for (auto& info : app_inputs_info) {
                     type_to_set = input_precision;
-                        info.at(name).type = input_precision;
-                } else if (!name.empty() && app_inputs_info[0].at(name).isImage()) {
-                    }
-                } else if (app_inputs_info[0].at(name).is_image()) {
+                } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
                     // image input, set U8
                     type_to_set = ov::element::u8;
                 }
