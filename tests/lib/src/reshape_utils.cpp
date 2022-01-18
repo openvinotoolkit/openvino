@@ -87,17 +87,22 @@ std::vector<std::string> split(const std::string& s, char delim) {
  */
 void fillBlobsDynamic(InferenceEngine::InferRequest inferRequest,
                       const InferenceEngine::ConstInputsDataMap& inputsInfo,
-                      std::map<std::string, std::vector<size_t>> dataShape) {
+                      std::map<std::string, std::vector<size_t>> dataShape,
+                      const size_t& batchSize) {
   std::vector<std::pair<size_t, size_t>> input_image_sizes;
 
   for (const ConstInputsDataMap::value_type& item : inputsInfo) {
     Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
 
-    SizeVector newInputShape;
-    for (size_t i = 0; i < dataShape[item.first].size(); i++) {
-      newInputShape.emplace_back(dataShape[item.first][i]);
+    size_t nodeBatchSize = batchSize;
+    if (dataShape.count(item.first)) {
+      SizeVector newInputShape;
+      for (size_t i = 0; i < dataShape[item.first].size(); i++) {
+        newInputShape.emplace_back(dataShape[item.first][i]);
+      }
+      inputBlob->setShape(newInputShape);
+      size_t nodeBatchSize = newInputShape[0];
     }
-    inputBlob->setShape(newInputShape);
 
     if (isImage(item.second))
       input_image_sizes.push_back(getTensorHeightWidth(item.second->getTensorDesc()));
@@ -106,11 +111,11 @@ void fillBlobsDynamic(InferenceEngine::InferRequest inferRequest,
       // Fill image information
       auto image_size = input_image_sizes.at(0);
       if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
-        fillBlobImInfo<float>(inputBlob, newInputShape[0], image_size);
+        fillBlobImInfo<float>(inputBlob, nodeBatchSize, image_size);
       } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
-        fillBlobImInfo<short>(inputBlob, newInputShape[0], image_size);
+        fillBlobImInfo<short>(inputBlob, nodeBatchSize, image_size);
       } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
-        fillBlobImInfo<int32_t>(inputBlob, newInputShape[0], image_size);
+        fillBlobImInfo<int32_t>(inputBlob, nodeBatchSize, image_size);
       } else {
         throw std::logic_error("Input precision is not supported for image info!");
       }

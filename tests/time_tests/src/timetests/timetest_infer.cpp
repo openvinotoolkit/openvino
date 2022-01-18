@@ -83,7 +83,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
 
         if (reshape) {
           auto staticShapes = getDataShapes(dataShapes);
-          fillBlobsDynamic(inferRequest, inputsInfo, staticShapes);
+          fillBlobsDynamic(inferRequest, inputsInfo, staticShapes, batchSize);
         } else {
           batchSize = batchSize != 0 ? batchSize : 1;
           fillBlobs(inferRequest, inputsInfo, batchSize);

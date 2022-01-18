@@ -117,7 +117,8 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
  */
 void fillBlobsDynamic(InferenceEngine::InferRequest inferRequest,
                       const InferenceEngine::ConstInputsDataMap& inputsInfo,
-                      std::map<std::string, std::vector<size_t>>);
+                      std::map<std::string, std::vector<size_t>>,
+                      const size_t& batchSize);
 
 
 /**
