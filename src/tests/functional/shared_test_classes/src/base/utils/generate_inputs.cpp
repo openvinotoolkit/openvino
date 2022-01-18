@@ -463,6 +463,22 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::LogicalXor>& 
     return LogicalOp::generate(elemType, targetShape);
 }
 
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::ReduceLogicalAnd>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return LogicalOp::generate(elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::ReduceLogicalOr>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    return LogicalOp::generate(elemType, targetShape);
+}
+
+
+
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& node,
                              size_t port,
                              const ov::element::Type& elemType,

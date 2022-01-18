@@ -33,8 +33,17 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> i
         { ov::op::v1::Divide::get_type_info_static(), {{{100, 101}}, {{2, 2, 128}}} },
         { ov::op::v1::FloorMod::get_type_info_static(), {{{4, 2}}, {{2, 2, 128}}} },
         { ov::op::v1::Mod::get_type_info_static(), {{{4, 2}}, {{2, 2, 128}}} },
+        { ov::op::v1::ReduceMax::get_type_info_static(), {{{5, 0}}, {{5, -5, 1000}}} },
+        { ov::op::v1::ReduceMean::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
+        { ov::op::v1::ReduceMin::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
+        { ov::op::v1::ReduceProd::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
+        { ov::op::v1::ReduceSum::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
+        { ov::op::v1::ReduceSum::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
+        { ov::op::v1::ReduceSum::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
         { ov::op::v1::Power::get_type_info_static(), {{{4, 2}}, {{2, 2, 128}}} },
         { ov::op::v4::Proposal::get_type_info_static(), {{{1, 0, 1000, 8234231}}, {{1, 0, 1000, 8234231}}} },
+        { ov::op::v4::ReduceL1::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
+        { ov::op::v4::ReduceL2::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
         // maxOutBoxesPerClass
         { ov::op::v5::NonMaxSuppression::get_type_info_static(), {{}} },
 };

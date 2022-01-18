@@ -400,17 +400,17 @@ void inline fill_data_normal_random_float(InferenceEngine::Blob::Ptr &blob,
 
 template<InferenceEngine::Precision::ePrecision PRC, typename T>
 void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const T values[], const size_t size) {
-    using T = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    using Type = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
 
     auto *rawBlobDataPtr = blob->buffer().as<T *>();
     for (size_t i = 0; i < std::min(size, blob->size()); i++) {
         auto value = values[i];
-        if (typeid(T) ==
+        if (typeid(Type) ==
             typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
+            rawBlobDataPtr[i] = static_cast<Type>(ngraph::float16(value).to_bits());
 
         } else {
-            rawBlobDataPtr[i] = static_cast<T>(value);
+            rawBlobDataPtr[i] = static_cast<Type>(value);
         }
     }
 }
