@@ -1,20 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
+#include <shared_test_classes/single_layer/batch_to_space.hpp>
 
-#include "shared_test_classes/single_layer/batch_to_space.hpp"
+namespace ov {
+namespace test {
+namespace subgraph {
 
-namespace LayerTestsDefinitions {
-
-TEST_P(BatchToSpaceLayerTest, CompareWithRefs) {
-    Run();
+TEST_P(BatchToSpaceLayerTest, BatchToSpaceTests) {
+    run();
 };
 
-}  // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov

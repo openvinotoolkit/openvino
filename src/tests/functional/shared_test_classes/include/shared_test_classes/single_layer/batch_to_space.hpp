@@ -1,37 +1,36 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
+namespace ov {
+namespace test {
+namespace subgraph {
 
-namespace LayerTestsDefinitions {
+typedef std::tuple<
+    std::vector<InputShape>,           // input shapes
+    std::vector<int64_t>,              // block shape
+    std::vector<int64_t>,              // crops begin
+    std::vector<int64_t>,              // crops end
+    ElementType,                       // Network precision
+    ElementType,                       // Input precision
+    ElementType,                       // Output precision
+    TargetDevice                       // Device name
+> BatchToSpaceTestParams;
 
-using batchToSpaceParamsTuple = typename std::tuple<
-        std::vector<int64_t>,              // block shape
-        std::vector<int64_t>,              // crops begin
-        std::vector<int64_t>,              // crops end
-        std::vector<size_t>,               // Input shapes
-        InferenceEngine::Precision,        // Network precision
-        InferenceEngine::Precision,        // Input precision
-        InferenceEngine::Precision,        // Output precision
-        InferenceEngine::Layout,           // Input layout
-        InferenceEngine::Layout,           // Output layout
-        std::string>;                      // Device name>;
-
-class BatchToSpaceLayerTest : public testing::WithParamInterface<batchToSpaceParamsTuple>,
-                              virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple> &obj);
-
+class BatchToSpaceLayerTest : public testing::WithParamInterface<BatchToSpaceTestParams>,
+                              virtual public SubgraphBaseTest {
 protected:
     void SetUp() override;
-};
 
-}  // namespace LayerTestsDefinitions
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<BatchToSpaceTestParams>& obj);
+};
+} // namespace subgraph
+} // namespace test
+} // namespace ov
