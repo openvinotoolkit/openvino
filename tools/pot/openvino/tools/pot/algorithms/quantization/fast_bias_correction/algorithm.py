@@ -75,7 +75,7 @@ class FastBiasCorrection(Algorithm):
                 input_node = nu.get_node_input(input_node, 0)
                 quantized_node = nu.get_node_input(op_node, 0)
 
-            input_shape = inputs_shape_nodes_with_bias[input_node.name]
+            input_shape = inputs_shape_nodes_with_bias[input_node.fullname]
             op_model = mu.build_model_for_node(model, input_node.fullname, input_shape, op_node,
                                                remove_bias=True, target_device=self._config['target_device'])
 
@@ -211,7 +211,7 @@ class FastBiasCorrection(Algorithm):
             input_node = nu.get_node_input(op_node, 0)
             if input_node.type == 'FakeQuantize':
                 input_node = nu.get_node_input(input_node, 0)
-            calculate_input_shape[input_node.name] = {'shape_node': lambda x: x.shape}
+            calculate_input_shape[input_node.fullname] = {'shape_node': lambda x: x.shape}
         _, inputs_shape = self._engine.predict(calculate_input_shape, sampler)
         for node_name, shape_node in inputs_shape.items():
             inputs_shape[node_name] = shape_node['shape_node'][0]
