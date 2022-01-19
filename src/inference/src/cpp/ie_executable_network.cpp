@@ -9,8 +9,8 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
-#include "ie_remote_context.hpp"
 #include "ie_plugin_config.hpp"
+#include "ie_remote_context.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 
