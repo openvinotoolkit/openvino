@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -579,6 +579,10 @@ public:
         return outputShapes[port];
     }
 
+    const std::vector<InferenceEngine::Blob::Ptr>& getInternalBlobs() const {
+        return internalBlobs;
+    }
+
     /**
     * @brief Return scales and shift if nodes can be executed as ScaleShift, else raise exception
     * If node has only scale or shift value, fill missing value with default values
@@ -671,7 +675,6 @@ protected:
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;
     friend class MKLDNNGraphOptimizer;
-    friend class NodeDumper;
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     bool isConfigDefined(const NodeConfig &config) const;

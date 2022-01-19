@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -160,6 +160,7 @@ set(SRC
     type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
     type_prop/idft.cpp
+    type_prop/if.cpp
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp

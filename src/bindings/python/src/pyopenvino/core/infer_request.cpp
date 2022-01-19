@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "pyopenvino/core/infer_request.hpp"
@@ -236,29 +236,21 @@ void regclass_InferRequest(py::module m) {
         return self.userdata;
     });
 
-    cls.def_property_readonly("inputs", [](InferRequestWrapper& self) {
+    cls.def_property_readonly("model_inputs", [](InferRequestWrapper& self) {
         return self._inputs;
     });
 
-    cls.def_property_readonly("outputs", [](InferRequestWrapper& self) {
+    cls.def_property_readonly("model_outputs", [](InferRequestWrapper& self) {
         return self._outputs;
     });
 
-    cls.def_property_readonly("input_tensors", [](InferRequestWrapper& self) {
-        std::vector<ov::runtime::Tensor> tensors;
-        for (auto&& node : self._inputs) {
-            tensors.push_back(self._request.get_tensor(node));
-        }
-        return tensors;
-    });
+    cls.def_property_readonly("inputs", &InferRequestWrapper::get_input_tensors);
 
-    cls.def_property_readonly("output_tensors", [](InferRequestWrapper& self) {
-        std::vector<ov::runtime::Tensor> tensors;
-        for (auto&& node : self._outputs) {
-            tensors.push_back(self._request.get_tensor(node));
-        }
-        return tensors;
-    });
+    cls.def_property_readonly("outputs", &InferRequestWrapper::get_output_tensors);
+
+    cls.def_property_readonly("input_tensors", &InferRequestWrapper::get_input_tensors);
+
+    cls.def_property_readonly("output_tensors", &InferRequestWrapper::get_output_tensors);
 
     cls.def_property_readonly("latency", [](InferRequestWrapper& self) {
         return self.get_latency();
