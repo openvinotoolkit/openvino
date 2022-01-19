@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,6 +94,10 @@ void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
                              {{LayoutType::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
+}
+
+std::vector<VectorDims> MKLDNNBatchToSpaceNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(1, 2, 3));
 }
 
 static std::vector<size_t> getShape5D(const SizeVector &shape) {
