@@ -423,4 +423,14 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
     proc.def("build", &ov::preprocess::PrePostProcessor::build);
+
+    proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
+        std::stringstream ss;
+        ss << self;
+        return ss.str();
+    });
+
+    proc.def("__repr__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
+        return "<PrePostProcessor: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
+    });
 }

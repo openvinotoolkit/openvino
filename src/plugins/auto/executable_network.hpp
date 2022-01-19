@@ -144,7 +144,7 @@ private:
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
     InferenceEngine::IStreamsExecutor::Ptr                              _executor;
-    MultiDeviceInferencePlugin*                                         _multiPlugin;
+    MultiDeviceInferencePlugin*                                         _multiPlugin = nullptr;
     AutoContext                                                         _context;
     bool                                                                _workModeIsAUTO = {false};
     mutable std::once_flag                                              _oc;
@@ -153,6 +153,7 @@ private:
     std::promise<void>                                                  _firstLoadPromise;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
+    bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
 };
 

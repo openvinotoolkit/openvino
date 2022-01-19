@@ -112,8 +112,9 @@ bool CpuBlockedMemoryDesc::canComputeMemSizeZeroDims() const {
 }
 
 size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
-    int64_t e_size = getOffsetPadding() + 1;  // size in bytes (from begin of data to last element)
+    int64_t e_size = getOffsetPadding();  // size in bytes (from begin of data to last element)
     if (!getShape().hasZeroDims()) {
+        e_size += 1;
         for (int j = 0; j < getBlockDims().size(); j++)
             e_size += (getBlockDims()[j] - 1) * getStrides()[j];
     }
@@ -129,9 +130,7 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
     }
 
     const auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
-                                                                         // WA: for some nodes ngraph compute upper bound depending on precision max value
-                                                                         x >= std::numeric_limits<int32_t>::max(); })) {
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
         return UNDEFINED_SIZE;
     }
 

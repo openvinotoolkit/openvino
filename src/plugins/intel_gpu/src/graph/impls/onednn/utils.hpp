@@ -28,11 +28,10 @@ dnnl::memory::dims flatten_tensor(cldnn::tensor t);
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt);
 dnnl::memory::format_tag convert_data_format(cldnn::format fmt);
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef, bool flatten = false);
-dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc);
 dnnl::algorithm convert_activation_func(cldnn::activation_func func);
+cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 
-// onednn -> cldnn
-cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped = false);
+int64_t get_offset(dnnl::memory::desc desc);
 
 // If the values in the tensor are identical, make it as per-tensor value
 template <typename T>
