@@ -177,6 +177,7 @@ private:
     Xbyak::Reg64 reg_seq_tmp = reg_seq_l;              // only for bubble sort of scalar
     Xbyak::Reg64 reg_tmp = reg_aux_idx;                // only for bubble sort and heap sort
     Xbyak::Reg64 reg_sort_stride = reg_work_amount;    // only for bubble sort, save reg_work_amount by rsp before using reg_sort_stride
+    Xbyak::Reg64 reg_blk_stride = reg_sort_stride;     // only for bubble sort of scalar, denotes reg_sort_stride * jcp_.blk_size
     Xbyak::Reg64 reg_sub_idx = reg_bubble_block_idx;   // only for bubble sort of scalar
     Xbyak::Reg64 reg_heap_seq_idx = reg_table;         // only for heap sort
     Xbyak::Reg64 reg_heap_axis_dim = reg_work_amount;  // only for heap sort
@@ -1298,6 +1299,8 @@ private:
         mov(reg_sort_stride, ptr[reg_params + GET_OFF(sort_stride)]);
         mov(reg_bubble_seq_top_k, ptr[reg_params + GET_OFF(top_k)]);
 
+        mul_by_const(reg_sort_stride, reg_tmp_64, jcp_.blk_size);
+
         // init dst
         Xbyak::Label topk_init_next_label;
         Xbyak::Label topk_init_iter_label;
@@ -1324,7 +1327,7 @@ private:
             jl(topk_init_next_label, T_NEAR);
 
             mov(reg_sub_idx, 0);
-            reg_sub_mul(reg_tmp, reg_sort_stride, 1, jcp_.blk_size * jcp_.data_size);
+            reg_sub_mul(reg_tmp, reg_blk_stride, jcp_.blk_size, jcp_.data_size);
             add(reg_aux, reg_tmp);
 
             L(topk_init_next_label);
@@ -1344,7 +1347,7 @@ private:
         Xbyak::Label topk_iter_label;
         Xbyak::Label topk_iter_end_label;
         mov(reg_i, reg_bubble_seq_top_k);
-        reg_calc_offset_by_channel_idx(reg_seq_tmp, reg_sort_stride, reg_bubble_seq_top_k, jcp_.blk_size);
+        reg_calc_offset_by_channel_idx(reg_seq_tmp, reg_blk_stride, reg_bubble_seq_top_k, jcp_.blk_size);
         get_addr_by_reg_idx(reg_aux, reg_src, reg_seq_tmp, jcp_.data_size);
         reg_mod_blk_size(reg_sub_idx, reg_bubble_seq_top_k, jcp_.blk_size);
         L(topk_iter_label);
@@ -1386,7 +1389,7 @@ private:
             jl(topk_next_label, T_NEAR);
 
             mov(reg_sub_idx, 0);
-            reg_sub_mul(reg_tmp, reg_sort_stride, 1, jcp_.blk_size * jcp_.data_size);
+            reg_sub_mul(reg_tmp, reg_blk_stride, jcp_.blk_size, jcp_.data_size);
             add(reg_aux, reg_tmp);
 
             L(topk_next_label);
@@ -1571,8 +1574,7 @@ private:
         sub(rsp, sizeof(int64_t));
         mov(ptr[rsp], reg_aux);
 
-        mov(reg_aux, reg_sort_stride);
-        mul_by_const(reg_aux, reg_tmp_64, jcp_.blk_size);
+        mov(reg_aux, reg_blk_stride);
         reg_calc_offset_by_channel_idx(reg_offset_l, reg_aux, reg_l, jcp_.blk_size);
         reg_calc_offset_by_channel_idx(reg_offset_r, reg_aux, reg_r, jcp_.blk_size);
 
