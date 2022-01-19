@@ -10,15 +10,23 @@ file(GLOB LIBRARY_SOURCES_MAIN
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
   )
 
-file(GLOB LIBRARY_SOURCES_OCL
-    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
+  file(GLOB LIBRARY_SOURCES_OCL
+  "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
 )
+
+file(GLOB LIBRARY_SOURCES_ZE
+  "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.cpp"
+)
+
 
 set(LIBRARY_SOURCES_ALL
     ${LIBRARY_SOURCES_MAIN}
     ${LIBRARY_SOURCES_OCL}
+    ${LIBRARY_SOURCES_ZE}
   )
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
@@ -42,6 +50,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     OpenCL
     openvino::itt
     inference_engine_plugin_api
+    ${LevelZero_LIBRARY}
   )
 
 if(ENABLE_ONEDNN_FOR_GPU)

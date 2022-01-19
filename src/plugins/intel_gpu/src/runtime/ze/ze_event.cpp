@@ -3,7 +3,7 @@
 //
 
 #include "ze_event.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <cassert>
 #include <iostream>

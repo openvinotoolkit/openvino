@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/stream.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "ze_common.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"

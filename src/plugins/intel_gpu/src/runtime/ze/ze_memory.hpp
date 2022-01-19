@@ -7,7 +7,7 @@
 #include "ze_common.hpp"
 #include "ze_engine.hpp"
 // #include "ze_stream.hpp"
-#include "cldnn/runtime/memory.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 
 #include <cassert>
 #include <iterator>

@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/stream.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "ze_device.hpp"
 
 #include <memory>

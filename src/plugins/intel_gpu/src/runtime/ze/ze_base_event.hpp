@@ -5,8 +5,8 @@
 #pragma once
 
 #include "ze_common.hpp"
-#include "cldnn/runtime/event.hpp"
-#include "cldnn/runtime/utils.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 
 #include <vector>
 #include <memory>

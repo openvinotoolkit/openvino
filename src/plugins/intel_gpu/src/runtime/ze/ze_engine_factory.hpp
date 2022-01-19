@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "cldnn/runtime/device.hpp"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/stream.hpp"
+#include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 
 namespace cldnn {
 namespace ze {

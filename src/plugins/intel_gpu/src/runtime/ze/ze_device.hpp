@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/device.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/device.hpp"
 #include "ze_common.hpp"
 
 #include <map>

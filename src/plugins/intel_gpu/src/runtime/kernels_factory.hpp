@@ -7,6 +7,7 @@
 #include "intel_gpu/runtime/kernel.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "ocl/ocl_common.hpp"
+#include "ze/ze_common.hpp"
 
 #include <memory>
 

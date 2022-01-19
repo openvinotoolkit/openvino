@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/utils.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "ze_memory.hpp"
 #include "ze_engine.hpp"
 #include "ze_stream.hpp"

@@ -3,7 +3,6 @@
 //
 
 #include "kernels_factory.hpp"
-#include "ze/ze_kernel.hpp"
 
 namespace cldnn {
 namespace ocl {
