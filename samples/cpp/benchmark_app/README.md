@@ -5,11 +5,6 @@ Performance can be measured for two inference modes: latency- and throughput-ori
 
 > **NOTE**: This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../../tools/benchmark_tool/README.md).
 
-> **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to
-> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for
-> deployment on various Intel® platforms.
-
 
 ## How It Works
 
@@ -59,11 +54,11 @@ Note that the benchmark_app usually produces optimal performance for any device 
 ./benchmark_app -m <model> -i <input> -d CPU
 ```
 
-But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md).
+But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
-As explained in the  [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md) section, for all devices, including new [MULTI device](../../../docs/IE_DG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
+As explained in the  [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md) section, for all devices, including new [MULTI device](../../../docs/IE_DG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
 Also if latency of the CPU inference on the multi-socket machines is of concern, please refer to the same
-[Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md) document.
+[Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
 Running the application with the `-h` option yields the following usage message:
 ```

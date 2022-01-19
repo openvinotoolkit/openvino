@@ -1,7 +1,8 @@
 # Post-Training Optimization Tool API {#pot_compression_api_README}
+
 ## Overview
 The Post-Training Optimization Tool (POT) Python* API allows injecting optimization methods supported by POT into a 
-model inference script written with OpenVINO&trade; [Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview). 
+model inference script written with OpenVINO&trade; [Python* API](ie_python_api/api.html). 
 Thus, POT API helps to implement a custom 
 optimization pipeline for a single or cascaded/composite DL model (set of joint models). By the optimization pipeline, 
 we mean the consecutive application of optimization algorithms to the model. The input for the optimization pipeline is 
@@ -21,7 +22,7 @@ should be implemented according to the custom DL model:
 - `Engine` is responsible for model inference and provides statistical data and accuracy metrics for the model.
   > **NOTE**: The POT has the implementation of the Engine class with the class name IEEngine located in 
   >           `<POT_DIR>/engines/ie_engine.py`, where `<POT_DIR>` is a directory where the Post-Training Optimization Tool is installed.
-  >           It is based on the [OpenVINO™ Inference Engine Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview)
+  >           It is based on the [OpenVINO™ Inference Engine Python* API](ie_python_api/api.html)
   >           and can be used as a baseline engine in the customer pipeline instead of the abstract Engine class.
 - `DataLoader` is responsible for the dataset loading, including the data pre-processing.
 - `Metric` is responsible for calculating the accuracy metric for the model.
@@ -155,7 +156,7 @@ describe internal representation of the DL model and how to work with it.
 ```
 class openvino.tools.pot.engines.ie_engine.IEEngine(config, data_loader=None, metric=None)
 ```
-IEEngine is a helper which implements Engine class based on [OpenVINO&trade; Inference Engine Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview).
+IEEngine is a helper which implements Engine class based on [OpenVINO&trade; Inference Engine Python* API](ie_python_api/api.html).
 This class support inference in synchronous and asynchronous modes and can be reused as-is in the custom pipeline or 
 with some modifications, e.g. in case of custom post-processing of inference results.
 

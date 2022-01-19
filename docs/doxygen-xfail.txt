@@ -1,1 +1,3 @@
 deprecated.rst
+global.rst
+exampleexample.rst

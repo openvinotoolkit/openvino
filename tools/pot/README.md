@@ -39,7 +39,7 @@ The POT provides three basic usage scenarios:
 [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or there is a valid [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README)
 configuration file for the model that allows validating model accuracy using [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README).
 * **[Python* API](openvino/tools/pot/api/README.md)**: it allows integrating optimization methods implemented in POT into
-a Python* inference script written with [Python* API](@ref openvino_inference_engine_ie_bridges_python_docs_api_overview). 
+a Python* inference script written with [Python* API](ie_python_api/api.html). 
 This flow is recommended if it is not possible to use [Accuracy Checker Tool](@ref omz_tools_accuracy_checker_README)
 for validation on the dedicated dataset.
 * **[Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench)**: a web-based graphical environment 

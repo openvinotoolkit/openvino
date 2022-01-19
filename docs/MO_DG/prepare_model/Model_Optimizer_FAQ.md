@@ -286,7 +286,7 @@ This error occurs when the `--input` command line option is used to cut a model 
 
 #### 42. What does the message "Module TensorFlow was not found. Please install TensorFlow 1.2 or higher" mean? <a name="question-42"></a>
 
-To convert TensorFlow\* models with Model Optimizer, TensorFlow 1.2 or newer must be installed. For more information on prerequisites, see [Configuring the Model Optimizer](Config_Model_Optimizer.md).
+To convert TensorFlow\* models with Model Optimizer, TensorFlow 1.2 or newer must be installed. For more information on prerequisites, see [Configuring the Model Optimizer](../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 #### 43. What does the message "Cannot read the model file: it is incorrect TensorFlow model file or missing" mean? <a name="question-43"></a>
 
@@ -326,7 +326,7 @@ Model Optimizer tried to access a node that does not exist. This could happen if
 
 #### 52. What does the message "Module mxnet was not found. Please install MXNet 1.0.0" mean? <a name="question-52"></a>
 
-To convert MXNet\* models with Model Optimizer, MXNet 1.0.0 must be installed. For more information about prerequisites, see [Configuring the Model Optimizer](Config_Model_Optimizer.md).
+To convert MXNet\* models with Model Optimizer, MXNet 1.0.0 must be installed. For more information about prerequisites, see [Configuring the Model Optimizer](../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 #### 53. What does the message "The following error happened while loading MXNet model .." mean? <a name="question-53"></a>
 
@@ -453,7 +453,7 @@ Your Caffe\* topology `.prototxt` file is intended for training. Model Optimizer
 
 #### 80. What does the message "Warning: please expect that Model Optimizer conversion might be slow" mean? <a name="question-80"></a>
 
-You are using an unsupported Python\* version. Use only versions 3.4 - 3.6 for the C++ `protobuf` implementation that is supplied with the OpenVINO Toolkit. You can still boost conversion speed by building protobuf library from sources. For complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
+You are using an unsupported Python\* version. Use only versions 3.4 - 3.6 for the C++ `protobuf` implementation that is supplied with the OpenVINO Toolkit. You can still boost conversion speed by building protobuf library from sources. For complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 #### 81. What does the message "Arguments --nd_prefix_name, --pretrained_model_name and --input_symbol should be provided. Please provide all or do not use any." mean? <a name="question-81"></a>
 
@@ -618,7 +618,7 @@ It means that you trying to convert the topology which contains '_contrib_box_nm
 
 #### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-103"></a>
 
-If a '*.caffemodel' file exists and it is correct, the error possibly occured due to the use of Python protobuf implementation. In some cases, it shows error message during model parsing, for example: "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.6/3.7 or build 'cpp' implementation of protobuf yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
+If a '*.caffemodel' file exists and it is correct, the error possibly occured due to the use of Python protobuf implementation. In some cases, it shows error message during model parsing, for example: "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.6/3.7 or build 'cpp' implementation of protobuf yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](../Deep_Learning_Model_Optimizer_DevGuide.md).
 
 #### 104. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet\* model conversion mean? <a name="question-104"></a>
 

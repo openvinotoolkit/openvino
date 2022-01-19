@@ -6,10 +6,12 @@
    :maxdepth: 1
    :hidden:
    
+   openvino_2_0_transition_guide
    openvino_docs_IE_DG_Integrate_with_customer_application_new_API
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_IE_DG_Device_Plugins
    Direct ONNX Format Support <openvino_docs_IE_DG_ONNX_Support>
+   openvino_docs_IE_DG_Paddle_Support
    openvino_docs_IE_DG_Int8Inference
    openvino_docs_IE_DG_Bfloat16Inference
    openvino_docs_IE_DG_DynamicBatching

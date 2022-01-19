@@ -286,7 +286,7 @@ mo --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]" --ou
 
 
 ## See Also
-* [Configuring the Model Optimizer](../Config_Model_Optimizer.md)
+* [Configuring the Model Optimizer](../../Deep_Learning_Model_Optimizer_DevGuide.md)
 * [IR Notation Reference](../../IR_and_opsets.md)
 * [Model Optimizer Extensibility](../customize_model_optimizer/Customize_Model_Optimizer.md)
 * [Model Cutting](Cutting_Model.md)
