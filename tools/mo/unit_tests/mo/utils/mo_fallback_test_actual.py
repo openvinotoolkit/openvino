@@ -202,7 +202,7 @@ class TestMoFallback(unittest.TestCase):
 
 
     @generate(*[('dir_to_extension', None, None, 'mo_legacy', 'extensions'), # fallback
-                ('dir_to_extension', None, True, 'onnx_frontend', None),
+                ('dir_to_extension', None, True, None, None), # exception
                 ('dir_to_extension', True, None, 'mo_legacy', None),
                 ('', True, None, 'mo_legacy', None),
                 ('', None, True, 'onnx_frontend', None),
@@ -214,18 +214,22 @@ class TestMoFallback(unittest.TestCase):
             args = base_args_config(use_legacy, use_new_fe)
             args.extensions = extension
             args.input_model = "test_model.onnx"
-            prepare_ir(args)
 
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
-            if fallback_reason:
-                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-            else:
-                with pytest.raises(AssertionError): # not called
+            if conversion_method:
+                prepare_ir(args)
+                tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+                if fallback_reason:
                     tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+                else:
+                    with pytest.raises(AssertionError): # not called
+                        tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+            else:
+                with pytest.raises(Error): # not supported extensions on new path
+                    prepare_ir(args)
 
 
     @generate(*[(None, None, 'onnx_frontend'),
-                (True, None, 'mo_legacy'),
+                (True, None, None), # exception
                 (None, True, 'onnx_frontend'),
     ])
     def test_fallback_if_new_extension_specified(self, use_legacy, use_new_fe, conversion_method):
@@ -234,13 +238,17 @@ class TestMoFallback(unittest.TestCase):
             args = base_args_config(use_legacy, use_new_fe)
             args.extensions = 'onnx_fe_ext.so'
             args.input_model = "test_model.onnx"
-            prepare_ir(args)
 
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+            if conversion_method:
+                prepare_ir(args)
+                tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+            else:
+                with pytest.raises(Error):
+                    prepare_ir(args)
 
 
     @generate(*[(None, None, 'onnx_frontend'),
-                (True, None, 'mo_legacy'),
+                (True, None, None), # exception
                 (None, True, 'onnx_frontend'),
     ])
     def test_fallback_if_two_new_extension_specified(self, use_legacy, use_new_fe, conversion_method):
@@ -249,9 +257,13 @@ class TestMoFallback(unittest.TestCase):
             args = base_args_config(use_legacy, use_new_fe)
             args.extensions = 'onnx_fe_ext.so,onnx_fe_ext_2.so'
             args.input_model = "test_model.onnx"
-            prepare_ir(args)
 
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+            if conversion_method:
+                prepare_ir(args)
+                tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+            else:
+                with pytest.raises(Error):
+                    prepare_ir(args)
 
 
     @generate(*[('fake_config.json' , None, None, 'mo_legacy', 'transformations_config'), # fallback
@@ -277,7 +289,6 @@ class TestMoFallback(unittest.TestCase):
 
 
     @generate(*[('test_config_1.json', None, None, 'onnx_frontend', None), # 'library' attribute for all transformations
-                ('test_config_1.json', True, None, 'mo_legacy', None),
                 ('test_config_2.json', None, None, 'onnx_frontend', None), # 'library' attribute in single transformation
                 ('test_config_3.json', None, None, 'mo_legacy', 'transformations_config'), # 'library' attribute in no transformations
     ])
@@ -301,6 +312,18 @@ class TestMoFallback(unittest.TestCase):
             else:
                 with pytest.raises(AssertionError): # not called
                     tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+
+
+    def test_exception_if_new_trans_config_on_legacy_path(self):
+        with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+            args = base_args_config(use_legacy_fe=True)
+            args.input_model = "test_model.onnx"
+            args.transformations_config = 'test_config_1.json'
+
+            with pytest.raises(Error) as ex: # not called
+                prepare_ir(args)
+                assert str(ex) == 'New kind of transformations configuration used on legacy path'
 
 
     def test_exeption_if_mixed_types_of_trans_configs(self):
@@ -355,7 +378,7 @@ class TestMoFallback(unittest.TestCase):
                 tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason')
 
 
-    @generate(*[(None, None, 'dir_to_extension', 'paddle_frontend'),
+    @generate(*[(None, None, 'test_config_1.json', 'paddle_frontend'),
                 (True, None, None, 'paddle_frontend'),
                 (None, None, None, 'paddle_frontend'),
     ])
@@ -370,3 +393,14 @@ class TestMoFallback(unittest.TestCase):
         tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', expected_path)
         with pytest.raises(AssertionError): # not called
             tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason')
+
+
+    def test_exception_if_old_extensions_used_for_pdpd(self):
+        args = base_args_config()
+        args.framework = 'paddle'
+        args.extensions = 'dir_to_extension'
+        args.input_model = 'paddle_dir/relu/relu.pdmodel'
+
+        with pytest.raises(Error) as ex: # not called
+            prepare_ir(args)
+            assert str(ex) == 'Legacy transformations configuration is not supported for the new frontend'
