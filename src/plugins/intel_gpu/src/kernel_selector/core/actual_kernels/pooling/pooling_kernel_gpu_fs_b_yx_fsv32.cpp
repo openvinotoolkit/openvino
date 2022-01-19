@@ -78,7 +78,7 @@ JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf = {"",
-                                     {"b", "fs", "out_y", "out_x"},
+                                     {"b", "((fs * 32) + sglid)", "out_y", "out_x"},
                                      "pool_result",
                                      input_dt,
                                      2,
