@@ -483,8 +483,7 @@ inline ov::TensorVector create_tmp_tensors(const ngraph::HostTensorVector& tenso
     return std::move(result);
 }
 
-inline void update_output_tensors(const ngraph::HostTensorVector& output_values,
-                                  const ov::TensorVector& outputs) {
+inline void update_output_tensors(const ngraph::HostTensorVector& output_values, const ov::TensorVector& outputs) {
     OPENVINO_ASSERT(output_values.size(), outputs.size());
     for (size_t i = 0; i < outputs.size(); i++) {
         const auto& tensor = output_values[i];
@@ -530,8 +529,8 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
     OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::Evaluator<ov::Tensor> evaluator({}, value_map);
     evaluator.set_universal_handler(
-        [&output_tensor_map,
-         &evaluation_context](Node* node, const ov::TensorVector& input_tensors) -> ov::TensorVector {
+        [&output_tensor_map, &evaluation_context](Node* node,
+                                                  const ov::TensorVector& input_tensors) -> ov::TensorVector {
             ov::TensorVector output_tensors;
             for (const auto& v : node->outputs()) {
                 auto it = output_tensor_map.find(v);

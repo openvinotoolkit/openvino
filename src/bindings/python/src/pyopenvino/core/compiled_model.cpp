@@ -58,31 +58,25 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def_property_readonly("inputs", &ov::CompiledModel::inputs);
 
-    cls.def("input",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)() const) & ov::CompiledModel::input);
-
-    cls.def(
-        "input",
-        (ov::Output<const ov::Node>(ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::input,
-        py::arg("index"));
+    cls.def("input", (ov::Output<const ov::Node>(ov::CompiledModel::*)() const) & ov::CompiledModel::input);
 
     cls.def("input",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)(const std::string&) const) &
-                ov::CompiledModel::input,
+            (ov::Output<const ov::Node>(ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::input,
+            py::arg("index"));
+
+    cls.def("input",
+            (ov::Output<const ov::Node>(ov::CompiledModel::*)(const std::string&) const) & ov::CompiledModel::input,
             py::arg("tensor_name"));
 
     cls.def_property_readonly("outputs", &ov::CompiledModel::outputs);
 
-    cls.def("output",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)() const) & ov::CompiledModel::output);
-
-    cls.def(
-        "output",
-        (ov::Output<const ov::Node>(ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::output,
-        py::arg("index"));
+    cls.def("output", (ov::Output<const ov::Node>(ov::CompiledModel::*)() const) & ov::CompiledModel::output);
 
     cls.def("output",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)(const std::string&) const) &
-                ov::CompiledModel::output,
+            (ov::Output<const ov::Node>(ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::output,
+            py::arg("index"));
+
+    cls.def("output",
+            (ov::Output<const ov::Node>(ov::CompiledModel::*)(const std::string&) const) & ov::CompiledModel::output,
             py::arg("tensor_name"));
 }

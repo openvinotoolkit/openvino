@@ -38,10 +38,8 @@ compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_
 
 // used for float16 and bfloat 16 comparisons
 template <typename T>
-typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type compare_values(
-    const ov::Tensor& expected_tensor,
-    const ov::Tensor& result_tensor,
-    const size_t tolerance_bits) {
+typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
+compare_values(const ov::Tensor& expected_tensor, const ov::Tensor& result_tensor, const size_t tolerance_bits) {
     auto exp_host_t = std::make_shared<ngraph::HostTensor>(expected_tensor.get_element_type(),
                                                            expected_tensor.get_shape(),
                                                            expected_tensor.data());

@@ -230,14 +230,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return supported;
     }
 
-    ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(
-        const InferenceEngine::CNNNetwork& network,
-        ov::InferencePlugin& plugin,
-        const std::map<std::string, std::string>& parsedConfig,
-        const ie::RemoteContext::Ptr& context,
-        const std::string& blobID,
-        const std::string& modelPath = std::string(),
-        bool forceDisableCache = false) {
+    ov::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(const InferenceEngine::CNNNetwork& network,
+                                                                 ov::InferencePlugin& plugin,
+                                                                 const std::map<std::string, std::string>& parsedConfig,
+                                                                 const ie::RemoteContext::Ptr& context,
+                                                                 const std::string& blobID,
+                                                                 const std::string& modelPath = std::string(),
+                                                                 bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
         execNetwork = context ? plugin.compile_model(network, context, parsedConfig)
@@ -482,10 +481,9 @@ public:
         return newAPI;
     }
 
-    ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(
-        const ie::CNNNetwork& network,
-        const std::shared_ptr<ie::RemoteContext>& context,
-        const std::map<std::string, std::string>& config) override {
+    ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
+                                                          const std::shared_ptr<ie::RemoteContext>& context,
+                                                          const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
             IE_THROW() << "Remote context is null";

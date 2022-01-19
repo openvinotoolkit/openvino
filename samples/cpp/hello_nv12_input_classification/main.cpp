@@ -146,9 +146,7 @@ int main(int argc, char* argv[]) {
         // -------- Step 6. Prepare input data  --------
         std::shared_ptr<unsigned char> image_data = reader->getData(input_width, input_height);
 
-        ov::Tensor input_tensor{ov::element::u8,
-                                         {batch, input_height * 3 / 2, input_width, 1},
-                                         image_data.get()};
+        ov::Tensor input_tensor{ov::element::u8, {batch, input_height * 3 / 2, input_width, 1}, image_data.get()};
 
         // Read labels from file (e.x. AlexNet.labels)
         std::string labelFileName = fileNameNoExt(model_path) + ".labels";

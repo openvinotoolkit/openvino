@@ -331,8 +331,7 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
  * @param perfCounters reference to a map to save performance counters
  * @return none.
  */
-void get_performance_counters(ov::InferRequest& request,
-                              std::map<std::string, ov::ProfilingInfo>& perfCounters) {
+void get_performance_counters(ov::InferRequest& request, std::map<std::string, ov::ProfilingInfo>& perfCounters) {
     auto retPerfCounters = request.get_profiling_info();
 
     for (const auto& element : retPerfCounters) {

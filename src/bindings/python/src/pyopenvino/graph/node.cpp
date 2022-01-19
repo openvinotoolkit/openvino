@@ -108,9 +108,7 @@ void regclass_graph_Node(py::module m) {
             )");
     node.def(
         "evaluate",
-        [](const ov::Node& self,
-           ov::TensorVector& output_values,
-           const ov::TensorVector& input_values) -> bool {
+        [](const ov::Node& self, ov::TensorVector& output_values, const ov::TensorVector& input_values) -> bool {
             return self.evaluate(output_values, input_values);
         },
         py::arg("output_values"),

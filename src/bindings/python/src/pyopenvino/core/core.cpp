@@ -40,24 +40,21 @@ void regclass_Core(py::module m) {
             py::arg("device_name"),
             py::arg("config") = py::dict());
 
-    cls.def(
-        "compile_model",
-        (ov::CompiledModel(ov::Core::*)(const std::shared_ptr<const ov::Model>&, const ConfigMap&)) &
-            ov::Core::compile_model,
-        py::arg("model"),
-        py::arg("config") = py::dict());
-
-    cls.def(
-        "compile_model",
-        (ov::CompiledModel(ov::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
-            ov::Core::compile_model,
-        py::arg("model_path"),
-        py::arg("device_name"),
-        py::arg("config") = py::dict());
+    cls.def("compile_model",
+            (ov::CompiledModel(ov::Core::*)(const std::shared_ptr<const ov::Model>&, const ConfigMap&)) &
+                ov::Core::compile_model,
+            py::arg("model"),
+            py::arg("config") = py::dict());
 
     cls.def("compile_model",
-            (ov::CompiledModel(ov::Core::*)(const std::string&, const ConfigMap&)) &
+            (ov::CompiledModel(ov::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
                 ov::Core::compile_model,
+            py::arg("model_path"),
+            py::arg("device_name"),
+            py::arg("config") = py::dict());
+
+    cls.def("compile_model",
+            (ov::CompiledModel(ov::Core::*)(const std::string&, const ConfigMap&)) & ov::Core::compile_model,
             py::arg("model_path"),
             py::arg("config") = py::dict());
 
@@ -83,17 +80,17 @@ void regclass_Core(py::module m) {
         py::arg("model"),
         py::arg("weights") = py::bytes());
 
-    cls.def("read_model",
-            (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const std::string&) const) &
-                ov::Core::read_model,
-            py::arg("model"),
-            py::arg("weights") = "");
+    cls.def(
+        "read_model",
+        (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const std::string&) const) & ov::Core::read_model,
+        py::arg("model"),
+        py::arg("weights") = "");
 
-    cls.def("read_model",
-            (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const ov::Tensor&) const) &
-                ov::Core::read_model,
-            py::arg("model"),
-            py::arg("weights"));
+    cls.def(
+        "read_model",
+        (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const ov::Tensor&) const) & ov::Core::read_model,
+        py::arg("model"),
+        py::arg("weights"));
 
     cls.def(
         "read_model",
@@ -103,12 +100,12 @@ void regclass_Core(py::module m) {
         py::arg("model"),
         py::arg("weights") = "");
 
-    cls.def("import_model",
-            (ov::CompiledModel(ov::Core::*)(std::istream&, const std::string&, const ConfigMap&)) &
-                ov::Core::import_model,
-            py::arg("model_file"),
-            py::arg("device_name"),
-            py::arg("config") = py::none());
+    cls.def(
+        "import_model",
+        (ov::CompiledModel(ov::Core::*)(std::istream&, const std::string&, const ConfigMap&)) & ov::Core::import_model,
+        py::arg("model_file"),
+        py::arg("device_name"),
+        py::arg("config") = py::none());
 
     cls.def(
         "get_config",
@@ -145,14 +142,13 @@ void regclass_Core(py::module m) {
             py::arg("library_path"));
 
     cls.def("add_extension",
-            static_cast<void (ov::Core::*)(const std::shared_ptr<ov::Extension>&)>(
-                &ov::Core::add_extension),
+            static_cast<void (ov::Core::*)(const std::shared_ptr<ov::Extension>&)>(&ov::Core::add_extension),
             py::arg("extension"));
 
-    cls.def("add_extension",
-            static_cast<void (ov::Core::*)(const std::vector<std::shared_ptr<ov::Extension>>&)>(
-                &ov::Core::add_extension),
-            py::arg("extensions"));
+    cls.def(
+        "add_extension",
+        static_cast<void (ov::Core::*)(const std::vector<std::shared_ptr<ov::Extension>>&)>(&ov::Core::add_extension),
+        py::arg("extensions"));
 
     cls.def_property_readonly("available_devices", &ov::Core::get_available_devices);
 }

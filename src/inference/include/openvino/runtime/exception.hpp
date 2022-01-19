@@ -24,8 +24,8 @@ class OPENVINO_RUNTIME_API Busy : public Exception {
 };
 
 namespace runtime {
-using ov::Cancelled;
 using ov::Busy;
+using ov::Cancelled;
 }  // namespace runtime
 
 }  // namespace ov

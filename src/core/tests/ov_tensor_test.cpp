@@ -54,7 +54,7 @@ TEST_F(OVTensorTest, operators) {
 class OVMockAllocator : public ov::AllocatorImpl {
 public:
     MOCK_METHOD(void*, allocate, (size_t, size_t), ());
-    MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());                           // NOLINT(readability/casting)
+    MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());                  // NOLINT(readability/casting)
     MOCK_METHOD(bool, is_equal, (const ov::AllocatorImpl&), (const, noexcept));  // NOLINT(readability/casting)
 };
 

@@ -149,8 +149,8 @@ public:
 };
 
 namespace runtime {
-using ov::AllocatorImpl;
 using ov::Allocator;
+using ov::AllocatorImpl;
 }  // namespace runtime
 
 }  // namespace ov
