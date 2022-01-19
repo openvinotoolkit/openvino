@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,11 +42,11 @@ public:
         _request.set_callback([&](const std::exception_ptr& ptr) {
             // TODO: Add exception ptr rethrow in proper thread
             _endTime = Time::now();
-            _callbackQueue(_id, _lat_group_id, getExecutionTimeInMilliseconds());
+            _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds());
         });
     }
 
-    void startAsync() {
+    void start_async() {
         _startTime = Time::now();
         _request.start_async();
     }
@@ -59,6 +59,7 @@ public:
         _startTime = Time::now();
         _request.Infer();
         _endTime = Time::now();
+<<<<<<< HEAD
         double _execTime = getExecutionTimeInMilliseconds();
         double difference = _targetLatency - _execTime;
         if (difference > 0) {
@@ -66,42 +67,49 @@ public:
             _execTime = _execTime + difference;
         }
         _callbackQueue(_id, _lat_group_id, _execTime);
+=======
+        _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds());
+>>>>>>> 0a225c2d84fd3f14303528171f0827a9c53f0519
     }
 
-    std::vector<ov::runtime::ProfilingInfo> getPerformanceCounts() {
+    std::vector<ov::runtime::ProfilingInfo> get_performance_counts() {
         return _request.get_profiling_info();
     }
 
-    void setShape(const std::string& name, const ov::Shape& dims) {
+    void set_shape(const std::string& name, const ov::Shape& dims) {
         // TODO check return status
         _request.get_tensor(name).set_shape(dims);
     }
 
-    ov::runtime::Tensor getTensor(const std::string& name) {
+    ov::runtime::Tensor get_tensor(const std::string& name) {
         return _request.get_tensor(name);
     }
 
-    void setTensor(const std::string& name, const ov::runtime::Tensor& data) {
+    void set_tensor(const std::string& name, const ov::runtime::Tensor& data) {
         _request.set_tensor(name, data);
     }
 
-    double getExecutionTimeInMilliseconds() const {
+    double get_execution_time_in_milliseconds() const {
         auto execTime = std::chrono::duration_cast<ns>(_endTime - _startTime);
         return static_cast<double>(execTime.count()) * 0.000001;
     }
 
+<<<<<<< HEAD
     void setTargetLatency(double targetLatency) {
         _targetLatency = targetLatency;
     }
 
     void setLatencyGroupId(size_t id) {
+=======
+    void set_latency_group_id(size_t id) {
+>>>>>>> 0a225c2d84fd3f14303528171f0827a9c53f0519
         _lat_group_id = id;
     }
 
     // in case of using GPU memory we need to allocate CL buffer for
     // output blobs. By encapsulating cl buffer inside InferReqWrap
     // we will control the number of output buffers and access to it.
-    std::map<std::string, ::gpu::BufferType>& getOutputClBuffer() {
+    std::map<std::string, ::gpu::BufferType>& get_output_cl_buffer() {
         return outputClBuffer;
     }
 
@@ -123,7 +131,7 @@ public:
         for (size_t id = 0; id < nireq; id++) {
             requests.push_back(std::make_shared<InferReqWrap>(model,
                                                               id,
-                                                              std::bind(&InferRequestsQueue::putIdleRequest,
+                                                              std::bind(&InferRequestsQueue::put_idle_request,
                                                                         this,
                                                                         std::placeholders::_1,
                                                                         std::placeholders::_2,
@@ -131,7 +139,7 @@ public:
             _idleIds.push(id);
         }
         _latency_groups.resize(lat_group_n);
-        resetTimes();
+        reset_times();
     }
 
     ~InferRequestsQueue() {
@@ -144,7 +152,7 @@ public:
         requests.clear();
     }
 
-    void resetTimes() {
+    void reset_times() {
         _startTime = Time::time_point::max();
         _endTime = Time::time_point::min();
         _latencies.clear();
@@ -153,11 +161,11 @@ public:
         }
     }
 
-    double getDurationInMilliseconds() {
+    double get_duration_in_milliseconds() {
         return std::chrono::duration_cast<ns>(_endTime - _startTime).count() * 0.000001;
     }
 
-    void putIdleRequest(size_t id, size_t lat_group_id, const double latency) {
+    void put_idle_request(size_t id, size_t lat_group_id, const double latency) {
         std::unique_lock<std::mutex> lock(_mutex);
         _latencies.push_back(latency);
         if (enable_lat_groups) {
@@ -168,7 +176,7 @@ public:
         _cv.notify_one();
     }
 
-    InferReqWrap::Ptr getIdleRequest() {
+    InferReqWrap::Ptr get_idle_request() {
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
             return _idleIds.size() > 0;
@@ -179,18 +187,18 @@ public:
         return request;
     }
 
-    void waitAll() {
+    void wait_all() {
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
             return _idleIds.size() == requests.size();
         });
     }
 
-    std::vector<double> getLatencies() {
+    std::vector<double> get_latencies() {
         return _latencies;
     }
 
-    std::vector<std::vector<double>> getLatencyGroups() {
+    std::vector<std::vector<double>> get_latency_groups() {
         return _latency_groups;
     }
 

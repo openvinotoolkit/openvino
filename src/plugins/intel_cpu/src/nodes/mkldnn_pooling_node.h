@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,6 @@ protected:
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const;
 
-    std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> getPaddingFromNode(std::shared_ptr<ov::Node> node) const;
     void initEffectiveAttributes(const Shape &inDims, const Shape &outDims);
     mkldnn::algorithm getPoolingAlgorithm() const;
     std::shared_ptr<mkldnn::pooling_v2_forward::desc> createDescriptorInternal(const mkldnn::memory::desc& in_candidate,

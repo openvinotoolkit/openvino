@@ -9,6 +9,7 @@ _*
 # developer tools
 *.idea
 .vscode
+.vs/
 cmake-build-*
 .DS_Store
 **/tags
@@ -19,6 +20,7 @@ build/
 .gdb_history
 .vimspector.json
 doc/
+out/
 !ngraph/doc
 docs/build_documentation/work_dir/
 inference-engine/plugins/
