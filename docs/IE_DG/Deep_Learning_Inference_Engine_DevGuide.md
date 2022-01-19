@@ -10,6 +10,7 @@
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
    openvino_docs_IE_DG_Device_Plugins
    Direct ONNX Format Support <openvino_docs_IE_DG_ONNX_Support>
+   Direct PaddlePaddle Format Support <openvino_docs_IE_DG_Paddle_Support>
    openvino_docs_IE_DG_Int8Inference
    openvino_docs_IE_DG_Bfloat16Inference
    openvino_docs_IE_DG_DynamicBatching
