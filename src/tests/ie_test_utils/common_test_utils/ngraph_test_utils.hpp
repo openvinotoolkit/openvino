@@ -91,16 +91,6 @@ private:
     bool m_enable_accuracy_check{false};
 };
 
-namespace {
-    void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
-        manager.run_passes(f);
-    }
+void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);
 
-    void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::CheckUniqueNames>(unh, true);
-        manager.run_passes(f);
-    }
-} //namespace
+void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);
