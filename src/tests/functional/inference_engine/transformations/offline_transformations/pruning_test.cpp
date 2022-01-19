@@ -2228,7 +2228,7 @@ TEST(TransformationTests, PropagateMasksLinear) {
     const auto linear_input_features = 62 * 62 * 6;
     Shape input_shape{1, 3, 64, 64};
     Shape weights_shape{6, 3, 3, 3};
-    Shape weights_shape2{1, linear_input_features, 100};
+    Shape weights_shape2{linear_input_features, 100};
     auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
     auto weights = opset5::Constant::create(element::f32, weights_shape, {0});
     auto conv = std::make_shared<opset5::Convolution>(input, weights, Strides(2, 1),

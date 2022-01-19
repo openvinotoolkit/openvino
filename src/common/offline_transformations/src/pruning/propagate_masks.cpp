@@ -20,6 +20,7 @@ namespace ngraph {
 namespace pass {
 namespace mask_propagation {
 
+class MatMul;
 class Convolution;
 class GroupConvolution;
 class GroupConvolutionReshape;
@@ -46,6 +47,99 @@ static ngraph::Shape broadcast_shape_to_rank(ngraph::Shape shape_to_broadcast, i
     auto new_shape = ngraph::Shape(dims);
     return new_shape;
 }
+
+
+class ngraph::pass::mask_propagation::MatMul : public MatcherPass {
+public:
+    MatMul() {
+        auto a = pattern::any_input(pattern::has_static_shape());
+        auto b = pattern::any_input(pattern::has_static_shape());
+        auto matmul = pattern::wrap_type<opset6::MatMul>({a, b});
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto & pattern_map = m.get_pattern_value_map();
+            const auto & m_a = pattern_map.at(a);
+            const auto & m_b = pattern_map.at(b);
+            const auto & m_matmul = pattern_map.at(matmul);
+
+            auto a_mask = getMask(a);
+
+            if (!a_mask) {
+                NGRAPH_DEBUG << "No a mask for " << m_matmul.get_node()->get_friendly_name() << "\n";
+                return false;
+            }
+            //auto a_mask_row = a_mask.get();
+
+            auto b_mask = getMask(b);
+            if (!b_mask) {
+                NGRAPH_DEBUG << "No b mask for " << m_matmul.get_node()->get_friendly_name() << "\n";
+                return false;
+            }
+            //auto b_mask_row = b_mask.get();
+
+            const auto matmul_op = std::dynamic_pointer_cast<opset6::MatMul>(m_matmul.get_node_shared_ptr());
+            const auto transpose_a = matmul_op->get_transpose_a();
+            const auto transpose_b = matmul_op->get_transpose_b();
+
+            const auto shape_a = m_a.get_shape();
+            const auto shape_b = m_b.get_shape();
+
+            std::vector<size_t> last_two_dims_a, last_two_dims_b;
+            if (transpose_a)
+                last_two_dims_a = std::vector<size_t>({shape_a.end()[-1], shape_a.end()[-2]});
+            else
+                last_two_dims_a = std::vector<size_t>({shape_a.end()[-2], shape_a.end()[-1]});
+            if (transpose_b)
+                last_two_dims_b = std::vector<size_t>({shape_b.end()[-1], shape_b.end()[-2]});
+            else
+                last_two_dims_b = std::vector<size_t>({shape_b.end()[-2], shape_b.end()[-1]});
+
+            //if (auto input_mask = getMask(m_input)) {
+            //    auto input_mask_row = input_mask.get();
+            //    // Weights input channel is connected to the convolution input channel dimension
+            //    // so we update weights mask to be aligned with input shape.
+            //    weights_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
+            //        cur_mask->at(1/* weights input channel */) = input_mask_row->at(1 /* input data channel */);
+            //        return true;
+            //    }, input_mask);
+
+            //    input_mask->add_callback([a_mask_row](Mask::Ptr cur_mask) -> bool {
+            //        cur_mask->at(1) = a_mask_row->at(1);
+            //        return true;
+            //    }, weights_mask);
+
+            //    if (!weights_mask->apply_callback(input_mask)) {
+            //        return false;
+            //    }
+            //}
+
+            //// Create output mask that describes which channel dimensions will be removed
+            //auto conv_mask = std::make_shared<Mask>(m_weights.get_shape().size());
+            //auto conv_mask_row = conv_mask.get();
+
+            //conv_mask->add_callback([a_mask_row](Mask::Ptr cur_mask) -> bool {
+            //    cur_mask->at(1) = a_mask_row->at(0/*weights output channel dim */);
+            //    return true;
+            //}, weights_mask);
+
+            //weights_mask->add_callback([conv_mask_row](Mask::Ptr cur_mask) -> bool {
+            //    cur_mask->at(0) = conv_mask_row->at(1);
+            //    return true;
+            //}, conv_mask);
+
+            //if (!conv_mask->apply_callback(weights_mask)) {
+            //    return false;
+            //}
+
+            //setMask(m_output, conv_mask);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "MatMulMaskPropagation");
+        register_matcher(m, callback);
+    }
+};
+
 
 class ngraph::pass::mask_propagation::Convolution : public MatcherPass {
 public:
