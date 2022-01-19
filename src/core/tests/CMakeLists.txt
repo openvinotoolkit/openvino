@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
+    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
 endif()
@@ -159,6 +160,7 @@ set(SRC
     type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
     type_prop/idft.cpp
+    type_prop/if.cpp
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
