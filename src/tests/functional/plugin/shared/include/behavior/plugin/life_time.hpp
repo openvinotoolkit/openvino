@@ -33,9 +33,6 @@ public:
 
     void SetUp() override;
 
-    void TearDown() override;
-
-    std::string deathTestStyle;
     std::vector<int> order;
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;
@@ -49,11 +46,9 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
 
     void SetUp() override;
-    void TearDown() override;
 
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;
-    std::string deathTestStyle;
 };
 
 }  // namespace BehaviorTestsDefinitions
