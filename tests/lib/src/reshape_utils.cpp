@@ -9,9 +9,9 @@ using namespace InferenceEngine;
 
 
 /**
- * @brief Set up data shapes for model
+ * @brief Parse data shapes for model
  */
-std::map<std::string, std::vector<size_t>> getDataShapes(const std::string& shapeString) {
+std::map<std::string, std::vector<size_t>> parseDataShapes(const std::string& shapeString) {
   std::map<std::string, std::vector<size_t>> data_shapes;
   // Parse input parameter string
   std::vector<std::string> inputsShapes = split(shapeString, ';');
@@ -32,9 +32,9 @@ std::map<std::string, std::vector<size_t>> getDataShapes(const std::string& shap
 
 
 /**
- * @brief Set up input shapes for model reshape
+ * @brief Parse input shapes for model reshape
  */
-std::map<std::string, ov::PartialShape> getReshapeShapes(const std::string& shapeString) {
+std::map<std::string, ov::PartialShape> parseReshapeShapes(const std::string& shapeString) {
   std::map<std::string, ov::PartialShape> reshape_info;
   // Parse input parameter string
   std::vector<std::string> inputsShapes = split(shapeString, ';');
@@ -68,7 +68,8 @@ std::map<std::string, ov::PartialShape> getReshapeShapes(const std::string& shap
 
 
 /**
- * @brief Return vector with input tensor information provided from E2E
+ * @brief Split input string using specified delimiter.
+          Return vector with input tensor information
  */
 std::vector<std::string> split(const std::string& s, char delim) {
     std::vector<std::string> result;
@@ -83,7 +84,8 @@ std::vector<std::string> split(const std::string& s, char delim) {
 
 
 /**
- * @brief Fill InferRequest blobs with random values or image information
+ * @brief Fill InferRequest blobs with random values or image information.
+          Blobs with dynamic shapes are filled based on static information from data shape
  */
 void fillBlobsDynamic(InferenceEngine::InferRequest inferRequest,
                       const InferenceEngine::ConstInputsDataMap& inputsInfo,

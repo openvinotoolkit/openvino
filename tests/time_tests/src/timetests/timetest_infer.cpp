@@ -8,6 +8,7 @@
 #include "common_utils.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
+
 using namespace InferenceEngine;
 
 
@@ -58,7 +59,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
             if (reshape) {
               {
               SCOPED_TIMER(reshape);
-              auto dynamicShapes = getReshapeShapes(reshapeShapes);
+              auto dynamicShapes = parseReshapeShapes(reshapeShapes);
               cnnNetwork.reshape(dynamicShapes);
               }
             }
@@ -82,7 +83,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
 
         if (reshape) {
-          auto staticShapes = getDataShapes(dataShapes);
+          auto staticShapes = parseDataShapes(dataShapes);
           fillBlobsDynamic(inferRequest, inputsInfo, staticShapes, batchSize);
         } else {
           batchSize = batchSize != 0 ? batchSize : 1;
