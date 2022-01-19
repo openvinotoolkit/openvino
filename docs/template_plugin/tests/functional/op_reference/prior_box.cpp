@@ -43,9 +43,9 @@ struct PriorBoxParams {
     ov::Shape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::Tensor layerShapeData;
-    ov::Tensor imageShapeData;
-    ov::Tensor refData;
+    ov::runtime::Tensor layerShapeData;
+    ov::runtime::Tensor imageShapeData;
+    ov::runtime::Tensor refData;
     std::string testcaseName;
 };
 
@@ -83,9 +83,9 @@ struct PriorBoxV8Params {
     ov::Shape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::Tensor layerShapeData;
-    ov::Tensor imageShapeData;
-    ov::Tensor refData;
+    ov::runtime::Tensor layerShapeData;
+    ov::runtime::Tensor imageShapeData;
+    ov::runtime::Tensor refData;
     std::string testcaseName;
 };
 

@@ -31,12 +31,12 @@ struct SeluParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::Tensor inputData;
-    ov::Tensor refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
     ov::Shape alphaShape;
     ov::Shape lambdaShape;
-    ov::Tensor alpha;
-    ov::Tensor lambda;
+    ov::runtime::Tensor alpha;
+    ov::runtime::Tensor lambda;
     std::string testcaseName;
 };
 

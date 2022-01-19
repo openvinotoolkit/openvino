@@ -54,11 +54,11 @@ struct SqueezeParams {
     Shape m_output_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    ov::Tensor m_input_value;
-    ov::Tensor m_expected_value;
+    ov::runtime::Tensor m_input_value;
+    ov::runtime::Tensor m_expected_value;
     Shape m_axes_shape;
     element::Type m_axes_type;
-    ov::Tensor m_axes_value;
+    ov::runtime::Tensor m_axes_value;
     bool m_axes_node;
 };
 

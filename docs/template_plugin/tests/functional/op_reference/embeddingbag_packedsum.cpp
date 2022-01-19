@@ -33,11 +33,11 @@ struct EmbeddingBagPackedSumParams {
     }
     ov::PartialShape _iShape;
     ov::element::Type _iType;
-    ov::Tensor _iData;
+    ov::runtime::Tensor _iData;
 
     ov::PartialShape _refShape;
     ov::element::Type _refType;
-    ov::Tensor _refData;
+    ov::runtime::Tensor _refData;
 
     std::shared_ptr<ngraph::opset1::Constant> _indices;
     std::shared_ptr<ngraph::opset1::Constant> _perSampleWeights;  // Optional, default is tensor of ones.

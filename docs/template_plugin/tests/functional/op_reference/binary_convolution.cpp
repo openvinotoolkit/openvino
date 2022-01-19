@@ -47,9 +47,9 @@ struct BinaryConvolutionParams {
     PartialShape outputShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::Tensor inputData;
+    ov::runtime::Tensor inputData;
     std::vector<uint8_t> filterData;
-    ov::Tensor refData;
+    ov::runtime::Tensor refData;
     ov::Strides strides;
     ov::CoordinateDiff padBegin;
     ov::CoordinateDiff padEnd;

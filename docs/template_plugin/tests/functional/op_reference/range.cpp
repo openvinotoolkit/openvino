@@ -38,8 +38,8 @@ struct RangeParams {
     element::Type inType;
     element::Type outType;
     element::Type nodeType;
-    ov::Tensor inData;
-    ov::Tensor outData;
+    ov::runtime::Tensor inData;
+    ov::runtime::Tensor outData;
     float start;
     float stop;
     float step;

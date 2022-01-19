@@ -31,9 +31,9 @@ struct FloorModParams {
     PartialShape pshape2;
     element::Type inType;
     element::Type outType;
-    ov::Tensor inputData1;
-    ov::Tensor inputData2;
-    ov::Tensor refData;
+    ov::runtime::Tensor inputData1;
+    ov::runtime::Tensor inputData2;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceFloorModLayerTest : public testing::TestWithParam<FloorModParams>, public CommonReferenceTest {

@@ -28,9 +28,9 @@ struct ROIPoolingParams {
     float spatialScale;
     std::string poolingMode;
     ov::element::Type dataType;
-    ov::Tensor featureMap;
-    ov::Tensor proposal;
-    ov::Tensor refData;
+    ov::runtime::Tensor featureMap;
+    ov::runtime::Tensor proposal;
+    ov::runtime::Tensor refData;
 
 public:
     template<class T>

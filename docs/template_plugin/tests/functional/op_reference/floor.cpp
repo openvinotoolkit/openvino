@@ -26,8 +26,8 @@ struct FloorParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    ov::Tensor inputData;
-    ov::Tensor refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceFloorLayerTest : public testing::TestWithParam<FloorParams>, public CommonReferenceTest {

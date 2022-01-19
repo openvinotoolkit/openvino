@@ -17,14 +17,14 @@ struct LSTMCellParams {
     int32_t inputSize;
     int32_t hiddenSize;
     int32_t gatesCount;
-    Tensor X;
-    Tensor W;
-    Tensor R;
-    Tensor H_t;
-    Tensor C_t;
-    Tensor B;
-    Tensor Ho;
-    Tensor Co;
+    reference_tests::Tensor X;
+    reference_tests::Tensor W;
+    reference_tests::Tensor R;
+    reference_tests::Tensor H_t;
+    reference_tests::Tensor C_t;
+    reference_tests::Tensor B;
+    reference_tests::Tensor Ho;
+    reference_tests::Tensor Co;
     std::string testcaseName;
 };
 

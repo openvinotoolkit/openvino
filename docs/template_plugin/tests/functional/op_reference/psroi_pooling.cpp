@@ -56,9 +56,9 @@ struct PSROIPoolingParams {
     ov::element::Type imageInputType;
     ov::element::Type coordsInputType;
     ov::element::Type outType;
-    ov::Tensor imageData;
-    ov::Tensor coordsData;
-    ov::Tensor refData;
+    ov::runtime::Tensor imageData;
+    ov::runtime::Tensor coordsData;
+    ov::runtime::Tensor refData;
     std::string testcaseName;
 };
 

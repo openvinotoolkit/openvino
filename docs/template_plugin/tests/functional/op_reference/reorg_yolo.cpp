@@ -33,8 +33,8 @@ struct ReorgYoloParams {
     ov::PartialShape inputShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::Tensor inputData;
-    ov::Tensor refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
     std::string testcaseName;
 };
 

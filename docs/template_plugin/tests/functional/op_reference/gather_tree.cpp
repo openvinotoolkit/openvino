@@ -12,11 +12,11 @@ using namespace ov;
 
 namespace {
 struct GatherTreeParams {
-    Tensor stepIds;
-    Tensor parentIdx;
-    Tensor maxSeqLen;
-    Tensor endToken;
-    Tensor finalIdx;
+    reference_tests::Tensor stepIds;
+    reference_tests::Tensor parentIdx;
+    reference_tests::Tensor maxSeqLen;
+    reference_tests::Tensor endToken;
+    reference_tests::Tensor finalIdx;
     std::string testcaseName;
 };
 

@@ -32,8 +32,8 @@ struct ResultParams {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    ov::Tensor m_input_value;
-    ov::Tensor m_expected_value;
+    ov::runtime::Tensor m_input_value;
+    ov::runtime::Tensor m_expected_value;
 };
 
 class ReferenceResultLayerTest : public testing::TestWithParam<ResultParams>, public CommonReferenceTest {

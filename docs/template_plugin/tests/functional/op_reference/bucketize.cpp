@@ -27,13 +27,13 @@ struct BucketizeParams {
 
     element::Type input_type;
     PartialShape input_pshape;
-    ov::Tensor input;
+    ov::runtime::Tensor input;
     element::Type bucket_type;
     PartialShape bucket_pshape;
-    ov::Tensor buckets;
+    ov::runtime::Tensor buckets;
     bool with_right_bound;
     element::Type output_type;
-    ov::Tensor expected_output;
+    ov::runtime::Tensor expected_output;
 };
 
 class ReferenceBucketizeLayerTest : public testing::TestWithParam<BucketizeParams>, public CommonReferenceTest {

@@ -28,10 +28,10 @@ struct PreluParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::Tensor inputData;
-    ov::Tensor refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
     ov::Shape negativeSlopeShape;
-    ov::Tensor negativeSlope;
+    ov::runtime::Tensor negativeSlope;
     std::string testcaseName;
 };
 

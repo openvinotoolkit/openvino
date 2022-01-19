@@ -70,8 +70,8 @@ struct LRNParams {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    ov::Tensor m_input_value;
-    ov::Tensor m_expected_value;
+    ov::runtime::Tensor m_input_value;
+    ov::runtime::Tensor m_expected_value;
     float m_alpha;
     float m_beta;
     float m_bias;

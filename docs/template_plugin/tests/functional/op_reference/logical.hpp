@@ -15,7 +15,7 @@ namespace LogicalOpsRefTestDefinitions {
 struct RefLogicalParams {
     ngraph::helpers::LogicalTypes opType;
     std::vector<Tensor> inputs;
-    Tensor expected;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<RefLogicalParams> {

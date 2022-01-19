@@ -24,8 +24,8 @@ struct HSwishParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::Tensor inputData;
-    ov::Tensor refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceHSwishLayerTest : public testing::TestWithParam<HSwishParams>, public CommonReferenceTest {
