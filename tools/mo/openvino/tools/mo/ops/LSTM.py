@@ -1,11 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
-from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from openvino.tools.mo.graph.graph import Node, Graph
-from openvino.tools.mo.ops.RNN import rnn_infer
+from openvino.tools.mo.ops.RNN import rnn_infer, RNN
 from openvino.tools.mo.ops.op import Op
 
 
@@ -20,7 +17,7 @@ class LSTM(Op):
             'has_num_directions': False,  # if True, output shape has 4 dimensions; 3D otherwise
             'direction': 'forward',
             'infer': self.infer,
-            'reverse_infer': self.reverse_infer,
+            'reverse_infer': RNN.reverse_infer,
             'multiplier': 4,
             'gate_order': None,
             'normalized': False,
@@ -72,35 +69,3 @@ class LSTM(Op):
         assert len(node.out_nodes()) <= 3
 
         rnn_infer(node, [1, 2])
-
-    @staticmethod
-    def reverse_infer(node: Node):
-        if node.in_port(0).data.get_shape() is not None:
-            return
-
-        # for MXNet models we always get flattened (reshaped to -1) weights, so we need universal
-        # solution that does not rely on weights shape
-        W_size = np.prod(node.in_port(1).data.get_shape())
-
-        multiplier = node.multiplier
-        hidden_size = node.hidden_size
-        num_layers = node.num_layers
-        direction = 2 if node.has_num_directions else 1
-
-        # input_size can be determined from the first_layer_params_size (e.g. MXNetSplitMultiLayers.py:79)
-        # if first_layer_params_size = (input_size + hidden_size + 2) * size
-        # then input_size = first_layer_params_size / size - 2 - hidden_size
-        size = hidden_size * direction * multiplier
-        other_layer_params_size = (hidden_size * direction + hidden_size + 2) * size
-        first_layer_params_size = W_size - (num_layers - 1) * other_layer_params_size
-        input_size = first_layer_params_size / size - 2 - hidden_size
-
-        batch_size = 1
-        seq_len = 1
-        if node.is_in_port_connected(3):
-            initial_cell_state_size = node.in_port(3).data.get_shape()
-            if initial_cell_state_size is not None:
-                batch_size = initial_cell_state_size[1]
-
-        input_shape = shape_array([seq_len, batch_size, input_size])
-        node.in_port(0).data.set_shape(input_shape)
