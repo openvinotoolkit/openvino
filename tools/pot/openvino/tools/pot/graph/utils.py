@@ -20,8 +20,7 @@ HARDWARE_AWARE_IGNORED_PATTERNS = {
     'GPU': get_gpu_ignored_patterns(),
     'VPU': get_vpu_ignored_patterns(),
     'GNA': get_gna_ignored_patterns(),
-    'CPU_SPR': get_cpu_ignored_patterns(),
-    'GPU_ATS': get_gpu_ignored_patterns(),
+    'CPU_SPR': get_cpu_ignored_patterns()
 }
 
 DEFAULT_PATH = 'PATH'

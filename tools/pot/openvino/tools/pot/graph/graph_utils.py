@@ -8,7 +8,7 @@ from mo.graph.graph import Graph
 from mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from mo.utils.logger import init_logger
 from openvino.inference_engine import IECore  # pylint: disable=E0611
-from openvino.offline_transformations import ApplyPOTTransformations  # pylint: disable=import-error,no-name-in-module
+#from openvino.offline_transformations import ApplyPOTTransformations  # pylint: disable=import-error,no-name-in-module
 
 from ..graph.passes import ModelPreprocessor, remove_converts, add_removed_converts
 from ..utils.logger import stdout_redirect

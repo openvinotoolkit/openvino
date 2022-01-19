@@ -492,8 +492,7 @@ class RemoveFakeQuantize:
 
     def optimize_for_gp_hw(self, graph, target_device):
         """
-        Removing redundant FQs before operation Add
-        for SPR(CPU) and ATS(GPU) platform
+        Removing redundant FQs before operation Add for SPR(CPU) platform
         """
         def _walk_for_branch(node):
             input_node = node
@@ -523,7 +522,8 @@ class RemoveFakeQuantize:
                     self.disconnect_fq_node(fq_2)
                 return
 
-        if target_device not in ['CPU_SPR', 'GPU_ATS']:
+        special_target_device = ['CPU_SPR']
+        if target_device not in special_target_device:
             return
 
         check_is_inputs_fq = lambda node: all([op.type == 'FakeQuantize' for op in node])
