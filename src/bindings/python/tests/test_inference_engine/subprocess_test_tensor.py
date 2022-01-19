@@ -11,5 +11,5 @@ def test_run():
     assert t.element_type == Type.f32
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run()

@@ -42,7 +42,7 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
 
 
 def test_subprocess():
-    args = [sys.executable, os.path.join(os.path.dirname(__file__), 'subprocess_test_tensor.py')]
+    args = [sys.executable, os.path.join(os.path.dirname(__file__), "subprocess_test_tensor.py")]
 
     status = subprocess.run(args, env=os.environ)
     assert not status.returncode
