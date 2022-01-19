@@ -59,7 +59,6 @@ public:
         _startTime = Time::now();
         _request.infer();
         _endTime = Time::now();
-<<<<<<< HEAD
         double _execTime = getExecutionTimeInMilliseconds();
         double difference = _targetLatency - _execTime;
         if (difference > 0) {
@@ -67,9 +66,7 @@ public:
             _execTime = _execTime + difference;
         }
         _callbackQueue(_id, _lat_group_id, _execTime);
-=======
-        _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds());
->>>>>>> 0a225c2d84fd3f14303528171f0827a9c53f0519
+
     }
 
     std::vector<ov::runtime::ProfilingInfo> get_performance_counts() {
@@ -94,15 +91,11 @@ public:
         return static_cast<double>(execTime.count()) * 0.000001;
     }
 
-<<<<<<< HEAD
     void setTargetLatency(double targetLatency) {
         _targetLatency = targetLatency;
     }
 
-    void setLatencyGroupId(size_t id) {
-=======
     void set_latency_group_id(size_t id) {
->>>>>>> 0a225c2d84fd3f14303528171f0827a9c53f0519
         _lat_group_id = id;
     }
 
