@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <time.h>
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments ---------------------------------
-        if (!ParseAndCheckCommandLine(argc, argv)) {
+        if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
         BaseFile* file;

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,22 @@ public:
         });
     }
     // ~InferRequestWrapper() = default;
+
+    std::vector<ov::runtime::Tensor> get_input_tensors() {
+        std::vector<ov::runtime::Tensor> tensors;
+        for (auto&& node : _inputs) {
+            tensors.push_back(_request.get_tensor(node));
+        }
+        return tensors;
+    }
+
+    std::vector<ov::runtime::Tensor> get_output_tensors() {
+        std::vector<ov::runtime::Tensor> tensors;
+        for (auto&& node : _outputs) {
+            tensors.push_back(_request.get_tensor(node));
+        }
+        return tensors;
+    }
 
     bool user_callback_defined = false;
     py::object userdata;
