@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,7 +117,13 @@ std::vector<fusingSpecificParams> fusingParamsSet {
 std::vector<fusingSpecificParams> fusingParamsSetDynamic {
     emptyFusingSpec,
     fusingMultiplyPerTensor,
-    fusingRelu
+    fusingRelu,
+    fusingFakeQuantizePerTensor
+};
+
+std::vector<fusingSpecificParams> fusingParamsSetPerChannel {
+    fusingPReluPerChannel,
+    fusingFakeQuantizePerChannel
 };
 
 const float epsilon = 1e-4f;
@@ -136,10 +142,10 @@ const std::vector<ov::Shape> inputShapeStatic_2D = {
 
 const std::vector<InputShape> inputShapeDynamic_2D = {
         {{-1, -1},
-        {{2, 3}, {2, 3}, {5, 5}}},
+        {{2, 3}, {2, 3}, {5, 5}, {2, 3}}},
 
         {{-1, 5},
-        {{5, 5}, {5, 5}, {12, 5}}},
+        {{5, 5}, {5, 5}, {12, 5}, {5, 5}}},
 
         {{{1, 5}, {8, 16}},
         {{3, 8}, {5, 16}, {3, 10}}}
@@ -179,7 +185,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_2D_FusingPerChannel, NormalizeL2LayerCPUT
                                  ::testing::Values(epsilon),
                                  ::testing::Values(epsMode),
                                  ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::Values(fusingPReluPerChannel)),
+                                 ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 3D ============= */
@@ -191,10 +197,10 @@ const std::vector<ov::Shape> inputShapeStatic_3D = {
 
 const std::vector<InputShape> inputShapeDynamic_3D = {
         {{-1, -1, -1},
-         {{2, 3, 4}, {2, 5, 5}, {1, 10, 2}}},
+         {{2, 3, 4}, {2, 5, 5}, {1, 10, 2}, {2, 3, 4}}},
 
         {{-1, 5, -1},
-         {{1, 5, 5}, {2, 5, 3}, {5, 5, 5}}},
+         {{1, 5, 5}, {2, 5, 3}, {5, 5, 5}, {1, 5, 5}}},
 
         {{{1, 5}, {5, 10}, {5, 10}},
          {{3, 8, 8}, {5, 5, 10}, {5, 5, 10}, {5, 10, 10}}}
@@ -236,7 +242,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_3D_FusingPerChannel, NormalizeL2LayerCPUT
                                  ::testing::Values(epsilon),
                                  ::testing::Values(epsMode),
                                  ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::Values(fusingPReluPerChannel)),
+                                 ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 4D ============= */
@@ -248,10 +254,10 @@ const std::vector<ov::Shape> inputShapeStatic_4D = {
 
 const std::vector<InputShape> inputShapeDynamic_4D = {
         {{-1, -1, -1, -1},
-         {{2, 3, 4, 5}, {2, 5, 5, 5}, {1, 16, 2, 4}}},
+         {{2, 3, 4, 5}, {2, 5, 5, 5}, {1, 16, 2, 4}, {2, 3, 4, 5}}},
 
         {{-1, 5, -1, -1},
-        {{1, 5, 5, 8}, {1, 5, 5, 8}, {3, 5, 8, 8}}},
+        {{1, 5, 5, 8}, {1, 5, 5, 8}, {3, 5, 8, 8}, {1, 5, 5, 8}}},
 
         {{{1, 5}, {5, 16}, {5, 10}, {5, 10}},
         {{3, 8, 8, 8}, {5, 7, 10, 10}, {1, 16, 7, 9}, {5, 9, 10, 5}}}
@@ -307,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_4D_FusingPerChannel, NormalizeL2LayerCPUT
                                  ::testing::Values(epsilon),
                                  ::testing::Values(epsMode),
                                  ::testing::ValuesIn(getCPUSpecificParams()),
-                                 ::testing::Values(fusingPReluPerChannel)),
+                                 ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
 } // namespace

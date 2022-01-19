@@ -47,6 +47,6 @@ If a Paddle model contains dynamic shapes for input, use the `CNNNetwork::reshap
 ## NOTES
 
 * The Paddle [`inference model`](https://github.com/PaddlePaddle/PaddleOCR/blob/release/2.1/doc/doc_en/inference_en.md) mainly contains two kinds of files `model.pdmodel`(model file) and `model.pdiparams`(params file), which are used for inference.
-* The list of supported Paddle models and a description of how to export them can be found in [Convert a Paddle Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Paddle.md).
+* The list of supported Paddle models and a description of how to export them can be found in [Convert a Paddle Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Paddle.md). The following Paddle models are supported by intel CPU only: `Fast-SCNN`, `Yolo v3`, `ppyolo`, `MobileNetv3-SSD`, `BERT`.
 * For `Normalize` Paddle Models, the input data should be in FP32 format.
 * When reading Paddle models from The Paddle format, make sure that `model.pdmodel` and `model.pdiparams` are in the same folder directory.

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,11 +42,24 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "compile_model",
+        (ov::runtime::CompiledModel(ov::runtime::Core::*)(const std::shared_ptr<const ov::Model>&, const ConfigMap&)) &
+            ov::runtime::Core::compile_model,
+        py::arg("model"),
+        py::arg("config") = py::dict());
+
+    cls.def(
+        "compile_model",
         (ov::runtime::CompiledModel(ov::runtime::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
             ov::runtime::Core::compile_model,
         py::arg("model_path"),
         py::arg("device_name"),
         py::arg("config") = py::dict());
+
+    cls.def("compile_model",
+            (ov::runtime::CompiledModel(ov::runtime::Core::*)(const std::string&, const ConfigMap&)) &
+                ov::runtime::Core::compile_model,
+            py::arg("model_path"),
+            py::arg("config") = py::dict());
 
     cls.def("get_versions", &ov::runtime::Core::get_versions, py::arg("device_name"));
 

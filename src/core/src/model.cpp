@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -877,10 +877,10 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
         ssr_manager.run_passes(shared_from_this());
 
         reshape_only(new_param_shapes);
-    } catch (std::exception& ex) {
+    } catch (...) {
         // restore shapes to original ones
         reshape_only(original_input_shapes);
-        throw ex;
+        throw;
     }
 }
 
