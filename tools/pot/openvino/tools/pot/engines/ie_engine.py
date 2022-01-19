@@ -11,7 +11,7 @@ from openvino.runtime import Core, AsyncInferQueue   # pylint: disable=E0611,E04
 
 from .utils import append_stats, process_accumulated_stats, \
     restore_original_node_names, align_stat_names_with_results, \
-    add_tensor_names, cast_friendly_names, collect_model_outputs
+    add_tensor_names, cast_friendly_names, collect_model_outputs, process_raw_output
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -181,13 +181,14 @@ class IEEngine(Engine):
                                      annotations=batch_annotations)
 
         # Postprocess network output
-        output = predictions[self._output_layers[0]]
-        predictions[self._output_layers[0]] = self.postprocess_output(output, batch_meta)
+        outputs = process_raw_output(predictions)
+        output = outputs[self._output_layers[0]]
+        outputs[self._output_layers[0]] = self.postprocess_output(output, batch_meta)
 
         # Update metrics
         if batch_annotations:
             # TODO: Create some kind of an order for the correct metric calculation
-            logits = [predictions[name] for name in self._output_layers]  # output_layers are in a random order
+            logits = [outputs[name] for name in self._output_layers]  # output_layers are in a random order
             self._update_metrics(output=logits, annotations=batch_annotations,
                                  need_metrics_per_sample=need_metrics_per_sample)
 
