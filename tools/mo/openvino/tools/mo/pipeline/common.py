@@ -210,7 +210,6 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
     for_graph_and_each_sub_graph_recursively(graph, RemoveUselessConvert().find_and_replace_pattern)
 
     ResultRename().find_and_replace_pattern(graph)
-    TensorNamesInputOutputCheck().find_and_replace_pattern(graph)
     tensor_names_check(graph)
 
     for sub_graph in [graph] + collect_sub_graphs(graph):
