@@ -16,17 +16,17 @@ namespace conformance {
 
 inline const std::string getPluginLibNameByDevice(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
-            { "AUTO", "AutoPlugin" },
-            { "HDDL", "HDDLPlugin" },
-            { "VPUX", "VPUXPlugin" },
             { "AUTO", "ov_auto_plugin" },
-            { "CPU", "MKLDNNPlugin" },
+            { "HDDL", "HDDLPlugin" },
+            { "VPUX", "ov_intel_vpux_plugin" },
+            { "AUTO", "ov_auto_plugin" },
+            { "CPU", "ov_intel_cpu_plugin" },
             { "GNA", "ov_intel_gna_plugin" },
             { "GPU", "ov_intel_gpu_plugin" },
             { "HETERO", "ov_hetero_plugin" },
             { "MULTI", "ov_multi_plugin" },
-            { "MYRIAD", "myriadPlugin" },
-            { "TEMPLATE", "templatePlugin" },
+            { "MYRIAD", "ov_intel_vpu_plugin" },
+            { "TEMPLATE", "ov_template_plugin" },
     };
     if (devices.find(deviceName) == devices.end()) {
         throw std::runtime_error("Incorrect device name");
