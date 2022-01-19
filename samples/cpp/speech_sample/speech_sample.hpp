@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <gflags/gflags.h>
@@ -195,7 +199,7 @@ DEFINE_double(pwl_me, 1.0, pwl_max_error_percent_message);
 /**
  * \brief This function show a help message
  */
-static void showUsage() {
+static void show_usage() {
     std::cout << std::endl;
     std::cout << "speech_sample [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
@@ -229,12 +233,12 @@ static void showUsage() {
  * @param argv list of input arguments
  * @return bool status true(Success) or false(Fail)
  */
-bool ParseAndCheckCommandLine(int argc, char* argv[]) {
+bool parse_and_check_command_line(int argc, char* argv[]) {
     slog::info << "Parsing input parameters" << slog::endl;
 
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
-        showUsage();
+        show_usage();
         showAvailableDevices();
         return false;
     }
@@ -242,7 +246,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 
     // input not required only in dump mode and if external scale factor provided
     if (FLAGS_i.empty() && (!isDumpMode || FLAGS_q.compare("user") != 0)) {
-        showUsage();
+        show_usage();
         if (isDumpMode) {
             throw std::logic_error("In model dump mode either static quantization is used (-i) or user scale"
                                    " factor need to be provided. See -q user option");
@@ -251,7 +255,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     }
 
     if (FLAGS_m.empty() && FLAGS_rg.empty()) {
-        showUsage();
+        show_usage();
         throw std::logic_error("Either IR file (-m) or GNAModel file (-rg) need to be set.");
     }
 
@@ -265,12 +269,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
                                                  "GNA_HW",
                                                  "GNA_HW_WITH_SW_FBACK",
                                                  "GNA_SW_EXACT",
-                                                 "GNA_SW",
                                                  "GNA_SW_FP32",
                                                  "HETERO:GNA,CPU",
                                                  "HETERO:GNA_HW,CPU",
                                                  "HETERO:GNA_SW_EXACT,CPU",
-                                                 "HETERO:GNA_SW,CPU",
                                                  "HETERO:GNA_SW_FP32,CPU",
                                                  "MYRIAD"};
 

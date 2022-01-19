@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,7 +115,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output().get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
@@ -141,7 +141,7 @@ TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     //OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output().get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
@@ -171,7 +171,7 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputName));
     ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output().get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
@@ -313,7 +313,7 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputName));
     ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output().get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
     OV_ASSERT_NO_THROW(req.infer());
     ASSERT_EQ(otensor.get_shape(), refOutShape);
     OV_ASSERT_NO_THROW(req.start_async());

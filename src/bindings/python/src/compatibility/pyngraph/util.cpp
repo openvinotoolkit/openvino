@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pyngraph/util.hpp"
 
 #include <pybind11/numpy.h>
+
+#include <transformations/utils/utils.hpp>
 
 #include "ngraph/op/result.hpp"
 #include "ngraph/validation_util.hpp"
@@ -41,5 +43,9 @@ void regmodule_pyngraph_util(py::module m) {
         NGRAPH_SUPPRESS_DEPRECATED_START
         return get_ngraph_version_string();
         NGRAPH_SUPPRESS_DEPRECATED_END
+    });
+
+    mod.def("get_ie_output_name", [](const ngraph::Output<ngraph::Node>& output) {
+        return ngraph::op::util::get_ie_output_name(output);
     });
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkSetConfigTest,
         OVClassExecutableNetworkSetConfigTest,
         ::testing::Values("GNA"));
 
+IE_SUPPRESS_DEPRECATED_START
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(
         DISABLED_smoke_OVClassExecutableNetworkSupportedConfigTest,
@@ -62,6 +63,7 @@ INSTANTIATE_TEST_SUITE_P(
                           std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_SW),
                           std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_SW_EXACT),
                           std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_AUTO))));
+IE_SUPPRESS_DEPRECATED_END
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(
@@ -86,6 +88,7 @@ ov::runtime::CompiledModel exeNetwork = ie.compile_model(simpleNetwork, deviceNa
 ASSERT_THROW(exeNetwork.set_config({{configKey, configValue}}), ov::Exception);
 }
 
+IE_SUPPRESS_DEPRECATED_START
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(
         DISABLED_smoke_OVClassExecutableNetworkSetConfigFromFp32Test,
@@ -97,6 +100,7 @@ INSTANTIATE_TEST_SUITE_P(
                           std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_SW_EXACT),
                           std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_SW_FP32),
                           std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), InferenceEngine::GNAConfigParams::GNA_AUTO))));
+IE_SUPPRESS_DEPRECATED_END
 
 //
 // Hetero Executable Network GetMetric
