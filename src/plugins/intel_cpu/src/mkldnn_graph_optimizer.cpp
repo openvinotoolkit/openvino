@@ -1855,11 +1855,15 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Transpose && node->getChildEdges().size() == 1;
+        return node->getType() == Transpose
+                && node->getChildEdges().size() == 1
+                && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
     };
 
     auto isSuitableChildNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Reorder && node->getChildEdges().size() == 1;
+        return node->getType() == Reorder
+                && node->getChildEdges().size() == 1
+                && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
     };
 
     // Method checkAscendingSummaryOrder() checks that after the sequential execution of Transpose and Reorder nodes,
