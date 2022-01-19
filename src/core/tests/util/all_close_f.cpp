@@ -471,8 +471,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return res;
 }
 
-::testing::AssertionResult test::all_close_f(const std::shared_ptr<runtime::Tensor>& a,
-                                             const std::shared_ptr<runtime::Tensor>& b,
+::testing::AssertionResult test::all_close_f(const std::shared_ptr<ov::Tensor>& a,
+                                             const std::shared_ptr<ov::Tensor>& b,
                                              int tolerance_bits,
                                              float min_signal) {
     // Check that the layouts are compatible
@@ -483,8 +483,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return test::all_close_f(read_float_vector(a), read_float_vector(b), tolerance_bits, min_signal);
 }
 
-::testing::AssertionResult test::all_close_f(const std::vector<std::shared_ptr<runtime::Tensor>>& as,
-                                             const std::vector<std::shared_ptr<runtime::Tensor>>& bs,
+::testing::AssertionResult test::all_close_f(const std::vector<std::shared_ptr<ov::Tensor>>& as,
+                                             const std::vector<std::shared_ptr<ov::Tensor>>& bs,
                                              int tolerance_bits,
                                              float min_signal) {
     if (as.size() != bs.size()) {
@@ -499,8 +499,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return ::testing::AssertionSuccess();
 }
 
-::testing::AssertionResult test::all_close_f(const ov::runtime::Tensor& a,
-                                             const ov::runtime::Tensor& b,
+::testing::AssertionResult test::all_close_f(const ov::Tensor& a,
+                                             const ov::Tensor& b,
                                              int tolerance_bits,
                                              float min_signal) {
     return test::all_close_f(std::make_shared<runtime::HostTensor>(a.get_element_type(), a.get_shape(), a.data()),
@@ -509,8 +509,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
                              min_signal);
 }
 
-::testing::AssertionResult test::all_close_f(const std::vector<ov::runtime::Tensor>& as,
-                                             const std::vector<ov::runtime::Tensor>& bs,
+::testing::AssertionResult test::all_close_f(const std::vector<ov::Tensor>& as,
+                                             const std::vector<ov::Tensor>& bs,
                                              int tolerance_bits,
                                              float min_signal) {
     if (as.size() != bs.size()) {

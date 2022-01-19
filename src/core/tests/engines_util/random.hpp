@@ -25,7 +25,7 @@ public:
 
     /// \brief Randomly initialize a tensor
     /// \param ptv The tensor to initialize
-    const std::shared_ptr<runtime::Tensor> initialize(const std::shared_ptr<runtime::Tensor>& ptv) {
+    const std::shared_ptr<ov::Tensor> initialize(const std::shared_ptr<ov::Tensor>& ptv) {
         std::vector<T> vec = read_vector<T>(ptv);
         initialize(vec);
         write_vector(ptv, vec);

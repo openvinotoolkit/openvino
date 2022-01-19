@@ -98,7 +98,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
                      inputTypes.size(), " types");
     }
 
-    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+    auto inputTensors = std::vector<std::shared_ptr<ov::Tensor>>{};
     for (size_t i = 0; i < parametersNumber; ++i) {
         const auto &parameter = parameters[i];
         const auto &parameterIndex = function->get_parameter_index(parameter);
@@ -124,7 +124,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         inputTensors.push_back(tensor);
     }
 
-    auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+    auto outputTensors = std::vector<std::shared_ptr<ov::Tensor>>{};
     const auto &results = function->get_results();
     for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());
@@ -144,8 +144,8 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
     return outputs;
 }
 
-std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
-                                                   const std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>& inputs) {
+std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
+                                                   const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
     auto backend = runtime::Backend::create();
 
     const auto &funcInputs = function->inputs();
@@ -155,7 +155,7 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
                  "Got function (", function->get_friendly_name(), ") with ", funcInputsNumber, " parameters, but ",
                  inputsNumber, " input blobs");
 
-    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+    auto inputTensors = std::vector<std::shared_ptr<ov::Tensor>>{};
     for (size_t i = 0; i < funcInputsNumber; ++i) {
         const auto &input = funcInputs[i];
         const auto &inputShape = input.get_shape();
@@ -163,7 +163,7 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
         const auto &inputSize = shape_size(inputShape) * inputType.size();
 
         auto inputIt = std::find_if(inputs.begin(), inputs.end(),
-                                    [&input](std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> elem) {
+                                    [&input](std::pair<std::shared_ptr<ov::Node>, ov::Tensor> elem) {
             return elem.first->get_friendly_name() == input.get_node_shared_ptr()->get_friendly_name();
         });
         if (inputIt == inputs.end()) {
@@ -182,7 +182,7 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
         inputTensors.push_back(tensor);
     }
 
-    std::vector<std::shared_ptr<runtime::Tensor>> outputTensors;
+    std::vector<std::shared_ptr<ov::Tensor>> outputTensors;
     const auto &results = function->get_results();
     for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());
@@ -190,9 +190,9 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
 
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
-    std::vector<ov::runtime::Tensor> outputs;
+    std::vector<ov::Tensor> outputs;
     for (const auto& outTensor : outputTensors) {
-        ov::runtime::Tensor tmpBuffer(outTensor->get_element_type(), outTensor->get_shape());
+        ov::Tensor tmpBuffer(outTensor->get_element_type(), outTensor->get_shape());
         outTensor->read(tmpBuffer.data(), tmpBuffer.get_byte_size());
         outputs.push_back(tmpBuffer);
     }

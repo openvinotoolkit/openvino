@@ -11,27 +11,27 @@
 using namespace ngraph;
 using namespace std;
 
-const Shape& runtime::Tensor::get_shape() const {
+const Shape& ov::Tensor::get_shape() const {
     return m_descriptor->get_shape();
 }
 
-const PartialShape& runtime::Tensor::get_partial_shape() const {
+const PartialShape& ov::Tensor::get_partial_shape() const {
     return m_descriptor->get_partial_shape();
 }
 
-const element::Type& runtime::Tensor::get_element_type() const {
+const element::Type& ov::Tensor::get_element_type() const {
     return m_descriptor->get_element_type();
 }
 
-size_t runtime::Tensor::get_element_count() const {
+size_t ov::Tensor::get_element_count() const {
     return shape_size(m_descriptor->get_shape());
 }
 
-size_t runtime::Tensor::get_size_in_bytes() const {
+size_t ov::Tensor::get_size_in_bytes() const {
     return m_descriptor->size();
 }
 
-const std::string& runtime::Tensor::get_name() const {
+const std::string& ov::Tensor::get_name() const {
     NGRAPH_SUPPRESS_DEPRECATED_START
     return m_descriptor->get_name();
     NGRAPH_SUPPRESS_DEPRECATED_END

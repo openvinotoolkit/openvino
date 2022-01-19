@@ -80,7 +80,7 @@ protected:
 
 TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    core = std::make_shared<ov::runtime::Core>();
+    core = std::make_shared<ov::Core>();
     run();
 }
 

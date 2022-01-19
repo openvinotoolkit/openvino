@@ -39,11 +39,11 @@ void CommonReferenceTest::FillInputs() {
     for (size_t i = 0; i < functionParams.size(); i++) {
         const auto& param = functionParams[i];
 
-        ov::runtime::Tensor blob;
+        ov::Tensor blob;
         if (param->get_partial_shape().is_static()) {
-            blob = ov::runtime::Tensor(param->get_element_type(), param->get_shape());
+            blob = ov::Tensor(param->get_element_type(), param->get_shape());
         } else {
-            blob = ov::runtime::Tensor(param->get_element_type(), inputData[i].get_shape());
+            blob = ov::Tensor(param->get_element_type(), inputData[i].get_shape());
         }
         ASSERT_EQ(blob.get_byte_size(), inputData[i].get_byte_size());
 
@@ -75,7 +75,7 @@ void CommonReferenceTest::Validate() {
     }
 }
 
-void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, const ov::runtime::Tensor& outBlob,
+void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob, const ov::Tensor& outBlob,
                                         float threshold, float abs_threshold, size_t actual_comparision_size) {
     ASSERT_EQ(refBlob.get_element_type(), outBlob.get_element_type());
     ASSERT_EQ(refBlob.get_byte_size(), outBlob.get_byte_size());

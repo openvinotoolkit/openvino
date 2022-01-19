@@ -127,8 +127,8 @@ namespace test {
 /// \param atol Absolute tolerance
 /// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
 template <typename T>
-::testing::AssertionResult all_close(const ov::runtime::Tensor& a,
-                                     const ov::runtime::Tensor& b,
+::testing::AssertionResult all_close(const ov::Tensor& a,
+                                     const ov::Tensor& b,
                                      T rtol = 1e-5f,
                                      T atol = 1e-8f) {
     auto a_t = std::make_shared<ngraph::runtime::HostTensor>(a.get_element_type(), a.get_shape(), a.data());
@@ -143,8 +143,8 @@ template <typename T>
 /// \param rtol Relative tolerance
 /// \param atol Absolute tolerance
 /// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
-::testing::AssertionResult all_close(const ov::runtime::Tensor& a,
-                                     const ov::runtime::Tensor& b,
+::testing::AssertionResult all_close(const ov::Tensor& a,
+                                     const ov::Tensor& b,
                                      float rtol = 1e-5f,
                                      float atol = 1e-8f);
 }  // namespace test
