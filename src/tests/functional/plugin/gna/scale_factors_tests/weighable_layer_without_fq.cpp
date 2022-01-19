@@ -58,20 +58,20 @@ protected:
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto fq1 = std::make_shared<ngraph::opset8::FakeQuantize>(
             params[0],
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
-            255);
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
+            static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
         auto constant = ngraph::builder::makeConstant(ngPrc, constantShape, std::vector<float>{}, true);
         auto fq2 = std::make_shared<ngraph::opset8::FakeQuantize>(
             constant,
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
-            255);
-        auto concat = ngraph::builder::makeConcat({fq1, fq2}, 0);
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10}),
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
+            static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
+        auto concat = ngraph::builder::makeConcat({fq1, fq2}, 1);
         function = std::make_shared<ngraph::Function>(concat, params, "WeighableLayerWithoutFq");
     }
 }; // class WeighableLayerWithoutFqTest
@@ -91,7 +91,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
 };
 
 const std::vector<std::vector<size_t>> constantShapes = {
-    {{16, 5}}
+    {{1, 5}}
 };
 
 const std::vector<std::map<std::string, std::string>> configs = {

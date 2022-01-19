@@ -820,18 +820,6 @@ void InsertIdentityLayerPass::run() {
 
             gnalog() << "Inserted "<< identityLayer->name << " between: " << prev->name << " and " << true_layer->name << "\n" << std::flush;
 
-            // wether 1 identity or all outputs TODO possible grouping here, need to implement special grouped inserter
-            bool notAll = false;
-            for (auto && nextData  : prev->outData) {
-                for (auto && nextLayer : getInputTo(nextData)) {
-                    if (nextLayer.second.get() == l.get())
-                        continue;
-                    if (getCandidatesForIdentityInsertion(nextLayer.second, getPassManager()).empty() &&
-                        hasNextFuncLayer(nextLayer.second)) {
-                        notAll = true;
-                    }
-                }
-            }
             // copy offset - to be used while connecting outputs
             if (prev->params.find("output_offset") != prev->params.end()) {
                 identityLayer->params["output_offset"] = prev->params["output_offset"];
@@ -841,7 +829,7 @@ void InsertIdentityLayerPass::run() {
                 identityLayer->params["original_num_rows"] = prev->params["original_num_rows"];
             }
 
-            CNNNetworkInsertLayer(prev, notAll ? true_layer : CNNLayerPtr(nullptr), identityLayer);
+            CNNNetworkInsertLayer(prev, CNNLayerPtr(nullptr), identityLayer);
         }
     }
 }
@@ -2054,34 +2042,6 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         return false;
     };
 
-    auto allowFQFuse = [](CNNLayerPtr layer) -> bool {
-        auto doNotSkip = [](CNNLayerPtr layer) {
-            return false;
-        };
-
-        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkip).empty()) {
-            return false;
-        }
-
-        auto skipNonFunctional = [](CNNLayerPtr layer) {
-            return LayerInfo(layer).isNonFunctional();
-        };
-
-        auto prevLayer = CNNNetPrevLayerSkipCertain(layer, 0, skipNonFunctional);
-        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst() || LayerInfo(prevLayer).isMemory()) {
-            return true;
-        }
-
-        auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer, -1, skipNonFunctional);
-        for (auto& l : nextLayers) {
-            if (!LayerInfo(l).isActivation()) {
-                return false;
-            }
-        }
-
-        return true;
-    };
-
     std::function<void(QuantizedLayerParams*, CNNLayerPtr)> propagateStatistics =
         [&propagateStatistics](QuantizedLayerParams* srcQuantParams, CNNLayerPtr layer) {
         if (LayerInfo(layer).isFakeQuantize()) {
@@ -2212,10 +2172,6 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             quantParamsPrevLayer->_src_quant = quantParamsPrevLayer->_dst_quant;
         }
 
-        // Allow FQ Fuse checks if FQ layer can be fused to a layer before or after.
-        // FQ Layer is fused only when previous layer is const, memory or activation layer
-        // or a next layer is activation layer.
-        bool isFQFuseAllowed = allowFQFuse(l);
         auto prevData = *prevDataIt;
 
         // Find all output layers connected to FQ
@@ -2224,24 +2180,20 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             continue;
         }
 
-        if (isFQFuseAllowed) {
-            getInputTo(prevData).erase(l->name);
-        }
+        getInputTo(prevData).erase(l->name);
 
         // Connect all next layers after FQ to the layer that is before FQ
         // and propagate quantization data
         for (size_t i = 0; i < nextLayers.size(); ++i) {
-            if (isFQFuseAllowed) {
-                auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
-                if (insDatas.empty()) {
-                    THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
-                        << LAYER_NAME(nextLayers[i]) << " is not correct";
-                }
-                for (int insDataIdx : insDatas) {
-                    nextLayers[i]->insData[insDataIdx] = prevData;
-                }
-                getInputTo(prevData)[nextLayers[i]->name] = nextLayers[i];
+            auto insDatas = CNNLayerFindInsDataIdxes(fqLayer->outData.front(), nextLayers[i]);
+            if (insDatas.empty()) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize connection to layer: "
+                    << LAYER_NAME(nextLayers[i]) << " is not correct";
             }
+            for (int insDataIdx : insDatas) {
+                nextLayers[i]->insData[insDataIdx] = prevData;
+            }
+            getInputTo(prevData)[nextLayers[i]->name] = nextLayers[i];
 
             propagateStatistics(quantParamsPrevLayer, nextLayers[i]);
         }
