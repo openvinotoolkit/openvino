@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,6 +132,25 @@ TEST(type_prop_layers, detection_output_no_share_location) {
                                       element::f32,
                                       element::f32);
     ASSERT_EQ(op->get_shape(), (Shape{1, 1, 40, 7}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
+}
+
+TEST(type_prop_layers, detection_output_calculated_num_prior_boxes) {
+    op::DetectionOutputAttrs attrs;
+    attrs.keep_top_k = {-1};
+    attrs.top_k = -1;
+    attrs.normalized = true;
+    attrs.num_classes = 2;
+    attrs.share_location = false;
+    auto op = create_detection_output(PartialShape{4, -1},
+                                      PartialShape::dynamic(),
+                                      PartialShape::dynamic(),
+                                      PartialShape{-1, 20},
+                                      PartialShape::dynamic(),
+                                      attrs,
+                                      element::f32,
+                                      element::f32);
+    ASSERT_EQ(op->get_shape(), (Shape{1, 1, 80, 7}));
     ASSERT_EQ(op->get_element_type(), element::f32);
 }
 
@@ -594,9 +613,10 @@ TEST(type_prop_layers, detection_output_invalid_aux_class_preds) {
                                               element::f32);
             FAIL() << "Exception expected";
         } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(),
-                                 std::string("Additional class predictions' second dimension must "
-                                             "be equal to num_prior_boxes * 2 (6). Got 7."));
+            EXPECT_HAS_SUBSTRING(
+                error.what(),
+                std::string("Additional class predictions' second dimension must "
+                            "be compatible with num_prior_boxes * 2. Current value is: 7, expected: 6."));
         } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,10 @@ public:
     template <class T, class Operation>
     void add(const TestTransformationParams& params) {
         commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
+    }
+    template <class T, class Operation>
+    void add(const std::shared_ptr<ngraph::Function> function, const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(function, TestTransformationParams::toParams(params));
     }
 
     void transform(std::shared_ptr<ngraph::Function>& function);

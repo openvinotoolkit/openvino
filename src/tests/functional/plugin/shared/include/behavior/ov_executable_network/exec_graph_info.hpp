@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
@@ -236,7 +236,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     std::shared_ptr<InferenceEngine::Core> ie = ::PluginCache::get().ie();
     InferenceEngine::ExecutableNetwork execNet;
 
-// Create simple function
+    // Create simple function
     {
         auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
@@ -282,7 +282,9 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     EXPECT_NO_THROW(importedExecNet.output("concat_op").get_node());
 
     const auto outputType = elementType == ngraph::element::i32 ||
-                            elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
+                            elementType == ngraph::element::u32 ||
+                            elementType == ngraph::element::i64 ||
+                            elementType == ngraph::element::u64 ? ngraph::element::i32 : ngraph::element::f32;
     const auto inputType = elementType == ngraph::element::f16 ? ngraph::element::Type_t::f32 : elementType;
 
     EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());

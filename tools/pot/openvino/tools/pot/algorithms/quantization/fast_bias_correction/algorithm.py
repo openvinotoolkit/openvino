@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
@@ -52,6 +52,7 @@ class FastBiasCorrection(Algorithm):
         mu.nx_type_infer(model)
         activations_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
         nodes_with_bias = mu.get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
+        inputs_shape_nodes_with_bias = self.get_inputs_shape(nodes_with_bias)
         self.find_channel_axis(model)
         launcher = IELauncher()
 
@@ -74,7 +75,7 @@ class FastBiasCorrection(Algorithm):
                 input_node = nu.get_node_input(input_node, 0)
                 quantized_node = nu.get_node_input(op_node, 0)
 
-            input_shape = nu.get_input_shape_for_bias(op_node)
+            input_shape = inputs_shape_nodes_with_bias[input_node.fullname]
             op_model = mu.build_model_for_node(model, input_node.fullname, input_shape, op_node,
                                                remove_bias=True, target_device=self._config['target_device'])
 
@@ -202,3 +203,16 @@ class FastBiasCorrection(Algorithm):
         if isinstance(node, tuple):
             return self._channel_axis[node[0]]
         return self._channel_axis[node]
+
+    def get_inputs_shape(self, nodes_with_bias):
+        sampler = create_sampler(self._engine, 1, False, 0)
+        calculate_input_shape = {}
+        for op_node in nodes_with_bias:
+            input_node = nu.get_node_input(op_node, 0)
+            if input_node.type == 'FakeQuantize':
+                input_node = nu.get_node_input(input_node, 0)
+            calculate_input_shape[input_node.fullname] = {'shape_node': lambda x: x.shape}
+        _, inputs_shape = self._engine.predict(calculate_input_shape, sampler)
+        for node_name, shape_node in inputs_shape.items():
+            inputs_shape[node_name] = shape_node['shape_node'][0]
+        return inputs_shape

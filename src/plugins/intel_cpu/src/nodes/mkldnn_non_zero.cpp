@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ void MKLDNNNonZeroNode::executeSpecified() {
 
     if (isDynamicNode()) {
         VectorDims newDims{inRank, nonZeroCount};
-        dstMemPtr->redefineDesc(getBaseMemDescAtOutputPort(0)->cloneWithNewDims(newDims));
+        redefineOutputMemory({newDims});
     }
     int *dst = reinterpret_cast<int *>(dstMemPtr->GetPtr());
     size_t inSize = inShape.getElementsCount();

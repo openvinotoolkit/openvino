@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,7 +118,8 @@ ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_
     if (input) {
         return ngraph_type == ngraph::element::f16 ? ngraph::element::f32 : ngraph_type;
     } else {
-        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::i32) {
+        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::u64 ||
+            ngraph_type == ngraph::element::i32 || ngraph_type == ngraph::element::u32) {
             return ngraph::element::i32;
         } else if (ngraph_type != ngraph::element::f32) {
             return ngraph::element::f32;
@@ -439,8 +440,8 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
                 manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
-                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
+                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(false);
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
                 manager.register_pass<::ov::pass::DisableDecompressionConvertConstantFolding>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();

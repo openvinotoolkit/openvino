@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,6 +131,18 @@ public:
     /// \param dim Right operand for subtraction.
     /// \return Smallest interval dimension enclosing inputs
     Dimension operator-(const Dimension& dim) const;
+
+    /// \brief Division operator for Dimension divided by a value_type parameter.
+    /// \param divisor Right operand for division.
+    /// \return Smallest interval dimension enclosing inputs
+    Dimension operator/(const value_type divisor) const;
+
+    /// \brief Divided-into operator for Dimension.
+    /// \param divisor Right operand for multiplication.
+    /// \return A reference to `*this`, after updating `*this` to the value `*this * dim`.
+    Dimension& operator/=(const value_type divisor) {
+        return (*this = *this / divisor);
+    }
 
     /// \brief Multiplication operator for Dimension.
     /// \param dim Right operand for multiplicaiton.

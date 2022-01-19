@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <openvino/frontend/exception.hpp>
 #include <openvino/util/file_util.hpp>
 
+#include "ngraph/log.hpp"
 #include "place.hpp"
 
 using namespace ov;
@@ -14,27 +15,23 @@ using namespace ov::frontend::onnx;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-InputModel::InputModel(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry)} {}
+InputModel::InputModel(const std::string& path, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry)} {}
+InputModel::InputModel(const std::wstring& path, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
 #endif
 
-InputModel::InputModel(std::istream& model_stream, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", telemetry)} {}
+InputModel::InputModel(std::istream& model_stream, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", std::move(extensions))} {}
 
-InputModel::InputModel(std::istream& model_stream,
-                       const std::string& path,
-                       const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, telemetry)} {}
+InputModel::InputModel(std::istream& model_stream, const std::string& path, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, std::move(extensions))} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModel::InputModel(std::istream& model_stream,
-                       const std::wstring& path,
-                       const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
-    : InputModel(model_stream, ov::util::wstring_to_string(path), telemetry) {}
+InputModel::InputModel(std::istream& model_stream, const std::wstring& path, frontend::ExtensionHolder extensions)
+    : InputModel(model_stream, ov::util::wstring_to_string(path), std::move(extensions)) {}
 #endif
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
@@ -206,28 +203,90 @@ std::shared_ptr<Model> InputModel::convert() {
 }
 
 // Editor features
+bool InputModel::is_correct_place(const ov::frontend::Place::Ptr& place) const {
+    if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(place)) {
+        return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
+    }
+    if (const auto op = std::dynamic_pointer_cast<PlaceOp>(place)) {
+        return m_editor->is_correct_and_unambiguous_node(op->get_editor_node());
+    }
+    if (const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place)) {
+        if (auto tensor = std::dynamic_pointer_cast<PlaceTensor>(input_edge->get_source_tensor())) {
+            return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
+        }
+    }
+    if (const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place)) {
+        if (auto tensor = std::dynamic_pointer_cast<PlaceTensor>(output_edge->get_target_tensor())) {
+            return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
+        }
+    }
+    return false;
+}
+
 void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    extract_subgraph({}, outputs);
-    NGRAPH_CHECK(m_editor->model_outputs().size() == outputs.size(),
-                 "Unexpected number of outputs after override_all_outputs");
-    NGRAPH_CHECK(std::all_of(std::begin(outputs),
-                             std::end(outputs),
+    std::vector<Place::Ptr> expected_valid_outputs;
+    for (const auto& output : outputs) {
+        bool is_correct = is_correct_place(output);
+        if (!is_correct)
+            NGRAPH_WARN << "Name  " << output->get_names().at(0)
+                        << " of output node is not a correct node name. Ignoring this parameter.";
+        else
+            expected_valid_outputs.push_back(output);
+    }
+
+    extract_subgraph({}, expected_valid_outputs);
+
+    NGRAPH_CHECK(std::all_of(std::begin(expected_valid_outputs),
+                             std::end(expected_valid_outputs),
                              [](const ov::frontend::Place::Ptr& place) {
                                  return place->is_output();
                              }),
                  "Not all provided arguments of override_all_outputs are new outputs of the model");
+
+    const auto current_outputs = get_outputs();
+    NGRAPH_CHECK(std::all_of(std::begin(current_outputs),
+                             std::end(current_outputs),
+                             [&](const Place::Ptr& current_out) {
+                                 return std::find_if(std::begin(expected_valid_outputs),
+                                                     std::end(expected_valid_outputs),
+                                                     [&](const Place::Ptr& expected_out) {
+                                                         return expected_out->is_equal(current_out);
+                                                     }) != std::end(current_outputs);
+                             }),
+                 "Some other than expected outputs were created during override_all_outputs");
 }
 
 void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
+    std::vector<Place::Ptr> expected_valid_inputs;
+    for (const auto& input : inputs) {
+        bool is_correct = is_correct_place(input);
+        if (!is_correct)
+            NGRAPH_WARN << "Name  " << input->get_names().at(0)
+                        << " of input node is not a correct node. Ignoring this parameter.";
+        else
+            expected_valid_inputs.push_back(input);
+    }
+
     const auto outputs_before_extraction = m_editor->model_outputs();
-    extract_subgraph({inputs}, {});
+    extract_subgraph({expected_valid_inputs}, {});
+
     NGRAPH_CHECK(std::equal(std::begin(outputs_before_extraction),
                             std::end(outputs_before_extraction),
                             std::begin(m_editor->model_outputs())),
                  "All outputs should be preserved after override_all_inputs. Provided inputs does "
                  "not satisfy all outputs");
-    NGRAPH_CHECK(m_editor->model_inputs().size() == inputs.size(),
-                 "Unexpected number of inputs after override_all_inputs");
+
+    const auto current_inputs = get_inputs();
+    NGRAPH_CHECK(std::all_of(std::begin(current_inputs),
+                             std::end(current_inputs),
+                             [&](const Place::Ptr& current_in) {
+                                 return std::find_if(std::begin(expected_valid_inputs),
+                                                     std::end(expected_valid_inputs),
+                                                     [&](const Place::Ptr& expected_in) {
+                                                         return expected_in->is_equal(current_in);
+                                                     }) != std::end(current_inputs);
+                             }),
+                 "Some other than expected inputs were created during override_all_inputs");
 }
 
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,

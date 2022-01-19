@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,33 +17,6 @@
 
 using namespace std;
 
-namespace {
-void visit_shape_path(const shared_ptr<ov::Node>& node, unordered_set<shared_ptr<ov::Node>>& visited) {
-    if (!node)
-        return;
-    visited.insert(node);
-    deque<shared_ptr<ov::Node>> nodes{node};
-    while (!nodes.empty()) {
-        auto curr_node = nodes.front();
-        nodes.pop_front();
-        // Do not check if already visited
-        if (ov::is_type<ov::opset1::ShapeOf>(curr_node) || ov::is_type<ov::opset3::ShapeOf>(curr_node)) {
-            continue;
-        }
-        visited.insert(curr_node);
-        if (ov::is_type<ov::opset8::Constant>(curr_node)) {
-            ov::disable_fp16_compression(curr_node);
-        } else {
-            for (auto& input_value : curr_node->input_values()) {
-                // continue searching
-                const auto& input_node = input_value.get_node_shared_ptr();
-                nodes.push_front(input_node);
-            }
-        }
-    }
-}
-}  // namespace
-
 bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_ptr<ov::Model>& f) {
     deque<shared_ptr<Node>> nodes;
     unordered_set<shared_ptr<Node>> visited;
@@ -52,6 +25,12 @@ bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_p
     for (auto& r : f->get_sinks())
         nodes.emplace_back(r);
 
+    auto markup_func = [](shared_ptr<Node> node) {
+        if (ov::is_type<ov::opset8::Constant>(node)) {
+            ov::disable_fp16_compression(node);
+        }
+    };
+
     while (!nodes.empty()) {
         auto curr_node = nodes.front();
         nodes.pop_front();
@@ -59,7 +38,7 @@ bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_p
             continue;
         for (auto& input : curr_node->inputs()) {
             if (ov::is_precision_sensitive(input))
-                visit_shape_path(input.get_source_output().get_node_shared_ptr(), visited);
+                ngraph::op::util::visit_shape_path(input.get_source_output().get_node_shared_ptr(), visited, markup_func);
         }
         visited.insert(curr_node);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,13 @@
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
 namespace ngraph {
-
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PrecisionsAttribute defines precision which is required for input/output port or an operation.
+ *
+ * For more details about the attribute, refer to
+ * [PrecisionsAttribute](@ref openvino_docs_IE_DG_lpt_Precisions) page in the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedAttribute<std::vector<ngraph::element::Type>> {
 public:
     OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute, 0);

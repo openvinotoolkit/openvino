@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -374,16 +374,16 @@ const std::vector<ShapeParams> shapeParams4D_Smoke = {
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
-        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}}},
+        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
         ngraph::helpers::InputLayerType::PARAMETER,
-        {{1.f, 1.f, 1.25f, 1.5f}, {1.f, 1.f, 1.25f, 1.25f}},
+        {{1.f, 1.f, 1.25f, 1.5f}, {1.f, 1.f, 1.25f, 1.25f}, {1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
-        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}}},
+        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
         ngraph::helpers::InputLayerType::PARAMETER,
-        {{1, 11, 6, 7}, {2, 7, 8, 7}},
+        {{1, 11, 6, 7}, {2, 7, 8, 7}, {1, 11, 6, 7}},
         defaultAxes4D.front()
     }
 };
@@ -391,14 +391,14 @@ const std::vector<ShapeParams> shapeParams4D_Smoke = {
 const std::vector<ShapeParams> shapeParams4D_Full = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
-        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}}},
+        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
-        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {1, 11, 5, 5}}},
+        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {1, 11, 5, 5}, {1, 11, 4, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6}},
         defaultAxes4D.front()
@@ -638,16 +638,16 @@ const std::vector<ShapeParams> shapeParams5D_Smoke = {
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
-        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}}},
+        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
         ngraph::helpers::InputLayerType::PARAMETER,
-        {{1.f, 1.f, 1.25f, 1.5f, 0.5f}, {1.f, 1.f, 1.25f, 1.25f, 1.25f}},
+        {{1.f, 1.f, 1.25f, 1.5f, 0.5f}, {1.f, 1.f, 1.25f, 1.25f, 1.25f}, {1.f, 1.f, 1.25f, 1.5f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
-        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}}},
+        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
         ngraph::helpers::InputLayerType::PARAMETER,
-        {{1, 11, 6, 7, 2}, {2, 7, 8, 7, 4}},
+        {{1, 11, 6, 7, 2}, {2, 7, 8, 7, 4}, {1, 11, 6, 7, 2}},
         defaultAxes5D.front()
     },
 };
@@ -655,14 +655,14 @@ const std::vector<ShapeParams> shapeParams5D_Smoke = {
 const std::vector<ShapeParams> shapeParams5D_Full = {
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
-        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}}},
+        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {2, 7, 6, 5, 8}, {1, 11, 4, 4, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{1.f, 1.f, 1.25f, 1.5f, 0.5f}},
         defaultAxes5D.front()
     },
     ShapeParams{
         ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
-        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}}},
+        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}, {1, 11, 4, 4, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{1, 11, 5, 6, 4}},
         defaultAxes5D.front()

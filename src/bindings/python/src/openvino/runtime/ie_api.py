@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -22,31 +22,36 @@ def tensor_from_file(path: str) -> Tensor:
     return Tensor(np.fromfile(path, dtype=np.uint8))
 
 
-def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
+def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
     """Normalize a dictionary of inputs to Tensors."""
-    for k, val in py_dict.items():
+    if isinstance(inputs, list):
+        inputs = {index: input for index, input in enumerate(inputs)}
+    for k, val in inputs.items():
         if not isinstance(k, (str, int)):
             raise TypeError("Incompatible key type for tensor named: {}".format(k))
         try:
             ov_type = py_types[k]
         except KeyError:
             raise KeyError("Port for tensor named {} was not found!".format(k))
-        py_dict[k] = (
+        inputs[k] = (
             val
             if isinstance(val, Tensor)
             else Tensor(np.array(val, get_dtype(ov_type)))
         )
-    return py_dict
+    return inputs
 
 
 def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
     """Map all tensor names of all inputs to the data types of those tensors."""
 
+    def get_inputs(obj: Union[InferRequestBase, CompiledModelBase]) -> list:
+        return obj.model_inputs if isinstance(obj, InferRequestBase) else obj.inputs
+
     def map_tensor_names_to_types(input: Output) -> dict:
         return {n: input.get_element_type() for n in input.get_names()}
 
     input_types: dict = {}
-    for idx, input in enumerate(obj.inputs):
+    for idx, input in enumerate(get_inputs(obj)):
         input_types.update(map_tensor_names_to_types(input))
         input_types[idx] = input.get_element_type()
     return input_types
@@ -55,14 +60,14 @@ def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
 class InferRequest(InferRequestBase):
     """InferRequest wrapper."""
 
-    def infer(self, inputs: dict = None) -> dict:
+    def infer(self, inputs: Union[dict, list] = None) -> dict:
         """Infer wrapper for InferRequest."""
         inputs = (
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
         )
         return super().infer(inputs)
 
-    def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
+    def start_async(self, inputs: Union[dict, list] = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for InferRequest."""
         inputs = (
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
@@ -77,7 +82,7 @@ class CompiledModel(CompiledModelBase):
         """Create new InferRequest object."""
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: dict = None) -> dict:
+    def infer_new_request(self, inputs: Union[dict, list] = None) -> dict:
         """Infer wrapper for CompiledModel."""
         inputs = (
             {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
@@ -92,7 +97,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         """Return i-th InferRequest from AsyncInferQueue."""
         return InferRequest(super().__getitem__(i))
 
-    def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
+    def start_async(self, inputs: Union[dict, list] = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for AsyncInferQueue."""
         inputs = (
             {}
@@ -165,6 +170,7 @@ class OVAny(OVAnyBase):
         any = OVAny(Test())
         print(any.value.data)
     @endcode
+
     """
 
     def __getitem__(self, key: Union[str, int]) -> Any:

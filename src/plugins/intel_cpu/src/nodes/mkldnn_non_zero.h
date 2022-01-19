@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,8 @@ public:
     bool needPrepareParams() const override {return false;};
     void executeDynamicImpl(mkldnn::stream strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    bool isExecutable() const override { return true; }
 
 private:
     std::string errorPrefix;

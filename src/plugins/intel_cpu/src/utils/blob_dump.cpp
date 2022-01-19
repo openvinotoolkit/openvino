@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@ using namespace InferenceEngine;
 namespace MKLDNNPlugin {
 
 // IEB file format routine
-static unsigned char IEB_MAGIC[4] = {'I', 'E', 'B', '0'};
-static unsigned char NO_SCALES = 0xFF;
+static const unsigned char IEB_MAGIC[4] = {'I', 'E', 'B', '0'};
+static const unsigned char NO_SCALES = 0xFF;
 
 struct IEB_HEADER {
     unsigned char magic[4];
@@ -231,7 +231,7 @@ void BlobDumper::dump(const std::string &dump_path) const {
     std::ofstream dump_file;
     dump_file.open(dump_path);
     if (!dump_file.is_open())
-        IE_THROW() << "Dumper cannot create dump file";
+        IE_THROW() << "Dumper cannot create dump file " << dump_path;
 
     dump(dump_file);
     dump_file.close();
@@ -241,7 +241,7 @@ void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
     std::ofstream dump_file;
     dump_file.open(dump_path);
     if (!dump_file.is_open())
-        IE_THROW() << "Dumper cannot create dump file";
+        IE_THROW() << "Dumper cannot create dump file " << dump_path;
 
     dumpAsTxt(dump_file);
     dump_file.close();

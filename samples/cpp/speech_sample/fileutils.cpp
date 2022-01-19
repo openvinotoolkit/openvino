@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "fileutils.hpp"
 
-void ArkFile::GetFileInfo(const char* fileName,
-                          uint32_t numArrayToFindSize,
-                          uint32_t* ptrNumArrays,
-                          uint32_t* ptrNumMemoryBytes) {
+void ArkFile::get_file_info(const char* fileName,
+                            uint32_t numArrayToFindSize,
+                            uint32_t* ptrNumArrays,
+                            uint32_t* ptrNumMemoryBytes) {
     uint32_t numArrays = 0;
     uint32_t numMemoryBytes = 0;
 
@@ -34,7 +34,7 @@ void ArkFile::GetFileInfo(const char* fileName,
         }
         in_file.close();
     } else {
-        throw std::runtime_error(std::string("Failed to open %s for reading in GetFileInfo()!\n") + fileName);
+        throw std::runtime_error(std::string("Failed to open %s for reading in get_file_info()!\n") + fileName);
     }
 
     if (ptrNumArrays != NULL)
@@ -43,13 +43,13 @@ void ArkFile::GetFileInfo(const char* fileName,
         *ptrNumMemoryBytes = numMemoryBytes;
 }
 
-void ArkFile::LoadFile(const char* fileName,
-                       uint32_t arrayIndex,
-                       std::string& ptrName,
-                       std::vector<uint8_t>& memory,
-                       uint32_t* ptrNumRows,
-                       uint32_t* ptrNumColumns,
-                       uint32_t* ptrNumBytesPerElement) {
+void ArkFile::load_file(const char* fileName,
+                        uint32_t arrayIndex,
+                        std::string& ptrName,
+                        std::vector<uint8_t>& memory,
+                        uint32_t* ptrNumRows,
+                        uint32_t* ptrNumColumns,
+                        uint32_t* ptrNumBytesPerElement) {
     std::ifstream in_file(fileName, std::ios::binary);
     if (in_file.good()) {
         uint32_t i = 0;
@@ -72,7 +72,7 @@ void ArkFile::LoadFile(const char* fileName,
             std::getline(in_file, ptrName, '\0');  // read variable length name followed by space and NUL
             std::getline(in_file, line, '\4');     // read "BFM" followed by space and control-D
             if (line.compare("BFM ") != 0) {
-                throw std::runtime_error(std::string("Cannot find array specifier in file %s in LoadFile()!\n") +
+                throw std::runtime_error(std::string("Cannot find array specifier in file %s in load_file()!\n") +
                                          fileName);
             }
             in_file.read(reinterpret_cast<char*>(ptrNumRows), sizeof(uint32_t));     // read number of rows
@@ -83,18 +83,18 @@ void ArkFile::LoadFile(const char* fileName,
         }
         in_file.close();
     } else {
-        throw std::runtime_error(std::string("Failed to open %s for reading in LoadFile()!\n") + fileName);
+        throw std::runtime_error(std::string("Failed to open %s for reading in load_file()!\n") + fileName);
     }
 
     *ptrNumBytesPerElement = sizeof(float);
 }
 
-void ArkFile::SaveFile(const char* fileName,
-                       bool shouldAppend,
-                       std::string name,
-                       void* ptrMemory,
-                       uint32_t numRows,
-                       uint32_t numColumns) {
+void ArkFile::save_file(const char* fileName,
+                        bool shouldAppend,
+                        std::string name,
+                        void* ptrMemory,
+                        uint32_t numRows,
+                        uint32_t numColumns) {
     std::ios_base::openmode mode = std::ios::binary;
     if (shouldAppend) {
         mode |= std::ios::app;
@@ -111,14 +111,14 @@ void ArkFile::SaveFile(const char* fileName,
         out_file.write(reinterpret_cast<char*>(ptrMemory), numRows * numColumns * sizeof(float));
         out_file.close();
     } else {
-        throw std::runtime_error(std::string("Failed to open %s for writing in SaveFile()!\n") + fileName);
+        throw std::runtime_error(std::string("Failed to open %s for writing in save_file()!\n") + fileName);
     }
 }
 
-void NumpyFile::GetFileInfo(const char* fileName,
-                            uint32_t numArrayToFindSize,
-                            uint32_t* ptrNumArrays,
-                            uint32_t* ptrNumMemoryBytes) {
+void NumpyFile::get_file_info(const char* fileName,
+                              uint32_t numArrayToFindSize,
+                              uint32_t* ptrNumArrays,
+                              uint32_t* ptrNumMemoryBytes) {
     uint32_t numArrays = 0;
     uint32_t numMemoryBytes = 0;
 
@@ -135,17 +135,17 @@ void NumpyFile::GetFileInfo(const char* fileName,
         if (ptrNumMemoryBytes != NULL)
             *ptrNumMemoryBytes = numMemoryBytes;
     } else {
-        throw std::runtime_error(std::string("Failed to get info %s  GetFileInfo()!\n") + fileName);
+        throw std::runtime_error(std::string("Failed to get info %s  get_file_info()!\n") + fileName);
     }
 }
 
-void NumpyFile::LoadFile(const char* fileName,
-                         uint32_t arrayIndex,
-                         std::string& ptrName,
-                         std::vector<uint8_t>& memory,
-                         uint32_t* ptrNumRows,
-                         uint32_t* ptrNumColumns,
-                         uint32_t* ptrNumBytesPerElement) {
+void NumpyFile::load_file(const char* fileName,
+                          uint32_t arrayIndex,
+                          std::string& ptrName,
+                          std::vector<uint8_t>& memory,
+                          uint32_t* ptrNumRows,
+                          uint32_t* ptrNumColumns,
+                          uint32_t* ptrNumBytesPerElement) {
     cnpy::npz_t my_npz1 = cnpy::npz_load(fileName);
     auto it = my_npz1.begin();
     std::advance(it, arrayIndex);
@@ -161,16 +161,16 @@ void NumpyFile::LoadFile(const char* fileName,
 
         *ptrNumBytesPerElement = sizeof(float);
     } else {
-        throw std::runtime_error(std::string("Failed to open %s for reading in LoadFile()!\n") + fileName);
+        throw std::runtime_error(std::string("Failed to open %s for reading in load_file()!\n") + fileName);
     }
 }
 
-void NumpyFile::SaveFile(const char* fileName,
-                         bool shouldAppend,
-                         std::string name,
-                         void* ptrMemory,
-                         uint32_t numRows,
-                         uint32_t numColumns) {
+void NumpyFile::save_file(const char* fileName,
+                          bool shouldAppend,
+                          std::string name,
+                          void* ptrMemory,
+                          uint32_t numRows,
+                          uint32_t numColumns) {
     std::string mode;
     shouldAppend ? mode = "a" : mode = "w";
     std::vector<size_t> shape{numRows, numColumns};

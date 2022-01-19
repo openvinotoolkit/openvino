@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,6 @@ private:
 
     std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
     DnnlBlockedMemoryDescPtr outDataDesc;
-    AttrPtr pAttr;
 };
 
 }  // namespace MKLDNNPlugin

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -992,7 +992,9 @@ std::vector<InputShape> inputShapes_Reorder_2D = {
             // target static shapes
             {
                 { 1, 32, 39, 40 },
-                { 2, 32, 20, 20}
+                { 2, 32, 20, 20 },
+                { 1, 32, 39, 40 },
+                { 2, 32, 20, 20 }
             }
         }
 };

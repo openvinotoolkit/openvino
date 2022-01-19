@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,6 @@
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/string.hpp>
-
-#include "samples/common.hpp"
-#include "samples/args_helper.hpp"
 
 static constexpr char help_message[] =
                                              "Optional. Print the usage message.";
@@ -120,6 +117,425 @@ DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
 
+
+namespace {
+std::vector<std::string> splitStringList(const std::string& str, char delim) {
+    if (str.empty())
+        return {};
+
+    std::istringstream istr(str);
+
+    std::vector<std::string> result;
+    std::string elem;
+    while (std::getline(istr, elem, delim)) {
+        if (elem.empty()) {
+            continue;
+        }
+        result.emplace_back(std::move(elem));
+    }
+
+    return result;
+}
+
+std::map<std::string, std::string> parseArgMap(std::string argMap) {
+    argMap.erase(std::remove_if(argMap.begin(), argMap.end(), ::isspace), argMap.end());
+
+    const auto pairs = splitStringList(argMap, ',');
+
+    std::map<std::string, std::string> parsedMap;
+    for (auto&& pair : pairs) {
+        const auto lastDelimPos = pair.find_last_of(':');
+        auto key = pair.substr(0, lastDelimPos);
+        auto value = pair.substr(lastDelimPos + 1);
+
+        if (lastDelimPos == std::string::npos || key.empty() || value.empty()) {
+            throw std::invalid_argument("Invalid key/value pair " + pair + ". Expected <layer_name>:<value>");
+        }
+
+        parsedMap[std::move(key)] = std::move(value);
+    }
+
+    return parsedMap;
+}
+
+using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
+
+InferenceEngine::Precision getPrecision(std::string value, const supported_precisions_t& supported_precisions) {
+    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
+    const auto precision = supported_precisions.find(value);
+    if (precision == supported_precisions.end()) {
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
+    }
+
+    return precision->second;
+}
+
+InferenceEngine::Precision getPrecision(const std::string& value) {
+    static const supported_precisions_t supported_precisions = {
+        {"FP32", InferenceEngine::Precision::FP32}, {"f32", InferenceEngine::Precision::FP32},
+        {"FP16", InferenceEngine::Precision::FP16}, {"f16", InferenceEngine::Precision::FP16},
+        {"BF16", InferenceEngine::Precision::BF16}, {"bf16", InferenceEngine::Precision::BF16},
+        {"U64", InferenceEngine::Precision::U64},   {"u64", InferenceEngine::Precision::U64},
+        {"I64", InferenceEngine::Precision::I64},   {"i64", InferenceEngine::Precision::I64},
+        {"U32", InferenceEngine::Precision::U32},   {"u32", InferenceEngine::Precision::U32},
+        {"I32", InferenceEngine::Precision::I32},   {"i32", InferenceEngine::Precision::I32},
+        {"U16", InferenceEngine::Precision::U16},   {"u16", InferenceEngine::Precision::U16},
+        {"I16", InferenceEngine::Precision::I16},   {"i16", InferenceEngine::Precision::I16},
+        {"U8", InferenceEngine::Precision::U8},     {"u8", InferenceEngine::Precision::U8},
+        {"I8", InferenceEngine::Precision::I8},     {"i8", InferenceEngine::Precision::I8},
+        {"BOOL", InferenceEngine::Precision::BOOL}, {"boolean", InferenceEngine::Precision::BOOL},
+    };
+
+    return getPrecision(value, supported_precisions);
+}
+
+void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string& iop) {
+    const auto user_precisions_map = parseArgMap(iop);
+
+    auto inputs = network.getInputsInfo();
+    auto outputs = network.getOutputsInfo();
+
+    for (auto&& item : user_precisions_map) {
+        const auto& layer_name = item.first;
+        const auto& user_precision = item.second;
+
+        const auto input = inputs.find(layer_name);
+        const auto output = outputs.find(layer_name);
+
+        if (input != inputs.end()) {
+            input->second->setPrecision(getPrecision(user_precision));
+        } else if (output != outputs.end()) {
+            output->second->setPrecision(getPrecision(user_precision));
+        } else {
+            throw std::logic_error(layer_name + " is not an input neither output");
+        }
+    }
+}
+
+} //namespace
+
+
+void processPrecision(InferenceEngine::CNNNetwork& network,
+    const std::string& ip,
+    const std::string& op,
+    const std::string& iop) {
+    if (!ip.empty()) {
+        const auto user_precision = getPrecision(ip);
+        for (auto&& layer : network.getInputsInfo()) {
+            layer.second->setPrecision(user_precision);
+        }
+    }
+
+    if (!op.empty()) {
+        auto user_precision = getPrecision(op);
+        for (auto&& layer : network.getOutputsInfo()) {
+            layer.second->setPrecision(user_precision);
+        }
+    }
+
+    if (!iop.empty()) {
+        setPrecisions(network, iop);
+    }
+}
+
+using supported_layouts_t = std::unordered_map<std::string, InferenceEngine::Layout>;
+using matchLayoutToDims_t = std::unordered_map<size_t, size_t>;
+
+InferenceEngine::Layout getLayout(std::string value, const supported_layouts_t& supported_layouts) {
+    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
+    const auto layout = supported_layouts.find(value);
+    if (layout == supported_layouts.end()) {
+        throw std::logic_error("\"" + value + "\"" + " is not a valid layout");
+    }
+
+    return layout->second;
+}
+
+InferenceEngine::Layout getLayout(const std::string& value) {
+    static const supported_layouts_t supported_layouts = {
+        {"NCDHW", InferenceEngine::Layout::NCDHW},
+        {"NDHWC", InferenceEngine::Layout::NDHWC},
+        {"NCHW", InferenceEngine::Layout::NCHW},
+        {"NHWC", InferenceEngine::Layout::NHWC},
+        {"CHW", InferenceEngine::Layout::CHW},
+        {"HWC", InferenceEngine::Layout::HWC},
+        {"NC", InferenceEngine::Layout::NC},
+        {"C", InferenceEngine::Layout::C},
+    };
+
+    return getLayout(value, supported_layouts);
+}
+
+bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
+    static const matchLayoutToDims_t matchLayoutToDims = { {static_cast<size_t>(InferenceEngine::Layout::NCDHW), 5},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::NDHWC), 5},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::NCHW), 4},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::NHWC), 4},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::CHW), 3},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::NC), 2},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::C), 1} };
+
+    const auto dims = matchLayoutToDims.find(static_cast<size_t>(layout));
+    if (dims == matchLayoutToDims.end()) {
+        throw std::logic_error("Layout is not valid.");
+    }
+
+    return dimension == dims->second;
+}
+
+void setLayouts(const InferenceEngine::CNNNetwork& network, const std::string iol) {
+    const auto user_layouts_map = parseArgMap(iol);
+
+    auto inputs = network.getInputsInfo();
+    auto outputs = network.getOutputsInfo();
+
+    for (auto&& item : user_layouts_map) {
+        const auto& layer_name = item.first;
+        const auto& user_layout = getLayout(item.second);
+
+        const auto input = inputs.find(layer_name);
+        const auto output = outputs.find(layer_name);
+
+        if (input != inputs.end()) {
+            if (!isMatchLayoutToDims(user_layout, input->second->getTensorDesc().getDims().size())) {
+                throw std::logic_error(item.second + " layout is not applicable to " + layer_name);
+            }
+
+            input->second->setLayout(user_layout);
+        } else if (output != outputs.end()) {
+            if (!isMatchLayoutToDims(user_layout, output->second->getTensorDesc().getDims().size())) {
+                throw std::logic_error(item.second + " layout is not applicable to " + layer_name);
+            }
+
+            output->second->setLayout(user_layout);
+        } else {
+            throw std::logic_error(layer_name + " is not an input neither output");
+        }
+    }
+}
+
+void processLayout(InferenceEngine::CNNNetwork& network,
+    const std::string& il,
+    const std::string& ol,
+    const std::string& iol) {
+    if (!il.empty()) {
+        const auto layout = getLayout(il);
+        for (auto&& layer : network.getInputsInfo()) {
+            if (isMatchLayoutToDims(layout, layer.second->getTensorDesc().getDims().size())) {
+                layer.second->setLayout(layout);
+            }
+        }
+    }
+
+    if (!ol.empty()) {
+        const auto layout = getLayout(ol);
+        for (auto&& layer : network.getOutputsInfo()) {
+            if (isMatchLayoutToDims(layout, layer.second->getTensorDesc().getDims().size())) {
+                layer.second->setLayout(layout);
+            }
+        }
+    }
+
+    if (!iol.empty()) {
+        setLayouts(network, iol);
+    }
+}
+
+using supported_type_t = std::unordered_map<std::string, ov::element::Type>;
+ov::element::Type getType(std::string value, const supported_type_t& supported_precisions) {
+    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
+    const auto precision = supported_precisions.find(value);
+    if (precision == supported_precisions.end()) {
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
+    }
+
+    return precision->second;
+}
+ov::element::Type getType(const std::string& value) {
+    static const supported_type_t supported_types = {
+        {"FP32", ov::element::f32}, {"f32", ov::element::f32},      {"FP16", ov::element::f16},
+        {"f16", ov::element::f16},  {"BF16", ov::element::bf16},    {"bf16", ov::element::bf16},
+        {"U64", ov::element::u64},  {"u64", ov::element::u64},      {"I64", ov::element::i64},
+        {"i64", ov::element::i64},  {"U32", ov::element::u32},      {"u32", ov::element::u32},
+        {"I32", ov::element::i32},  {"i32", ov::element::i32},      {"U16", ov::element::u16},
+        {"u16", ov::element::u16},  {"I16", ov::element::i16},      {"i16", ov::element::i16},
+        {"U8", ov::element::u8},    {"u8", ov::element::u8},        {"I8", ov::element::i8},
+        {"i8", ov::element::i8},    {"BOOL", ov::element::boolean}, {"boolean", ov::element::boolean},
+    };
+
+    return getType(value, supported_types);
+}
+
+void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
+    const std::string& ip,
+    const std::string& op,
+    const std::string& iop,
+    const std::string& il,
+    const std::string& ol,
+    const std::string& iol,
+    const std::string& iml,
+    const std::string& oml,
+    const std::string& ioml) {
+    auto preprocessor = ov::preprocess::PrePostProcessor(model);
+    const auto inputs = model->inputs();
+    const auto outputs = model->outputs();
+    if (!ip.empty()) {
+        auto type = getType(ip);
+        for (size_t i = 0; i < inputs.size(); i++) {
+            preprocessor.input(i).tensor().set_element_type(type);
+        }
+    }
+
+    if (!op.empty()) {
+        auto type = getType(op);
+        for (size_t i = 0; i < outputs.size(); i++) {
+            preprocessor.output(i).tensor().set_element_type(type);
+        }
+    }
+
+    if (!iop.empty()) {
+        const auto user_precisions_map = parseArgMap(iop);
+        for (auto&& item : user_precisions_map) {
+            const auto& tensor_name = item.first;
+            const auto type = getType(item.second);
+
+            bool tensorFound = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (inputs[i].get_names().count(tensor_name)) {
+                    preprocessor.input(i).tensor().set_element_type(type);
+                    tensorFound = true;
+                    break;
+                }
+            }
+            if (!tensorFound) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    if (outputs[i].get_names().count(tensor_name)) {
+                        preprocessor.output(i).tensor().set_element_type(type);
+                        tensorFound = true;
+                        break;
+                    }
+                }
+            }
+            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
+        }
+    }
+    if (!il.empty()) {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            preprocessor.input(i).tensor().set_layout(ov::Layout(il));
+        }
+    }
+
+    if (!ol.empty()) {
+        for (size_t i = 0; i < outputs.size(); i++) {
+            preprocessor.output(i).tensor().set_layout(ov::Layout(ol));
+        }
+    }
+
+    if (!iol.empty()) {
+        const auto user_precisions_map = parseArgMap(iol);
+        for (auto&& item : user_precisions_map) {
+            const auto& tensor_name = item.first;
+
+            bool tensorFound = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (inputs[i].get_names().count(tensor_name)) {
+                    preprocessor.input(i).tensor().set_layout(ov::Layout(item.second));
+                    tensorFound = true;
+                    break;
+                }
+            }
+            if (!tensorFound) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    if (outputs[i].get_names().count(tensor_name)) {
+                        preprocessor.output(i).tensor().set_layout(ov::Layout(item.second));
+                        tensorFound = true;
+                        break;
+                    }
+                }
+            }
+            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
+        }
+    }
+
+    if (!iml.empty()) {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            preprocessor.input(i).model().set_layout(ov::Layout(iml));
+        }
+    }
+
+    if (!oml.empty()) {
+        for (size_t i = 0; i < outputs.size(); i++) {
+            preprocessor.output(i).model().set_layout(ov::Layout(oml));
+        }
+    }
+
+    if (!ioml.empty()) {
+        const auto user_precisions_map = parseArgMap(ioml);
+        for (auto&& item : user_precisions_map) {
+            const auto& tensor_name = item.first;
+
+            bool tensorFound = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (inputs[i].get_names().count(tensor_name)) {
+                    preprocessor.input(i).model().set_layout(ov::Layout(item.second));
+                    tensorFound = true;
+                    break;
+                }
+            }
+            if (!tensorFound) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    if (outputs[i].get_names().count(tensor_name)) {
+                        preprocessor.output(i).model().set_layout(ov::Layout(item.second));
+                        tensorFound = true;
+                        break;
+                    }
+                }
+            }
+            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
+        }
+    }
+
+    model = preprocessor.build();
+}
+
+void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network) {
+    std::cout << "Network inputs:" << std::endl;
+    for (auto&& layer : network.getInputsInfo()) {
+        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / "
+            << layer.second->getLayout() << std::endl;
+    }
+    std::cout << "Network outputs:" << std::endl;
+    for (auto&& layer : network.getOutputsInfo()) {
+        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / "
+            << layer.second->getLayout() << std::endl;
+    }
+}
+
+void printInputAndOutputsInfoShort(const ov::Model& network) {
+    std::cout << "Network inputs:" << std::endl;
+    for (auto&& param : network.get_parameters()) {
+        auto l = param->get_layout();
+        std::cout << "    " << param->get_friendly_name() << " : " << param->get_element_type() << " / "
+            << param->get_layout().to_string() << std::endl;
+    }
+    std::cout << "Network outputs:" << std::endl;
+    for (auto&& result : network.get_results()) {
+        std::cout << "    " << result->get_friendly_name() << " : " << result->get_element_type() << " / "
+            << result->get_layout().to_string() << std::endl;
+    }
+}
+
+inline std::string fileNameNoExt(const std::string& filepath) {
+    auto pos = filepath.rfind('.');
+    if (pos == std::string::npos)
+        return filepath;
+    return filepath.substr(0, pos);
+}
+
+
 static void showUsage() {
     std::cout << "compile_tool [OPTIONS]" << std::endl;
     std::cout                                                                                      << std::endl;
@@ -202,7 +618,6 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
 
 static std::map<std::string, std::string> configure() {
     const bool isMYRIAD = FLAGS_d.find("MYRIAD") != std::string::npos;
-
     auto config = parseConfigFile();
 
     if (isMYRIAD) {
@@ -337,7 +752,7 @@ int main(int argc, char* argv[]) {
             auto model = core.read_model(FLAGS_m);
 
             configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml, FLAGS_oml, FLAGS_ioml);
-            printInputAndOutputsInfo(*model);
+            printInputAndOutputsInfoShort(*model);
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
             auto compiledModel = core.compile_model(model, FLAGS_d, configure());
             loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);

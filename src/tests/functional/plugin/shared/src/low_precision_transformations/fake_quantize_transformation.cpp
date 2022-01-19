@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,10 +23,12 @@ std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParam
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeTransformationParam testParams;
-    std::tie(netPrecision, inputShape, targetDevice, params, testParams) = obj.param;
+    bool isConvertOnConstants;
+    std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" << testParams.fakequantize;
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
+        isConvertOnConstants << "_" << testParams.fakequantize;
     return result.str();
 }
 
@@ -35,7 +37,10 @@ void FakeQuantizeTransformation::SetUp() {
     ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeTransformationParam testParams;
-    std::tie(netPrecision, inputShape, targetDevice, params, testParams) = this->GetParam();
+    bool isConvertOnConstants;
+    std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = this->GetParam();
+
+    testParams.fakequantize.addConverts = isConvertOnConstants;
 
     function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
         params,

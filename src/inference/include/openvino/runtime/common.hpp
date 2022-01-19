@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ namespace ov {
 namespace ie = InferenceEngine;
 namespace runtime {
 /**
- * @brief This type of map is commonly used to pass set of parameters
+ * @brief This type of map is commonly used to pass set of device configuration parameters
  */
 using ConfigMap = std::map<std::string, std::string>;
 

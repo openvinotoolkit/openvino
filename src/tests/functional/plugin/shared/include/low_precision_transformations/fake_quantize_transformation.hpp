@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,8 @@ typedef std::tuple<
     ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    FakeQuantizeTransformationParam> FakeQuantizeTransformationParams;
+    FakeQuantizeTransformationParam,
+    bool> FakeQuantizeTransformationParams;
 
 class FakeQuantizeTransformation :
     public testing::WithParamInterface<FakeQuantizeTransformationParams>,

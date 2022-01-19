@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,8 @@ public:
     StaticDimension& operator+=(const StaticDimension& dim);
     StaticDimension& operator*=(const StaticDimension& dim);
     StaticDimension& operator&=(const StaticDimension& dim);
+    StaticDimension operator/(const value_type divisor) const;
+    StaticDimension &operator/=(const value_type divisor);
 
 private:
     value_type m_dimension = 0;

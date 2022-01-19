@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -144,6 +144,7 @@ def add_constant_operations(graph):
         if len(node.in_nodes()) == 0 and len(node.out_nodes()) != 0:
             # It's necessary to import here due to cycle dependencies
             from openvino.tools.mo.ops.const import Const
+            from openvino.tools.mo.utils.runtime_info import RTInfo
             name = node.soft_get('name', node.id)
             new_name = re.sub(r'\/Output_\d+\/Data_(.?)+', '', name)
             const_node = Const(graph, dict(value=node.value, name=new_name,
@@ -151,6 +152,7 @@ def add_constant_operations(graph):
                                            override_output_shape=node.has_valid('force_shape'),
                                            force_type=node.soft_get('force_type', None),
                                            correct_data_type=node.soft_get('correct_data_type', False),
+                                           rt_info=node.soft_get('rt_info', RTInfo()),
                                            )).create_node()
             graph.add_edges_from([(const_node.id, node.id, {'out': 0})])
 

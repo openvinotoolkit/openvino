@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "normalize_preprocess.h"
 #include "mkldnn_node.h"
 #include "mkldnn_edge.h"
+#include "cache/multi_cache.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -17,7 +18,7 @@
 #include <atomic>
 
 namespace MKLDNNPlugin {
-class MKLDNNInferRequest;
+class MKLDNNInferRequestBase;
 class MKLDNNGraph {
 public:
     typedef std::shared_ptr<MKLDNNGraph> Ptr;
@@ -56,7 +57,7 @@ public:
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
     void PullOutputData(InferenceEngine::BlobMap &out);
 
-    void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
+    void Infer(MKLDNNInferRequestBase* request = nullptr, int batch = -1);
 
     const std::vector<MKLDNNNodePtr>& GetNodes() const {
         return graphNodes;
@@ -219,7 +220,7 @@ protected:
     static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-    void Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
@@ -232,8 +233,9 @@ protected:
     void ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const;
     void ExecuteConstantNodesOnly() const;
 
+    friend class MKLDNNInferRequestBase;
+    friend class MKLDNNLegacyInferRequest;
     friend class MKLDNNInferRequest;
-    friend class MKLDNNGraphlessInferRequest;
     friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
@@ -246,6 +248,8 @@ private:
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
     std::vector<MKLDNNNodePtr> constantGraphNodes;
     std::vector<MKLDNNNodePtr> executableGraphNodes;
+
+    MultiCachePtr rtParamsCache;
 
     void EnforceBF16();
 };

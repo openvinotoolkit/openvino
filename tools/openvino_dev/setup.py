@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2018-2022 Intel Corporation SPDX-License-Identifier: Apache-2.0
 
 """ Use this script to create a openvino-dev wheel package:
     $ python3 setup.py bdist_wheel
@@ -207,7 +207,6 @@ setup(
     long_description_content_type='text/markdown',
     classifiers=[
         'Programming Language :: Python :: 3',
-        'OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
     ],
     cmdclass={
