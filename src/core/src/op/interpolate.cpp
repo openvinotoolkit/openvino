@@ -461,8 +461,7 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
                                                          out_shape,
                                                          m_attrs);
         break;
-    default: {
-    };
+    default:;
     }
 
     return true;
@@ -478,9 +477,9 @@ bool op::v4::Interpolate::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::u8:
+    case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::f64:
         return true;
     default:
         break;

@@ -78,8 +78,7 @@ private:
                     return static_cast<int64_t>(x_original);
                 }
             };
-        default: {
-        };
+        default:;
         }
         return [](float x_original, bool) {
             if (x_original == static_cast<int64_t>(x_original) + 0.5f) {
@@ -150,8 +149,7 @@ private:
                 return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
             };
             break;
-        default: {
-        };
+        default:;
         }
         return [](float x_resized, float x_scale, float, float) {
             return ((x_resized + 0.5f) / x_scale) - 0.5f;
