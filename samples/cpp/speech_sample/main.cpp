@@ -106,7 +106,6 @@ int main(int argc, char* argv[]) {
         bool useGna = isFeature("GNA");
         bool useHetero = isFeature("HETERO");
         std::string deviceStr = useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
-
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Set parameters and scale factors -------------------------------------
         /** Setting parameter for per layer metrics **/
@@ -176,12 +175,16 @@ int main(int argc, char* argv[]) {
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
+        IE_SUPPRESS_DEPRECATED_START
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
+        IE_SUPPRESS_DEPRECATED_END
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
+            IE_SUPPRESS_DEPRECATED_START
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
+            IE_SUPPRESS_DEPRECATED_END
         }
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 2. Loading model to the device ------------------------------------------
