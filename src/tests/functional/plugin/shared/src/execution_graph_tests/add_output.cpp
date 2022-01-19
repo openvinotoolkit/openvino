@@ -11,21 +11,20 @@
 
 std::string AddOutputsTest::getTestCaseName(const testing::TestParamInfo<addOutputsParams> &obj) {
     std::ostringstream results;
-    InferenceEngine::CNNNetwork net;
     std::vector<std::string> outputsToAdd;
-    std::string deviceName;
-    std::tie(net, outputsToAdd, deviceName) = obj.param;
+    std::tie(std::ignore, outputsToAdd, std::ignore) = obj.param;
     results << "Outputs:" << CommonTestUtils::vec2str<std::string>(outputsToAdd);
     return results.str();
 }
 
 void AddOutputsTest::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::tie(net, outputsToAdd, deviceName) = GetParam();
+    std::tie(createNetwork, outputsToAdd, deviceName) = GetParam();
 }
 
 TEST_P(AddOutputsTest, smoke_CheckOutputExist) {
     std::vector<std::string> expectedOutputs = outputsToAdd;
+    auto net = createNetwork();
     for (const auto &out : net.getOutputsInfo()) {
         expectedOutputs.push_back(out.first);
     }

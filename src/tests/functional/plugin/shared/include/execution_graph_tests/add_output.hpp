@@ -9,7 +9,7 @@
 #include <ie_core.hpp>
 
 typedef std::tuple<
-        InferenceEngine::CNNNetwork, // CNNNetwork to work with
+        InferenceEngine::CNNNetwork(*)(), // function that creates CNNNetwork
         std::vector<std::string>,    // Target layers to add as outputs
         std::string>                 // Target device name
         addOutputsParams;
@@ -17,7 +17,7 @@ typedef std::tuple<
 class AddOutputsTest : public CommonTestUtils::TestsCommon,
                        public testing::WithParamInterface<addOutputsParams> {
 protected:
-    InferenceEngine::CNNNetwork net;
+    InferenceEngine::CNNNetwork (*createNetwork)();
     std::vector<std::string> outputsToAdd;
     std::string deviceName;
 
