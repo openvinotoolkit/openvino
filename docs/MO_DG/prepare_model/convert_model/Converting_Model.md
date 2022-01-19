@@ -109,7 +109,7 @@ Framework-agnostic parameters:
                         Logger level
   --input INPUT         Quoted list of comma-separated input nodes names with shapes, 
                         data types, and values for freezing. The order of inputs in converted 
-                        model is the same as order of specified operation names.The shape and value are 
+                        model is the same as order of specified operation names. The shape and value are 
                         specified as space-separated lists. The data type of input 
                         node is specified in braces and can have one of the values: 
                         f64 (float64), f32 (float32), f16 (float16), i64 (int64), 
