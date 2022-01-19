@@ -447,7 +447,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes1D = {
         { // Origin dynamic shapes
             {-1},
             { // Dynamic shapes instances
-                {},
+                {1},
                 {1}
             }
         }
