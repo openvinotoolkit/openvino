@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,8 +141,13 @@ void MulticlassNmsLayerTest::compare(const std::vector<ov::runtime::Tensor> &exp
         const auto _dims = actual.get_shape();
         if (_dims.size() == 1 && _dims[0] == numBatches) {
             batchIndex = outputIndex;
-            auto buffer = reinterpret_cast<const int32_t*>(actual.data());
-            std::copy_n(buffer, numBatches, numPerBatch.begin());
+            if (actual.get_element_type() == ov::element::i32) {
+                auto buffer = actual.data<int32_t>();
+                std::copy_n(buffer, numBatches, numPerBatch.begin());
+            } else {
+                auto buffer = actual.data<int64_t>();
+                std::copy_n(buffer, numBatches, numPerBatch.begin());
+            }
         }
     }
 
@@ -203,7 +208,28 @@ void MulticlassNmsLayerTest::compare(const std::vector<ov::runtime::Tensor> &exp
                         break;
                     }
                     if (m_outStaticShape) {
-                        const auto iBuffer = static_cast<int*>(actual.data());
+                        const auto iBuffer = actual.data<int32_t>();
+                        for (size_t tailing = validNums; tailing < maxOutputBoxesPerBatch; tailing++) {
+                            ASSERT_TRUE(iBuffer[actual_offset + tailing] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
+                        }
+                    }
+                    break;
+                }
+                case ov::element::i64: {
+                    switch (expected.get_element_type()) {
+                    case ov::element::i32:
+                        LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int32_t*>(expectedBuffer) + expected_offset,
+                                                                   reinterpret_cast<const int64_t*>(actualBuffer) + actual_offset, validNums, 0);
+                        break;
+                    case ov::element::i64:
+                        LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int64_t*>(expectedBuffer) + expected_offset,
+                                                                   reinterpret_cast<const int64_t*>(actualBuffer) + actual_offset, validNums, 0);
+                        break;
+                    default:
+                        break;
+                    }
+                    if (m_outStaticShape) {
+                        const auto iBuffer = actual.data<int64_t>();
                         for (size_t tailing = validNums; tailing < maxOutputBoxesPerBatch; tailing++) {
                             ASSERT_TRUE(iBuffer[actual_offset + tailing] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
                         }
@@ -239,6 +265,21 @@ void MulticlassNmsLayerTest::compare(const std::vector<ov::runtime::Tensor> &exp
                     break;
                 case ov::element::i64:
                     LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int64_t*>(expectedBuffer), reinterpret_cast<const int32_t*>(actualBuffer),
+                                                               size, 0);
+                    break;
+                default:
+                    break;
+                }
+                break;
+            }
+            case ov::element::i64: {
+                switch (expected.get_element_type()) {
+                case ov::element::i32:
+                    LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int32_t*>(expectedBuffer), reinterpret_cast<const int64_t*>(actualBuffer),
+                                                               size, 0);
+                    break;
+                case ov::element::i64:
+                    LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int64_t*>(expectedBuffer), reinterpret_cast<const int64_t*>(actualBuffer),
                                                                size, 0);
                     break;
                 default:
