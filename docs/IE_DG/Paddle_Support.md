@@ -7,37 +7,41 @@ The `Core::ReadNetwork()` method provides a uniform way to read models from eith
 
 The Paddle Model can be read after it is [converted](../MO_DG/prepare_model/convert_model/Convert_Model_From_Paddle.md) to [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md).
 
-**C++ Example:**
+@sphinxdirective
+.. tab:: C++ example
 
-```cpp
-InferenceEngine::Core core;
-auto network = core.ReadNetwork("model.xml");
-```
+   .. code-block:: cpp
+   
+      InferenceEngine::Core core;
+      auto network = core.ReadNetwork("model.xml");
 
-**Python Example:**
+.. tab:: Python example
 
-```sh
-from openvino.inference_engine import IECore
-ie = IECore()
-net = ie.read_network("model.xml")
-```
+   .. code-block:: python
+   
+      from openvino.inference_engine import IECore
+      ie = IECore()
+      net = ie.read_network("model.xml")
+@endsphinxdirective
 
 ## Read Paddle Models from The Paddle Format (Paddle `inference model` model type)
 
-**C++ Example:**
+@sphinxdirective
+.. tab:: C++ example
 
-```cpp
-InferenceEngine::Core core;
-auto network = core.ReadNetwork("model.pdmodel");
-```
+   .. code-block:: cpp
 
-**Python Example:**
+      InferenceEngine::Core core;
+      auto network = core.ReadNetwork("model.pdmodel");
 
-```sh
-from openvino.inference_engine import IECore
-ie = IECore()
-net = ie.read_network("model.pdmodel")
-```
+.. tab:: Python example
+
+   .. code-block:: cpp
+
+      from openvino.inference_engine import IECore
+      ie = IECore()
+      net = ie.read_network("model.pdmodel")
+@endsphinxdirective
 
 **The Reshape feature:**
 
