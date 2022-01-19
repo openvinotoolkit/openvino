@@ -36,6 +36,7 @@ public:
     MOCK_CONST_METHOD2(GetConfig, ov::Any(const std::string&, const std::string&));
     MOCK_CONST_METHOD0(GetAvailableDevices, std::vector<std::string>());
     MOCK_CONST_METHOD1(DeviceSupportsImportExport, bool(const std::string&)); // NOLINT not a cast to bool
+    MOCK_METHOD2(GetSupportedConfig, std::map<std::string, std::string>(const std::string&, const std::map<std::string, std::string>&));
     MOCK_CONST_METHOD0(isNewAPI, bool());
 
     ~MockICore() = default;

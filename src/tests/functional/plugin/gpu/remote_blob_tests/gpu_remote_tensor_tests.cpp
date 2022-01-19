@@ -336,7 +336,7 @@ class OVRemoteTensor_TestsWithContext : public OVRemoteTensor_Test, public testi
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
     std::string deviceName;
-    std::map<std::string, std::string> config;
+    ov::AnyMap config;
 
 public:
     void SetUp() override {

@@ -1115,6 +1115,35 @@ public:
         }
     }
 
+    std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
+                                                          const std::map<std::string, std::string>& configs) override {
+        std::vector<std::string> supportedConfigKeys = GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        std::map<std::string, std::string> supportedConfig;
+        for (auto&& key : supportedConfigKeys) {
+            auto itKey = configs.find(key);
+            if (configs.end() != itKey) {
+                supportedConfig[key] = itKey->second;
+            }
+        }
+        for (auto&& config : configs) {
+            auto parsed = parseDeviceNameIntoConfig(config.first);
+            if (deviceName.find(parsed._deviceName) != std::string::npos) {
+                std::string key, value;
+                std::stringstream strm(config.second);
+                while (strm >> key >> value) {
+                    if (supportedConfigKeys.end() !=
+                        std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), key)) {
+                        supportedConfig[key] = value;
+                    }
+                }
+                for (auto&& config : parsed._config) {
+                    supportedConfig[config.first] = config.second.as<std::string>();
+                }
+            }
+        }
+        return supportedConfig;
+    }
+
     /**
      * @brief Registers the extension in a Core object
      *        Such extensions can be used for both CNNNetwork readers and device plugins
@@ -1626,7 +1655,6 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
         auto exec = _impl->LoadNetwork(toCNN(model), deviceName, any_copy(config));
         return {exec._ptr, exec._so};
     });
@@ -1638,7 +1666,6 @@ CompiledModel Core::compile_model(const std::string& modelPath, const AnyMap& co
 
 CompiledModel Core::compile_model(const std::string& modelPath, const std::string& deviceName, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
         auto exec = _impl->LoadNetwork(modelPath, deviceName, any_copy(config));
         return {exec._ptr, exec._so};
     });
@@ -1648,7 +1675,6 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
         auto exec = _impl->LoadNetwork(toCNN(model), context._impl, any_copy(config));
         return {exec._ptr, exec._so};
     });
@@ -1677,7 +1703,6 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& deviceName, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
         auto exec = _impl->ImportNetwork(modelStream, deviceName, any_copy(config));
         return {exec._ptr, exec._so};
     });
@@ -1703,7 +1728,6 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
     modelStream.seekg(currentPos, modelStream.beg);
 
     OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
         auto exec = _impl->GetCPPPluginByName(deviceName).import_model(modelStream, {});
         return {exec._ptr, exec._so};
     });
@@ -1713,7 +1737,6 @@ SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) const {
     OV_CORE_CALL_STATEMENT({
-        _impl->ExtractAndSetDeviceConfig(config);
         auto qnResult = _impl->QueryNetwork(toCNN(model), deviceName, any_copy(config));
         return qnResult.supportedLayersMap;
     });

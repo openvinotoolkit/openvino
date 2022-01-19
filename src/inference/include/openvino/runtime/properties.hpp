@@ -168,12 +168,6 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> sup
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 
 /**
- * @brief Read-only property to get a std::vector<std::string> of optimization options per device.
- */
-static constexpr Property<std::vector<std::string>, PropertyMutability::RO> optimization_capabilities{
-    "OPTIMIZATION_CAPABILITIES"};
-
-/**
  * @brief Read-only property which defines support of import/export functionality by plugin
  */
 static constexpr Property<bool, PropertyMutability::RO> import_export_support{"IMPORT_EXPORT_SUPPORT"};
@@ -192,12 +186,17 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
 namespace hint {
 
 /**
- * @brief Enum to define possible performance measure hints
+ * @brief Enforce device to use specified precision for inference
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
+
+/**
+ * @brief Enum to define possible performance mode hints
  */
 enum class ModelPriority {
     LOW = 0,
     MEDIUM = 1,
-    HIGH = 3,
+    HIGH = 2,
 };
 
 /** @cond INTERNAL */
@@ -272,7 +271,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 
 /**
  * @brief High-level OpenVINO Performance Hints
- * unlike low-level properties that are individual (per-device), the hints are somthing that every device accepts
+ * unlike low-level properties that are individual (per-device), the hints are something that every device accepts
  * and turns into device-specific settings
  */
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
@@ -283,40 +282,6 @@ static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
  */
 static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"};
-
-/**
- * @brief Enum to define possible performance hints
- */
-enum class CalculationMode {
-    PERFORMANCE = 0,
-    ACCURACY = 1,
-};
-
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const CalculationMode& calculation_mode) {
-    switch (calculation_mode) {
-    case CalculationMode::PERFORMANCE:
-        return os << "PERFORMANCE";
-    case CalculationMode::ACCURACY:
-        return os << "ACCURACY";
-    default:
-        throw ov::Exception{"Unsupported calculation mode hint"};
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, CalculationMode& calculation_mode) {
-    std::string str;
-    is >> str;
-    if (str == "PERFORMANCE") {
-        calculation_mode = CalculationMode::PERFORMANCE;
-    } else if (str == "ACCURACY") {
-        calculation_mode = CalculationMode::ACCURACY;
-    } else {
-        throw ov::Exception{"Unsupported calculation mode: " + str};
-    }
-    return is;
-}
-/** @endcond */
 }  // namespace hint
 
 /**
@@ -408,6 +373,41 @@ static constexpr Property<Level> level{"LOG_LEVEL"};
  */
 static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 
+/**
+ * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
+ *
+ * Property returns a value of std::tuple<unsigned int, unsigned int> type, where:
+ *  - First value is bottom bound.
+ *  - Second value is upper bound.
+ */
+static constexpr Property<std::tuple<unsigned int, unsigned int>, PropertyMutability::RO> range_for_streams{
+    "RANGE_FOR_STREAMS"};
+
+/**
+ * @brief Read-only property to query information optimal batch size for the given device and the network
+ *
+ * Property returns a value of unsigned int type,
+ * Returns optimal batch size for a given network on the given device. The returned value is aligned to power of 2.
+ * Also, MODEL_PTR is the required option for this metric since the optimal batch size depends on the model,
+ * so if the MODEL_PTR is not given, the result of the metric is always 1.
+ * For the GPU the metric is queried automatically whenever the OpenVINO performance hint for the throughput is used,
+ * so that the result (>1) governs the automatic batching (transparently to the application).
+ * The automatic batching can be disabled with ALLOW_AUTO_BATCHING set to NO
+ */
+static constexpr Property<unsigned int, PropertyMutability::RO> optimal_batch_size{"OPTIMAL_BATCH_SIZE"};
+
+/**
+ * @brief Read-only property to provide a hint for a range for number of async infer requests. If device supports
+ * streams, the metric provides range for number of IRs per stream.
+ *
+ * Property returns a value of std::tuple<unsigned int, unsigned int, unsigned int> type, where:
+ *  - First value is bottom bound.
+ *  - Second value is upper bound.
+ *  - Third value is step inside this range.
+ */
+static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, PropertyMutability::RO>
+    range_for_async_infer_requests{"RANGE_FOR_ASYNC_INFER_REQUESTS"};
+
 namespace device {
 
 /**
@@ -484,7 +484,8 @@ struct Properties {
  * @brief Property to pass set of property values to specified device
  * Usage Example:
  * @code
- * core.set_property(
+ * core.compile_model("HETERO"
+ *     ov::target_falLback("GPU", "CPU"),
  *     ov::device::properties("CPU", ov::enable_profiling(true)),
  *     ov::device::properties("GPU", ov::enable_profiling(false)));
  * @endcode
@@ -544,13 +545,27 @@ static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
  * @brief Read-only property which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported
  * by specified device
  */
-static constexpr Property<std::map<ie::Precision, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
+static constexpr Property<std::map<element::Type, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
 
 /**
  * @brief  Read-only property to get a float of device thermal
  */
 static constexpr Property<float, PropertyMutability::RO> thermal{"DEVICE_THERMAL"};
 
+/**
+ * @brief Read-only property to get a std::vector<std::string> of capabilities options per device.
+ */
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> capabilities{"DEVICE_CAPABILITIES"};
+namespace capability {
+constexpr static const auto FP32 = "FP32";                    //!< Device supports fp32 inference
+constexpr static const auto BF16 = "BF16";                    //!< Device supports bf16 inference
+constexpr static const auto FP16 = "FP16";                    //!< Device supports fp16 inference
+constexpr static const auto INT8 = "INT8";                    //!< Device supports int8 inference
+constexpr static const auto BIN = "BIN";                      //!< Device supports binary inference
+constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device supports winograd optimization
+constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports model export and import
+constexpr static const auto BATCHED_BLOB = "BATCHED_BLOB";    //!< Device supports blobs batching
+}  // namespace capability
 }  // namespace device
 
 /**
@@ -565,7 +580,6 @@ static constexpr device::Priorities target_fallback{"TARGET_FALLBACK"};
  */
 static constexpr Property<bool, PropertyMutability::RW> dump_graph_dot{"HETERO_DUMP_GRAPH_DOT"};
 
-namespace execution {
 namespace streams {
 /**
  * @brief Special value for ov::execution::streams::num property.
@@ -585,18 +599,23 @@ static constexpr Property<int32_t, PropertyMutability::RW> num{"NUM_STREAMS"};
 }  // namespace streams
 
 /**
- * @brief Maximum number of concurent tasks executed by execututor
+ * @brief Maximum number of threads that can be used for inference tasks
  */
-static constexpr Property<int32_t, PropertyMutability::RW> concurrency{"CONCURRENCY"};
+static constexpr Property<int32_t, PropertyMutability::RW> inference_num_threads{"INFERENCE_NUM_THREADS"};
+
+/**
+ * @brief Maximum number of threads that can be used for compilation tasks
+ */
+static constexpr Property<int32_t, PropertyMutability::RW> compilation_num_threads{"COMPILATION_NUM_THREADS"};
 
 /**
  * @brief Enum to define possible affinity patterns
  */
 enum class Affinity {
-    NO = -1,   //!<  Disable threads affinity pinning
-    CORE = 0,  //!<  Pin threads to cores, best for static benchmarks
-    NUMA = 1,  //!<  Pin threads to NUMA nodes, best for real-life, contented cases. On the Windows and MacOS* this
-               //!<  option behaves as CORE
+    NONE = -1,  //!<  Disable threads affinity pinning
+    CORE = 0,   //!<  Pin threads to cores, best for static benchmarks
+    NUMA = 1,   //!<  Pin threads to NUMA nodes, best for real-life, contented cases. On the Windows and MacOS* this
+                //!<  option behaves as CORE
     HYBRID_AWARE = 2,  //!< Let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency
                        //!< tasks. On the hybrid CPUs this option is default
 };
@@ -604,8 +623,8 @@ enum class Affinity {
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const Affinity& affinity) {
     switch (affinity) {
-    case Affinity::NO:
-        return os << "NO";
+    case Affinity::NONE:
+        return os << "NONE";
     case Affinity::CORE:
         return os << "CORE";
     case Affinity::NUMA:
@@ -620,8 +639,8 @@ inline std::ostream& operator<<(std::ostream& os, const Affinity& affinity) {
 inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
     std::string str;
     is >> str;
-    if (str == "NO") {
-        affinity = Affinity::NO;
+    if (str == "NONE") {
+        affinity = Affinity::NONE;
     } else if (str == "CORE") {
         affinity = Affinity::CORE;
     } else if (str == "NUMA") {
@@ -641,5 +660,4 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * environment variable is set (as affinity is configured explicitly)
  */
 static constexpr Property<Affinity> affinity{"AFFINITY"};
-}  // namespace execution
 }  // namespace ov

@@ -64,8 +64,6 @@ using OVClassGetMetricTest_FULL_DEVICE_NAME = OVClassBaseTestP;
 using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_GOPS = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
-using OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS = OVClassBaseTestP;
-using OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS = OVClassBaseTestP;
 using OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = OVClassBaseTestP;
 using OVClassGetMetricTest_ThrowUnsupported = OVClassBaseTestP;
 using OVClassGetConfigTest = OVClassBaseTestP;
@@ -542,12 +540,12 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
     std::vector<std::string> t;
-    OV_ASSERT_NO_THROW(t = ie.get_property(deviceName, ov::optimization_capabilities));
+    OV_ASSERT_NO_THROW(t = ie.get_property(deviceName, ov::device::capabilities));
     std::cout << "Optimization capabilities: " << std::endl;
     for (auto&& str : t) {
         std::cout << str << std::endl;
     }
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::optimization_capabilities);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities);
 }
 
 TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
@@ -565,6 +563,38 @@ TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
     ov::device::Type t = {};
     OV_ASSERT_NO_THROW(t = ie.get_property(deviceName, ov::device::type));
     std::cout << "Device Type: " << t << std::endl;
+}
+
+TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
+    ov::runtime::Core ie = createCoreWithTemplate();
+    unsigned int start, end, step;
+
+    ASSERT_NO_THROW(std::tie(start, end, step) = ie.get_property(deviceName, ov::range_for_async_infer_requests));
+
+    std::cout << "Range for async infer requests: " << std::endl
+    << start << std::endl
+    << end << std::endl
+    << step << std::endl
+    << std::endl;
+
+    ASSERT_LE(start, end);
+    ASSERT_GE(step, 1);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_async_infer_requests);
+}
+
+TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
+    ov::runtime::Core ie = createCoreWithTemplate();
+    unsigned int start, end;
+
+    ASSERT_NO_THROW(std::tie(start, end) = ie.get_property(deviceName, ov::range_for_streams));
+
+    std::cout << "Range for streams: " << std::endl
+    << start << std::endl
+    << end << std::endl
+    << std::endl;
+
+    ASSERT_LE(start, end);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_streams);
 }
 
 TEST_P(OVClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
@@ -750,7 +780,7 @@ TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, ov::target_fallback(deviceName)));
 }
 
-TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceUsingDeviceConfigNoThrow) {
+TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceUsingDevicePropertiesNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
         CommonTestUtils::DEVICE_HETERO,
@@ -870,7 +900,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.compile_model(actualNetwork,
                                       "HETERO",
-                                       ov::device::priorities(deviceName + ".100", CommonTestUtils::DEVICE_CPU)),
+                                       ov::target_fallback(deviceName + ".100", CommonTestUtils::DEVICE_CPU)),
                      ov::Exception);
     } else {
         GTEST_SKIP();

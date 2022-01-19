@@ -127,7 +127,8 @@ public:
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& properties = {});
 
     /**
-     * @brief Reads model and creates an executable network from IR or ONNX file to default device.
+     * @brief Creates and loads a compiled model from a source model to the default OpenVINO device selected by AUTO
+     * plugin.
      *
      * Users can create as many executable networks as they need and use
      * them simultaneously (up to the limitation of the hardware resources)
@@ -163,7 +164,7 @@ public:
                                 const AnyMap& properties = {});
 
     /**
-     * @brief Creates an executable network from a model object.
+     * @brief Creates a compiled model from a source model object.
      *
      * Users can create as many executable networks as they need and use
      * them simultaneously (up to the limitation of the hardware resources)
@@ -198,7 +199,8 @@ public:
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
     /**
-     * @brief Reads model and creates an executable network from IR or ONNX file to default device.
+     * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINI device selected by
+     * AUTO plugin.
      *
      * This can be more efficient than using read_model + compile_model(Model) flow
      * especially for cases when caching is enabled and cached model is available
@@ -234,7 +236,7 @@ public:
                                 const AnyMap& properties = {});
 
     /**
-     * @brief Reads model and creates an executable network from IR or ONNX file
+     * @brief Reads model and creates a compiled model from IR / ONNX / PDPD file
      *
      * This can be more efficient than using read_model + compile_model(Model) flow
      * especially for cases when caching is enabled and cached model is available
@@ -267,13 +269,13 @@ public:
                                 const AnyMap& properties = {});
 
     /**
-     * @brief Creates an executable network from a network object within a specified remote context.
+     * @brief Creates a compiled model from a source model within a specified remote context.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param model Model object acquired from Core::read_model
      * @param context Pointer to RemoteContext object
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
-     * @return An executable network object
+     * @return A compiled model object
      */
     template <typename... Properties>
     util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(
@@ -378,10 +380,11 @@ public:
                                const AnyMap& properties = {});
 
     /**
-     * @brief Creates an executable network from a previously exported one
+     * @brief Imports a compiled model from a previously exported one
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param model_stream Model stream
-     * @param device_name Name of device load executable network on
+     * @param device_name Name of device to import compiled model for. Note, if @p device_name device was not used to
+     * compile the original mode, an exception is thrown
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
      * @return A compiled model
@@ -406,11 +409,9 @@ public:
     CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const AnyMap& properties = {});
 
     /**
-     * @brief Creates an executable network from a previously exported one within a specified
-     * remote context.
-     *
-     * @param model_stream Model stream
+     * @brief Imports a compiled model from a previously exported one with a specified remote context.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param model_stream Model stream
      * @param context Pointer to RemoteContext object
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation

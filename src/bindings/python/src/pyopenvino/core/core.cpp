@@ -51,16 +51,14 @@ void regclass_Core(py::module m) {
         "compile_model",
         [](ov::runtime::Core& self,
            const std::shared_ptr<const ov::Model>& model,
-           const ov::runtime::ConfigMap& config) {
-            return self.compile_model(model, {config.begin(), config.end()});
+           const std::map<std::string, std::string>& config) {
+            return self.compile_model(model, ov::AnyMap{config.begin(), config.end()});
         },
         py::arg("model"),
-        py::arg("device_name"),
         py::arg("config") = py::dict());
 
     cls.def(
         "compile_model",
-
         [](ov::runtime::Core& self,
            const std::string& model_path,
            const std::string& device_name,
@@ -71,11 +69,13 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("config") = py::dict());
 
-    cls.def("compile_model",
-            (ov::runtime::CompiledModel(ov::runtime::Core::*)(const std::string&, const ConfigMap&)) &
-                ov::runtime::Core::compile_model,
-            py::arg("model_path"),
-            py::arg("config") = py::dict());
+    cls.def(
+        "compile_model",
+        [](ov::runtime::Core& self, const std::string& model_path, const std::map<std::string, std::string>& config) {
+            return self.compile_model(model_path, ov::AnyMap{config.begin(), config.end()});
+        },
+        py::arg("model_path"),
+        py::arg("config") = py::dict());
 
     cls.def("get_versions", &ov::runtime::Core::get_versions, py::arg("device_name"));
 

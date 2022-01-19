@@ -10,9 +10,15 @@
 
 namespace ov {
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
-    auto to_config_string = [](const Any& any) -> std::string {
+    std::function<std::string(const Any&)> to_config_string = [&](const Any& any) -> std::string {
         if (any.is<bool>()) {
             return any.as<bool>() ? "YES" : "NO";
+        } else if (any.is<AnyMap>()) {
+            std::stringstream strm;
+            for (auto&& val : any.as<AnyMap>()) {
+                strm << val.first << " " << to_config_string(val.second) << " ";
+            }
+            return strm.str();
         } else {
             std::stringstream strm;
             any.print(strm);

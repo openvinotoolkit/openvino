@@ -218,8 +218,8 @@ Any CompiledModel::get_property(const std::string& name) const {
             try {
                 return {_impl->GetMetric(name), _so};
             } catch (ie::Exception&) {
-                auto ro_properties = _impl->GetMetric("SUPPORTED_METRICS").as<std::vector<std::string>>();
-                auto rw_properties = _impl->GetConfig("SUPPORTED_CONFIG_KEYS").as<std::vector<std::string>>();
+                auto ro_properties = _impl->GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+                auto rw_properties = _impl->GetConfig(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
                 std::vector<ov::PropertyName> supported_properties;
                 for (auto&& ro_property : ro_properties) {
                     supported_properties.emplace_back(ro_property, PropertyMutability::RO);

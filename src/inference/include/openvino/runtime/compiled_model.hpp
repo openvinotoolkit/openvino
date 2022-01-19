@@ -184,7 +184,7 @@ public:
      * The method is responsible to extract information
      * which affects compiled model inference. The list of supported configuration values can be extracted via
      * CompiledModel::get_properties with the ov::supported_properties key, but some of these keys cannot be changed
-     * dynamically, e.g. DEVICE_ID cannot changed if a compiled model has already been compiled for particular
+     * dynamically, e.g. ov::device::id cannot changed if a compiled model has already been compiled for particular
      * device.
      *
      * @param name property key, can be found in openvino/runtime/properties.hpp
