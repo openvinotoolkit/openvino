@@ -75,7 +75,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_MVN1_With_Hardcoded_Refs, ReferenceMVN1LayerTest,
     ::testing::Values(
         // across_channels=false, variance=false
-        MVN1Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN1Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    emptyReductionAxes,
                    false,
@@ -92,7 +92,7 @@ INSTANTIATE_TEST_SUITE_P(
             1e-9,
             reference_tests::Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {-3.25, -2.25, -1.25, -0.25, 0.75, 1.75, 2.75, 3.75, 4.75, -3.25, -2.25, -1.25}}),
         // across_channels=false, variance=true
-        MVN1Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN1Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    emptyReductionAxes,
                    false,
@@ -104,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // across_channels=true, variance=true
-        MVN1Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN1Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    emptyReductionAxes,
                    true,
@@ -124,7 +124,7 @@ INSTANTIATE_TEST_SUITE_P(
             1e-9,
             reference_tests::Tensor {{1, 3, 2, 2}, ov::element::f32, std::vector<float> {-3.25, -2.25, -1.25, -0.25, 0.75, 1.75, 2.75, 3.75, 4.75, -3.25, -2.25, -1.25}}),
         // reductionAxes, variance=true
-        MVN1Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN1Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    {2, 3},
                    false,
@@ -199,7 +199,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_MVN6_With_Hardcoded_Refs, ReferenceMVN6LayerTest,
     ::testing::Values(
         // variance=false, OUTSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN6Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    reference_tests::Tensor {Shape {2}, ov::element::i64, std::vector<int64_t> {2, 3}},
                    false,
@@ -208,7 +208,7 @@ INSTANTIATE_TEST_SUITE_P(
                    reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {-4, -3, -2, -1, 0,  1,  2,  3,  4, -4, -3, -2, -1, 0,
                                                                                    1,  2,  3,  4,  -4, -3, -2, -1, 0, 1,  2,  3,  4}}),
         // variance=true, OUTSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN6Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    reference_tests::Tensor {Shape {2}, ov::element::i64, std::vector<int64_t> {2, 3}},
                    true,
@@ -220,7 +220,7 @@ INSTANTIATE_TEST_SUITE_P(
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // variance=true, INSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN6Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    reference_tests::Tensor {Shape {2}, ov::element::i64, std::vector<int64_t> {2, 3}},
                    true,
@@ -232,7 +232,7 @@ INSTANTIATE_TEST_SUITE_P(
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
                                                -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // variance=true, another reductionAxes, OUTSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+        MVN6Params(reference_tests::Tensor {{1, 3, 3, 3}, ov::element::f32, std::vector<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
                                                                                    6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
                    reference_tests::Tensor {Shape {3}, ov::element::i64, std::vector<int64_t>({1, 2, 3})},
                    true,

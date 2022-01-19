@@ -15,7 +15,7 @@ namespace {
 struct VariadicSplitParams {
     VariadicSplitParams(const ov::PartialShape& dynamicDataShape, const reference_tests::Tensor& dataTensor,
                         const reference_tests::Tensor& axisTensor, const reference_tests::Tensor& splitLengthTensor,
-                        const std::vector<Tensor>& expectedTensors, const std::string& testcaseName = "") :
+                        const std::vector<reference_tests::Tensor>& expectedTensors, const std::string& testcaseName = "") :
                         dynamicDataShape(dynamicDataShape), dataTensor(dataTensor),
                         axisTensor(axisTensor), splitLengthTensor(splitLengthTensor),
                         expectedTensors(expectedTensors), testcaseName(testcaseName) {}
@@ -24,7 +24,7 @@ struct VariadicSplitParams {
     reference_tests::Tensor dataTensor;
     reference_tests::Tensor axisTensor;
     reference_tests::Tensor splitLengthTensor;
-    std::vector<Tensor> expectedTensors;
+    std::vector<reference_tests::Tensor> expectedTensors;
     std::string testcaseName;
 };
 
@@ -100,7 +100,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                             reference_tests::Tensor(IN_ET, {10}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{0}),
                             reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{5, 3, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {5}, std::vector<T>{1, 2, 3, 4, 5}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {5}, std::vector<T>{1, 2, 3, 4, 5}),
                                                 reference_tests::Tensor(IN_ET, {3}, std::vector<T>{6, 7, 8}),
                                                 reference_tests::Tensor(IN_ET, {2}, std::vector<T>{9, 10})},
                             "variadic_split_1d_static"),
@@ -109,7 +109,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                             reference_tests::Tensor(IN_ET, {10}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{0}),
                             reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{5, 3, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {5}, std::vector<T>{1, 2, 3, 4, 5}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {5}, std::vector<T>{1, 2, 3, 4, 5}),
                                                 reference_tests::Tensor(IN_ET, {3}, std::vector<T>{6, 7, 8}),
                                                 reference_tests::Tensor(IN_ET, {2}, std::vector<T>{9, 10})},
                             "variadic_split_1d_dynamic"),
@@ -118,7 +118,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                             reference_tests::Tensor(IN_ET, {6, 2}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
                             reference_tests::Tensor(element::i32, {}, std::vector<int32_t>{0}),
                             reference_tests::Tensor(element::i32, {2}, std::vector<int32_t>{4, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {4, 2}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {4, 2}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
                                                 reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{9, 10, 11, 12})},
                             "variadic_split_2d_axis_0_static"),
         // variadic_split_2d_axis_0_dynamic
@@ -126,7 +126,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                             reference_tests::Tensor(IN_ET, {6, 2}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
                             reference_tests::Tensor(element::i32, {}, std::vector<int32_t>{0}),
                             reference_tests::Tensor(element::i32, {2}, std::vector<int32_t>{4, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {4, 2}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {4, 2}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
                                                 reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{9, 10, 11, 12})},
                             "variadic_split_2d_axis_0_dynamic"),
         // variadic_split_2d_axis_1_static
@@ -134,7 +134,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                             reference_tests::Tensor(IN_ET, {4, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
                             reference_tests::Tensor(element::i32, {}, std::vector<int32_t>{1}),
                             reference_tests::Tensor(element::i32, {2}, std::vector<int32_t>{1, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {4, 1}, std::vector<T>{1, 4, 7, 10}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {4, 1}, std::vector<T>{1, 4, 7, 10}),
                                                 reference_tests::Tensor(IN_ET, {4, 2}, std::vector<T>{2, 3, 5, 6, 8, 9, 11, 12})},
                             "variadic_split_2d_axis_1_static"),
         // variadic_split_2d_axis_1_dynamic
@@ -142,7 +142,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                             reference_tests::Tensor(IN_ET, {4, 3}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
                             reference_tests::Tensor(element::i32, {}, std::vector<int32_t>{1}),
                             reference_tests::Tensor(element::i32, {2}, std::vector<int32_t>{1, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {4, 1}, std::vector<T>{1, 4, 7, 10}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {4, 1}, std::vector<T>{1, 4, 7, 10}),
                                                 reference_tests::Tensor(IN_ET, {4, 2}, std::vector<T>{2, 3, 5, 6, 8, 9, 11, 12})},
                             "variadic_split_2d_axis_1_dynamic"),
         // variadic_split_4d_axis_0_static
@@ -154,7 +154,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                                                                        32, 33, 34, 35}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{0}),
                             reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{3, 1, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {3, 2, 3, 1}, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7,
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {3, 2, 3, 1}, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7,
                                                                                            8, 9, 10, 11, 12, 13, 14, 15,
                                                                                            16, 17}),
                                                 reference_tests::Tensor(IN_ET, {1, 2, 3, 1}, std::vector<T>{18, 19, 20, 21, 22, 23}),
@@ -170,7 +170,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                                                                        32, 33, 34, 35}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{0}),
                             reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{3, 1, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {3, 2, 3, 1}, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7,
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {3, 2, 3, 1}, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7,
                                                                                            8, 9, 10, 11, 12, 13, 14, 15,
                                                                                            16, 17}),
                                                 reference_tests::Tensor(IN_ET, {1, 2, 3, 1}, std::vector<T>{18, 19, 20, 21, 22, 23}),
@@ -189,7 +189,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                                                                        56, 57, 58, 59, 60, 61, 62, 63}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{1}),
                             reference_tests::Tensor(element::i32, {4}, std::vector<int32_t>{1, 3, 2, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{0, 1, 2, 3, 32, 33, 34, 35}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{0, 1, 2, 3, 32, 33, 34, 35}),
                                                 reference_tests::Tensor(IN_ET, {2, 3, 2, 2}, std::vector<T>{4, 5, 6, 7, 8, 9, 10, 11,
                                                                                            12, 13, 14, 15, 36, 37, 38, 39,
                                                                                            40, 41, 42, 43, 44, 45, 46, 47}),
@@ -210,7 +210,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                                                                        56, 57, 58, 59, 60, 61, 62, 63}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{1}),
                             reference_tests::Tensor(element::i32, {4}, std::vector<int32_t>{1, 3, 2, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{0, 1, 2, 3, 32, 33, 34, 35}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{0, 1, 2, 3, 32, 33, 34, 35}),
                                                 reference_tests::Tensor(IN_ET, {2, 3, 2, 2}, std::vector<T>{4, 5, 6, 7, 8, 9, 10, 11,
                                                                                            12, 13, 14, 15, 36, 37, 38, 39,
                                                                                            40, 41, 42, 43, 44, 45, 46, 47}),
@@ -226,7 +226,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                                                                        16, 17, 18, 19, 20, 21, 22, 23}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{2}),
                             reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{3, 1, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {2, 1, 3, 2}, std::vector<T>{0, 1, 2, 3, 4, 5, 12, 13,
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {2, 1, 3, 2}, std::vector<T>{0, 1, 2, 3, 4, 5, 12, 13,
                                                                                            14, 15, 16, 17}),
                                                 reference_tests::Tensor(IN_ET, {2, 1, 1, 2}, std::vector<T>{6, 7, 18, 19}),
                                                 reference_tests::Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{8, 9, 10, 11, 20, 21, 22, 23})},
@@ -238,7 +238,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                                                                        16, 17, 18, 19, 20, 21, 22, 23}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{2}),
                             reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{-1, 1, 2}),
-                            std::vector<Tensor>{Tensor(IN_ET, {2, 1, 3, 2}, std::vector<T>{0, 1, 2, 3, 4, 5, 12, 13,
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {2, 1, 3, 2}, std::vector<T>{0, 1, 2, 3, 4, 5, 12, 13,
                                                                                            14, 15, 16, 17}),
                                                 reference_tests::Tensor(IN_ET, {2, 1, 1, 2}, std::vector<T>{6, 7, 18, 19}),
                                                 reference_tests::Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{8, 9, 10, 11, 20, 21, 22, 23})},
@@ -250,7 +250,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                                                                        16, 17, 18, 19, 20, 21, 22, 23}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{3}),
                             reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{1, -1, 3}),
-                            std::vector<Tensor>{Tensor(IN_ET, {2, 1, 2, 1}, std::vector<T>{0, 6, 12, 18}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {2, 1, 2, 1}, std::vector<T>{0, 6, 12, 18}),
                                                 reference_tests::Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{1, 2, 7, 8, 13, 14, 19, 20}),
                                                 reference_tests::Tensor(IN_ET, {2, 1, 2, 3}, std::vector<T>{3, 4, 5, 9, 10, 11, 15, 16,
                                                                                            17, 21, 22, 23})},
@@ -262,7 +262,7 @@ std::vector<VariadicSplitParams> generateVariadicSplitParams() {
                                                                        16, 17, 18, 19, 20, 21, 22, 23}),
                             reference_tests::Tensor(element::i32, {1}, std::vector<int32_t>{3}),
                             reference_tests::Tensor(element::i32, {3}, std::vector<int32_t>{1, 2, -1}),
-                            std::vector<Tensor>{Tensor(IN_ET, {2, 1, 2, 1}, std::vector<T>{0, 6, 12, 18}),
+                            std::vector<reference_tests::Tensor>{reference_tests::Tensor(IN_ET, {2, 1, 2, 1}, std::vector<T>{0, 6, 12, 18}),
                                                 reference_tests::Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{1, 2, 7, 8, 13, 14, 19, 20}),
                                                 reference_tests::Tensor(IN_ET, {2, 1, 2, 3}, std::vector<T>{3, 4, 5, 9, 10, 11, 15, 16,
                                                                                            17, 21, 22, 23})},

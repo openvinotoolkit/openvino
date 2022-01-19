@@ -77,25 +77,25 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParams() {
     using U = typename element_type_traits<IU_ET>::value_type;
     std::vector<ScatterNDUpdateParams> scatterParams {
         // scatter_nd_update_1x1
-        ScatterNDUpdateParams(Tensor({1}, IN_ET, std::vector<T>{1}),
+        ScatterNDUpdateParams(reference_tests::Tensor({1}, IN_ET, std::vector<T>{1}),
                               reference_tests::Tensor({1}, IU_ET, std::vector<U>{0}),
                               reference_tests::Tensor({1}, IN_ET, std::vector<T>{20}),
                               reference_tests::Tensor({1}, IN_ET, std::vector<T>{20}),
                               "scatter_nd_update_1x1"),
         // scatter_nd_update_2x2_by_1
-        ScatterNDUpdateParams(Tensor({2, 2}, IN_ET, std::vector<T>{1, 2, 3, 4}),
+        ScatterNDUpdateParams(reference_tests::Tensor({2, 2}, IN_ET, std::vector<T>{1, 2, 3, 4}),
                               reference_tests::Tensor({2, 1}, IU_ET, std::vector<U>{1, 0}),
                               reference_tests::Tensor({2, 2}, IN_ET, std::vector<T>{10, 20, 30, 40}),
                               reference_tests::Tensor({2, 2}, IN_ET, std::vector<T>{30, 40, 10, 20}),
                               "scatter_nd_update_2x2_by_1"),
         // scatter_nd_update_2x2_by_2
-        ScatterNDUpdateParams(Tensor({2, 2}, IN_ET, std::vector<T>{1, 2, 3, 4}),
+        ScatterNDUpdateParams(reference_tests::Tensor({2, 2}, IN_ET, std::vector<T>{1, 2, 3, 4}),
                               reference_tests::Tensor({2, 2}, IU_ET, std::vector<U>{0, 0, 1, 1}),
                               reference_tests::Tensor({2}, IN_ET, std::vector<T>{10, 40}),
                               reference_tests::Tensor({2, 2}, IN_ET, std::vector<T>{10, 2, 3, 40}),
                               "scatter_nd_update_2x2_by_2"),
         // scatter_nd_update_3x3_by_1
-        ScatterNDUpdateParams(Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+        ScatterNDUpdateParams(reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
                                                                       21, 22, 23, 24, 25, 26, 27, 28, 29,
                                                                       31, 32, 33, 34, 35, 36, 37, 38, 39}),
                               reference_tests::Tensor({2, 1}, IU_ET, std::vector<U>{0, 2}),
@@ -106,7 +106,7 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParams() {
                                                                       81, 82, 83, 84, 85, 86, 87, 88, 89}),
                               "scatter_nd_update_3x3_by_1"),
         // scatter_nd_update_3x3_by_2v2
-        ScatterNDUpdateParams(Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+        ScatterNDUpdateParams(reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
                                                                       21, 22, 23, 24, 25, 26, 27, 28, 29,
                                                                       31, 32, 33, 34, 35, 36, 37, 38, 39}),
                               reference_tests::Tensor({2, 2, 3}, IU_ET, std::vector<U>{0, 0, 0, 2, 2, 2, 1, 0, 0, 1, 2, 2}),
@@ -116,7 +116,7 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParams() {
                                                                       31, 32, 33, 34, 35, 36, 37, 38, 92}),
                               "scatter_nd_update_3x3_by_2v2"),
         // scatter_nd_update_3x3_by_2
-        ScatterNDUpdateParams(Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+        ScatterNDUpdateParams(reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
                                                                       21, 22, 23, 24, 25, 26, 27, 28, 29,
                                                                       31, 32, 33, 34, 35, 36, 37, 38, 39}),
                               reference_tests::Tensor({2, 2}, IU_ET, std::vector<U>{0, 0, 2, 2}),
@@ -126,7 +126,7 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParams() {
                                                                       31, 32, 33, 34, 35, 36, 87, 88, 89}),
                               "scatter_nd_update_3x3_by_2"),
         // scatter_nd_update_3x3_by_3
-        ScatterNDUpdateParams(Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+        ScatterNDUpdateParams(reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
                                                                       21, 22, 23, 24, 25, 26, 27, 28, 29,
                                                                       31, 32, 33, 34, 35, 36, 37, 38, 39}),
                               reference_tests::Tensor({2, 3}, IU_ET, std::vector<U>{0, 0, 0, 2, 2, 2}),
@@ -136,13 +136,13 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParams() {
                                                                       31, 32, 33, 34, 35, 36, 37, 38, 99}),
                               "scatter_nd_update_3x3_by_3"),
         // scatter_nd_update_1d_from_examples
-        ScatterNDUpdateParams(Tensor({8}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+        ScatterNDUpdateParams(reference_tests::Tensor({8}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
                               reference_tests::Tensor({4, 1}, IU_ET, std::vector<U>{4, 3, 1, 7}),
                               reference_tests::Tensor({4}, IN_ET, std::vector<T>{9, 10, 11, 12}),
                               reference_tests::Tensor({8}, IN_ET, std::vector<T>{1, 11, 3, 10, 9, 6, 7, 12}),
                               "scatter_nd_update_1d_from_examples"),
         // scatter_nd_update_4x4_shape_from_examples
-        ScatterNDUpdateParams(Tensor({4, 4, 4}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
+        ScatterNDUpdateParams(reference_tests::Tensor({4, 4, 4}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
                                                                       1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
                                                                       8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8,
                                                                       8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8}),
@@ -155,7 +155,7 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParams() {
                                                                       8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8}),
                               "scatter_nd_update_4x4_shape_from_examples"),
         // scatter_nd_update_4x4_v2
-        ScatterNDUpdateParams(Tensor({4, 4, 4}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
+        ScatterNDUpdateParams(reference_tests::Tensor({4, 4, 4}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
                                                                       1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
                                                                       8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8,
                                                                       8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8}),

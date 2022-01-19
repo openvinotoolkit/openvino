@@ -76,13 +76,13 @@ std::vector<ScatterElementsUpdateParams> generateScatterParams() {
     using T_INT = typename element_type_traits<ET_IND>::value_type;
     std::vector<ScatterElementsUpdateParams> scatterParams{
         // axis = 0
-        ScatterElementsUpdateParams(Tensor({2, 2}, element::Type(ET), std::vector<T>{1, 2, 3, 4}),         // input
+        ScatterElementsUpdateParams(reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{1, 2, 3, 4}),         // input
                                     reference_tests::Tensor({2, 2}, element::Type(ET_IND), std::vector<T_INT>{1, 1, 0, 0}), // indices
                                     reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{10, 20, 30, 40}),     // updates
                                     reference_tests::Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{0}),             // axis
                                     reference_tests::Tensor({2, 2}, element::Type(ET), std::vector<T>{30, 40, 10, 20})),    // expected
         // axis = 1
-        ScatterElementsUpdateParams(Tensor({2, 1}, element::Type(ET), std::vector<T>{1, 2}),         // input
+        ScatterElementsUpdateParams(reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{1, 2}),         // input
                                     reference_tests::Tensor({2, 1}, element::Type(ET_IND), std::vector<T_INT>{0, 0}), // indices
                                     reference_tests::Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20}),       // updates
                                     reference_tests::Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{1}),       // axis

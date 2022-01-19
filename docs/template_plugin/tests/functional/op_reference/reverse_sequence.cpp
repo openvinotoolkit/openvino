@@ -15,12 +15,13 @@ struct ReverseSequenceParams {
     ReverseSequenceParams(const int64_t batchAxis, const int64_t seqAxis, const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& seqLengthsTensor,
                           const reference_tests::Tensor& expectedTensor) : mBatchAxis(batchAxis), mSeqAxis(seqAxis), mDataTensor(dataTensor),
                           mSeqLengthsTensor(seqLengthsTensor), mExpectedTensor(expectedTensor) {}
-int64_t mBatchAxis;
-int64_t mSeqAxis;
-Tensor mDataTensor;
-Tensor mSeqLengthsTensor;
-Tensor mExpectedTensor;
+    int64_t mBatchAxis;
+    int64_t mSeqAxis;
+    reference_tests::Tensor mDataTensor;
+    reference_tests::Tensor mSeqLengthsTensor;
+    reference_tests::Tensor mExpectedTensor;
 };
+
 class ReferenceReverseSequenceTest : public testing::TestWithParam<ReverseSequenceParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
