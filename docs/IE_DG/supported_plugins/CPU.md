@@ -1,51 +1,82 @@
 CPU Plugin {#openvino_docs_IE_DG_supported_plugins_CPU}
 =======
 
-## Introducing the CPU Plugin
-The CPU plugin was developed to achieve high performance of neural networks on CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN).
+The plugin allows to achieve high performance of inference using CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN). It utilizes Intel® Threading Building Blocks (Intel® TBB) to parallelize calculations. For performance considerations, please refer to the [Optimization Guide](../../optimization_guide/dldt_optimization_guide.md).
 
-Currently, the CPU plugin uses Intel® Threading Building Blocks (Intel® TBB) in order to parallelize calculations. Please refer to the [Optimization Guide](../../optimization_guide/dldt_optimization_guide.md) for associated performance considerations.
+Its set of supported layers can be expanded with [the Extensibility mechanism](../Extensibility_DG/Intro.md).
 
-The set of supported layers can be expanded with [the Extensibility mechanism](../Extensibility_DG/Intro.md).
+The CPU plugin supports inference on:
+- Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2),
+- Intel® Advanced Vector Extensions 512 (Intel® AVX-512) and AVX512_BF16,
+- Intel® Core™ Processors with Intel® AVX2, 
+- Intel Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE).
 
-## Supported Platforms
-
-OpenVINO™ toolkit, including the CPU plugin, is officially supported and validated on the following platforms:
-
-| Host              | OS (64-bit)                              |
-| :---              | :---                                     |
-| Development       | Ubuntu* 18.04 or 20.04, CentOS* 7.6, MS Windows* 10, macOS* 10.15 |
-| Target            | Ubuntu* 18.04 or 20.04, CentOS* 7.6, MS Windows* 10, macOS* 10.15 |
-
-The CPU plugin supports inference on Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel® Core™
-Processors with Intel® AVX2, Intel Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE).
-
-You can use the `-pc` flag for samples to know which configuration is used by a layer.
-This flag shows execution statistics that you can use to get information about layer name, layer type, 
+To see which configuration is used by a layer, you can use the `-pc` flag for samples. 
+It shows execution statistics that you can use to get information about layer name, layer type, 
 execution status, execution time, and the type of the execution primitive.
 
 ## Internal CPU Plugin Optimizations
 
 The CPU plugin supports several graph optimization algorithms, such as fusing or removing layers.
-Refer to the sections below for details.
+For layer descriptions, see the [IR Notation Reference](../../ops/opset.md).
 
-> **NOTE**: For layer descriptions, see the [IR Notation Reference](../../ops/opset.md).
+@sphinxdirective
+.. raw:: html
+
+   <div class="collapsible-section">
+
+@endsphinxdirective
+The CPU plugin follows the default optimization approach, which means that inference is done with lower precision if it is possible on the given platform to reach better performance with an acceptable range of accuracy.
+
+For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
+@sphinxdirective
+.. raw:: html
+	
+   </div>
+
+@endsphinxdirective
+
+
+@sphinxdirective
+.. dropdown:: Lowering Inference Precision
+
+    The CPU plugin follows the default optimization approach, which means that inference is done with lower precision if it is possible on the given platform to reach better performance with an acceptable range of accuracy.
+
+For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
+@endsphinxdirective
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### Lowering Inference Precision
 
-The CPU plugin follows a default optimization approach. This approach means that inference is made with lower precision if it is possible on a given platform to reach better performance with an acceptable range of accuracy.
+The CPU plugin follows the default optimization approach, which means that inference is done with lower precision if it is possible on the given platform to reach better performance with an acceptable range of accuracy.
 
-> **NOTE**: For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
+For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
+
+
+
+
+
 
 ### Fusing Convolution and Simple Layers
 
-Merge of a convolution layer and any of the simple layers listed below:
+Merge of a convolution layer and any of these simple layers:
 - Activation: ReLU, ELU, Sigmoid, Clamp
 - Depthwise: ScaleShift, PReLU
 - FakeQuantize
 
-> **NOTE**: You can have any number and order of simple layers.
-
+You can have any number and order of simple layers.
 A combination of a convolution layer and simple layers results in a single fused layer called 
 *Convolution*:
 
