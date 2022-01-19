@@ -34,7 +34,4 @@ else()
     message("-- Reference preprocessing: OpenCV tests are disabled")
 endif()
 
-target_compile_definitions(${TARGET_NAME} PRIVATE TEST_FILES="${TEST_MODEL_ZOO}/core/files/")
-add_dependencies(${TARGET_NAME} test_model_zoo)
-
 # [cmake:functional_tests]

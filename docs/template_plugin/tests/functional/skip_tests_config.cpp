@@ -116,9 +116,6 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-71891
         R"(.*ReferenceTileTest.*rType=i4.*)",
         R"(.*ReferenceTileTest.*rType=u4.*)",
-        // CVS-63981
-        R"(.*ReferenceRegionYoloLayerTest.*region_yolo_v2_caffe.*)",
-        R"(.*ReferenceRegionYoloLayerTest.*region_yolo_v3_mxnet.*)",
     };
 
 #ifdef _WIN32
