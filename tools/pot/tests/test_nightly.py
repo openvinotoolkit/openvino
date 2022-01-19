@@ -35,12 +35,12 @@ TEST_MODELS_DEFAULT = [
     ('googlenet-v3-pytorch', 'pytorch', 'FP32', {
         'performance': {'accuracy@top1': 0.77562, 'accuracy@top5': 0.9363},
         'mixed': {'accuracy@top1': 0.77562, 'accuracy@top5': 0.9363}}),
-    ('densenet-121', 'caffe', 'FP32', {
-        'performance': {'accuracy@top1': 0.73908, 'accuracy@top5': 0.91728},
-        'mixed': {'accuracy@top1': 0.7389, 'accuracy@top5': 0.91714}}),
+    # ('densenet-121', 'caffe', 'FP32', {
+    #     'performance': {'accuracy@top1': 0.73908, 'accuracy@top5': 0.91728},
+    #     'mixed': {'accuracy@top1': 0.7389, 'accuracy@top5': 0.91714}}),
     ('mobilenet-ssd', 'caffe', 'FP32', {
-        'performance': {'map': 0.71978},
-        'mixed': {'map': 0.71931}}),
+        'performance': {'map': 0.66741},
+        'mixed': {'map': 0.667}}),
     ('octave-resnet-26-0.25', 'mxnet', 'FP32', {
         'performance': {'accuracy@top1': 0.7581, 'accuracy@top5': 0.9256},
         'mixed': {'accuracy@top1': 0.759, 'accuracy@top5': 0.92466}}),
