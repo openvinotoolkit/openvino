@@ -33,7 +33,7 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
     throw std::logic_error(
         "Statistics file path is required but not set. Please set -s option.");
 
-  if (!FLAGS_reshape_shapes.empty() and FLAGS_data_shapes.empty())
+  if (!FLAGS_reshape_shapes.empty() && FLAGS_data_shapes.empty())
     throw std::logic_error(
         "Data shapes is required for reshape shapes argument. Please set -data_shapes option.");
 
