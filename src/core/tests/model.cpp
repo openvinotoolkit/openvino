@@ -1545,4 +1545,5 @@ TEST(model, generate_unique_names) {
     f->validate_nodes_and_infer_types();
     EXPECT_EQ(name, arg0->get_friendly_name());
     EXPECT_NE(arg1->get_friendly_name(), arg0->get_friendly_name());
+    EXPECT_EQ(arg1->get_friendly_name(), arg0->get_friendly_name() + "_2");
 }
