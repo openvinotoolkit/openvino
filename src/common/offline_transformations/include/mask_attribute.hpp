@@ -49,6 +49,10 @@ public:
               m_adjust_value(adjust_value) {
     }
 
+    explicit Mask(std::vector<value_type> val)
+            : std::vector<value_type>(val) {
+    }
+
     Mask(std::initializer_list<std::initializer_list<uint64_t>> list)
             : std::vector<value_type>() {
         for (const auto & dim_values : list) {

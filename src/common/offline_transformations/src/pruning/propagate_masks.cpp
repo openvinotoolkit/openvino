@@ -84,18 +84,6 @@ public:
             const auto b_inner_dim = (transpose_b)? shape_b.size() - 1 : shape_b.size() - 2;
             const auto b_outer_dim = (transpose_b)? shape_b.size() - 2 : shape_b.size() - 1;
 
-            // Connect a and b
-            a_mask->add_callback([b_mask_row, a_inner_dim, b_inner_dim](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(a_inner_dim).insert(b_mask_row->at(b_inner_dim).begin(), b_mask_row->at(b_inner_dim).end());
-                if (cur_mask->at(a_inner_dim) != b_mask_row->at(b_inner_dim)) cur_mask->initialize_dependencies();
-                return true;
-            }, b_mask);
-
-            b_mask->add_callback([a_mask_row, a_inner_dim, b_inner_dim](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(b_inner_dim).insert(a_mask_row->at(a_inner_dim).begin(), a_mask_row->at(a_inner_dim).end());
-                if (cur_mask->at(b_inner_dim) != a_mask_row->at(a_inner_dim)) cur_mask->initialize_dependencies();
-                return true;
-            }, a_mask);
 
             const auto matmul_range = m_matmul.get_shape().size();
             auto matmul_mask = std::make_shared<Mask>(matmul_range);
@@ -103,27 +91,56 @@ public:
             const auto matmul_cols_dim = matmul_range - 1;
             const auto matmul_rows_dim = matmul_range - 2;
 
+            // Connect a and b
+            a_mask->add_callback([b_mask_row, matmul_mask_row, a_inner_dim, b_inner_dim, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(a_inner_dim).insert(b_mask_row->at(b_inner_dim).begin(), b_mask_row->at(b_inner_dim).end());
+                // Check is a_mask and b_mask in valid state
+                if (cur_mask->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
+                    cur_mask->initialize_dependencies();
+                // Check is b_mask and matmul_mask in valid state
+                if (b_mask_row->at(b_outer_dim) != matmul_mask_row->at(matmul_cols_dim))
+                    cur_mask->initialize_dependencies();
+                return true;
+            }, b_mask);
+
+            b_mask->add_callback([a_mask_row, matmul_mask_row, a_inner_dim, b_inner_dim, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(b_inner_dim).insert(a_mask_row->at(a_inner_dim).begin(), a_mask_row->at(a_inner_dim).end());
+                cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
+                // Check is b_mask and a_mask in valid state
+                if (cur_mask->at(b_inner_dim) != a_mask_row->at(a_inner_dim))
+                    cur_mask->initialize_dependencies();
+                return true;
+            }, a_mask);
+
             // Connect a with matmul mask
-            a_mask->add_callback([matmul_mask_row, a_outer_dim, matmul_rows_dim](Mask::Ptr cur_mask) -> bool {
+            a_mask->add_callback([matmul_mask_row, b_mask_row, a_outer_dim, b_outer_dim, matmul_rows_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
                 cur_mask->at(a_outer_dim) = matmul_mask_row->at(matmul_rows_dim);
+                // Check is b_mask and matmul_mask in valid state
+                if (b_mask_row->at(b_outer_dim) != matmul_mask_row->at(matmul_cols_dim))
+                    cur_mask->initialize_dependencies();
                 return true;
             }, matmul_mask);
 
-            matmul_mask->add_callback([a_mask_row, a_outer_dim, matmul_rows_dim](Mask::Ptr cur_mask) -> bool {
+            matmul_mask->add_callback([a_mask_row, b_mask_row, a_outer_dim, b_outer_dim,
+                                       matmul_rows_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
                 cur_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
+                cur_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
                 return true;
             }, a_mask);
 
             // Connect b with matmul mask
-            b_mask->add_callback([matmul_mask_row, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
-                return true;
-            }, matmul_mask);
+            //b_mask->add_callback([matmul_mask_row, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
+            //    cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
+            //    return true;
+            //}, matmul_mask);
 
-            matmul_mask->add_callback([b_mask_row, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
-                return true;
-            }, b_mask);
+            //matmul_mask->add_callback([b_mask_row, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
+            //    cur_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
+            //    return true;
+            //}, b_mask);
+
+
+
             //if (transpose_a)
             //    last_two_dims_a = std::vector<size_t>({shape_a.end()[-1], shape_a.end()[-2]});
             //else
@@ -167,7 +184,7 @@ public:
             //}, conv_mask);
 
             bool status = matmul_mask->apply_callback(a_mask);
-            status &= matmul_mask->apply_callback(b_mask);
+            status &= b_mask->apply_callback(a_mask);
             if (!status) {
                 return false;
             }
@@ -895,7 +912,7 @@ public:
                         for (size_t dim = 0; dim < not_reshaped_dims; ++dim)
                             if (dim < not_reshaped_dims)
                                 cur_mask->at(dim) = input_mask_row->at(dim);
-                            // Flat the last mask
+                        // Flat the last mask
                         for (auto &ch : input_mask_row->at(not_reshaped_dims))
                             for (auto idx = ch * elems_per_ch; idx < (ch + 1) * elems_per_ch; ++idx)
                                 cur_mask->at(not_reshaped_dims).insert(idx);
