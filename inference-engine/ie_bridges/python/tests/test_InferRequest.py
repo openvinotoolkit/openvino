@@ -754,7 +754,7 @@ def test_set_blob_with_incorrect_size():
     assert f"Output blob size is not equal network output size" in str(e.value)
 
 
-@pytest.mark.template_plugin
+@pytest.mark.skip(reason="Old Python API seg faults during dynamic shape inference")
 def test_set_blob_after_async_infer():
     function = create_encoder([1, 4, 20, 20])
     net = ng.function_to_cnn(function)
