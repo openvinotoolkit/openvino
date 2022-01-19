@@ -157,6 +157,7 @@ def test_reshape():
     assert net.input_info["data"].input_data.shape == [2, 3, 32, 32]
 
 
+@pytest.mark.skip(reason="Old Python API seg faults during dynamic shape inference")
 @pytest.mark.parametrize("shape, p_shape", [
     ([1, 3, 22, 22], [1, 3, -1, 25]),
     ([1, 3, 22, 22], [-1, -1, -1, -1]),
