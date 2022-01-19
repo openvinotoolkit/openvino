@@ -127,7 +127,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidMode) {
 
 TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidRank) {
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8, 8});
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{16, 3, 4, 8, 8});
         auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
         auto depth_to_space = std::make_shared<opset6::DepthToSpace>(trans_before, opset6::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
         auto slice = std::make_shared<opset6::StridedSlice>(depth_to_space,
@@ -139,7 +139,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidRank) {
         manager.register_pass<pass::BatchToSpaceFusion>();
     }
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8, 8});
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{16, 3, 4, 8, 8});
         auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
         auto depth_to_space = std::make_shared<opset6::DepthToSpace>(trans_before, opset6::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
         auto slice = std::make_shared<opset6::StridedSlice>(depth_to_space,

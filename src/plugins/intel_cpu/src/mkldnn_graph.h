@@ -10,6 +10,7 @@
 #include "normalize_preprocess.h"
 #include "mkldnn_node.h"
 #include "mkldnn_edge.h"
+#include "cache/multi_cache.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -219,7 +220,7 @@ protected:
     static mkldnn::engine eng;
 
     void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
-    void Replicate(const std::shared_ptr<const ngraph::Function> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
@@ -246,6 +247,8 @@ private:
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
     std::vector<MKLDNNNodePtr> constantGraphNodes;
     std::vector<MKLDNNNodePtr> executableGraphNodes;
+
+    MultiCachePtr rtParamsCache;
 
     void EnforceBF16();
 };
