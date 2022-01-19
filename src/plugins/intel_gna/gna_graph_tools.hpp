@@ -213,7 +213,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>  CNNNetCheckNex
             start.push_back(getInputTo(layer->outData[oDataIdx]));
         }
 
-        auto separate_layers = [&currentSet, &resultSet, &shouldSkip](auto outData) {
+        auto separate_layers = [&currentSet, &resultSet, &shouldSkip](const DataPtr& outData) {
             auto inputTo = getInputTo(outData);
             for (auto &&bfsLayer : inputTo) {
                 if (shouldSkip(bfsLayer.second)) {
