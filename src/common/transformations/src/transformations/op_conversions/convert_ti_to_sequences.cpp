@@ -209,6 +209,7 @@ bool convertTensorIteratorToSequence(
     }
     if (!std::dynamic_pointer_cast<ngraph::opset5::Constant>(seq_lengths)) {
         new_nodes.emplace_back(batch_dimension);
+        new_nodes.emplace_back(batch_dimension->get_input_node_shared_ptr(0));
         new_nodes.emplace_back(seq_lengths_scalar);
         new_nodes.emplace_back(seq_lengths);
     }

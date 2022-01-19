@@ -11,6 +11,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
@@ -176,7 +177,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
         auto in_2 = std::make_shared<ngraph::opset5::Unsqueeze>(Z, axis_1);
 
         auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset5::Gather>(
+        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
             shape_of,
             ngraph::opset5::Constant::create(ngraph::element::i64, { 1 }, { 0 }),
             ngraph::opset5::Constant::create(ngraph::element::i64, {}, { 0 }));
@@ -263,7 +264,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicSqueezeCase)
         auto in_2 = std::make_shared<ngraph::opset5::Unsqueeze>(Z, axis_1);
 
         auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset5::Gather>(
+        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
             shape_of,
             ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
             ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
@@ -434,7 +435,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
 
         auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset5::Gather>(
+        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
             shape_of,
             ngraph::opset5::Constant::create(ngraph::element::i64, { 1 }, { 0 }),
             ngraph::opset5::Constant::create(ngraph::element::i64, {}, { 0 }));
@@ -513,7 +514,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicSqueezeCase) 
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
 
         auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset5::Gather>(
+        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
             shape_of,
             ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
             ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
@@ -674,7 +675,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
         auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384 }, b_val);
 
         auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset5::Gather>(
+        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
             shape_of,
             ngraph::opset5::Constant::create(ngraph::element::i64, { 1 }, { 0 }),
             ngraph::opset5::Constant::create(ngraph::element::i64, {}, { 0 }));
@@ -753,7 +754,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
         auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384}, b_val);
 
         auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset5::Gather>(
+        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
             shape_of,
             ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
             ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
