@@ -83,17 +83,22 @@ int main(int argc, char* argv[]) {
         // -------------------------------------
         ov::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
-        std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
-        check_number_of_inputs(model->inputs().size(), numInputFiles);
-        const ov::Layout tensor_layout{"NC"};
-        ov::preprocess::PrePostProcessor proc(model);
-        for (int i = 0; i < model->inputs().size(); i++) {
-            proc.input(i).tensor().set_element_type(ov::element::f32).set_layout(tensor_layout);
+        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
+        std::shared_ptr<ov::Model> model;
+        if (!FLAGS_m.empty()) {
+            model = core.read_model(FLAGS_m);
+            check_number_of_inputs(model->inputs().size(), numInputFiles);
+            const ov::Layout tensor_layout{"NC"};
+            ov::preprocess::PrePostProcessor proc(model);
+            for (int i = 0; i < model->inputs().size(); i++) {
+                proc.input(i).tensor().set_element_type(ov::element::f32).set_layout(tensor_layout);
+            }
+            for (int i = 0; i < model->outputs().size(); i++) {
+                proc.output(i).tensor().set_element_type(ov::element::f32);
+            }
+            model = proc.build();
+            ov::set_batch(model, batchSize);
         }
-        for (int i = 0; i < model->outputs().size(); i++) {
-            proc.output(i).tensor().set_element_type(ov::element::f32);
-        }
-        model = proc.build();
         // ------------------------------ Get Available Devices ------------------------------------------------------
         auto isFeature = [&](const std::string xFeature) {
             return FLAGS_d.find(xFeature) != std::string::npos;
@@ -101,8 +106,7 @@ int main(int argc, char* argv[]) {
         bool useGna = isFeature("GNA");
         bool useHetero = isFeature("HETERO");
         std::string deviceStr = useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
-        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
-        ov::set_batch(model, batchSize);
+
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Set parameters and scale factors -------------------------------------
         /** Setting parameter for per layer metrics **/
@@ -172,16 +176,12 @@ int main(int argc, char* argv[]) {
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
-        IE_SUPPRESS_DEPRECATED_START
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
-        IE_SUPPRESS_DEPRECATED_END
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
-            IE_SUPPRESS_DEPRECATED_START
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
-            IE_SUPPRESS_DEPRECATED_END
         }
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 2. Loading model to the device ------------------------------------------
@@ -221,14 +221,18 @@ int main(int argc, char* argv[]) {
             executableNet = core.compile_model(model, deviceStr, genericPluginConfig);
         } else {
             slog::info << "Importing model to the device" << slog::endl;
-            std::istringstream streamrq(FLAGS_rg);
+            std::ifstream streamrq(FLAGS_rg, std::ios_base::binary | std::ios_base::in);
+            if (!streamrq.is_open()) {
+                throw std::runtime_error("Cannot open model file " + FLAGS_rg);
+            }
             executableNet = core.import_model(streamrq, deviceStr, genericPluginConfig);
+            streamrq.close();
         }
         // --------------------------- Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
             slog::info << "Writing GNA Model to file " << FLAGS_wg << slog::endl;
             t0 = Time::now();
-            std::ostringstream streamwq(FLAGS_wg);
+            std::ofstream streamwq(FLAGS_wg, std::ios::out);
             executableNet.export_model(streamwq);
             ms exportTime = std::chrono::duration_cast<ms>(Time::now() - t0);
             slog::info << "Exporting time " << exportTime.count() << " ms" << slog::endl;
