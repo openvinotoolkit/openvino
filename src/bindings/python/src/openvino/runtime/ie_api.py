@@ -115,10 +115,10 @@ class Core(CoreBase):
             return CompiledModel(
                 super().compile_model(model, {} if config is None else config)
             )
-        else:
-            return CompiledModel(
-                super().compile_model(model, device_name, {} if config is None else config)
-            )
+
+        return CompiledModel(
+            super().compile_model(model, device_name, {} if config is None else config)
+        )
 
     def import_model(
         self, model_file: str, device_name: str, config: dict = None
