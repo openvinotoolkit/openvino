@@ -227,7 +227,7 @@ Any CompiledModel::get_property(const std::string& name) const {
                 for (auto&& rw_property : rw_properties) {
                     supported_properties.emplace_back(rw_property, PropertyMutability::RW);
                 }
-                supported_properties.emplace_back(ov::supported_properties.str(), PropertyMutability::RO);
+                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
                 return supported_properties;
             }
         }

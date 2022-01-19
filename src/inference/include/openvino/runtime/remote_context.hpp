@@ -140,10 +140,10 @@ public:
      * Returns a pointer to the object which implements RemoteTensor interface.
      * @param type Defines the element type of the tensor
      * @param shape Defines the shape of the tensor
-     * @param config Map of the low-level tensor object parameters.
+     * @param params Map of the low-level tensor object parameters.
      * @return A pointer to plugin object that implements RemoteTensor interface.
      */
-    RemoteTensor create_tensor(const element::Type& type, const Shape& shape, const AnyMap& config = {});
+    RemoteTensor create_tensor(const element::Type& type, const Shape& shape, const AnyMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level

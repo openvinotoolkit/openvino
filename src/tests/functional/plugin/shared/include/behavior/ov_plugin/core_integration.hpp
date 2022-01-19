@@ -1049,7 +1049,7 @@ TEST_P(OVClassSetDefaultDeviceIDTest, SetDefaultDeviceIDNoThrow) {
     std::string value;
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::device::id(deviceID), ov::enable_profiling(true)));
     ASSERT_TRUE(ie.get_property(deviceName, ov::enable_profiling));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::enable_profiling.str()).as<std::string>());
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::enable_profiling.name()).as<std::string>());
     ASSERT_EQ(value, "YES");
 }
 
@@ -1062,10 +1062,10 @@ TEST_P(OVClassSetGlobalConfigTest, SetGlobalConfigNoThrow) {
         OV_ASSERT_NO_THROW(ie.set_property(deviceName + "." + dev_id, ov::enable_profiling(false)));
     }
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::enable_profiling(true)));
-    OV_ASSERT_NO_THROW(ref = ie.get_property(deviceName, ov::enable_profiling.str()));
+    OV_ASSERT_NO_THROW(ref = ie.get_property(deviceName, ov::enable_profiling.name()));
 
     for (auto& dev_id : deviceIDs) {
-        OV_ASSERT_NO_THROW(src = ie.get_property(deviceName + "." + dev_id, ov::enable_profiling.str()));
+        OV_ASSERT_NO_THROW(src = ie.get_property(deviceName + "." + dev_id, ov::enable_profiling.name()));
         ASSERT_EQ(src, ref);
     }
 }

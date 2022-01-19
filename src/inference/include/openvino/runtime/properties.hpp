@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- * @brief A header for advanced hardware related properties for OpenVINO runtime plugins
- *        To use in set_property, compile_model, import_model methods
+ * @brief A header for advanced hardware specific properties for OpenVINO runtime devices
+ *        To use in set_property, compile_model, import_model, get_property methods
  *
  * @file openvino/runtime/properties.hpp
  */
@@ -26,9 +26,8 @@ namespace ov {
  * @brief Enum to define property value mutability
  */
 enum class PropertyMutability {
-    RO,  //!< Read only property values can not be passed as input parameter
+    RO,  //!< Read-only property values can not be passed as input parameter
     RW,  //!< Read/Write property key may change readability in runtime
-    WO,  //!< Write only property values could not be obtained from openvino objects
 };
 
 /**
@@ -77,171 +76,117 @@ struct AllProperties<T> {
 template <typename T, typename... Args>
 using EnableIfAllProperties = typename std::enable_if<AllProperties<Args...>::value, T>::type;
 
-template <typename T, PropertyMutability mutability>
-using EnableIfRaedableProperty =
-    typename std::enable_if<mutability == PropertyMutability::RO || mutability == PropertyMutability::RW, T>::type;
-
 /**
- * @brief This class us used to bind property key string with paramter type
- * @tparam T type of parameter used to pass or get property
+ * @brief This class is used to bind property name with property type
+ * @tparam T type of value used to pass or get property
  */
 template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
-struct BaseKey {
+struct BaseProperty {
     using value_type = T;                                  //!< Property type
     constexpr static const auto mutability = mutability_;  //!< Property readability
 
     /**
-     * @brief Constructs property key variable
-     * @param str_ property key string
+     * @brief Constructs property access variable
+     * @param str_ property name
      */
-    constexpr BaseKey(const char* str_) : _str{str_} {}
+    constexpr BaseProperty(const char* name_) : _name{name_} {}
 
     /**
-     * @brief return property key string
+     * @brief return property name
      * @return Pointer to const string key representation
      */
-    const char* str() const {
-        return _str;
+    const char* name() const {
+        return _name;
     }
 
     /**
-     * @brief compares property key string
+     * @brief compares property name
      * @return true if string is the same
      */
     bool operator==(const std::string& str) const {
-        return _str == str;
+        return _name == str;
     }
 
     /**
-     * @brief compares property key string
+     * @brief compares property name
      * @return true if string is the same
      */
-    friend bool operator==(const std::string& str, const BaseKey<T, mutability_>& key) {
-        return key == str;
+    friend bool operator==(const std::string& str, const BaseProperty<T, mutability_>& property) {
+        return property == str;
     }
 
 private:
-    const char* _str = nullptr;
+    const char* _name = nullptr;
 };
 template <typename T, PropertyMutability M>
-inline std::ostream& operator<<(std::ostream& os, const BaseKey<T, M>& key) {
-    return os << key.str();
+inline std::ostream& operator<<(std::ostream& os, const BaseProperty<T, M>& property) {
+    return os << property.name();
 }
 }  // namespace util
 /** @endcond */
 
 /**
- * @brief This class us used to bind property key string with paramter type
- * @tparam T type of parameter used to pass or get property
+ * @brief This class is used to bind property name with value type
+ * @tparam T type of value used to set or get property
  */
 template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
-struct Key : public util::BaseKey<T, mutability_> {
-    using util::BaseKey<T, mutability_>::BaseKey;
-
-    struct Pair : std::pair<std::string, Any> {
-        using std::pair<std::string, Any>::pair;
-#ifdef OPENVINO_DEV
-        operator Any() && {
-            return std::move(second);
-        }
-#endif
-    };
-
+struct Property : public util::BaseProperty<T, mutability_> {
+    using util::BaseProperty<T, mutability_>::BaseProperty;
     /**
      * @brief Constructs property
      * @tparam Args property constructor arguments types
      * @param args property constructor arguments
-     * @return Pair of string key representation and type erased paramter.
+     * @return Pair of name and type erased value.
      */
     template <typename... Args>
-    inline Pair operator()(Args&&... args) const {
-        return {this->str(), Any::make<T>(std::forward<Args>(args)...)};
+    inline std::pair<std::string, Any> operator()(Args&&... args) const {
+        return {this->name(), Any::make<T>(std::forward<Args>(args)...)};
     }
-
-#ifdef OPENVINO_DEV
-    PropertyName ro() const {
-        return {this->str(), PropertyMutability::RO};
-    }
-#endif
 };
 
 /**
- * @brief This class us used to bind property key string with read only paramter type
- * @tparam T type of parameter used to pass or get property
+ * @brief This class is used to bind read-only property name with value type
+ * @tparam T type of value used to pass or get property
  */
 template <typename T>
-struct Key<T, PropertyMutability::RO> : public util::BaseKey<T, PropertyMutability::RO> {
-    using util::BaseKey<T, PropertyMutability::RO>::BaseKey;
-/** @cond INTERNAL */
-#ifdef OPENVINO_DEV
-    template <typename... Args>
-    inline Any operator()(Args&&... args) const {
-        return T{std::forward<Args>(args)...};
-    }
-#endif
-    /** @endcond */
-};
-
-class PropertyNames : public Key<std::vector<PropertyName>, PropertyMutability::RO> {
-    static PropertyName get_name(const char* str) {
-        return {str};
-    }
-    static PropertyName get_name(const std::string& str) {
-        return {str};
-    }
-    static const PropertyName& get_name(const PropertyName& arg) {
-        return arg;
-    }
-    template <typename T, PropertyMutability M>
-    static PropertyName get_name(const Key<T, M>& key) {
-        return {key.str(), M};
-    }
-
-public:
-    using Key<std::vector<PropertyName>, PropertyMutability::RO>::Key;
-/** @cond INTERNAL */
-#ifdef OPENVINO_DEV
-    template <typename... Args>
-    inline Any operator()(Args&&... args) const {
-        return std::vector<std::string>{get_name(std::forward<Args>(args))...};
-    }
-#endif
-    /** @endcond */
+struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, PropertyMutability::RO> {
+    using util::BaseProperty<T, PropertyMutability::RO>::BaseProperty;
 };
 
 /**
- * @brief Read only property to get a std::vector<PropertyName> of supported read only properies.
+ * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properies.
  *
- * This can be used as an compiled model property as well.
+ * This can be used as a compiled model property as well.
  *
  */
-static constexpr PropertyNames supported_properties{"SUPPORTED_PROPERTIES"};
+static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> supported_properties{
+    "SUPPORTED_PROPERTIES"};
 
 /**
- * @brief Read only property to get a std::vector<std::string> of available device IDs
+ * @brief Read-only property to get a std::vector<std::string> of available device IDs
  */
-static constexpr Key<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 
 /**
- * @brief Read only property to get a std::vector<std::string> of optimization options per device.
+ * @brief Read-only property to get a std::vector<std::string> of optimization options per device.
  */
-static constexpr Key<std::vector<std::string>, PropertyMutability::RO> optimization_capabilities{
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> optimization_capabilities{
     "OPTIMIZATION_CAPABILITIES"};
 
 /**
- * @brief Read only property which defines support of import/export functionality by plugin
+ * @brief Read-only property which defines support of import/export functionality by plugin
  */
-static constexpr Key<bool, PropertyMutability::RO> import_export_support{"IMPORT_EXPORT_SUPPORT"};
+static constexpr Property<bool, PropertyMutability::RO> import_export_support{"IMPORT_EXPORT_SUPPORT"};
 
 /**
- * @brief Read only property to get a name of model_name
+ * @brief Read-only property to get a name of name of a model
  */
-static constexpr Key<std::string, PropertyMutability::RO> model_name{"NETWORK_NAME"};
+static constexpr Property<std::string, PropertyMutability::RO> model_name{"NETWORK_NAME"};
 
 /**
- * @brief Read only property to get an unsigned integer value of optimal number of compiled model infer requests.
+ * @brief Read-only property to get an unsigned integer value of optimal number of compiled model infer requests.
  */
-static constexpr Key<uint32_t, PropertyMutability::RO> optimal_number_of_infer_requests{
+static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_infer_requests{
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
 namespace hint {
@@ -289,7 +234,7 @@ inline std::istream& operator>>(std::istream& is, ModelPriority& model_priority)
  * @brief High-level OpenVINO model priority hint
  * Defines what model should be provided with more performant bounded resource first
  */
-static constexpr Key<ModelPriority> model_priority{"MODEL_PRIORITY"};
+static constexpr Property<ModelPriority> model_priority{"MODEL_PRIORITY"};
 
 /**
  * @brief Enum to define possible performance mode hints
@@ -307,7 +252,7 @@ inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& perform
     case PerformanceMode::THROUGHPUT:
         return os << "THROUGHPUT";
     default:
-        throw ov::Exception{"Unsupported performance measure hint"};
+        throw ov::Exception{"Unsupported performance mode hint"};
     }
 }
 
@@ -319,7 +264,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
     } else if (str == "THROUGHPUT") {
         performance_mode = PerformanceMode::THROUGHPUT;
     } else {
-        throw ov::Exception{"Unsupported performance measure: " + str};
+        throw ov::Exception{"Unsupported performance mode: " + str};
     }
     return is;
 }
@@ -327,17 +272,17 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 
 /**
  * @brief High-level OpenVINO Performance Hints
- * unlike low-level config keys that are individual (per-device), the hints are somthing that every device accepts
+ * unlike low-level properties that are individual (per-device), the hints are somthing that every device accepts
  * and turns into device-specific settings
  */
-static constexpr Key<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
+static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
 
 /**
- * @brief (Optional) config key that backs the (above) Performance Hints
+ * @brief (Optional) property that backs the (above) Performance Hints
  * by giving additional information on how many inference requests the application will be keeping in flight
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
  */
-static constexpr Key<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"};
+static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"};
 
 /**
  * @brief Enum to define possible performance hints
@@ -372,26 +317,19 @@ inline std::istream& operator>>(std::istream& is, CalculationMode& calculation_m
     return is;
 }
 /** @endcond */
-
-/**
- * @brief Defines runtime precision mode
- */
-static constexpr Key<element::Type> precision_mode{"PRECISION_MODE"};
-
 }  // namespace hint
 
 /**
  * @brief The name for setting performance counters option.
  *
- * It is passed to Core::SetProperty(), this option should be used with values:
- * ov::runtime::config::value::yes or ov::runtime::config::value::no
+ * It is passed to Core::set_property()
  */
-static constexpr Key<bool> enable_profiling{"PERF_COUNT"};
+static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
 
 namespace log {
 
 /**
- * @brief Enum to define possible affinity template hints
+ * @brief Enum to define possible log levels
  */
 enum class Level {
     NO = -1,      //!< disable any loging
@@ -445,18 +383,18 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
 /** @endcond */
 
 /**
- * @brief the key for setting desirable log level.
+ * @brief the property for setting desirable log level.
  */
-static constexpr Key<Level> level{"LOG_LEVEL"};
+static constexpr Property<Level> level{"LOG_LEVEL"};
 }  // namespace log
 
 /**
- * @brief This key defines the directory which will be used to store any data cached by plugins.
+ * @brief This property defines the directory which will be used to store any data cached by plugins.
  *
  * The underlying cache structure is not defined and might differ between OpenVINO releases
  * Cached data might be platform / device specific and might be invalid after OpenVINO version change
- * If this key is not specified or value is empty string, then caching is disabled.
- * The key might enable caching for the plugin using the following code:
+ * If this property is not specified or value is empty string, then caching is disabled.
+ * The property might enable caching for the plugin using the following code:
  *
  * @code
  * ie.set_property("GPU", ov::cache_dir("cache/")); // enables cache for GPU plugin
@@ -468,20 +406,20 @@ static constexpr Key<Level> level{"LOG_LEVEL"};
  * ie.set_property(ov::cache_dir("cache/")); // enables models cache
  * @endcode
  */
-static constexpr Key<std::string> cache_dir{"CACHE_DIR"};
+static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 
 namespace device {
 
 /**
- * @brief the key for setting of required device to execute on
+ * @brief the property for setting of required device to execute on
  * values: device id starts from "0" - first device, "1" - second device, etc
  */
-static constexpr Key<std::string> id{"DEVICE_ID"};
+static constexpr Property<std::string> id{"DEVICE_ID"};
 
 /**
  * @brief Type for device Priorities config option, with comma-separated devices listed in the desired priority
  */
-struct Priorities : public Key<std::string> {
+struct Priorities : public Property<std::string> {
 private:
     template <typename H, typename... T>
     static inline std::string concat(const H& head, T&&... tail) {
@@ -494,17 +432,17 @@ private:
     }
 
 public:
-    using Key<std::string>::Key;
+    using Property<std::string>::Property;
 
     /**
      * @brief Constructs device priorities
      * @tparam Args property constructor arguments types
      * @param args property constructor arguments
-     * @return Pair of string key representation and type erased paramter.
+     * @return Pair of name and type erased value.
      */
     template <typename... Args>
     inline std::pair<std::string, Any> operator()(Args&&... args) const {
-        return {str(), Any{concat(std::forward<Args>(args)...)}};
+        return {name(), Any{concat(std::forward<Args>(args)...)}};
     }
 };
 
@@ -514,14 +452,14 @@ public:
 static constexpr Priorities priorities{"MULTI_DEVICE_PRIORITIES"};
 
 /**
- * @brief Type for key to pass set of property values to specified device
+ * @brief Type for property to pass set of properties to specified device
  */
-struct Property {
+struct Properties {
     /**
      * @brief Constructs property
      * @param device_name device plugin alias
      * @param config set of property values with names
-     * @return Pair of string key representation and type erased paramter.
+     * @return Pair of string key representation and type erased property value.
      */
     inline std::pair<std::string, Any> operator()(const std::string& device_name, const AnyMap& config) const {
         return {device_name, config};
@@ -532,7 +470,7 @@ struct Property {
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param device_name device plugin alias
      * @param configs Optional pack of pairs: (config parameter name, config parameter value)
-     * @return Pair of string key representation and type erased paramter.
+     * @return Pair of string key representation and type erased property value.
      */
     template <typename... Properties>
     inline util::EnableIfAllProperties<std::pair<std::string, Any>, Properties...> operator()(
@@ -543,19 +481,25 @@ struct Property {
 };
 
 /**
- * @brief Key to pass set of property values to specified device
+ * @brief Property to pass set of property values to specified device
+ * Usage Example:
+ * @code
+ * core.set_property(
+ *     ov::device::properties("CPU", ov::enable_profiling(true)),
+ *     ov::device::properties("GPU", ov::enable_profiling(false)));
+ * @endcode
  */
-static constexpr Property properties;
+static constexpr Properties properties;
 
 /**
- * @brief Read only property to get a std::string value representing a full device name.
+ * @brief Read-only property to get a std::string value representing a full device name.
  */
-static constexpr Key<std::string, PropertyMutability::RO> full_name{"FULL_DEVICE_NAME"};
+static constexpr Property<std::string, PropertyMutability::RO> full_name{"FULL_DEVICE_NAME"};
 
 /**
- * @brief Read only property which defines the device architecture.
+ * @brief Read-only property which defines the device architecture.
  */
-static constexpr Key<std::string, PropertyMutability::RO> architecture{"DEVICE_ARCHITECTURE"};
+static constexpr Property<std::string, PropertyMutability::RO> architecture{"DEVICE_ARCHITECTURE"};
 
 /**
  * @brief Enum to define possible device types
@@ -573,7 +517,7 @@ inline std::ostream& operator<<(std::ostream& os, const Type& device_type) {
     case Type::INTEGRATED:
         return os << "integrated";
     default:
-        throw ov::Exception{"Unsupported device separability type"};
+        throw ov::Exception{"Unsupported device type"};
     }
 }
 
@@ -592,28 +536,22 @@ inline std::istream& operator>>(std::istream& is, Type& device_type) {
 /** @endcond */
 
 /**
- * @brief Read only property to get a type of device. See Type enum definition for possible return values
+ * @brief Read-only property to get a type of device. See Type enum definition for possible return values
  */
-static constexpr Key<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
+static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
 
 /**
- * @brief Read only property which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported
+ * @brief Read-only property which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported
  * by specified device
  */
-static constexpr Key<std::map<ie::Precision, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
+static constexpr Property<std::map<ie::Precision, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
 
 /**
- * @brief  Read only property to get a float of device thermal
+ * @brief  Read-only property to get a float of device thermal
  */
-static constexpr Key<float, PropertyMutability::RO> thermal{"DEVICE_THERMAL"};
+static constexpr Property<float, PropertyMutability::RO> thermal{"DEVICE_THERMAL"};
 
 }  // namespace device
-
-/**
- * @brief The key for enabling of dumping the topology with details of layers and details how
- * this network would be executed on different devices to the disk in GraphViz format.
- */
-static constexpr Key<bool, PropertyMutability::RW> dump_graph_dot{"HETERO_DUMP_GRAPH_DOT"};
 
 /**
  * @brief The key with the list of device targets used to fallback unsupported layers
@@ -621,17 +559,35 @@ static constexpr Key<bool, PropertyMutability::RW> dump_graph_dot{"HETERO_DUMP_G
  */
 static constexpr device::Priorities target_fallback{"TARGET_FALLBACK"};
 
+/**
+ * @brief The key for enabling of dumping the topology with details of layers and details how
+ * this network would be executed on different devices to the disk in GraphViz format.
+ */
+static constexpr Property<bool, PropertyMutability::RW> dump_graph_dot{"HETERO_DUMP_GRAPH_DOT"};
+
 namespace execution {
+namespace streams {
+/**
+ * @brief Special value for ov::execution::streams::num property.
+ * Creates bare minimum of streams to improve the performance
+ */
+static constexpr const int32_t AUTO = -1;
+/**
+ * @brief Special value for ov::execution::streams::num property.
+ * Creates as many streams as needed to accommodate NUMA and avoid associated penalties
+ */
+static constexpr const int32_t NUMA = -2;
 
 /**
  * @brief The number of executor logical partitions
  */
-static constexpr Key<int32_t, PropertyMutability::RW> streams{"STREAMS"};
+static constexpr Property<int32_t, PropertyMutability::RW> num{"NUM_STREAMS"};
+}  // namespace streams
 
 /**
  * @brief Maximum number of concurent tasks executed by execututor
  */
-static constexpr Key<int32_t, PropertyMutability::RW> concurrency{"CONCURRENCY"};
+static constexpr Property<int32_t, PropertyMutability::RW> concurrency{"CONCURRENCY"};
 
 /**
  * @brief Enum to define possible affinity patterns
@@ -684,6 +640,6 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * @note The setting is ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
-static constexpr Key<Affinity> affinity{"AFFINITY"};
+static constexpr Property<Affinity> affinity{"AFFINITY"};
 }  // namespace execution
 }  // namespace ov

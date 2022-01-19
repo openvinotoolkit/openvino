@@ -198,13 +198,13 @@ public:
      * The method is targeted to extract information which can be set via set_property method.
      *
      * @tparam T - type of returned value
-     * @param key  - property key object.
-     * @return Value of property corresponding to property key.
+     * @param property  - property  object.
+     * @return Value of property.
      */
     template <typename T, PropertyMutability mutability>
-    util::EnableIfRaedableProperty<T, mutability> get_property(const ov::Key<T, mutability>& key) const {
+    T get_property(const ov::Property<T, mutability>& property) const {
         auto to = Any::make<T>();
-        get_property(key.str(), to);
+        get_property(property.name(), to);
         return to.template as<T>();
     }
 

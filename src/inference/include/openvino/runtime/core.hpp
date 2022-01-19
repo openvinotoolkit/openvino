@@ -120,11 +120,11 @@ public:
      * them simultaneously (up to the limitation of the hardware resources)
      *
      * @param model Model object acquired from Core::read_model
-     * @param config Optional map of pairs: (property name, property value) relevant only for this load
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation
      * @return A compiled model
      */
-    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config = {});
+    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& properties = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file to default device.
@@ -137,7 +137,7 @@ public:
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
      *
-     * @return An executable network reference
+     * @return A compiled model
      */
     template <typename... Properties>
     util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(
@@ -154,13 +154,13 @@ public:
      *
      * @param model Model object acquired from Core::read_model
      * @param device_name Name of device to load model to
-     * @param config Optional map of pairs: (property name, property value) relevant only for this load
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation
      * @return A compiled model
      */
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
                                 const std::string& device_name,
-                                const AnyMap& config = {});
+                                const AnyMap& properties = {});
 
     /**
      * @brief Creates an executable network from a model object.
@@ -172,7 +172,7 @@ public:
      * @param device_name Name of device to load model to
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
-     * @return An executable network reference
+     * @return A compiled model
      */
     template <typename... Properties>
     util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(
@@ -190,12 +190,12 @@ public:
      * especially for cases when caching is enabled and cached model is available
      *
      * @param model_path path to model
-     * @param config Optional map of pairs: (property name, property value) relevant only for this load
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation/
      *
      * @return A compiled model
      */
-    CompiledModel compile_model(const std::string& model_path, const AnyMap& config = {});
+    CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file to default device.
@@ -208,7 +208,7 @@ public:
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
      *
-     * @return An executable network reference
+     * @return A compiled model
      */
     template <typename... Properties>
     util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(const std::string& model_path,
@@ -224,14 +224,14 @@ public:
      *
      * @param model_path Path to a model
      * @param device_name Name of device to load a model to
-     * @param config Optional map of pairs: (property name, property value) relevant only for this load
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation/
      *
      * @return A compiled model
      */
     CompiledModel compile_model(const std::string& model_path,
                                 const std::string& device_name,
-                                const AnyMap& config = {});
+                                const AnyMap& properties = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -245,7 +245,7 @@ public:
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
      *
-     * @return An executable network reference
+     * @return A compiled model
      */
     template <typename... Properties>
     util::EnableIfAllProperties<CompiledModel, Properties...> compile_model(const std::string& model_path,
@@ -258,13 +258,13 @@ public:
      * @brief Creates a compiled model from a source model within a specified remote context.
      * @param model Model object acquired from Core::read_model
      * @param context A reference to a RemoteContext object
-     * @param config Optional map of pairs: (property name, property value) relevant only for this load
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation
      * @return A compiled model object
      */
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
                                 const RemoteContext& context,
-                                const AnyMap& config = {});
+                                const AnyMap& properties = {});
 
     /**
      * @brief Creates an executable network from a network object within a specified remote context.
@@ -369,11 +369,13 @@ public:
      * ov::runtime::CompiledModel::export_model method
      * @param device_name Name of device to import compiled model for. Note, if @p device_name device was not used to
      * compile the original mode, an exception is thrown
-     * @param config Optional map of pairs: (property name, property value) relevant only for this load
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation*
      * @return A compiled model
      */
-    CompiledModel import_model(std::istream& model_stream, const std::string& device_name, const AnyMap& config = {});
+    CompiledModel import_model(std::istream& model_stream,
+                               const std::string& device_name,
+                               const AnyMap& properties = {});
 
     /**
      * @brief Creates an executable network from a previously exported one
@@ -382,7 +384,7 @@ public:
      * @param device_name Name of device load executable network on
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
-     * @return An executable network reference
+     * @return A compiled model
      */
     template <typename... Properties>
     util::EnableIfAllProperties<CompiledModel, Properties...> import_model(std::istream& model_stream,
@@ -397,11 +399,11 @@ public:
      * ov::runtime::CompiledModel::export_model
      * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
      * the original mode, an exception is thrown
-     * @param config Optional map of pairs: (property name, property value) relevant only for this load
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation
      * @return A compiled model
      */
-    CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const AnyMap& config = {});
+    CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const AnyMap& properties = {});
 
     /**
      * @brief Creates an executable network from a previously exported one within a specified
@@ -412,7 +414,7 @@ public:
      * @param context Pointer to RemoteContext object
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
-     * @return An executable network reference
+     * @return A compiled model
      */
     template <typename... Properties>
     util::EnableIfAllProperties<CompiledModel, Properties...> import_model(std::istream& model_stream,
@@ -426,12 +428,12 @@ public:
      *
      * @param device_name A name of a device to query
      * @param model Model object to query
-     * @param config Optional map of pairs: (property name, property value)
+     * @param properties Optional map of pairs: (property name, property value)
      * @return An object containing a map of pairs a operation name -> a device name supporting this operation.
      */
     SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                 const std::string& device_name,
-                                const AnyMap& config = {}) const;
+                                const AnyMap& properties = {}) const;
 
     /**
      * @brief Query device if it supports specified model with specified properties
@@ -455,9 +457,9 @@ public:
      * @brief Sets properties for all the
      * registered devices, acceptable keys can be found in openvino/runtime/properties.hpp
      *
-     * @param config Map of pairs: (property name, property value)
+     * @param properties Map of pairs: (property name, property value)
      */
-    void set_property(const AnyMap& config);
+    void set_property(const AnyMap& properties);
 
     /**
      * @brief Sets properties for all the
@@ -477,9 +479,9 @@ public:
      *
      * @param device_name An name of a device.
      *
-     * @param config Map of pairs: (property name, property value)
+     * @param properties Map of pairs: (property name, property value)
      */
-    void set_property(const std::string& device_name, const AnyMap& config);
+    void set_property(const std::string& device_name, const AnyMap& properties);
 
     /**
      * @brief Sets properties for device, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -498,11 +500,11 @@ public:
     /**
      * @brief Gets properties dedicated to device behaviour.
      *
-     * The method is targeted to extract information which can be set via set_config method.
+     * The method is targeted to extract information which can be set via set_property method.
      *
      * @param device_name  - A name of a device to get a properties value.
-     * @param name  - property key.
-     * @return Value of config corresponding to config key.
+     * @param name  - property name.
+     * @return Value of property corresponding to property name.
      */
     Any get_property(const std::string& device_name, const std::string& name) const;
 
@@ -514,14 +516,13 @@ public:
      *
      * @tparam T - type of returned value
      * @param deviceName  - A name of a device to get a properties value.
-     * @param key  - config key.
-     * @return Value of config corresponding to config key.
+     * @param property  - property object.
+     * @return Property value.
      */
-    template <typename T, PropertyMutability mutability>
-    util::EnableIfRaedableProperty<T, mutability> get_property(const std::string& deviceName,
-                                                               const ov::Key<T, mutability>& key) const {
+    template <typename T, PropertyMutability M>
+    T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
         auto to = Any::make<T>();
-        get_property(deviceName, key.str(), to);
+        get_property(deviceName, property.name(), to);
         return to.template as<T>();
     }
 
@@ -532,7 +533,7 @@ public:
      * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      * Such enumerated device can later be used as a device name in all Core methods like Core::compile_model,
-     * Core::query_model, Core::set_config and so on.
+     * Core::query_model, Core::set_property and so on.
      */
     std::vector<std::string> get_available_devices() const;
 
@@ -584,7 +585,7 @@ public:
      * - `location` specifies absolute path to dynamic library with a plugin.
      *    A path can also be relative to inference engine shared library. It allows to have common config
      *    for different systems with different configurations.
-     * - `properties` are set to a plugin via the ov::runtime::Core::set_config method.
+     * - `properties` are set to a plugin via the ov::runtime::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::runtime::Core::add_extension method.
      *
      * @param xml_config_file A path to .xml file with plugins to register.

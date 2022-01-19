@@ -14,7 +14,7 @@
 #include <string>
 
 namespace ov {
-runtime::ConfigMap any_copy(const ov::AnyMap& config_map);
+std::map<std::string, std::string> any_copy(const ov::AnyMap& config_map);
 
 void any_lexical_cast(const Any& any, ov::Any& to);
 

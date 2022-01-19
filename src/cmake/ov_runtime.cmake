@@ -72,8 +72,7 @@ target_include_directories(${TARGET_NAME}_dev INTERFACE $<BUILD_INTERFACE:${Open
                                                         )
 
 target_compile_definitions(${TARGET_NAME}_dev INTERFACE
-    $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_COMPILE_DEFINITIONS>
-    OPENVINO_DEV)
+    $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} pugixml::static openvino::itt openvino::util)
 add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)

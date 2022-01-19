@@ -22,7 +22,7 @@ const std::vector<ov::AnyMap> Autoconfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
 };
 
-const std::vector<std::map<std::string, std::string>> AutoBatchConfigs = {
+const std::vector<ov::AnyMap> AutoBatchConfigs = {
         {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU}}
 };
 

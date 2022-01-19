@@ -230,7 +230,7 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
 }
 
-static ov::runtime::ConfigMap any_copy(const ov::AnyMap& params) {
+static std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     auto to_config_string = [] (const Any& any) -> std::string {
         if (any.is<bool>()) {
             return any.as<bool>() ? "YES" : "NO";
@@ -240,7 +240,7 @@ static ov::runtime::ConfigMap any_copy(const ov::AnyMap& params) {
             return strm.str();
         }
     };
-    runtime::ConfigMap result;
+    std::map<std::string, std::string> result;
     for (auto&& value : params) {
         result.emplace(value.first, to_config_string(value.second));
     }

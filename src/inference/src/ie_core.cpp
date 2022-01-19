@@ -222,7 +222,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         std::vector<std::string> supportedMetricKeys;
         try {
             // If plugin doesn't support 'SUPPORTED_METRICS' - treat it as config is not supported as well
-            supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {})->as<std::vector<std::string>>();
+            supportedMetricKeys = plugin.get_metric(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
         } catch (...) {
         }
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS));
@@ -1761,10 +1761,10 @@ Any Core::get_property(const std::string& deviceName, const std::string& name) c
                 return _impl->GetCPPPluginByName(parsed._deviceName).get_metric(name, parsed._config);
             } catch (ie::Exception&) {
                 auto ro_properties = _impl->GetCPPPluginByName(parsed._deviceName)
-                                         .get_metric("SUPPORTED_METRICS", parsed._config)
+                                         .get_metric(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
                                          .as<std::vector<std::string>>();
                 auto rw_properties = _impl->GetCPPPluginByName(parsed._deviceName)
-                                         .get_metric("SUPPORTED_CONFIG_KEYS", parsed._config)
+                                         .get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), parsed._config)
                                          .as<std::vector<std::string>>();
                 std::vector<ov::PropertyName> supported_properties;
                 for (auto&& ro_property : ro_properties) {
@@ -1773,7 +1773,7 @@ Any Core::get_property(const std::string& deviceName, const std::string& name) c
                 for (auto&& rw_property : rw_properties) {
                     supported_properties.emplace_back(rw_property, PropertyMutability::RW);
                 }
-                supported_properties.emplace_back(ov::supported_properties.str(), PropertyMutability::RO);
+                supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
                 return supported_properties;
             }
         }

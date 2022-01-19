@@ -29,7 +29,7 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "set_config",
-        [](ov::runtime::Core& self, const ov::runtime::ConfigMap& config, const std::string& device_name) {
+        [](ov::runtime::Core& self, const std::map<std::string, std::string>& config, const std::string& device_name) {
             self.set_property(device_name, {config.begin(), config.end()});
         },
         py::arg("config"),
@@ -40,7 +40,7 @@ void regclass_Core(py::module m) {
         [](ov::runtime::Core& self,
            const std::shared_ptr<const ov::Model>& model,
            const std::string& device_name,
-           const ov::runtime::ConfigMap& config) {
+           const std::map<std::string, std::string>& config) {
             return self.compile_model(model, device_name, {config.begin(), config.end()});
         },
         py::arg("model"),
@@ -64,7 +64,7 @@ void regclass_Core(py::module m) {
         [](ov::runtime::Core& self,
            const std::string& model_path,
            const std::string& device_name,
-           const ov::runtime::ConfigMap& config) {
+           const std::map<std::string, std::string>& config) {
             return self.compile_model(model_path, device_name, {config.begin(), config.end()});
         },
         py::arg("model_path"),
@@ -124,7 +124,7 @@ void regclass_Core(py::module m) {
         [](ov::runtime::Core& self,
            std::istream& model_file,
            const std::string& device_name,
-           const ov::runtime::ConfigMap& config) {
+           const std::map<std::string, std::string>& config) {
             return self.import_model(model_file, device_name, {config.begin(), config.end()});
         },
         py::arg("model_file"),
@@ -158,7 +158,7 @@ void regclass_Core(py::module m) {
         [](ov::runtime::Core& self,
            const std::shared_ptr<const ov::Model>& model,
            const std::string& device_name,
-           const ov::runtime::ConfigMap& config) {
+           const std::map<std::string, std::string>& config) {
             return self.query_model(model, device_name, {config.begin(), config.end()});
         },
         py::arg("model"),

@@ -180,17 +180,17 @@ public:
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network, const ConfigMap& config) {
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network, const std::map<std::string, std::string>& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network,
                                                         const std::shared_ptr<ie::RemoteContext>& context,
-                                                        const ConfigMap& config) {
+                                                        const std::map<std::string, std::string>& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config, context), _so});
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::string& modelPath, const ConfigMap& config) {
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::string& modelPath, const std::map<std::string, std::string>& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(modelPath, config), _so});
     }
 
@@ -203,18 +203,18 @@ public:
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(const std::string& modelFileName,
-                                                       const ConfigMap& config) {
+                                                       const std::map<std::string, std::string>& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(modelFileName, config), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
-                                    const ConfigMap& config) {
+                                    const std::map<std::string, std::string>& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(networkModel, config), _so});
     }
 
     SoPtr<ie::IExecutableNetworkInternal> import_model(std::istream& networkModel,
                                                        const std::shared_ptr<ie::RemoteContext>& context,
-                                                       const ConfigMap& config) {
+                                                       const std::map<std::string, std::string>& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->ImportNetwork(networkModel, context, config), _so});
     }
 
