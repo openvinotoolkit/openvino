@@ -527,7 +527,7 @@ bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
                                             NotBusyWorkerRequests& idleWorkerRequests,
                                             const DeviceName& preferred_device) {
   WorkerInferRequest *workerRequestPtr = nullptr;
-  std::pair<int, WorkerInferRequest*> worker;
+  std::pair<unsigned int, WorkerInferRequest*> worker;
   if (idleWorkerRequests.try_pop(worker)) {
       workerRequestPtr = worker.second;
       IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};

@@ -58,6 +58,8 @@ public:
         if (_capacity) {
             _mutex.unlock();
             _pqueue.push(std::move(value));
+        } else {
+            _mutex.unlock();
         }
         return _capacity;
     }
@@ -135,7 +137,7 @@ public:
     }
 
 protected:
-    std::priority_queue<T, vector<T>, std::greater<T>> _queue;
+    std::priority_queue<T, std::vector<T>, std::greater<T>> _queue;
     std::mutex _mutex;
     bool _capacity = false;
 };

@@ -85,7 +85,7 @@ public:
         std::exception_ptr                        _exceptionPtr = nullptr;
         unsigned int                              _index = 0;
     };
-    using NotBusyWorkerRequests = InferenceEngine::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
+    using NotBusyWorkerRequests = InferenceEngine::ThreadSafeBoundedPriorityQueue<std::pair<unsigned int, WorkerInferRequest*>>;
 
     explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::SoExecutableNetworkInternal>&        networksPerDevice,
                                           const std::vector<DeviceInformation>&                                 networkDevices,
