@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import numpy as np
-import cv2 as cv
-import requests
 import tarfile
-
 from multiprocessing import Pool
+import requests
 
+import cv2 as cv
+import numpy as np
+
+from openvino.runtime import Layout # pylint: disable=E0611,E0401
 from openvino.tools.pot.utils.logger import get_logger
 from openvino.tools.pot.data_loaders.image_loader import ImageLoader
 from .utils import collect_img_files
@@ -98,18 +99,19 @@ class IFSFunction:
 class SyntheticImageLoader(ImageLoader):
     def __init__(self, config):
         super().__init__(config)
+
         np.random.seed(seed=1)
-        self._cpu_count = os.cpu_count()
-        self._shape = config.input_shape
-        self.data_source = config.data_source
         self.subset_size = config.subset_size
+        self._cpu_count = min(os.cpu_count(), self.subset_size)
+        self._shape = config.shape
+        self.data_source = config.data_source
         self._weights = np.array([
             0.2, 1, 1, 1, 1, 1,
             0.6, 1, 1, 1, 1, 1,
             1, 1, 1, 1, 1, 1,
             1.4, 1, 1, 1, 1, 1,
             1.8, 1, 1, 1, 1, 1,
-            1, 0.2, 1, 1, 1,1,
+            1, 0.2, 1, 1, 1, 1,
             1, 0.6, 1, 1, 1, 1,
             1, 1.4, 1, 1, 1, 1,
             1, 1.8, 1, 1, 1, 1,
@@ -130,6 +132,11 @@ class SyntheticImageLoader(ImageLoader):
             1, 1, 1, 1, 1, 1.4,
             1, 1, 1, 1, 1, 1.8,
         ]).reshape(-1, 6)
+        self._threshold = 0.2
+        self._iterations = 200000
+        self._num_of_points = None
+        self._instances = None
+        self._categories = None
 
         if not os.path.exists(self.data_source):
             logger.info(f'Synthetic dataset will be stored in {self.data_source}')
@@ -149,7 +156,7 @@ class SyntheticImageLoader(ImageLoader):
 
     def download_images(self):
         URL = ''
-        response  = requests.get(URL, stream=True)
+        response = requests.get(URL, stream=True)
         archive_path = os.path.join(self.data_source, 'synthetic_images.tar.gz')
         with open(archive_path, 'wb') as f:
             f.write(response.raw.read())
@@ -158,11 +165,7 @@ class SyntheticImageLoader(ImageLoader):
         tar.extractall(path=archive_path.replace('.tar.gz', ''))
         tar.close()
 
-    def initialize_params(self):
-        self._threshold = 0.2
-        self._iterations = 200000
-
-        height, width = self._shape[-2], self._shape[-1]
+    def initialize_params(self, height, width):
         default_img_size = 362 * 362
         points_coeff = max(1, int(np.round(height * width / default_img_size)))
         self._num_of_points = 100000 * points_coeff
@@ -176,7 +179,13 @@ class SyntheticImageLoader(ImageLoader):
             self._categories = np.ceil(self.subset_size / (self._instances * self._weights.shape[0])).astype(int)
 
     def generate_dataset(self):
-        self.initialize_params()
+        super().get_layout()
+        height = self._shape[self._layout.get_index_by_name('H')]
+        width = self._shape[self._layout.get_index_by_name('W')]
+        self.initialize_params(height, width)
+
+        # to avoid multiprocessing error: can't pickle openvino.pyopenvino.Layout objects
+        self._layout = str(self._layout)
 
         with Pool(processes=self._cpu_count) as pool:
             params = pool.map(self._generate_category, [1e-5] * self._categories)
@@ -188,12 +197,12 @@ class SyntheticImageLoader(ImageLoader):
         weight_per_img = weight_per_img[:self.subset_size]
         assert weight_per_img.shape[0] == len(repeated_params) == self.subset_size
 
-        params_per_proc = np.array_split(repeated_params, self._cpu_count)
-        weights_per_proc = np.array_split(weight_per_img, self._cpu_count)
+        splits = min(self._cpu_count, self.subset_size)
+        params_per_proc = np.array_split(repeated_params, splits)
+        weights_per_proc = np.array_split(weight_per_img, splits)
 
         generation_params = []
         offset = 0
-        height, width = self._shape[-2], self._shape[-1]
         for param, w in zip(params_per_proc, weights_per_proc):
             indices = list(range(offset, offset + len(param)))
             offset += len(param)
@@ -201,6 +210,8 @@ class SyntheticImageLoader(ImageLoader):
 
         with Pool(processes=self._cpu_count) as pool:
             pool.starmap(self.generate_image_batch, generation_params)
+
+        self._layout = Layout(self._layout)
 
     def generate_image_batch(self, params, weights, height, width, indices):
         pts_in_hull = np.load('pts_in_hull.npy').transpose().reshape(2, 313, 1, 1).astype(np.float32)
@@ -261,10 +272,10 @@ class SyntheticImageLoader(ImageLoader):
         img_l_rs = img_rs - 50  # subtract 50 for mean-centering
 
         net.setInput(cv.dnn.blobFromImage(img_l_rs))
-        ab_dec = net.forward()[0,:,:,:].transpose((1,2,0))
+        ab_dec = net.forward()[0, :, :, :].transpose((1, 2, 0))
 
         ab_dec_us = cv.resize(ab_dec, (W_orig, H_orig))
-        img_lab_out = np.concatenate((img_l[:,:,np.newaxis], ab_dec_us), axis=2) # concatenate with original image L
+        img_lab_out = np.concatenate((img_l[..., np.newaxis], ab_dec_us), axis=2) # concatenate with original image L
         img_bgr_out = np.clip(cv.cvtColor(img_lab_out, cv.COLOR_Lab2BGR), 0, 1)
         frame_normed = 255 * (img_bgr_out - img_bgr_out.min()) / (img_bgr_out.max() - img_bgr_out.min())
         frame_normed = np.array(frame_normed, dtype=np.uint8)

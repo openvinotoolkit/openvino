@@ -115,8 +115,8 @@ def get_common_argument_parser():
     parser.add_argument(
         '--data-source',
         default='../../../pot_dataset',
-        help='Valid only for DataFreeEngine or SimplifiedEngine. For SimplifiedEngine specify path to dataset dir. '
-             'For DataFreeEngine specify path to directory where synthetic dataset will be downloaded or generated and saved. '
+        help='Valid only for DataFreeEngine. '
+             'Specify path to directory where synthetic dataset will be downloaded or generated and saved. '
              'Default: `../../../pot_dataset`')
 
     parser.add_argument(
@@ -128,13 +128,14 @@ def get_common_argument_parser():
     data_free_opt.add_argument(
         '--data-type',
         default='image',
-        choices=['image', 'text', 'audio'],
+        choices=['image'],
         help='Specify type of data. Dafault: image')
 
     data_free_opt.add_argument(
         '--generate-data',
         action='store_true',
-        help='Generate synthetic dataset on first run and store to `dataset-dir`. If not specified, dataset will be downloaded.')
+        help='Generate synthetic dataset on first run and store to `dataset-dir`. '
+             'If not specified, dataset will be downloaded.')
 
     return parser
 

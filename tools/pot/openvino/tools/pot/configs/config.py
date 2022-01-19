@@ -65,7 +65,7 @@ class Config(Dict):
         self.engine['evaluate'] = args.evaluate
         self.engine['type'] = args.engine
         self.engine['data_source'] = args.data_source
-        self.engine['input_shape'] = args.shape
+        self.engine['shape'] = args.shape
         if args.engine == 'data_free':
             self.engine['generate_data'] = args.generate_data
             self.engine['data_type'] = args.data_type

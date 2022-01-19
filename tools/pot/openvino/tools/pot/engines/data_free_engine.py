@@ -1,7 +1,6 @@
 # Copyright (C) 2021-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.pot.configs.config import Config
 from openvino.tools.pot.data_loaders.synthetic_image_loader import SyntheticImageLoader
 from openvino.tools.pot.engines.simplified_engine import SimplifiedEngine
 

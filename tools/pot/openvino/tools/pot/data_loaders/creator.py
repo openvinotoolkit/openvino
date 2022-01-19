@@ -29,10 +29,13 @@ def create_data_loader(config, model):
             if config.type == 'simplified':
                 data_loader = ImageLoader(config)
                 data_loader.shape = in_node.shape
+                data_loader.get_layout(in_node)
             elif config.type == 'data_free':
-                config.input_shape = in_node.shape
+                if config.shape is None:
+                    config.shape = in_node.shape
+                if config.layout is None:
+                    config.layout = in_node.graph.graph.get('layout', None)
                 data_loader = SyntheticImageLoader(config)
-            data_loader.get_layout(in_node)
             return data_loader
 
     if data_loader is None:
