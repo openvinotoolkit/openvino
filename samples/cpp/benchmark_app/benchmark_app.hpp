@@ -220,9 +220,12 @@ static constexpr char inference_only_message[] =
     " ex. \"-inference_only=false\".\n";
 
 static const char frames_per_second[] =
-    "Optional. Specifies number of frames per second (FPS)."
-    "If not specified it will be calculated as a derivative from:"
-    "reported latency in the Sync mode and the total execution time in the Async mode.";
+     "Optional. Gives possibility to configure the maximum workload processing speed in frames per second (FPS) metric.\n" 
+     "Based on that number application calculates target latency for each data frame.\n"
+     "If the VPU process actual frame faster than the target latency it waits for new frame the time:\n"
+     "target latency -<actual_frame_processing_time>."
+     "If not specified it will be calculated as a derivative from:"
+     "reported latency in the Sync mode and the total execution time in the Async mode.";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);

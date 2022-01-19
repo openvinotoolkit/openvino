@@ -944,6 +944,7 @@ int main(int argc, char* argv[]) {
                 // method of `std::exception` So, rechecking for any exceptions here.
                 inferRequest->wait();
                 inferRequest->start_async();
+
                 // setting target duration allow to get required number of FPS.
                 // if number of required FPS is not set it will be calculated from reported duration and number of
                 // iterations.

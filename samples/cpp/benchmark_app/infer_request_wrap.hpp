@@ -57,7 +57,7 @@ public:
 
     void infer() {
         _startTime = Time::now();
-        _request.Infer();
+        _request.infer();
         _endTime = Time::now();
 <<<<<<< HEAD
         double _execTime = getExecutionTimeInMilliseconds();
