@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import logging as log
+
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import mark_input_bins, shape_insert, dynamic_dimension, \
@@ -203,7 +205,8 @@ def get_rnn_batch_size_and_seq_len(node: Node):
                 batch_size = out_shape[2]
                 in_port_with_initial_states = 5
             elif node.format == 'tf':
-                raise Error('Error around node {}: reverse infer for TensorFlow RNN operations is not implemented yet'.format(node_name))
+                log.error('reverse infer for TensorFlow RNN operation {} is not implemented yet'.format(node_name),
+                          extra={'is_warning': True})
             else:
                 raise Error('Incorrect framework name')
         elif node.batch_dim == 0:
@@ -262,6 +265,7 @@ def get_rnn_input_size(node: Node):
         input_size = first_layer_params_size / size - 2 - hidden_size
         return input_size
     elif node.format == 'tf':
-        raise Error('Error around node {}: reverse infer for TensorFlow RNN operations is not implemented yet'.format(node_name))
+        log.error('reverse infer for TensorFlow RNN operation {} is not implemented yet'.format(node_name),
+                  extra={'is_warning': True})
     else:
         raise Error('Incorrect framework name')
