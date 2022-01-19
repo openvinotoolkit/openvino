@@ -5,8 +5,8 @@
 #pragma once
 
 #include "ngraph/visibility.hpp"
-#include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
@@ -621,6 +621,7 @@ struct MOCK_API FeStat {
 class MOCK_API FrontEndMockPy : public FrontEnd {
     static FeStat m_stat;
     std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
+
 public:
     FrontEndMockPy() = default;
 
