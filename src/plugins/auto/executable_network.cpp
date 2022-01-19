@@ -286,8 +286,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 // late enough to check the idle queue now
                 // second, check the idle queue if all requests are in place
                 size_t destroynum = 0;
-                WorkerInferRequest *workerRequestPtr = nullptr;
-                while (_idleWorkerRequests["CPU_HELP"].try_pop(workerRequestPtr))
+                std::pair<int, WorkerInferRequest*> worker;
+                while (_idleWorkerRequests["CPU_HELP"].try_pop(worker))
                     destroynum++;
                 if (destroynum == _workerRequests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(_confMutex);
