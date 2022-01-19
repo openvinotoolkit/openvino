@@ -9,7 +9,7 @@ MKLDNNPlugin::MKLDNNAsyncInferRequest::MKLDNNAsyncInferRequest(const InferenceEn
                                                                const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
                                                                const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
     : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor) {
-    static_cast<MKLDNNInferRequest*>(inferRequest.get())->SetAsyncRequest(this);
+    static_cast<MKLDNNInferRequestBase*>(inferRequest.get())->SetAsyncRequest(this);
 }
 
 MKLDNNPlugin::MKLDNNAsyncInferRequest::~MKLDNNAsyncInferRequest() {

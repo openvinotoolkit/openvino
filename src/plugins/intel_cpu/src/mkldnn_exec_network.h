@@ -47,7 +47,7 @@ public:
     void Export(std::ostream& modelStream) override;
 
 protected:
-    friend class MKLDNNInferRequest;
+    friend class MKLDNNInferRequestBase;
     MKLDNNExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     const InferenceEngine::CNNNetwork           _network;
