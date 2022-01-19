@@ -89,10 +89,11 @@ find_package( Cython REQUIRED
               NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
 
+find_package(PythonInterp 3 REQUIRED)
+find_package(PythonLibs 3 REQUIRED)
+
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
-
-find_package(Python3 COMPONENTS Interpreter Development)
 
 # Create a *.c or *.cxx file from a *.pyx file.
 # Input the generated file basename.  The generate file will put into the variable
@@ -285,7 +286,7 @@ function( cython_add_module _name )
   endforeach()
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
   include_directories( ${PYTHON_INCLUDE_DIRS} )
-  python3_add_library ( ${_name} MODULE ${generated_file} ${other_module_sources} )
+  python_add_module ( ${_name} ${generated_file} ${other_module_sources} )
   # set_target_properties(${_name} PROPERTIES PREFIX "" SUFFIX "${PYTHON_MODULE_EXTENSION}")
   if( APPLE )
     set_target_properties( ${_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
