@@ -336,6 +336,8 @@ class OVRemoteTensor_TestsWithContext : public OVRemoteTensor_Test, public testi
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
     std::string deviceName;
+    std::map<std::string, std::string> config;
+
 public:
     void SetUp() override {
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
@@ -343,6 +345,7 @@ public:
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) { // BATCH:GPU
             deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
+            config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
         }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
@@ -376,7 +379,7 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContext) {
     auto ocl_instance = std::make_shared<OpenCL>();
 
     auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_context.get());
-    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto exec_net_shared = ie.compile_model(function, remote_context, config);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input, fakeImageData);
 
@@ -424,7 +427,7 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContextWithMultipleD
     auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_context.get(), 1);
 
     ASSERT_EQ(remote_context.get_device_name(), "GPU.0");
-    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto exec_net_shared = ie.compile_model(function, remote_context, config);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input, fakeImageData);
 
