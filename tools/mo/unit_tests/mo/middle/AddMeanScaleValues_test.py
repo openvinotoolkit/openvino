@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from argparse import Namespace
@@ -16,9 +16,15 @@ from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, res
 
 nodes = {
     **regular_op_with_shaped_data('parameter', [1, 3, 227, 227],
-                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+                                  {'type': 'Parameter',
+                                   'op': 'Parameter',
+                                   'shape': [1, 3, 227, 227],
+                                   'data_type': np.float32}),
     **regular_op_with_shaped_data('parameter_2', [1, 3, 227, 227],
-                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+                                  {'type': 'Parameter',
+                                   'op': 'Parameter',
+                                   'shape': [1, 3, 227, 227],
+                                   'data_type': np.float32}),
 
     **regular_op_with_shaped_data('mul_scale', [1, 3, 227, 227], {'type': 'Multiply', 'op': 'Mul'}),
     **regular_op_with_shaped_data('add_mean', [1, 3, 227, 227], {'type': 'Add', 'op': 'Add'}),
@@ -45,6 +51,9 @@ class AddMeanScaleValuesTest(UnitTestWithMockedTelemetry):
                 out_node_ref = Node(graph_ref, node.id).out_node(0)
                 self.assertTrue(out_node['fw_tensor_debug_info'] == out_node_ref['fw_tensor_debug_info'])
             else:
+                if node.soft_get('type') == 'Const':
+                    value = node.out_port(0).data.get_value()
+                    self.assertTrue(value.dtype == np.float32)
                 if 0 in node.out_nodes():
                     out_node = node.out_node(0)
                     self.assertFalse('fw_tensor_debug_info' in out_node)

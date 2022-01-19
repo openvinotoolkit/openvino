@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,10 +120,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-        // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
-        // Issue: CVS-66780
-        R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
-        R"(.*smoke_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
 
         // TODO: Issue CVS-51680
         R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
@@ -173,7 +169,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue:
         R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
         // New API tensor tests
-        R"(.*OVInferRequestCheckTensorPrecision.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*type=i4.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*type=u4.*)",
         // Issue: 75022
         R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
         R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
