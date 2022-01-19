@@ -21,7 +21,7 @@ public:
     OPENVINO_OP("Scalar", "SnippetsOpset", ngraph::op::Constant);
 
     Scalar() = default;
-    Scalar(const std::shared_ptr<ov::Tensor>& tensor) : Constant(tensor) {}
+    Scalar(const std::shared_ptr<runtime::Tensor>& tensor) : Constant(tensor) {}
     template <typename T>
     Scalar(const element::Type& type, Shape shape, const std::vector<T>& values) : Constant(type, shape, values) {}
     Scalar(const element::Type& type, const Shape& shape) : Constant(type, shape) {}

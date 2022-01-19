@@ -124,8 +124,8 @@ bool close_f(double a, double b, int tolerance_bits = DEFAULT_DOUBLE_TOLERANCE_B
 /// \param tolerance_bits Bit tolerance error
 /// \param min_signal Minimum value for comparisons
 /// Returns true iff the two TensorViews are all close in float
-::testing::AssertionResult all_close_f(const std::shared_ptr<ov::Tensor>& a,
-                                       const std::shared_ptr<ov::Tensor>& b,
+::testing::AssertionResult all_close_f(const std::shared_ptr<runtime::Tensor>& a,
+                                       const std::shared_ptr<runtime::Tensor>& b,
                                        int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
                                        float min_signal = 0.0f);
 
@@ -135,8 +135,8 @@ bool close_f(double a, double b, int tolerance_bits = DEFAULT_DOUBLE_TOLERANCE_B
 /// \param tolerance_bits Bit tolerance error
 /// \param min_signal Minimum value for comparisons
 /// Returns true iff the two TensorViews are all close in float
-::testing::AssertionResult all_close_f(const std::vector<std::shared_ptr<ov::Tensor>>& as,
-                                       const std::vector<std::shared_ptr<ov::Tensor>>& bs,
+::testing::AssertionResult all_close_f(const std::vector<std::shared_ptr<runtime::Tensor>>& as,
+                                       const std::vector<std::shared_ptr<runtime::Tensor>>& bs,
                                        int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
                                        float min_signal = 0.0f);
 /// \brief Check if the two TensorViews are all close in float

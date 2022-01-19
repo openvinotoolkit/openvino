@@ -98,7 +98,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
                      inputTypes.size(), " types");
     }
 
-    auto inputTensors = std::vector<std::shared_ptr<ov::Tensor>>{};
+    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     for (size_t i = 0; i < parametersNumber; ++i) {
         const auto &parameter = parameters[i];
         const auto &parameterIndex = function->get_parameter_index(parameter);
@@ -124,7 +124,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         inputTensors.push_back(tensor);
     }
 
-    auto outputTensors = std::vector<std::shared_ptr<ov::Tensor>>{};
+    auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     const auto &results = function->get_results();
     for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());
@@ -155,7 +155,7 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &funct
                  "Got function (", function->get_friendly_name(), ") with ", funcInputsNumber, " parameters, but ",
                  inputsNumber, " input blobs");
 
-    auto inputTensors = std::vector<std::shared_ptr<ov::Tensor>>{};
+    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     for (size_t i = 0; i < funcInputsNumber; ++i) {
         const auto &input = funcInputs[i];
         const auto &inputShape = input.get_shape();
@@ -182,7 +182,7 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &funct
         inputTensors.push_back(tensor);
     }
 
-    std::vector<std::shared_ptr<ov::Tensor>> outputTensors;
+    std::vector<std::shared_ptr<runtime::Tensor>> outputTensors;
     const auto &results = function->get_results();
     for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());

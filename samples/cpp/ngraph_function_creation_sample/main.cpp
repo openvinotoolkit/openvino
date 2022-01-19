@@ -59,7 +59,7 @@ void read_file(const std::string& file_name, void* buffer, size_t maxSize) {
  * @param filepath string
  * @return weightsPtr tensor blob
  */
-ov::ov::Tensor read_weights(const std::string& filepath) {
+ov::Tensor read_weights(const std::string& filepath) {
     std::ifstream weightFile(filepath, std::ifstream::ate | std::ifstream::binary);
 
     int64_t fileSize = weightFile.tellg();
@@ -67,7 +67,7 @@ ov::ov::Tensor read_weights(const std::string& filepath) {
                     "Incorrect weights file. This sample works only with LeNet "
                     "classification model.");
 
-    ov::ov::Tensor weights(ov::element::u8, {static_cast<size_t>(fileSize)});
+    ov::Tensor weights(ov::element::u8, {static_cast<size_t>(fileSize)});
     read_file(filepath, weights.data(), weights.get_byte_size());
 
     return std::move(weights);
@@ -78,7 +78,7 @@ ov::ov::Tensor read_weights(const std::string& filepath) {
  * @return Ptr to ngraph function
  */
 std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
-    const ov::ov::Tensor weights = read_weights(path_to_weights);
+    const ov::Tensor weights = read_weights(path_to_weights);
     const std::uint8_t* data = weights.data<std::uint8_t>();
 
     // -------input------
