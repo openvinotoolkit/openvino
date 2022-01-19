@@ -9,7 +9,6 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "mutable_data_inst.h"
-#include "concatenation_inst.h"
 #include "tensor_type.h"
 #include <memory>
 #include <vector>

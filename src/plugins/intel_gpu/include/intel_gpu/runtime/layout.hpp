@@ -526,6 +526,8 @@ struct layout {
     layout convert_to_weights_layout(bool is_grouped) const;
 
     std::string to_string() const;
+
+    static cldnn::format get_default_format(size_t rank, bool is_weights, bool is_grouped);
 };
 
 /// @}

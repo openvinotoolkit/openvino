@@ -208,7 +208,7 @@ TEST_P(resample_quantize_concat, along_f) {
         data("out_lo_2", get_mem(get_single_element_layout(p), -127)),
         data("out_hi_2", get_mem(get_single_element_layout(p), 127)),
         quantize("quant2", "resample2", "in_lo_2", "in_hi_2", "out_lo_2", "out_hi_2", 255, data_types::i8),
-        concatenation("concat", { "quant1", "quant2" }, cldnn::concatenation::along_f),
+        concatenation("concat", { "quant1", "quant2" }, 1),
         reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
     );
 
@@ -263,7 +263,7 @@ TEST_P(resample_scale_concat, along_f) {
         data("scale2_scale", get_mem(get_per_channel_layout(p), -10, 10)),
         data("scale2_shift", get_mem(get_per_channel_layout(p), -10, 10)),
         scale("scale2", "resample2", "scale2_scale", "scale2_shift"),
-        concatenation("concat", { "scale1", "scale2" }, cldnn::concatenation::along_f),
+        concatenation("concat", { "scale1", "scale2" }, 1),
         reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
     );
 

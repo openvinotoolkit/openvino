@@ -86,7 +86,7 @@ tensor::value_type layout::ifm() const {
     return dims[dim_idx];
 }
 
-static format get_default_format(size_t rank, bool is_weights, bool is_grouped) {
+format layout::get_default_format(size_t rank, bool is_weights, bool is_grouped) {
     auto default_fmt = cldnn::format::bfyx;
     if (is_weights) {
         if (is_grouped) {
@@ -112,6 +112,7 @@ static format get_default_format(size_t rank, bool is_weights, bool is_grouped) 
 
     return default_fmt;
 }
+
 std::vector<tensor::value_type> layout::get_dims() const {
     auto default_fmt = get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
     return size.sizes(default_fmt);

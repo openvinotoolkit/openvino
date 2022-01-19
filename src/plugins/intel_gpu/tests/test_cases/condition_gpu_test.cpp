@@ -118,7 +118,7 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
         input_layout("compare", compare->get_layout())
     );
     topology.add(
-        concatenation("concat", { "input0", "input1" }, concatenation::along_x)
+        concatenation("concat", { "input0", "input1" }, 3)
     );
     topology.add(
         condition("condi", "concat", branch_true, branch_false, "compare", cond_functions::EQUAL)
