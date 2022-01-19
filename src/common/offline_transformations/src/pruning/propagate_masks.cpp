@@ -62,20 +62,15 @@ public:
             const auto & m_b = pattern_map.at(b);
             const auto & m_matmul = pattern_map.at(matmul);
 
-            auto a_mask = getMask(a);
+            auto a_mask = getMask(m_a);
+            auto b_mask = getMask(m_b);
 
-            if (!a_mask) {
-                NGRAPH_DEBUG << "No a mask for " << m_matmul.get_node()->get_friendly_name() << "\n";
+            if (!a_mask && !b_mask) {
+                NGRAPH_DEBUG << "No mask for any input of " << m_matmul.get_node()->get_friendly_name() << "\n";
                 return false;
             }
-            //auto a_mask_row = a_mask.get();
-
-            auto b_mask = getMask(b);
-            if (!b_mask) {
-                NGRAPH_DEBUG << "No b mask for " << m_matmul.get_node()->get_friendly_name() << "\n";
-                return false;
-            }
-            //auto b_mask_row = b_mask.get();
+            auto a_mask_row = a_mask.get();
+            auto b_mask_row = b_mask.get();
 
             const auto matmul_op = std::dynamic_pointer_cast<opset6::MatMul>(m_matmul.get_node_shared_ptr());
             const auto transpose_a = matmul_op->get_transpose_a();
@@ -84,15 +79,59 @@ public:
             const auto shape_a = m_a.get_shape();
             const auto shape_b = m_b.get_shape();
 
-            std::vector<size_t> last_two_dims_a, last_two_dims_b;
-            if (transpose_a)
-                last_two_dims_a = std::vector<size_t>({shape_a.end()[-1], shape_a.end()[-2]});
-            else
-                last_two_dims_a = std::vector<size_t>({shape_a.end()[-2], shape_a.end()[-1]});
-            if (transpose_b)
-                last_two_dims_b = std::vector<size_t>({shape_b.end()[-1], shape_b.end()[-2]});
-            else
-                last_two_dims_b = std::vector<size_t>({shape_b.end()[-2], shape_b.end()[-1]});
+            const auto a_inner_dim = (transpose_a)? shape_a.size() - 2 : shape_a.size() - 1;
+            const auto a_outer_dim = (transpose_a)? shape_a.size() - 1 : shape_a.size() - 2;
+            const auto b_inner_dim = (transpose_b)? shape_b.size() - 1 : shape_b.size() - 2;
+            const auto b_outer_dim = (transpose_b)? shape_b.size() - 2 : shape_b.size() - 1;
+
+            // Connect a and b
+            a_mask->add_callback([b_mask_row, a_inner_dim, b_inner_dim](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(a_inner_dim).insert(b_mask_row->at(b_inner_dim).begin(), b_mask_row->at(b_inner_dim).end());
+                if (cur_mask->at(a_inner_dim) != b_mask_row->at(b_inner_dim)) cur_mask->initialize_dependencies();
+                return true;
+            }, b_mask);
+
+            b_mask->add_callback([a_mask_row, a_inner_dim, b_inner_dim](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(b_inner_dim).insert(a_mask_row->at(a_inner_dim).begin(), a_mask_row->at(a_inner_dim).end());
+                if (cur_mask->at(b_inner_dim) != a_mask_row->at(a_inner_dim)) cur_mask->initialize_dependencies();
+                return true;
+            }, a_mask);
+
+            const auto matmul_range = m_matmul.get_shape().size();
+            auto matmul_mask = std::make_shared<Mask>(matmul_range);
+            auto matmul_mask_row = matmul_mask.get();
+            const auto matmul_cols_dim = matmul_range - 1;
+            const auto matmul_rows_dim = matmul_range - 2;
+
+            // Connect a with matmul mask
+            a_mask->add_callback([matmul_mask_row, a_outer_dim, matmul_rows_dim](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(a_outer_dim) = matmul_mask_row->at(matmul_rows_dim);
+                return true;
+            }, matmul_mask);
+
+            matmul_mask->add_callback([a_mask_row, a_outer_dim, matmul_rows_dim](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(matmul_rows_dim) = a_mask_row->at(a_outer_dim);
+                return true;
+            }, a_mask);
+
+            // Connect b with matmul mask
+            b_mask->add_callback([matmul_mask_row, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
+                return true;
+            }, matmul_mask);
+
+            matmul_mask->add_callback([b_mask_row, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
+                cur_mask->at(matmul_cols_dim) = b_mask_row->at(b_outer_dim);
+                return true;
+            }, b_mask);
+            //if (transpose_a)
+            //    last_two_dims_a = std::vector<size_t>({shape_a.end()[-1], shape_a.end()[-2]});
+            //else
+            //    last_two_dims_a = std::vector<size_t>({shape_a.end()[-2], shape_a.end()[-1]});
+            //if (transpose_b)
+            //    last_two_dims_b = std::vector<size_t>({shape_b.end()[-1], shape_b.end()[-2]});
+            //else
+            //    last_two_dims_b = std::vector<size_t>({shape_b.end()[-2], shape_b.end()[-1]});
 
             //if (auto input_mask = getMask(m_input)) {
             //    auto input_mask_row = input_mask.get();
@@ -114,7 +153,7 @@ public:
             //}
 
             //// Create output mask that describes which channel dimensions will be removed
-            //auto conv_mask = std::make_shared<Mask>(m_weights.get_shape().size());
+            //auto conv_mask = std::make_shared<Mask>(m_matmul.get_shape().size());
             //auto conv_mask_row = conv_mask.get();
 
             //conv_mask->add_callback([a_mask_row](Mask::Ptr cur_mask) -> bool {
@@ -127,11 +166,13 @@ public:
             //    return true;
             //}, conv_mask);
 
-            //if (!conv_mask->apply_callback(weights_mask)) {
-            //    return false;
-            //}
+            bool status = matmul_mask->apply_callback(a_mask);
+            status &= matmul_mask->apply_callback(b_mask);
+            if (!status) {
+                return false;
+            }
 
-            //setMask(m_output, conv_mask);
+            setMask(m_matmul, matmul_mask);
             return true;
         };
 
@@ -991,6 +1032,7 @@ public:
 
 ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::Convolution>();
+    add_matcher<mask_propagation::MatMul>();
     add_matcher<mask_propagation::GroupConvolutionReshape>();
     add_matcher<mask_propagation::GroupConvolution>();
     add_matcher<mask_propagation::Elementwise>();
