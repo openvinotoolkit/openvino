@@ -687,6 +687,8 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
         if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+            const unsigned int defaultNumForTPUT = 4u;
+            const unsigned int defaultNumForLatency = 1u;
             unsigned int real = 0;
             if (_loadContext[ACTUALDEVICE].isAlready) {
                 real = _loadContext[ACTUALDEVICE].
@@ -713,12 +715,12 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                             if (std::get<1>(rangeOfStreams) > 0) {
                                 real = 2 * std::get<1>(rangeOfStreams);
                             } else {
-                                real = 4u;
+                                real = defaultNumForTPUT;
                             }
                         } catch (const std::exception&) {
                             LOG_WARNING("[AUTOPLUGIN] GetMetric RANGE_FOR_STREAMS failed");
-                            LOG_WARNING("[AUTOPLUGIN] use default value 4 for THROUGHPUT");
-                            real = 4u;
+                            LOG_WARNING("[AUTOPLUGIN] use default value %u for THROUGHPUT", defaultNumForTPUT);
+                            real = defaultNumForTPUT;
                         }
                         // if enable auto-batch, use below code
                         // std::map<std::string, InferenceEngine::Parameter> options;
@@ -734,35 +736,37 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                         // }
                     } else {
                         // if it is not THROUGHPUT mode, we think it's LATENCY mode
-                        real = 1u;
+                        real = defaultNumForLatency;
                     }
                 } else if (deviceInfo.deviceName.find("VPUX") != std::string::npos) {
                     if (bthroughput) {
                         real = 8u;
                     } else {
-                        real = 1u;
+                        real = defaultNumForLatency;
                     }
                 } else if (deviceInfo.deviceName.find("MYRIAD") != std::string::npos) {
                     if (bthroughput) {
-                        real = 4u;
+                        real = defaultNumForTPUT;
                     } else {
-                        real = 1u;
+                        real = defaultNumForLatency;
                     }
                 } else if (deviceInfo.deviceName.find("CPU") != std::string::npos) {
                     LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for CPU_HELP,CPU case");
-                    LOG_WARNING("[AUTOPLUGIN] use default value 4 for THROUGHPUT, 1 for else");
+                    LOG_WARNING("[AUTOPLUGIN] use default value %u for THROUGHPUT, %u for else",
+                            defaultNumForTPUT, defaultNumForLatency);
                     if (bthroughput) {
-                        real = 4u;
+                        real = defaultNumForTPUT;
                     } else {
-                        real = 1u;
+                        real = defaultNumForLatency;
                     }
                 } else {
                     LOG_WARNING("[AUTOPLUGIN] not implement GetMetric for device:%s,", deviceInfo.deviceName.c_str());
-                    LOG_WARNING("[AUTOPLUGIN] use default value 4 for THROUGHPUT, 1 for else");
+                    LOG_WARNING("[AUTOPLUGIN] use default value %u for THROUGHPUT, %u for else",
+                            defaultNumForTPUT, defaultNumForLatency);
                     if (bthroughput) {
-                        real = 4u;
+                        real = defaultNumForTPUT;
                     } else {
-                        real = 1u;
+                        real = defaultNumForLatency;
                     }
                 }
             }
