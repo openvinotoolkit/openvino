@@ -23,59 +23,67 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
     found_node_names = []
 
     def try_get_tensor(node_name):
+        found_tensors = []
         tensor = input_model.get_place_by_tensor_name(node_name)
         if tensor:
-            return tensor
+            found_tensors.append(tensor)
         if node_name.count(":"):
-            regexp_pre = r'(\b\d\b):(.+)'
+            regexp_pre = r'(\d+):(.+)'
             match_pre = re.search(regexp_pre, node_name)
             if match_pre:
                 port, name = node_name.split(":")
                 node = input_model.get_place_by_operation_name(name)
                 if node:
-                    return node.get_source_tensor(input_port_index=int(port))
-                return input_model.get_place_by_tensor_name(name)
-            name, port = node_name.split(":")
-            node = input_model.get_place_by_operation_name(name)
-            if node:
-                return node.get_target_tensor(output_port_index=int(port))
-            return input_model.get_place_by_tensor_name(name)
+                    tensor = node.get_source_tensor(input_port_index=int(port))
+                tensor = input_model.get_place_by_tensor_name(name)
+                if tensor:
+                    found_tensors.append(tensor)
+            regexp_post = r'(.+):(\d+)'
+            match_post = re.search(regexp_post, node_name)
+            if match_post:
+                name, port = node_name.split(":")
+                node = input_model.get_place_by_operation_name(name)
+                if node:
+                    tensor = node.get_target_tensor(output_port_index=int(port))
+                tensor = input_model.get_place_by_tensor_name(name)
+                if tensor:
+                    found_tensors.append(tensor)
         node = input_model.get_place_by_operation_name(node_name)
         if node:
-            return node.get_target_tensor(output_port_index=0)
-        return None
+            found_tensors.append(node.get_target_tensor(output_port_index=0))
+        return found_tensors
 
-    tensor = try_get_tensor(node_name)
-    if tensor:
+    found_tensors = try_get_tensor(node_name)
+    for tensor in found_tensors:
         found_node_names.append('Tensor:' + tensor.get_names()[0])
         found_nodes.append(tensor)
 
-    def try_get_node(model, name, framework, first):
+    def try_get_node(model, name, framework, node_pre):
         node = model.get_place_by_operation_name(name)
         if node:
             return node
         if framework == "onnx":
             tensor = model.get_place_by_tensor_name(name)
             if tensor:
-                if first:
-                    return tensor.get_consuming_operations()[0]
-                return tensor.get_producing_operation()
+                if node_pre:
+                    return tensor.get_producing_operation()
+                return tensor.get_consuming_operations()[0]
         return None
 
-    regexp_post = r'(.+):(\b\d\b)'
+    regexp_post = r'(.+):(\d+)'
     match_post = re.search(regexp_post, node_name)
     if match_post:
-        node_post = try_get_node(input_model, match_post.group(1), framework, False)
+        node_post = try_get_node(input_model, match_post.group(1), framework, True)
         if node_post:
             node_post = node_post.get_output_port(output_port_index=int(match_post.group(2)))
             if node_post:
                 found_node_names.append(match_post.group(1))
                 found_nodes.append(node_post)
 
-    regexp_pre = r'(\b\d\b):(.+)'
+    regexp_pre = r'(\d+):(.+)'
     match_pre = re.search(regexp_pre, node_name)
     if match_pre:
-        node_pre = try_get_node(input_model, match_pre.group(2), framework, True)
+        node_pre = try_get_node(input_model, match_pre.group(2), framework, False)
         if node_pre:
             node_pre = node_pre.get_input_port(input_port_index=int(match_pre.group(1)))
             if node_pre:

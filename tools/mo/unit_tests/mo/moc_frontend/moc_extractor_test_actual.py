@@ -129,7 +129,7 @@ class TestMainFrontend(unittest.TestCase):
     @mock_needed
     def test_decode_name_with_port_delim_no_port_out(self):
         with self.assertRaisesRegex(Error, 'No\\ node\\ with\\ name.*operation\\:1234*'):
-            node = decode_name_with_port(self.model, 'operation:1234')
+            decode_name_with_port(self.model, 'operation:1234')
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
