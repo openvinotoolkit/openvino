@@ -74,7 +74,7 @@ inheritance graph for
 ^convert darknet
 anonymous hyperlink mismatch: 4 references but 0 targets
 see "backrefs" attribute for ids
-[autosummary] failed to import openvino.inference_engine.
+\[autosummary\] failed to import openvino.inference_engine.
 doing serial read
 doing serial write
 possible hints:
@@ -83,3 +83,4 @@ the sphinx_sitemap extension is not safe for parallel writing
 no module named \'openvino\'
 \'openvino\'
 possible hints:
+no module named openvino
