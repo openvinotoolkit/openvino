@@ -27,7 +27,7 @@ TEST_MODELS = [
     ('lstm_example', 'pytorch', 'GNA'),
     ('multiple_outputs_net_example', 'dldt', 'GNA'),
     ('resnet_example', 'pytorch', 'CPU_SPR'),
-    ('tensor_iterator_example', 'tf', 'ANY'),
+    #('tensor_iterator_example', 'tf', 'ANY'),
 ]
 
 
@@ -56,7 +56,7 @@ def test_build_quantization_graph(tmp_path, models, model_name, model_framework,
 
     check_model(tmp_path, quantization_model, model_name, model_framework)
 
-"""
+
 MODELS_FOR_TESTING_IGNORED_PARAMS = [
     ('mobilenetv2_example', 'pytorch'),
     ('resnet_example', 'pytorch'),
@@ -324,4 +324,3 @@ def test_first_convolutions_search(_params, tmp_path, models):
     first_convs = get_first_convolutions(input_nodes)
     first_convs_names = [n.name for n in first_convs]
     assert sorted(first_convs_names) == sorted(first_convs_ref)
-"""
