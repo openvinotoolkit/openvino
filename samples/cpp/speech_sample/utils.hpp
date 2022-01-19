@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -211,7 +211,7 @@ inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx
  * @brief Get GNA module frequency
  * @return GNA module frequency in MHz
  */
-float get_gna_frequency_mHz() {
+float get_gna_frequency_mhz() {
     uint32_t eax = 1;
     uint32_t ebx = 0;
     uint32_t ecx = 0;
@@ -301,7 +301,7 @@ void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo
     stream << std::endl;
     // if GNA HW counters
     // get frequency of GNA module
-    float freq = get_gna_frequency_mHz();
+    float freq = get_gna_frequency_mhz();
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
         float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
