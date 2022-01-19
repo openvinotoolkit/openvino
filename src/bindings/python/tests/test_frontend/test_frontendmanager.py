@@ -392,7 +392,7 @@ def test_model_set_element_type():
 
 @mock_needed
 def test_model_telemetry():
-    class MockTelemetry(object):
+    class MockTelemetry:
         def __init__(self, stat):
             self.stat = stat
 
@@ -405,10 +405,12 @@ def test_model_telemetry():
         def send_stack_trace(self, *arg, **kwargs):
             self.stat["send_stack_trace"] = 1
 
-    def add_ext(frontEnd, stat):
-        t = MockTelemetry(stat)
-        frontEnd.add_extension(TelemetryExtension("mock", t.send_event, t.send_error, t.send_stack_trace))
-        t = None
+    def add_ext(front_end, stat):
+        tel = MockTelemetry(stat)
+        front_end.add_extension(TelemetryExtension("mock",
+                                                   tel.send_event,
+                                                   tel.send_error,
+                                                   tel.send_stack_trace))
 
     clear_all_stat()
     tel_stat = {}
@@ -419,6 +421,7 @@ def test_model_telemetry():
     assert tel_stat["send_event"] == 1
     assert tel_stat["send_error"] == 1
     assert tel_stat["send_stack_trace"] == 1
+    assert model
 
 
 # ----------- Place test ------------
