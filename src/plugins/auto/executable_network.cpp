@@ -118,7 +118,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
-    unsigned int num = 0;
+    int num = 0;
     for (auto&& workerRequest : workerRequests) {
         workerRequest._inferRequest = {executableNetwork->CreateInferRequest(), executableNetwork._so};
         auto* workerRequestPtr = &workerRequest;
@@ -527,7 +527,7 @@ bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
                                             NotBusyWorkerRequests& idleWorkerRequests,
                                             const DeviceName& preferred_device) {
   WorkerInferRequest *workerRequestPtr = nullptr;
-  std::pair<unsigned int, WorkerInferRequest*> worker;
+  std::pair<int, WorkerInferRequest*> worker;
   if (idleWorkerRequests.try_pop(worker)) {
       workerRequestPtr = worker.second;
       IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
