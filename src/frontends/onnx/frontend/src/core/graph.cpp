@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,16 +51,6 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     std::string domain = get_node_domain(node_proto);
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
-
-bool common_node_for_all_outputs(const OutputVector& outputs) {
-    const auto first_out_node = outputs.at(0).get_node();
-    bool ret = std::all_of(std::next(std::begin(outputs)),
-                           std::end(outputs),
-                           [first_out_node](const OutputVector::value_type& output) {
-                               return output.get_node() == first_out_node;
-                           });
-    return ret;
-};
 }  // namespace detail
 
 Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov::frontend::ExtensionHolder extensions)
@@ -314,12 +304,10 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
     if (onnx_node.op_type() == "Identity") {
         for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
             ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(i)});
+            ng_subgraph_outputs[i].get_node_shared_ptr()->set_friendly_name(onnx_node.output(i));
         }
         return;
     }
-
-    // indicates that all subgraph outputs come out of a single nG node (controls node naming below)
-    const auto common_node = detail::common_node_for_all_outputs(ng_subgraph_outputs);
 
     for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
@@ -328,27 +316,14 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
             break;
         }
 
-        const auto& onnx_node_name = onnx_node.get_name();
-        if (onnx_node_name.empty()) {
-            // for multioutput nodes, their friendly name is always set to the last ONNX output's name
-            // this is because this setter is called in a loop and the last call is ultimate for a given node
-            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
-        } else {
-            if (common_node) {
-                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name());
-            } else {
-                // if different outputs are produced by different nodes, then those nodes need to be given
-                // unique friendly names
-                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name() + "_" + onnx_node.output(i));
-            }
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
-            NGRAPH_SUPPRESS_DEPRECATED_END
-        }
+        ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
 
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
             ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -98,7 +98,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 def get_default_frontends():
     # Set which frontend to use by default, values should be 'new' or 'legacy'
     default_frontends = {
-        'onnx': 'legacy',
+        'onnx': 'new',
         'tf': 'legacy'
     }
     return default_frontends
