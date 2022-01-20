@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <openvino/frontend/manager.hpp>
-
 #include "input_model.hpp"
+#include "openvino/frontend/manager.hpp"
 
 namespace paddle {
 namespace framework {
