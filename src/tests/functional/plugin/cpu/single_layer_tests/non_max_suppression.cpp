@@ -109,7 +109,8 @@ protected:
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType,
                  targetDevice) = this->GetParam();
         ov::test::utils::inputRanges[ov::op::v5::NonMaxSuppression::get_type_info_static()] = {{utils::InputGenerateData(maxOutBoxesPerClass)}};
-
+        std::cout << "[ DEBUG ] " <<
+        maxOutBoxesPerClass << " " << ov::test::utils::inputRanges[ov::op::v5::NonMaxSuppression::get_type_info_static()].front().front().range << std::endl;
         element::Type paramsPrec, maxBoxPrec, thrPrec;
         std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
