@@ -11,8 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <inference_engine.hpp>
-
-using namespace InferenceEngine;
+#include <openvino/runtime/core.hpp>
 
 
 class MemCheckTestSuite : public ::testing::TestWithParam<TestCase> {
@@ -48,20 +47,35 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
     log_info("Create ExecutableNetwork from network: \"" << model
                                                          << "\" with precision: \"" << precision
                                                          << "\" for device: \"" << device << "\"");
-    auto test_pipeline = [&]{
-        MemCheckPipeline memCheckPipeline;
+    auto test_params = GetParam();
+    MemCheckPipeline memCheckPipeline;
+        auto test_pipeline = [&] {
+            if (test_params.api_version == 1) {
+                InferenceEngine::Core ie;
+                ie.GetVersions(device);
+                InferenceEngine::CNNNetwork cnnNetwork = ie.ReadNetwork(model);
+                InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
 
-        Core ie;
-        ie.GetVersions(device);
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+                log_info("Memory consumption after LoadNetwork:");
+                memCheckPipeline.record_measures(test_name);
 
-        log_info("Memory consumption after LoadNetwork:");
-        memCheckPipeline.record_measures(test_name);
+                log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
+                return memCheckPipeline.measure();
+            }
+            else {
+                ov::runtime::Core ie;
+                ie.get_versions(device);
+                std::shared_ptr<ov::Model> network = ie.read_model(model);
+                ov::runtime::CompiledModel compiled_model = ie.compile_model(network, device);
 
-        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
-        return memCheckPipeline.measure();
-    };
+                log_info("Memory consumption after compile_model:");
+                memCheckPipeline.record_measures(test_name);
+
+                log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
+                return memCheckPipeline.measure();
+            }
+        };
+
 
     TestResult res = common_test_pipeline(test_pipeline, test_refs.references);
     EXPECT_EQ(res.first, TestStatus::TEST_OK) << res.second;
@@ -71,30 +85,52 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
     log_info("Inference of InferRequest from network: \"" << model
                                                           << "\" with precision: \"" << precision
                                                           << "\" for device: \"" << device << "\"");
+    auto test_params = GetParam();
+    MemCheckPipeline memCheckPipeline;
     auto test_pipeline = [&]{
-        MemCheckPipeline memCheckPipeline;
+        if (test_params.api_version == 1) {
+            InferenceEngine::Core ie;
+            ie.GetVersions(device);
+            InferenceEngine::CNNNetwork cnnNetwork = ie.ReadNetwork(model);
+            InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+            InferenceEngine::InferRequest inferRequest = exeNetwork.CreateInferRequest();
 
-        Core ie;
-        ie.GetVersions(device);
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
-        InferRequest inferRequest = exeNetwork.CreateInferRequest();
+            auto batchSize = cnnNetwork.getBatchSize();
+            batchSize = batchSize != 0 ? batchSize : 1;
+            const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+            fillBlobs(inferRequest, inputsInfo, batchSize);
 
-        auto batchSize = cnnNetwork.getBatchSize();
-        batchSize = batchSize != 0 ? batchSize : 1;
-        const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-        fillBlobs(inferRequest, inputsInfo, batchSize);
+            inferRequest.Infer();
+            InferenceEngine::OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
+            for (auto &output: output_info)
+                InferenceEngine::Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
 
-        inferRequest.Infer();
-        OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
-        for (auto &output : output_info)
-            Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+            log_info("Memory consumption after Inference:");
+            memCheckPipeline.record_measures(test_name);
 
-        log_info("Memory consumption after Inference:");
-        memCheckPipeline.record_measures(test_name);
+            log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
+            return memCheckPipeline.measure();
+        }
+        else {
+            ov::runtime::Core ie;
+            ie.get_versions(device);
+            std::shared_ptr<ov::Model> network = ie.read_model(model);
+            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, device);
+            ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
+            const std::vector<ov::Output<ov::Node>> inputs = network->inputs();
+            fillTensors(infer_request, inputs);
 
-        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
-        return memCheckPipeline.measure();
+            infer_request.infer();
+            auto outputs = network->outputs();
+            for (const auto &output: outputs) {
+                const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+            }
+            log_info("Memory consumption after Inference:");
+            memCheckPipeline.record_measures(test_name);
+
+            log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
+            return memCheckPipeline.measure();
+        }
     };
 
     TestResult res = common_test_pipeline(test_pipeline, test_refs.references);
@@ -108,6 +144,7 @@ INSTANTIATE_TEST_SUITE_P(MemCheckTests, MemCheckTestSuite,
                         getTestCaseName);
 
 TEST_P(MemCheckTestSuite, inference_with_streams) {
+    auto test_params = GetParam();
     const auto nstreams = 2;
     log_info("Inference of InferRequest from network: \"" << model
                                                           << "\" with precision: \"" << precision
@@ -122,33 +159,61 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
         std::map<std::string, std::string> config;
         const std::string key = device + "_THROUGHPUT_STREAMS";
         config[device + "_THROUGHPUT_STREAMS"] = std::to_string(nstreams);
-
-        Core ie;
-        ie.GetVersions(device);
-        ie.SetConfig(config, device);
-
-        InferRequest inferRequest;
-
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
-        auto batchSize = cnnNetwork.getBatchSize();
-        batchSize = batchSize != 0 ? batchSize : 1;
-        const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-
         unsigned int nireq = nstreams;
-        try {
-            nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-        } catch (const std::exception &ex) {
-            log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
-        }
-        for (int counter = 0; counter < nireq; counter++) {
-            inferRequest = exeNetwork.CreateInferRequest();
-            fillBlobs(inferRequest, inputsInfo, batchSize);
 
-            inferRequest.Infer();
-            OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
-            for (auto &output : output_info)
-                Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+        if (test_params.api_version == 1) {
+            InferenceEngine::Core ie;
+            ie.GetVersions(device);
+            ie.SetConfig(config, device);
+
+            InferenceEngine::InferRequest inferRequest;
+
+            InferenceEngine::CNNNetwork cnnNetwork = ie.ReadNetwork(model);
+            InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+            auto batchSize = cnnNetwork.getBatchSize();
+            batchSize = batchSize != 0 ? batchSize : 1;
+            const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+
+
+            try {
+                nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+            } catch (const std::exception &ex) {
+                log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
+            }
+            for (int counter = 0; counter < nireq; counter++) {
+                inferRequest = exeNetwork.CreateInferRequest();
+                fillBlobs(inferRequest, inputsInfo, batchSize);
+
+                inferRequest.Infer();
+                InferenceEngine::OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
+                for (auto &output: output_info)
+                    InferenceEngine::Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+            }
+        }
+        else {
+            ov::runtime::Core ie;
+            ie.get_versions(device);
+            ie.set_config(config, device);
+            std::shared_ptr<ov::Model> network = ie.read_model(model);
+            ov::runtime::CompiledModel compiled_model = ie.compile_model(network, device);
+            ov::runtime::InferRequest infer_request;
+            std::vector<ov::Output<ov::Node>> inputs = network->inputs();
+
+            try {
+                nireq = compiled_model.get_metric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+            } catch (const std::exception &ex) {
+                log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
+            }
+            for (int counter = 0; counter < nireq; counter++) {
+                infer_request = compiled_model.create_infer_request();
+                fillTensors(infer_request, inputs);
+
+                infer_request.infer();
+                auto outputs = network->outputs();
+                for (const auto &output: outputs) {
+                    const ov::runtime::Tensor &output_tensor = infer_request.get_output_tensor(output.get_index());
+                }
+            }
         }
 
         log_info("Memory consumption after Inference with streams: \"" << nstreams

@@ -78,6 +78,21 @@ void fillBlobRandom(Blob::Ptr& inputBlob) {
   }
 }
 
+/**
+ * @brief Fill InferenceEngine tensor with random values
+ */
+template<typename T>
+ov::runtime::Tensor fillTensorRandom(const ov::Output<ov::Node>& input) {
+    ov::runtime::Tensor tensor { input.get_element_type(), input.get_shape() };
+    std::vector<T>values(ov::shape_size(input.get_shape()));
+    for (size_t i = 0; i < values.size(); ++i) {
+        auto rand_max = RAND_MAX;
+        values[i] = (T) rand() / static_cast<T>(rand_max) * 10;
+    }
+    std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
+    return tensor;
+}
+
 
 /**
  * @brief Fill InferenceEngine blob with image information
@@ -110,5 +125,11 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
  * @brief Fill InferRequest blobs with random values or image information
  */
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
-        const InferenceEngine::ConstInputsDataMap& inputsInfo,
-        const size_t& batchSize);
+               const InferenceEngine::ConstInputsDataMap& inputsInfo,
+               const size_t& batchSize);
+
+/**
+ * @brief Fill InferRequest tensors with random values or image information
+ */
+void fillTensors(ov::runtime::InferRequest &infer_request,
+                 const std::vector<ov::Output<ov::Node>>& inputs);
