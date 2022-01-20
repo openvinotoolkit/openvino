@@ -97,7 +97,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
 }
 
 void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    static const std::vector<ov::runtime::Tensor> inputTensors = {
+    static const std::vector<ov::Tensor> inputTensors = {
         // 16 x 4 = 64
         ov::test::utils::create_tensor<float>(ov::element::f32, Shape{16, 4}, {
             1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,

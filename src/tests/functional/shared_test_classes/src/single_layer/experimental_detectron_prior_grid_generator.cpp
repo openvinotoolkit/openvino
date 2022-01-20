@@ -27,7 +27,7 @@ std::ostream& operator <<(
 std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
         const testing::TestParamInfo<ExperimentalDetectronPriorGridGeneratorTestParams>& obj) {
     ExperimentalDetectronPriorGridGeneratorTestParam param;
-    std::pair<std::string, std::vector<ov::runtime::Tensor>> inputTensors;
+    std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
     std::tie(param, inputTensors, netPrecision, targetName) = obj.param;
@@ -48,7 +48,7 @@ std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
 
 void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
     ExperimentalDetectronPriorGridGeneratorTestParam param;
-    std::pair<std::string, std::vector<ov::runtime::Tensor>> inputTensors;
+    std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
     ElementType netPrecision;
     std::string targetName;
     std::tie(param, inputTensors, netPrecision, targetName) = this->GetParam();

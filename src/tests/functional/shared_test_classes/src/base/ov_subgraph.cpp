@@ -128,8 +128,8 @@ void SubgraphBaseTest::query_model() {
     ASSERT_EQ(expected, actual);
 }
 
-void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
-                               const std::vector<ov::runtime::Tensor>& actual) {
+void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
+                               const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     ASSERT_EQ(expected.size(), function->get_results().size());
     auto compareMap = utils::getCompareMap();
@@ -222,8 +222,8 @@ void SubgraphBaseTest::infer() {
     inferRequest.infer();
 }
 
-std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
-    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
+std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
     auto functionToProcess = ov::clone_model(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
@@ -269,8 +269,8 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     return ngraph::helpers::interpretFunction(functionToProcess, inputs);
 }
 
-std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_plugin_outputs() {
-    auto outputs = std::vector<ov::runtime::Tensor>{};
+std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
+    auto outputs = std::vector<ov::Tensor>{};
     for (const auto& output : function->outputs()) {
         outputs.push_back(inferRequest.get_tensor(output));
     }

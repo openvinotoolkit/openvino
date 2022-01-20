@@ -13,14 +13,14 @@
 namespace ov {
 namespace test {
 namespace utils {
-ov::runtime::Tensor create_and_fill_tensor(
+ov::Tensor create_and_fill_tensor(
         const ov::element::Type element_type,
         const ov::Shape& shape,
         const uint32_t range,
         const int32_t start_from,
         const int32_t resolution,
         const int seed) {
-    auto tensor = ov::runtime::Tensor{element_type, shape};
+    auto tensor = ov::Tensor{element_type, shape};
 #define CASE(X) case X: ::CommonTestUtils::fill_data_random(                   \
     tensor.data<element_type_traits<X>::value_type>(),                         \
     shape_size(shape),                                                         \
@@ -52,12 +52,12 @@ ov::runtime::Tensor create_and_fill_tensor(
     return tensor;
 }
 
-ov::runtime::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,
+ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,
                                                            const ov::Shape& shape,
                                                            const int32_t start_from,
                                                            const int32_t resolution,
                                                            const int seed) {
-    auto tensor = ov::runtime::Tensor{element_type, shape};
+    auto tensor = ov::Tensor{element_type, shape};
     auto range = shape_size(shape) * 2;
 #define CASE(X)                                                                                           \
     case X:                                                                                               \
@@ -174,8 +174,8 @@ tensor.get_size(), range, start_from, resolution); break;
 }
 
 template<typename ExpectedT, typename ActualT>
-void compare(const ov::runtime::Tensor& expected,
-             const ov::runtime::Tensor& actual,
+void compare(const ov::Tensor& expected,
+             const ov::Tensor& actual,
              const double abs_threshold_ = std::numeric_limits<double>::max(),
              const double rel_threshold_ = std::numeric_limits<double>::max()) {
     auto expected_shape = expected.get_shape();
@@ -257,8 +257,8 @@ void compare(const ov::runtime::Tensor& expected,
 }
 
 void compare(
-        const ov::runtime::Tensor& expected,
-        const ov::runtime::Tensor& actual,
+        const ov::Tensor& expected,
+        const ov::Tensor& actual,
         const double abs_threshold,
         const double rel_threshold) {
 #define CASE0(X, Y) case Y : compare<                   \

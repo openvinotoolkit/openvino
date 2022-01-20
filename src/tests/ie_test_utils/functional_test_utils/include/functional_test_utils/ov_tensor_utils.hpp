@@ -9,7 +9,7 @@
 namespace ov {
 namespace test {
 namespace utils {
-ov::runtime::Tensor create_and_fill_tensor(
+ov::Tensor create_and_fill_tensor(
         const ov::element::Type element_type,
         const ov::Shape &shape,
         const uint32_t range = 10,
@@ -50,8 +50,8 @@ ov::runtime::Tensor create_and_fill_tensor_consistently(
         const int32_t resolution);
 
 void compare(
-        const ov::runtime::Tensor &expected,
-        const ov::runtime::Tensor &actual,
+        const ov::Tensor &expected,
+        const ov::Tensor &actual,
         const double abs_threshold,
         const double rel_threshold);
 }  // namespace utils
