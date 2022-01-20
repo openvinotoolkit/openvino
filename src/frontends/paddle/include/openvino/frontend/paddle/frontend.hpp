@@ -9,7 +9,6 @@
 #include <openvino/frontend/frontend.hpp>
 #include <openvino/frontend/input_model.hpp>
 
-#include "exceptions.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {

@@ -5,6 +5,7 @@
 set(TARGET_NAME "paddle_tests")
 
 file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+list(FILTER SRC EXCLUDE REGEX standalone_build)
 
 add_executable(${TARGET_NAME} ${SRC})
 
@@ -61,3 +62,6 @@ add_dependencies(${TARGET_NAME} ov_paddle_frontend)
 if (ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} ov_intel_cpu_plugin)
 endif()
+
+add_subdirectory(standalone_build)
+add_dependencies(${TARGET_NAME} paddle_fe_standalone_build_test)
