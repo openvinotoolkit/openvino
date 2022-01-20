@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1679,11 +1679,14 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
         const auto concatNode = as_type_ptr<opset1::Concat>(operation);
         auto axis = concatNode->get_concatenation_axis();
         if (dequantization.multiply && dequantization.multiplyConstant->get_shape().size() > 1 && dequantization.multiplyConstant->get_shape()[axis] != 1) {
-            multiplyConstants = NetworkHelper::split_consts_before_concat(operation, { dequantization.multiplyConstant });
+            multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
         }
         if (dequantization.subtract && dequantization.subtractConstant->get_shape().size() > 1 && dequantization.subtractConstant->get_shape()[axis] != 1) {
-            subtractConstants = NetworkHelper::split_consts_before_concat(operation, { dequantization.subtractConstant });
+            subtractConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.subtractConstant });
         }
+    } else {
+        multiplyConstants = {{ dequantization.multiplyConstant }};
+        subtractConstants = {{ dequantization.subtractConstant }};
     }
     std::vector<std::shared_ptr<ngraph::Node>> newNodes;
     for (size_t i = 0; i < operation->get_input_size(); ++i) {
@@ -1750,21 +1753,17 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     NetworkHelper::copyInfo(operation, newOperation);
     replace_node(dequantization.multiply, newOperation);
 
-    auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
-    if (op != nullptr) {
-        if (updatePrecision) {
-            op->set_overridden_output_type(newOperation->get_input_element_type(0));
-        } else if (dequantization.multiply) {
-            op->set_overridden_output_type(dequantization.multiplyConstant->get_element_type());
-        } else if (dequantization.subtract) {
-            op->set_overridden_output_type(dequantization.subtractConstant->get_element_type());
-        }
-        std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
+    if (const auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation)) {
+        op->set_overridden_output_type(updatePrecision ?
+            newOperation->get_input_element_type(0) :
+            dequantization.multiplyConstant->get_element_type());
+        newOperation->validate_and_infer_types();
     }
+
     return InsertDequantizationResult(newOperation, dequantization.multiply);
 }
 
-std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelper::split_consts_before_concat(const std::shared_ptr<ov::Node> concat,
+std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelper::splitConstantsBeforeConcat(const std::shared_ptr<ov::Node> concat,
     const std::vector<std::shared_ptr<opset1::Constant>> currConstants) {
     std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> newConstants(currConstants.size());
     auto number_of_concat_inputs = concat->get_input_size();
@@ -1788,7 +1787,8 @@ std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelpe
         OutputVector outputResults(split->get_output_size());
         auto foldResult = split->constant_fold(outputResults, split->input_values());
         if (!foldResult) {
-            // handle potential constant fold issue here
+            THROW_IE_LPT_EXCEPTION(*concat) << "error when splitting constants before concat " <<
+                concat->get_friendly_name();
         }
         for (auto outputResult : outputResults) {
             auto constant = as_type_ptr<opset1::Constant>(outputResult.get_node_shared_ptr());

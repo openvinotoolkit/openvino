@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,9 @@
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "behavior/ov_infer_request/io_tensor.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -228,6 +231,50 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecisi
     }
 }
 
+std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj) {
+    element::Type type;
+    std::string targetDevice;
+    std::map<std::string, std::string> configuration;
+    std::tie(type, targetDevice, configuration) = obj.param;
+    std::ostringstream result;
+    result << "type=" << type << "_";
+    result << "targetDevice=" << targetDevice << "_";
+    if (!configuration.empty()) {
+        using namespace CommonTestUtils;
+        for (auto &configItem : configuration) {
+            result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+        }
+    }
+    return result.str();
+}
+
+void OVInferRequestCheckTensorPrecision::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::tie(element_type, target_device, config) = this->GetParam();
+    {
+        auto parameter1 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 3, 2, 2});
+        auto parameter2 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 3, 2, 2});
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{parameter1, parameter2}, 1);
+        auto result = std::make_shared<ov::op::v0::Result>(concat);
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter1, parameter2});
+    }
+    compModel = core->compile_model(model, target_device, config);
+    req = compModel.create_infer_request();
+}
+
+void OVInferRequestCheckTensorPrecision::TearDown() {
+    compModel = {};
+    req = {};
+}
+
+TEST_P(OVInferRequestCheckTensorPrecision, CheckInputsOutputs) {
+    EXPECT_EQ(element_type, compModel.input(0).get_element_type());
+    EXPECT_EQ(element_type, compModel.input(1).get_element_type());
+    EXPECT_EQ(element_type, compModel.output().get_element_type());
+    EXPECT_EQ(element_type, req.get_input_tensor(0).get_element_type());
+    EXPECT_EQ(element_type, req.get_input_tensor(1).get_element_type());
+    EXPECT_EQ(element_type, req.get_output_tensor().get_element_type());
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

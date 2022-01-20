@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
 import logging as log
 import sys
-from typing import IO, Any
+from typing import IO, Any, List, NamedTuple
 
 import numpy as np
 
 
-def read_ark_file(file_name: str) -> dict:
+class FileData(NamedTuple):
+    keys: List[str]
+    utterances: List[np.ndarray]
+
+
+def read_ark_file(file_name: str) -> FileData:
     """Read utterance matrices from a .ark file"""
     def read_key(input_file: IO[Any]) -> str:
         """Read a identifier of utterance matrix"""
@@ -41,22 +47,24 @@ def read_ark_file(file_name: str) -> dict:
 
         return matrix
 
-    utterances = {}
+    keys = []
+    utterances = []
     with open(file_name, 'rb') as input_file:
         key = read_key(input_file)
 
         while key:
-            utterances[key] = read_matrix(input_file)
+            utterances.append(read_matrix(input_file))
+            keys.append(key)
             key = read_key(input_file)
 
-    return utterances
+    return FileData(keys, utterances)
 
 
-def write_ark_file(file_name: str, utterances: dict):
+def write_ark_file(file_name: str, keys: List[str], utterances: List[np.ndarray]):
     """Write utterance matrices to a .ark file"""
     with open(file_name, 'wb') as output_file:
-        for key, matrix in sorted(utterances.items()):
-            # write a matrix key
+        for key, matrix in zip(keys, utterances):
+            # write a utterance key
             output_file.write(key.encode())
             output_file.write(' '.encode())
             output_file.write('\0B'.encode())
@@ -77,27 +85,28 @@ def write_ark_file(file_name: str, utterances: dict):
             output_file.write(matrix.tobytes())
 
 
-def read_utterance_file(file_name: str) -> dict:
+def read_utterance_file(file_name: str) -> FileData:
     """Read utterance matrices from a file"""
     file_extension = file_name.split('.')[-1]
 
     if file_extension == 'ark':
         return read_ark_file(file_name)
     elif file_extension == 'npz':
-        return dict(np.load(file_name))
+        data = dict(np.load(file_name))
+        return FileData(list(data.keys()), list(data.values()))
     else:
         log.error(f'The file {file_name} cannot be read. The sample supports only .ark and .npz files.')
         sys.exit(-1)
 
 
-def write_utterance_file(file_name: str, utterances: dict):
+def write_utterance_file(file_name: str, keys: List[str], utterances: List[np.ndarray]):
     """Write utterance matrices to a file"""
     file_extension = file_name.split('.')[-1]
 
     if file_extension == 'ark':
-        write_ark_file(file_name, utterances)
+        write_ark_file(file_name, keys, utterances)
     elif file_extension == 'npz':
-        np.savez(file_name, **utterances)
+        np.savez(file_name, **dict(zip(keys, utterances)))
     else:
         log.error(f'The file {file_name} cannot be written. The sample supports only .ark and .npz files.')
         sys.exit(-2)

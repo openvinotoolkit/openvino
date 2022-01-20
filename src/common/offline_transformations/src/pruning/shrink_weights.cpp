@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,25 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
         total_weights_count += shape_size(const_shape);
 
         auto mask = getMask(const_node->output(0));
+
+#ifdef ENABLE_OPENVINO_DEBUG
+        auto init_mask = getInitMask(const_node->output(0));
+        if (!mask && init_mask)
+            NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name() << "\nInit mask: " << *init_mask;
+        if (mask && init_mask) {
+            for (size_t dim = 0; dim < init_mask->size(); ++dim) {
+                auto& dim_init_set = (*init_mask)[dim];
+                auto&  dim_current_set = (*mask)[dim];
+                if (!dim_init_set.empty() && !std::includes(dim_current_set.begin(), dim_current_set.end(),
+                                                            dim_init_set.begin(), dim_init_set.end())) {
+                    NGRAPH_DEBUG << "Mask was ruined for node:" << const_node->get_friendly_name()
+                                 << "\nInit mask: " << *init_mask << "\nCurrent mask: " << *mask;
+                    break;
+                }
+            }
+        }
+#endif
+
         if (!mask) continue;
 
         auto last_output = const_node->output(0);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -606,6 +606,19 @@ std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IEC
     return exec_network;
 }
 
+std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::loadNetwork(
+    IENetwork network,
+    const std::map<std::string, std::string>& config,
+    int num_requests) {
+    auto exec_network =
+        InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(network.name, num_requests);
+    exec_network->actual =
+        std::make_shared<InferenceEngine::ExecutableNetwork>(actual.LoadNetwork(*network.actual, config));
+    exec_network->createInferRequests(num_requests);
+
+    return exec_network;
+}
+
 std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::loadNetworkFromFile(
     const std::string& modelPath,
     const std::string& deviceName,
@@ -615,6 +628,18 @@ std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IEC
         InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(modelPath, num_requests);
     exec_network->actual =
         std::make_shared<InferenceEngine::ExecutableNetwork>(actual.LoadNetwork(modelPath, deviceName, config));
+    exec_network->createInferRequests(num_requests);
+
+    return exec_network;
+}
+
+std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::loadNetworkFromFile(
+    const std::string& modelPath,
+    const std::map<std::string, std::string>& config,
+    int num_requests) {
+    auto exec_network =
+        InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(modelPath, num_requests);
+    exec_network->actual = std::make_shared<InferenceEngine::ExecutableNetwork>(actual.LoadNetwork(modelPath, config));
     exec_network->createInferRequests(num_requests);
 
     return exec_network;

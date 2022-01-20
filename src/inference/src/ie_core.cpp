@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -522,43 +522,74 @@ public:
 
     void ApplyAutoBatching(const ie::CNNNetwork& network,
                            std::string& deviceName,
-                           std::map<std::string, std::string>& config_with_batch) {
+                           std::map<std::string, std::string>& config) {
+        std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
         if (deviceName.find("BATCH") != std::string::npos) {
-            // explicitly enabled Auto-Batching e.g. in the tests
+            // explicitly enabled Auto-Batching
             auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                auto deviceNameWithBatchSize = deviceName.substr(pos + 1);
-                auto deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
-                auto function = network.getFunction();
-                // have to execute the DetectionOutput separately (without batching)
-                // as this layer mix-in the values from the different inputs (batch id)
-                bool bDetectionOutput = false;
-                const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
-                const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
-                for (auto&& node : function->get_ops()) {
-                    auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
-                        for (size_t n = 0; n < nd->get_input_size(); n++) {
-                            if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
-                                return true;
-                        }
-                        return false;
-                    };
-
-                    if ((detectionOutputOpName == node->get_type_info().name) ||
-                        ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
-                        node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-                        bDetectionOutput = true;
-                    } else {
-                        node->get_rt_info()["affinity"] = "BATCH";
-                    }
-                }
-                if (bDetectionOutput) {
-                    deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-                    config_with_batch[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = deviceNameWithBatchSize;
-                } else {
-                    deviceName = "BATCH:" + deviceNameWithBatchSize;
-                }
+            if (pos == std::string::npos)
+                return;  // BATCH device is already configured via the config
+            deviceNameWithBatchSize = deviceName.substr(pos + 1);
+            deviceNameWithoutBatch = DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
+        } else {
+            // check whether the Auto-Batching is disabled explicitly
+            const auto& batch_mode = config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            if (batch_mode != config.end()) {
+                const auto disabled = batch_mode->second == CONFIG_VALUE(NO);
+                // no need for this config key in the rest of loading
+                config.erase(batch_mode);
+                if (disabled)
+                    return;
             }
+            // check whether if the Auto-Batching is applicable to the device
+            auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
+            deviceNameWithoutBatch = deviceName;
+            auto d = device._deviceName;
+            std::vector<std::string> metrics = GetCPPPluginByName(d).get_metric(METRIC_KEY(SUPPORTED_METRICS), {});
+            auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
+            if (metrics.end() == it)
+                return;
+            // if applicable, the Auto-Batching is implicitly enabled via the performance hints
+            bool bTputInPlg = GetConfig(d, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+            const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+            bool bTputInLoadCfg = (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT));
+            const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
+            bool bExclReqsEnabled = (excl != config.end() && excl->second == CONFIG_VALUE(YES));
+            if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
+                return;
+        }
+        auto function = network.getFunction();
+        // have to execute the DetectionOutput separately (without batching)
+        // as this layer mix-in the values from the different inputs (batch id)
+        bool bDetectionOutput = false;
+        const std::string detectionOutputOpName = ngraph::op::DetectionOutput::get_type_info_static().name;
+        const std::string resultOpName = ngraph::op::Result::get_type_info_static().name;
+        for (auto&& node : function->get_ops()) {
+            auto isDetectionOutputParent = [&detectionOutputOpName](decltype(node)& nd) {
+                for (size_t n = 0; n < nd->get_input_size(); n++) {
+                    // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
+                    // so type_info name check is enough
+                    // (if in a future there will be a new ver that doesn't mix the batch, this will be new op)
+                    if (detectionOutputOpName == nd->get_input_node_ptr(n)->get_type_info().name)
+                        return true;
+                }
+                return false;
+            };
+
+            if ((detectionOutputOpName == node->get_type_info().name) ||
+                ((resultOpName == node->get_type_info().name) && isDetectionOutputParent(node))) {
+                node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
+                bDetectionOutput = true;
+            } else {
+                node->get_rt_info()["affinity"] = "BATCH";
+            }
+        }
+        auto batchConfig = deviceNameWithBatchSize.empty() ? deviceNameWithoutBatch : deviceNameWithBatchSize;
+        if (bDetectionOutput) {
+            deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
+            config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
+        } else {
+            deviceName = "BATCH:" + batchConfig;
         }
     }
 

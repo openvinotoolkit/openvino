@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +61,42 @@ INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice_tests, StridedSliceLayerTest,
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                            ::testing::Values(getConfig())),
+                        StridedSliceLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice_testsU32, StridedSliceLayerTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(testCases),
+                            ::testing::Values(InferenceEngine::Precision::U32),
+                            ::testing::Values(InferenceEngine::Precision::U32),
+                            ::testing::Values(InferenceEngine::Precision::U32),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                            ::testing::Values(getConfig())),
+                        StridedSliceLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice_testsI64, StridedSliceLayerTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(testCases),
+                            ::testing::Values(InferenceEngine::Precision::I64),
+                            ::testing::Values(InferenceEngine::Precision::I64),
+                            ::testing::Values(InferenceEngine::Precision::I64),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(InferenceEngine::Layout::ANY),
+                            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                            ::testing::Values(getConfig())),
+                        StridedSliceLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice_testsU64, StridedSliceLayerTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(testCases),
+                            ::testing::Values(InferenceEngine::Precision::U64),
+                            ::testing::Values(InferenceEngine::Precision::U64),
+                            ::testing::Values(InferenceEngine::Precision::U64),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),

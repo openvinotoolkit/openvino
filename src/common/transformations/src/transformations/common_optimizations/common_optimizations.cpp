@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,7 @@
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
+#include "transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/strides_optimization.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
@@ -130,6 +131,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::InterpolateSequenceFusion>();
+    common_fusions->add_matcher<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConcatReduceFusion>();

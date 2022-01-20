@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,24 @@ struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterfa
     runtime::ConfigMap  config;
     element::Type       element_type;
 };
+
+using OVInferRequestCheckTensorPrecisionParams = OVInferRequestSetPrecisionParams;
+
+struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<OVInferRequestCheckTensorPrecisionParams>,
+                                            public CommonTestUtils::TestsCommon {
+    static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj);
+    void SetUp() override;
+    void TearDown() override;
+
+    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Model> model;
+    runtime::CompiledModel compModel;
+    runtime::InferRequest req;
+    runtime::ConfigMap  config;
+    std::string         target_device;
+    element::Type       element_type;
+};
+
 } // namespace behavior
 }  // namespace test
 }  // namespace ov

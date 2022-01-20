@@ -32,7 +32,7 @@ Devices with Intel® GNA support:
 * [Intel® Core™ Processors (formerly codenamed Cannon Lake)](https://ark.intel.com/content/www/us/en/ark/products/136863/intel-core-i3-8121u-processor-4m-cache-up-to-3-20-ghz.html)
 
 * [10th Generation Intel® Core™ Processors (formerly codenamed Ice Lake)](https://ark.intel.com/content/www/us/en/ark/products/codename/74979/ice-lake.html):
-	
+
 * [11th Generation Intel® Core™ Processors (formerly codenamed Tiger Lake)](https://ark.intel.com/content/www/us/en/ark/products/codename/88759/tiger-lake.html).
 
 * [12th Generation Intel® Core™ Processors (formerly codenamed Alder Lake)](https://ark.intel.com/content/www/us/en/ark/products/codename/147470/products-formerly-alder-lake.html).
@@ -154,7 +154,7 @@ The following tables provide a more explicit representation of the Intel(R) GNA 
 |1|2|1|1|1|1|128|240|240|240|240|240|240|240|
 |1|2|1|1|1|1|256|240|240|240|240|240|240|170|
 |1|2|1|1|1|1|384|240|240|240|240|240|170|113|
-|1|3|1|1|1|1|128|240|240|240|240|240|   |   |   
+|1|3|1|1|1|1|128|240|240|240|240|240|   |   |
 |1|3|1|1|1|1|256|240|240|240|240|240|   |   |
 |1|3|1|1|1|1|384|240|240|240|240|240|   |   |
 |2|1|1|1|1|1|128|192|192|192|192|192|192|192|
@@ -166,7 +166,7 @@ The following tables provide a more explicit representation of the Intel(R) GNA 
 |3|1|1|1|1|1|128|128|128|128|128|128|128|85|
 |3|1|1|1|1|1|256|128|128|128|128|128|128|85|
 |3|1|1|1|1|1|384|128|128|128|128|128|128|85|
-|3|3|1|1|1|1|128|130|130|130|130|87 |   |  |   
+|3|3|1|1|1|1|128|130|130|130|130|87 |   |  |
 |3|3|1|1|1|1|256|130|130|130|130|87 |   |  |
 |3|3|1|1|1|1|384|130|130|130|130|87 |   |  |
 |4|1|1|1|1|1|128|96|96|96|96|96|96|64|
@@ -202,7 +202,7 @@ You can use the following options `KEY_GNA_EXEC_TARGET` and `KEY_GNA_COMPILE_TAR
 
 .. tab:: Python
 
-   ``GNA_EXEC_TARGET``,  ``GNA_COMPILE_TARGET`` 
+   ``GNA_EXEC_TARGET``,  ``GNA_COMPILE_TARGET``
 
 @endsphinxdirective
 
@@ -256,12 +256,12 @@ Starting with 2021.4 release of OpenVINO, GNA plugin users are encouraged to use
    ============================  ==============================================================================================================================================
    Mode                          Description
    ============================  ==============================================================================================================================================
-   ``KEY_GNA_AUTO``              Uses Intel® GNA if available, otherwise uses software execution mode on CPU. 
-   ``KEY_GNA_HW``                Uses Intel® GNA if available, otherwise raises an error. 
-   ``KEY_GNA_SW``                *Deprecated*. Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA, but not in the bit-exact mode. 
-   ``KEY_GNA_SW_EXACT``          Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA in the bit-exact mode. 
-   ``KEY_GNA_HW_WITH_SW_FBACK``  Uses Intel® GNA if available, otherwise raises an error. If the hardware queue is not empty, automatically falls back to CPU in the bit-exact mode. 
-   ``KEY_GNA_SW_FP32``           Executes the GNA-compiled graph on CPU but substitutes parameters and calculations from low precision to floating point (``FP32``). 
+   ``KEY_GNA_AUTO``              Uses Intel® GNA if available, otherwise uses software execution mode on CPU.
+   ``KEY_GNA_HW``                Uses Intel® GNA if available, otherwise raises an error.
+   ``KEY_GNA_SW``                *Deprecated*. Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA, but not in the bit-exact mode.
+   ``KEY_GNA_SW_EXACT``          Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA in the bit-exact mode.
+   ``KEY_GNA_HW_WITH_SW_FBACK``  Uses Intel® GNA if available, otherwise raises an error. If the hardware queue is not empty, automatically falls back to CPU in the bit-exact mode.
+   ``KEY_GNA_SW_FP32``           Executes the GNA-compiled graph on CPU but substitutes parameters and calculations from low precision to floating point (``FP32``).
    ============================  ==============================================================================================================================================
 
 .. tab:: Python
@@ -269,15 +269,15 @@ Starting with 2021.4 release of OpenVINO, GNA plugin users are encouraged to use
    ========================  ==============================================================================================================================================
    Mode                      Description
    ========================  ==============================================================================================================================================
-   ``GNA_AUTO``              Uses Intel® GNA if available, otherwise uses software execution mode on CPU. 
-   ``GNA_HW``                Uses Intel® GNA if available, otherwise raises an error. 
-   ``GNA_SW``                *Deprecated*. Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA, but not in the bit-exact mode. 
-   ``GNA_SW_EXACT``          Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA in the bit-exact mode. 
-   ``GNA_HW_WITH_SW_FBACK``  Uses Intel® GNA if available, otherwise raises an error. If the hardware queue is not empty, automatically falls back to CPU in the bit-exact mode. 
-   ``GNA_SW_FP32``           Executes the GNA-compiled graph on CPU but substitutes parameters and calculations from low precision to floating point (``FP32``). 
+   ``GNA_AUTO``              Uses Intel® GNA if available, otherwise uses software execution mode on CPU.
+   ``GNA_HW``                Uses Intel® GNA if available, otherwise raises an error.
+   ``GNA_SW``                *Deprecated*. Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA, but not in the bit-exact mode.
+   ``GNA_SW_EXACT``          Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA in the bit-exact mode.
+   ``GNA_HW_WITH_SW_FBACK``  Uses Intel® GNA if available, otherwise raises an error. If the hardware queue is not empty, automatically falls back to CPU in the bit-exact mode.
+   ``GNA_SW_FP32``           Executes the GNA-compiled graph on CPU but substitutes parameters and calculations from low precision to floating point (``FP32``).
    ========================  ==============================================================================================================================================
 
-@endsphinxdirective  
+@endsphinxdirective
 
 ## <a name="supported-configuration-parameters">Supported Configuration Parameters</a>
 
@@ -313,14 +313,11 @@ The plugin supports the configuration parameters listed below. The parameter nam
    +----------------------------------+-------------------------+---------------+-----------------------------------------------------------------+
    | ``KEY_PERF_COUNT``               | ``YES``, ``NO``         | ``NO``        | Turns on performance counters reporting.                        |
    +----------------------------------+-------------------------+---------------+-----------------------------------------------------------------+
-   | ``KEY_GNA_LIB_N_THREADS``        | 1-127 integer number    | 1             | Sets the number of GNA accelerator library worker threads used  |
-   |                                  |                         |               | for inference computation in software modes.                    |
-   +----------------------------------+-------------------------+---------------+-----------------------------------------------------------------+
-   
+
    The parameters are passed as ``std::map<std::string, std::string>`` on ``InferenceEngine::Core::LoadNetwork`` or ``InferenceEngine::SetConfig``.
 
    Normally, you do not need to select the execution target (``KEY_GNA_EXEC_TARGET``) and compilation target (``KEY_GNA_COMPILE_TARGET``). The default value for the execution target corresponds to available hardware, or latest hardware version supported by the plugin (i.e., GNA 3.0) if there is no GNA HW in the system. The compilation target is the same as the execution target by default. However, you may want to change the targets, for example, if you want to check how a model compiled for one generation would behave on the other generation (using the software emulation mode), or if you are willing to export a model for a specific version of GNA HW.
-   
+
    You can change the ``KEY_GNA_DEVICE_MODE`` parameter at run time using ``InferenceEngine::ExecutableNetwork::SetConfig``, which works for any value excluding ``GNA_SW_FP32``. This enables you to switch the execution between software emulation mode and hardware execution mode after the model is loaded.
 
 .. tab:: Python
@@ -352,9 +349,6 @@ The plugin supports the configuration parameters listed below. The parameter nam
    +----------------------------------+-------------------------+---------------+-----------------------------------------------------------------+
    | ``PERF_COUNT``                   | ``YES``, ``NO``         | ``NO``        | Turns on performance counters reporting.                        |
    +----------------------------------+-------------------------+---------------+-----------------------------------------------------------------+
-   | ``GNA_LIB_N_THREADS``            | 1-127 integer number    | 1             | Sets the number of GNA accelerator library worker threads used  |
-   |                                  |                         |               | for inference computation in software modes.                    |
-   +----------------------------------+-------------------------+---------------+-----------------------------------------------------------------+
 
    The parameters are passed as strings to `IECore.load_network <api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.load_network>`_.
 
@@ -362,7 +356,7 @@ The plugin supports the configuration parameters listed below. The parameter nam
 
    You can change the ``GNA_DEVICE_MODE`` parameter at run time by sending a configuration dict to the `IECore.load_network <api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.load_network>`_ call, which works for any value excluding ``GNA_SW_FP32``. This enables you to switch the execution between software emulation mode and hardware execution mode after the model is loaded.
 
-@endsphinxdirective   
+@endsphinxdirective
 ## How to Interpret Performance Counters
 
 With the following methods, you can collect performance counters that provides various performance data about execution on GNA:
@@ -370,16 +364,16 @@ With the following methods, you can collect performance counters that provides v
 @sphinxdirective
 .. tab:: C++
 
-   ``InferenceEngine::InferRequest::GetPerformanceCounts`` 
-   
+   ``InferenceEngine::InferRequest::GetPerformanceCounts``
+
    The returned map stores a counter description as a key, and a counter value in the ``realTime_uSec`` field of the ``InferenceEngineProfileInfo`` structure.
 
 
 .. tab:: Python
 
-   ``openvino.inference_engine.InferRequest.get_perf_counts`` 
-   
-   The returned map stores a counter description as a key, and a counter value in the ``real_time`` field. 
+   ``openvino.inference_engine.InferRequest.get_perf_counts``
+
+   The returned map stores a counter description as a key, and a counter value in the ``real_time`` field.
 
 @endsphinxdirective
 
@@ -401,25 +395,6 @@ Performance counters provided for the time being:
 * Scoring request performance results
 	* Number of total cycles spent on scoring in hardware including compute and memory stall cycles
 	* Number of stall cycles spent in hardware
-
-## Multithreading Support in GNA Plugin
-
-The GNA plugin supports the following configuration parameters for multithreading management:
-
-@sphinxdirective
-.. tab:: C++
-
-   ``KEY_GNA_LIB_N_THREADS``
-
-.. tab:: Python
-
-   ``GNA_LIB_N_THREADS``
-
-@endsphinxdirective
-
-By default, the GNA plugin uses one worker thread for inference computations. This parameter allows you to create up to 127 threads for software modes.
-
-> **NOTE**: Multithreading mode does not guarantee the same computation order as the order of issuing. Additionally, in this case, software modes do not implement any serializations.
 
 ## Network Batch Size
 
@@ -475,7 +450,7 @@ In future releases, it will be changed to a more meaningful status code.
 Any application working with GNA must properly react to this code.
 One of the strategies to adapt an application:
 
-1. Immediately switch to the GNA_SW emulation mode:
+1. Immediately switch to the GNA_SW_EXACT emulation mode:
 @sphinxdirective
 .. tab:: C++
 
