@@ -4,19 +4,11 @@
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/frontend/visibility.hpp"
-
-// Defined if we are building the plugin DLL (instead of using it)
-#ifdef ov_mock_py_frontend_EXPORTS
-#    define MOCK_API OPENVINO_CORE_EXPORTS
-#else
-#    define MOCK_API OPENVINO_CORE_IMPORTS
-#endif  // ov_mock_py_frontend_EXPORTS
+#include "visibility.hpp"
 
 // OK to have 'using' in mock header
-
 using namespace ngraph;
 using namespace ov::frontend;
 
@@ -619,11 +611,17 @@ struct MOCK_API FeStat {
 
 class MOCK_API FrontEndMockPy : public FrontEnd {
     static FeStat m_stat;
+    std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
 
 public:
     FrontEndMockPy() = default;
 
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override {
+        if (m_telemetry) {
+            m_telemetry->send_event("load_impl", "label", 42);
+            m_telemetry->send_error("load_impl_error");
+            m_telemetry->send_stack_trace("mock_stack_trace");
+        }
         if (!params.empty() && params[0].is<std::string>())
             m_stat.m_load_paths.push_back(params[0].as<std::string>());
         return std::make_shared<InputModelMockPy>();
@@ -666,6 +664,12 @@ public:
     std::string get_name() const override {
         m_stat.m_get_name++;
         return "mock_py";
+    }
+
+    void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
+        if (auto p = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+            m_telemetry = p;
+        }
     }
 
     static FeStat get_stat() {
