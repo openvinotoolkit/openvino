@@ -23,7 +23,7 @@ void regclass_CompiledModel(py::module m) {
             }),
             py::arg("other"));
 
-    cls.def("create_infer_request", [](ov::runtime::CompiledModel& self) {
+    cls.def("create_infer_request", [](ov::CompiledModel& self) {
         return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
     });
 
