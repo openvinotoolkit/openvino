@@ -52,15 +52,9 @@ struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<O
 
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> model;
-<<<<<<< HEAD
-    runtime::CompiledModel compModel;
-    runtime::InferRequest req;
+    CompiledModel compModel;
+    InferRequest req;
     AnyMap  config;
-=======
-    ov::CompiledModel compModel;
-    ov::InferRequest req;
-    runtime::ConfigMap  config;
->>>>>>> master
     std::string         target_device;
     element::Type       element_type;
 };

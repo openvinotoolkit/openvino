@@ -11,11 +11,7 @@ namespace {
 const std::vector<ov::AnyMap> configs;
 
 
-<<<<<<< HEAD
 std::vector<std::pair<ov::AnyMap, ov::AnyMap>> generate_remote_params() {
-=======
-std::vector<std::pair<ov::ParamMap, ov::ParamMap>> generate_remote_params() {
->>>>>>> master
         return {};
 }
 

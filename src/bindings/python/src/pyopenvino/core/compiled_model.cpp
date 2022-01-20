@@ -42,25 +42,15 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def(
         "get_config",
-<<<<<<< HEAD
-        [](ov::runtime::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
-=======
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_config(name)).as<py::object>();
->>>>>>> master
+            return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },
         py::arg("name"));
 
     cls.def(
         "get_metric",
-<<<<<<< HEAD
-        [](ov::runtime::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_property(name)).as<py::object>();
-=======
         [](ov::CompiledModel& self, const std::string& name) -> py::object {
-            return Common::from_ov_any(self.get_metric(name)).as<py::object>();
->>>>>>> master
+            return Common::from_ov_any(self.get_property(name)).as<py::object>();
         },
         py::arg("name"));
 

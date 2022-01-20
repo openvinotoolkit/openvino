@@ -464,11 +464,7 @@ int main(int argc, char* argv[]) {
             next_step();
             auto preproc = ov::preprocess::PrePostProcessor(model);
 
-<<<<<<< HEAD
             std::map<std::string, std::string> user_precisions_map;
-=======
-            ov::ConfigMap user_precisions_map;
->>>>>>> master
             if (!FLAGS_iop.empty()) {
                 user_precisions_map = parseArgMap(FLAGS_iop);
             }

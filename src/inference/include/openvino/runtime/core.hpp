@@ -584,13 +584,8 @@ public:
      * - `location` specifies absolute path to dynamic library with a plugin.
      *    A path can also be relative to inference engine shared library. It allows to have common config
      *    for different systems with different configurations.
-<<<<<<< HEAD
-     * - `properties` are set to a plugin via the ov::runtime::Core::set_property method.
-     * - `extensions` are set to a plugin via the ov::runtime::Core::add_extension method.
-=======
-     * - `properties` are set to a plugin via the ov::Core::set_config method.
+     * - `properties` are set to a plugin via the ov::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::Core::add_extension method.
->>>>>>> master
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */

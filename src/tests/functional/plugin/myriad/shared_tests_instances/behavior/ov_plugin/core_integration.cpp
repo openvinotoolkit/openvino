@@ -34,13 +34,8 @@ INSTANTIATE_TEST_SUITE_P(OVClassNetworkTestP_smoke, OVClassNetworkTestP, ::testi
 using OVClassNetworkTestP_VPU_GetMetric = OVClassNetworkTestP;
 
 TEST_P(OVClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsFP16) {
-<<<<<<< HEAD
-    ov::runtime::Core ie;
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities)
-=======
     ov::Core ie;
-    ASSERT_METRIC_SUPPORTED(METRIC_KEY(OPTIMIZATION_CAPABILITIES))
->>>>>>> master
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities)
 
     std::vector<std::string> device_capabilities;
     ASSERT_NO_THROW(device_capabilities =

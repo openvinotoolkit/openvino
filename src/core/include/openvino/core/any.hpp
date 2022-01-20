@@ -29,11 +29,8 @@ namespace ov {
 
 class Node;
 class RuntimeAttribute;
-<<<<<<< HEAD
 
 namespace runtime {
-=======
->>>>>>> master
 class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
@@ -785,7 +782,7 @@ using RTMap = AnyMap;
 
 using AnyVector = std::vector<ov::Any>;
 
-}  // namespace ov
+}  // namespace runtime
 
 namespace std {
 template <typename T>
