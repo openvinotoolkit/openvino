@@ -20,6 +20,11 @@ with open(os.path.join(here, 'README.md'), 'r') as fh:
 class InstallCmd(install):
     def run(self):
         install.run(self)
+
+        if self.root is None and self.record is None:
+            # install requires
+            self.do_egg_install()
+
         version_txt = os.path.join(prefix, "pot", "version.txt")
         if os.path.exists(version_txt):
             copyfile(os.path.join(version_txt),
