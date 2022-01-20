@@ -10,18 +10,16 @@
 #include "base_reference_test.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-using namespace reference_tests;
-
 struct TIFunctionalBase {
-    virtual std::shared_ptr<ov::Model> create_function(const std::vector<Tensor>& if_inputs,
-                                                   const std::vector<Tensor>& results) = 0;
+    virtual std::shared_ptr<ov::Model> create_function(const std::vector<reference_tests::Tensor>& ti_inputs,
+                                                   const std::vector<reference_tests::Tensor>& results) = 0;
     TIFunctionalBase() = default;
     virtual ~TIFunctionalBase() = default;
 };
 
 struct TIDynamicInputs : public TIFunctionalBase {
-    std::shared_ptr<ov::Model> create_function(const std::vector<Tensor>& ti_inputs,
-                                           const std::vector<Tensor>& results) override {
+    std::shared_ptr<ov::Model> create_function(const std::vector<reference_tests::Tensor>& ti_inputs,
+                                           const std::vector<reference_tests::Tensor>& results) override {
         auto X = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto Y = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto M = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
@@ -56,8 +54,8 @@ struct TIDynamicInputs : public TIFunctionalBase {
 
 struct TensorIteratorParams {
     TensorIteratorParams(const std::shared_ptr<TIFunctionalBase>& functional,
-             const std::vector<Tensor>& ti_inputs,
-             const std::vector<Tensor>& expected_results,
+             const std::vector<reference_tests::Tensor>& ti_inputs,
+             const std::vector<reference_tests::Tensor>& expected_results,
              const std::string& test_case_name)
             : function(functional),
               inputs(ti_inputs),
@@ -65,12 +63,13 @@ struct TensorIteratorParams {
               test_case_name(test_case_name) {}
 
     std::shared_ptr<TIFunctionalBase> function;
-    std::vector<Tensor> inputs;
-    std::vector<Tensor> expected_results;
+    std::vector<reference_tests::Tensor> inputs;
+    std::vector<reference_tests::Tensor> expected_results;
     std::string test_case_name;
 };
 
-class ReferenceTILayerTest : public testing::TestWithParam<TensorIteratorParams>, public CommonReferenceTest {
+class ReferenceTILayerTest : public testing::TestWithParam<TensorIteratorParams>,
+        public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -101,9 +100,11 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(
                 TensorIteratorParams(
                         std::make_shared<TIDynamicInputs>(),
-                        std::vector<Tensor>{Tensor(ov::element::f32, ov::Shape{1, 2}, std::vector<float>{2, 3}),
-                                            Tensor(ov::element::f32, ov::Shape{2, 1}, std::vector<float>{4, 5}),
-                                            Tensor(ov::element::f32, ov::Shape{1, 1}, std::vector<float>{5})},
-                        std::vector<Tensor>{Tensor(ov::element::f32, ov::Shape{1, 1}, std::vector<float>{240})},
+                        std::vector<reference_tests::Tensor>{
+                            reference_tests::Tensor(ov::element::f32, ov::Shape{1, 2}, std::vector<float>{2, 3}),
+                            reference_tests::Tensor(ov::element::f32, ov::Shape{2, 1}, std::vector<float>{4, 5}),
+                            reference_tests::Tensor(ov::element::f32, ov::Shape{1, 1}, std::vector<float>{5})},
+                        std::vector<reference_tests::Tensor>{
+                            reference_tests::Tensor(ov::element::f32, ov::Shape{1, 1}, std::vector<float>{240})},
                         "tensor_iterator_dynamic_inputs")),
         ReferenceTILayerTest::getTestCaseName);
