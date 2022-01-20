@@ -697,45 +697,45 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                 std::unique_lock<std::mutex> lock(_confMutex);
                 auto deviceInfo =  _loadContext[ACTUALDEVICE].deviceInfo;
                 lock.unlock();
-                if (deviceInfo.deviceName.find("GPU") != std::string::npos) {
-                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
-                    // for benchmark through AUTO:CPU,GPU
-                    // SetConfig directly set to CPU/GPU in this case
-                    auto bThroughputEnabledInPlugin =
-                        _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
-                    if (bThroughputEnabledInPlugin ||
-                        (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
-                        std::map<std::string, InferenceEngine::Parameter> options;
-                        options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
-                        try {
-                            auto optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
+                unsigned int optimalBatchSize = 0;
+                unsigned int requests = 0;
+                std::map<std::string, InferenceEngine::Parameter> options;
+                options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(_network.getFunction());
+                try {
+                    optimalBatchSize = _core->GetMetric(deviceInfo.deviceName,
                                     METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-                            LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size", optimalBatchSize);
-                            unsigned int requests = 0;
-                            try {
-                                // check if app have set preferred value
-                                auto res =
-                                    _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
-                                requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
-                                const auto& reqs = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-                                if (reqs != deviceInfo.config.end())
-                                    requests =
-                                        static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
-                                LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "user requested size", requests);
-                                if (!requests) { // no limitations from user
-                                    auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
-                                                    METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
-                                    requests = optimalBatchSize * std::get<1>(rangeOfStreams);
-                                    LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "deduced size:", requests);
-                                }
-                            } catch (const InferenceEngine::Exception &iie) {
-                                LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
+                    LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size", optimalBatchSize);
+                } catch (...) {
+                    LOG_DEBUG("[AUTOPLUGIN]BATCHING: error getting metric OPTIMAL_BATCH_SIZE");
+                }
+                if (optimalBatchSize > 1) {
+                    const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
+                    try {
+                        // for benchmark through AUTO:CPU,GPU
+                        // SetConfig directly set to CPU/GPU in this case
+                        auto bThroughputEnabledInPlugin =
+                            _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+                        if (bThroughputEnabledInPlugin ||
+                            (mode != deviceInfo.config.end() && mode->second == CONFIG_VALUE(THROUGHPUT))) {
+                            // check if app have set preferred value
+                            auto res =
+                                _core->GetConfig(deviceInfo.deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+                            requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
+                            const auto& reqs = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+                            if (reqs != deviceInfo.config.end())
+                                requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
+                            LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "user requested size", requests);
+                            if (!requests) { // no limitations from user
+                                auto rangeOfStreams = _core->GetMetric(deviceInfo.deviceName,
+                                                        METRIC_KEY(RANGE_FOR_STREAMS), options).as<std::tuple<unsigned int, unsigned int>>();
+                                requests = optimalBatchSize * std::get<1>(rangeOfStreams);
+                                LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "deduced size:", requests);
                             }
-                            real = (std::max)(real, (std::max)(requests, optimalBatchSize));
-                        } catch (const InferenceEngine::Exception &iie) {
-                            LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for GPU auto-batch failed :%s", iie.what());
                         }
+                    } catch (const InferenceEngine::Exception &iie) {
+                            LOG_WARNING("[AUTOPLUGIN]get optimal infer requset num for auto-batch failed :%s", iie.what());
                     }
+                    real = (std::max)(real, (std::max)(requests, optimalBatchSize));
                 }
             }
             unsigned int res = (std::max)(8u, real);
