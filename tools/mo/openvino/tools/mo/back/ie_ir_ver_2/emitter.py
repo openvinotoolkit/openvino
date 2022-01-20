@@ -453,6 +453,18 @@ def get_tensor_names_of_result_node(graph):
             result_names_to_tensor_names[res_node.soft_get('name')] = tensor_names
     return result_names_to_tensor_names
 
+
+def find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_names):
+    for res_node in result_nodes:
+        res_name = res_node.soft_get('name')
+        tensor_names = result_names_to_tensor_names[res_name]
+        if output_name in tensor_names:
+            # In this case output tensor name is in tensor names list of previous op
+            return res_name
+
+    return None
+
+
 def serialize_network(graph, net_element, unsupported):
     layers = SubElement(net_element, 'layers')
     edges = SubElement(net_element, 'edges')
@@ -468,17 +480,14 @@ def serialize_network(graph, net_element, unsupported):
         node = graph.get_op_nodes(name=output_name)
 
         if len(node) == 0:
-            found_tensor_name = False
-            for res_node in result_nodes:
-                res_name = res_node.soft_get('name')
-                tensor_names = result_names_to_tensor_names[res_name]
-                if output_name in tensor_names:
-                    # In this case output tensor name is in tensor names list of previous op
-                    ordered_results.append(res_name)
-                    found_tensor_name = True
-                    break
+            # As graph does not contain node with name=output_name
+            # in the following code we look for output_name among tensor names
+            # incoming to Result nodes
+            found_result_name = find_result_node_by_name(output_name, result_nodes, result_names_to_tensor_names)
 
-            if not found_tensor_name:
+            if found_result_name is not None:
+                ordered_results.append(found_result_name)
+            else:
                 log.warning("Output node with name {} is not found in graph.".format(output_name))
             continue
         node = node[0]
