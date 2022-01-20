@@ -49,7 +49,7 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/plugins/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 
 # IE VPU:
-/inference-engine/src/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
+/src/plugins/intel_vpu  @openvinotoolkit/openvino-ie-vpu-maintainers
 /src/inference/include/ie/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
 /inference-engine/thirdparty/movidius/  @openvinotoolkit/openvino-ie-vpu-maintainers
 /src/tests_deprecated/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
@@ -64,9 +64,9 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 /src/inference/include/ie/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 
-# IE MULTI:
-/src/plugins/auto/  @openvinotoolkit/openvino-ie-multi-maintainers
-/src/inference/include/ie/multi-device/  @openvinotoolkit/openvino-ie-multi-maintainers
+# IE Auto (MULTI) plugin:
+/src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
+/src/inference/include/ie/multi-device/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
 
 # IE Tests:
 /src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers

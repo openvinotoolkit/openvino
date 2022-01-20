@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ inline const std::string getPluginLibNameByDevice(const std::string& deviceName)
             { "HETERO", "ov_hetero_plugin" },
             { "BATCH", "ov_auto_batch_plugin" },
             { "MULTI", "ov_multi_plugin" },
-            { "MYRIAD", "myriadPlugin" },
+            { "MYRIAD", "ov_intel_vpu_plugin" },
             { "TEMPLATE", "ov_template_plugin" },
     };
     if (devices.find(deviceName) == devices.end()) {

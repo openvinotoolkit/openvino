@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -46,6 +47,38 @@ TEST(attributes, constant_op_different_elements) {
 TEST(attributes, constant_op_identical_elements) {
     vector<int64_t> data{5, 5, 5, 5, 5, 5};
     auto k = make_shared<op::v0::Constant>(element::i64, Shape{2, 3}, data);
+    NodeBuilder builder(k);
+    auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
+    g_k->validate_and_infer_types();
+    ASSERT_TRUE(g_k);
+    EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
+    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    vector<int64_t> g_data = g_k->get_vector<int64_t>();
+    EXPECT_EQ(data, g_data);
+    ASSERT_TRUE(g_k->get_all_data_elements_bitwise_identical());
+}
+
+TEST(attributes, constant_op_from_host_tensor_different_elements) {
+    vector<int64_t> data{5, 4, 3, 2, 1, 0};
+    auto tensor = std::make_shared<runtime::HostTensor>(element::i64, Shape{2, 3}, &data[0]);
+    auto k = make_shared<op::v0::Constant>(tensor);
+    ASSERT_FALSE(k->get_all_data_elements_bitwise_identical());
+    NodeBuilder builder(k);
+    auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
+    g_k->validate_and_infer_types();
+    ASSERT_TRUE(g_k);
+    EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
+    EXPECT_EQ(k->get_shape(), g_k->get_shape());
+    vector<int64_t> g_data = g_k->get_vector<int64_t>();
+    EXPECT_EQ(data, g_data);
+    ASSERT_FALSE(g_k->get_all_data_elements_bitwise_identical());
+}
+
+TEST(attributes, constant_op_from_host_tensor_identical_elements) {
+    vector<int64_t> data{5, 5, 5, 5, 5, 5};
+    auto tensor = std::make_shared<runtime::HostTensor>(element::i64, Shape{2, 3}, &data[0]);
+    auto k = make_shared<op::v0::Constant>(tensor);
+    ASSERT_TRUE(k->get_all_data_elements_bitwise_identical());
     NodeBuilder builder(k);
     auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
     g_k->validate_and_infer_types();

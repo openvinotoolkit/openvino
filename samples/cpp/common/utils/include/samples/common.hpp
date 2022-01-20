@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,14 +17,12 @@
 #include <limits>
 #include <list>
 #include <map>
-#include <openvino/openvino.hpp>
 #include <random>
 #include <string>
 #include <utility>
 #include <vector>
 
 // clang-format off
-#include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
 #include "slog.hpp"
 // clang-format on
@@ -124,32 +122,12 @@ inline std::string fileExt(const std::string& filename) {
     return filename.substr(pos + 1);
 }
 
-inline slog::LogStream& operator<<(slog::LogStream& os, const InferenceEngine::Version& version) {
-    os << version.description << " version ......... ";
-    os << IE_VERSION_MAJOR << "." << IE_VERSION_MINOR << "." << IE_VERSION_PATCH << slog::endl;
-
-    os << "Build ........... ";
-    os << version.buildNumber << slog::endl;
-
-    return os;
-}
-
 inline slog::LogStream& operator<<(slog::LogStream& os, const ov::Version& version) {
     os << version.description << " version ......... ";
     os << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH << slog::endl;
 
     os << "Build ........... ";
     os << version.buildNumber << slog::endl;
-
-    return os;
-}
-
-inline slog::LogStream& operator<<(slog::LogStream& os,
-                                   const std::map<std::string, InferenceEngine::Version>& versions) {
-    for (auto&& version : versions) {
-        os << version.first << slog::endl;
-        os << version.second << slog::endl;
-    }
 
     return os;
 }
@@ -621,49 +599,6 @@ static UNUSED void printPerformanceCounts(const std::map<std::string, ov::runtim
     std::cout.flags(fmt);
 }
 
-// static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request,
-//                                          std::ostream& stream,
-//                                          std::string deviceName,
-//                                          bool bshowHeader = true) {
-//    auto performanceMap = request.GetPerformanceCounts();
-//    printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
-//}
-
-inline std::map<std::string, std::string> getMapFullDevicesNames(InferenceEngine::Core& ie,
-                                                                 std::vector<std::string> devices) {
-    std::map<std::string, std::string> devicesMap;
-    InferenceEngine::Parameter p;
-    for (std::string& deviceName : devices) {
-        if (deviceName != "") {
-            try {
-                p = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME));
-                devicesMap.insert(std::pair<std::string, std::string>(deviceName, p.as<std::string>()));
-            } catch (InferenceEngine::Exception&) {
-            }
-        }
-    }
-    return devicesMap;
-}
-
-inline std::string getFullDeviceName(std::map<std::string, std::string>& devicesMap, std::string device) {
-    std::map<std::string, std::string>::iterator it = devicesMap.find(device);
-    if (it != devicesMap.end()) {
-        return it->second;
-    } else {
-        return "";
-    }
-}
-
-inline std::string getFullDeviceName(InferenceEngine::Core& ie, std::string device) {
-    InferenceEngine::Parameter p;
-    try {
-        p = ie.GetMetric(device, METRIC_KEY(FULL_DEVICE_NAME));
-        return p.as<std::string>();
-    } catch (InferenceEngine::Exception&) {
-        return "";
-    }
-}
-
 /**
  * @brief This class represents an object that is found by an object detection net
  */
@@ -1019,97 +954,6 @@ static UNUSED void addRectangles(unsigned char* data,
     }
 }
 
-inline std::size_t getTensorWidth(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    const auto& dims = desc.getDims();
-    const auto& size = dims.size();
-    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-                        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-                        layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
-                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW ||
-                        layout == InferenceEngine::Layout::CHW || layout == InferenceEngine::Layout::HW)) {
-        // Regardless of layout, dimensions are stored in fixed order
-        return dims.back();
-    } else {
-        IE_THROW() << "Tensor does not have width dimension";
-    }
-    return 0;
-}
-
-inline std::size_t getTensorHeight(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    const auto& dims = desc.getDims();
-    const auto& size = dims.size();
-    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-                        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-                        layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
-                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW ||
-                        layout == InferenceEngine::Layout::CHW || layout == InferenceEngine::Layout::HW)) {
-        // Regardless of layout, dimensions are stored in fixed order
-        return dims.at(size - 2);
-    } else {
-        IE_THROW() << "Tensor does not have height dimension";
-    }
-    return 0;
-}
-
-inline std::size_t getTensorChannels(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-        layout == InferenceEngine::Layout::C || layout == InferenceEngine::Layout::CHW ||
-        layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::CN) {
-        // Regardless of layout, dimensions are stored in fixed order
-        const auto& dims = desc.getDims();
-        switch (desc.getLayoutByDims(dims)) {
-        case InferenceEngine::Layout::C:
-            return dims.at(0);
-        case InferenceEngine::Layout::NC:
-            return dims.at(1);
-        case InferenceEngine::Layout::CHW:
-            return dims.at(0);
-        case InferenceEngine::Layout::NCHW:
-            return dims.at(1);
-        case InferenceEngine::Layout::NCDHW:
-            return dims.at(1);
-        case InferenceEngine::Layout::SCALAR:   // [[fallthrough]]
-        case InferenceEngine::Layout::BLOCKED:  // [[fallthrough]]
-        default:
-            IE_THROW() << "Tensor does not have channels dimension";
-        }
-    } else {
-        IE_THROW() << "Tensor does not have channels dimension";
-    }
-    return 0;
-}
-
-inline std::size_t getTensorBatch(const InferenceEngine::TensorDesc& desc) {
-    const auto& layout = desc.getLayout();
-    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
-        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
-        layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::CN) {
-        // Regardless of layout, dimensions are stored in fixed order
-        const auto& dims = desc.getDims();
-        switch (desc.getLayoutByDims(dims)) {
-        case InferenceEngine::Layout::NC:
-            return dims.at(0);
-        case InferenceEngine::Layout::NCHW:
-            return dims.at(0);
-        case InferenceEngine::Layout::NCDHW:
-            return dims.at(0);
-        case InferenceEngine::Layout::CHW:      // [[fallthrough]]
-        case InferenceEngine::Layout::C:        // [[fallthrough]]
-        case InferenceEngine::Layout::SCALAR:   // [[fallthrough]]
-        case InferenceEngine::Layout::BLOCKED:  // [[fallthrough]]
-        default:
-            IE_THROW() << "Tensor does not have channels dimension";
-        }
-    } else {
-        IE_THROW() << "Tensor does not have channels dimension";
-    }
-    return 0;
-}
-
 inline void showAvailableDevices() {
     ov::runtime::Core core;
     std::vector<std::string> devices = core.get_available_devices();
@@ -1132,13 +976,12 @@ inline void showAvailableDevices() {
  */
 std::map<std::string, std::string> parseConfig(const std::string& configName, char comment = '#');
 
-//--- API 2.0 --------------------------------------------------------------------------------------
 inline std::string getFullDeviceName(ov::runtime::Core& core, std::string device) {
-    InferenceEngine::Parameter p;
+    ov::Any p;
     try {
         p = core.get_metric(device, METRIC_KEY(FULL_DEVICE_NAME));
         return p.as<std::string>();
-    } catch (InferenceEngine::Exception&) {
+    } catch (ov::Exception&) {
         return "";
     }
 }

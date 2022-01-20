@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -432,9 +432,9 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
             Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
-                0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
+                0.9, 0.75, 0.6, 0.96, 0.5, 0.3}),                                       // scores
             Tensor(ET_TH, {1, 6}, std::vector<T_TH>{
-                0.00, 0.95, 0.00, 10.00, 1.00, 11.00}),                                 // expected_selected_scores
+                0.00, 0.96, 0.00, 10.00, 1.00, 11.00}),                                 // expected_selected_scores
             Tensor(ET_IND, {1, 1}, std::vector<T_IND>{3}),                              // expected_selected_indices
             Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
             "multiclass_nms_by_IOU_and_scores"),
@@ -547,11 +547,11 @@ std::vector<MulticlassNmsParams> generateParams() {
 
 std::vector<MulticlassNmsParams> generateCombinedParams() {
     const std::vector<std::vector<MulticlassNmsParams>> generatedParams {
-        generateParams<element::Type_t::bf16, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams<element::Type_t::f16, element::Type_t::f32, element::Type_t::i32>(),
+        generateParams<element::Type_t::bf16, element::Type_t::bf16, element::Type_t::i32>(),
+        generateParams<element::Type_t::f16, element::Type_t::f16, element::Type_t::i32>(),
         generateParams<element::Type_t::f32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams<element::Type_t::bf16, element::Type_t::f32, element::Type_t::i64>(),
-        generateParams<element::Type_t::f16, element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::bf16, element::Type_t::bf16, element::Type_t::i64>(),
+        generateParams<element::Type_t::f16, element::Type_t::f16, element::Type_t::i64>(),
         generateParams<element::Type_t::f32, element::Type_t::f32, element::Type_t::i64>(),
     };
     std::vector<MulticlassNmsParams> combinedParams;

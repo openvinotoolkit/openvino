@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,10 +120,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-        // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
-        // Issue: CVS-66780
-        R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
-        R"(.*smoke_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
 
         // TODO: Issue CVS-51680
         R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
@@ -161,8 +157,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 71756
         R"(.*Deconv_.*D_(Blocked|DW|1x1)_.*DeconvolutionLayerCPUTest\.CompareWithRefs.*inFmts=(nChw16c|nCdhw16c)_outFmts=(nChw16c|nCdhw16c)_primitive=jit_avx512_.*Fused=Multiply\(PerChannel\)\.Add\(PerChannel\).*)",
         R"(.*smoke_GroupDeconv_(2|3)D_Blocked_BF16.*S=(\(2\.2\)|\(2\.2\.2\))_PB=(\(0\.0\)|\(0\.0\.0\))_PE=(\(0\.0\)|\(0\.0\.0\))_D=(\(1\.1\)|\(1\.1\.1\))_.*_O=64_G=4.*)",
-        // Issue: 72150
-        R"(.*smoke_SetBlobCPU/SetBlobTest.CompareWithRefs/Type=.*_Device=CPU_PrecisionInNet=BOOL.*)",
         // Issue: 59594
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*BOOL.*)",
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*MIXED.*)",
@@ -174,6 +168,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
         // Issue:
         R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
+        // New API tensor tests
+        R"(.*OVInferRequestCheckTensorPrecision.*type=i4.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",
+        R"(.*OVInferRequestCheckTensorPrecision.*type=u4.*)",
+        // Issue: 75022
+        R"(.*OVExecutableNetworkBaseTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
+        R"(.*IEClassBasicTest.*LoadNetworkToDefaultDeviceNoThrow.*)",
     };
 
 #define FIX_62820 0

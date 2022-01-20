@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -179,7 +179,7 @@ public:
         const bool updatePrecision,
         const bool moveSubtract);
 
-    static std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> split_consts_before_concat(
+    static std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> splitConstantsBeforeConcat(
         const std::shared_ptr<ov::Node> concat,
         const std::vector<std::shared_ptr<opset1::Constant>> currConstants);
 
@@ -230,7 +230,7 @@ public:
                 continue;
             }
             attribute->sharedValue = sharedValue;
-            sharedValue->attributes.push_back(attribute);
+            sharedValue->addAttribute(attribute);
         }
     }
 

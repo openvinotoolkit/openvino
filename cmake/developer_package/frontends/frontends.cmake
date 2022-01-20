@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -57,7 +57,7 @@ function(ov_generate_frontends_hpp)
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for frontend_common
     add_custom_target(_ov_frontends_hpp DEPENDS ${ov_frontends_hpp})
-    add_dependencies(frontend_common _ov_frontends_hpp)
+    add_dependencies(frontend_common_obj _ov_frontends_hpp)
 
     # add dependency for object files
     get_target_property(sources frontend_common_obj SOURCES)
@@ -165,7 +165,7 @@ macro(ov_add_frontend)
         # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
     else()
         ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                            INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                             ADDITIONAL_INCLUDE_DIRECTORIES
                                 $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()

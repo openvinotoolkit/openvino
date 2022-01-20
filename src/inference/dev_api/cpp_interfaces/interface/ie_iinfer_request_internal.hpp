@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -241,6 +241,12 @@ public:
     const std::vector<std::shared_ptr<const ov::Node>>& GetInputs() const;
     const std::vector<std::shared_ptr<const ov::Node>>& GetOutputs() const;
 
+    /**
+     * @brief Sets inputs/outputs from ov::Model
+     */
+    virtual void setModelInputsOutputs(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                       const std::vector<std::shared_ptr<const ov::Node>>& outputs);
+
 protected:
     /**
      * @brief Destroys the object.
@@ -264,6 +270,19 @@ protected:
      * @throws [not_found] exception if there is no input and output layers with given name
      */
     bool findInputAndOutputBlobByName(const std::string& name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const;
+
+    /**
+     * @brief Helper function to find input node by legacy blob name
+     * @param name A legacy name of input blob
+     * @return shared pointer to OpenVINO input node
+     */
+    std::shared_ptr<const ov::Node> findInputByNodeName(const std::string& name) const;
+    /**
+     * @brief Helper function to find output node by legacy blob name
+     * @param name A legacy name of output blob
+     * @return shared pointer to OpenVINO output node
+     */
+    std::shared_ptr<const ov::Node> findOutputByNodeName(const std::string& name) const;
 
     /**
      * @brief Concatenates _batched_inputs into single blob before inference

@@ -1,22 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <format_reader_ptr.h>
-
-#include <inference_engine.hpp>
 #include <memory>
 #include <string>
 #include <vector>
 
 // clang-format off
-#include "ngraph/ngraph.hpp"
 #include "openvino/openvino.hpp"
+#include "ngraph/ngraph.hpp"
 
+#include "format_reader_ptr.h"
 #include "samples/args_helper.hpp"
 #include "samples/common.hpp"
 #include "samples/slog.hpp"
-#include "format_reader_ptr.h"
 // clang-format on
 
 // thickness of a line (in pixels) to be used for bounding boxes

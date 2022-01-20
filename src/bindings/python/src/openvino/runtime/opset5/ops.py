@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -8,7 +8,7 @@ import numpy as np
 from functools import partial
 
 from openvino.runtime import Node, Shape
-from openvino.runtime.op import Constant, Parameter
+from openvino.runtime.op import Constant, Parameter, loop
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.input_validation import (
@@ -18,14 +18,6 @@ from openvino.runtime.utils.input_validation import (
     is_positive_value,
 )
 from openvino.runtime.utils.node_factory import NodeFactory
-from openvino.runtime.utils.tensor_iterator_types import (
-    GraphBody,
-    TensorIteratorSliceInputDesc,
-    TensorIteratorMergedInputDesc,
-    TensorIteratorInvariantInputDesc,
-    TensorIteratorBodyOutputDesc,
-    TensorIteratorConcatOutputDesc,
-)
 from openvino.runtime.utils.types import (
     NodeInput,
     NumericData,
@@ -366,62 +358,3 @@ def rnn_sequence(
     }
 
     return _get_node_factory_opset5().create("RNNSequence", inputs, attributes)
-
-
-@nameable_op
-def loop(
-    trip_count: NodeInput,
-    execution_condition: NodeInput,
-    inputs: List[Node],
-    graph_body: GraphBody,
-    slice_input_desc: List[TensorIteratorSliceInputDesc],
-    merged_input_desc: List[TensorIteratorMergedInputDesc],
-    invariant_input_desc: List[TensorIteratorInvariantInputDesc],
-    body_output_desc: List[TensorIteratorBodyOutputDesc],
-    concat_output_desc: List[TensorIteratorConcatOutputDesc],
-    body_condition_output_idx: int,
-    current_iteration_input_idx: int = -1,
-    name: Optional[str] = None,
-) -> Node:
-    """Perform recurrent execution of the network described in the body, iterating through the data.
-
-    @param trip_count: A scalar or 1D tensor with 1 element specifying
-        maximum number of iterations.
-    @param execution_condition: A scalar or 1D tensor with 1 element
-        specifying whether to execute the first iteration or not.
-    @param      inputs:                The provided to TensorIterator operator.
-    @param      graph_body:            The graph representing the body we execute.
-    @param      slice_input_desc:      The descriptors describing sliced inputs, that is nodes
-                                       representing tensors we iterate through, processing single
-                                       data slice in one iteration.
-    @param      merged_input_desc:     The descriptors describing merged inputs, that is nodes
-                                       representing variables with initial value at first iteration,
-                                       which may be changing through iterations.
-    @param      invariant_input_desc:  The descriptors describing invariant inputs, that is nodes
-                                       representing variable with persistent value through all
-                                       iterations.
-    @param      body_output_desc:      The descriptors describing body outputs from specified
-                                       iteration.
-    @param      concat_output_desc:    The descriptors describing specified output values through
-                                       all the iterations concatenated into one node.
-    @param      body_condition_output_idx:    Determines the purpose of the corresponding result in
-                                              the graph_body. This result will determine the dynamic
-                                              exit condition. If the value of this result is False,
-                                              then iterations stop.
-    @param      current_iteration_input_idx:  Determines the purpose of the corresponding parameter
-                                              in the graph_body. This parameter will be used as
-                                              an iteration counter. Optional.
-    @return: The new node which performs Loop.
-    """
-    attributes = {
-        "body": graph_body.serialize(),
-        "input_descriptions": {"slice_input_desc": [desc.serialize() for desc in slice_input_desc],
-                               "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
-                               "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc]},
-        "output_descriptions": {"body_output_desc": [desc.serialize() for desc in body_output_desc],
-                                "concat_output_desc": [desc.serialize() for desc in concat_output_desc]},
-        "special_body_ports": {"body_condition_output_idx": body_condition_output_idx,
-                               "current_iteration_input_idx": current_iteration_input_idx}
-    }
-    return _get_node_factory_opset5().create("Loop", as_nodes(trip_count, execution_condition, *inputs),
-                                             attributes)

@@ -1,6 +1,9 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#ifndef FILE_UTILS_CPP
+#define FILE_UTILS_CPP
 
 #include <cstring>
 #include <fstream>
@@ -130,3 +133,5 @@ std::string getIELibraryPath() {
 }
 
 }  // namespace InferenceEngine
+
+#endif

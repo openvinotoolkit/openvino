@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
@@ -22,6 +22,11 @@ class UserDataRepack(FrontReplacementPattern):
         packed_user_shapes, packed_outputs, freeze_placeholder = user_data_repack(
             graph, argv.placeholder_shapes, argv.placeholder_data_types,
             argv.output, argv.freeze_placeholder_with_value)
+
+        # save packed user shapes in arguments since nodes names and their ports
+        # will be required to compose placeholder names with custom types
+        # for MOCLegacyTransformations
+        argv.packed_user_shapes = packed_user_shapes
 
         graph.graph['user_shapes'] = packed_user_shapes
         graph.graph['packed_outputs'] = packed_outputs

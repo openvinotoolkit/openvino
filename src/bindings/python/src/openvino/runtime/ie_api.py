@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -44,11 +44,14 @@ def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
 def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
     """Map all tensor names of all inputs to the data types of those tensors."""
 
+    def get_inputs(obj: Union[InferRequestBase, CompiledModelBase]) -> list:
+        return obj.model_inputs if isinstance(obj, InferRequestBase) else obj.inputs
+
     def map_tensor_names_to_types(input: Output) -> dict:
         return {n: input.get_element_type() for n in input.get_names()}
 
     input_types: dict = {}
-    for idx, input in enumerate(obj.inputs):
+    for idx, input in enumerate(get_inputs(obj)):
         input_types.update(map_tensor_names_to_types(input))
         input_types[idx] = input.get_element_type()
     return input_types
@@ -110,9 +113,14 @@ class Core(CoreBase):
     """Core wrapper."""
 
     def compile_model(
-        self, model: Union[Model, str], device_name: str, config: dict = None
+        self, model: Union[Model, str], device_name: str = None, config: dict = None
     ) -> CompiledModel:
         """Compile a model from given Model."""
+        if device_name is None:
+            return CompiledModel(
+                super().compile_model(model, {} if config is None else config)
+            )
+
         return CompiledModel(
             super().compile_model(model, device_name, {} if config is None else config)
         )

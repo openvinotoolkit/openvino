@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1138,8 +1138,14 @@ data_types program::get_inference_precision(const program_node& node) const {
     }
     std::vector<data_types> input_dts;
     for (auto& dep : node.get_dependencies()) {
-        input_dts.push_back(dep->get_output_layout().data_type);
+        if (dep->is_valid_output_layout())
+            input_dts.push_back(dep->get_output_layout().data_type);
     }
+
+    // Return f32 data_type as default inference precision if any layout is invalid
+    if (input_dts.size() != node.get_dependencies().size() || !node.is_valid_output_layout())
+        return data_types::f32;
+
     data_types output_dt = node.get_output_layout().data_type;
 
     assert(!input_dts.empty());
@@ -1205,15 +1211,22 @@ program::primitives_info program::get_current_stage_info() const {
             }
         }
 
+        // Initialize output_layout with dummy values and use them if layout is invalid
+        layout output_layout{ cldnn::data_types::f32, cldnn::format::any, {1, 1, 1, 1} };
+
+        if (p->is_valid_output_layout())
+            output_layout = p->get_output_layout();
+
         primitive_info pi(p->id(),
                           type_to_str(p->get_primitive()),
                           dependencies,
                           users,
                           fused,
-                          p->get_output_layout(),
-                          fmt_to_str(p->get_output_layout().format),
+                          output_layout,
+                          fmt_to_str(output_layout.format),
                           get_implementation_info(p->id()),
-                          get_inference_precision(*p),
+                          p->is_valid_output_layout() ?
+                            get_inference_precision(*p) : cldnn::data_types::f32,
                           p->selected_impl ? p->selected_impl->is_cpu() : false,
                           exec_id++);
 
@@ -1225,13 +1238,8 @@ program::primitives_info program::get_current_stage_info() const {
 
 void program::save_pass_info(std::string pass_name) {
     // TODO: Directory path here can be probably changed to some bool flag
-    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty()) {
-        for (auto& node : this->get_processing_order()) {
-            if (!node->is_type<data>())
-                node->get_output_layout();
-        }
+    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty())
         optimizer_passes_info.emplace_back(pass_name, get_current_stage_info());
-    }
 }
 
 void program::add_optimized_primitive_info(primitive_id optimized_primitive_id,

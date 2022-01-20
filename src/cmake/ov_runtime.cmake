@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -48,7 +48,7 @@ ie_mark_target_as_cc(${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin ov_intel_cpu_plugin myriadPlugin)
+                    POSSIBLE_PLUGINS ov_auto_plugin ov_hetero_plugin ov_intel_gpu_plugin ov_intel_gna_plugin ov_intel_cpu_plugin ov_intel_vpu_plugin)
 
 # Export for build tree
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <time.h>
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments ---------------------------------
-        if (!ParseAndCheckCommandLine(argc, argv)) {
+        if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
         BaseFile* file;
@@ -171,15 +171,17 @@ int main(int argc, char* argv[]) {
         }
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
         gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
-        gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_LIB_N_THREADS] =
-            std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
+        IE_SUPPRESS_DEPRECATED_START
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
+        IE_SUPPRESS_DEPRECATED_END
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
+            IE_SUPPRESS_DEPRECATED_START
             gnaPluginConfig[InferenceEngine::GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
+            IE_SUPPRESS_DEPRECATED_END
         }
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 2. Loading model to the device ------------------------------------------
@@ -238,7 +240,7 @@ int main(int argc, char* argv[]) {
         }
         // ---------------------------------------------------------------------------------------------------------
         // --------------------------- Step 3. Create infer request --------------------------------------------------
-        std::vector<InferRequestStruct> inferRequests((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
+        std::vector<InferRequestStruct> inferRequests(1);
 
         for (auto& inferRequest : inferRequests) {
             inferRequest = {executableNet.create_infer_request(), -1, batchSize};

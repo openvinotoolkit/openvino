@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,6 +86,57 @@ public:
         return result.str();
     }
 };
+
+TEST_P(OVRemoteTensorInputBlob_Test, smoke_cantCreateBlobWithInvalidSize) {
+    RemoteTensorSharingType sharing_type;
+    bool with_auto_batching;
+    std::tie(sharing_type, with_auto_batching) = GetParam();
+    if (with_auto_batching)
+        GTEST_SKIP();
+
+    if (sharing_type == RemoteTensorSharingType::PLUGIN_CL_TENSOR ||
+        sharing_type == RemoteTensorSharingType::PLUGIN_USM_HOST_TENSOR ||
+        sharing_type == RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR ||
+        sharing_type == RemoteTensorSharingType::PLUGIN_HOST_TENSOR)
+        GTEST_SKIP();
+
+    auto ie = ov::runtime::Core();
+    auto cldnn_context = ie.get_default_context(deviceName).as<ov::runtime::intel_gpu::ocl::ClContext>();
+    cl_context ctx = cldnn_context;
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+    cl_int err;
+
+    ov::Shape invalid_shape = {1, 20, 30, 40};
+
+    auto imSize = ov::shape_size(ov::Shape({1, 2, 3, 4}));
+
+    switch (sharing_type) {
+        case RemoteTensorSharingType::USER_CL_TENSOR: {
+            cl::Buffer shared_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, imSize, NULL, &err);
+            ASSERT_ANY_THROW(cldnn_context.create_tensor(ov::element::i8, invalid_shape, shared_buffer));
+            break;
+        }
+        case RemoteTensorSharingType::USER_USM_DEVICE_TENSOR: {
+            if (!ocl_instance->supports_usm())
+                GTEST_SKIP();
+
+            void* shared_buffer = ocl_instance->allocate_usm_device_buffer(imSize);
+            ASSERT_ANY_THROW(cldnn_context.create_tensor(ov::element::i8, invalid_shape, shared_buffer));
+            ocl_instance->free_mem(shared_buffer);
+            break;
+        }
+        case RemoteTensorSharingType::USER_USM_HOST_TENSOR: {
+            if (!ocl_instance->supports_usm())
+                GTEST_SKIP();
+
+            void* shared_buffer = ocl_instance->allocate_usm_host_buffer(imSize);
+            ASSERT_ANY_THROW(cldnn_context.create_tensor(ov::element::i8, invalid_shape, shared_buffer));
+            ocl_instance->free_mem(shared_buffer);
+            break;
+        }
+        default: break;
+    }
+}
 
 TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
 #if defined(ANDROID)
@@ -285,6 +336,8 @@ class OVRemoteTensor_TestsWithContext : public OVRemoteTensor_Test, public testi
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
     std::string deviceName;
+    std::map<std::string, std::string> config;
+
 public:
     void SetUp() override {
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
@@ -292,6 +345,7 @@ public:
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) { // BATCH:GPU
             deviceName = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + deviceName;
+            config = {{CONFIG_KEY(ALLOW_AUTO_BATCHING), CONFIG_VALUE(YES)}};
         }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
@@ -325,7 +379,7 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContext) {
     auto ocl_instance = std::make_shared<OpenCL>();
 
     auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_context.get());
-    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto exec_net_shared = ie.compile_model(function, remote_context, config);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input, fakeImageData);
 
@@ -373,7 +427,7 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContextWithMultipleD
     auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_context.get(), 1);
 
     ASSERT_EQ(remote_context.get_device_name(), "GPU.0");
-    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto exec_net_shared = ie.compile_model(function, remote_context, config);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input, fakeImageData);
 
@@ -875,6 +929,159 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image) {
         float thr = 0.1;
 
         FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
+                                                static_cast<float*>(output_tensor_regular.data()),
+                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+    }
+}
+
+TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const int height = 16;
+    const int width = 16;
+
+    // ------------------------------------------------------
+    // Prepare input data
+    std::vector<ov::runtime::Tensor> fake_image_data_y, fake_image_data_uv;
+    for (size_t i = 0; i < num_batch * 2; ++i) {
+        fake_image_data_y.push_back(FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1, i));
+        fake_image_data_uv.push_back(FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1, i));
+    }
+
+    auto ie = ov::runtime::Core();
+
+    // ------------------------------------------------------
+    // inference using remote tensor
+    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
+
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(fn_ptr_remote);
+    p.input().tensor().set_element_type(ov::element::u8)
+                      .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                      .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+    p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p.input().model().set_layout("NCHW");
+    auto function = p.build();
+
+    auto param_input_y = fn_ptr_remote->get_parameters().at(0);
+    auto param_input_uv = fn_ptr_remote->get_parameters().at(1);
+    auto output = function->get_results().at(0);
+
+    auto ocl_instance = std::make_shared<OpenCL>();
+    ocl_instance->_queue = cl::CommandQueue(ocl_instance->_context, ocl_instance->_device);
+    cl_int err;
+
+    auto in_size_y = ov::shape_size(param_input_y->get_output_shape(0)) * param_input_y->get_output_element_type(0).size();
+    auto in_size_uv = ov::shape_size(param_input_uv->get_output_shape(0)) * param_input_uv->get_output_element_type(0).size();
+    auto out_size = ov::shape_size(output->get_output_shape(0)) * output->get_output_element_type(0).size();
+
+    auto remote_context = ov::runtime::intel_gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
+    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto gpu_context = exec_net_shared.get_context().as<ov::runtime::intel_gpu::ocl::ClContext>();
+
+    std::vector<cl::Buffer> shared_input_y_buffer, shared_input_uv_buffer;
+    std::vector<ov::runtime::Tensor> gpu_in_y_tensor, gpu_in_uv_tensor;
+
+    for (size_t i = 0; i < num_batch; ++i) {
+        shared_input_y_buffer.emplace_back(cl::Buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size_y, NULL, &err));
+        shared_input_uv_buffer.emplace_back(cl::Buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size_uv, NULL, &err));
+
+        gpu_in_y_tensor.emplace_back(gpu_context.create_tensor(param_input_y->get_output_element_type(0),
+                                                               fake_image_data_y[i].get_shape(),
+                                                               shared_input_y_buffer[i]));
+        gpu_in_uv_tensor.emplace_back(gpu_context.create_tensor(param_input_uv->get_output_element_type(0),
+                                                                fake_image_data_uv[i].get_shape(),
+                                                                shared_input_uv_buffer[i]));
+    }
+    cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+    auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
+    auto out_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+
+    auto inf_req_shared = exec_net_shared.create_infer_request();
+    inf_req_shared.set_tensors(*param_input_y->output(0).get_tensor().get_names().begin(), gpu_in_y_tensor);
+    inf_req_shared.set_tensors(*param_input_uv->output(0).get_tensor().get_names().begin(), gpu_in_uv_tensor);
+    inf_req_shared.set_tensor(output, gpu_out_tensor);
+
+    for (size_t i = 0; i < num_batch; ++i) {
+        void* buffer_y = fake_image_data_y[i].data();
+        void* buffer_uv = fake_image_data_uv[i].data();
+
+        ocl_instance->_queue.enqueueWriteBuffer(shared_input_y_buffer[i], false, 0, in_size_y, buffer_y);
+        ocl_instance->_queue.enqueueWriteBuffer(shared_input_uv_buffer[i], false, 0, in_size_uv, buffer_uv);
+    }
+
+    inf_req_shared.start_async();
+    ocl_instance->_queue.enqueueReadBuffer(shared_output_buffer, false, 0, out_size, out_tensor.data(), nullptr, nullptr);
+    ocl_instance->_queue.finish();
+    ASSERT_NO_THROW(out_tensor.data());
+
+    // ------------------------------------------------------
+    // inference using the same InferRequest but with new data
+    inf_req_shared.wait();
+
+    std::vector<cl::Buffer> shared_input_y_buffer_new, shared_input_uv_buffer_new;
+    std::vector<ov::runtime::Tensor> gpu_in_y_tensor_new, gpu_in_uv_tensor_new;
+    for (size_t i = 0; i < num_batch; ++i) {
+        shared_input_y_buffer_new.emplace_back(cl::Buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size_y, NULL, &err));
+        shared_input_uv_buffer_new.emplace_back(cl::Buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size_uv, NULL, &err));
+
+        gpu_in_y_tensor_new.emplace_back(gpu_context.create_tensor(param_input_y->get_output_element_type(0),
+                                                                   fake_image_data_y[i + num_batch].get_shape(),
+                                                                   shared_input_y_buffer_new[i]));
+        gpu_in_uv_tensor_new.emplace_back(gpu_context.create_tensor(param_input_uv->get_output_element_type(0),
+                                                                    fake_image_data_uv[i + num_batch].get_shape(),
+                                                                    shared_input_uv_buffer_new[i]));
+    }
+    cl::Buffer shared_output_buffer_new(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+    auto gpu_out_tensor_new = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer_new);
+    auto out_tensor_new = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+
+    inf_req_shared.set_tensors(*param_input_y->output(0).get_tensor().get_names().begin(), gpu_in_y_tensor_new);
+    inf_req_shared.set_tensors(*param_input_uv->output(0).get_tensor().get_names().begin(), gpu_in_uv_tensor_new);
+    inf_req_shared.set_tensor(output, gpu_out_tensor_new);
+
+    for (size_t i = 0; i < num_batch; ++i) {
+        void* buffer_y = fake_image_data_y[i + num_batch].data();
+        void* buffer_uv = fake_image_data_uv[i + num_batch].data();
+
+        ocl_instance->_queue.enqueueWriteBuffer(shared_input_y_buffer_new[i], false, 0, in_size_y, buffer_y);
+        ocl_instance->_queue.enqueueWriteBuffer(shared_input_uv_buffer_new[i], false, 0, in_size_uv, buffer_uv);
+    }
+    inf_req_shared.start_async();
+    ocl_instance->_queue.enqueueReadBuffer(shared_output_buffer_new, false, 0, out_size, out_tensor_new.data(), nullptr, nullptr);
+    ocl_instance->_queue.finish();
+    ASSERT_NO_THROW(out_tensor_new.data());
+
+    // ------------------------------------------------------
+    // regular inference
+    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, height, width});
+
+    using namespace ov::preprocess;
+    auto p_reg = PrePostProcessor(fn_ptr_regular);
+    p_reg.input().tensor().set_element_type(ov::element::u8)
+                          .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                          .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+    p_reg.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p_reg.input().model().set_layout("NCHW");
+    auto function_regular = p_reg.build();
+
+    auto param_input_y_reg = fn_ptr_regular->get_parameters().at(0);
+    auto param_input_uv_reg = fn_ptr_regular->get_parameters().at(1);
+
+    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto inf_req_regular = exec_net_regular.create_infer_request();
+
+    for (size_t i = 0; i < num_batch; ++i) {
+        inf_req_regular.set_tensor(param_input_y_reg, fake_image_data_y[i + num_batch]);
+        inf_req_regular.set_tensor(param_input_uv_reg, fake_image_data_uv[i + num_batch]);
+        inf_req_regular.infer();
+        auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
+
+        ASSERT_EQ(output_tensor_regular.get_size() * num_batch, out_tensor_new.get_size());
+        float thr = 0.1;
+
+        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(out_tensor_new.data()) + i * output_tensor_regular.get_size(),
                                                 static_cast<float*>(output_tensor_regular.data()),
                                                 output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
     }

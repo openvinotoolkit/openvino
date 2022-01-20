@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
@@ -78,6 +78,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
 }
 
 TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function = ngraph::builder::subgraph::makeConvPoolRelu();
     EXPECT_NO_THROW(auto execNet = core->compile_model(function));

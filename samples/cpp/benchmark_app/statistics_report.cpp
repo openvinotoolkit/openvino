@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include "statistics_report.hpp"
 // clang-format on
 
-void StatisticsReport::addParameters(const Category& category, const Parameters& parameters) {
+void StatisticsReport::add_parameters(const Category& category, const Parameters& parameters) {
     if (_parameters.count(category) == 0)
         _parameters[category] = parameters;
     else
@@ -55,7 +55,7 @@ void StatisticsReport::dump() {
     slog::info << "Statistics report is stored to " << dumper.getFilename() << slog::endl;
 }
 
-void StatisticsReport::dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformaceCounters& perfCounts) {
+void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, const PerformaceCounters& perfCounts) {
     std::chrono::microseconds total = std::chrono::microseconds::zero();
     std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
 
@@ -96,7 +96,7 @@ void StatisticsReport::dumpPerformanceCountersRequest(CsvDumper& dumper, const P
     dumper.endLine();
 }
 
-void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCounters>& perfCounts) {
+void StatisticsReport::dump_performance_counters(const std::vector<PerformaceCounters>& perfCounts) {
     if ((_config.report_type.empty()) || (_config.report_type == noCntReport)) {
         slog::info << "Statistics collecting for performance counters was not "
                       "requested. No reports are dumped."
@@ -110,7 +110,7 @@ void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCount
     CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_" + _config.report_type + "_report.csv");
     if (_config.report_type == detailedCntReport) {
         for (auto& pc : perfCounts) {
-            dumpPerformanceCountersRequest(dumper, pc);
+            dump_performance_counters_request(dumper, pc);
         }
     } else if (_config.report_type == averageCntReport) {
         auto getAveragePerformanceCounters = [&perfCounts]() {
@@ -128,7 +128,7 @@ void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCount
                             break;
                         }
                     }
-                    if (idx < performanceCountersAvg.size()) {
+                    if (idx == performanceCountersAvg.size()) {
                         performanceCountersAvg.push_back(pm);
                     }
                 }
@@ -139,7 +139,7 @@ void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCount
             }
             return performanceCountersAvg;
         };
-        dumpPerformanceCountersRequest(dumper, getAveragePerformanceCounters());
+        dump_performance_counters_request(dumper, getAveragePerformanceCounters());
     } else {
         throw std::logic_error("PM data can only be collected for average or detailed report types");
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1701,7 +1701,16 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
     //  Same params as in eltwise_gpu_f32, sub_basic_in4x4x4x4 but using int types instead
 
     std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i32, data_types::i64 };
-    std::vector<eltwise_mode> eltwise_ops_to_test = { eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::div, eltwise_mode::prod, eltwise_mode::min, eltwise_mode::max, eltwise_mode::mod };
+    std::vector<eltwise_mode> eltwise_ops_to_test = {
+        eltwise_mode::sum,
+        eltwise_mode::sub,
+        eltwise_mode::div,
+        eltwise_mode::prod,
+        eltwise_mode::min,
+        eltwise_mode::max,
+        eltwise_mode::mod,
+        eltwise_mode::floor_mod
+    };
 
     for (auto& data_type : data_types_to_test)
     {
@@ -1761,8 +1770,11 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
                     expected = std::min(input_1_vec[i], input_2_vec[i]);
                 else if (mode == eltwise_mode::max)
                     expected = std::max(input_1_vec[i], input_2_vec[i]);
-                else if (mode == eltwise_mode::mod) {
+                else if (mode == eltwise_mode::mod)
                     expected = std::fmod(input_1_vec[i], input_2_vec[i]);
+                else if (mode == eltwise_mode::floor_mod) {
+                    const double divisor = static_cast<double>(input_2_vec[i]);
+                    expected =  input_1_vec[i] - input_2_vec[i] * std::floor(input_1_vec[i] / divisor);
                 }
 
                 EXPECT_TRUE(are_equal(std::floor(expected), output_ptr[i]));
