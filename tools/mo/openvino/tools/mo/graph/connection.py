@@ -99,6 +99,14 @@ class Connection:
         if self.control_flow is True:
             raise Error("Cannot operate with connection with control_flow=True")
 
+        if self.source is not None:
+            scr_node = self.source.node
+
+            # Force "source" mode for "Parameter" source node, which preserves tensor names for
+            # source node in connection.
+            if scr_node.soft_get("type") == "Parameter":
+                attributes_save_mode = "source"
+
         if self.graph.stage == 'front':
             scr_node = port.node
 
@@ -211,6 +219,14 @@ class Connection:
 
         if self.control_flow is True:
             raise Error("Cannot operate with connection with control_flow=True")
+
+        if self.source is not None:
+            scr_node = self.source.node
+
+            # Force "source" mode for "Parameter" source node, which preserves tensor names for
+            # source node in connection.
+            if scr_node.soft_get("type") == "Parameter":
+                attributes_save_mode = "source"
 
         if self.graph.stage == 'front':
             if self.source is not None:

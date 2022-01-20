@@ -33,7 +33,6 @@ class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
             Result(graph).create_node([region_layer_node], edge_attrs={'fw_tensor_debug_info':[(tensor_name, tensor_name)],
                                                                        'data_attrs': ['fw_tensor_debug_info']})
             graph.remove_node(op_output)
-            print('ok')
 
 
 class YoloV3RegionAddon(FrontReplacementFromConfigFileGeneral):

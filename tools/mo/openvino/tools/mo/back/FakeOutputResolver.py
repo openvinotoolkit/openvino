@@ -31,8 +31,18 @@ class FakeOutputResolver(BackReplacementPattern):
                 add = create_op_with_const_inputs(graph, Add, {1: int64_array(0)}, {'can_be_fused': False})
                 rename_nodes([(fake_output, name + '/TBD'), (add, name)])
 
+                # Get tensor names incoming to FakeOutput
+                in_data_node = fake_output.in_node()
+                if 'fw_tensor_debug_info' in in_data_node:
+                    debug_info = in_data_node['fw_tensor_debug_info']
+                    del in_data_node['fw_tensor_debug_info']
+
                 fake_output.in_port(0).get_connection().set_destination(add.in_port(0))
                 fake_output.out_port(0).get_connection().set_source(add.out_port(0))
+
+                # Move tensor names to Add op, which replaces FakeOutput
+                add.out_node(0)['fw_tensor_debug_info'] = debug_info
+
             else:
                 result_in_port = fake_output.out_port(0).get_destination()
                 result_in_port.disconnect()
