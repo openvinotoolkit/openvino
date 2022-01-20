@@ -221,7 +221,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 # enable eager execution temporarily while TensorFlow 2 model is being loaded
                 tf_v1.enable_eager_execution()
 
-                # code to extract GraphDef for TF 2.0 SavedModel format
+                # Code to extract Keras model.
                 # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
                 # for TF 1.x SavedModel format in case TF 1.x installed
                 imported = tf.keras.models.load_model(model_dir, compile=False)
