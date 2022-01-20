@@ -75,10 +75,10 @@ binary_convolution_inst::typed_primitive_inst(network& network, binary_convoluti
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input number of dimensions",
-                          input_layout.size.raw.size(),
+                          input_layout.get_rank(),
                           "output number of dimensions",
-                          output_layout.size.raw.size(),
-                          "Input/output dims mismatch");
+                          output_layout.get_rank(),
+                          "Input/output rank mismatch");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Stride number of dimensions",
                           stride.size(),
@@ -99,9 +99,9 @@ binary_convolution_inst::typed_primitive_inst(network& network, binary_convoluti
 
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights number of dimensions",
-                              filter_inst.size.raw.size(),
+                              filter_inst.get_rank(),
                               "output number of dimensions",
-                              output_layout.size.raw.size(),
+                              output_layout.get_rank(),
                               "Weights/output dims mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Convolution padding mode",

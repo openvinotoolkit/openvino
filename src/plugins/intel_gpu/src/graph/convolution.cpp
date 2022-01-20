@@ -273,10 +273,10 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input number of dimensions",
-                          input_inst.size.raw.size(),
+                          input_inst.get_rank(),
                           "output number of dimensions",
-                          output_layout.size.raw.size(),
-                          "Input/output dims mismatch");
+                          output_layout.get_rank(),
+                          "Input/output rank mismatch");
 
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
@@ -318,12 +318,6 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
 
         auto pad = argument.pad;
 
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Weights number of dimensions",
-                              filter_inst.size.raw.size(),
-                              "output number of dimensions",
-                              output_layout.size.raw.size(),
-                              "Weights/output dims mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Convolution padding mode",
                               node.get_output_layout().data_padding.filling_value(),

@@ -527,7 +527,7 @@ struct layout {
 
     std::string to_string() const;
 
-    static cldnn::format get_default_format(size_t rank, bool is_weights, bool is_grouped);
+    static cldnn::format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
 };
 
 /// @}
