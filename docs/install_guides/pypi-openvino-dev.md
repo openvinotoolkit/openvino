@@ -1,4 +1,4 @@
-# Intel® Distribution of OpenVINO™ Toolkit Developer Package 
+# OpenVINO™ Development Tools 
 
 ## Introduction
 
@@ -23,7 +23,7 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 | [OpenVINO™ Runtime](https://pypi.org/project/openvino)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                                                |
 
 ## System Requirements
-The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
+The complete list of supported hardware is available in the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-relnotes.html).
 
 The table below lists the supported operating systems and Python* versions required to run the installation.
 
@@ -36,6 +36,8 @@ The table below lists the supported operating systems and Python* versions requi
 |   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
 
 > **NOTE**: This package can be installed on other versions of macOS, Linux and Windows, but only the specific versions above are fully validated.
+
+> **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel CPUs only
 
 ## Install the Developer Package
 
