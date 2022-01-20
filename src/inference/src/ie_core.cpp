@@ -119,6 +119,21 @@ void allowNotImplemented(F&& f) {
     }
 }
 
+ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
+    ov::AnyMap result = properties;
+    for (auto&& property : properties) {
+        auto parsed = parseDeviceNameIntoConfig(property.first);
+        if (device.find(parsed._deviceName) != std::string::npos) {
+            if (property.second.is<ov::AnyMap>()) {
+                for (auto&& sub_property : property.second.as<ov::AnyMap>()) {
+                    result[sub_property.first] = sub_property.second;
+                }
+            }
+        }
+    }
+    return result;
+}
+
 }  // namespace
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
@@ -1655,7 +1670,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, any_copy(config));
+        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
         return {exec._ptr, exec._so};
     });
 }
@@ -1666,7 +1681,7 @@ CompiledModel Core::compile_model(const std::string& modelPath, const AnyMap& co
 
 CompiledModel Core::compile_model(const std::string& modelPath, const std::string& deviceName, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(modelPath, deviceName, any_copy(config));
+        auto exec = _impl->LoadNetwork(modelPath, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
         return {exec._ptr, exec._so};
     });
 }
@@ -1675,7 +1690,9 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model), context._impl, any_copy(config));
+        auto exec = _impl->LoadNetwork(toCNN(model),
+                                       context._impl,
+                                       any_copy(flatten_sub_properties(context.get_device_name(), config)));
         return {exec._ptr, exec._so};
     });
 }
@@ -1703,7 +1720,7 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& deviceName, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->ImportNetwork(modelStream, deviceName, any_copy(config));
+        auto exec = _impl->ImportNetwork(modelStream, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
         return {exec._ptr, exec._so};
     });
 }
@@ -1737,7 +1754,8 @@ SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) const {
     OV_CORE_CALL_STATEMENT({
-        auto qnResult = _impl->QueryNetwork(toCNN(model), deviceName, any_copy(config));
+        auto qnResult =
+            _impl->QueryNetwork(toCNN(model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
         return qnResult.supportedLayersMap;
     });
 }
@@ -1839,7 +1857,7 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(deviceName, params);
+        auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, params));
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
         return {remoteContext._ptr, remoteContext._so};
     });
