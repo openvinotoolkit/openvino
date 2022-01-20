@@ -221,14 +221,10 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 # enable eager execution temporarily while TensorFlow 2 model is being loaded
                 tf_v1.enable_eager_execution()
 
-                try:
-                    # Try to import Keras model.
-                    # Not applicable for TF1
-                    imported = tf.keras.models.load_model(model_dir)
-                except:
-                    # code to extract GraphDef for TF 2.0 SavedModel format
-                    # tf.saved_model.load function throws TypeError for TF 1.x SavedModel format in case TF 1.x installed
-                    imported = tf.saved_model.load(model_dir, saved_model_tags) # pylint: disable=E1120
+                # code to extract GraphDef for TF 2.0 SavedModel format
+                # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
+                # for TF 1.x SavedModel format in case TF 1.x installed
+                imported = tf.keras.models.load_model(model_dir)
 
                 # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
                 concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
@@ -259,7 +255,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 inputs_outputs_order = (input_names, output_names)
 
                 return graph_def, variables_values, 'tf2', inputs_outputs_order
-            except (TypeError, KeyError):
+            except:
                 # disable eager execution since TensorFlow 1 model is handled
                 tf_v1.disable_eager_execution()
                 # code to extract GraphDef for TF 1.0 SavedModel format
@@ -269,8 +265,6 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                     outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
                     graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
                     return graph_def, variables_values, 'tf', None
-            except Exception as e:
-                raise FrameworkError('SavedModel format load failure: {}', e) from e
     except Exception as e:
         raise FrameworkError('Cannot load input model: {}', e) from e
     raise Error("Unknown configuration of input model parameters")
