@@ -19,8 +19,7 @@ void regclass_frontend_paddle_ConversionExtension(py::module m) {
     py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> _ext(
         m,
         "_ConversionExtensionPaddle",
-        py::dynamic_attr(),
-        py::module_local());
+        py::dynamic_attr());
     class PyConversionExtension : public ConversionExtension {
     public:
         using Ptr = std::shared_ptr<PyConversionExtension>;

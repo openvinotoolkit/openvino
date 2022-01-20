@@ -20,8 +20,7 @@ void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
     py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> _ext(
         m,
         "_ConversionExtensionTensorflow",
-        py::dynamic_attr(),
-        py::module_local());
+        py::dynamic_attr());
     class PyConversionExtension : public ConversionExtension {
     public:
         using Ptr = std::shared_ptr<PyConversionExtension>;
