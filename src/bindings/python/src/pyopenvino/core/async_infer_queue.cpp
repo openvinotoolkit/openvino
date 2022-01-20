@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "pyopenvino/core/async_infer_queue.hpp"
@@ -119,7 +119,7 @@ public:
 void regclass_AsyncInferQueue(py::module m) {
     py::class_<AsyncInferQueue, std::shared_ptr<AsyncInferQueue>> cls(m, "AsyncInferQueue");
 
-    cls.def(py::init([](ov::runtime::CompiledModel& net, size_t jobs) {
+    cls.def(py::init([](ov::CompiledModel& net, size_t jobs) {
                 if (jobs == 0) {
                     jobs = (size_t)Common::get_optimal_number_of_requests(net);
                 }

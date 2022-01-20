@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@
 #include <vpu/configuration/options/device_connect_timeout.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_async_dma.hpp>
+#include <vpu/configuration/options/enable_mx_boot.hpp>
 
 #include "myriad_executor.h"
 
@@ -82,6 +83,10 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
+    auto stat = config.get<EnableMXBootOption>() == false;
+    if (stat) {
+        return ncStatus_t(stat);
+    }
 // #-17972, #-16790
 #if defined(NO_BOOT)
     if (!devicePool.empty()) {
@@ -257,13 +262,14 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
     // In case, then there is no another not booted device, use already booted with minimum number of executors
     if (booted != NC_OK) {
         std::vector<DevicePtr> availableDevices;
-
         // Get all suitable devices
-        std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
-            [&config](const DevicePtr &device) {
-                return device->isBooted() && device->isNotFull()
-                       && device->isSuitableForConfig(config);
-            });
+        if (config.get<EnableMXBootOption>() == true) {
+            std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
+                [&config](const DevicePtr &device) {
+                    return device->isBooted() && device->isNotFull()
+                        && device->isSuitableForConfig(config);
+                });
+        }
         // Return mock device. If try infer with it, exception will be thrown
         if (availableDevices.empty()) {
             DeviceDesc device;
@@ -306,10 +312,14 @@ void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool, std::share
 void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                                    const std::vector<char> &graphFileContent,
                                    const std::pair<const char*, size_t> &graphHeaderDesc,
-                                   size_t numStages, const std::string & networkName, int executors) {
+                                   size_t numStages, const std::string & networkName, int executors,
+                                   const PluginConfiguration& config) {
     VPU_PROFILE(allocateGraph);
     _numStages = static_cast<int>(numStages);
     graphDesc._name = networkName;
+    if (config.get<EnableMXBootOption>() == false) {
+        return;
+    }
     if (device->_deviceHandle == nullptr) {
         IE_THROW() << "Failed to allocate graph: MYRIAD device is not opened.";
     }

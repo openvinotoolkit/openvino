@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,7 @@ inline Version convert_to_version(const std::string& version) {
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
-    // TODO: change the submodule name according to the description in 69196
-    py::module m_offline_transformations =
-        m.def_submodule("offline_transformations_pybind", "Offline transformations module");
+    py::module m_offline_transformations = m.def_submodule("offline_transformations", "Offline transformations module");
 
     m_offline_transformations.def(
         "apply_moc_transformations",

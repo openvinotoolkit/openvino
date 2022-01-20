@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,11 +87,11 @@ struct DeformableConvolutionParams {
     ov::element::Type offsetType;
     ov::element::Type outType;
     ov::element::Type maskType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor filterData;
-    ov::runtime::Tensor offsetData;
-    ov::runtime::Tensor refData;
-    ov::runtime::Tensor maskData;
+    ov::Tensor inputData;
+    ov::Tensor filterData;
+    ov::Tensor offsetData;
+    ov::Tensor refData;
+    ov::Tensor maskData;
     ov::Strides strides;
     ov::CoordinateDiff padBegin;
     ov::CoordinateDiff padEnd;

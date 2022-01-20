@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,7 +146,8 @@ ExecutableNetwork::ExecutableNetwork(
         return;
     }
     openDevice(devicePool);
-    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors);
+    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages,
+                             networkName, _actualNumExecutors, _config);
 }
 
 void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration) {
@@ -179,7 +180,7 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
     auto blobHeader = blobReader.getHeader();
 
     openDevice(devicePool);
-    _executor->allocateGraph(_device, _graphDesc, _graphBlob, blobHeader, numStages, networkName, _actualNumExecutors);
+    _executor->allocateGraph(_device, _graphDesc, _graphBlob, blobHeader, numStages, networkName, _actualNumExecutors, _config);
     _graphMetaData.stagesMeta.resize(numStages);
     for (auto &meta : _graphMetaData.stagesMeta) {
         meta.stageName = meta.stageType = meta.layerName = meta.layerType = "UNKNOWN";

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +91,8 @@ public:
                        const std::pair<const char*, size_t> &graphHeaderDesc,
                        size_t numStages,
                        const std::string & networkName,
-                       int executors);
+                       int executors,
+                       const PluginConfiguration& config);
 
     void deallocateGraph(DevicePtr &device, GraphDesc &graphDesc);
 
