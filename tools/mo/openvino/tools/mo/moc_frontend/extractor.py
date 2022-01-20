@@ -23,10 +23,9 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
     found_node_names = []
 
     def try_get_tensor(node_name):
-        found_tensors = []
         tensor = input_model.get_place_by_tensor_name(node_name)
         if tensor:
-            found_tensors.append(tensor)
+            return tensor
         if node_name.count(":"):
             regexp_pre = r'(\d+):(.+)'
             match_pre = re.search(regexp_pre, node_name)
@@ -35,9 +34,11 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
                 node = input_model.get_place_by_operation_name(name)
                 if node:
                     tensor = node.get_source_tensor(input_port_index=int(port))
+                    if tensor:
+                        return tensor
                 tensor = input_model.get_place_by_tensor_name(name)
                 if tensor:
-                    found_tensors.append(tensor)
+                    return tensor
             regexp_post = r'(.+):(\d+)'
             match_post = re.search(regexp_post, node_name)
             if match_post:
@@ -45,18 +46,22 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
                 node = input_model.get_place_by_operation_name(name)
                 if node:
                     tensor = node.get_target_tensor(output_port_index=int(port))
+                    if tensor:
+                        return tensor
                 tensor = input_model.get_place_by_tensor_name(name)
                 if tensor:
-                    found_tensors.append(tensor)
+                    return tensor
         node = input_model.get_place_by_operation_name(node_name)
         if node:
-            found_tensors.append(node.get_target_tensor(output_port_index=0))
-        return found_tensors
+            tensor = node.get_target_tensor(output_port_index=0)
+            if tensor:
+                return tensor
+        return None
 
-    found_tensors = try_get_tensor(node_name)
-    for tensor in found_tensors:
-        found_node_names.append('Tensor:' + tensor.get_names()[0])
-        found_nodes.append(tensor)
+    found_tensor = try_get_tensor(node_name)
+    if found_tensor:
+        found_node_names.append('Tensor:' + found_tensor.get_names()[0])
+        found_nodes.append(found_tensor)
 
     def try_get_node(model, name, framework, node_pre):
         node = model.get_place_by_operation_name(name)
@@ -89,7 +94,6 @@ def decode_name_with_port(input_model: InputModel, node_name: str, framework="")
             if node_pre:
                 found_node_names.append(match_pre.group(2))
                 found_nodes.append(node_pre)
-
     if len(found_nodes) == 0:
         raise_no_node(node_name)
 

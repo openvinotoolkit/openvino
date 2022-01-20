@@ -83,8 +83,8 @@ class TestMainFrontend(unittest.TestCase):
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
-        assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_tensor_name == 2
+        assert model_stat.get_place_by_operation_name == 3
         assert place_stat.get_output_port == 1
         assert place_stat.lastArgInt == 7
         assert node
@@ -96,8 +96,8 @@ class TestMainFrontend(unittest.TestCase):
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
-        assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 2
+        assert model_stat.get_place_by_tensor_name == 2
+        assert model_stat.get_place_by_operation_name == 3
         assert place_stat.get_input_port == 1
         assert place_stat.lastArgInt == 7
         assert node
@@ -133,10 +133,10 @@ class TestMainFrontend(unittest.TestCase):
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
 
-        assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 1
-        assert place_stat.get_output_port == 0
-        assert place_stat.lastArgInt == -1
+        assert model_stat.get_place_by_tensor_name == 2
+        assert model_stat.get_place_by_operation_name == 3
+        assert place_stat.get_output_port == 1
+        assert place_stat.lastArgInt == 1234
 
     # Mock model doesn't have such '1234:operation' or input port=1234 for 'operation'
     @mock_needed
@@ -147,9 +147,9 @@ class TestMainFrontend(unittest.TestCase):
         place_stat = get_place_statistic()
 
         assert model_stat.get_place_by_tensor_name == 2
-        assert model_stat.get_place_by_operation_name == 1
-        assert place_stat.get_input_port == 0
-        assert place_stat.lastArgInt == -1
+        assert model_stat.get_place_by_operation_name == 3
+        assert place_stat.get_input_port == 1
+        assert place_stat.lastArgInt == 1234
 
     # Mock model has tensor with name 'conv2d:0' and operation 'conv2d' with output port = 1
     # It is setup to return 'is_equal_data=True' for these tensor and port
