@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ public:
         return latencies.back();
     }
 
-    void logTotal(size_t p) {
+    void log_total(size_t p) {
         std::string percentileStr = (p == 50) ? "\tMedian:  " : "\t" + std::to_string(p) + " percentile:    ";
         slog::info << percentileStr << double_to_string(percentile(p)) << " ms" << slog::endl;
         slog::info << "\tAvg:    " << double_to_string(average()) << " ms" << slog::endl;
@@ -101,14 +101,14 @@ public:
             _separator = "";
     }
 
-    void addParameters(const Category& category, const Parameters& parameters);
+    void add_parameters(const Category& category, const Parameters& parameters);
 
     void dump();
 
-    void dumpPerformanceCounters(const std::vector<PerformaceCounters>& perfCounts);
+    void dump_performance_counters(const std::vector<PerformaceCounters>& perfCounts);
 
 private:
-    void dumpPerformanceCountersRequest(CsvDumper& dumper, const PerformaceCounters& perfCounts);
+    void dump_performance_counters_request(CsvDumper& dumper, const PerformaceCounters& perfCounts);
 
     // configuration of current benchmark execution
     const Config _config;

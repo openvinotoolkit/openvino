@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,9 +167,16 @@ struct IECore {
                                                                       const std::string& deviceName,
                                                                       const std::map<std::string, std::string>& config,
                                                                       int num_requests);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network,
+                                                                      const std::map<std::string, std::string>& config,
+                                                                      int num_requests);
     std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetworkFromFile(
         const std::string& modelPath,
         const std::string& deviceName,
+        const std::map<std::string, std::string>& config,
+        int num_requests);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetworkFromFile(
+        const std::string& modelPath,
         const std::map<std::string, std::string>& config,
         int num_requests);
     std::unique_ptr<InferenceEnginePython::IEExecNetwork> importNetwork(
