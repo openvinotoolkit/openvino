@@ -4,24 +4,30 @@
 
 set(TARGET_NAME "openvino_intel_gpu_runtime")
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
+if(GPU_BACKEND STREQUAL "L0")
+    set(GPU_BACKEND "L0" CACHE STRING "selected GPU backed (OCL/L0)" FORCE)
+    find_package(LevelZero REQUIRED)
+endif()
+
+
 file(GLOB LIBRARY_SOURCES_MAIN
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
   )
 
-  file(GLOB LIBRARY_SOURCES_OCL
-  "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.hpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
-)
+file(GLOB LIBRARY_SOURCES_OCL
+    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
+  )
 
 file(GLOB LIBRARY_SOURCES_ZE
-  "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.hpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.cpp"
-)
-
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.cpp"
+  )
 
 set(LIBRARY_SOURCES_ALL
     ${LIBRARY_SOURCES_MAIN}
@@ -42,6 +48,8 @@ if(COMMAND add_cpplint_target)
   add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
 
+target_compile_definitions(${TARGET_NAME} PUBLIC GPU_ENABLE_ZE_BACKEND)
+
 if(COMMAND set_ie_threading_interface_for)
   set_ie_threading_interface_for(${TARGET_NAME})
 endif()
@@ -55,6 +63,10 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
 if(ENABLE_ONEDNN_FOR_GPU)
   target_link_libraries(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
+endif()
+
+if(GPU_ENABLE_ZE_BACKEND)
+  target_link_libraries(${TARGET_NAME} PUBLIC LevelZero)
 endif()
 
 if(WIN32)
