@@ -20,15 +20,39 @@ execution status, execution time, and the type of the execution primitive.
 The CPU plugin supports several graph optimization algorithms, such as fusing or removing layers.
 For layer descriptions, see the [IR Notation Reference](../../ops/opset.md).
 
+### Lowering Inference Precision
+
+The CPU plugin follows the default optimization approach, which means that inference is done with lower precision if it is possible on the given platform to reach better performance with an acceptable range of accuracy. For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
+
+### Fusing Convolution and Simple Layers
+
+Merge of a convolution layer with any number and order of the following simple layers:
+- Activation: ReLU, ELU, Sigmoid, Clamp
+- Depthwise: ScaleShift, PReLU
+- FakeQuantize
+
+This combination results in a single fused layer called *Convolution*:
+
+![conv_simple_01]
+
+
+
+
+
+
+
+
+
+
+
+
 @sphinxdirective
 .. raw:: html
 
    <div class="collapsible-section">
 
 @endsphinxdirective
-The CPU plugin follows the default optimization approach, which means that inference is done with lower precision if it is possible on the given platform to reach better performance with an acceptable range of accuracy.
 
-For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
 @sphinxdirective
 .. raw:: html
 	
@@ -41,8 +65,8 @@ For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
 .. dropdown:: Lowering Inference Precision
 
     The CPU plugin follows the default optimization approach, which means that inference is done with lower precision if it is possible on the given platform to reach better performance with an acceptable range of accuracy.
-
-For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
+    
+    For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
 @endsphinxdirective
 
 
@@ -58,29 +82,14 @@ For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
 
 
 
-### Lowering Inference Precision
-
-The CPU plugin follows the default optimization approach, which means that inference is done with lower precision if it is possible on the given platform to reach better performance with an acceptable range of accuracy.
-
-For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
 
 
 
 
 
 
-### Fusing Convolution and Simple Layers
 
-Merge of a convolution layer and any of these simple layers:
-- Activation: ReLU, ELU, Sigmoid, Clamp
-- Depthwise: ScaleShift, PReLU
-- FakeQuantize
 
-You can have any number and order of simple layers.
-A combination of a convolution layer and simple layers results in a single fused layer called 
-*Convolution*:
-
-![conv_simple_01]
 
 
 ### Fusing Pooling and FakeQuantize Layers
