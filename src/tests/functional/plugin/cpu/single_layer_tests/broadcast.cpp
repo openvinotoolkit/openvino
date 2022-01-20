@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -447,7 +447,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes1D = {
         { // Origin dynamic shapes
             {-1},
             { // Dynamic shapes instances
-                {},
+                {1},
                 {1}
             }
         }

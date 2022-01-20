@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ public:
         return other_blob_allocator != nullptr && other_blob_allocator == this;
     }
 
-    char* getBuffer() {
+    char* get_buffer() {
         return data;
     }
 
