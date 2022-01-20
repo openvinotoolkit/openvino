@@ -21,7 +21,6 @@ class PowerToEltwises(FrontReplacementOp):
             const = Const(graph, {'value': mo_array(op.scale)}).create_node()
             mul = Mul(graph, {'name': op.name + '/mul_'}).create_node()
             const.out_port(0).connect(mul.in_port(1))
-            out_port.connect(mul.in_port(0))
             mul.in_port(0).get_connection().set_source(out_port)
             out_port = mul.out_port(0)
 
