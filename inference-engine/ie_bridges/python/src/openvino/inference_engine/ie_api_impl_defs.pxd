@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from libc.stddef cimport size_t
@@ -209,7 +209,11 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) nogil except +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
                                               const map[string, string] & config, int num_requests) nogil except +
+        unique_ptr[IEExecNetwork] loadNetwork(IENetwork network,
+                                              const map[string, string] & config, int num_requests) nogil except +
         unique_ptr[IEExecNetwork] loadNetworkFromFile(const string & modelPath, const string & deviceName,
+                                              const map[string, string] & config, int num_requests) nogil except +
+        unique_ptr[IEExecNetwork] loadNetworkFromFile(const string & modelPath,
                                               const map[string, string] & config, int num_requests) nogil except +
         unique_ptr[IEExecNetwork] importNetwork(const string & modelFIle, const string & deviceName,
                                                 const map[string, string] & config, int num_requests) except +

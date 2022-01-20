@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,16 +59,16 @@ public:
     }
 
 protected:
-    ov::runtime::CompiledModel execNet;
-    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
+    ov::CompiledModel execNet;
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::shared_ptr<ov::Model> function;
 };
 
-inline ov::runtime::Core createCoreWithTemplate() {
+inline ov::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
-    ov::runtime::Core core;
+    ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "ov_template_plugin";
     pluginName += IE_BUILD_POSTFIX;

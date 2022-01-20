@@ -438,18 +438,6 @@
         <model path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="1963353" vmpeak="1963353" vmrss="260572" vmhwm="336034" />
         <model path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="1456457" vmpeak="1541654" vmrss="28574" vmhwm="28574" />
         <model path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="2059200" vmpeak="2144396" vmrss="263166" vmhwm="337578" />
-        <model path="public/octave-resnext-50-0.25/FP16/octave-resnext-50-0.25.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1599889" vmpeak="1672106" vmrss="490141" vmhwm="490141" />
-        <model path="public/octave-resnext-50-0.25/FP16/octave-resnext-50-0.25.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="2183006" vmpeak="2263331" vmrss="1087829" vmhwm="1679194" />
-        <model path="public/octave-resnext-50-0.25/FP16/octave-resnext-50-0.25.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1607777" vmpeak="1672086" vmrss="535059" vmhwm="535059" />
-        <model path="public/octave-resnext-50-0.25/FP16/octave-resnext-50-0.25.xml" precision="FP16" test="infer_request_inference" device="GPU" vmsize="2271911" vmpeak="2441426" vmrss="1075698" vmhwm="1672569" />
-        <model path="public/octave-resnext-50-0.25/FP16/octave-resnext-50-0.25.xml" precision="FP16" test="inference_with_streams" device="CPU" vmsize="1955636" vmpeak="1955636" vmrss="584828" vmhwm="584828" />
-        <model path="public/octave-resnext-50-0.25/FP16/octave-resnext-50-0.25.xml" precision="FP16" test="inference_with_streams" device="GPU" vmsize="2363956" vmpeak="2449153" vmrss="1093731" vmhwm="1675242" />
-        <model path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml" precision="FP32" test="create_exenetwork" device="CPU" vmsize="1363835" vmpeak="1363835" vmrss="317330" vmhwm="317330" />
-        <model path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml" precision="FP32" test="create_exenetwork" device="GPU" vmsize="2331300" vmpeak="2629369" vmrss="1264281" vmhwm="1883414" />
-        <model path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml" precision="FP32" test="infer_request_inference" device="CPU" vmsize="1552657" vmpeak="1637854" vmrss="362700" vmhwm="362700" />
-        <model path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml" precision="FP32" test="infer_request_inference" device="GPU" vmsize="2411021" vmpeak="2625199" vmrss="1169147" vmhwm="1877231" />
-        <model path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml" precision="FP32" test="inference_with_streams" device="CPU" vmsize="1893216" vmpeak="1893216" vmrss="522735" vmhwm="522735" />
-        <model path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml" precision="FP32" test="inference_with_streams" device="GPU" vmsize="2559949" vmpeak="2723084" vmrss="1314658" vmhwm="1875094" />
         <model path="public/se-inception/FP16/se-inception.xml" precision="FP16" test="create_exenetwork" device="CPU" vmsize="1114391" vmpeak="1114391" vmrss="202155" vmhwm="202155" />
         <model path="public/se-inception/FP16/se-inception.xml" precision="FP16" test="create_exenetwork" device="GPU" vmsize="1995806" vmpeak="2045851" vmrss="683181" vmhwm="1193899" />
         <model path="public/se-inception/FP16/se-inception.xml" precision="FP16" test="infer_request_inference" device="CPU" vmsize="1115426" vmpeak="1115426" vmrss="208135" vmhwm="208135" />

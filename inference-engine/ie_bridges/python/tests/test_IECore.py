@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -47,12 +47,21 @@ def test_load_network(device):
     exec_net = ie.load_network(net, device)
     assert isinstance(exec_net, ExecutableNetwork)
 
+def test_load_network_without_device():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie.load_network(net)
+    assert isinstance(exec_net, ExecutableNetwork)
 
 def test_load_network_from_file(device):
     ie = IECore()
     exec_net = ie.load_network(test_net_xml, device)
     assert isinstance(exec_net, ExecutableNetwork)
 
+def test_load_network_from_file_without_device():
+    ie = IECore()
+    exec_net = ie.load_network(test_net_xml)
+    assert isinstance(exec_net, ExecutableNetwork)
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_load_network_wrong_device():

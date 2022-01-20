@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ public:
         return result.str();
     }
 
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
+    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
         if (actual.front().get_size() == 0) {
             ASSERT_EQ(0, expected.front().get_size());
             for (const auto& shape : targetStaticShapes[inferNum]) {
