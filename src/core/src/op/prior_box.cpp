@@ -58,10 +58,9 @@ void op::v0::PriorBox::validate_and_infer_types() {
                               "Layer shape must have rank 2",
                               spatials);
 
-        set_output_type(
-            0,
-            element::f32,
-            ov::PartialShape{2, spatials[0] * spatials[1] * Dimension(4 * number_of_priors(m_attrs))});
+        set_output_type(0,
+                        element::f32,
+                        ov::PartialShape{2, spatials[0] * spatials[1] * Dimension(4 * number_of_priors(m_attrs))});
     } else {
         set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
     }
@@ -249,10 +248,9 @@ void op::v8::PriorBox::validate_and_infer_types() {
                               "Layer shape must have rank 2",
                               spatials);
 
-        set_output_type(
-            0,
-            element::f32,
-            ov::PartialShape{2, spatials[0] * spatials[1] * Dimension(4 * number_of_priors(m_attrs))});
+        set_output_type(0,
+                        element::f32,
+                        ov::PartialShape{2, spatials[0] * spatials[1] * Dimension(4 * number_of_priors(m_attrs))});
     } else {
         set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
     }
