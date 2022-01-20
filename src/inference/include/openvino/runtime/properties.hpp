@@ -186,12 +186,12 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
 namespace hint {
 
 /**
- * @brief Enforce device to use specified precision for inference
+ * @brief Hint for device to use specified precision for inference
  */
 static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
 
 /**
- * @brief Enum to define possible performance mode hints
+ * @brief Enum to define possible model priorities hints
  */
 enum class ModelPriority {
     LOW = 0,
