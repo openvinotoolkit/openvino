@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 
+#include "dimension_tracker.hpp"
 #include "ngraph/check.hpp"
 
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
@@ -130,6 +131,8 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             if (!first) {
                 str << ",";
             }
+            if (const auto& l = ov::DimensionTracker::get_label(d))
+                str << "l<" << l << ">";
             str << d;
             first = false;
         }
