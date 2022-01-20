@@ -3,6 +3,7 @@
 //
 
 #include "common_utils.h"
+#include "reshape_utils.h"
 #include <inference_engine.hpp>
 
 using namespace InferenceEngine;

@@ -4,12 +4,15 @@
 
 #include "cli.h"
 #include "statistics_writer.h"
+#include "reshape_utils.h"
 #include "timetests_helper/timer.h"
 
 #include <iostream>
 
+
 int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
-                const std::string &reshapeShapes, const std::string &dataShapes);
+                std::map<std::string, ov::PartialShape> reshapeShapes,
+                std::map<std::string, std::vector<size_t>> dataShapes);
 
 /**
  * @brief Parses command line and check required arguments
@@ -43,9 +46,10 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
 /**
  * @brief Function calls `runPipeline` with mandatory time tracking of full run
  */
-int _runPipeline() {
+int _runPipeline(std::map<std::string, ov::PartialShape> dynamicShapes,
+                 std::map<std::string, std::vector<size_t>> staticShapes) {
   SCOPED_TIMER(full_run);
-  return runPipeline(FLAGS_m, FLAGS_d, FLAGS_c, FLAGS_reshape_shapes, FLAGS_data_shapes);
+  return runPipeline(FLAGS_m, FLAGS_d, FLAGS_c, dynamicShapes, staticShapes);
 }
 
 /**
@@ -55,7 +59,10 @@ int main(int argc, char **argv) {
   if (!parseAndCheckCommandLine(argc, argv))
     return -1;
 
-  auto status =  _runPipeline();
+  auto dynamicShapes = parseReshapeShapes(FLAGS_reshape_shapes);
+  auto staticShapes = parseDataShapes(FLAGS_data_shapes);
+
+  auto status =  _runPipeline(dynamicShapes, staticShapes);
   StatisticsWriter::Instance().setFile(FLAGS_s);
   StatisticsWriter::Instance().write();
   return status;

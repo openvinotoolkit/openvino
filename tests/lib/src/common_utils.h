@@ -111,31 +111,3 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
                const InferenceEngine::ConstInputsDataMap& inputsInfo,
                const size_t& batchSize);
-
-/**
- * @brief Fill InferRequest blobs with random values or image information.
-          Blobs with dynamic shapes are filled based on static information from data shape
- */
-void fillBlobsDynamic(InferenceEngine::InferRequest inferRequest,
-                      const InferenceEngine::ConstInputsDataMap& inputsInfo,
-                      std::map<std::string, std::vector<size_t>> dataShape,
-                      const size_t& batchSize);
-
-
-/**
- * @brief Split input string using specified delimiter.
-          Return vector with input tensor information
- */
-std::vector<std::string> split(const std::string& s, char delim);
-
-
-/**
- * @brief Parse input shapes for model reshape
- */
-std::map<std::string, ov::PartialShape> parseReshapeShapes(const std::string& shapeString);
-
-
-/**
- * @brief Parse data shapes for model
- */
-std::map<std::string, std::vector<size_t>> parseDataShapes(const std::string& shapeString);

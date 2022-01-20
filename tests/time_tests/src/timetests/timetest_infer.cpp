@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "common_utils.h"
+#include "reshape_utils.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
 
@@ -18,9 +19,11 @@ using namespace InferenceEngine;
  * handling it by itself.
  */
 int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
-                const std::string &reshapeShapes, const std::string &dataShapes) {
+                std::map<std::string, ov::PartialShape> reshapeShapes,
+                std::map<std::string, std::vector<size_t>> dataShapes) {
   auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
-                     const std::string &reshapeShapes, const std::string &dataShapes) {
+                     std::map<std::string, ov::PartialShape> reshapeShapes,
+                     std::map<std::string, std::vector<size_t>> dataShapes) {
     Core ie;
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
@@ -59,8 +62,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
             if (reshape) {
               {
               SCOPED_TIMER(reshape);
-              auto dynamicShapes = parseReshapeShapes(reshapeShapes);
-              cnnNetwork.reshape(dynamicShapes);
+              cnnNetwork.reshape(reshapeShapes);
               }
             }
             {
@@ -83,8 +85,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
 
         if (reshape) {
-          auto staticShapes = parseDataShapes(dataShapes);
-          fillBlobsDynamic(inferRequest, inputsInfo, staticShapes, batchSize);
+          fillBlobsDynamic(inferRequest, inputsInfo, dataShapes, batchSize);
         } else {
           batchSize = batchSize != 0 ? batchSize : 1;
           fillBlobs(inferRequest, inputsInfo, batchSize);

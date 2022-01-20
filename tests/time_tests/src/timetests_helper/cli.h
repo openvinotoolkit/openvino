@@ -32,15 +32,15 @@ static const char model_cache_message[] =
     "Not required. Use this key to run timetests with models caching. \n"
     "TimeInfer executable should be run twice - the second run will use cache prepared from first run.";
 
-/// @brief message for reshape shape argument
+/// @brief message for shapes argument
 static const char reshape_shapes_message[] =
     "Not required. Use this key to run timetests with reshape. \n"
-    "Example: 'input:1..2 3 100 100'. Use ';' delimiter for several inputs. Example: 'input1:1..2 100;input2:1..2 100' ";
+    "Example: 'input:1..2 3 100 100'. Use '&' delimiter for several inputs. Example: 'input1:1..2 100&input2:1..2 100' ";
 
-/// @brief message for data shape argument
+/// @brief message for shapes argument
 static const char data_shapes_message[] =
     "Not required. Use this key to run timetests with reshape. Used with 'reshape_shapes' arg. \n"
-    "Only static shapes for data. Example: 'input:1 3 100 100'. Use ';' delimiter for several inputs. Example: 'input1:1 100;input2:1 100' ";
+    "Only static shapes for data. Example: 'input:1 3 100 100'. Use '&' delimiter for several inputs. Example: 'input1:1 100&input2:1 100' ";
 
 /// @brief message for statistics path argument
 static const char statistics_path_message[] =
