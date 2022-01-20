@@ -390,7 +390,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
                 if ((int32_t) order[1] != order.size() - 1) return false;
                 if ((int32_t) order[0] != 0) return false;
                 for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-                    if ((int32_t)order[i] !=  (i - 1)) return false;
+                    if ((int32_t)order[i] != (i - 1)) return false;
                 }
                 return true;
             };
@@ -451,10 +451,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
             // Target transform: Rotate feature dim to back to be taken as inner-most axis
             // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
             // ex) 0(b), 3(f), 1(y), 2(x)
-            if ((int32_t) order[1] != order.size() - 1) return false;
+            if ((int32_t) order[order.size() - 1] != 1) return false;
             if ((int32_t) order[0] != 0) return false;
-            for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-                if ((int32_t)order[i] !=  (i - 1)) return false;
+            for (int32_t i = 1; i < (int32_t) order.size() - 1; ++i) {
+                if ((int32_t)order[i] != (i + 1)) return false;
             }
             return true;
         };
@@ -462,7 +462,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
         if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
-         && permute_order[1] == 2
+         && permute_order[1] == 3
          && (!is_rotating_except_batch(permute_order))) {
             return false;
         }

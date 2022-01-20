@@ -35,11 +35,9 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
             ie_order.push_back((uint16_t)o);
     }
 
-    std::vector<uint16_t> cldnn_permute_order = ConvertPermuteOrder(ie_order, rank);
-
     auto permutePrim = cldnn::permute(layerName,
                                       inputPrimitives[0],
-                                      cldnn_permute_order,
+                                      ie_order,
                                       op->get_friendly_name());
 
     p.AddPrimitive(permutePrim);

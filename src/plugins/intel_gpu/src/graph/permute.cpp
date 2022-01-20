@@ -24,20 +24,22 @@ layout permute_inst::calc_output_layout(permute_node const& node) {
            "Output data type forcing is not supported for permute_node!");
     auto input_layout = node.input().get_output_layout();
     auto permute_order = node.get_primitive()->permute_order;
-    std::vector<tensor::value_type> output_sizes;
+    std::vector<tensor::value_type> output_shape;
+
+    auto input_shape = input_layout.get_dims();
 
     for (size_t x = 0; x < permute_order.size(); x++) {
-        output_sizes.push_back(input_layout.size.raw[permute_order[x]]);
+        output_shape.push_back(input_shape[permute_order[x]]);
     }
 
-    auto input_size = tensor(output_sizes);
+    auto output_size = tensor(layout::get_default_format(input_layout.get_rank()), output_shape);
     auto op = node.get_primitive()->output_padding;
 
     if (node.has_fused_primitives()) {
         input_layout.data_type = node.get_fused_output_layout().data_type;
     }
 
-    return layout(input_layout.data_type, input_layout.format, input_size, op);
+    return layout(input_layout.data_type, input_layout.format, output_size, op);
 }
 
 std::string permute_inst::to_string(permute_node const& node) {
