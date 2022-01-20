@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -48,9 +48,10 @@ def import_core_modules(silent: bool, path_to_module: str):
     :return: True if all imports were successful and False otherwise
     """
     try:
-        from openvino.offline_transformations_pybind import apply_moc_transformations, apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations_pybind import apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations_pybind import generate_mapping_file, apply_make_stateful_transformation, serialize  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import apply_moc_transformations, apply_moc_legacy_transformations,\
+            apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import generate_mapping_file, apply_make_stateful_transformation, serialize  # pylint: disable=import-error,no-name-in-module
 
         from openvino.runtime import Model, get_version  # pylint: disable=import-error,no-name-in-module
         from openvino.runtime.op import Parameter  # pylint: disable=import-error,no-name-in-module

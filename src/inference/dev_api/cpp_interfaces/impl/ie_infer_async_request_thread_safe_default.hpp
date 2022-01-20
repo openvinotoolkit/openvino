@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -290,6 +290,13 @@ public:
         if (_state == InferState::Busy) {
             _state = InferState::Canceled;
         }
+    }
+
+    void setModelInputsOutputs(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                               const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
+        _parameters = inputs;
+        _results = outputs;
+        _syncRequest->setModelInputsOutputs(inputs, outputs);
     }
 
 protected:

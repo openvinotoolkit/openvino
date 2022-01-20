@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,9 +48,9 @@ public:
     std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>> plugin;
 
     //mock exeNetwork helper
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
     //mock exeNetwork actual
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  mockExeNetworkActual;
+    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkActual;
     // config for Auto device
     std::map<std::string, std::string>              config;
     std::vector<DeviceInformation>                  metaDevices;

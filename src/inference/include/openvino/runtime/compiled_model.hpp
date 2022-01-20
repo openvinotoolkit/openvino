@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@
 namespace InferenceEngine {
 class IExecutableNetworkInternal;
 }  // namespace InferenceEngine
+
 namespace ov {
-namespace runtime {
 
 class Core;
 class InferRequest;
@@ -47,8 +47,8 @@ class OPENVINO_RUNTIME_API CompiledModel {
      */
     CompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl,
                   const std::shared_ptr<void>& so);
-    friend class ov::runtime::Core;
-    friend class ov::runtime::InferRequest;
+    friend class ov::Core;
+    friend class ov::InferRequest;
 
 public:
     /**
@@ -152,8 +152,8 @@ public:
 
     /**
      * @brief Exports the current compiled model to an output stream `std::ostream`.
-     * The exported model can also be imported via ov::runtime::Core::import_model method
-     * @see ov::runtime::Core::import_model
+     * The exported model can also be imported via ov::Core::import_model method
+     * @see ov::Core::import_model
      * @param model_stream Output stream to store the model to
      */
     void export_model(std::ostream& model_stream);
@@ -208,5 +208,8 @@ public:
     explicit operator bool() const noexcept;
 };
 
+namespace runtime {
+using ov::CompiledModel;
 }  // namespace runtime
+
 }  // namespace ov

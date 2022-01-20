@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1868,6 +1868,10 @@ bool MKLDNNReduceNode::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
 }
 
+std::vector<VectorDims> MKLDNNReduceNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(REDUCE_INDEXES));
+}
+
 void MKLDNNReduceNode::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
@@ -2366,7 +2370,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.channel_size = layout == ReduceLayoutType::reduce_nspc ? OW : OC; // OW is related to nspc-ncsp dimension reinterpret
             arg.work_amount = OD * OH * OW;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void **>(&postOpsDataPtrs[0]);
+            arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
         });
     } else {
@@ -2379,7 +2383,7 @@ inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.oc_off = ocb * blk_size * sizeof(float);
             arg.work_amount = OD * OH * OW * blk_size;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void **>(&postOpsDataPtrs[0]);
+            arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
         });
     }

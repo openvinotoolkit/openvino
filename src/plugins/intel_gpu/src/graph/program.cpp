@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1225,7 +1225,8 @@ program::primitives_info program::get_current_stage_info() const {
                           output_layout,
                           fmt_to_str(output_layout.format),
                           get_implementation_info(p->id()),
-                          get_inference_precision(*p),
+                          p->is_valid_output_layout() ?
+                            get_inference_precision(*p) : cldnn::data_types::f32,
                           p->selected_impl ? p->selected_impl->is_cpu() : false,
                           exec_id++);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,9 +35,9 @@ protected:
     runtime::ParamMap context_parameters;
     runtime::ParamMap tensor_parameters;
     std::shared_ptr<Model> function;
-    runtime::Core core = *ov::test::utils::PluginCache::get().core();
-    runtime::CompiledModel exec_network;
-    runtime::InferRequest infer_request;
+    ov::Core core = *ov::test::utils::PluginCache::get().core();
+    ov::CompiledModel exec_network;
+    ov::InferRequest infer_request;
     std::shared_ptr<op::v0::Parameter> input;
 };
 }  // namespace test

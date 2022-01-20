@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1994,8 +1994,6 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
                 IE_THROW() << "Can't set batch dims for eltwise node with rank: " << dims_out.size() << " and batch idx: " << batchDimIdx;
             dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
         }
-
-        std::vector<const void*> vecPostOpData(fqDataPtrs.size());
 
         args_ptrs.post_op_data = fqDataPtrs.data();
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ public:
 
     std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
-    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -49,15 +48,20 @@ public:
 
     std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() override;
 
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
 private:
     void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
                                   const mkldnn::memory::desc &outputDesc);
 
-    InferenceEngine::SizeVector weightsDims;
-    InferenceEngine::SizeVector biasesDims;
+    VectorDims makeDummyInputDims() const;
+    VectorDims makeDummyOutputDims(const VectorDims& inDims) const;
 
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
+    VectorDims inDims;
+    VectorDims outDims;
+
+    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
 
     bool withBiases = false;
 

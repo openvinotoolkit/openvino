@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -310,11 +310,17 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
     { { {5, -1, 10},                                // #7. Dynamic shape 0
         { {5, 2, 10}, {5, 4, 10}, {5, 5, 10} } },   // Target shapes
       { {5, 1, 10},                                 // Dynamic shape 1
-        { {5, 1, 10}, {5, 1, 10}, {5, 1, 10} } } }  // Target shapes
+        { {5, 1, 10}, {5, 1, 10}, {5, 1, 10} } } }, // Target shapes
+    { { {{0, 11}, -1, {7, 11}},                     // #8. Dynamic shape 0
+        { {10, 2, 10}, {3, 4, 10}, {5, 5, 10}, {10, 2, 10}, {5, 5, 10} } },  // Target shapes
+      { {-1, 1, {8, 12}},                           // Dynamic shape 1
+        { {10, 1, 10}, {3, 1, 10}, {5, 1, 10}, {10, 1, 10}, {5, 1, 10} } },  // Target shapes
+      { {-1},                                       // Dynamic shape 2
+        { {10}, {3}, {5}, {10}, {5} } } }                                    // Target shapes
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, GRUSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[0], dynamicShapes[1], dynamicShapes[2]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
@@ -326,7 +332,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, GRUSequenceCPUTest,
             GRUSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, GRUSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[4]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[4]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
@@ -338,7 +344,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, GRUSequenceCPUTest,
             GRUSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic, GRUSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[5]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[5], dynamicShapes[8]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),
@@ -350,7 +356,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic, GRUSequenceCPUTest,
             GRUSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, GRUSequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{dynamicShapes[6], dynamicShapes[7]}),
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[6], dynamicShapes[7]}),
                                ::testing::ValuesIn(mode),
                                ::testing::ValuesIn(activations),
                                ::testing::ValuesIn(clip),

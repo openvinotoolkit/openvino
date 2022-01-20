@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@ using namespace ov;
 namespace {
 struct PadParams {
     PadParams(
-        const Tensor& inputData, const Tensor& padsBegin, const Tensor& padsEnd,
-        const Tensor& expectedOutput, op::PadMode padMode, const Tensor& constantValue,
+        const reference_tests::Tensor& inputData, const reference_tests::Tensor& padsBegin, const reference_tests::Tensor& padsEnd,
+        const reference_tests::Tensor& expectedOutput, op::PadMode padMode, const reference_tests::Tensor& constantValue,
         const std::string& testcaseName = "") :
         inputData(inputData), padsBegin(padsBegin), padsEnd(padsEnd),
         expectedOutput(expectedOutput), padMode(padMode),
@@ -24,20 +24,20 @@ struct PadParams {
         testcaseName(testcaseName) {}
 
     PadParams(
-        const Tensor& inputData, const Tensor& padsBegin, const Tensor& padsEnd,
-        const Tensor& expectedOutput, op::PadMode padMode,
+        const reference_tests::Tensor& inputData, const reference_tests::Tensor& padsBegin, const reference_tests::Tensor& padsEnd,
+        const reference_tests::Tensor& expectedOutput, op::PadMode padMode,
         const std::string& testcaseName = "") :
         inputData(inputData), padsBegin(padsBegin), padsEnd(padsEnd),
         expectedOutput(expectedOutput), padMode(padMode),
         testcaseName(testcaseName) {}
 
-    Tensor inputData;
-    Tensor padsBegin;
-    Tensor padsEnd;
-    Tensor expectedOutput;
+    reference_tests::Tensor inputData;
+    reference_tests::Tensor padsBegin;
+    reference_tests::Tensor padsEnd;
+    reference_tests::Tensor expectedOutput;
     op::PadMode padMode;
     bool useConstValue{false};
-    Tensor constantValue;
+    reference_tests::Tensor constantValue;
     std::string testcaseName;
 };
 
@@ -182,83 +182,83 @@ std::vector<PadParams> generateParams() {
     using T_INT = typename element_type_traits<ET_INT>::value_type;
     std::vector<PadParams> params {
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{5}),
-            Tensor(ET, {15}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{5}),
+            reference_tests::Tensor(ET, {15}, std::vector<T>{
                 2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_1d_constant_const_value_provided_0"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET, {10}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET, {10}, std::vector<T>{
                 2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_1d_constant_const_value_provided_1"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {9}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {9}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 2112, 2112, 2112,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_1d_constant_const_value_provided_2"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{5}),
-            Tensor(ET, {15}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{5}),
+            reference_tests::Tensor(ET, {15}, std::vector<T>{
                 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0,
             }),
             op::PadMode::CONSTANT,
             "pad_1d_constant_use_default_const_0"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET, {10}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET, {10}, std::vector<T>{
                 0, 0, 0, 0, 1, 2, 3, 4, 5, 6,
             }),
             op::PadMode::CONSTANT,
             "pad_1d_constant_use_default_const_1"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {9}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {9}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 0, 0, 0,
             }),
             op::PadMode::CONSTANT,
             "pad_1d_constant_use_default_const_2"),
 
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 3, 4,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{3, 4}),
-            Tensor(ET, {6, 8}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{3, 4}),
+            reference_tests::Tensor(ET, {6, 8}, std::vector<T>{
                 2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112,
                 2112, 2112, 1,    2,    2112, 2112, 2112, 2112,
                 2112, 2112, 3,    4,    2112, 2112, 2112, 2112,
@@ -267,44 +267,44 @@ std::vector<PadParams> generateParams() {
                 2112, 2112, 2112, 2112, 2112, 2112, 2112, 2112,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_2d_constant_const_value_provided_0"),
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 3, 4,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET, {3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 2112, 2112, 2112, 2112,
                 2112, 2112, 1,    2,
                 2112, 2112, 3,    4,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_2d_constant_const_value_provided_1"),
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 3, 4,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET, {3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 1,    2,    2112, 2112,
                 3,    4,    2112, 2112,
                 2112, 2112, 2112, 2112,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_2d_constant_const_value_provided_2"),
 
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 3, 4,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{3, 4}),
-            Tensor(ET, {6, 8}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{3, 4}),
+            reference_tests::Tensor(ET, {6, 8}, std::vector<T>{
                 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 1, 2, 0, 0, 0, 0,
                 0, 0, 3, 4, 0, 0, 0, 0,
@@ -315,12 +315,12 @@ std::vector<PadParams> generateParams() {
             op::PadMode::CONSTANT,
             "pad_2d_constant_use_default_const_0"),
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 3, 4,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET, {3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 0, 0, 0, 0,
                 0, 0, 1, 2,
                 0, 0, 3, 4,
@@ -328,12 +328,12 @@ std::vector<PadParams> generateParams() {
             op::PadMode::CONSTANT,
             "pad_2d_constant_use_default_const_1"),
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 3, 4,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET, {3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 1, 2, 0, 0,
                 3, 4, 0, 0,
                 0, 0, 0, 0,
@@ -342,46 +342,46 @@ std::vector<PadParams> generateParams() {
             "pad_2d_constant_use_default_const_2"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {11}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {11}, std::vector<T>{
                 1, 1, 1, 2, 3, 4, 5, 6, 6, 6, 6,
             }),
             op::PadMode::EDGE,
             "pad_1d_edge_0"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET, {7}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET, {7}, std::vector<T>{
                 1, 1, 2, 3, 4, 5, 6,
             }),
             op::PadMode::EDGE,
             "pad_1d_edge_1"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET, {8}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET, {8}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 6, 6,
             }),
             op::PadMode::EDGE,
             "pad_1d_edge_2"),
 
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 3, 4,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            Tensor(ET, {5, 5}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            reference_tests::Tensor(ET, {5, 5}, std::vector<T>{
                 1, 1, 1, 2, 2,
                 1, 1, 1, 2, 2,
                 3, 3, 3, 4, 4,
@@ -391,12 +391,12 @@ std::vector<PadParams> generateParams() {
             op::PadMode::EDGE,
             "pad_2d_edge_0"),
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 3, 4,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET, {3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 1, 1, 1, 2,
                 1, 1, 1, 2,
                 3, 3, 3, 4,
@@ -404,12 +404,12 @@ std::vector<PadParams> generateParams() {
             op::PadMode::EDGE,
             "pad_2d_edge_1"),
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 3, 4,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            Tensor(ET, {4, 3}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            reference_tests::Tensor(ET, {4, 3}, std::vector<T>{
                 1, 2, 2,
                 3, 4, 4,
                 3, 4, 4,
@@ -419,46 +419,46 @@ std::vector<PadParams> generateParams() {
             "pad_2d_edge_2"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {11}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {11}, std::vector<T>{
                 3, 2, 1, 2, 3, 4, 5, 6, 5, 4, 3,
             }),
             op::PadMode::REFLECT,
             "pad_1d_reflect_0"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET, {7}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET, {7}, std::vector<T>{
                 2, 1, 2, 3, 4, 5, 6,
             }),
             op::PadMode::REFLECT,
             "pad_1d_reflect_1"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET, {8}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET, {8}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 5, 4,
             }),
             op::PadMode::REFLECT,
             "pad_1d_reflect_2"),
 
         PadParams(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 7, 8, 9,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            Tensor(ET, {6, 6}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            reference_tests::Tensor(ET, {6, 6}, std::vector<T>{
                 6, 5, 4, 5, 6, 5,
                 3, 2, 1, 2, 3, 2,
                 6, 5, 4, 5, 6, 5,
@@ -469,12 +469,12 @@ std::vector<PadParams> generateParams() {
             op::PadMode::REFLECT,
             "pad_2d_reflect_0"),
         PadParams(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 7, 8, 9,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET, {4, 5}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET, {4, 5}, std::vector<T>{
                 6, 5, 4, 5, 6,
                 3, 2, 1, 2, 3,
                 6, 5, 4, 5, 6,
@@ -483,12 +483,12 @@ std::vector<PadParams> generateParams() {
             op::PadMode::REFLECT,
             "pad_2d_reflect_1"),
         PadParams(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 7, 8, 9,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            Tensor(ET, {5, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            reference_tests::Tensor(ET, {5, 4}, std::vector<T>{
                 1, 2, 3, 2,
                 4, 5, 6, 5,
                 7, 8, 9, 8,
@@ -499,46 +499,46 @@ std::vector<PadParams> generateParams() {
             "pad_2d_reflect_2"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {11}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {11}, std::vector<T>{
                 2, 1, 1, 2, 3, 4, 5, 6, 6, 5, 4,
             }),
             op::PadMode::SYMMETRIC,
             "pad_1d_symmetric_0"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET, {7}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET, {7}, std::vector<T>{
                 1, 1, 2, 3, 4, 5, 6,
             }),
             op::PadMode::SYMMETRIC,
             "pad_1d_symmetric_1"),
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET, {8}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET, {8}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 6, 5,
             }),
             op::PadMode::SYMMETRIC,
             "pad_1d_symmetric_2"),
 
         PadParams(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 7, 8, 9,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            Tensor(ET, {6, 6}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            reference_tests::Tensor(ET, {6, 6}, std::vector<T>{
                 2, 1, 1, 2, 3, 3,
                 2, 1, 1, 2, 3, 3,
                 5, 4, 4, 5, 6, 6,
@@ -549,12 +549,12 @@ std::vector<PadParams> generateParams() {
             op::PadMode::SYMMETRIC,
             "pad_2d_symmetric_0"),
         PadParams(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 7, 8, 9,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET, {4, 5}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET, {4, 5}, std::vector<T>{
                 2, 1, 1, 2, 3,
                 2, 1, 1, 2, 3,
                 5, 4, 4, 5, 6,
@@ -563,12 +563,12 @@ std::vector<PadParams> generateParams() {
             op::PadMode::SYMMETRIC,
             "pad_2d_symmetric_1"),
         PadParams(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 7, 8, 9,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            Tensor(ET, {5, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            reference_tests::Tensor(ET, {5, 4}, std::vector<T>{
                 1, 2, 3, 3,
                 4, 5, 6, 6,
                 7, 8, 9, 9,
@@ -579,116 +579,116 @@ std::vector<PadParams> generateParams() {
             "pad_2d_symmetric"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{5}),
-            Tensor(ET, {15}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{5}),
+            reference_tests::Tensor(ET, {15}, std::vector<T>{
                 2112, 2112, 2112, 2112, 1, 2, 3, 4, 5, 6, 2112, 2112, 2112, 2112, 2112,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_exterior_1d"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-2}),
-            Tensor(ET, {8}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-2}),
+            reference_tests::Tensor(ET, {8}, std::vector<T>{
                 2112, 2112, 2112, 2112, 1, 2, 3, 4,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_negative_exterior_1d"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
-            Tensor(ET, {3}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
+            reference_tests::Tensor(ET, {3}, std::vector<T>{
                 2112, 2112, 2112,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_negative_exterior_1d_check_limits"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {11}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {11}, std::vector<T>{
                 1, 1, 1, 2, 3, 4, 5, 6, 6, 6, 6,
             }),
             op::PadMode::EDGE,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_edge_1d"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-3}),
-            Tensor(ET, {5}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-3}),
+            reference_tests::Tensor(ET, {5}, std::vector<T>{
                 1, 1, 1, 2, 3,
             }),
             op::PadMode::EDGE,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_edge_1d_top_neg"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
-            Tensor(ET, {1}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
+            reference_tests::Tensor(ET, {1}, std::vector<T>{
                 1,
             }),
             op::PadMode::EDGE,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_edge_1d_top_neg_bigger_than_tensor"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {7}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {7}, std::vector<T>{
                 3, 4, 5, 6, 6, 6, 6,
             }),
             op::PadMode::EDGE,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_edge_1d_bottom_neg"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {2}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {2}, std::vector<T>{
                 6, 6,
             }),
             op::PadMode::EDGE,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_edge_1d_bottom_neg_bigger_than_tensor"),
 
         PadParams(
-            Tensor(ET, {3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET, {6, 9}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET, {6, 9}, std::vector<T>{
                 1, 1, 1, 1, 2,  3,  4,  4,  4,
                 1, 1, 1, 1, 2,  3,  4,  4,  4,
                 1, 1, 1, 1, 2,  3,  4,  4,  4,
@@ -697,16 +697,16 @@ std::vector<PadParams> generateParams() {
                 9, 9, 9, 9, 10, 11, 12, 12, 12,
             }),
             op::PadMode::EDGE,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_edge_2d"),
 
         PadParams(
-            Tensor(ET, {3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET, {6, 5}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET, {6, 5}, std::vector<T>{
                 2,  3,  4,  4,  4,
                 2,  3,  4,  4,  4,
                 2,  3,  4,  4,  4,
@@ -715,83 +715,83 @@ std::vector<PadParams> generateParams() {
                 10, 11, 12, 12, 12,
             }),
             op::PadMode::EDGE,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_edge_2d_with_neg"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {11}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {11}, std::vector<T>{
                 3, 2, 1, 2, 3, 4, 5, 6, 5, 4, 3,
             }),
             op::PadMode::REFLECT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_reflect_1d"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-3}),
-            Tensor(ET, {5}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-3}),
+            reference_tests::Tensor(ET, {5}, std::vector<T>{
                 3, 2, 1, 2, 3,
             }),
             op::PadMode::REFLECT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_reflect_1d_top_neg"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
-            Tensor(ET, {1}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
+            reference_tests::Tensor(ET, {1}, std::vector<T>{
                 3,
             }),
             op::PadMode::REFLECT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_reflect_1d_top_neg_bigger_than_tensor"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-2}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {7}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-2}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {7}, std::vector<T>{
                 3, 4, 5, 6, 5, 4, 3,
             }),
             op::PadMode::REFLECT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_reflect_1d_bottom_neg"),
 
         PadParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
-            Tensor(ET, {2}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-7}),
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+            reference_tests::Tensor(ET, {2}, std::vector<T>{
                 4, 3,
             }),
             op::PadMode::REFLECT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_reflect_1d_bottom_neg_bigger_than_tensor"),
 
         PadParams(
-            Tensor(ET, {3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 1, 2,  3,  4,
                 5, 6,  7,  8,
                 9, 10, 11, 12,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET, {6, 9}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET, {6, 9}, std::vector<T>{
                 12, 11, 10, 9, 10, 11, 12, 11, 10,
                 8,  7,  6,  5, 6,  7,  8,  7,  6,
                 4,  3,  2,  1, 2,  3,  4,  3,  2,
@@ -800,18 +800,18 @@ std::vector<PadParams> generateParams() {
                 8,  7,  6,  5, 6,  7,  8,  7,  6,
             }),
             op::PadMode::REFLECT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_reflect_2d"),
 
         PadParams(
-            Tensor(ET, {3, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 1, 2,  3,  4,
                 5, 6,  7,  8,
                 9, 10, 11, 12,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET, {6, 5}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET, {6, 5}, std::vector<T>{
                 10, 11, 12, 11, 10,
                 6,  7,  8,  7,  6,
                 2,  3,  4,  3,  2,
@@ -820,17 +820,17 @@ std::vector<PadParams> generateParams() {
                 6,  7,  8,  7,  6,
             }),
             op::PadMode::REFLECT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_reflect_2d_with_neg"),
 
         PadParams(
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 1, 2, 3,
                 4, 5, 6,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, -1}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 0}),
-            Tensor(ET, {5, 2}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 0}),
+            reference_tests::Tensor(ET, {5, 2}, std::vector<T>{
                 9, 9,
                 2, 3,
                 5, 6,
@@ -838,26 +838,26 @@ std::vector<PadParams> generateParams() {
                 9, 9,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{9}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{9}),
             "pad_negative_exterior_2d"),
 
         PadParams(
-            Tensor(ET, {3, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1, 2, 3,
                 4, 5, 6,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
-            Tensor(ET, {1, 1}, std::vector<T>{5}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET, {1, 1}, std::vector<T>{5}),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{9}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{9}),
             "pad_negative_exterior_2d_all_negative"),
 
         PadParams(
-            Tensor(ET, {0, 0}, std::vector<T>{}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{3, 2}),
-            Tensor(ET, {5, 5}, std::vector<T>{
+            reference_tests::Tensor(ET, {0, 0}, std::vector<T>{}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{3, 2}),
+            reference_tests::Tensor(ET, {5, 5}, std::vector<T>{
                 2112, 2112, 2112, 2112, 2112,
                 2112, 2112, 2112, 2112, 2112,
                 2112, 2112, 2112, 2112, 2112,
@@ -865,14 +865,14 @@ std::vector<PadParams> generateParams() {
                 2112, 2112, 2112, 2112, 2112,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_exterior_2d_0x0"),
 
         PadParams(
-            Tensor(ET, {0, 3}, std::vector<T>{}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{3, 1}),
-            Tensor(ET, {5, 5}, std::vector<T>{
+            reference_tests::Tensor(ET, {0, 3}, std::vector<T>{}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{3, 1}),
+            reference_tests::Tensor(ET, {5, 5}, std::vector<T>{
                 2112, 2112, 2112, 2112, 2112,
                 2112, 2112, 2112, 2112, 2112,
                 2112, 2112, 2112, 2112, 2112,
@@ -880,14 +880,14 @@ std::vector<PadParams> generateParams() {
                 2112, 2112, 2112, 2112, 2112,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_exterior_2d_0x3"),
 
         PadParams(
-            Tensor(ET, {3, 0}, std::vector<T>{}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 3}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET, {5, 5}, std::vector<T>{
+            reference_tests::Tensor(ET, {3, 0}, std::vector<T>{}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 3}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET, {5, 5}, std::vector<T>{
                 2112, 2112, 2112, 2112, 2112,
                 2112, 2112, 2112, 2112, 2112,
                 2112, 2112, 2112, 2112, 2112,
@@ -895,11 +895,11 @@ std::vector<PadParams> generateParams() {
                 2112, 2112, 2112, 2112, 2112,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_exterior_2d_3x0"),
 
         PadParams(
-            Tensor(ET, {2, 2, 4, 4}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2, 4, 4}, std::vector<T>{
                 0, 1, 0, 2,
                 0, 3, 2, 0,
                 2, 0, 0, 0,
@@ -920,9 +920,9 @@ std::vector<PadParams> generateParams() {
                 1, 1, 2, 0,
                 1, 0, 0, 0,
             }),
-            Tensor(ET_INT, {4}, std::vector<T_INT>{0, 0, 0, 0}),
-            Tensor(ET_INT, {4}, std::vector<T_INT>{0, 0, 2, 2}),
-            Tensor(ET, {2, 2, 6, 6}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {4}, std::vector<T_INT>{0, 0, 0, 0}),
+            reference_tests::Tensor(ET_INT, {4}, std::vector<T_INT>{0, 0, 2, 2}),
+            reference_tests::Tensor(ET, {2, 2, 6, 6}, std::vector<T>{
                 0,  1,  0,  2,  42, 42,
                 0,  3,  2,  0,  42, 42,
                 2,  0,  0,  0,  42, 42,
@@ -952,24 +952,24 @@ std::vector<PadParams> generateParams() {
                 42, 42, 42, 42, 42, 42,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{42}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{42}),
             "pad_2channel_2image_asym"),
 
         PadParams(
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 1, 2, 3,
                 4, 5, 6,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
-            Tensor(ET, {4, 7}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+            reference_tests::Tensor(ET, {4, 7}, std::vector<T>{
                 2, 1, 1, 2, 3, 3, 2,
                 2, 1, 1, 2, 3, 3, 2,
                 5, 4, 4, 5, 6, 6, 5,
                 5, 4, 4, 5, 6, 6, 5,
             }),
             op::PadMode::SYMMETRIC,
-            Tensor(ET, {}, std::vector<T>{2112}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_symmetric"),
     };
     return params;
@@ -981,15 +981,15 @@ std::vector<PadParams> generateParamsFloatValue() {
     using T_INT = typename element_type_traits<ET_INT>::value_type;
     std::vector<PadParams> params {
         PadParams(
-            Tensor(ET, {1, 2, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 2, 2, 2}, std::vector<T>{
                 0.0f, 0.0f,
                 0.0f, 0.0f,
                 0.0f, 0.0f,
                 0.0f, 0.0f,
             }),
-            Tensor(ET_INT, {4}, std::vector<T_INT>{0, 0, 1, 1}),
-            Tensor(ET_INT, {4}, std::vector<T_INT>{0, 0, 1, 1}),
-            Tensor(ET, {1, 2, 4, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {4}, std::vector<T_INT>{0, 0, 1, 1}),
+            reference_tests::Tensor(ET_INT, {4}, std::vector<T_INT>{0, 0, 1, 1}),
+            reference_tests::Tensor(ET, {1, 2, 4, 4}, std::vector<T>{
                 42.0f, 42.0f, 42.0f, 42.0f,
                 42.0f, 0.0f, 0.0f, 42.0f,
                 42.0f, 0.0f, 0.0f, 42.0f,
@@ -1000,11 +1000,11 @@ std::vector<PadParams> generateParamsFloatValue() {
                 42.0f, 42.0f, 42.0f, 42.0f,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{42}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{42}),
             "pad_exterior_4d_1x2x2x2"),
 
         PadParams(
-            Tensor(ET, {1, 3, 2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {1, 3, 2, 2}, std::vector<T>{
                 0.0f, 0.0f,
                 0.0f, 0.0f,
                 1.0f, 1.0f,
@@ -1012,16 +1012,16 @@ std::vector<PadParams> generateParamsFloatValue() {
                 2.0f, 2.0f,
                 2.0f, 2.0f,
             }),
-            Tensor(ET_INT, {4}, std::vector<T_INT>{0, -1, 1, 1}),
-            Tensor(ET_INT, {4}, std::vector<T_INT>{0, -1, 1, 1}),
-            Tensor(ET, {1, 1, 4, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {4}, std::vector<T_INT>{0, -1, 1, 1}),
+            reference_tests::Tensor(ET_INT, {4}, std::vector<T_INT>{0, -1, 1, 1}),
+            reference_tests::Tensor(ET, {1, 1, 4, 4}, std::vector<T>{
                 42.0f, 42.0f, 42.0f, 42.0f,
                 42.0f, 1.0f,  1.0f,  42.0f,
                 42.0f, 1.0f,  1.0f,  42.0f,
                 42.0f, 42.0f, 42.0f, 42.0f,
             }),
             op::PadMode::CONSTANT,
-            Tensor(ET, {}, std::vector<T>{42}),
+            reference_tests::Tensor(ET, {}, std::vector<T>{42}),
             "pad_negative_exterior_4d"),
     };
     return params;
@@ -1074,24 +1074,24 @@ std::vector<PadParams> generateParamsTooLarge() {
     using T_INT = typename element_type_traits<ET_INT>::value_type;
     std::vector<PadParams> params {
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 4, 5,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 3}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET, {2, 5}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 3}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET, {2, 5}, std::vector<T>{
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             }),
             op::PadMode::SYMMETRIC,
             "pad_to_large_symmetric_padding"),
 
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 4, 5,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET, {2, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET, {2, 4}, std::vector<T>{
                 0, 0, 0, 0, 0, 0, 0, 0,
             }),
             op::PadMode::REFLECT,
@@ -1124,24 +1124,24 @@ std::vector<PadParams> generateParamsOk() {
     using T_INT = typename element_type_traits<ET_INT>::value_type;
     std::vector<PadParams> params {
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 4, 5,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 2}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET, {2, 4}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET, {2, 4}, std::vector<T>{
                 2, 1, 1, 2, 5, 4, 4, 5,
             }),
             op::PadMode::SYMMETRIC,
             "pad_ok_symmetric_padding"),
 
         PadParams(
-            Tensor(ET, {2, 2}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
                 1, 2, 4, 5,
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 1}),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
-            Tensor(ET, {2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 0}),
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
                 2, 1, 2, 5, 4, 5,
             }),
             op::PadMode::REFLECT,

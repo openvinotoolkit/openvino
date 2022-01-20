@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -266,13 +266,21 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         std::swap(convolution._dilation_x, convolution._dilation_y);
     }
 
+    auto in_kernel_w = convolution._kernel_x;
+    auto in_kernel_h = convolution._kernel_y;
+    bool transpose_h_w = false;
+
     // Map 2d convolution to 1d if it's possible
-    if (GNAConvolutionLayer::isMappableFrom2DTo1D(in_height, in_width, convolution._kernel_x, convolution._stride_x)) {
+    if (GNAConvolutionLayer::isMappableFrom2DTo1D(in_height, in_width, in_channels,
+                                                  convolution._kernel_y, convolution._kernel_x,
+                                                  convolution._stride_y, convolution._stride_x)) {
+        transpose_h_w = (in_height == convolution._kernel_y);
         in_width *= in_height;
         in_height = 1;
         out_width *= out_height;
         out_height = 1;
-        convolution._stride_x *= (convolution._stride_y * convolution._kernel_x);
+        convolution._stride_x *= transpose_h_w ? (convolution._stride_y * convolution._kernel_y) :
+                                                 (convolution._stride_y * convolution._kernel_x);
         convolution._kernel_x *= convolution._kernel_y;
         convolution._kernel_y = 1;
     }
@@ -304,19 +312,20 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         in_height != 1) {
         // TensorFlow default layout is NHWC
         // OpenVino Default layout is   NCHW
-        // GNA Convolution input is     NHCW
+        // GNA Convolution input is     NHCW (old) or NHWC (new)
         // When layer layout is in NHWC it means that is was created by PassManager
         return finalizeConvolution2DPrimitive(layer, in_batch, in_channels, in_height, in_width,
                                               out_batch, out_channels, out_height, out_width);
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution 2D is not supported on GNA 1.0 library";
     }
     finalizeConvolution1DPrimitive(layer, in_batch, in_channels, in_width,
-                                   out_batch, out_channels, out_width);
+                                   out_batch, out_channels, out_width, in_kernel_w, in_kernel_h, transpose_h_w);
 }
 
 void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr layer,
     uint32_t in_batch, uint32_t in_channels, uint32_t in_width,
-    uint32_t out_batch, uint32_t out_channels, uint32_t out_width) {
+    uint32_t out_batch, uint32_t out_channels, uint32_t out_width,
+    uint32_t in_kernel_w, uint32_t in_kernel_h, bool transpose_h_w) {
     auto& convolution = dynamic_cast<ConvolutionLayer&>(*layer.get());
     printConvolutionLayer(convolution);
 
@@ -429,7 +438,10 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         ptr_weights,
         ptr_biases);
 
-    if (inputs->getLayout() == Layout::NHWC) {
+    // Keep both variants of kaldi models working:
+    // Old one has layout which is different from NHWC
+    // New one has layout NHWC, but it is mapped from 2d by H
+    if (inputs->getLayout() == Layout::NHWC && !transpose_h_w) {
         currentComponent.orientation_in  = kDnnInterleavedOrientation;
         currentComponent.orientation_out = kDnnInterleavedOrientation;
     }
@@ -447,7 +459,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
 
     // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know how kaldi will handle that
     if (!dnn->do_rotate_input) {
-        if (inputs->getLayout() != Layout::NHWC && LayerInfo(connectedInputLayer).isInput()) {
+         if ((inputs->getLayout() != Layout::NHWC || transpose_h_w) && LayerInfo(connectedInputLayer).isInput()) {
             //  Kaldi features are opposite orientation
             dnn->do_rotate_input = true;
             dnn->num_rotate_rows = effectiveStride;
@@ -459,12 +471,16 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
+    // Transpose H with W or C with HW
+    auto A = transpose_h_w ? in_kernel_h : in_channels;
+    auto B = transpose_h_w ? in_kernel_w : convolution._kernel[X_AXIS];
+
     std::vector<uint8_t> transposedWeights;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
         uint8_t * ptr_filt_current
             = convolution._weights->cbuffer().as<uint8_t*>() +
-            k * in_channels * convolution._kernel[X_AXIS] * convolution.precision.size();
-        auto transposedPart = transposeMatrix(ptr_filt_current, convolution.precision.size(), in_channels, convolution._kernel[X_AXIS]);
+            k * A * B * convolution.precision.size();
+        auto transposedPart = transposeMatrix(ptr_filt_current, convolution.precision.size(), A, B);
         transposedWeights.insert(transposedWeights.end(), transposedPart.begin(), transposedPart.end());
     }
     if (transposedWeights.size() != convolution._weights->byteSize()) {

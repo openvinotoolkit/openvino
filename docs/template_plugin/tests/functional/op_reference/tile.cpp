@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,13 @@ using namespace ov;
 namespace {
 struct TileParams {
     TileParams(
-        const Tensor& A, const Tensor& repeats,
-        const Tensor& expected, const std::string& testcaseName = "") :
+        const reference_tests::Tensor& A, const reference_tests::Tensor& repeats,
+        const reference_tests::Tensor& expected, const std::string& testcaseName = "") :
         A(A), repeats(repeats), expected(expected), testcaseName(testcaseName) {}
 
-    Tensor A;
-    Tensor repeats;
-    Tensor expected;
+    reference_tests::Tensor A;
+    reference_tests::Tensor repeats;
+    reference_tests::Tensor expected;
     std::string testcaseName;
 };
 
@@ -70,20 +70,20 @@ std::vector<TileParams> generateParams() {
     using T_INT = typename element_type_traits<ET_INT>::value_type;
     std::vector<TileParams> params {
         TileParams(
-            Tensor(ET, {}, std::vector<T>{
+            reference_tests::Tensor(ET, {}, std::vector<T>{
                 1
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
-            Tensor(ET, {2}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+            reference_tests::Tensor(ET, {2}, std::vector<T>{
                 1, 1
             }),
             "tile_0d_to_1d_data_broadcast"),
         TileParams(
-            Tensor(ET, {6}, std::vector<T>{
+            reference_tests::Tensor(ET, {6}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
             }),
-            Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
-            Tensor(ET, {24}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{4}),
+            reference_tests::Tensor(ET, {24}, std::vector<T>{
                 1, 2, 3, 4, 5, 6,
                 1, 2, 3, 4, 5, 6,
                 1, 2, 3, 4, 5, 6,
@@ -91,20 +91,20 @@ std::vector<TileParams> generateParams() {
             }),
             "tile_1d_to_1d_no_broadcast"),
         TileParams(
-            Tensor(ET, {3}, std::vector<T>{
+            reference_tests::Tensor(ET, {3}, std::vector<T>{
                 1, 2, 3
             }),
-            Tensor(ET_INT, {3}, std::vector<T_INT>{2, 2, 1}),
-            Tensor(ET, {2, 2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{2, 2, 1}),
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
                 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3
             }),
             "tile_1d_to_3d_data_broadcast"),
         TileParams(
-            Tensor(ET, {2, 1, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{
                 1, 2, 3, 4, 5, 6
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            Tensor(ET, {2, 2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
                 1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6
             }),
             "tile_3d_to_3d_repeats_broadcast"),
@@ -118,11 +118,11 @@ std::vector<TileParams> generateParamsFloatValue() {
     using T_INT = typename element_type_traits<ET_INT>::value_type;
     std::vector<TileParams> params {
         TileParams(
-            Tensor(ET, {2, 1, 3}, std::vector<T>{
+            reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{
                 1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f
             }),
-            Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
-            Tensor(ET, {2, 2, 3}, std::vector<T>{
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 1}),
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
                 1.1f, 2.2f, 3.3f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f, 4.4f, 5.5f, 6.6f
             }),
             "tile_3d_to_3d_repeats_broadcast_float_val"),

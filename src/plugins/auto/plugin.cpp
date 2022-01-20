@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -455,23 +455,27 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
 
     std::list<DeviceInformation> validDevices;
 
-    auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
-        for (auto iter = devices.begin(); iter != devices.end();) {
-            std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
-            if (supportNetwork != capability.end()) {
-                validDevices.push_back(std::move(*iter));
-                devices.erase(iter++);
-                continue;
+    if (metaDevices.size() > 1) {
+        auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
+            for (auto iter = devices.begin(); iter != devices.end();) {
+                std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
+                if (supportNetwork != capability.end()) {
+                    validDevices.push_back(std::move(*iter));
+                    devices.erase(iter++);
+                    continue;
+                }
+                iter++;
             }
-            iter++;
+        };
+        selectSupportDev(networkPrecision);
+        // If network is FP32, continue to collect the device support FP16 but not support FP32.
+        if (networkPrecision == "FP32") {
+            const std::string f16 = "FP16";
+            selectSupportDev(f16);
         }
-    };
-    selectSupportDev(networkPrecision);
-    // If network is FP32, continue to collect the device support FP16 but not support FP32.
-    if (networkPrecision == "FP32") {
-       const std::string f16 = "FP16";
-       selectSupportDev(f16);
+    } else {
+        validDevices.push_back(metaDevices[0]);
     }
 
     if (validDevices.empty()) {
@@ -489,7 +493,7 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
                 continue;
             }
             auto& filterDevices = kvp.second;
-            auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](DeviceInformation device) {
+            auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](const DeviceInformation& device) {
                     auto iter = std::find_if(filterDevices.begin(), filterDevices.end(), [&device](std::string uniqueName) {
                             return (uniqueName == device.uniqueName);
                             });
