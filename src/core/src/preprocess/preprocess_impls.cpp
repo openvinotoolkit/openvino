@@ -98,7 +98,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
         auto plane_shape = color_info->shape(plane, new_param_shape);
         auto plane_param = std::make_shared<opset8::Parameter>(tensor_elem_type, plane_shape);
         if (plane < get_tensor_data()->planes_sub_names().size()) {
-            std::unordered_set<std::string> plane_tensor_names;
+            std::vector<std::string> plane_tensor_names;
             std::string sub_name;
             sub_name = std::string("/") + get_tensor_data()->planes_sub_names()[plane];
             if (!std::get<1>(existing_names)) {
@@ -111,7 +111,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
                     "Error while trying to create plane input with name '",
                     new_name,
                     "' - name already exists in model. Please specify another sub-name for set_color_format");
-                plane_tensor_names.insert(new_name);
+                plane_tensor_names.emplace_back(new_name);
             }
             plane_param->get_default_output().get_tensor().set_names(plane_tensor_names);
             plane_param->set_friendly_name(res.m_param->get_friendly_name() + sub_name);
@@ -243,7 +243,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
     // Dump tensor and model shapes if any preprocessing is needed
     str << "Input ";
     if (!data.m_param->output(0).get_names().empty()) {
-        str << "\"" << data.m_param->output(0).get_any_name() << "\"";
+        str << "\"" << data.m_param->output(0).get_main_name() << "\"";
     }
     if (context.color_format() != ColorFormat::UNDEFINED) {
         str << " (color " << color_format_name(context.color_format()) << ")";
@@ -261,7 +261,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
         for (size_t i = 0; i < nodes.size(); i++) {
             str << "       " << i << ": ";
             if (!nodes[i].get_names().empty()) {
-                str << nodes[i].get_any_name() << " ";
+                str << nodes[i].get_main_name() << " ";
             }
             dump_tensor(str, nodes[i].get_partial_shape(), context.layout(), nodes[i].get_element_type());
             str << std::endl;

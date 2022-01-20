@@ -251,13 +251,13 @@ bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
 void printInputAndOutputsInfoShort(const ov::Model& network) {
     std::cout << "Network inputs:" << std::endl;
     for (auto&& input : network.inputs()) {
-        std::cout << "    " << input.get_any_name() << " : " << input.get_element_type() << " / "
+        std::cout << "    " << input.get_main_name() << " : " << input.get_element_type() << " / "
                   << ov::layout::get_layout(input).to_string() << std::endl;
     }
 
     std::cout << "Network outputs:" << std::endl;
     for (auto&& output : network.outputs()) {
-        std::cout << "    " << output.get_any_name() << " : " << output.get_element_type() << " / "
+        std::cout << "    " << output.get_main_name() << " : " << output.get_element_type() << " / "
                   << ov::layout::get_layout(output).to_string() << std::endl;
     }
 }
@@ -269,7 +269,7 @@ void printInputAndOutputsInfo(const ov::Model& network) {
     for (const ov::Output<const ov::Node> input : inputs) {
         slog::info << "    inputs" << slog::endl;
 
-        const std::string name = input.get_names().empty() ? "NONE" : input.get_any_name();
+        const std::string name = input.get_names().empty() ? "NONE" : input.get_main_name();
         slog::info << "        input name: " << name << slog::endl;
 
         const ov::element::Type type = input.get_element_type();
@@ -283,7 +283,7 @@ void printInputAndOutputsInfo(const ov::Model& network) {
     for (const ov::Output<const ov::Node> output : outputs) {
         slog::info << "    outputs" << slog::endl;
 
-        const std::string name = output.get_names().empty() ? "NONE" : output.get_any_name();
+        const std::string name = output.get_names().empty() ? "NONE" : output.get_main_name();
         slog::info << "        output name: " << name << slog::endl;
 
         const ov::element::Type type = output.get_element_type();

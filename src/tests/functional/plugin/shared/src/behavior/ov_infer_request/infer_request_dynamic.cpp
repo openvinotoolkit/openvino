@@ -2,31 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
-#include <future>
+#include "behavior/ov_infer_request/infer_request_dynamic.hpp"
+
 #include <gtest/gtest.h>
+
+#include <base/behavior_test_utils.hpp>
+#include <chrono>
+#include <condition_variable>
+#include <future>
+#include <ie_core.hpp>
+#include <memory>
+#include <string>
+#include <thread>
 #include <tuple>
 #include <vector>
-#include <string>
-#include <memory>
+
+#include "common_test_utils/common_utils.hpp"
+#include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 #include "ie_extension.h"
-#include <condition_variable>
+#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/core/shape.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "transformations/utils/utils.hpp"
-#include <string>
-#include <ie_core.hpp>
-#include <thread>
-#include <base/behavior_test_utils.hpp>
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
-#include "behavior/ov_infer_request/infer_request_dynamic.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace test {
@@ -42,7 +44,8 @@ std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<O
     result << "function=" << func->get_friendly_name() << "_";
     result << "inOutShape=(";
     for (const auto& inOutShape : inOutShapes) {
-        result << "(" << CommonTestUtils::vec2str(inOutShape.first) << "_" << CommonTestUtils::vec2str(inOutShape.second) << ")";
+        result << "(" << CommonTestUtils::vec2str(inOutShape.first) << "_"
+               << CommonTestUtils::vec2str(inOutShape.second) << ")";
     }
     result << ")_";
     result << "targetDevice=" << targetDevice;
@@ -77,7 +80,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
     ov::runtime::InferRequest req;
     ov::runtime::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_main_name()));
 }
 
 TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
@@ -94,7 +97,6 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
 }
 
-
 TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
@@ -109,17 +111,17 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     ov::runtime::Tensor tensor, otensor;
     const std::string outputname = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    //OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
+    // OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
-    ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(0, otensor.get_size());                                               // output tensor is not allocated
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type());  // by it has type
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
-    EXPECT_NE(0, otensor.get_size()); // output tensor is allocated after infer
+    EXPECT_NE(0, otensor.get_size());  // output tensor is allocated after infer
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     ASSERT_EQ(otensor.get_shape(), refOutShape);
 }
@@ -138,10 +140,10 @@ TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     ov::runtime::Tensor tensor, otensor;
     const std::string outputname = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    //OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
+    // OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
-    ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(0, otensor.get_size());                                               // output tensor is not allocated
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type());  // by it has type
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
@@ -165,13 +167,13 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
     ov::runtime::Tensor tensor, otensor;
     const std::string outputName = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    //OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
+    // OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputName));
-    ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(0, otensor.get_size());                                               // output tensor is not allocated
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type());  // by it has type
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
@@ -195,7 +197,7 @@ TEST_P(OVInferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     // Plugin may or may not throw in case if input tensor has dimensions that are out of bounds
-    //ASSERT_THROW(req.infer(), ov::Exception);
+    // ASSERT_THROW(req.infer(), ov::Exception);
 }
 
 TEST_P(OVInferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorUpper) {
@@ -251,7 +253,6 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape2);
 }
-
 
 TEST_P(OVInferRequestDynamicTests, GetSameTensor2times) {
     const std::string tensor_name = "input_tensor";
@@ -312,8 +313,8 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
     OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape);
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputName));
-    ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
-    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type()); // by it has type
+    ASSERT_EQ(0, otensor.get_size());                                               // output tensor is not allocated
+    ASSERT_EQ(function->output(0).get_element_type(), otensor.get_element_type());  // by it has type
     OV_ASSERT_NO_THROW(req.infer());
     ASSERT_EQ(otensor.get_shape(), refOutShape);
     OV_ASSERT_NO_THROW(req.start_async());

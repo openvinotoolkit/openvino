@@ -243,8 +243,8 @@ class IEEngine(Engine):
             image_info_node = image_info_nodes[0]
             image_info_name = self._get_input_any_name(image_info_node)
             image_tensor_node = next(iter(filter(
-                lambda x: x.get_any_name() != image_info_name, input_info)))
-            image_tensor_name = image_tensor_node.get_any_name()
+                lambda x: x.get_main_name() != image_info_name, input_info)))
+            image_tensor_name = image_tensor_node.get_main_name()
 
             image_tensor = (image_tensor_name, np.stack(image_batch, axis=0))
 
@@ -420,9 +420,9 @@ class IEEngine(Engine):
             :returns - a string tensor name
         """
         try:
-            input_name = input_node.get_any_name()
+            input_name = input_node.get_main_name()
         except RuntimeError:
             name_set = set([input_node.node.friendly_name])
             input_name = input_node.get_tensor().set_names(name_set)
-            input_name = input_node.get_any_name()
+            input_name = input_node.get_main_name()
         return input_name

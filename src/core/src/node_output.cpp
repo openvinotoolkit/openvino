@@ -82,28 +82,28 @@ const RTMap& Output<const Node>::get_rt_info() const {
     return m_node->m_outputs.at(m_index).get_rt_info();
 }
 
-const std::unordered_set<std::string>& Output<Node>::get_names() const {
+const std::vector<std::string>& Output<Node>::get_names() const {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
 }
 
-std::string Output<Node>::get_any_name() const {
-    return get_tensor().get_any_name();
+std::string Output<Node>::get_main_name() const {
+    return get_tensor().get_main_name();
 }
 
-void Output<Node>::set_names(const std::unordered_set<std::string>& names) {
+void Output<Node>::set_names(const std::vector<std::string>& names) {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->set_names(names);
 }
 
-void Output<Node>::add_names(const std::unordered_set<std::string>& names) {
+void Output<Node>::add_names(const std::vector<std::string>& names) {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->add_names(names);
 }
 
-const std::unordered_set<std::string>& Output<const Node>::get_names() const {
+const std::vector<std::string>& Output<const Node>::get_names() const {
     return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
 }
 
-std::string Output<const Node>::get_any_name() const {
-    return get_tensor().get_any_name();
+std::string Output<const Node>::get_main_name() const {
+    return get_tensor().get_main_name();
 }
 
 bool Output<Node>::operator==(const Output& other) const {

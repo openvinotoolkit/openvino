@@ -160,7 +160,7 @@ def main():
     model = ppp.build()
 
     # Set a batch size equal to number of input images
-    model.reshape({model.input().get_any_name(): PartialShape((digits.shape[0], model.input().shape[1], model.input().shape[2], model.input().shape[3]))})
+    model.reshape({model.input().get_main_name(): PartialShape((digits.shape[0], model.input().shape[1], model.input().shape[2], model.input().shape[3]))})
 
     # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     log.info('Loading the model to the plugin')

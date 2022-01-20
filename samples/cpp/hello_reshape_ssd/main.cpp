@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
         tensor_shape[ov::layout::width_idx(model_layout)] = image_width;
 
         std::cout << "Reshape network to the image size = [" << image_height << "x" << image_width << "] " << std::endl;
-        model->reshape({{model->input().get_any_name(), tensor_shape}});
+        model->reshape({{model->input().get_main_name(), tensor_shape}});
         printInputAndOutputsInfo(*model);
         // -------------------------------------------------------------------
 

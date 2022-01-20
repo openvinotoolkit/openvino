@@ -159,7 +159,8 @@ ov::Output<const ov::Node> CompiledModel::input(size_t i) const {
 ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) const {
     OV_EXEC_NET_CALL_STATEMENT({
         for (const auto& param : _impl->getInputs()) {
-            if (param->get_output_tensor(0).get_names().count(tensor_name)) {
+            const auto& names = param->get_output_tensor(0).get_names();
+            if (std::find(names.begin(), names.end(), tensor_name) != names.end()) {
                 return param;
             }
         }
@@ -191,7 +192,8 @@ ov::Output<const ov::Node> CompiledModel::output(size_t i) const {
 ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name) const {
     OV_EXEC_NET_CALL_STATEMENT({
         for (const auto& result : _impl->getOutputs()) {
-            if (result->get_output_tensor(0).get_names().count(tensor_name)) {
+            const auto& names = result->get_output_tensor(0).get_names();
+            if (std::find(names.begin(), names.end(), tensor_name) != names.end()) {
                 return result;
             }
         }

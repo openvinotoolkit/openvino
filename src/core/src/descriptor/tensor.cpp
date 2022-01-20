@@ -91,11 +91,11 @@ const std::string& ov::descriptor::Tensor::get_name() const {
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
-const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
+const std::vector<std::string>& ov::descriptor::Tensor::get_names() const {
     return m_names;
 }
 
-std::string ov::descriptor::Tensor::get_any_name() const {
+std::string ov::descriptor::Tensor::get_main_name() const {
     if (m_names.empty()) {
         throw ngraph::ngraph_error("Attempt to get a name for a Tensor without names");
     }
@@ -105,13 +105,13 @@ std::string ov::descriptor::Tensor::get_any_name() const {
     return *sorted_names.begin();
 }
 
-void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& names) {
+void ov::descriptor::Tensor::set_names(const std::vector<std::string>& names) {
     m_names = names;
 }
 
-void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& names) {
+void ov::descriptor::Tensor::add_names(const std::vector<std::string>& names) {
     for (const auto& name : names) {
-        m_names.insert(name);
+        m_names.emplace_back(name);
     }
 }
 

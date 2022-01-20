@@ -117,7 +117,7 @@ TEST(replace_node, simple_node_replacement) {
     new_relu->output(0).get_tensor().set_names({"f"});
     replace_node(relu, new_relu);
 
-    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::vector<std::string>({"c", "d"}));
 }
 
 TEST(replace_node, node_elimination) {
@@ -129,8 +129,8 @@ TEST(replace_node, node_elimination) {
     relu2->output(0).get_tensor().set_names({"e", "f"});
 
     ASSERT_TRUE(replace_output_update_name(relu2->output(0), relu2->input_value(0)));
-    ASSERT_EQ(relu1->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d", "e", "f"}));
-    ASSERT_EQ(param->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"a", "b"}));
+    ASSERT_EQ(relu1->output(0).get_tensor().get_names(), std::vector<std::string>({"c", "d", "e", "f"}));
+    ASSERT_EQ(param->output(0).get_tensor().get_names(), std::vector<std::string>({"a", "b"}));
 }
 
 TEST(replace_node, output_replacement) {
@@ -144,7 +144,7 @@ TEST(replace_node, output_replacement) {
 
     relu->output(0).replace(new_relu->output(0));
 
-    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::vector<std::string>({"c", "d"}));
 }
 
 TEST(replace_node, source_replacement) {
@@ -157,6 +157,6 @@ TEST(replace_node, source_replacement) {
     auto relu = std::make_shared<op::Relu>(param);
     relu->input(0).replace_source_output(param1->output(0));
 
-    ASSERT_EQ(param->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"a", "b"}));
-    ASSERT_EQ(param1->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+    ASSERT_EQ(param->output(0).get_tensor().get_names(), std::vector<std::string>({"a", "b"}));
+    ASSERT_EQ(param1->output(0).get_tensor().get_names(), std::vector<std::string>({"c", "d"}));
 }

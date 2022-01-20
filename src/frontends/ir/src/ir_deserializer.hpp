@@ -25,7 +25,7 @@ struct GenericLayerParams {
         size_t portId;
         std::vector<ov::Dimension> dims;
         ov::element::Type_t precision;
-        std::unordered_set<std::string> names;
+        std::vector<std::string> names;
     };
     size_t layerId;
     std::string version;

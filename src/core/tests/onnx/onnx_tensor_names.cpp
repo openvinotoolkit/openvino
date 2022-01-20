@@ -21,7 +21,7 @@ using Outputs = std::vector<std::vector<float>>;
 template <typename OpType, typename DerivedFromNode>
 bool matching_node_found_in_graph(const std::vector<DerivedFromNode>& ops,
                                   const std::string& friendly_name,
-                                  const std::unordered_set<std::string>& output_names,
+                                  const std::vector<std::string>& output_names,
                                   int out_tensor_number = 0) {
     return std::any_of(std::begin(ops), std::end(ops), [&](const DerivedFromNode op) {
         if (const std::shared_ptr<OpType> casted = std::dynamic_pointer_cast<OpType>(op)) {

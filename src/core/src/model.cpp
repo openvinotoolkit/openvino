@@ -690,7 +690,8 @@ ov::Output<const ov::Node> ov::Model::output(size_t i) const {
 }
 ov::Output<const ov::Node> ov::Model::output(const std::string& tensor_name) const {
     for (const auto& res : m_results) {
-        if (res->get_input_tensor(0).get_names().count(tensor_name)) {
+        const auto names = res->get_output_tensor(0).get_names();
+        if (std::find(names.begin(), names.end(), tensor_name) != names.end()) {
             std::shared_ptr<const ov::Node> result = res;
             return result;
         }
@@ -716,7 +717,8 @@ ov::Output<ov::Node> ov::Model::output(size_t i) {
 }
 ov::Output<ov::Node> ov::Model::output(const std::string& tensor_name) {
     for (const auto& res : m_results) {
-        if (res->get_input_tensor(0).get_names().count(tensor_name))
+        const auto names = res->get_output_tensor(0).get_names();
+        if (std::find(names.begin(), names.end(), tensor_name) != names.end())
             return res;
     }
     throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
@@ -745,7 +747,8 @@ ov::Output<const ov::Node> ov::Model::input(size_t i) const {
 }
 ov::Output<const ov::Node> ov::Model::input(const std::string& tensor_name) const {
     for (const auto& param : m_parameters) {
-        if (param->get_output_tensor(0).get_names().count(tensor_name)) {
+        const auto names = param->get_output_tensor(0).get_names();
+        if (std::find(names.begin(), names.end(), tensor_name) != names.end()) {
             std::shared_ptr<const ov::Node> parameter = param;
             return parameter;
         }
@@ -772,7 +775,8 @@ ov::Output<ov::Node> ov::Model::input(size_t i) {
 }
 ov::Output<ov::Node> ov::Model::input(const std::string& tensor_name) {
     for (const auto& param : m_parameters) {
-        if (param->get_output_tensor(0).get_names().count(tensor_name))
+        const auto names = param->get_output_tensor(0).get_names();
+        if (std::find(names.begin(), names.end(), tensor_name) != names.end())
             return param;
     }
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
@@ -890,7 +894,7 @@ ov::Output<ov::Node> ov::Model::add_output(const std::string& tensor_name) {
             continue;
         for (const auto& output : op->outputs()) {
             const auto& names = output.get_tensor().get_names();
-            if (names.find(tensor_name) != names.end()) {
+            if (std::find(names.begin(), names.end(), tensor_name) != names.end()) {
                 return add_output(output);
             }
         }
@@ -944,7 +948,7 @@ static void dump_parameter(std::ostream& stream, const std::shared_ptr<const ov:
     const auto& node = f->input(index);
     stream << index << ": { ";
     if (!node.get_tensor().get_names().empty()) {
-        stream << "name='" << node.get_tensor().get_any_name() << "', ";
+        stream << "name='" << node.get_tensor().get_main_name() << "', ";
     }
     stream << "shape=" << node.get_partial_shape();
     if (node.get_partial_shape().rank().is_static()) {

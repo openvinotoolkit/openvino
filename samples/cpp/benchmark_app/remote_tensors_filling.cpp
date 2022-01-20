@@ -140,19 +140,19 @@ std::map<std::string, ov::runtime::Tensor> get_remote_output_tensors(
         auto inputSize = elementsNum * output.get_element_type().bitwidth() / 8;
 
         cl::size_type bufferSize = 0;
-        if (clBuffer.find(output.get_any_name()) == clBuffer.end()) {
-            clBuffer[output.get_any_name()] =
+        if (clBuffer.find(output.get_main_name()) == clBuffer.end()) {
+            clBuffer[output.get_main_name()] =
                 cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
         } else {
-            auto& buff = clBuffer[output.get_any_name()];
+            auto& buff = clBuffer[output.get_main_name()];
             buff.getInfo(CL_MEM_SIZE, &bufferSize);
             if (inputSize != bufferSize) {
                 buff = cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
             }
         }
-        outputTensors[output.get_any_name()] = oclContext.create_tensor(output.get_element_type(),
-                                                                        output.get_shape(),
-                                                                        clBuffer[output.get_any_name()].get());
+        outputTensors[output.get_main_name()] = oclContext.create_tensor(output.get_element_type(),
+                                                                         output.get_shape(),
+                                                                         clBuffer[output.get_main_name()].get());
     }
 
     return outputTensors;

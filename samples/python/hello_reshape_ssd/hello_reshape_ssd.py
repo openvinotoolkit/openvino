@@ -50,7 +50,7 @@ def main():
 
     log.info('Reshaping the network to the height and width of the input image')
     n, h, w, c = input_tensor.shape
-    model.reshape({model.input().get_any_name(): PartialShape((n, c, h, w))})
+    model.reshape({model.input().get_main_name(): PartialShape((n, c, h, w))})
 
 # --------------------------- Step 4. Apply preprocessing -------------------------------------------------------------
     ppp = PrePostProcessor(model)

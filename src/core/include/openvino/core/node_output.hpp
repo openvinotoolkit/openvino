@@ -6,7 +6,7 @@
 
 #include <cstring>
 #include <map>
-#include <unordered_set>
+#include <vector>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -76,13 +76,13 @@ public:
     const RTMap& get_rt_info() const;
 
     /// \return The tensor names associated with this output
-    const std::unordered_set<std::string>& get_names() const;
+    const std::vector<std::string>& get_names() const;
     /// \return Any tensor names associated with this output
-    std::string get_any_name() const;
+    std::string get_main_name() const;
     /// \return Set tensor names associated with this output
-    void set_names(const std::unordered_set<std::string>& names);
+    void set_names(const std::vector<std::string>& names);
     /// \return Add tensor names associated with this output
-    void add_names(const std::unordered_set<std::string>& names);
+    void add_names(const std::vector<std::string>& names);
 
     /// \return A set containing handles for all inputs targeted by the output referenced by
     ///        this output handle.
@@ -156,9 +156,9 @@ public:
     /// \return The constant reference to runtime info map
     const RTMap& get_rt_info() const;
     /// \return The tensor names associated with this output
-    const std::unordered_set<std::string>& get_names() const;
+    const std::vector<std::string>& get_names() const;
     /// \return Any tensor name associated with this output
-    std::string get_any_name() const;
+    std::string get_main_name() const;
     /// \return A set containing handles for all inputs targeted by the output referenced by
     ///        this output handle.
     std::set<Input<Node>> get_target_inputs() const;

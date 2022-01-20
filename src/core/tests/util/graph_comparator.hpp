@@ -201,7 +201,7 @@ public:
             const auto& ref_tensor_names = m_result_tensor_names.at(r.get());
             const auto& cur_tensor_names = r->input_value(0).get_names();
             for (const auto& ref_name : ref_tensor_names) {
-                if (cur_tensor_names.count(ref_name) == 0) {
+                if (std::find(cur_tensor_names.begin(), cur_tensor_names.end(), ref_name) == cur_tensor_names.end()) {
                     std::stringstream ss;
                     auto node = r->input_value(0).get_node();
                     ss << "Tensor name: " << ref_name << " is missing in " << node->get_type_info() << " ";

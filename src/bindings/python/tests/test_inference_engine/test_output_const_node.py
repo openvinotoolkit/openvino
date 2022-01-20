@@ -100,7 +100,7 @@ def test_const_output_get_names(device):
     expected_names.add(input_name)
     assert node.get_names() == expected_names
     assert node.names == expected_names
-    assert node.get_any_name() == input_name
+    assert node.get_main_name() == input_name
     assert node.any_name == input_name
 
 

@@ -137,7 +137,7 @@ void InputModel::add_name_for_tensor(const ov::frontend::Place::Ptr& tensor, con
                             "pointing to the ONNX tensor.");
 
     auto& names_to_add = m_additional_tensor_names[onnx_tensor->get_names().at(0)];
-    names_to_add.insert(new_name);
+    names_to_add.emplace_back(new_name);
 }
 
 void InputModel::free_name_for_tensor(const std::string&) {
@@ -453,7 +453,8 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
         return std::find_if(std::begin(model_inputs),
                             std::end(model_inputs),
                             [&name](const OutputVector::value_type& input) {
-                                return input.get_names().count(name) > 0;
+                                return std::find(input.get_names().begin(), input.get_names().end(), name) !=
+                                       input.get_names().end();
                             });
     };
 
@@ -471,7 +472,8 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
     const auto& inputs = model->inputs();
     const auto is_input_name = [&inputs](const std::string& name) {
         return std::find_if(std::begin(inputs), std::end(inputs), [&name](const OutputVector::value_type& input) {
-                   return input.get_names().count(name) > 0;
+                   return std::find(input.get_names().begin(), input.get_names().end(), name) !=
+                          input.get_names().end();
                }) != std::end(inputs);
     };
 

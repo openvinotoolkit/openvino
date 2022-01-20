@@ -28,7 +28,7 @@ void set_tensor_names(const ov::ParameterVector& parameters) {
     for (const auto& param : parameters) {
         ov::Output<ov::Node> p = param;
         if (p.get_node()->output(0).get_names().empty()) {
-            std::unordered_set<std::string> p_names({p.get_node()->get_friendly_name()});
+            std::vector<std::string> p_names({p.get_node()->get_friendly_name()});
             p.get_node()->output(0).set_names(p_names);
         }
     }

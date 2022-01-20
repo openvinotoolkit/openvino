@@ -71,7 +71,8 @@ public:
     InputInfo& find_input(const std::string& tensor_name) {
         size_t index;
         for (index = 0; index < m_function->inputs().size(); index++) {
-            if (m_function->input(index).get_tensor().get_names().count(tensor_name)) {
+            const auto& names = m_function->input(index).get_tensor().get_names();
+            if (std::find(names.begin(), names.end(), tensor_name) != names.end()) {
                 return m_inputs[index];
             }
         }
@@ -81,7 +82,8 @@ public:
     OutputInfo& find_output(const std::string& tensor_name) {
         size_t index;
         for (index = 0; index < m_function->outputs().size(); index++) {
-            if (m_function->output(index).get_tensor().get_names().count(tensor_name)) {
+            const auto& names = m_function->output(index).get_tensor().get_names();
+            if (std::find(names.begin(), names.end(), tensor_name) != names.end()) {
                 return m_outputs[index];
             }
         }

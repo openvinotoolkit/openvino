@@ -1269,14 +1269,15 @@ TEST(pre_post_process, postprocess_convert_element_type_explicit) {
     EXPECT_EQ(f->get_results().size(), 1);
     EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
     EXPECT_EQ(f->output().get_tensor().get_names(), old_names);
-    EXPECT_EQ(old_names.count("tensor_output1"), 1);
+    EXPECT_NE(std::find(old_names.begin(), old_names.end(), "tensor_output1"), old_names.end());
     auto ops = f->get_ordered_ops();
     auto res_count = std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& n) {
         return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
     });
     EXPECT_EQ(res_count, 1);
     auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
-        return n->output(0).get_tensor().get_names().count("tensor_output1") > 0;
+        const auto& names = n->output(0).get_names();
+        return std::find(names.begin(), names.end(), "tensor_output1") != names.end();
     });
     EXPECT_EQ(names_count, 2);  // last node + result referencing to it
     EXPECT_EQ(name, f->output().get_node_shared_ptr()->get_friendly_name());
@@ -1353,11 +1354,11 @@ TEST(pre_post_process, preprocess_keep_params_order) {
     EXPECT_EQ(f->input(3).get_partial_shape(), (PartialShape{1, 2, 2, 1}));
     EXPECT_EQ(f->input(4).get_partial_shape(), (PartialShape{1, 1, 1, 2}));
 
-    EXPECT_EQ(f->input(0).get_tensor().get_names(), std::unordered_set<std::string>{"tensor_input0"});
-    EXPECT_EQ(f->input(1).get_tensor().get_names(), std::unordered_set<std::string>{"tensor_input1/Y"});
-    EXPECT_EQ(f->input(2).get_tensor().get_names(), std::unordered_set<std::string>{"tensor_input1/UV"});
-    EXPECT_EQ(f->input(3).get_tensor().get_names(), std::unordered_set<std::string>{"tensor_input2/Y"});
-    EXPECT_EQ(f->input(4).get_tensor().get_names(), std::unordered_set<std::string>{"tensor_input2/UV"});
+    EXPECT_EQ(f->input(0).get_tensor().get_names(), std::vector<std::string>{"tensor_input0"});
+    EXPECT_EQ(f->input(1).get_tensor().get_names(), std::vector<std::string>{"tensor_input1/Y"});
+    EXPECT_EQ(f->input(2).get_tensor().get_names(), std::vector<std::string>{"tensor_input1/UV"});
+    EXPECT_EQ(f->input(3).get_tensor().get_names(), std::vector<std::string>{"tensor_input2/Y"});
+    EXPECT_EQ(f->input(4).get_tensor().get_names(), std::vector<std::string>{"tensor_input2/UV"});
 }
 
 // --- PostProcess - set/convert layout ---
@@ -1645,7 +1646,8 @@ TEST(pre_post_process, postprocess_many) {
 
     f = p.build();
     EXPECT_EQ(f->get_results().size(), 1);
-    EXPECT_EQ(f->output().get_tensor().get_names().count("tensor_output1"), 1);
+    EXPECT_NE(std::find(f->output().get_names().begin(), f->output().get_names().end(), "tensor_output1"),
+              f->output().get_names().end());
     EXPECT_EQ(f->output().get_node_shared_ptr()->get_friendly_name(), "Result1");
     EXPECT_EQ(f->output().get_element_type(), element::u8);
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");

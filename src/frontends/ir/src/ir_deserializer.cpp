@@ -582,7 +582,7 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
                     name.replace(names[i].length() - 1, 1, ",");
                     name += names[++i];
                 }
-                port.names.emplace(name);
+                port.names.emplace_back(name);
             }
         }
         return port;

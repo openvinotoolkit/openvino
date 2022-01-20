@@ -26,7 +26,7 @@ inline bool getPort(ov::Output<const ov::Node>& port,
     for (const auto& nodes : ports) {
         for (const auto& node : nodes) {
             const auto& names = node->get_output_tensor(0).get_names();
-            if (names.find(name) != names.end()) {
+            if (std::find(names.begin(), names.end(), name) != names.end()) {
                 port = node->output(0);
                 return true;
             }

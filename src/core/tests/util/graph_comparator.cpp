@@ -808,7 +808,7 @@ void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string& nam
     output.get_tensor_ptr()->set_names({name});
 }
 
-void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string>& names) {
+void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::vector<std::string>& names) {
     output.get_tensor_ptr()->set_names(names);
 }
 

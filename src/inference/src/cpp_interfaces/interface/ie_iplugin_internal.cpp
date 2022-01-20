@@ -330,8 +330,9 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
         auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
         new_param->set_friendly_name(param_name);
         if (add_operation_names) {
+            const auto names = param->get_output_tensor(0).get_names();
             OPENVINO_ASSERT(!new_api || leaf_names.find(param_name) == leaf_names.end() ||
-                                param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
+                                std::find(names.begin(), names.end(), param_name) != names.end(),
                             "Model operation names have collisions with tensor names.",
                             " Please use MO to generate new IR version, it should allow to avoid the issue");
             leaf_names.insert(param_name);
@@ -357,8 +358,9 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
         auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
         if (add_operation_names) {
+            const auto names = result->get_output_tensor(0).get_names();
             OPENVINO_ASSERT(!new_api || leaf_names.find(res_name) == leaf_names.end() ||
-                                result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
+                                std::find(names.begin(), names.end(), res_name) != names.end(),
                             "Model operation names have collisions with tensor names.",
                             " Please use MO to generate new IR version, it should allow to avoid the issue");
             leaf_names.insert(res_name);
