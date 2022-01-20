@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -114,20 +114,36 @@ def test_set_tensors(device):
     assert np.allclose(tensor3.data, t5.data, atol=1e-2, rtol=1e-2)
 
     request.set_input_tensor(tensor3)
-    t6 = request.get_tensor(request.inputs[0])
+    t6 = request.get_tensor(request.model_inputs[0])
     assert np.allclose(tensor3.data, t6.data, atol=1e-2, rtol=1e-2)
 
     request.set_input_tensor(0, tensor1)
-    t7 = request.get_tensor(request.inputs[0])
+    t7 = request.get_tensor(request.model_inputs[0])
     assert np.allclose(tensor1.data, t7.data, atol=1e-2, rtol=1e-2)
 
     request.set_output_tensor(tensor2)
-    t8 = request.get_tensor(request.outputs[0])
+    t8 = request.get_tensor(request.model_outputs[0])
     assert np.allclose(tensor2.data, t8.data, atol=1e-2, rtol=1e-2)
 
     request.set_output_tensor(0, tensor4)
-    t9 = request.get_tensor(request.outputs[0])
+    t9 = request.get_tensor(request.model_outputs[0])
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
+
+
+def test_inputs_outputs_property(device):
+    num_inputs = 10
+    input_shape = [1]
+    params = [ops.parameter(input_shape, np.uint8) for _ in range(num_inputs)]
+    model = Model(ops.split(ops.concat(params, 0), 0, num_inputs), params)
+    core = Core()
+    compiled = core.compile_model(model, device)
+    request = compiled.create_infer_request()
+    data = [np.atleast_1d(i) for i in range(num_inputs)]
+    results = request.infer(data).values()
+    for result, output_tensor in zip(results, request.outputs):
+        assert np.array_equal(result, output_tensor.data)
+    for input_data, input_tensor in zip(data, request.inputs):
+        assert np.array_equal(input_data, input_tensor.data)
 
 
 def test_cancel(device):
@@ -213,7 +229,7 @@ def test_infer_mixed_keys(device):
 
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res[list(res)[0]]) == 2
+    assert np.argmax(res[model.output()]) == 2
 
 
 def test_infer_queue(device):
@@ -342,13 +358,14 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
 
 def test_get_results(device):
     core = Core()
-    func = core.read_model(test_net_xml, test_net_bin)
-    core.set_config({"PERF_COUNT": "YES"}, device)
-    exec_net = core.compile_model(func, device)
-    img = read_image()
-    request = exec_net.create_infer_request()
-    outputs = request.infer({0: img})
-    assert np.allclose(list(outputs.values()), list(request.results.values()))
+    data = ops.parameter([10], np.float64)
+    model = Model(ops.split(data, 0, 5), [data])
+    compiled = core.compile_model(model, device)
+    request = compiled.create_infer_request()
+    inputs = [np.random.normal(size=list(compiled.input().shape))]
+    results = request.infer(inputs)
+    for output in compiled.outputs:
+        assert np.array_equal(results[output], request.results[output])
 
 
 def test_results_async_infer(device):

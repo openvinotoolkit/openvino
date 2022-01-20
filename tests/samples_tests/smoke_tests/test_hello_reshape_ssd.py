@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2021 Intel Corporation
+ Copyright (C) 2018-2022 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -22,6 +22,7 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=s
 
 test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('500x500', 'cat.bmp')],
                                        'm': [os.path.join('ssd512', 'FP32', 'ssd512.xml')],
+                                       'sample_type': ['C++','Python'],
                                        'd': ['CPU']},
                                        use_device=['d'], use_batch=False
                            )
