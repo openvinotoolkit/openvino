@@ -44,7 +44,8 @@ class IEEngine(Engine):
 
         # save NetworkX graph to IR and use it to initialize IE Network
         self._model = self._set_model(model)[0]['model']
-        self._output_layers = [output.get_node().friendly_name.replace('/sink_port_0', '') for output in self._model.outputs]
+        self._output_layers = [output.get_node().friendly_name.replace('/sink_port_0', '')
+                               for output in self._model.outputs]
 
     def _set_model(self, model):
         """Creates IENetwork instances from NetworkX models in NXModel.
