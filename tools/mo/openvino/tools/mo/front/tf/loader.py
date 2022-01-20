@@ -224,7 +224,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 # code to extract GraphDef for TF 2.0 SavedModel format
                 # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
                 # for TF 1.x SavedModel format in case TF 1.x installed
-                imported = tf.keras.models.load_model(model_dir)
+                imported = tf.keras.models.load_model(model_dir, compile=False)
 
                 # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
                 concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
