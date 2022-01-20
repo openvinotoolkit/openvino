@@ -90,3 +90,7 @@ private:
     bool m_soft_names_comparison{true};
     bool m_enable_accuracy_check{false};
 };
+
+void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);
+
+void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);
