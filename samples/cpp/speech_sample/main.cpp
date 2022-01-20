@@ -85,6 +85,29 @@ int main(int argc, char* argv[]) {
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
+        std::vector<std::string> outputs;
+        if (!FLAGS_oname.empty()) {
+            std::vector<std::string> output_names = convert_str_to_vector(FLAGS_oname);
+            std::vector<size_t> ports;
+            for (const auto& outBlobName : output_names) {
+                int pos_layer = outBlobName.rfind(":");
+                if (pos_layer == -1) {
+                    throw std::logic_error(std::string("Output ") + std::string(outBlobName) +
+                                           std::string(" doesn't have a port"));
+                }
+                outputs.push_back(outBlobName.substr(0, pos_layer));
+                try {
+                    ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1)));
+                } catch (const std::exception&) {
+                    throw std::logic_error("Ports should have integer type");
+                }
+            }
+            if (!FLAGS_m.empty()) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    model->add_output(outputs[i], ports[i]);
+                }
+            }
+        }
         // ------------------------------ Preprocessing ------------------------------------------------------
         // the preprocessing steps can be done only for loaded network and are not applicable for the imported network
         // (already compiled)
@@ -195,29 +218,6 @@ int main(int argc, char* argv[]) {
             genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
         }
         auto t0 = Time::now();
-        std::vector<std::string> outputs;
-        if (!FLAGS_oname.empty()) {
-            std::vector<std::string> output_names = convert_str_to_vector(FLAGS_oname);
-            std::vector<size_t> ports;
-            for (const auto& outBlobName : output_names) {
-                int pos_layer = outBlobName.rfind(":");
-                if (pos_layer == -1) {
-                    throw std::logic_error(std::string("Output ") + std::string(outBlobName) +
-                                           std::string(" doesn't have a port"));
-                }
-                outputs.push_back(outBlobName.substr(0, pos_layer));
-                try {
-                    ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1)));
-                } catch (const std::exception&) {
-                    throw std::logic_error("Ports should have integer type");
-                }
-            }
-            if (!FLAGS_m.empty()) {
-                for (size_t i = 0; i < outputs.size(); i++) {
-                    model->add_output(outputs[i], ports[i]).get_tensor().set_element_type(ov::element::f32);
-                }
-            }
-        }
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
