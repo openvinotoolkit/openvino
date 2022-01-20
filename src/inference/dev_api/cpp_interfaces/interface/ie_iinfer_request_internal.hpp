@@ -347,6 +347,6 @@ private:
 /**
  * @brief SoPtr to IInferRequestInternal.
  */
-using SoIInferRequestInternal = ov::runtime::SoPtr<IInferRequestInternal>;
+using SoIInferRequestInternal = ov::SoPtr<IInferRequestInternal>;
 
 }  // namespace InferenceEngine

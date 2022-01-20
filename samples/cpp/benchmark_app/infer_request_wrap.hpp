@@ -33,7 +33,7 @@ public:
 
     ~InferReqWrap() = default;
 
-    explicit InferReqWrap(ov::runtime::CompiledModel& model, size_t id, QueueCallbackFunction callbackQueue)
+    explicit InferReqWrap(ov::CompiledModel& model, size_t id, QueueCallbackFunction callbackQueue)
         : _request(model.create_infer_request()),
           _id(id),
           _lat_group_id(0),
@@ -62,7 +62,7 @@ public:
         _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds());
     }
 
-    std::vector<ov::runtime::ProfilingInfo> get_performance_counts() {
+    std::vector<ov::ProfilingInfo> get_performance_counts() {
         return _request.get_profiling_info();
     }
 
@@ -71,11 +71,11 @@ public:
         _request.get_tensor(name).set_shape(dims);
     }
 
-    ov::runtime::Tensor get_tensor(const std::string& name) {
+    ov::Tensor get_tensor(const std::string& name) {
         return _request.get_tensor(name);
     }
 
-    void set_tensor(const std::string& name, const ov::runtime::Tensor& data) {
+    void set_tensor(const std::string& name, const ov::Tensor& data) {
         _request.set_tensor(name, data);
     }
 
@@ -96,7 +96,7 @@ public:
     }
 
 private:
-    ov::runtime::InferRequest _request;
+    ov::InferRequest _request;
     Time::time_point _startTime;
     Time::time_point _endTime;
     size_t _id;
@@ -107,7 +107,7 @@ private:
 
 class InferRequestsQueue final {
 public:
-    InferRequestsQueue(ov::runtime::CompiledModel& model, size_t nireq, size_t lat_group_n, bool enable_lat_groups)
+    InferRequestsQueue(ov::CompiledModel& model, size_t nireq, size_t lat_group_n, bool enable_lat_groups)
         : enable_lat_groups(enable_lat_groups) {
         for (size_t id = 0; id < nireq; id++) {
             requests.push_back(std::make_shared<InferReqWrap>(model,

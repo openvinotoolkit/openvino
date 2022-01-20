@@ -60,7 +60,6 @@ void VariableState::SetState(Blob::Ptr state) {
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace runtime {
 
 VariableState::~VariableState() {
     _impl = {};
@@ -88,5 +87,4 @@ void VariableState::set_state(const Tensor& state) {
     OV_VARIABLE_CALL_STATEMENT(_impl->SetState(state._impl));
 }
 
-}  // namespace runtime
 }  // namespace ov

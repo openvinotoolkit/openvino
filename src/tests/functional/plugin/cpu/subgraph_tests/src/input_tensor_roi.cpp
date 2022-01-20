@@ -59,7 +59,7 @@ protected:
 
     template<typename T>
     void Run() {
-        std::shared_ptr<ov::runtime::Core> ie = ov::test::utils::PluginCache::get().core();
+        std::shared_ptr<ov::Core> ie = ov::test::utils::PluginCache::get().core();
 
         // Compile model
         auto fn_shape = GetParam().shape;
@@ -67,17 +67,17 @@ protected:
         auto compiled_model = ie->compile_model(model, "CPU");
 
         // Create InferRequest
-        ov::runtime::InferRequest req = compiled_model.create_infer_request();
+        ov::InferRequest req = compiled_model.create_infer_request();
 
         // Create input tensor
         auto input_shape = Shape{ 1, 4, 4, 4 };
         auto input_shape_size = ov::shape_size(input_shape);
         std::vector<T> data(input_shape_size);
         std::iota(data.begin(), data.end(), 0);
-        auto input_tensor = ov::runtime::Tensor(GetParam().type, input_shape, &data[0]);
+        auto input_tensor = ov::Tensor(GetParam().type, input_shape, &data[0]);
 
         // Set ROI
-        auto roi = ov::runtime::Tensor(input_tensor, { 0, 1, 1, 1 }, { 1, 3, 3, 3 });
+        auto roi = ov::Tensor(input_tensor, { 0, 1, 1, 1 }, { 1, 3, 3, 3 });
         req.set_tensor("tensor_input_0", roi);
 
         // Infer

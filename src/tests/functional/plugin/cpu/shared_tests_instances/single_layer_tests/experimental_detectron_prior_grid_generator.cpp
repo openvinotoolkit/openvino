@@ -56,7 +56,7 @@ const std::vector<ov::test::subgraph::ExperimentalDetectronPriorGridGeneratorTes
     }
 };
 
-std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTensors = {
+std::vector<std::pair<std::string, std::vector<ov::Tensor>>> inputTensors = {
     {
         "test#1",
         {

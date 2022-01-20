@@ -116,10 +116,10 @@ struct DeformablePSROIPoolingParams {
     ov::element::Type roisType;
     ov::element::Type offsetsType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor roisData;
-    ov::runtime::Tensor offsetsData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor roisData;
+    ov::Tensor offsetsData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 

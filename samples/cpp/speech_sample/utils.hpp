@@ -35,7 +35,7 @@ struct ScoreErrorT {
  * @brief struct to store infer request data per frame
  */
 struct InferRequestStruct {
-    ov::runtime::InferRequest inferRequest;
+    ov::InferRequest inferRequest;
     int frameIndex;
     uint32_t numFramesThisBatch;
 };
@@ -282,7 +282,7 @@ void print_reference_compare_results(ScoreErrorT const& totalError, size_t frame
  * @param FLAGS_d flag of device
  * @return none.
  */
-void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo> const& utterancePerfMap,
+void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& utterancePerfMap,
                                 size_t numberOfFrames,
                                 std::ostream& stream,
                                 std::string fullDeviceName,
@@ -331,8 +331,7 @@ void print_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo
  * @param perfCounters reference to a map to save performance counters
  * @return none.
  */
-void get_performance_counters(ov::runtime::InferRequest& request,
-                              std::map<std::string, ov::runtime::ProfilingInfo>& perfCounters) {
+void get_performance_counters(ov::InferRequest& request, std::map<std::string, ov::ProfilingInfo>& perfCounters) {
     auto retPerfCounters = request.get_profiling_info();
 
     for (const auto& element : retPerfCounters) {
@@ -347,8 +346,8 @@ void get_performance_counters(ov::runtime::InferRequest& request,
  * @param totalRunsOnHw reference to a total number of frames computed on GNA HW
  * @return none.
  */
-void sum_performance_counters(std::map<std::string, ov::runtime::ProfilingInfo> const& perfCounters,
-                              std::map<std::string, ov::runtime::ProfilingInfo>& totalPerfCounters,
+void sum_performance_counters(std::map<std::string, ov::ProfilingInfo> const& perfCounters,
+                              std::map<std::string, ov::ProfilingInfo>& totalPerfCounters,
                               uint64_t& totalRunsOnHw) {
     auto runOnHw = false;
     for (const auto& pair : perfCounters) {

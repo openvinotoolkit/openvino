@@ -246,7 +246,7 @@ TEST(smoke_Basic, FuseDynamicTransposeAndReorderTest) {
     p.input().model().set_layout("NCHW");
     model = p.build();
 
-    auto core = ov::runtime::Core();
+    auto core = ov::Core();
     ASSERT_NO_THROW(core.compile_model(model, "CPU"));
 }
 

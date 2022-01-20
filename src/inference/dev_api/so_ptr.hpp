@@ -17,7 +17,6 @@
 #include "openvino/runtime/common.hpp"
 
 namespace ov {
-namespace runtime {
 
 /**
  * @brief This class instantiate object using shared library
@@ -89,5 +88,5 @@ struct SoPtr {
      */
     std::shared_ptr<void> _so;
 };
-}  // namespace runtime
+
 }  // namespace ov

@@ -137,8 +137,8 @@ public:
     }
 
     void compare(
-            const std::vector<ov::runtime::Tensor>& expectedTensors,
-            const std::vector<ov::runtime::Tensor>& actualTensors) override {
+            const std::vector<ov::Tensor>& expectedTensors,
+            const std::vector<ov::Tensor>& actualTensors) override {
         ASSERT_EQ(expectedTensors.size(), actualTensors.size());
 
         for (auto i = 0; i < expectedTensors.size(); ++i) {

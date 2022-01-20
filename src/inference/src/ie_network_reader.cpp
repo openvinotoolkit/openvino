@@ -83,7 +83,7 @@ class Reader : public IReader {
 #    ifdef OPENVINO_STATIC_LIBRARY
     using ReaderPtr = std::shared_ptr<IReader>;
 #    else
-    using ReaderPtr = ov::runtime::SoPtr<IReader>;
+    using ReaderPtr = ov::SoPtr<IReader>;
 #    endif
     ReaderPtr ptr;
     std::once_flag readFlag;

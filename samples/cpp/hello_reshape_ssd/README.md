@@ -6,9 +6,9 @@ Hello Reshape SSD C++ sample application demonstrates how to use the following I
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-| Model Operations | `ov::runtime::Core::read_model`, `ov::runtime::Core::compile_model` |  Managing of model
+| Model Operations | `ov::Core::read_model`, `ov::Core::compile_model` |  Managing of model
 | Model Input Reshape | `ov::Model::reshape`| Resize model to match image sizes and given batch
-| Tensor Operations | `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
+| Tensor Operations | `ov::Tensor::get_element_type`, `ov::Tensor::get_shape`, `ov::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 

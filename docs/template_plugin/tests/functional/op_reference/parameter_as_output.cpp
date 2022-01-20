@@ -32,8 +32,8 @@ struct ParameterParams {
     Shape m_expected_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    runtime::Tensor m_input_value;
-    runtime::Tensor m_expected_value;
+    ov::Tensor m_input_value;
+    ov::Tensor m_expected_value;
 };
 
 class ReferenceParameterLayerTest : public testing::TestWithParam<ParameterParams>, public CommonReferenceTest {

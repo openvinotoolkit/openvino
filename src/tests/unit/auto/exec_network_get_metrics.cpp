@@ -56,12 +56,12 @@ public:
 
     //mock cpu exeNetwork
     std::shared_ptr<MockIExecutableNetworkInternal> cpuMockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  cpuMockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  cpuMockExeNetwork;
     MockIInferencePlugin*                           cpuMockIPlugin;
     InferenceEngine::InferencePlugin                cpuMockPlugin;
     //mock gpu exeNetwork
     std::shared_ptr<MockIExecutableNetworkInternal> gpuMockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  gpuMockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  gpuMockExeNetwork;
     MockIInferencePlugin*                           gpuMockIPlugin;
     InferenceEngine::InferencePlugin                gpuMockPlugin;
     // config for Auto device

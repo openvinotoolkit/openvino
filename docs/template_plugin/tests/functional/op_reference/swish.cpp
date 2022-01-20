@@ -42,9 +42,9 @@ struct SwishParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
-    ov::runtime::Tensor betaBlob;
+    ov::Tensor inputData;
+    ov::Tensor refData;
+    ov::Tensor betaBlob;
 
     float beta;
 };

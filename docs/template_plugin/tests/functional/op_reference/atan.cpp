@@ -13,8 +13,8 @@ namespace reference_tests {
 namespace {
 
 struct AtanParams {
-    Tensor input;
-    Tensor expected;
+    reference_tests::Tensor input;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<AtanParams> {

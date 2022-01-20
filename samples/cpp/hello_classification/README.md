@@ -6,10 +6,10 @@ Hello Classification C++ sample application demonstrates how to use the followin
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
-| Basic Infer Flow | `ov::runtime::Core::read_model`, `ov::runtime::Core::compile_model`, `ov::runtime::CompiledModel::create_infer_request`, `ov::runtime::InferRequest::get_input_tensor`, `ov::runtime::InferRequest::set_input_tensor`, `ov::runtime::InferRequest::get_output_tensor`  | Common API to do inference: configure input and output tensors, reading model, create infer request
-| Synchronous Infer | `ov::runtime::InferRequest::infer` | Do synchronous inference
+| Basic Infer Flow | `ov::Core::read_model`, `ov::Core::compile_model`, `ov::CompiledModel::create_infer_request`, `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`  | Common API to do inference: configure input and output tensors, reading model, create infer request
+| Synchronous Infer | `ov::InferRequest::infer` | Do synchronous inference
 | Model Operations | `ov::Model::inputs`, `ov::Model::outputs` |  Managing of model
-| Tensor Operations| `ov::runtime::Tensor::get_element_type`, `ov::runtime::Tensor::get_shape`, `ov::runtime::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
+| Tensor Operations| `ov::Tensor::get_element_type`, `ov::Tensor::get_shape`, `ov::Tensor::data` | Work with storing inputs, outputs of the model, weights and biases of the layers
 | Input auto-resize | `ov::preprocess::PreProcessSteps::resize`, `ov::preprocess::InputInfo::model::set_layout` | Set image of the original size as input for a model with other input size. Resize and layout conversions will be performed automatically by the corresponding plugin just before inference
 
 | Options  | Values |

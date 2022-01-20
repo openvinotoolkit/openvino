@@ -16,7 +16,7 @@ namespace utils {
 
 class PluginCache {
 public:
-    std::shared_ptr<ov::runtime::Core> core(const std::string &deviceToCheck = std::string());
+    std::shared_ptr<ov::Core> core(const std::string &deviceToCheck = std::string());
 
     static PluginCache &get();
 
@@ -32,7 +32,7 @@ private:
     ~PluginCache() = default;
 
     std::mutex g_mtx;
-    std::shared_ptr<ov::runtime::Core> ov_core;
+    std::shared_ptr<ov::Core> ov_core;
 };
 }  // namespace utils
 }  // namespace test

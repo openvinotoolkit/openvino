@@ -11,16 +11,16 @@ using namespace ::testing;
 using namespace std;
 
 TEST(RemoteContextOVTests, throwsOnUninitializedReset) {
-    ov::runtime::RemoteContext ctx;
+    ov::RemoteContext ctx;
     ASSERT_THROW(ctx.get_device_name(), ov::Exception);
 }
 
 TEST(RemoteContextOVTests, throwsOnUninitializedGetname) {
-    ov::runtime::RemoteContext ctx;
+    ov::RemoteContext ctx;
     ASSERT_THROW(ctx.create_tensor({}, {}, {}), ov::Exception);
 }
 
 TEST(RemoteContextOVTests, throwsOnUninitializedGetParams) {
-    ov::runtime::RemoteContext ctx;
+    ov::RemoteContext ctx;
     ASSERT_THROW(ctx.get_params(), ov::Exception);
 }

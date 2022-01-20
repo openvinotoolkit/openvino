@@ -317,8 +317,8 @@ TEST_F(NGraphReaderTests, ReadTopKV10Network) {
 </net>
 )V0G0N";
 
-    ov::runtime::Core core;
-    ov::runtime::Tensor t(ov::element::i64, {1});
+    ov::Core core;
+    ov::Tensor t(ov::element::i64, {1});
     t.data<int64_t>()[0] = 5;
     core.read_model(model, t);
 }

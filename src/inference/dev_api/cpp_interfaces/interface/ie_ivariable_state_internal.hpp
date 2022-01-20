@@ -68,7 +68,7 @@ using IMemoryStateInternal = IVariableStateInternal;
 /**
  * @brief SoPtr to IVariableStateInternal.
  */
-using SoIVariableStateInternal = ov::runtime::SoPtr<IVariableStateInternal>;
+using SoIVariableStateInternal = ov::SoPtr<IVariableStateInternal>;
 
 /**
  * @brief For compatibility reasons.

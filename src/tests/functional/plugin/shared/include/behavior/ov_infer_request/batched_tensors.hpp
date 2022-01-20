@@ -27,7 +27,7 @@ protected:
     static std::shared_ptr<Model> create_n_inputs(size_t num, element::Type type,
                                                   const PartialShape& shape, const ov::Layout& layout);
 
-    std::shared_ptr<runtime::Core> ie = utils::PluginCache::get().core();
+    std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     std::string targetDevice;
     std::string m_cache_dir; // internal member
     bool m_need_reset_core = false;

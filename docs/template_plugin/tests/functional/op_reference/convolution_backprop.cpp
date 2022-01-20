@@ -58,9 +58,9 @@ struct ConvolutionBackpropParams {
     ov::element::Type inType;
     ov::element::Type filterType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor filterData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor filterData;
+    ov::Tensor refData;
     ov::Strides strides;
     ov::CoordinateDiff padBegin;
     ov::CoordinateDiff padEnd;

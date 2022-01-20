@@ -43,7 +43,7 @@ class MatrixNmsLayerTest : public testing::WithParamInterface<NmsParams>,
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
+    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override;
 
 protected:
     void SetUp() override;

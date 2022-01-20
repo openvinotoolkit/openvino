@@ -8,7 +8,6 @@
 #include "ie_remote_blob.hpp"
 
 namespace ov {
-namespace runtime {
 
 void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info) {
     OPENVINO_ASSERT(tensor, "Could not check empty tensor type");
@@ -62,5 +61,4 @@ std::string RemoteTensor::get_device_name() const {
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
 }
-}  // namespace runtime
 }  // namespace ov

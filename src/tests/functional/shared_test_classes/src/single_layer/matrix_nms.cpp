@@ -67,10 +67,10 @@ void MatrixNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targe
     const auto& funcInputs = function->inputs();
     for (int i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        ov::runtime::Tensor tensor;
+        ov::Tensor tensor;
 
         if (i == 1) {
-            tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
 
             const size_t range = 1;
             const size_t startFrom = 0;
@@ -129,8 +129,8 @@ void MatrixNmsLayerTest::GetOutputParams(size_t& numBatches, size_t& maxOutputBo
                std::min(maxOutputBoxesPerBatch, static_cast<size_t>(m_attrs.keep_top_k));
 }
 
-void MatrixNmsLayerTest::compare(const std::vector<ov::runtime::Tensor> &expectedOutputs,
-                                 const std::vector<ov::runtime::Tensor> &actualOutputs) {
+void MatrixNmsLayerTest::compare(const std::vector<ov::Tensor> &expectedOutputs,
+                                 const std::vector<ov::Tensor> &actualOutputs) {
     auto batchIndex = -1;
     size_t numBatches(0), maxOutputBoxesPerBatch(0);
     GetOutputParams(numBatches, maxOutputBoxesPerBatch);

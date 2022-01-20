@@ -14,8 +14,8 @@ namespace reference_tests {
 namespace {
 
 struct AsinParams {
-    Tensor input;
-    Tensor expected;
+    reference_tests::Tensor input;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<AsinParams> {

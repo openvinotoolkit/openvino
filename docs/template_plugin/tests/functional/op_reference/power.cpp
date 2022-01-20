@@ -31,9 +31,9 @@ struct PowerParams {
     PartialShape pshape2;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inputData1;
-    runtime::Tensor inputData2;
-    runtime::Tensor refData;
+    ov::Tensor inputData1;
+    ov::Tensor inputData2;
+    ov::Tensor refData;
 };
 
 class ReferencePowerLayerTest : public testing::TestWithParam<PowerParams>, public CommonReferenceTest {

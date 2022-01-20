@@ -27,7 +27,7 @@ class InferRequestVariableStateTests : public ::testing::Test {
     shared_ptr<MockIVariableStateInternal> mockVariableStateInternal;
     MockIInferencePlugin*                           mockIPlugin;
     InferencePlugin                                 plugin;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  net;
+    ov::SoPtr<IExecutableNetworkInternal>  net;
     IInferRequestInternal::Ptr                      req;
 
     void SetUp() override {

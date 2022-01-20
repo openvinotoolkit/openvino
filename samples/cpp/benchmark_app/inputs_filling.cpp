@@ -24,12 +24,12 @@ using uniformDistribution = typename std::conditional<
     typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
 
 template <typename T>
-ov::runtime::Tensor create_tensor_from_image(const std::vector<std::string>& files,
-                                             size_t inputId,
-                                             size_t batchSize,
-                                             const benchmark_app::InputInfo& inputInfo,
-                                             const std::string& inputName,
-                                             std::string* filenames_used = nullptr) {
+ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
+                                    size_t inputId,
+                                    size_t batchSize,
+                                    const benchmark_app::InputInfo& inputInfo,
+                                    const std::string& inputName,
+                                    std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -92,15 +92,15 @@ ov::runtime::Tensor create_tensor_from_image(const std::vector<std::string>& fil
         }
     }
 
-    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
 template <typename T>
-ov::runtime::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image_size,
-                                          size_t batchSize,
-                                          const benchmark_app::InputInfo& inputInfo,
-                                          const std::string& inputName) {
+ov::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image_size,
+                                 size_t batchSize,
+                                 const benchmark_app::InputInfo& inputInfo,
+                                 const std::string& inputName) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -127,17 +127,17 @@ ov::runtime::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image
         }
     }
 
-    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
 template <typename T>
-ov::runtime::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
-                                              size_t inputId,
-                                              size_t batchSize,
-                                              const benchmark_app::InputInfo& inputInfo,
-                                              const std::string& inputName,
-                                              std::string* filenames_used = nullptr) {
+ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
+                                     size_t inputId,
+                                     size_t batchSize,
+                                     const benchmark_app::InputInfo& inputInfo,
+                                     const std::string& inputName,
+                                     std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -185,14 +185,14 @@ ov::runtime::Tensor create_tensor_from_binary(const std::vector<std::string>& fi
         }
     }
 
-    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
 template <typename T, typename T2>
-ov::runtime::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
-                                         T rand_min = std::numeric_limits<uint8_t>::min(),
-                                         T rand_max = std::numeric_limits<uint8_t>::max()) {
+ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
+                                T rand_min = std::numeric_limits<uint8_t>::min(),
+                                T rand_max = std::numeric_limits<uint8_t>::max()) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
@@ -204,15 +204,15 @@ ov::runtime::Tensor create_tensor_random(const benchmark_app::InputInfo& inputIn
         data[i] = static_cast<T>(distribution(gen));
     }
 
-    auto tensor = ov::runtime::Tensor(inputInfo.type, inputInfo.dataShape, ov::runtime::Allocator(allocator));
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
-ov::runtime::Tensor get_image_tensor(const std::vector<std::string>& files,
-                                     size_t inputId,
-                                     size_t batchSize,
-                                     const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
-                                     std::string* filenames_used = nullptr) {
+ov::Tensor get_image_tensor(const std::vector<std::string>& files,
+                            size_t inputId,
+                            size_t batchSize,
+                            const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                            std::string* filenames_used = nullptr) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return create_tensor_from_image<float>(files,
@@ -254,9 +254,9 @@ ov::runtime::Tensor get_image_tensor(const std::vector<std::string>& files,
     }
 }
 
-ov::runtime::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_size,
-                                       size_t batchSize,
-                                       const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+ov::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_size,
+                              size_t batchSize,
+                              const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return create_tensor_im_info<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
@@ -271,11 +271,11 @@ ov::runtime::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_si
     }
 }
 
-ov::runtime::Tensor get_binary_tensor(const std::vector<std::string>& files,
-                                      size_t inputId,
-                                      size_t batchSize,
-                                      const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
-                                      std::string* filenames_used = nullptr) {
+ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
+                             size_t inputId,
+                             size_t batchSize,
+                             const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                             std::string* filenames_used = nullptr) {
     const auto& type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return create_tensor_from_binary<float>(files,
@@ -317,7 +317,7 @@ ov::runtime::Tensor get_binary_tensor(const std::vector<std::string>& files,
     }
 }
 
-ov::runtime::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return create_tensor_random<float, float>(inputInfo.second);
@@ -358,9 +358,9 @@ std::string get_test_info_stream_header(benchmark_app::InputInfo& inputInfo) {
     return strOut.str();
 }
 
-std::map<std::string, ov::runtime::TensorVector> get_tensors(std::map<std::string, std::vector<std::string>> inputFiles,
-                                                             std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
-    std::map<std::string, ov::runtime::TensorVector> tensors;
+std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::vector<std::string>> inputFiles,
+                                                    std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
+    std::map<std::string, ov::TensorVector> tensors;
     if (app_inputs_info.empty()) {
         throw std::logic_error("Inputs Info for network is empty!");
     }
@@ -519,11 +519,11 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors(std::map<std::strin
     return tensors;
 }
 
-std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const std::vector<std::string>& inputFiles,
-                                                                         const size_t& batchSize,
-                                                                         benchmark_app::InputsInfo& app_inputs_info,
-                                                                         size_t requestsNum) {
-    std::map<std::string, ov::runtime::TensorVector> blobs;
+std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vector<std::string>& inputFiles,
+                                                                const size_t& batchSize,
+                                                                benchmark_app::InputsInfo& app_inputs_info,
+                                                                size_t requestsNum) {
+    std::map<std::string, ov::TensorVector> blobs;
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
     for (auto& item : app_inputs_info) {
@@ -691,7 +691,7 @@ std::map<std::string, ov::runtime::TensorVector> get_tensors_static_case(const s
     return blobs;
 }
 
-void copy_tensor_data(ov::runtime::Tensor& dst, const ov::runtime::Tensor& src) {
+void copy_tensor_data(ov::Tensor& dst, const ov::Tensor& src) {
     if (src.get_shape() != dst.get_shape() || src.get_byte_size() != dst.get_byte_size()) {
         throw std::runtime_error(
             "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");

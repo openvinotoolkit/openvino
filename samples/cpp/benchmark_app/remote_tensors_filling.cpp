@@ -65,10 +65,10 @@ void fill_buffer(void* inputBuffer, size_t elementsNum, const ov::element::Type&
     }
 }
 
-std::map<std::string, ov::runtime::TensorVector> get_remote_input_tensors(
+std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
-    const ov::runtime::CompiledModel& compiledModel,
+    const ov::CompiledModel& compiledModel,
     std::vector<BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     slog::info << "Device memory will be used for input and output blobs" << slog::endl;
@@ -77,9 +77,9 @@ std::map<std::string, ov::runtime::TensorVector> get_remote_input_tensors(
                    << slog::endl;
     }
 
-    std::map<std::string, ov::runtime::TensorVector> remoteTensors;
+    std::map<std::string, ov::TensorVector> remoteTensors;
     auto context = compiledModel.get_context();
-    auto& oclContext = static_cast<ov::runtime::intel_gpu::ocl::ClContext&>(context);
+    auto& oclContext = static_cast<ov::intel_gpu::ocl::ClContext&>(context);
     auto oclInstance = std::make_shared<gpu::OpenCL>(oclContext.get());
 
     for (auto& inputs_info : app_inputs_info) {
@@ -124,14 +124,13 @@ std::map<std::string, ov::runtime::TensorVector> get_remote_input_tensors(
 #endif
 }
 
-std::map<std::string, ov::runtime::Tensor> get_remote_output_tensors(
-    const ov::runtime::CompiledModel& compiledModel,
-    std::map<std::string, ::gpu::BufferType>& clBuffer) {
+std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledModel& compiledModel,
+                                                            std::map<std::string, ::gpu::BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
-    std::map<std::string, ov::runtime::Tensor> outputTensors;
+    std::map<std::string, ov::Tensor> outputTensors;
     for (auto& output : compiledModel.outputs()) {
         auto context = compiledModel.get_context();
-        auto& oclContext = static_cast<ov::runtime::intel_gpu::ocl::ClContext&>(context);
+        auto& oclContext = static_cast<ov::intel_gpu::ocl::ClContext&>(context);
         auto oclInstance = std::make_shared<OpenCL>(oclContext.get());
 
         cl_int err;

@@ -16,7 +16,7 @@ const std::vector<float> nms_threshold = { 0.699999988079071 };
 const std::vector<int64_t> post_nms_count = { 6 };
 const std::vector<int64_t> pre_nms_count = { 1000 };
 
-const std::vector<std::pair<std::string, std::vector<ov::runtime::Tensor>>> inputTensors = {
+const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> inputTensors = {
     {
         "empty",
         {

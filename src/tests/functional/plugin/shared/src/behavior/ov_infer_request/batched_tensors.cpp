@@ -76,13 +76,13 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase) {
     std::vector<float> buffer(one_shape_size * batch * 2, 0);
     auto execNet = ie->compile_model(model, targetDevice);
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
-    auto exp_tensor = ov::runtime::Tensor(element::f32, batch_shape);
+    std::vector<ov::Tensor> tensors;
+    auto exp_tensor = ov::Tensor(element::f32, batch_shape);
     for (auto i = 0; i < batch; ++i) {
         // non contiguous memory (i*2)
-        auto tensor = runtime::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
+        auto tensor = ov::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
         tensors.push_back(std::move(tensor));
     }
     req.set_tensors("tensor_input0", tensors);
@@ -110,13 +110,13 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsAsync) {
     std::vector<float> buffer(one_shape_size * batch * 2, 0);
     auto execNet = ie->compile_model(model, targetDevice);
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
-    auto exp_tensor = ov::runtime::Tensor(element::f32, batch_shape);
+    std::vector<ov::Tensor> tensors;
+    auto exp_tensor = ov::Tensor(element::f32, batch_shape);
     for (auto i = 0; i < batch; ++i) {
         // non contiguous memory (i*2)
-        auto tensor = runtime::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
+        auto tensor = ov::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
         tensors.push_back(std::move(tensor));
     }
     req.set_tensors("tensor_input0", tensors);
@@ -145,15 +145,15 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_override_with_set) {
     std::vector<float> buffer2(one_shape_size * batch, 5);
     auto execNet = ie->compile_model(model, targetDevice);
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
-    auto exp_tensor = ov::runtime::Tensor(element::f32, batch_shape);
+    std::vector<ov::Tensor> tensors;
+    auto exp_tensor = ov::Tensor(element::f32, batch_shape);
     for (auto i = 0; i < batch; ++i) {
-        auto tensor = runtime::Tensor(element::f32, one_shape, &buffer[i * one_shape_size]);
+        auto tensor = ov::Tensor(element::f32, one_shape, &buffer[i * one_shape_size]);
         tensors.push_back(std::move(tensor));
     }
-    auto plain_tensor = runtime::Tensor(element::f32, batch_shape, &buffer2[0]);
+    auto plain_tensor = ov::Tensor(element::f32, batch_shape, &buffer2[0]);
     req.set_tensors("tensor_input0", tensors);
     req.set_tensor("tensor_input0", plain_tensor);
     auto actual_tensor = req.get_tensor("tensor_output0");
@@ -185,12 +185,12 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase_Caching) {
     std::vector<float> buffer(one_shape_size * batch * 2, 0);
 
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet_cache.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
+    std::vector<ov::Tensor> tensors;
     for (auto i = 0; i < batch; ++i) {
         // non contiguous memory (i*2)
-        auto tensor = runtime::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
+        auto tensor = ov::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
         tensors.push_back(std::move(tensor));
     }
     req.set_input_tensors(tensors);
@@ -221,12 +221,12 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Multiple_Infer) {
     std::vector<float> buffer(one_shape_size * batch * 2, 0);
     auto execNet = ie->compile_model(model, targetDevice);
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
+    std::vector<ov::Tensor> tensors;
     for (auto i = 0; i < batch; ++i) {
         // non contiguous memory (i*2)
-        auto tensor = runtime::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
+        auto tensor = ov::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
         tensors.push_back(std::move(tensor));
     }
     req.set_tensors("tensor_input0", tensors);
@@ -258,12 +258,12 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Can_Infer_Dynamic) {
     std::vector<float> buffer(one_shape_size * batch * 2, 0);
     auto execNet = ie->compile_model(model, targetDevice);
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
+    std::vector<ov::Tensor> tensors;
     for (size_t i = 0; i < batch; ++i) {
         // non contiguous memory (i*2)
-        auto tensor = runtime::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
+        auto tensor = ov::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
         tensors.push_back(std::move(tensor));
     }
     req.set_tensors("tensor_input0", tensors);
@@ -294,12 +294,12 @@ TEST_P(OVInferRequestBatchedTests, SetTensors_Batch1) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, one_shape, "N...");
     auto execNet = ie->compile_model(model, targetDevice);
     // Create InferRequest
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
-    auto exp_tensor = ov::runtime::Tensor(element::f32, one_shape);
+    std::vector<ov::Tensor> tensors;
+    auto exp_tensor = ov::Tensor(element::f32, one_shape);
     auto* exp = exp_tensor.data<float>();
-    auto tensor = runtime::Tensor(element::f32, one_shape);
+    auto tensor = ov::Tensor(element::f32, one_shape);
     auto* f = tensor.data<float>();
     for (size_t j = 0; j < one_shape_size; ++j) {
         f[j] = static_cast<float>(j);
@@ -324,9 +324,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Batch_Incorrect) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "DCHWN");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
@@ -337,9 +337,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Get_Tensor_Not_Allowed) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
     req.set_tensors(tensor_name, tensors);
     ASSERT_THROW(req.get_tensor(tensor_name), ov::Exception);
 }
@@ -351,9 +351,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Batch_No_Batch) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "DCHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
@@ -364,9 +364,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_No_Name) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "undefined";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
@@ -377,9 +377,9 @@ TEST_P(OVInferRequestBatchedTests, SetTensors_No_Name) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "undefined";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
@@ -390,9 +390,9 @@ TEST_P(OVInferRequestBatchedTests, SetTensors_Friendly_Name) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
@@ -402,9 +402,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_No_index) {
     auto batch_shape = Shape{batch, 3, 3, 3};
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
     ASSERT_THROW(req.set_input_tensors(10, tensors), ov::Exception);
 }
 
@@ -414,9 +414,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_no_name_multiple_inputs) {
     auto batch_shape = Shape{batch, 3, 3, 3};
     auto model = OVInferRequestBatchedTests::create_n_inputs(2, element::f32, batch_shape, "NCHW");
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch, ov::Tensor(element::f32, one_shape));
     ASSERT_THROW(req.set_input_tensors(tensors), ov::Exception);
 }
 
@@ -427,9 +427,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Incorrect_count) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch + 1, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch + 1, ov::Tensor(element::f32, one_shape));
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
@@ -439,9 +439,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Empty_Array) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
+    std::vector<ov::Tensor> tensors;
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
 
@@ -450,9 +450,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_diff_batches) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
+    std::vector<ov::Tensor> tensors;
     tensors.emplace_back(element::f32, Shape{2, 3, 3, 3});
     tensors.emplace_back(element::f32, Shape{1, 3, 3, 3});
     // This expectation can be updated if non-equal sizes of tensors is supported in future
@@ -465,9 +465,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Correct_all) {
     std::vector<float> buffer(ov::shape_size(batch_shape), 1);
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors;
+    std::vector<ov::Tensor> tensors;
     tensors.emplace_back(element::f32, one_shape, buffer.data());
     tensors.emplace_back(element::f32, one_shape, buffer.data() + ov::shape_size(one_shape));
     ASSERT_NO_THROW(req.set_input_tensors(tensors));
@@ -483,15 +483,15 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
     ie->set_config({{CONFIG_KEY(CACHE_DIR), m_cache_dir}});
     auto execNet_no_cache = ie->compile_model(model, targetDevice);
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
     model->input(0).set_names({"updated_input0"}); // Change param name of original model
     model->get_parameters()[0]->set_layout("????");
     model->output(0).set_names({"updated_output0"}); // Change result name of original model
-    std::vector<ov::runtime::Tensor> tensors;
+    std::vector<ov::Tensor> tensors;
     tensors.emplace_back(element::f32, one_shape, buffer.data());
     tensors.emplace_back(element::f32, one_shape, buffer.data() + ov::shape_size(one_shape));
-    auto out_tensor = ov::runtime::Tensor(element::f32, batch_shape, buffer_out.data());
+    auto out_tensor = ov::Tensor(element::f32, batch_shape, buffer_out.data());
     // Verify that infer request still has its own copy of input/output, user can use old names
     ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors));
     ASSERT_NO_THROW(req.set_tensor("tensor_output0", out_tensor));
@@ -504,9 +504,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Incorrect_tensor_element_type
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch - 1, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch - 1, ov::Tensor(element::f32, one_shape));
     tensors.emplace_back(element::u8, one_shape);
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }
@@ -518,9 +518,9 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Incorrect_tensor_shape) {
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "NCHW");
     const std::string tensor_name = "tensor_input0";
     auto execNet = ie->compile_model(model, targetDevice);
-    ov::runtime::InferRequest req;
+    ov::InferRequest req;
     req = execNet.create_infer_request();
-    std::vector<ov::runtime::Tensor> tensors(batch - 1, runtime::Tensor(element::f32, one_shape));
+    std::vector<ov::Tensor> tensors(batch - 1, ov::Tensor(element::f32, one_shape));
     tensors.emplace_back(element::f32, Shape{1, 4, 2, 8});
     ASSERT_THROW(req.set_tensors(tensor_name, tensors), ov::Exception);
 }

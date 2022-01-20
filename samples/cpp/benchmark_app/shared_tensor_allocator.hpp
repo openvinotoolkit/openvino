@@ -6,7 +6,7 @@
 
 #include "openvino/runtime/allocator.hpp"
 
-class SharedTensorAllocator : public ov::runtime::AllocatorImpl {
+class SharedTensorAllocator : public ov::AllocatorImpl {
 public:
     SharedTensorAllocator(size_t sizeBytes) : size(sizeBytes) {
         data = new char[size];

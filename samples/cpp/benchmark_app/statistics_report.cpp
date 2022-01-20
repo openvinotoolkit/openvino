@@ -71,13 +71,13 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
         dumper << layer.node_name;  // layer name
 
         switch (layer.status) {
-        case ov::runtime::ProfilingInfo::Status::EXECUTED:
+        case ov::ProfilingInfo::Status::EXECUTED:
             dumper << "EXECUTED";
             break;
-        case ov::runtime::ProfilingInfo::Status::NOT_RUN:
+        case ov::ProfilingInfo::Status::NOT_RUN:
             dumper << "NOT_RUN";
             break;
-        case ov::runtime::ProfilingInfo::Status::OPTIMIZED_OUT:
+        case ov::ProfilingInfo::Status::OPTIMIZED_OUT:
             dumper << "OPTIMIZED_OUT";
             break;
         }
@@ -114,7 +114,7 @@ void StatisticsReport::dump_performance_counters(const std::vector<PerformaceCou
         }
     } else if (_config.report_type == averageCntReport) {
         auto getAveragePerformanceCounters = [&perfCounts]() {
-            std::vector<ov::runtime::ProfilingInfo> performanceCountersAvg;
+            std::vector<ov::ProfilingInfo> performanceCountersAvg;
             // iterate over each processed infer request and handle its PM data
             for (size_t i = 0; i < perfCounts.size(); i++) {
                 // iterate over each layer from sorted vector and add required PM data

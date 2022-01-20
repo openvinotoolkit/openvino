@@ -18,7 +18,7 @@
 using namespace ::testing;
 
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
-    auto ie = ov::runtime::Core();
+    auto ie = ov::Core();
     using namespace ov::preprocess;
     auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
     p.input().tensor().set_element_type(ov::element::i8);

@@ -172,7 +172,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_tensor",
-        [](InferRequestWrapper& self, const std::string& name, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const std::string& name, const ov::Tensor& tensor) {
             self._request.set_tensor(name, tensor);
         },
         py::arg("name"),
@@ -180,7 +180,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_tensor",
-        [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
             self._request.set_tensor(port, tensor);
         },
         py::arg("port"),
@@ -188,7 +188,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_tensor",
-        [](InferRequestWrapper& self, const ov::Output<ov::Node>& port, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const ov::Output<ov::Node>& port, const ov::Tensor& tensor) {
             self._request.set_tensor(port, tensor);
         },
         py::arg("port"),
@@ -196,7 +196,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_input_tensor",
-        [](InferRequestWrapper& self, size_t idx, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, size_t idx, const ov::Tensor& tensor) {
             self._request.set_input_tensor(idx, tensor);
         },
         py::arg("index"),
@@ -204,14 +204,14 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_input_tensor",
-        [](InferRequestWrapper& self, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const ov::Tensor& tensor) {
             self._request.set_input_tensor(tensor);
         },
         py::arg("tensor"));
 
     cls.def(
         "set_output_tensor",
-        [](InferRequestWrapper& self, size_t idx, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, size_t idx, const ov::Tensor& tensor) {
             self._request.set_output_tensor(idx, tensor);
         },
         py::arg("index"),
@@ -219,7 +219,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_output_tensor",
-        [](InferRequestWrapper& self, const ov::runtime::Tensor& tensor) {
+        [](InferRequestWrapper& self, const ov::Tensor& tensor) {
             self._request.set_output_tensor(tensor);
         },
         py::arg("tensor"));

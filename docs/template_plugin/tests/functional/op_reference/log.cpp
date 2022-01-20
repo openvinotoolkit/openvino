@@ -26,8 +26,8 @@ struct LogParams {
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    runtime::Tensor inputData;
-    runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
 };
 
 class ReferenceLogLayerTest : public testing::TestWithParam<LogParams>, public CommonReferenceTest {

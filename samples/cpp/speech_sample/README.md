@@ -9,13 +9,13 @@ Automatic Speech Recognition C++ sample application demonstrates how to use the 
 | Feature    | API  | Description |
 |:---     |:--- |:---
 |OpenVINO Runtime Version| `ov::get_openvino_versio` | Get Openvino API version
-|Available Devices|`ov::runtime::Core::get_available_devices`| Get version information of the devices for inference
+|Available Devices|`ov::Core::get_available_devices`| Get version information of the devices for inference
 | Model Operations | `ov::set_batch`, `ov::get_batch` |  Managing of model, operate with its batch size. Setting batch size using input image count.
 |Model Operations|`ov::Model::add_output`| Change names of output layers in the model
-|Import Model|`ov::runtime::CompiledModel::export_model`,`ov::runtime::Core::import_model`| Creates a CompiledModel from a previously exported model
-|Asynchronous Infer| `ov::runtime::InferRequest::start_async`, `ov::runtime::InferRequest::wait`| Do asynchronous inference and waits until inference result becomes available
-|InferRequest Operations|`ov::runtime::InferRequest::query_state`, `ov::runtime::VariableState::reset`| Gets and resets state control interface for given CompiledModel
-|InferRequest Operations|`ov::runtime::InferRequest::get_profiling_info`| Get profiling info for infer request
+|Import Model|`ov::CompiledModel::export_model`,`ov::Core::import_model`| Creates a CompiledModel from a previously exported model
+|Asynchronous Infer| `ov::InferRequest::start_async`, `ov::InferRequest::wait`| Do asynchronous inference and waits until inference result becomes available
+|InferRequest Operations|`ov::InferRequest::query_state`, `ov::VariableState::reset`| Gets and resets state control interface for given CompiledModel
+|InferRequest Operations|`ov::InferRequest::get_profiling_info`| Get profiling info for infer request
 
 Basic Inference Engine API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
 

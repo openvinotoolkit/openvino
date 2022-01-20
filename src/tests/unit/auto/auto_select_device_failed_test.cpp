@@ -60,7 +60,7 @@ public:
 
     //mock exeNetwork
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
     MockIInferencePlugin*                           mockIPlugin;
     InferenceEngine::InferencePlugin                mockPlugin;
     // config for Auto device

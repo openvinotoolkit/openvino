@@ -95,10 +95,10 @@ public:
         const auto& funcInputs = function->inputs();
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
 
             if (i == 1) {
-                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
 
                 const size_t range = 1;
                 const size_t startFrom = 0;
@@ -113,7 +113,7 @@ public:
                     dataPtr[i] = value / static_cast<float>(k);
                 }
             } else if (i == 2) {
-                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &maxOutBoxesPerClass);
+                tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &maxOutBoxesPerClass);
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             }
@@ -121,7 +121,7 @@ public:
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
+    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
         CompareBBoxes(expected, actual);
         inferRequestNum++;
     }
@@ -222,7 +222,7 @@ private:
      *    [batch_index, class_index, box_score].
      * 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
      */
-    void CompareBBoxes(const std::vector<ov::runtime::Tensor> &expectedOutputs, const std::vector<ov::runtime::Tensor> &actualOutputs) {
+    void CompareBBoxes(const std::vector<ov::Tensor> &expectedOutputs, const std::vector<ov::Tensor> &actualOutputs) {
         size_t numBatches, numBoxes, numClasses;
         std::tie(numBatches, numBoxes, numClasses) = targetInDims[inferRequestNum];
 
@@ -252,7 +252,7 @@ private:
         // Get input bboxes' coords
         std::vector<std::vector<Rect>> coordList(numBatches, std::vector<Rect>(numBoxes));
         {
-            std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> bboxes = *inputs.begin();
+            std::pair<std::shared_ptr<ov::Node>, ov::Tensor> bboxes = *inputs.begin();
             for (const auto &input : inputs) {
                 if (input.first->get_name() < bboxes.first->get_name()) {
                     bboxes = input;

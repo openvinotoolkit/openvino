@@ -18,7 +18,7 @@ public:
 
 typedef std::tuple<
     ExperimentalDetectronPriorGridGeneratorTestParam,
-    std::pair<std::string, std::vector<ov::runtime::Tensor>>,
+    std::pair<std::string, std::vector<ov::Tensor>>,
     ElementType,                // Network precision
     std::string                 // Device name>;
 > ExperimentalDetectronPriorGridGeneratorTestParams;
