@@ -7,8 +7,8 @@
 #include <memory>
 #include <string>
 
-#include "common/extension_holder.hpp"
 #include "ngraph/function.hpp"
+#include "openvino/frontend/extension/extension_holder.hpp"
 
 namespace ONNX_NAMESPACE {
 class ModelProto;

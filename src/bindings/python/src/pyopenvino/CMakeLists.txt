@@ -48,9 +48,22 @@ if(ENABLE_TESTS)
     add_subdirectory(test_utils)
 endif()
 
+if(TARGET openvino::frontend::onnx)
+    add_subdirectory(frontend/onnx)
+endif()
+
+if(TARGET openvino::frontend::tensorflow)
+    add_subdirectory(frontend/tensorflow)
+endif()
+
+if(TARGET openvino::frontend::paddle)
+    add_subdirectory(frontend/paddle)
+endif()
+
 # create target
 
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp pyopenvino.cpp)
+list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 

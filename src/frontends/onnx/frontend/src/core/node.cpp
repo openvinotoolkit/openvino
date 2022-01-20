@@ -162,6 +162,11 @@ Subgraph Node::Impl::get_attribute_value(const std::string& name) const {
     return get_subgraph_from_attribute(name);
 }
 
+template <>
+ov::Any Node::get_attribute_value(const std::string& name) const {
+    return get_attribute(name).get_any();
+}
+
 OutputVector Node::Impl::get_ng_inputs() const {
     OutputVector result;
     for (const auto& name : m_node_proto->input()) {

@@ -16,7 +16,10 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_add_n_op(const NodeContext& node) {
-    OutputVector ng_arg_vec = node.get_all_inputs();
+    OutputVector ng_arg_vec;
+    for (size_t i = 0; i < node.get_input_size(); i++) {
+        ng_arg_vec.push_back(node.get_input(i));
+    }
     auto res = std::accumulate(std::next(ng_arg_vec.begin()),
                                ng_arg_vec.end(),
                                ng_arg_vec.at(0),

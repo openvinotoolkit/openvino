@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
 #include "default_opset.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs cumsum(const NodeContext& node) {
-    const auto x = node.get_ng_input("X");
+    const auto x = node.get_input("X");
     const auto axis = node.get_attribute<int32_t>("axis", -1);
     const auto flatten = node.get_attribute<bool>("flatten", false);
     const auto reverse = node.get_attribute<bool>("reverse", false);
