@@ -91,6 +91,18 @@ public:
         return result.str();
     }
 
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+        // w/a to fill valid data for port 2
+        const auto& funcInputs = function->inputs();
+        if (funcInputs.size() < 3) return;
+        auto node = funcInputs[2].get_node_shared_ptr();
+        auto it = inputs.find(node);
+        if (it == inputs.end()) return;
+        auto tensor = ov::runtime::Tensor(node->get_element_type(), targetInputStaticShapes[2], &maxOutBoxesPerClass);
+        inputs[node] = tensor;
+    }
+
     void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
         CompareBBoxes(expected, actual);
         inferRequestNum++;
@@ -109,8 +121,6 @@ protected:
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType,
                  targetDevice) = this->GetParam();
         ov::test::utils::inputRanges[ov::op::v5::NonMaxSuppression::get_type_info_static()] = {{utils::InputGenerateData(maxOutBoxesPerClass)}};
-        std::cout << "[ DEBUG ] " <<
-        maxOutBoxesPerClass << " " << ov::test::utils::inputRanges[ov::op::v5::NonMaxSuppression::get_type_info_static()].front().front().range << std::endl;
         element::Type paramsPrec, maxBoxPrec, thrPrec;
         std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 

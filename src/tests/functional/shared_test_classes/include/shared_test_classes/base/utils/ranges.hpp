@@ -44,8 +44,6 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> i
         { ov::op::v4::Proposal::get_type_info_static(), {{{1, 0, 1000, 8234231}}, {{1, 0, 1000, 8234231}}} },
         { ov::op::v4::ReduceL1::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
         { ov::op::v4::ReduceL2::get_type_info_static(), {{{5, 0}}, {{5, 0, 1000}}} },
-        // using ranges approach to set maxOutBoxesPerClass from NMS Single Layer Test
-        { ov::op::v5::NonMaxSuppression::get_type_info_static(), {{}} },
 };
 
 } // namespace utils

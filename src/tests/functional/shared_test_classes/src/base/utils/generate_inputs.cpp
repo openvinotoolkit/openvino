@@ -605,10 +605,9 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppres
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    ov::runtime::Tensor tensor;
     switch (port) {
         case 1: {
-            tensor = ov::runtime::Tensor(elemType, targetShape);
+            ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
 
             const size_t range = 1;
             const size_t startFrom = 0;
@@ -622,22 +621,11 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppres
                 auto value = static_cast<float>(distribution(random));
                 dataPtr[i] = value / static_cast<float>(k);
             }
-            break;
+            return tensor;
         }
-        case 2: {
-            auto maxOutBoxesPerClassVec = inputRanges.find(node->get_type_info())->second;
-            if (maxOutBoxesPerClassVec.empty() || maxOutBoxesPerClassVec.begin()->empty()) {
-                maxOutBoxesPerClassVec = {{3}};
-            }
-            tensor = ov::runtime::Tensor(elemType, targetShape, &maxOutBoxesPerClassVec.front().front().range);
-            break;
-        }
-        default: {
-            tensor = create_and_fill_tensor(elemType, targetShape);
-            break;
-        }
+        default:
+            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
     }
-    return tensor;
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::RNNSequence>& node,
