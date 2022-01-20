@@ -35,63 +35,6 @@ This combination results in a single fused layer called *Convolution*:
 
 ![conv_simple_01]
 
-
-
-
-
-
-
-
-
-
-
-
-@sphinxdirective
-.. raw:: html
-
-   <div class="collapsible-section">
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-	
-   </div>
-
-@endsphinxdirective
-
-
-@sphinxdirective
-.. dropdown:: Lowering Inference Precision
-
-    The CPU plugin follows the default optimization approach, which means that inference is done with lower precision if it is possible on the given platform to reach better performance with an acceptable range of accuracy.
-    
-    For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
-@endsphinxdirective
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ### Fusing Pooling and FakeQuantize Layers
 
 A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:  
@@ -108,14 +51,21 @@ A combination of FullyConnected and Activation layers results in a single fused 
 
 ### Fusing Convolution and Depthwise Convolution Layers Grouped with Simple Layers
 
+A combination of two groups: a group of a Convolution or a Binary Convolution layer with simple layers, and a group of a Depthwise Convolution
+layer with simple layers. It results in a single layer called *Convolution* or *Binary Convolution*:
+
 > **NOTE**: This pattern is possible only on CPUs with support of Streaming SIMD Extensions 4.2 
 > (SSE 4.2) and Intel AVX2 Instruction Set Architecture (ISA).
-
-A combination of a group of a Convolution (or Binary Convolution) layer and simple layers and a group of a Depthwise Convolution
-layer and simple layers results in a single layer called *Convolution* (or *Binary Convolution*):
-> **NOTE**: Depthwise convolution layers should have the same values for the `group`, input channels, and output channels parameters.
+> Also, Depthwise convolution layers should have the same values for the `group`, input channels, and output channels parameters.
 
 ![conv_depth_01]
+
+
+
+
+
+
+
 
 ### Fusing Convolution and Sum Layers
 
