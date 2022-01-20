@@ -73,20 +73,21 @@ public:
 private:
     static std::mutex _mutex;
     engine& _engine;
+    uint32_t _prog_id = 0;
     kernels_code _kernels_code;
     std::atomic<bool> _pending_compilation{false};
     std::map<const std::string, kernel::ptr> _kernels;
     std::vector<std::string> batch_header_str;
 
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
-    void build_batch(const engine& build_engine, const batch_program& batch, uint32_t prog_id = 0);
+    void build_batch(const engine& build_engine, const batch_program& batch);
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
     size_t get_max_kernels_per_batch() const;
 
 public:
-    explicit kernels_cache(engine& engine);
+    explicit kernels_cache(engine& engine, uint32_t prog_id, const std::vector<std::string>& batch_header_str = {});
     kernel_id set_kernel_source(const std::shared_ptr<kernel_string>& kernel_string,
                                 bool dump_custom_program);
     kernel::ptr get_kernel(kernel_id id) const;
@@ -94,7 +95,7 @@ public:
         batch_header_str = std::move(batch_headers);
     }
     // forces compilation of all pending kernels/programs
-    void build_all(uint32_t prog_id = 0);
+    void build_all();
     void reset();
 };
 

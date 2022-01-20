@@ -223,7 +223,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     }
 }
 
-kernels_cache::kernels_cache(engine& engine) : _engine(engine) { }
+kernels_cache::kernels_cache(engine& engine, uint32_t prog_id, const std::vector<std::string>& batch_header_str)
+                                : _engine(engine), _prog_id(prog_id), batch_header_str(std::move(batch_header_str)) { }
 
 kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_string>& kernel_string,
@@ -259,7 +260,7 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
 }
 
 // TODO: This build_batch method should be backend specific
-void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch, uint32_t prog_id) {
+void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::build_batch");
 
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
@@ -280,7 +281,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
-        current_dump_file_name += "clDNN_program_" + std::to_string(prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
+        current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
                                + "_part_" + std::to_string(batch.batch_id) + ".cl";
     }
 
@@ -402,7 +403,7 @@ kernel::ptr kernels_cache::get_kernel(kernel_id id) const {
     return res->second;
 }
 
-void kernels_cache::build_all(uint32_t prog_id) {
+void kernels_cache::build_all() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
     if (!_pending_compilation)
         return;
@@ -423,9 +424,9 @@ void kernels_cache::build_all(uint32_t prog_id) {
     std::vector<InferenceEngine::Task> tasks;
     for (int idx = 0; idx < batches.size(); idx++) {
         auto& batch = batches[idx];
-        tasks.push_back([this, &_build_engine, batch, &exception, &prog_id] {
+        tasks.push_back([this, &_build_engine, batch, &exception] {
             try {
-                build_batch(*_build_engine, batch, prog_id);
+                build_batch(*_build_engine, batch);
             } catch(...) {
                 exception = std::current_exception();
             }
