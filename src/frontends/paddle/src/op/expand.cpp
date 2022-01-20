@@ -3,7 +3,7 @@
 //
 
 #include <node_context.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
+
 #include "default_opset.hpp"
 #include <string>
 namespace ov {
