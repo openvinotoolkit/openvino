@@ -11,7 +11,7 @@ namespace {
 const std::vector<std::map<std::string, std::string>> configs;
 
 
-std::vector<std::pair<ov::runtime::ParamMap, ov::runtime::ParamMap>> generate_remote_params() {
+std::vector<std::pair<ov::ParamMap, ov::ParamMap>> generate_remote_params() {
         return {};
 }
 
