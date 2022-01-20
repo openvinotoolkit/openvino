@@ -38,7 +38,7 @@ using testing::SetArgReferee;
 class ExecutableNetworkTests : public ::testing::Test {
 protected:
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
-    ov::runtime::SoPtr<IExecutableNetworkInternal>  exeNetwork;
+    ov::SoPtr<IExecutableNetworkInternal>  exeNetwork;
     MockIInferencePlugin*                           mockIPlugin;
     InferencePlugin                                 plugin;
 

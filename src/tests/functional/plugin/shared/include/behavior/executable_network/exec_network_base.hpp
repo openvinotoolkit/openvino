@@ -320,7 +320,7 @@ TEST_P(ExecNetSetPrecision, canSetOutputPrecisionForNetwork) {
 TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     // Create simple function
     {
@@ -343,7 +343,7 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
 TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
 
     // Create simple function
     {
