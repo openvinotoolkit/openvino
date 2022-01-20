@@ -549,6 +549,9 @@ void MKLDNNTensorIteratorNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNTensorIteratorNode::executeDynamicImpl(mkldnn::stream strm) {
+    if (!isBodyExecutable())
+        return;
+
     const auto &eng = getEngine();
     sub_graph.ResetInferCount();
 
@@ -700,30 +703,73 @@ void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
             auto to_mems = getToMemories(this, map_rule.from);
             auto &from_mem = output_mem[map_rule.to];
 
-            // if Loop or TI isn't executed we should fill dynamic dims by zero
-            auto newShape = from_mem->GetShape();
-            auto newDims = newShape.getDims();
-            const bool isDynamic = newShape.isDynamic();
-            if (isDynamic) {
-                std::transform(newDims.begin(), newDims.end(), newDims.begin(), [](const size_t& dim) {
-                    return dim == Shape::UNDEFINED_DIM ? 0 : dim;
-                });
-            }
-            const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
+            const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(from_mem->getStaticDims());
             redefineToMemories(to_mems, *desc);
 
             BackEdgePortHelper mapper(from_mem, to_mems.front(), eng);
             mapper.execute(strm);
-            if (!isDynamic) {
-                BackEdgePortHelper mapper(from_mem, to_mems.front(), eng);
-                mapper.execute(strm);
-            }
         }
     }
 
     for (auto buffer : buffers) {
         buffer->transfer(this);
     }
+}
+
+bool MKLDNNTensorIteratorNode::needShapeInfer() const {
+    return !isBodyExecutable();
+}
+
+std::vector<VectorDims> MKLDNNTensorIteratorNode::shapeInfer() const {
+    std::vector<Shape> shapes;
+    for (size_t i = 0; i < ngraphOp->get_input_size(); i++) {
+        shapes.push_back(ngraphOp->get_input_partial_shape(i).rank().get_length() == 0 ? Shape{} :
+                         getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
+    }
+
+    if (shapes.size() < ngraphOp->get_input_size()) {
+        IE_THROW(Unexpected) << "TensorIterator/Loop input shapes vector size is " << shapes.size() << ", but " << ngraphOp->get_input_size() <<
+                             " required for node with name: " << getName();
+    }
+
+    for (size_t i = 0; i < ngraphOp->get_input_size(); i++) {
+        if (!ov::is_type<ov::op::v0::Constant>(ngraphOp->get_input_node_shared_ptr(i))) {
+            ngraphOp->get_input_tensor(i).set_partial_shape(shapes[i].toPartialShape());
+        }
+    }
+
+    ngraphOp->validate_and_infer_types();
+
+    std::vector<VectorDims> newOutputShapes(ngraphOp->get_output_size());
+    for (size_t i = 0; i < newOutputShapes.size(); i++) {
+        const auto &partShape = ngraphOp->get_output_partial_shape(i);
+        bool isScalar = partShape.rank().get_length() == 0;
+        auto dims = Shape(isScalar ? ngraph::PartialShape{1} : partShape).getDims();
+
+        // we should fill dynamic output dims by zero
+        if (partShape.is_dynamic()) {
+            std::transform(dims.begin(), dims.end(), dims.begin(), [](const size_t& dim) {
+                return dim == Shape::UNDEFINED_DIM ? 0 : dim;
+            });
+        }
+        newOutputShapes[i] = dims;
+    }
+
+    return newOutputShapes;
+}
+
+bool MKLDNNTensorIteratorNode::isBodyExecutable() const {
+    int tripCount;
+    bool cond;
+    if (getAlgorithm() == TensorIteratorLoop) {
+        tripCount = reinterpret_cast<const uint32_t*>(getParentEdgesAtPort(loopTripCountIdx).front()->getMemoryPtr()->GetPtr())[0];
+        cond = static_cast<bool>(reinterpret_cast<const uint8_t*>(getParentEdgesAtPort(loopExecutionConditionIdx).front()->getMemoryPtr()->GetPtr())[0]);
+    } else {
+        tripCount = getNumIteration(inputPortMap, outputPortMap);
+        cond = true;
+    }
+
+    return tripCount != 0 && cond;
 }
 
 int MKLDNNTensorIteratorNode::getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const {

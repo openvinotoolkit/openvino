@@ -107,9 +107,9 @@ public:
     void setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
 protected:
-    //  needShapeInfer() should return false
-    //  because we cannot resolve the output dimensions before the inference is completed
-    bool needShapeInfer() const override { return false; };
+    // ShapeInfer should be used only when trip_count = 0 to get output shapes
+    bool needShapeInfer() const override;
+    std::vector<VectorDims> shapeInfer() const override;
 
     bool needPrepareParams() const override;
     void prepareParams() override;
@@ -129,6 +129,8 @@ private:
     /* Dynamic support */
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(mkldnn::stream strm);
+    bool isBodyExecutable() const;
+
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
 
     MKLDNNExtensionManager::Ptr ext_mng;
@@ -148,7 +150,7 @@ private:
         initial_cond_check,    /// < Perform check of initial continue condition value. value [0, 1]
         continue_cond_check;   /// < Perform check of continue condition value of body. value [0, 1]
 
-    std::vector<std::shared_ptr<DynamicBuffer>> buffers;
+    std::vector<std::shared_ptr<DynamicBuffer>> buffers;   /// < Dynamic buffers for output memory when we use concatenation of output
 
     std::vector<PortMap> inputPortMap;  //!< Input ports map
     std::vector<PortMap> outputPortMap;  //!< Output ports map
