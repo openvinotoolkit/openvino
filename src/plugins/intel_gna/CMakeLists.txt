@@ -75,3 +75,7 @@ file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIB
 install(FILES ${source_list}
         DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gna)
+
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake"
+        DESTINATION runtime/cmake
+        COMPONENT gna)
