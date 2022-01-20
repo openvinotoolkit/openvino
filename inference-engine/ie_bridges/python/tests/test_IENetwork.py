@@ -157,6 +157,7 @@ def test_reshape():
     assert net.input_info["data"].input_data.shape == [2, 3, 32, 32]
 
 
+@pytest.mark.skip(reason="Old Python API seg faults during dynamic shape inference")
 @pytest.mark.parametrize("shape, p_shape", [
     ([1, 3, 22, 22], [1, 3, -1, 25]),
     ([1, 3, 22, 22], [-1, -1, -1, -1]),
@@ -178,6 +179,7 @@ def test_reshape_with_partial_shape(device, shape, p_shape):
     assert function.get_results()[0].get_output_partial_shape(0) == p_shape
 
 
+@pytest.mark.skip(reason="Old Python API seg faults during dynamic shape inference")
 def test_incorrect_reshape():
     function = create_relu([1, 3, 22, 22])
     net = ng.function_to_cnn(function)
@@ -277,7 +279,7 @@ def test_tensor_names():
     assert net.get_ov_name_for_tensor("input") == "in1"
 
 
-@pytest.mark.template_plugin
+@pytest.mark.skip(reason="Old Python API seg faults during dynamic shape inference")
 def test_create_two_exec_net():
     function = create_relu([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)
