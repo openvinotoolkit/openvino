@@ -56,10 +56,10 @@ struct ExperimentalPGGParams {
     size_t actualComparisonSize;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor priorsData;
-    ov::runtime::Tensor featureMapData;
-    ov::runtime::Tensor imageSizeInfoData;
-    ov::runtime::Tensor refData;
+    ov::Tensor priorsData;
+    ov::Tensor featureMapData;
+    ov::Tensor imageSizeInfoData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 

@@ -13,12 +13,12 @@ using namespace ov;
 
 namespace {
 struct ExtractImagePatchesParams {
-    Tensor data;
+    reference_tests::Tensor data;
     Shape sizes;
     Strides strides;
     Shape rates;
     op::PadType autoPad;
-    Tensor expectedResult;
+    reference_tests::Tensor expectedResult;
     std::string testcaseName;
 };
 

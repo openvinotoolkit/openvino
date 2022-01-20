@@ -27,7 +27,6 @@
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 namespace ocl {
 
@@ -194,5 +193,4 @@ public:
 };
 }  // namespace ocl
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
