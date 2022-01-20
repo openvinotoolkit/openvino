@@ -2,14 +2,14 @@
 
 version: 2
 updates:
-  # Enable version updates for nGraph Python API
+  # Enable version updates for Python API
   - package-ecosystem: pip
     directory: "/src/bindings/python"
     schedule:
       interval: weekly
       day: monday
       time: "13:00"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     reviewers:
       - jiwaszki
       - akuporos
