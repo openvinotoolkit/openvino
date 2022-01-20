@@ -40,7 +40,7 @@ do
     key="$1"
     case $key in
         -d|--install_driver)
-        echo "WARNING: This option deprecated due to new script logic that install recommended driver for current platform"
+        echo "WARNING: This option is deprecated. Recommended driver for current platform will be installed."
         shift
         shift
     ;;
