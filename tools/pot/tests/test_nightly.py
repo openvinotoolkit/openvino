@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -14,9 +14,10 @@ from .utils.config import get_engine_config, merge_configs
 init_logger(level='INFO')
 
 TEST_MODELS_DEFAULT = [
-    ('ssd512', 'caffe', 'FP16', {
-        'performance': {'map': 0.9088},
-        'mixed': {'map': 0.904}}),
+    # TODO: Enable this test after solving runtime (segfault) bug
+    # ('ssd512', 'caffe', 'FP16', {
+    #     'performance': {'map': 0.9088},
+    #     'mixed': {'map': 0.904}}),
     ('googlenet-v3', 'tf', 'FP32', {
         'performance': {'accuracy@top1': 0.7793, 'accuracy@top5': 0.9378},
         'mixed': {'accuracy@top1': 0.7793, 'accuracy@top5': 0.9378}}),

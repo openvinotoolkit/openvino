@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ namespace py = pybind11;
 namespace Common {
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
-const std::map<py::str, ov::element::Type>& dtype_to_ov_type();
+const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
 
 ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,9 +167,21 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
 #endif
         } else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
             cl::Buffer buf(static_cast<cl_mem>(params.mem), true);
+            auto actual_mem_size = buf.getInfo<CL_MEM_SIZE>();
+            auto requested_mem_size = new_layout.bytes_count();
+            if (actual_mem_size < requested_mem_size) {
+                throw std::runtime_error("[GPU] shared buffer has smaller size (" + std::to_string(actual_mem_size) +
+                                         ") than specified layout (" + std::to_string(requested_mem_size) + ")");
+            }
             return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf);
         } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
             cl::UsmMemory usm_buffer(get_usm_helper(), params.mem);
+            auto actual_mem_size = get_usm_helper().get_usm_allocation_size(usm_buffer.get());
+            auto requested_mem_size = new_layout.bytes_count();
+            if (actual_mem_size < requested_mem_size) {
+                throw std::runtime_error("[GPU] shared USM buffer has smaller size (" + std::to_string(actual_mem_size) +
+                                         ") than specified layout (" + std::to_string(requested_mem_size) + ")");
+            }
             return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer);
         } else {
             throw std::runtime_error("unknown shared object fromat or type");

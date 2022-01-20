@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -506,9 +506,7 @@ size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
     }
 
     const auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
-                                                                         // WA: for some nodes ngraph compute upper bound depending on precision max value
-                                                                         x >= std::numeric_limits<int32_t>::max(); })) {
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
         return UNDEFINED_SIZE;
     }
 

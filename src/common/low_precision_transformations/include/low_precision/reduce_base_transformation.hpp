@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,11 @@ namespace pass {
 namespace low_precision {
 
 /**
-* @brief ReduceBaseTransformation: base class for Reduce*Transformation
-* detects dequantization operations in front of the Reduce* layer and
-* propagates them through the Reduce* if possible
-* 
-*/
+ * @ingroup ie_transformation_common_api
+ * @brief ReduceBaseTransformation: base class for Reduce*Transformation,
+ * detects dequantization operations in front of the Reduce* operation and
+ * propagates them through the Reduce* if possible.
+ */
 
 class LP_TRANSFORMATIONS_API ReduceBaseTransformation : public LayerTransformation {
 public:

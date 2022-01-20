@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,8 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
 
     auto next = getInputTo(layer->outData.front()).begin()->second;
     // Permute is inserted before Reshape by MO in NHWC models, so we need to find either permute, or reshape, or output
-    while (!LayerInfo(next).isPermute() && !LayerInfo(next).isOutput() && next->outData.size() == 1) {
+    while (!LayerInfo(next).isPermute() && !LayerInfo(next).isPermuteViaReshape() &&
+           !LayerInfo(next).isOutput() && next->outData.size() == 1) {
         if (LayerInfo(next).isNonFunctional() && !IsReshapeFrom4dTo3d(next) && !IsReshapeFrom3dTo4d(next)) {
             break;
         }
@@ -111,14 +112,27 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         if (next->outData.size() != 1) {
             return std::make_pair(nullptr, nullptr);
         }
-        // Check if reshape is expected for this pattern:
-        // the next layer has the both, height and width dimensions > 1
-        auto in_dim_size = next->insData[0].lock()->getDims().size();
-        IE_ASSERT(in_dim_size == 3 || in_dim_size == 4);
-        size_t height = in_dim_size == 3 ? 1 : GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::H);
-        size_t width = GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::W);
-        if (next->outData[0]->getDims().size() < 3 || height != 1 || width != 1) {
-            return std::make_pair(nullptr, nullptr);
+        auto input_dims = next->insData[0].lock()->getDims();
+        auto in_dims_size = input_dims.size();
+        auto output_dims = next->outData[0]->getDims();
+        auto out_dims_size = output_dims.size();
+        if (in_dims_size == 4 && out_dims_size == 4) {
+            if (!LayerInfo(next).isPermuteViaReshape() ||
+                (input_dims[0] != output_dims[0]) || // N
+                (input_dims[1] != output_dims[3]) || // C
+                (input_dims[2] != output_dims[1]) || // H
+                (input_dims[3] != output_dims[2])) { // W
+                return std::make_pair(nullptr, nullptr);
+            }
+        } else {
+            // Check if reshape is expected for this pattern:
+            // the next layer has the both, height and width dimensions > 1
+            IE_ASSERT(in_dims_size == 3 || in_dims_size == 4);
+            size_t height = in_dims_size == 3 ? 1 : GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::H);
+            size_t width = GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::W);
+            if (out_dims_size < 3 || height != 1 || width != 1) {
+                return std::make_pair(nullptr, nullptr);
+            }
         }
     } else {
         return std::make_pair(nullptr, nullptr);
@@ -127,7 +141,8 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
     // Permute is inserted after Reshape by MO in NHWC models, so we need to find either permute, or reshape, or input
     auto parent = InferenceEngine::CNNNetPrevLayer(layer);
     auto prev = parent;
-    while (!LayerInfo(prev).isPermute() && !LayerInfo(prev).isInput() && InferenceEngine::CNNNetHasPrevLayer(prev.get())) {
+    while (!LayerInfo(prev).isPermute() && !LayerInfo(prev).isPermuteViaReshape() &&
+           !LayerInfo(prev).isInput() && InferenceEngine::CNNNetHasPrevLayer(prev.get())) {
         if (LayerInfo(prev).isNonFunctional() && !IsReshapeFrom4dTo3d(prev) && !IsReshapeFrom3dTo4d(prev)) {
             break;
         }
@@ -142,19 +157,35 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
             order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */) {
             return std::make_pair(nullptr, nullptr);
         }
-    } else if (LayerInfo(prev).isReshape())  {
-        if (parent->outData.size() != 1 || InferenceEngine::getInputTo(parent->outData[0]).size() != 1) {
-            return std::make_pair(nullptr, nullptr);
-        }
-        // Check if reshape is expected for this pattern:
-        // the previous layer has number of channels > 1 and one of height/width dimensions is also > 1
-        size_t out_dims_size = parent->outData[0]->getDims().size();
-        IE_ASSERT(out_dims_size == 3 || out_dims_size == 4);
-        size_t channels = GetDataDimSize(parent->outData[0], out_dims_size - 1);
-        size_t height = out_dims_size == 3 ? 1 : GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::H);
-        size_t width = GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::W);
-        if (parent->insData[0].lock()->getDims().size() < 3 || channels != 1 && (height != 1 || width != 1)) {
-            return std::make_pair(nullptr, nullptr);
+    } else if (LayerInfo(prev).isReshape()) {
+        auto input_dims = prev->insData[0].lock()->getDims();
+        auto in_dims_size = input_dims.size();
+        auto output_dims = prev->outData[0]->getDims();
+        auto out_dims_size = output_dims.size();
+
+        if (in_dims_size == 4 && out_dims_size == 4) {
+            if (!LayerInfo(prev).isPermuteViaReshape() ||
+               (input_dims[0] != output_dims[0]) || // N
+               (input_dims[1] != output_dims[2]) || // H
+               (input_dims[2] != output_dims[3]) || // W
+               (input_dims[3] != output_dims[1])) { // C
+                return std::make_pair(nullptr, nullptr);
+            }
+        } else {
+            if (parent->outData.size() != 1 || InferenceEngine::getInputTo(parent->outData[0]).size() != 1) {
+                return std::make_pair(nullptr, nullptr);
+            }
+            // Check if reshape is expected for this pattern:
+            // the previous layer has number of channels > 1 and one of height/width dimensions is also > 1
+            in_dims_size = parent->insData[0].lock()->getDims().size();
+            out_dims_size = parent->outData[0]->getDims().size();
+            IE_ASSERT(out_dims_size == 3 || out_dims_size == 4);
+            size_t channels = GetDataDimSize(parent->outData[0], out_dims_size - 1);
+            size_t height = out_dims_size == 3 ? 1 : GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::H);
+            size_t width = GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::W);
+            if (in_dims_size < 3 || channels != 1 && (height != 1 || width != 1)) {
+                return std::make_pair(nullptr, nullptr);
+            }
         }
     } else {
         return std::make_pair(nullptr, nullptr);

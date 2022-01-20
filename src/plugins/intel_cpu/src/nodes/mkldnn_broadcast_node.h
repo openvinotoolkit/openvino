@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ private:
         NUMPY,
         EXPLICIT
     };
-    AutoBroadcastType broadcastType;
+    AutoBroadcastType broadcastType = NUMPY;
 
     static constexpr size_t INPUT_DATA_IDX = 0;
     static constexpr size_t TARGET_SHAPE_IDX = 1;

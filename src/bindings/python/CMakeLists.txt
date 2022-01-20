@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,6 +15,10 @@ add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 add_subdirectory(src)
+
+if(ENABLE_WHEEL)
+    add_subdirectory(wheel)
+endif()
 
 if(ENABLE_OV_CORE_UNIT_TESTS)
     add_subdirectory(tests/mock/ov_mock_py_frontend)

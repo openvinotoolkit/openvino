@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,18 +89,17 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
 
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                             const std::string& model_path,
-                                            const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry) {
+                                            ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto, model_path);
-    Graph graph{model_proto, telemetry};
+    Graph graph{model_proto, extensions};
     return graph.convert();
 }
 
-std::shared_ptr<Function> decode_to_framework_nodes(
-    std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-    const std::string& model_path,
-    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry) {
+std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                                    const std::string& model_path,
+                                                    ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto, model_path);
-    auto graph = std::make_shared<Graph>(model_proto, telemetry);
+    auto graph = std::make_shared<Graph>(model_proto, extensions);
     return graph->decode();
 }
 }  // namespace detail

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,14 +23,14 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-struct ConvoltuionParameters {
+struct ConvolutionParameters {
     cldnn::tensor stride;
     cldnn::tensor padding;
     cldnn::tensor dilation;
     uint32_t groups;
 };
 
-static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDiff& pads_begin,
+static ConvolutionParameters GetConvolutionParameters(const ngraph::CoordinateDiff& pads_begin,
                                                       const ngraph::Strides& dilations,
                                                       const ngraph::Strides& strides,
                                                       uint32_t groups) {
@@ -52,9 +52,9 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
             break;
         }
         case 1: {
-            stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(strides[0], 1, 1));
-            padding = cldnn::tensor({0, 0, TensorValue(pads_begin[0]), 0}, 0);
-            dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(dilations[0], 1, 1));
+            stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(1, strides[0], 1));
+            padding = cldnn::tensor({0, 0, 0, TensorValue(pads_begin[0])}, 0);
+            dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(1, dilations[0], 1));
             break;
         }
         default: IE_THROW() << "Unsupported convolve parameters size. Only 1d, 2d, and 3d cases are supported";
@@ -239,7 +239,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
 
 static void DeformableConvolutionImpl(Program& p,
                                       const std::shared_ptr<ngraph::Node>& op,
-                                      const ConvoltuionParameters& params,
+                                      const ConvolutionParameters& params,
                                       std::int64_t deformableGroupsNum,
                                       bool bilinearInterpolationPad = false) {
     auto inputs = p.GetInputPrimitiveIDs(op);

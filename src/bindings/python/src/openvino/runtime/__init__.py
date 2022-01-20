@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """openvino module namespace, exposing factory functions for all ops and other classes."""
@@ -53,6 +53,7 @@ from openvino.pyopenvino import PartialShape
 from openvino.pyopenvino import Shape
 from openvino.pyopenvino import Strides
 from openvino.pyopenvino import CoordinateDiff
+from openvino.pyopenvino import DiscreteTypeInfo
 from openvino.pyopenvino import AxisSet
 from openvino.pyopenvino import AxisVector
 from openvino.pyopenvino import Coordinate
@@ -70,6 +71,7 @@ from openvino.runtime.ie_api import OVAny
 from openvino.pyopenvino import Version
 from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import Tensor
+from openvino.pyopenvino import Extension
 from openvino.pyopenvino import ProfilingInfo
 from openvino.pyopenvino import get_version
 from openvino.pyopenvino import get_batch

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,14 +62,6 @@ public:
             ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], range, startFrom);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
-    }
-
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
-        const auto dims = targetStaticShapes[inferNum].front();
-        if (!((startFrom == 0 && range == 1) || std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } ))) {
-            SubgraphBaseTest::compare(expected, actual);
-        }
-        inferNum++;
     }
 
 protected:

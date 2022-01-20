@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,7 +92,8 @@ INFERENCE_ENGINE_API_CPP(OutputsDataMap) copyInfo(const OutputsDataMap& networkO
  */
 INFERENCE_ENGINE_API_CPP(void)
 SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-                  const std::shared_ptr<const ov::Model>& function);
+                  const std::shared_ptr<const ov::Model>& function,
+                  bool new_api);
 
 /**
  * @interface IInferencePlugin

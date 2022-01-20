@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,6 +68,8 @@ struct jit_interpolate_call_args {
     void *dst;
     size_t work_amount;
     size_t oc_off;
+    //ptr to array of post op inputs pointers (flat list)
+    const void* post_op_data;
 };
 
 struct jit_uni_interpolate_kernel {
@@ -110,7 +112,6 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
-private:
     struct InterpolateAttrs {
         InterpolateMode mode;
         InterpolateCoordTransMode coordTransMode;
@@ -122,7 +123,10 @@ private:
         InferenceEngine::Precision inPrc;
         InferenceEngine::Precision outPrc;
         InterpolateLayoutType layout;
-    } interpAttrs;
+    };
+
+private:
+    InterpolateAttrs interpAttrs;
 
     class InterpolateExecutor {
         public:
@@ -131,7 +135,7 @@ private:
                                 const VectorDims &dstDims,
                                 const std::vector<float> &dataScales);
 
-            virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) = 0;
+            virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) = 0;
             virtual ~InterpolateExecutor() = default;
             VectorDims getSrcDimPad5d() const { return srcDimPad5d; }
 
@@ -171,20 +175,26 @@ private:
                                    const std::vector<float> &dataScales,
                                    const mkldnn::primitive_attr &attr);
 
-            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) override;
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 
         private:
             // nearest neighbor
-            void NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
-            void NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+            void NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+            void NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
 
             // onnx linear
-            void linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
-            void linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+            void linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+            void linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
 
             // cubic
-            void cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
-            void cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+            void cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                int B, int C, int IH, int IW, int OH, int OW);
+            void cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                int B, int C, int IH, int IW, int OH, int OW);
 
         private:
             std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
@@ -198,7 +208,7 @@ private:
                                    const std::vector<float> &_dataScales) : dataScales(_dataScales), antialias(interpAttrs.antialias),
                 InterpolateExecutor(interpAttrs, srcDims, dstDims, _dataScales) {}
 
-            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) override;
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 
         private:
             void NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
@@ -234,7 +244,8 @@ private:
     bool isAxesSpecified = false;
     std::vector<int> axes;
 
-    mkldnn::primitive_attr attr;
+    // 6 ptrs for each quantization, 2 ptrs for each depth_wise
+    std::vector<const void*> postOpsDataPtrs;
 
     std::vector<float> lastScales;
     std::vector<int32_t> lastSizes;

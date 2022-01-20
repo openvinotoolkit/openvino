@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
     event::ptr copy_from(stream& stream, const memory& other) override;
     event::ptr copy_from(stream& stream, const void* host_ptr) override;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */) override;
+    dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) override;
 #endif
 
 protected:
@@ -116,7 +116,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     event::ptr copy_from(stream& stream, const void* host_ptr) override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    dnnl::memory get_onednn_memory(dnnl::memory::desc desc) override;
+    dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) override;
 #endif
 
 protected:

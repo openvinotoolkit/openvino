@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,8 +59,9 @@ void PriorBoxLayerTest::SetUp() {
              inPrc, outPrc, inLayout, outLayout,
              inputShapes, imageShapes, targetDevice) = GetParam();
 
-    std::tie(min_size, max_size, aspect_ratio, density, fixed_ratio, fixed_size,
-             clip, flip, step, offset, variance, scale_all_sizes,
+    std::tie(min_size, max_size, aspect_ratio,
+             density, fixed_ratio, fixed_size, clip,
+             flip, step, offset, variance, scale_all_sizes,
              min_max_aspect_ratios_order) = specParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

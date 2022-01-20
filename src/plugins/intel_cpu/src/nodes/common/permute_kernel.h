@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,9 @@ struct PermuteParams {
     InferenceEngine::SizeVector dst_block_order;
     InferenceEngine::SizeVector order;
     size_t data_size;
+
+    size_t hash() const;
+    bool operator==(const PermuteParams& rhs) const;
 };
 
 struct jit_permute_config_params {

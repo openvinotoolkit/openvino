@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,14 +52,13 @@ public:
     void prepareParams() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-
-private:
     enum class ExtImgPatcherPadType {
         VALID,
         SAME_LOWER,
         SAME_UPPER
     };
 
+private:
     std::vector<size_t> _ksizes;
     std::vector<size_t> _strides;
     std::vector<size_t> _rates;

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ protected:
 
         auto cldnn_prim = arg.get_primitive();
         auto weights_layout = arg.get_dependency(1).get_output_layout();
-        cldnn::format out_fmt = onednn::convert_format(onednn::get_format_by_desc(pd.weights_desc(0)));
+        cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0));
         kernel_selector::WeightsLayout req_layout = to_weights_layout(out_fmt, false);
 
         // set engine info & forcing

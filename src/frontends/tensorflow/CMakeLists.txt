@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # TODO: Add LINKABLE_FRONTEND option when tensorflow frontend directory is moved to openvino folder
 ov_add_frontend(NAME tensorflow
+                SHUTDOWN_PROTOBUF
                 SKIP_INSTALL
                 FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format"
                 LINK_LIBRARIES openvino::util)

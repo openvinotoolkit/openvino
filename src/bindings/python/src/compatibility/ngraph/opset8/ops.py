@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
@@ -781,8 +781,7 @@ def detection_output(
 
 @nameable_op
 def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
-    """
-    Apply softmax operation on each element of input tensor.
+    """Apply softmax operation on each element of input tensor.
 
     @param data: The tensor providing input data.
     @param axis: An axis along which Softmax should be calculated. Can be positive or negative.

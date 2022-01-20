@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,8 +94,8 @@ public:
     }
 
 private:
-    int64_t m_output_dim;
-    float m_spatial_scale;
+    int64_t m_output_dim{0};
+    float m_spatial_scale{0};
     int64_t m_group_size = 1;
     std::string m_mode = "bilinear_deformable";
     int64_t m_spatial_bins_x = 1;

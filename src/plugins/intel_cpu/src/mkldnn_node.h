@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,10 @@
 #include "cpu_types.h"
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "cache/multi_cache.h"
+
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -126,6 +130,9 @@ private:
 
 class MKLDNNNode {
 public:
+    MKLDNNNode(const MKLDNNNode &) = delete;
+    MKLDNNNode & operator = (const MKLDNNNode &) = delete;
+
     using AttrPtr = std::shared_ptr<mkldnn::primitive_attr>;
 
 public:
@@ -443,7 +450,7 @@ public:
         return execIndex;
     }
 
-    std::string getTypeStr() const {
+    const std::string & getTypeStr() const {
         return typeStr;
     }
 
@@ -572,6 +579,10 @@ public:
         return outputShapes[port];
     }
 
+    const std::vector<InferenceEngine::Blob::Ptr>& getInternalBlobs() const {
+        return internalBlobs;
+    }
+
     /**
     * @brief Return scales and shift if nodes can be executed as ScaleShift, else raise exception
     * If node has only scale or shift value, fill missing value with default values
@@ -581,6 +592,19 @@ public:
     * @return pair of scales and shifts
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const MKLDNNNode *parentNode) const;
+
+    /**
+     * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
+     * Seed node should call this routine and pass its post operations list as parameter.
+     * @param ops List of fused post operations
+     */
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
+
+    virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
+
+    void setRuntimeCache(MultiCachePtr cache) {
+        rtParamsCache = cache;
+    }
 
 protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
@@ -597,15 +621,7 @@ protected:
     virtual MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
     virtual MemoryDescPtr getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
-    /**
-     * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
-     * Seed node should call this routine and pass its post operations list as parameter.
-     * @param ops List of fused post operations
-     */
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims);
-    virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
-
-    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() { return nullptr; }
+    virtual AttrPtr initPrimitiveAttr() { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
@@ -659,7 +675,6 @@ protected:
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;
     friend class MKLDNNGraphOptimizer;
-    friend class NodeDumper;
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     bool isConfigDefined(const NodeConfig &config) const;
@@ -741,7 +756,8 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims, uint32_t value_port_mask = 0) const;
+    std::vector<VectorDims> shapeInferGeneric(uint32_t value_port_mask = 0) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(mkldnn::stream strm) {
@@ -755,9 +771,13 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
+    MultiCachePtr getRuntimeCache() const {
+        return rtParamsCache;
+    }
+
     std::vector<VectorDims> lastInputDims = {};
 
-    std::shared_ptr<ngraph::Node> opToShapeInfer;
+    std::shared_ptr<IShapeInfer> shapeInference;
 
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
@@ -780,9 +800,9 @@ private:
     PerfCount perfCounter;
     PerfCounters profiling;
 
-    bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
+    MultiCachePtr rtParamsCache;
 
-    void createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op);
+    bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
     template <class PD, class D, typename FPD>
     typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
@@ -802,10 +822,22 @@ private:
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<ov::StaticShape>& input_shapes,
+                                              uint32_t input_value_port_mask) const;
+
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;
 #endif
 };
+
+constexpr uint64_t PortMask(int n) {
+    return 1 << n;
+}
+
+template <class... T>
+constexpr uint64_t PortMask(int n, T... rest) {
+    return PortMask(rest...) | (1 << n);
+}
 
 class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
                                             MKLDNNNode*(const std::shared_ptr<ngraph::Node>& op,

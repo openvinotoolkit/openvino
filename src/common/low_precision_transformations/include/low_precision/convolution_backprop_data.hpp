@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,14 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ConvolutionBackpropDataTransformation propagates dequantization operations through ConvolutionBackpropData operation.
+ *
+ * For more details about the transformation, refer to
+ * [ConvolutionBackpropDataTransformation](@ref openvino_docs_IE_DG_lpt_ConvolutionBackpropDataTransformation) page in
+ * the Inference Engine Developer Guide.
+ */
 class LP_TRANSFORMATIONS_API ConvolutionBackpropDataTransformation : public WeightableLayerTransformation {
 public:
     ConvolutionBackpropDataTransformation(const Params& params = Params());

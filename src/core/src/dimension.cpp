@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,15 @@ Dimension Dimension::operator+(const Dimension& dim) const {
 
 Dimension Dimension::operator-(const Dimension& dim) const {
     return Dimension(m_dimension - dim.m_dimension);
+}
+
+Dimension Dimension::operator/(const value_type divisor) const {
+    OPENVINO_ASSERT(divisor >= 0, "divisor must be greater than 0");
+
+    if (m_dimension.get_max_val() == Interval::s_max && m_dimension.get_min_val() == 0)
+        return Dimension::dynamic();
+
+    return Dimension((m_dimension.get_min_val() + divisor - 1) / divisor, m_dimension.get_max_val() / divisor);
 }
 
 Dimension Dimension::operator*(const Dimension& dim) const {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ class AtomicGuard {
 public:
     AtomicGuard(std::atomic_bool& b) : m_atomic(b) {
         bool exp = false;
-        while (!m_atomic.compare_exchange_strong(exp, true)) {
+        while (m_atomic.load(std::memory_order_relaxed) || !m_atomic.compare_exchange_strong(exp, true)) {
             exp = false;
         }
     }

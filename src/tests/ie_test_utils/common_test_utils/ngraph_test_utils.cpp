@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -201,7 +201,11 @@ void TransformationTestsF::accuracy_check(std::shared_ptr<ov::Model> ref_functio
         for (auto param : ref_function->get_parameters()) {
             types.push_back(param->get_element_type());
 
-            InferenceEngine::TensorDesc td(InferenceEngine::Precision::FP32, param->get_shape(), InferenceEngine::Layout::ANY);
+            auto layout = InferenceEngine::Layout::ANY;
+            if (ov::is_scalar(param->get_shape())) {
+                layout = InferenceEngine::Layout::SCALAR;
+            }
+            InferenceEngine::TensorDesc td(InferenceEngine::Precision::FP32, param->get_shape(), layout);
             const auto &input = FuncTestUtils::createAndFillBlob(td);
             const auto &input_size = input->byteSize();
 
@@ -227,8 +231,8 @@ void TransformationTestsF::accuracy_check(std::shared_ptr<ov::Model> ref_functio
             IE_ASSERT(ref_outputs[i].second.size() == outputs[i].second.size());
             auto * ref = reinterpret_cast<float *>(ref_outputs[i].second.data());
             auto * out = reinterpret_cast<float *>(outputs[i].second.data());
-            IE_ASSERT(ref_outputs[i].second.size() / 8);
             size_t size = ref_outputs[i].second.size() / sizeof(float);
+            IE_ASSERT(size > 0);
             Compare<float, float>(ref, out, size, 1e-5);
         }
     }

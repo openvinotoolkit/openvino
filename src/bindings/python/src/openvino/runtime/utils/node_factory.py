@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -101,9 +101,6 @@ class NodeFactory(object):
             if issubclass(type(argument), Output):
                 outputs.append(argument)
             else:
-                log.warning("Op arguments were passed as Node, please avoid passing arguments in "
-                            "this manner, and pass Output(s) instead, because accepting Nodes will "
-                            "be deprecated in a future release.")
                 outputs.extend(argument.outputs())
         return outputs
 

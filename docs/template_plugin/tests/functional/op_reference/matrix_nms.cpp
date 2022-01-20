@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -461,11 +461,11 @@ std::vector<MatrixNmsParams> generateParams() {
 
 std::vector<MatrixNmsParams> generateCombinedParams() {
     const std::vector<std::vector<MatrixNmsParams>> generatedParams {
-        generateParams<element::Type_t::bf16, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams<element::Type_t::f16, element::Type_t::f32, element::Type_t::i32>(),
+        generateParams<element::Type_t::bf16, element::Type_t::bf16, element::Type_t::i32>(),
+        generateParams<element::Type_t::f16, element::Type_t::f16, element::Type_t::i32>(),
         generateParams<element::Type_t::f32, element::Type_t::f32, element::Type_t::i32>(),
-        generateParams<element::Type_t::bf16, element::Type_t::f32, element::Type_t::i64>(),
-        generateParams<element::Type_t::f16, element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::bf16, element::Type_t::bf16, element::Type_t::i64>(),
+        generateParams<element::Type_t::f16, element::Type_t::f16, element::Type_t::i64>(),
         generateParams<element::Type_t::f32, element::Type_t::f32, element::Type_t::i64>(),
     };
     std::vector<MatrixNmsParams> combinedParams;

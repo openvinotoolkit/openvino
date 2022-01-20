@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,7 +106,7 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
     }
 
     if (useFloatTest) {
-        testCase.run_with_tolerance_as_fp();
+        testCase.run_with_tolerance_as_fp(2e-5);
     } else {
         testCase.run();
     }

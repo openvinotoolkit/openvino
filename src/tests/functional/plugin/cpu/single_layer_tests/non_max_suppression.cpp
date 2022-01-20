@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -333,19 +333,32 @@ private:
             const auto indeces_iter = actualOutputs.begin();
             const auto scores_iter = actualOutputs.begin() + 1;
             size_t selected_indices_size = indeces_iter->get_size();
-            const auto selected_indices_data = indeces_iter->data<int32_t>();
-
             const auto selected_scores_data = scores_iter->data<float>();
 
-            for (size_t i = 0; i < selected_indices_size; i += 3) {
-                const int32_t batchId = selected_indices_data[i+0];
-                const int32_t classId = selected_indices_data[i+1];
-                const int32_t boxId   = selected_indices_data[i+2];
-                const float score = selected_scores_data[i+2];
-                if (batchId == -1 || classId == -1 || boxId == -1)
-                    break;
+            if (indeces_iter->get_element_type() == ov::element::i32) {
+                const auto selected_indices_data = indeces_iter->data<int32_t>();
+                for (size_t i = 0; i < selected_indices_size; i += 3) {
+                    const int32_t batchId = selected_indices_data[i+0];
+                    const int32_t classId = selected_indices_data[i+1];
+                    const int32_t boxId   = selected_indices_data[i+2];
+                    const float score = selected_scores_data[i+2];
+                    if (batchId == -1 || classId == -1 || boxId == -1)
+                        break;
 
-                actualList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
+                    actualList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
+                }
+            } else {
+                const auto selected_indices_data = indeces_iter->data<int64_t>();
+                for (size_t i = 0; i < selected_indices_size; i += 3) {
+                    const int32_t batchId = selected_indices_data[i+0];
+                    const int32_t classId = selected_indices_data[i+1];
+                    const int32_t boxId   = selected_indices_data[i+2];
+                    const float score = selected_scores_data[i+2];
+                    if (batchId == -1 || classId == -1 || boxId == -1)
+                        break;
+
+                    actualList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
+                }
             }
             std::sort(actualList.begin(), actualList.end(), compareBox);
         }

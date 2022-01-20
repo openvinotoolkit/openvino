@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,7 @@ private:
     static constexpr size_t INPUT_MEAN = 3;
     static constexpr size_t INPUT_VARIANCE = 4;
 
-    double m_epsilon;
+    double m_epsilon{0};
 };
 }  // namespace v0
 namespace v5 {
@@ -89,7 +89,7 @@ private:
     static constexpr size_t INPUT_MEAN = 3;
     static constexpr size_t INPUT_VARIANCE = 4;
 
-    double m_epsilon;
+    double m_epsilon{0};
 };
 }  // namespace v5
 }  // namespace op
