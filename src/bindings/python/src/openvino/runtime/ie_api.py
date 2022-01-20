@@ -113,9 +113,14 @@ class Core(CoreBase):
     """Core wrapper."""
 
     def compile_model(
-        self, model: Union[Model, str], device_name: str, config: dict = None
+        self, model: Union[Model, str], device_name: str = None, config: dict = None
     ) -> CompiledModel:
         """Compile a model from given Model."""
+        if device_name is None:
+            return CompiledModel(
+                super().compile_model(model, {} if config is None else config)
+            )
+
         return CompiledModel(
             super().compile_model(model, device_name, {} if config is None else config)
         )
