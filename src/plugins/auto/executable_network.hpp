@@ -96,7 +96,6 @@ public:
                                  const std::string&                           strDevices,
                                  MultiDeviceInferencePlugin*                  plugin,
                                  const AutoContext&                           context,
-                                 const bool                                   diableBatching,
                                  const bool                                   needPerfCounters = false);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
@@ -138,8 +137,6 @@ private:
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
                                 NotBusyWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
-    void TryApplyAutoBatching(AutoLoadContext& context);
-    void SetOptimalBatchNum(const DeviceName& deviceName, const std::map<std::string, std::string>& config) const;
     void TryToLoadNetWork(AutoLoadContext& context,
                           const std::string& modelPath,
                           const InferenceEngine::CNNNetwork& network);
@@ -158,11 +155,6 @@ private:
     mutable std::mutex                                                  _confMutex;
     bool                                                                _exitFlag = {false};
     const InferenceEngine::CNNNetwork                                   _network;
-    DeviceName                                                          _deviceNameWithBatching = {};
-    mutable unsigned int                                                _optimalBatchingRequestNum{0};
-    mutable unsigned int                                                _optimalBatchSize{0};
-    mutable std::once_flag                                              _ocBatchNumQuery;
-    bool                                                                _disableBatch = {false};
 };
 
 }  // namespace MultiDevicePlugin

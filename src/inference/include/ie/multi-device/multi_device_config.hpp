@@ -42,11 +42,5 @@ DECLARE_MULTI_CONFIG_KEY(DEVICE_PRIORITIES);
  * is not 0, the network will be dispatched to the strongest device.
  */
 DECLARE_CONFIG_KEY(AUTO_NETWORK_PRIORITY);
-
-/**
- * @brief temp config option, to disable auto batching explicitly
- *
- */
-DECLARE_CONFIG_KEY(ALLOW_AUTO_BATCHING);
 }  // namespace MultiDeviceConfigParams
 }  // namespace InferenceEngine

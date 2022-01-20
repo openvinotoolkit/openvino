@@ -206,18 +206,6 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
             case THROUGHPUT:
                 devInfo = {deviceName, {{CONFIG_KEY(PERFORMANCE_HINT),
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, 2, ""};
-                if (deviceName.find("GPU") != std::string::npos) {
-                    if (loadSuccess) {
-                        ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                            ::testing::Matcher<const std::string&>(ContainsRegex(CommonTestUtils::DEVICE_BATCH)),
-                            ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-                    } else {
-                        ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                            ::testing::Matcher<const std::string&>(ContainsRegex(CommonTestUtils::DEVICE_BATCH)),
-                            ::testing::Matcher<const Config&>(_)))
-                        .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-                    }
-                }
                 break;
             default:
                 LOG_ERROR("should not come here");

@@ -61,7 +61,6 @@ namespace {
                     res.push_back(PluginConfigParams::KEY_PERF_COUNT);
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
                     res.push_back(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY);
-                    res.push_back(MultiDeviceConfigParams::KEY_ALLOW_AUTO_BATCHING);
                     return res;
                 }();
 }  // namespace
@@ -295,13 +294,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
         }
-        // check whether auto batching is diabled explicitly
-        const auto& batch_mode = fullConfig.find(MultiDeviceConfigParams::KEY_ALLOW_AUTO_BATCHING);
-        bool disabled = false;;
-        if (batch_mode != fullConfig.end())
-            disabled = batch_mode->second == PluginConfigParams::NO;
-        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this,
-                                                                context, disabled, context.needPerfCounters);
+        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, context, context.needPerfCounters);
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
