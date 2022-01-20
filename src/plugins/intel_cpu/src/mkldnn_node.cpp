@@ -927,9 +927,12 @@ MemoryDescPtr MKLDNNNode::getDefinedInputDesc(const NodeConfig &config, size_t i
 //        return config.inConfs[idx].getMemDesc();
 //    }
 //
-//    if (config.inConfs[idx].inPlace() >= 0) {
-//        return getDefinedOutputDesc(config, static_cast<size_t>(config.inConfs[idx].inPlace()));
-//    }
+    if (config.inConfs[idx].inPlace() >= 0) {
+        auto outPortDesc = config.outConfs[static_cast<size_t>(config.inConfs[idx].inPlace())].getPortDesc();
+        if (config.inConfs[idx].getPortDesc()->compare(*outPortDesc)) {
+            return outPortDesc->getMemDesc();
+        }
+    }
 
     if (num >= 0) {
         auto parentConf = selectedPD->getConfig().outConfs[num];
@@ -956,9 +959,12 @@ MemoryDescPtr MKLDNNNode::getDefinedOutputDesc(const NodeConfig &config, size_t 
 //        return config.outConfs[idx].getMemDesc();
 //    }
 //
-//    if (config.outConfs[idx].inPlace() >= 0) {
-//        return getDefinedInputDesc(config, static_cast<size_t>(config.outConfs[idx].inPlace()));
-//    }
+    if (config.outConfs[idx].inPlace() >= 0) {
+        auto inpPortDesc = config.inConfs[static_cast<size_t>(config.outConfs[idx].inPlace())].getPortDesc();
+        if (config.outConfs[idx].getPortDesc()->compare(*inpPortDesc)) {
+            return inpPortDesc->getMemDesc();
+        }
+    }
 
     if (num >= 0) {
         auto childConf = selectedPD->getConfig().inConfs[num];
