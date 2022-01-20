@@ -509,7 +509,7 @@ void MKLDNNTensorIteratorNode::prepareParams() {
     before_mappers.clear();
     back_mappers.clear();
 
-    if (lastUsedCond && lastUsedTripCount != 0 || !isDynamicNode()) {
+    if ((lastUsedCond && lastUsedTripCount != 0) || !isDynamicNode()) {
         reshapeSubgraphInput();
 
         prepareInputPorts();
