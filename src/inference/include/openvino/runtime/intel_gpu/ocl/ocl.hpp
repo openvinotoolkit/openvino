@@ -20,7 +20,6 @@
 #include "openvino/runtime/remote_tensor.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 namespace ocl {
 
@@ -321,5 +320,4 @@ public:
 
 }  // namespace ocl
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

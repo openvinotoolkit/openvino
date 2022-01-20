@@ -43,7 +43,6 @@ namespace InferenceEngine {}
 
 namespace ov {
 namespace ie = InferenceEngine;
-namespace runtime {
 
 /**
  * @brief This type of map is used for result of Core::query_model
@@ -52,5 +51,9 @@ namespace runtime {
  */
 using SupportedOpsMap = std::map<std::string, std::string>;
 
+namespace runtime {
+using ov::ConfigMap;
+using ov::SupportedOpsMap;
 }  // namespace runtime
+
 }  // namespace ov

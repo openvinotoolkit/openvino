@@ -79,11 +79,19 @@ INSTANTIATE_TEST_SUITE_P(
 using OVClassExecutableNetworkSetConfigFromFp32Test = OVClassExecutableNetworkGetMetricTestForSpecificConfig;
 
 TEST_P(OVClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
+<<<<<<< HEAD
     ov::runtime::Core ie;
 
     ov::AnyMap initialConfig;
     initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = InferenceEngine::GNAConfigParams::GNA_SW_FP32;
     ov::runtime::CompiledModel exeNetwork = ie.compile_model(simpleNetwork, deviceName, initialConfig);
+=======
+ov::Core ie;
+
+std::map<std::string, std::string> initialConfig;
+initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = InferenceEngine::GNAConfigParams::GNA_SW_FP32;
+ov::CompiledModel exeNetwork = ie.compile_model(simpleNetwork, deviceName, initialConfig);
+>>>>>>> master
 
     ASSERT_THROW(exeNetwork.set_property({{configKey, configValue}}), ov::Exception);
 }

@@ -744,7 +744,7 @@ int main(int argc, char* argv[]) {
                 executableNetwork.Export(outputFile);
             }
         } else {
-            ov::runtime::Core core;
+            ov::Core core;
             if (!FLAGS_log_level.empty()) {
                 core.set_property(FLAGS_d, {{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}});
             }

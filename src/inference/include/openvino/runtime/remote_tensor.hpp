@@ -13,7 +13,7 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
-namespace runtime {
+
 class RemoteContext;
 
 /**
@@ -21,7 +21,7 @@ class RemoteContext;
  */
 class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
-    friend class ov::runtime::RemoteContext;
+    friend class ov::RemoteContext;
 
 public:
     /**
@@ -62,5 +62,8 @@ public:
     std::string get_device_name() const;
 };
 
+namespace runtime {
+using ov::RemoteTensor;
 }  // namespace runtime
+
 }  // namespace ov

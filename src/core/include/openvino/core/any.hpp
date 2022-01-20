@@ -29,13 +29,15 @@ namespace ov {
 
 class Node;
 class RuntimeAttribute;
+<<<<<<< HEAD
 
 namespace runtime {
+=======
+>>>>>>> master
 class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
 class InferencePlugin;
-}  // namespace runtime
 
 /**
  * @brief This class represents an object to work with different types
@@ -369,10 +371,10 @@ class OPENVINO_API Any {
     friend class ::ov::RuntimeAttribute;
     friend class ::InferenceEngine::InferencePlugin;
     friend class ::InferenceEngine::ExecutableNetwork;
-    friend class ::ov::runtime::CompiledModel;
-    friend class ::ov::runtime::RemoteContext;
-    friend class ::ov::runtime::RemoteTensor;
-    friend class ::ov::runtime::InferencePlugin;
+    friend class ::ov::CompiledModel;
+    friend class ::ov::RemoteContext;
+    friend class ::ov::RemoteTensor;
+    friend class ::ov::InferencePlugin;
 
     Any(const Any& other, const std::shared_ptr<void>& so);
 

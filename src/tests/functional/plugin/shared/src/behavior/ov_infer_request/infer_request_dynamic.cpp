@@ -76,8 +76,8 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor;
+    ov::InferRequest req;
+    ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
 }
@@ -90,8 +90,8 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor;
+    ov::InferRequest req;
+    ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
 }
@@ -107,8 +107,8 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor, otensor;
+    ov::InferRequest req;
+    ov::Tensor tensor, otensor;
     const std::string outputname = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     //OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
@@ -136,8 +136,8 @@ TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor, otensor;
+    ov::InferRequest req;
+    ov::Tensor tensor, otensor;
     const std::string outputname = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     //OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
@@ -163,8 +163,8 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor, otensor;
+    ov::InferRequest req;
+    ov::Tensor tensor, otensor;
     const std::string outputName = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     //OV_ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
@@ -191,8 +191,8 @@ TEST_P(OVInferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor;
+    ov::InferRequest req;
+    ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
@@ -210,8 +210,8 @@ TEST_P(OVInferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorUpper
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor;
+    ov::InferRequest req;
+    ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape({3, 4, 20, 20}));
@@ -231,8 +231,8 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor;
+    ov::InferRequest req;
+    ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape(refShape));
@@ -264,8 +264,8 @@ TEST_P(OVInferRequestDynamicTests, GetSameTensor2times) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor;
+    ov::InferRequest req;
+    ov::Tensor tensor;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape(refShape));
@@ -284,8 +284,8 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor(ov::element::f32, refShape);
+    ov::InferRequest req;
+    ov::Tensor tensor(ov::element::f32, refShape);
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape);
@@ -307,8 +307,8 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor(ov::element::f32, refShape), otensor;
+    ov::InferRequest req;
+    ov::Tensor tensor(ov::element::f32, refShape), otensor;
     const std::string outputName = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
@@ -339,8 +339,8 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     // Load ov::Model to target plugins
     auto execNet = ie->compile_model(function, targetDevice, configuration);
     // Create InferRequest
-    ov::runtime::InferRequest req;
-    ov::runtime::Tensor tensor(ov::element::f32, refShape);
+    ov::InferRequest req;
+    ov::Tensor tensor(ov::element::f32, refShape);
 
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
@@ -351,7 +351,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape);
 
-    tensor = ov::runtime::Tensor(ov::element::f32, refShape2);
+    tensor = ov::Tensor(ov::element::f32, refShape2);
     OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape2);
     OV_ASSERT_NO_THROW(req.infer());
@@ -372,7 +372,7 @@ TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
     OV_ASSERT_NO_THROW(function->reshape(shapes));
     const std::string outputName = function->outputs().back().get_any_name();
     // Load ov::Function to target plugins
-    ov::runtime::CompiledModel execNet;
+    ov::CompiledModel execNet;
     ASSERT_THROW((execNet = ie->compile_model(function, targetDevice, configuration)), ov::Exception);
 }
 }  // namespace behavior

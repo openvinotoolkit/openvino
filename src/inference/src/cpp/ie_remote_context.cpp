@@ -24,7 +24,6 @@
     }
 
 namespace ov {
-namespace runtime {
 
 void RemoteContext::type_check(const RemoteContext& tensor,
                                const std::map<std::string, std::vector<std::string>>& type_info) {
@@ -91,5 +90,4 @@ AnyMap RemoteContext::get_params() const {
     return paramMap;
 }
 
-}  // namespace runtime
 }  // namespace ov

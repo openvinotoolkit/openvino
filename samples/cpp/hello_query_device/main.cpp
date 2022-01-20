@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
         }
 
         // -------- Step 1. Initialize OpenVINO Runtime Core --------
-        ov::runtime::Core core;
+        ov::Core core;
 
         // -------- Step 2. Get list of available devices --------
         std::vector<std::string> availableDevices = core.get_available_devices();

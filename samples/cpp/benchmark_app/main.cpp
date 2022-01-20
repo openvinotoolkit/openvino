@@ -113,7 +113,7 @@ static void next_step(const std::string additional_info = "") {
 int main(int argc, char* argv[]) {
     std::shared_ptr<StatisticsReport> statistics;
     try {
-        ov::runtime::CompiledModel compiledModel;
+        ov::CompiledModel compiledModel;
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
@@ -170,7 +170,7 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------
         next_step();
 
-        ov::runtime::Core core;
+        ov::Core core;
 
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library
@@ -464,7 +464,11 @@ int main(int argc, char* argv[]) {
             next_step();
             auto preproc = ov::preprocess::PrePostProcessor(model);
 
+<<<<<<< HEAD
             std::map<std::string, std::string> user_precisions_map;
+=======
+            ov::ConfigMap user_precisions_map;
+>>>>>>> master
             if (!FLAGS_iop.empty()) {
                 user_precisions_map = parseArgMap(FLAGS_iop);
             }
@@ -723,7 +727,7 @@ int main(int argc, char* argv[]) {
         std::vector<::gpu::BufferType> clInputsBuffer;
         bool useGpuMem = false;
 
-        std::map<std::string, ov::runtime::TensorVector> inputsData;
+        std::map<std::string, ov::TensorVector> inputsData;
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0) {
                 inputsData =
@@ -1067,7 +1071,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (perf_counts) {
-            std::vector<std::vector<ov::runtime::ProfilingInfo>> perfCounts;
+            std::vector<std::vector<ov::ProfilingInfo>> perfCounts;
             for (size_t ireq = 0; ireq < nireq; ireq++) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->get_performance_counts();
                 if (FLAGS_pc) {
