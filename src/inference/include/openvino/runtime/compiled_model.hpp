@@ -64,7 +64,7 @@ public:
     ~CompiledModel();
 
     /**
-     * @brief Get executable model information from a device
+     * @brief Get runtime model information from a device
      * This object represents the internal device specific model which is optimized for particular
      * accelerator. It contains device specific nodes, runtime information and can be used only
      * to understand how the source model is optimized and which kernels, element types and layouts
@@ -163,12 +163,12 @@ public:
     /**
      * @brief Sets properties for current compiled model
      *
-     * @param property Map of pairs: (property name, property value)
+     * @param properties Map of pairs: (property name, property value)
      */
-    void set_property(const AnyMap& property);
+    void set_property(const AnyMap& properties);
 
     /**
-     * @brief Sets properties for current executable network
+     * @brief Sets properties for current compiled model
      *
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param properties Optional pack of pairs: (property name, property value)
@@ -183,7 +183,7 @@ public:
      *
      * The method is responsible to extract information
      * which affects compiled model inference. The list of supported configuration values can be extracted via
-     * CompiledModel::get_properties with the ov::supported_properties key, but some of these keys cannot be changed
+     * CompiledModel::get_property with the ov::supported_properties key, but some of these keys cannot be changed
      * dynamically, e.g. ov::device::id cannot changed if a compiled model has already been compiled for particular
      * device.
      *

@@ -168,11 +168,6 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> sup
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 
 /**
- * @brief Read-only property which defines support of import/export functionality by plugin
- */
-static constexpr Property<bool, PropertyMutability::RO> import_export_support{"IMPORT_EXPORT_SUPPORT"};
-
-/**
  * @brief Read-only property to get a name of name of a model
  */
 static constexpr Property<std::string, PropertyMutability::RO> model_name{"NETWORK_NAME"};
@@ -564,7 +559,6 @@ constexpr static const auto INT8 = "INT8";                    //!< Device suppor
 constexpr static const auto BIN = "BIN";                      //!< Device supports binary inference
 constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device supports winograd optimization
 constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports model export and import
-constexpr static const auto BATCHED_BLOB = "BATCHED_BLOB";    //!< Device supports blobs batching
 }  // namespace capability
 }  // namespace device
 

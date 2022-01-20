@@ -130,7 +130,7 @@ public:
      * @brief Creates and loads a compiled model from a source model to the default OpenVINO device selected by AUTO
      * plugin.
      *
-     * Users can create as many executable networks as they need and use
+     * Users can create as many compiled models as they need and use
      * them simultaneously (up to the limitation of the hardware resources)
      *
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
@@ -166,7 +166,7 @@ public:
     /**
      * @brief Creates a compiled model from a source model object.
      *
-     * Users can create as many executable networks as they need and use
+     * Users can create as many compiled models as they need and use
      * them simultaneously (up to the limitation of the hardware resources)
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
      * @param model Model object acquired from Core::read_model
