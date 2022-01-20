@@ -153,27 +153,29 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
             ngraph::is_type<ngraph::op::Constant>(op) ||
             ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
             continue;
-        } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
-            updateOPsStats(op->get_type_info(), status);
-            auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
-            auto ti_body = ti->get_function();
-            updateOPsStats(ti_body, status);
-        } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
-            updateOPsStats(op->get_type_info(), status);
-            auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
-            auto loop_body = loop->get_function();
-            updateOPsStats(loop_body, status);
-        } else if (ngraph::is_type<ngraph::op::v8::If>(op)) {
-            updateOPsStats(op->get_type_info(), status);
-            auto if_op = ngraph::as_type_ptr<ngraph::op::v8::If>(op);
-            std::vector<std::shared_ptr<ngraph::Function>> bodies;
-            for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
-                auto if_body = if_op->get_function(i);
-                updateOPsStats(if_body, status);
-            }
-        } else {
-            updateOPsStats(op->get_type_info(), status);
         }
+        if (extractBody) {
+            if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
+                updateOPsStats(op->get_type_info(), status);
+                auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+                auto ti_body = ti->get_function();
+                updateOPsStats(ti_body, status);
+            } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
+                updateOPsStats(op->get_type_info(), status);
+                auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
+                auto loop_body = loop->get_function();
+                updateOPsStats(loop_body, status);
+            } else if (ngraph::is_type<ngraph::op::v8::If>(op)) {
+                updateOPsStats(op->get_type_info(), status);
+                auto if_op = ngraph::as_type_ptr<ngraph::op::v8::If>(op);
+                std::vector<std::shared_ptr<ngraph::Function>> bodies;
+                for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
+                    auto if_body = if_op->get_function(i);
+                    updateOPsStats(if_body, status);
+                }
+            }
+        }
+        updateOPsStats(op->get_type_info(), status);
     }
 }
 
