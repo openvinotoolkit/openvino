@@ -706,7 +706,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
                                     METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
                     LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size", optimalBatchSize);
                 } catch (...) {
-                    LOG_DEBUG("[AUTOPLUGIN]BATCHING: error getting metric OPTIMAL_BATCH_SIZE");
+                    LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
                 }
                 if (optimalBatchSize > 1) {
                     const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
