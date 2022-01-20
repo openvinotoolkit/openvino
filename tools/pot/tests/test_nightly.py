@@ -39,8 +39,8 @@ TEST_MODELS_DEFAULT = [
     #     'performance': {'accuracy@top1': 0.73908, 'accuracy@top5': 0.91728},
     #     'mixed': {'accuracy@top1': 0.7389, 'accuracy@top5': 0.91714}}),
     ('mobilenet-ssd', 'caffe', 'FP32', {
-        'performance': {'map': 0.6648},
-        'mixed': {'map': 0.663}}),
+        'performance': {'map': 0.666},
+        'mixed': {'map': 0.664}}),
     ('octave-resnet-26-0.25', 'mxnet', 'FP32', {
         'performance': {'accuracy@top1': 0.7581, 'accuracy@top5': 0.9256},
         'mixed': {'accuracy@top1': 0.759, 'accuracy@top5': 0.92466}}),
