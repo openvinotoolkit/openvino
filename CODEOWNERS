@@ -68,6 +68,9 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
 /src/inference/include/ie/multi-device/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
 
+# IE Paddle frontend:
+/src/frontends/paddle/  @openvinotoolkit/openvino-ie-paddle-maintainers
+
 # IE Tests:
 /src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
 /src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers
