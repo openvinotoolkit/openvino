@@ -83,10 +83,13 @@ def eltwise_infer(node: Node, op=None, **kwargs):
 
 
 def eltwise_reverse_infer(node: Node):
-    node_name = node.soft_get('name', node.id)
     input_1_shape = node.in_port(0).data.get_shape()
     input_2_shape = node.in_port(1).data.get_shape()
+    if input_1_shape is not None and input_2_shape is not None:
+        return
+
     output_shape = node.out_port(0).data.get_shape()
+    node_name = node.soft_get('name', node.id)
 
     if node['auto_broadcast'] is 'none':
         # input_1, input_2 and output shapes must match
@@ -122,7 +125,7 @@ def eltwise_reverse_infer(node: Node):
                 in_port_to_update = 0
                 defined_in_shape = input_2_shape
             else:
-                return None
+                return
             defined_in_rank = len(defined_in_shape)
 
             for i in range(-1, -defined_in_rank - 1, -1):

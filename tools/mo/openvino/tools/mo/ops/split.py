@@ -112,14 +112,13 @@ class VariadicSplitBase(Op):
     def reverse_infer(node: Node):
         if node.in_port(0).data.get_shape() is not None:
             return
+
         axis = node.in_port(1).data.get_value() if node.op == 'VariadicSplit' else node.soft_get('axis', None)
         assert axis is not None, '{} `axis` is unknown for node {}'.format(node.op, node.soft_get('name', node.id))
-
         split_lengths = node.in_port(2).data.get_value() if node.op == 'VariadicSplit' else node.soft_get('split_lengths', None)
         assert split_lengths is not None, '{} `split_lengths` is unknown for node {}'.format(node.op, node.soft_get('name', node.id))
 
-        if node.in_port(0).data.get_value() is None:
-            split_reverse_infer(node, len(split_lengths), axis)
+        split_reverse_infer(node, len(split_lengths), axis)
 
 
 class VariadicSplit(VariadicSplitBase):
@@ -230,11 +229,13 @@ class SplitBase(Op):
 
     @staticmethod
     def reverse_infer(node: Node):
+        if node.in_port(0).data.get_value() is not None:
+            return
+
         assert hasattr(node, 'num_splits')
         axis = node.in_port(1).data.get_value() if node.op == 'Split' else node.soft_get('axis', None)
         assert axis is not None, '{} `axis` is unknown for node {}'.format(node.op, node.soft_get('name', node.id))
-        if node.in_port(0).data.get_value() is None:
-            split_reverse_infer(node, node['num_splits'], axis)
+        split_reverse_infer(node, node['num_splits'], axis)
 
 
 class Split(SplitBase):
