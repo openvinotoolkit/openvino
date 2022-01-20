@@ -15,6 +15,7 @@ using namespace LayerTestsUtils;
 
 Summary *Summary::p_instance = nullptr;
 bool Summary::extendReport = false;
+bool Summary::extractBody = false;
 bool Summary::saveReportWithUniqueName = false;
 size_t Summary::saveReportTimeout = 0;
 const char* Summary::outputFolder = ".";
