@@ -19,11 +19,14 @@ jobs:
     VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
-    REPO_DIR: $(REPO_DIR)/../openvino_contrib
-    OPENCV_REPO_DIR: $(REPO_DIR)/../opencv
+    OPENVINO_CONTRIB_REPO_DIR: $(OPENVINO_REPO_DIR)/../openvino_contrib
+    OPENCV_REPO_DIR: $(OPENVINO_REPO_DIR)/../opencv
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_DIR_OPENCV: $(WORK_DIR)/build_opencv
+    TMP_DIR: /mnt/tmp
+    SHARE_DIR: /mount/cinfsshare/onnxtestdata
+    CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64
 
   steps:
   - script: |
@@ -49,6 +52,11 @@ jobs:
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
+      sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
+      sudo mkdir -p $(SHARE_DIR)
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
+      sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
+      mkdir -p $(CCACHE_DIR)
     displayName: 'Make directory'
 
   - checkout: self
@@ -111,13 +119,29 @@ jobs:
         -DBUILD_java_api=OFF
         -DENABLE_INTEL_VPU=OFF
         -DTHREADING=SEQ
-        -DIE_EXTRA_MODULES=$(REPO_DIR)/modules
+        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: ninja
+  - script: ls -alR $(OPENVINO_REPO_DIR)/temp/
+    displayName: 'List temp SDKs'
+
+  - script: ccache --zero-stats --max-size=50G --show-config
+    displayName: 'Clean ccache stats'
+
+  - script: |
+      export CCACHE_DIR=$(CCACHE_DIR)
+      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+      export CCACHE_BASEDIR=$(Pipeline.Workspace)
+      export CCACHE_MAXSIZE=50G
+      ninja
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Build IE ARM plugin for Linux ARM64'
+    displayName: 'Build Linux ARM64'
+
+  - script: ccache --show-stats
+    displayName: 'Show ccache stats'
 
   - script: ls -alR $(OPENVINO_REPO_DIR)/bin/
     displayName: 'List binary files'
