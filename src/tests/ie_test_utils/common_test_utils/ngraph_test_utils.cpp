@@ -244,3 +244,15 @@ void TransformationTestsF::accuracy_check(std::shared_ptr<ov::Model> ref_functio
         GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }
+
+void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.run_passes(f);
+}
+
+void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh, true);
+    manager.run_passes(f);
+}

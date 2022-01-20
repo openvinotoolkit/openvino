@@ -82,7 +82,8 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../openvino
             DESTINATION python/${PYTHON_VERSION}
             COMPONENT pyopenvino_${PYTHON_VERSION}
-            USE_SOURCE_PERMISSIONS)
+            USE_SOURCE_PERMISSIONS
+            PATTERN "test_utils" EXCLUDE)
 
     install(TARGETS ${PROJECT_NAME}
             DESTINATION python/${PYTHON_VERSION}/openvino
