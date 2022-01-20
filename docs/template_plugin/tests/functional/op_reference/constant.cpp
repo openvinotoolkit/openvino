@@ -31,8 +31,8 @@ struct ConstantParams {
     PartialShape inputShape;
     element::Type inType;
     element::Type refType;
-    runtime::Tensor inputData;
-    runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 
