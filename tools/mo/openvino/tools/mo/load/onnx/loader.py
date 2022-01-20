@@ -54,7 +54,12 @@ class ONNXLoader(Loader):
         graph.graph['fw'] = 'onnx'
         graph.graph['feature_dim'] = 1
         if hasattr(model_proto, 'opset_import'):
-            graph.graph['fw_opset_version'] = model_proto.opset_import[0].version   # pylint: disable=no-member
+            opset_imports = {
+                one_opset_import.domain: one_opset_import.version
+                for one_opset_import in model_proto.opset_import  # pylint: disable=no-member
+            }
+            # load opset version with default domain
+            graph.graph['fw_opset_version'] = opset_imports.get('', None)
         else:
             graph.graph['fw_opset_version'] = None
 
