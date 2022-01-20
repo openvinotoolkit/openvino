@@ -17,21 +17,31 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeSequenceFusion, "ReshapeSequenceFusion", 0);
 
 namespace {
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool has_valid_pattern(const std::shared_ptr<ngraph::Node> & node) {
     auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node);
-    if (!const_node) return false;
+    if (!const_node) {
+        // if (!std::dynamic_pointer_cast<ngraph::opset8::ShapeOf>(node)) return false;
+        ngraph::HostTensorPtr lb = std::make_shared<ngraph::HostTensor>(node->output(0));
+        const bool is_evaluated = node->evaluate_lower({lb});
+        if (!is_evaluated && !lb) return false;
+
+        const_node = std::make_shared<ngraph::opset8::Constant>(lb);
+        if (!const_node) return false;
+    }
     const auto & values = const_node->cast_vector<int64_t>();
     // We can not fuse Reshapes if their pattern values have special numbers like -1 and 0
     return std::all_of(values.cbegin(), values.cend(), [](int64_t value) { return value > 0;});
 }
-}
+OPENVINO_SUPPRESS_DEPRECATED_END
+} // namespace
 
 ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion() {
     MATCHER_SCOPE(ReshapeSequenceFusion);
     auto reshape_input = pattern::any_input();
     auto reshape_a_pattern = pattern::wrap_type<opset8::Constant>();
     auto reshape_a = pattern::wrap_type<opset8::Reshape>({reshape_input, reshape_a_pattern}, pattern::consumers_count(1));
-    auto reshape_b_pattern = pattern::wrap_type<opset8::Constant>();
+    auto reshape_b_pattern = pattern::any_input();
     auto reshape_b = pattern::wrap_type<opset8::Reshape>({reshape_a, reshape_b_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -60,7 +70,7 @@ ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion() {
 
         reshape->input(0).replace_source_output(input);
         copy_runtime_info(nodes, reshape);
-        return false;
+        return true;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_b, matcher_name);
