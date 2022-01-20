@@ -398,6 +398,8 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                 bfyx_idx_order = { "d1", "d4", "d3", "d2" };
             } else if (l == DataLayout::byxf) {
                 bfyx_idx_order = { "d4", "d1", "d3", "d2" };
+            } else if (l == DataLayout::fs_b_yx_fsv32) {
+                bfyx_idx_order = { "d3", "d4", "d2", "d1" };
             } else {
                 bfyx_idx_order = { "d4", "d3", "d2", "d1" };
             }
