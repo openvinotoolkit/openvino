@@ -85,6 +85,12 @@ static std::vector<MKLDNNMemoryPtr> getToMemories(const MKLDNNNode* node, const 
     return memories;
 }
 
+static void dimsCorrection(VectorDims& dims) {
+    std::transform(dims.begin(), dims.end(), dims.begin(), [](const size_t& dim) {
+        return dim == Shape::UNDEFINED_DIM ? 0 : dim;
+    });
+}
+
 class PortIteratorHelper : public PortMapHelper {
 public:
     PortIteratorHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, bool sliced_src,
@@ -321,9 +327,7 @@ void DynamicBuffer::transfer(const MKLDNNNode* node) {
         copy(get_ptr(*mem_holder_buffer.get()), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());
     } else {
         VectorDims newDims = to.front()->GetShape().getDims();
-        std::transform(newDims.begin(), newDims.end(), newDims.begin(), [](const size_t& dim) {
-            return dim == Shape::UNDEFINED_DIM ? 0 : dim;
-        });
+        dimsCorrection(newDims);
 
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
         redefineToMemories(to, *desc);
@@ -703,18 +707,14 @@ void MKLDNNTensorIteratorNode::reshapeAndFillOutput(mkldnn::stream strm) {
             // if Loop or TI isn't executed we should fill dynamic dims by zero
             auto newShape = from_mem->GetShape();
             auto newDims = newShape.getDims();
-            const bool isDynamic = newShape.isDynamic();
-            if (isDynamic) {
-                std::transform(newDims.begin(), newDims.end(), newDims.begin(), [](const size_t& dim) {
-                    return dim == Shape::UNDEFINED_DIM ? 0 : dim;
-                });
-            }
+            dimsCorrection(newDims);
+
             const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
             redefineToMemories(to_mems, *desc);
 
-            if (!isDynamic) {
-                BackEdgePortHelper mapper(from_mem, to_mems.front(), eng);
-                mapper.execute(strm);
+            if (!newShape.isDynamic()) {
+                PortMapHelper *mapper = new BackEdgePortHelper(from_mem, to_mems.front(), eng);
+                mapper->execute(strm);
             }
         }
     }
