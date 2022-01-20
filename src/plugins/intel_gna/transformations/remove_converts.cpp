@@ -73,7 +73,7 @@ namespace GNAPluginNS {
                 return false;
             }
 
-            // the result presicion will be changed automaically
+            // the result precision will be changed automatically
             ngraph::replace_node(convert_node, output_node);
             output_node->set_friendly_name(convert_node->get_friendly_name());
             ngraph::copy_runtime_info(convert_node, output_node);
