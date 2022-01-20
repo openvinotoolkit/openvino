@@ -8,9 +8,8 @@ from pathlib import Path
 
 import numpy as np
 from common.constants import test_device, test_precision
-from common.layer_utils import IEInfer
+from common.layer_utils import IEInfer, InferAPI20
 from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
-
 from common.utils.common_utils import generate_ir
 from common.utils.parsers import mapping_parser
 
@@ -24,8 +23,9 @@ class CommonLayerTest:
     def get_framework_results(self, inputs_dict, model_path):
         pass
 
-    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, use_new_frontend=False,
-              infer_timeout=60, enabled_transforms='', disabled_transforms='', **kwargs):
+    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, api_2,
+              use_new_frontend=False, infer_timeout=60, enabled_transforms='',
+              disabled_transforms='', **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -33,6 +33,7 @@ class CommonLayerTest:
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
 
         self.use_new_frontend = use_new_frontend
+        self.api_2 = api_2
         # TODO Pass environment variables via subprocess environment
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
@@ -58,7 +59,8 @@ class CommonLayerTest:
 
         del os.environ['MO_ENABLED_TRANSFORMS']
         del os.environ['MO_DISABLED_TRANSFORMS']
-        assert not exit_code, ("IR generation failed with {} exit code: {}".format(exit_code, stderr))
+        assert not exit_code, (
+            "IR generation failed with {} exit code: {}".format(exit_code, stderr))
 
         path_to_xml = Path(temp_dir, 'model.xml')
         path_to_bin = Path(temp_dir, 'model.bin')
@@ -69,23 +71,23 @@ class CommonLayerTest:
         #     (flag, resp) = ir.compare(ref_net)
         #     assert flag, '\n'.join(resp)
 
-        from openvino.inference_engine import IECore
-        core = IECore()
-        net = core.read_network(path_to_xml, path_to_bin)
-        inputs_info = {}
-        for item in net.input_info.items():
-            inputs_info[item[0]] = item[1].tensor_desc.dims
+        if api_2:
+            ie_engine = InferAPI20(model=path_to_xml,
+                                   weights=path_to_bin,
+                                   device=ie_device)
+        else:
+            ie_engine = IEInfer(model=path_to_xml,
+                                weights=path_to_bin,
+                                device=ie_device)
 
         # Prepare feed dict
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
-            inputs_dict = self._prepare_input(inputs_info, kwargs['kwargs_to_prepare_input'])
+            inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision),
+                                              kwargs['kwargs_to_prepare_input'])
         else:
-            inputs_dict = self._prepare_input(inputs_info)
+            inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
 
         # IE infer:
-        ie_engine = IEInfer(model=path_to_xml,
-                            weights=path_to_bin,
-                            device=ie_device)
         infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
@@ -110,30 +112,36 @@ class CommonLayerTest:
         # Compare Ie results with Framework results
         fw_eps = custom_eps if precision == 'FP32' else 5e-2
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
-                                                      mapping_dict=mapping_dict, framework_eps=fw_eps), \
-            "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res, fw_res)
+                                                      mapping_dict=mapping_dict,
+                                                      framework_eps=fw_eps), \
+            "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
+                                                                                   fw_res)
 
     # Feed dict for each input is filled with random number.
     # It is possible to redefine this function and generate your own input
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
             inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
-        return inputs_dict
+        return inputs_dict.copy()
 
-    def compare_ie_results_with_framework(self, infer_res, framework_res, mapping_dict, framework_eps):
+    def compare_ie_results_with_framework(self, infer_res, framework_res, mapping_dict,
+                                          framework_eps):
         is_ok = True
         from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
             if framework_out_name not in mapping_dict:
-                raise RuntimeError("Output {} not found in mapping file!".format(framework_out_name))
+                raise RuntimeError(
+                    "Output {} not found in mapping file!".format(framework_out_name))
 
             ie_out_name = mapping_dict[framework_out_name]
 
-            if not allclose(infer_res[ie_out_name], framework_res[framework_out_name], atol=framework_eps,
+            if not allclose(infer_res[ie_out_name], framework_res[framework_out_name],
+                            atol=framework_eps,
                             rtol=framework_eps):
                 is_ok = False
                 print("Max diff is {}".format(
-                    np.array(abs(infer_res[ie_out_name] - framework_res[framework_out_name])).max()))
+                    np.array(
+                        abs(infer_res[ie_out_name] - framework_res[framework_out_name])).max()))
             else:
                 print("Accuracy validation successful!\n")
                 print("absolute eps: {}, relative eps: {}".format(framework_eps, framework_eps))

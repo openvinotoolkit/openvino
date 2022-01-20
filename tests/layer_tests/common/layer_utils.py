@@ -25,8 +25,16 @@ class BaseInfer:
     def fw_infer(self, input_data):
         raise RuntimeError("This is base class, please implement infer function for the specific framework")
 
-    def infer(self, input_data, infer_timeout=60):
-        self.res = multiprocessing_run(self.fw_infer, [input_data], self.name, infer_timeout)
+    def get_inputs_info(self, precision) -> dict:
+        # TODO: need to update ref graphs or get rid of this comparison
+        # if ref_net is not None:
+        #     ir = IREngine(path_to_xml, path_to_bin, precision=precision)
+        #     (flag, resp) = ir.compare(ref_net)
+        #     assert flag, '\n'.join(resp)
+        raise RuntimeError("This is base class, please implement get_inputs_info function for the specific framework")
+
+    def infer(self, input_data, infer_timeout=10):
+        self.res = multiprocessing_run(self.fw_infer, [input_data.copy()], self.name, infer_timeout)
         return self.res
 
 
@@ -56,3 +64,62 @@ class IEInfer(BaseInfer):
             del ie
 
         return result
+
+    def get_inputs_info(self, precision) -> dict:
+
+        from openvino.inference_engine import IECore
+        core = IECore()
+        net = core.read_network(self.model, self.weights)
+        inputs_info = {}
+        for item in net.input_info.items():
+            inputs_info[item[0]] = item[1].tensor_desc.dims
+
+        return inputs_info
+
+
+class InferAPI20(BaseInfer):
+    def __init__(self, model, weights, device):
+        super().__init__('Inference Engine')
+        self.device = device
+        self.model = model
+        self.weights = weights
+
+    def fw_infer(self, input_data):
+        from openvino.runtime import Core, get_version as ie_get_version
+
+        print("Inference Engine version: {}".format(ie_get_version()))
+        print("Creating IE Core Engine...")
+        ie = Core()
+        print("Reading network files")
+        net = ie.read_model(self.model, self.weights)
+        print("Loading network")
+        exec_net = ie.compile_model(net, self.device)
+        print("Starting inference")
+        request = exec_net.create_infer_request()
+        request_result = request.infer(input_data)
+
+        result = {}
+        for out_obj, out_tensor in request_result.items():
+            # all input and output tensors have to be named
+            assert out_obj.names, "Output tensor {} has no names".format(out_obj)
+
+            tensor_name = out_obj.get_any_name().split(':')[0]
+            result[tensor_name] = out_tensor
+
+        if "exec_net" in locals():
+            del exec_net
+        if "ie" in locals():
+            del ie
+
+        return result
+
+    def get_inputs_info(self, precision) -> dict:
+
+        from openvino.runtime import Core
+        core = Core()
+        net = core.read_model(self.model, self.weights)
+        inputs_info = {}
+        for item in net.inputs:
+            inputs_info[item.get_any_name()] = list(item.shape)
+
+        return inputs_info
