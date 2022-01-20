@@ -1141,8 +1141,10 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
                                                       detection_output)
         mark_as_correct_data_layout(flatten_do)
 
+        tensor_name = flatten_do.soft_get('name') + ":0"
+        edge_attrs = {'fw_tensor_debug_info': [(tensor_name, tensor_name)], 'data_attrs': ['fw_tensor_debug_info']}
         # adds "Result" node so this output is returned by IE by default for the backward compatibility
-        do_result = Result(graph, dict(name='do_reshaped_OutputOp')).create_node([flatten_do])
+        do_result = Result(graph, dict(name='do_reshaped_OutputOp')).create_node([flatten_do], edge_attrs=edge_attrs)
 
         # add attribute 'output_sort_order' so it will be used as a key to sort output nodes before generation of IR
         do_result.in_edge()['data_attrs'].append('output_sort_order')
