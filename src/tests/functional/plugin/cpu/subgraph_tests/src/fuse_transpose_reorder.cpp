@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "subgraph_tests/include/fuse_transpose_reorder.hpp"
+#include <ngraph_functions/preprocess/preprocess_builders.hpp>
+#include <openvino/openvino.hpp>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -235,5 +237,17 @@ TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs) {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest2, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
+
+TEST(smoke_Basic, FuseDynamicTransposeAndReorderTest) {
+    auto model = ov::builder::preprocess::create_preprocess_1input(ov::element::u8, ov::PartialShape{1, 3, 224, 224});
+    auto p = ov::preprocess::PrePostProcessor(model);
+    p.input().tensor().set_spatial_dynamic_shape().set_layout("NHWC");
+    p.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    model = p.build();
+
+    auto core = ov::runtime::Core();
+    ASSERT_NO_THROW(core.compile_model(model, "CPU"));
+}
 
 }  // namespace SubgraphTestsDefinitions
