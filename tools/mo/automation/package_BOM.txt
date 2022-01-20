@@ -838,6 +838,7 @@ openvino/tools/mo/mo_paddle.py
 openvino/tools/mo/mo_tf.py
 openvino/tools/mo/moc_frontend/__init__.py
 openvino/tools/mo/moc_frontend/analysis.py
+openvino/tools/mo/moc_frontend/check_config.py
 openvino/tools/mo/moc_frontend/extractor.py
 openvino/tools/mo/moc_frontend/pipeline.py
 openvino/tools/mo/moc_frontend/serialize.py
