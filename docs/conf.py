@@ -37,6 +37,7 @@ language = 'en'
 extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
+    'sphinx_panels',
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',
