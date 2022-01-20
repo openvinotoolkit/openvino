@@ -158,41 +158,49 @@ private:
     Xbyak::Reg64 reg_load_table = rbp;
     Xbyak::Reg64 reg_load_store_mask = rsi;
 
-    Xbyak::Reg64 reg_j = reg_i;                        // only for heap sort, save reg_i by rsp before using reg_j
-    Xbyak::Reg64 reg_offset = reg_load_table;          // only for heap sort, reuse reg_load_table after finish using load/store_emiter
-    Xbyak::Reg64 reg_offset_idx = reg_load_store_mask; // only for heap sort, reuse reg_load_store_mask after finish using load/store_emiter
-    Xbyak::Reg64 reg_bubble_seq_idx = reg_table;       // only for bubble sort
-    Xbyak::Reg64 reg_bubble_block_idx = reg_prc;       // only for bubble sort
-    Xbyak::Reg64 reg_bubble_axis_dim = reg_prc_idx;    // only for bubble sort
-    Xbyak::Reg64 reg_block_l = reg_bubble_block_idx;   // only for bubble sort, save reg_bubble_block_idx by rsp before using reg_l
-    Xbyak::Reg64 reg_block_r = reg_bubble_axis_dim;    // only for bubble sort, save reg_bubble_axis_dim by rsp before using reg_r
-    Xbyak::Reg64 reg_seq_l = reg_load_table;           // only for bubble sort of scalar
-    Xbyak::Reg64 reg_seq_r = reg_prc;                  // only for bubble sort of scalar
-    Xbyak::Reg64 reg_offset_l = reg_i;                 // only for bubble sort, save reg_i by rsp before using reg_offset_l
-    Xbyak::Reg64 reg_offset_r = reg_prc_idx;           // only for bubble sort, save reg_prc_idx by rsp before using reg_offset_r
-    Xbyak::Reg64 reg_bubble_block_top_k = reg_bubble_seq_idx;       // only for bubble sort
-    Xbyak::Reg64 reg_bubble_block_k_sub_1 = reg_bubble_block_top_k; // only for bubble sort
-    Xbyak::Reg64 reg_bubble_seq_top_k = reg_load_store_mask;        // only for bubble sort
-    Xbyak::Reg64 reg_bubble_seq_k_sub_1 = reg_bubble_seq_top_k;     // only for bubble sort
-    Xbyak::Reg64 reg_block_sort_stride = reg_aux;      // only for bubble sort of vector
-    Xbyak::Reg64 reg_block_sort_stride_byte = reg_block_sort_stride; // only for bubble sort of vector
-    Xbyak::Reg64 reg_seq_tmp = reg_seq_l;              // only for bubble sort of scalar
-    Xbyak::Reg64 reg_tmp = reg_aux_idx;                // only for bubble sort and heap sort
-    Xbyak::Reg64 reg_seq_sort_stride = reg_work_amount;// only for bubble sort of scalar
-    Xbyak::Reg64 reg_blk_stride = reg_seq_sort_stride; // only for bubble sort of scalar, denotes reg_seq_sort_stride * jcp_.blk_size
-    Xbyak::Reg64 reg_sub_idx = reg_bubble_block_idx;   // only for bubble sort of scalar
-    Xbyak::Reg64 reg_heap_seq_idx = reg_table;         // only for heap sort
-    Xbyak::Reg64 reg_heap_axis_dim = reg_work_amount;  // only for heap sort
-    Xbyak::Reg64 reg_heap_top_k = reg_prc;             // only for heap sort, save reg_top_k by rsp before using reg_prc
-    Xbyak::Reg64 reg_zero = reg_offset;                // only for heap sort, save reg_zero by rsp before using reg_offset
-    Xbyak::Reg64 reg_end = reg_prc_idx;                // only for heap sort, save reg_heap_outer_aux by rsp before using reg_prc_idx
-    Xbyak::Reg64 reg_heap_outer_aux = reg_prc_idx;     // only for heap sort
-    Xbyak::Reg64 reg_i_sub_1 = reg_i;                  // only for heap sort, denotes i-1
-    Xbyak::Reg64 reg_heap_k_sub_1 = reg_heap_top_k;    // only for heap sort, denotes k-1
-    Xbyak::Reg64 reg_heapify_end = reg_heap_axis_dim;  // only for heap sort, save reg_heap_axis_dim by rsp before using reg_inner_end
-    Xbyak::Reg64 reg_heapify_i = reg_src;              // only for heap sort, save reg_src by rsp before using reg_heapify_i
-    Xbyak::Reg64 reg_heapify_valid = reg_heap_seq_idx; // only for heap sort, save reg_heap_seq_idx by rsp before using reg_heapify_valid
-    Xbyak::Reg64 reg_heapify_tmp = reg_params;         // only for heap sort, save reg_params by rsp before using reg_heapify_tmp
+    // ================================================ for shape_agnostic_alg ================================================
+    // *** for both heap sort and bubble sort ***
+    Xbyak::Reg64 reg_tmp = reg_aux_idx;
+
+    // *** for heap sort only ***
+    Xbyak::Reg64 reg_j = reg_i;                        // save reg_i by rsp before using reg_j
+    Xbyak::Reg64 reg_offset = reg_load_table;          // reuse reg_load_table after finish using load/store_emiter
+    Xbyak::Reg64 reg_offset_idx = reg_load_store_mask; // reuse reg_load_store_mask after finish using load/store_emiter
+    Xbyak::Reg64 reg_heap_seq_idx = reg_table;
+    Xbyak::Reg64 reg_heap_axis_dim = reg_work_amount;
+    Xbyak::Reg64 reg_heap_top_k = reg_prc;             // save reg_top_k by rsp before using reg_prc
+    Xbyak::Reg64 reg_heap_k_sub_step = reg_heap_top_k;
+    Xbyak::Reg64 reg_zero = reg_offset;                // save reg_zero by rsp before using reg_offset, also refer to reg_offset
+    Xbyak::Reg64 reg_end = reg_prc_idx;                // save reg_heap_outer_aux by rsp before using reg_prc_idx
+    Xbyak::Reg64 reg_heap_outer_aux = reg_prc_idx;
+    Xbyak::Reg64 reg_i_sub_1 = reg_i;                  // denotes i-1
+    Xbyak::Reg64 reg_heap_k_sub_1 = reg_heap_top_k;    // denotes k-1
+    Xbyak::Reg64 reg_heapify_end = reg_heap_axis_dim;  // save reg_heap_axis_dim by rsp before using reg_inner_end
+    Xbyak::Reg64 reg_heapify_i = reg_src;              // save reg_src by rsp before using reg_heapify_i
+    Xbyak::Reg64 reg_heapify_valid = reg_heap_seq_idx; // save reg_heap_seq_idx by rsp before using reg_heapify_valid
+    Xbyak::Reg64 reg_heapify_tmp = reg_params;         // save reg_params by rsp before using reg_heapify_tmp
+
+    // *** for bubble sort only ***
+    Xbyak::Reg64 reg_bubble_seq_idx = reg_table;
+    Xbyak::Reg64 reg_bubble_block_idx = reg_prc;
+    Xbyak::Reg64 reg_bubble_axis_dim = reg_prc_idx;
+    Xbyak::Reg64 reg_block_l = reg_bubble_block_idx;   // save reg_bubble_block_idx by rsp before using reg_l
+    Xbyak::Reg64 reg_block_r = reg_bubble_axis_dim;    // save reg_bubble_axis_dim by rsp before using reg_r
+    Xbyak::Reg64 reg_seq_l = reg_load_table;           // blocked layout on channel
+    Xbyak::Reg64 reg_seq_r = reg_prc;                  // blocked layout on channel
+    Xbyak::Reg64 reg_offset_l = reg_i;                 // save reg_i by rsp before using reg_offset_l
+    Xbyak::Reg64 reg_offset_r = reg_prc_idx;           // save reg_prc_idx by rsp before using reg_offset_r
+    Xbyak::Reg64 reg_bubble_block_top_k = reg_bubble_seq_idx;
+    Xbyak::Reg64 reg_bubble_block_k_sub_1 = reg_bubble_block_top_k;
+    Xbyak::Reg64 reg_bubble_seq_top_k = reg_load_store_mask;
+    Xbyak::Reg64 reg_bubble_seq_k_sub_1 = reg_bubble_seq_top_k;
+    Xbyak::Reg64 reg_block_sort_stride = reg_aux;      // by vector
+    Xbyak::Reg64 reg_block_sort_stride_byte = reg_block_sort_stride; // by vector
+    Xbyak::Reg64 reg_seq_tmp = reg_seq_l;              // blocked layout on channel
+    Xbyak::Reg64 reg_seq_sort_stride = reg_work_amount;// blocked layout on channel
+    Xbyak::Reg64 reg_blk_stride = reg_seq_sort_stride; // blocked layout on channel, denotes reg_seq_sort_stride * jcp_.blk_size
+    Xbyak::Reg64 reg_sub_idx = reg_bubble_block_idx;   // blocked layout on channel
+    // ========================================================================================================================
 
     Vmm vmm_zero = Vmm(0); // vmm_zero represents Vmm(0) when isa is avx512_common, otherwise vmm_mask represents Vmm(0)
 
@@ -218,21 +226,21 @@ private:
         if (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort) {
             if (jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost) {
                 if (jcp_.top_k == 1) {
-                    topk_bubble_horiz_blocked_innermost();
+                    topk_bubble_BLK_on_channel_horiz();
                 } else {
-                    topk_bubble_scalar_blocked_innermost();
+                    topk_bubble_BLK_on_channel_verti();
                 }
             } else {
                 topk_bubble_vector();
             }
         } else if (jcp_.algorithm == TopKAlgorithm::topk_bitonic_sort) {
             if (jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost) {
-                topk_bitonic_blocked_innermost();
+                topk_bitonic_BLK_on_channel();
             } else {
                 topk_bitonic_vector();
             }
         } else if (jcp_.algorithm == TopKAlgorithm::topk_heap_sort) {
-            topk_heap_scalar();
+            topk_heap_sorting();
         }
     }
 
@@ -311,9 +319,9 @@ private:
 
     // src memory layout: (N) * (CB * H * W * blk_size)
     // prc memory layout: (C) * (N * H * W)
-    // topk_bitonic_vector_blocked_innermost: sort (C) * (N * H * W / blk_size * blk_size) elements
-    //                                        sort (C) * (N * H * W % blk_size) elements in the rear
-    inline void topk_bitonic_blocked_innermost() {
+    // topk_bitonic_BLK_on_channel: sort (C) * (N * H * W / blk_size * blk_size) elements
+    //                              sort (C) * (N * H * W % blk_size) elements in the rear
+    inline void topk_bitonic_BLK_on_channel() {
         Xbyak::Label topk_main_loop_label;
         Xbyak::Label topk_main_loop_end_label;
         L(topk_main_loop_label);
@@ -322,7 +330,7 @@ private:
             jl(topk_main_loop_end_label, T_NEAR);
 
             // src => prc
-            blocked_innermost_load(step);
+            bitonic_BLK_on_channel_load(step);
 
             // sort
             bitonic_sort_vector(step);
@@ -331,7 +339,7 @@ private:
             }
 
             // prc => dst
-            blocked_innermost_store(step);
+            bitonic_BLK_on_channel_store(step);
 
             add(reg_src, step * jcp_.blk_size * jcp_.data_size);
             add(reg_dst, step * jcp_.blk_size * jcp_.data_size);
@@ -349,7 +357,7 @@ private:
             jl(topk_tail_loop_end_label, T_NEAR);
 
             // src => prc
-            blocked_innermost_load(tail);
+            bitonic_BLK_on_channel_load(tail);
 
             bitonic_sort_vector(tail);
             if (jcp_.sort_index) {
@@ -357,7 +365,7 @@ private:
             }
 
             // prc => dst
-            blocked_innermost_store(tail);
+            bitonic_BLK_on_channel_store(tail);
 
             L(topk_tail_loop_end_label);
         }
@@ -377,7 +385,7 @@ private:
         L(topk_main_loop_label);
         {
             cmp(reg_i, 0);
-            jle(topk_main_loop_end_label, T_NEAR);
+            je(topk_main_loop_end_label, T_NEAR);
 
             bitonic_swap_vector(elt_num, cmp_val);
 
@@ -389,7 +397,7 @@ private:
         L(topk_main_loop_end_label);
     }
 
-    inline void blocked_innermost_load(int elt_num) {
+    inline void bitonic_BLK_on_channel_load(int elt_num) {
         for (int i = 0; i < jcp_.axis_dim; i++) {
             for (int j = 0; j < elt_num; j++) {
                 int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size + j * jcp_.blk_size;
@@ -403,7 +411,7 @@ private:
         }
     }
 
-    inline void blocked_innermost_store(int elt_num) {
+    inline void bitonic_BLK_on_channel_store(int elt_num) {
         for (int i = 0; i < jcp_.top_k; i++) {
             for (int j = 0; j < elt_num; j++) {
                 int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size + j * jcp_.blk_size;
@@ -461,71 +469,17 @@ private:
                        {store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
 
-    inline void topk_heap_scalar() {
+    inline void topk_heap_sorting() {
         mov(reg_heap_seq_idx, ptr[reg_params + GET_OFF(idx_seq_buf)]);
         mov(reg_heap_axis_dim, ptr[reg_params + GET_OFF(axis_dim)]);
         mov(reg_heap_top_k, ptr[reg_params + GET_OFF(top_k)]);
 
         // init dst
-        Xbyak::Label topk_init_loop_label;
-        Xbyak::Label topk_init_loop_end_label;
-        sub(reg_heap_top_k, step);
         mov(reg_i, 0);
-        L(topk_init_loop_label);
-        {
-            cmp(reg_i, reg_heap_top_k);
-            jg(topk_init_loop_end_label, T_NEAR);
-
-            get_addr_by_reg_idx(reg_heap_outer_aux, reg_src, reg_i, jcp_.data_size);
-            load_emitter->emit_code({static_cast<size_t>(reg_heap_outer_aux.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                                std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, step),
-                                {}, {load_pool_gpr_idxs});
-            get_addr_by_reg_idx(reg_heap_outer_aux, reg_dst, reg_i, jcp_.data_size);
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_heap_outer_aux.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, step),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-
-            table_to_vmm(vmm_tmp, reg_heap_seq_idx, reg_i, 0, sizeof(int));
-            get_addr_by_reg_idx(reg_heap_outer_aux, reg_dst_idx, reg_i, sizeof(int));
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_heap_outer_aux.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::I32, Precision::I32, step),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-
-            add(reg_i, step);
-            jmp(topk_init_loop_label, T_NEAR);
-        }
-        L(topk_init_loop_end_label);
+        sub(reg_heap_top_k, step);
+        topk_heap_load(reg_heap_k_sub_step, step);
         add(reg_heap_top_k, step);
-
-        Xbyak::Label topk_tail_loop_label;
-        Xbyak::Label topk_tail_loop_end_label;
-        L(topk_tail_loop_label);
-        {
-            cmp(reg_i, reg_heap_top_k);
-            jge(topk_tail_loop_end_label, T_NEAR);
-
-            get_addr_by_reg_idx(reg_heap_outer_aux, reg_src, reg_i, jcp_.data_size);
-            load_emitter->emit_code({static_cast<size_t>(reg_heap_outer_aux.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                          std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, 1),
-                          {}, {load_pool_gpr_idxs});
-            get_addr_by_reg_idx(reg_heap_outer_aux, reg_dst, reg_i, jcp_.data_size);
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_heap_outer_aux.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, 1),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-
-            get_addr_by_reg_idx(reg_heap_outer_aux, reg_heap_seq_idx, reg_i, sizeof(int));
-            load_emitter->emit_code({static_cast<size_t>(reg_heap_outer_aux.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
-                          std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, 1),
-                          {}, {load_pool_gpr_idxs});
-            get_addr_by_reg_idx(reg_heap_outer_aux, reg_dst_idx, reg_i, sizeof(int));
-            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_heap_outer_aux.getIdx())},
-                           std::make_shared<store_emitter_context>(Precision::I32, Precision::I32, 1),
-                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-
-            add(reg_i, 1);
-            jmp(topk_tail_loop_label, T_NEAR);
-        }
-        L(topk_tail_loop_end_label);
+        topk_heap_load(reg_heap_top_k, 1);
         mov(reg_zero, 0);
 
         // heapify
@@ -555,7 +509,7 @@ private:
         L(topk_main_loop_label);
         {
             cmp(reg_i, reg_heap_axis_dim);
-            jge(topk_main_loop_end_label, T_NEAR);
+            je(topk_main_loop_end_label, T_NEAR);
 
             Xbyak::Label topk_update_loop_end_label;
             get_addr_by_reg_idx(reg_aux, reg_src, reg_i, jcp_.data_size);
@@ -604,6 +558,46 @@ private:
             // extract by value
             topk_heap_extract();
         }
+    }
+
+    inline void topk_heap_load(Xbyak::Reg64 &reg_end, int s) {
+        Xbyak::Label topk_init_loop_label;
+        Xbyak::Label topk_init_loop_end_label;
+        L(topk_init_loop_label);
+        {
+            if (s == step) {
+                cmp(reg_i, reg_end);
+                jg(topk_init_loop_end_label, T_NEAR);
+            } else {
+                cmp(reg_i, reg_end);
+                je(topk_init_loop_end_label, T_NEAR);
+            }
+
+            get_addr_by_reg_idx(reg_heap_outer_aux, reg_src, reg_i, jcp_.data_size);
+            load_emitter->emit_code({static_cast<size_t>(reg_heap_outer_aux.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
+                                std::make_shared<load_emitter_context>(jcp_.precision, Precision::FP32, s),
+                                {}, {load_pool_gpr_idxs});
+            get_addr_by_reg_idx(reg_heap_outer_aux, reg_dst, reg_i, jcp_.data_size);
+            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_heap_outer_aux.getIdx())},
+                           std::make_shared<store_emitter_context>(Precision::FP32, jcp_.precision, s),
+                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            if (s == step) {
+                table_to_vmm(vmm_tmp, reg_heap_seq_idx, reg_i, 0, sizeof(int));
+            } else {
+                get_addr_by_reg_idx(reg_heap_outer_aux, reg_heap_seq_idx, reg_i, sizeof(int));
+                load_emitter->emit_code({static_cast<size_t>(reg_heap_outer_aux.getIdx())}, {static_cast<size_t>(vmm_tmp.getIdx())},
+                              std::make_shared<load_emitter_context>(Precision::I32, Precision::I32, 1),
+                              {}, {load_pool_gpr_idxs});
+            }
+            get_addr_by_reg_idx(reg_heap_outer_aux, reg_dst_idx, reg_i, sizeof(int));
+            store_emitter->emit_code({static_cast<size_t>(vmm_tmp.getIdx())}, {static_cast<size_t>(reg_heap_outer_aux.getIdx())},
+                           std::make_shared<store_emitter_context>(Precision::I32, Precision::I32, s),
+                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+
+            add(reg_i, s);
+            jmp(topk_init_loop_label, T_NEAR);
+        }
+        L(topk_init_loop_end_label);
     }
 
     inline void topk_heap_extract(bool cmp_val = true) {
@@ -692,7 +686,7 @@ private:
             mov(reg_heapify_tmp, reg_heapify_valid);
             shr(reg_heapify_tmp, 1);
             cmp(reg_j, reg_heapify_tmp);
-            jge(topk_lchild_loop_label, T_NEAR);
+            je(topk_lchild_loop_label, T_NEAR);
 
             load_scalar(xmm_val_r, ptr[reg_prc], data_type);
             load_scalar(xmm_idx_r, ptr[reg_prc_idx], memory::data_type::s32);
@@ -1046,7 +1040,7 @@ private:
         L(topk_update_loop_label);
         {
             cmp(reg_i, reg_bubble_axis_dim);
-            jge(topk_update_loop_end_label, T_NEAR);
+            je(topk_update_loop_end_label, T_NEAR);
 
             get_addr_by_reg_idx(reg_tmp, reg_src, reg_block_sort_stride_byte, reg_i);
             load_emitter->emit_code({static_cast<size_t>(reg_tmp.getIdx())}, {static_cast<size_t>(vmm_val_r.getIdx())},
@@ -1184,23 +1178,23 @@ private:
         }
     }
 
-    inline void topk_bubble_horiz_blocked_innermost() {
+    inline void topk_bubble_BLK_on_channel_horiz() {
         mov(reg_bubble_axis_dim, ptr[reg_params + GET_OFF(axis_dim)]);
         mov(reg_seq_sort_stride, ptr[reg_params + GET_OFF(sort_stride)]);
 
         // load and sort
         mov(reg_i, 0);
-        Xbyak::Label topk_horiz_blocked_label;
-        Xbyak::Label topk_horiz_blocked_end_label;
+        Xbyak::Label topk_load_sort_label;
+        Xbyak::Label topk_load_sort_end_label;
         cmp(reg_bubble_axis_dim, jcp_.blk_size);
-        jge(topk_horiz_blocked_label, T_NEAR);
+        jge(topk_load_sort_label, T_NEAR);
 
         load_scalar(xmm_val(0), ptr[reg_src], data_type);
         uni_vmovss(xmm_idx(0), table_bubble_seq_idx(0));
         uni_vcvtdq2ps(xmm_idx(0), xmm_idx(0));
-        jmp(topk_horiz_blocked_end_label, T_NEAR);
+        jmp(topk_load_sort_end_label, T_NEAR);
 
-        L(topk_horiz_blocked_label);
+        L(topk_load_sort_label);
         {
             mov(reg_bubble_seq_idx, ptr[reg_params + GET_OFF(idx_seq_buf)]);
             load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val(0).getIdx())},
@@ -1251,7 +1245,7 @@ private:
 
             horiz_process();
         }
-        L(topk_horiz_blocked_end_label);
+        L(topk_load_sort_end_label);
 
         Xbyak::Label topk_tail_label;
         Xbyak::Label topk_tail_end_label;
@@ -1259,12 +1253,12 @@ private:
         L(topk_tail_label);
         {
             cmp(reg_i, reg_bubble_axis_dim);
-            jge(topk_tail_end_label, T_NEAR);
+            je(topk_tail_end_label, T_NEAR);
 
             load_scalar(xmm_val(1), ptr[reg_aux], data_type);
             table_to_xmm(xmm_idx(1), reg_bubble_seq_idx, reg_i, 0, sizeof(int));
             uni_vcvtdq2ps(xmm_idx(1), xmm_idx(1));
-            swap_scalar(xmm_val(0), xmm_idx(0), xmm_val(1), xmm_idx(1));
+            bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(1), xmm_idx(1));
 
             add(reg_i, 1);
             add(reg_aux, jcp_.data_size);
@@ -1289,7 +1283,7 @@ private:
             Xbyak::Ymm ymm_idx_dst = Xbyak::Ymm(vmm_idx(0).getIdx());
             vextractf128(xmm_idx(2), ymm_idx_dst, 0);
             vextractf128(xmm_idx(3), ymm_idx_dst, 1);
-            swap_scalar(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
+            bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
             uni_vmovups(xmm_val(0), xmm_val(2));
             uni_vmovups(xmm_idx(0), xmm_idx(2));
             horize_top1();
@@ -1300,13 +1294,13 @@ private:
             Xbyak::Zmm zmm_idx_dst = Xbyak::Zmm(vmm_idx(0).getIdx());
             vextractf32x4(xmm_idx(2), zmm_idx_dst, 0);
             vextractf32x4(xmm_idx(3), zmm_idx_dst, 1);
-            swap_scalar(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
+            bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
             vextractf32x4(xmm_val(3), zmm_val_dst, 2);
             vextractf32x4(xmm_val(4), zmm_val_dst, 3);
             vextractf32x4(xmm_idx(3), zmm_idx_dst, 2);
             vextractf32x4(xmm_idx(4), zmm_idx_dst, 3);
-            swap_scalar(xmm_val(3), xmm_idx(3), xmm_val(4), xmm_idx(4));
-            swap_scalar(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
+            bubble_swap_xmm(xmm_val(3), xmm_idx(3), xmm_val(4), xmm_idx(4));
+            bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
             uni_vmovups(xmm_val(0), xmm_val(2));
             uni_vmovups(xmm_idx(0), xmm_idx(2));
             horize_top1();
@@ -1316,23 +1310,23 @@ private:
     // dst: xmm_val(0) and xmm_idx(0)
     // aux: xmm_val(3) and xmm_idx(3)
     inline void horize_top1() {
-        uni_vmovshdup(xmm_val(3), xmm_val(0));                       // dst:1,2,3,4; aux:2,2,4,4
+        uni_vmovshdup(xmm_val(3), xmm_val(0));                           // dst:1,2,3,4; aux:2,2,4,4
         uni_vmovshdup(xmm_idx(3), xmm_idx(0));
-        swap_scalar(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3)); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        uni_vmovhlps(xmm_val(3), xmm_val(3), xmm_val(0));            // aux:f(3,4),f(4,4),4,4
+        bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3)); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        uni_vmovhlps(xmm_val(3), xmm_val(3), xmm_val(0));                // aux:f(3,4),f(4,4),4,4
         uni_vmovhlps(xmm_idx(3), xmm_idx(3), xmm_idx(0));
-        swap_scalar(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3)); // dst:f(1,2,3,4),...
+        bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3)); // dst:f(1,2,3,4),...
     }
 
-    inline void topk_bubble_scalar_blocked_innermost() {
+    inline void topk_bubble_BLK_on_channel_verti() {
         if (jcp_.bubble_inplace) {
-            topk_bubble_scalar_inplace();
+            topk_bubble_BLK_on_channel_inplace();
         } else {
-            topk_bubble_scalar();
+            topk_bubble_BLK_on_channel();
         }
     }
 
-    inline void topk_bubble_scalar() {
+    inline void topk_bubble_BLK_on_channel() {
         mov(reg_bubble_seq_idx, ptr[reg_params + GET_OFF(idx_seq_buf)]);
         mov(reg_bubble_axis_dim, ptr[reg_params + GET_OFF(axis_dim)]);
         mov(reg_seq_sort_stride, ptr[reg_params + GET_OFF(sort_stride)]);
@@ -1350,7 +1344,7 @@ private:
         L(topk_init_iter_label);
         {
             cmp(reg_i, reg_bubble_seq_top_k);
-            jge(topk_init_iter_end_label, T_NEAR);
+            je(topk_init_iter_end_label, T_NEAR);
 
             reg_add(reg_tmp, reg_src, reg_aux);
             load_scalar(xmm_tmp, ptr[reg_tmp], data_type);
@@ -1379,7 +1373,7 @@ private:
         L(topk_init_iter_end_label);
 
         // sort
-        topk_bubble_scalar_sort();
+        topk_bubble_BLK_on_channel_sort();
 
         // update
         Xbyak::Label topk_next_label;
@@ -1392,7 +1386,7 @@ private:
         L(topk_iter_label);
         {
             cmp(reg_i, reg_bubble_axis_dim);
-            jge(topk_iter_end_label, T_NEAR);
+            je(topk_iter_end_label, T_NEAR);
 
             load_scalar(xmm_val_r, ptr[reg_aux], data_type);
             table_to_xmm(xmm_idx_r, reg_bubble_seq_idx, reg_i, 0, sizeof(int));
@@ -1412,7 +1406,7 @@ private:
 
                 mov(reg_seq_l, reg_seq_r);
                 sub(reg_seq_l, 1);
-                bubble_swap_scalar(reg_seq_l, reg_seq_r);
+                bubble_swap_by_index(reg_seq_l, reg_seq_r);
 
                 sub(reg_seq_r, 1);
                 jmp(topk_update_inner_loop_label, T_NEAR);
@@ -1441,11 +1435,11 @@ private:
         L(topk_iter_end_label);
 
         if (jcp_.sort_index) {
-            topk_bubble_scalar_sort(false);
+            topk_bubble_BLK_on_channel_sort(false);
         }
     }
 
-    inline void topk_bubble_scalar_sort(bool cmp_val = true) {
+    inline void topk_bubble_BLK_on_channel_sort(bool cmp_val = true) {
         sub(rsp, sizeof(int));
         mov(ptr[rsp], reg_prc.cvt32());
 
@@ -1468,7 +1462,7 @@ private:
 
                 mov(reg_seq_l, reg_seq_r);
                 sub(reg_seq_l, 1);
-                bubble_swap_scalar(reg_seq_l, reg_seq_r, cmp_val);
+                bubble_swap_by_index(reg_seq_l, reg_seq_r, cmp_val);
 
                 sub(reg_seq_r, 1);
                 jmp(topk_sort_inner_loop_label, T_NEAR);
@@ -1485,7 +1479,7 @@ private:
         add(rsp, sizeof(int));
     }
 
-    inline void topk_bubble_scalar_inplace() {
+    inline void topk_bubble_BLK_on_channel_inplace() {
         // load
         for (int i = 0; i < jcp_.top_k; i++) {
             int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size;
@@ -1496,7 +1490,7 @@ private:
         // sort
         for (int i = 0; i < jcp_.top_k - 1; i++) {
             for (int j = jcp_.top_k - 1; j > i; j--) {
-                swap_scalar(xmm_val(j - 1), xmm_idx(j - 1), xmm_val(j), xmm_idx(j));
+                bubble_swap_xmm(xmm_val(j - 1), xmm_idx(j - 1), xmm_val(j), xmm_idx(j));
             }
         }
         for (int i = jcp_.top_k; i < jcp_.axis_dim; i++) {
@@ -1505,13 +1499,13 @@ private:
             uni_vmovdqu(xmm_idx(jcp_.top_k), table_val(i));
             uni_vcvtdq2ps(xmm_idx(jcp_.top_k), xmm_idx(jcp_.top_k));
             for (int j = jcp_.top_k; j > 0; j--) {
-                swap_scalar(xmm_val(j - 1), xmm_idx(j - 1), xmm_val(j), xmm_idx(j));
+                bubble_swap_xmm(xmm_val(j - 1), xmm_idx(j - 1), xmm_val(j), xmm_idx(j));
             }
         }
         if (jcp_.sort_index) {
             for (int i = 0; i < jcp_.top_k - 1; i++) {
                 for (int j = jcp_.top_k - 1; j > i; j--) {
-                    swap_scalar(xmm_val(j - 1), xmm_idx(j - 1), xmm_val(j), xmm_idx(j), false);
+                    bubble_swap_xmm(xmm_val(j - 1), xmm_idx(j - 1), xmm_val(j), xmm_idx(j), false);
                 }
             }
         }
@@ -1631,7 +1625,7 @@ private:
         }
     }
 
-    inline void bubble_swap_scalar(const Xbyak::Reg64 &reg_l, const Xbyak::Reg64 &reg_r, bool cmp_val = true) {
+    inline void bubble_swap_by_index(const Xbyak::Reg64 &reg_l, const Xbyak::Reg64 &reg_r, bool cmp_val = true) {
         sub(rsp, sizeof(int));
         mov(ptr[rsp], reg_i.cvt32());
         sub(rsp, sizeof(int));
@@ -1659,7 +1653,7 @@ private:
         }
         L(topk_load_jmp_label);
 
-        swap_scalar(xmm_val_l, xmm_idx_l, xmm_val_r, xmm_idx_r, cmp_val);
+        bubble_swap_xmm(xmm_val_l, xmm_idx_l, xmm_val_r, xmm_idx_r, cmp_val);
 
         get_addr_by_reg_idx(reg_aux, reg_dst, reg_offset_l, jcp_.data_size);
         store_scalar(ptr[reg_aux], xmm_val_l, data_type);
@@ -1685,7 +1679,7 @@ private:
         add(rsp, sizeof(int));
     }
 
-    inline void swap_scalar(Xmm xmm_val_a, Xmm xmm_idx_a, Xmm xmm_val_b, Xmm xmm_idx_b, bool cmp_val = true) {
+    inline void bubble_swap_xmm(Xmm xmm_val_a, Xmm xmm_idx_a, Xmm xmm_val_b, Xmm xmm_idx_b, bool cmp_val = true) {
         if (isa == cpu::x64::avx512_common) {
             if (cmp_val)
                 vcmpps(k_mask, xmm_val_a, xmm_val_b, cmp_flg);
@@ -1846,7 +1840,10 @@ MKLDNNTopKNode::MKLDNNTopKNode(const std::shared_ptr<ngraph::Node>& op, const mk
         axis = topKOp->get_axis();
         mode_max = topKOp->get_mode() == ngraph::op::TopKMode::MAX;
         sort_index = topKOp->get_sort_type() == ngraph::op::TopKSortType::SORT_INDICES;
+
         top_k = 0;
+        vec_idx_seq.clear();
+        vec_idx_block.clear();
 
         if (inputShapes.size() != 2 || outputShapes.size() < 2)
             IE_THROW() << errorPrefix << " gets incorrect number of input/output edges!";
@@ -1887,6 +1884,7 @@ void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
     }
 
     jit_mode = mayiuse(cpu::x64::sse41);
+    compile_kernel = jit_mode;
 
     static const Precision supportedPrecision[] = {
         Precision::FP32,
@@ -1992,6 +1990,7 @@ void MKLDNNTopKNode::prepareParams() {
 
         // [case 1]: if 2 * (top_k + 1) + 2 <= count_xmm, thus top_k is small enough that the vector registers are sufficient
         //           to keep all necessary data for sorting, no need to load and store frequently, use inplace bubble sort;
+        //           (horizotal sorting cases not included)
         // [case 2]: only when topk is imposed on innermost dimsension of planar(ncsp/nspc) layout, should heap sort be used;
         // [case 3]: by default, use bitonic sort when alg_cost_bitonic < alg_cost_bubble, otherwise use bubble sort.
         //           alg_cost_bitonic = (N / 4) * logN * (logN + 1)
@@ -2025,32 +2024,7 @@ void MKLDNNTopKNode::prepareParams() {
             }
         }
 
-        if (algorithm == TopKAlgorithm::topk_heap_sort || (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace)) {
-            if (vec_idx_seq.empty()) {
-                vec_idx_seq.resize(axis_dim);
-                vec_idx_block.resize(axis_dim * blk_size);
-                std::iota(vec_idx_seq.begin(), vec_idx_seq.end(), 0);
-                for (size_t i = 0; i < axis_dim; i++) {
-                    for (size_t j = 0; j < blk_size; j++) {
-                        vec_idx_block[i * blk_size + j] = i;
-                    }
-                }
-            } else {
-                size_t pre_size = vec_idx_seq.size();
-                if (pre_size != axis_dim) {
-                    vec_idx_seq.resize(axis_dim);
-                    for (size_t i = pre_size; i < axis_dim; i++) {
-                        vec_idx_seq[i] = i;
-                    }
-                    vec_idx_block.resize(axis_dim * blk_size);
-                    for (size_t i = pre_size; i < axis_dim; i++) {
-                        for (size_t j = 0; j < blk_size; j++) {
-                            vec_idx_block[i * blk_size + j] = i;
-                        }
-                    }
-                }
-            }
-        }
+        prepare_original_idx();
 
         if (compile_kernel) {
             auto jcp = jit_topk_config_params();
@@ -2098,8 +2072,6 @@ void MKLDNNTopKNode::prepareParams() {
             if (src_dims[j] != 1)
                 break;
         }
-        if (static_cast<size_t>(j) == axis)
-            is_last_dim = true;
         dim = static_cast<int>(src_dims[axis]);
         before_num = count(src_dims, 0, axis);
     }
@@ -2202,6 +2174,46 @@ inline void MKLDNNTopKNode::topk_kernel_process(const uint8_t *in_p, uint8_t *ou
     arg.idx_block_buf = vec_idx_block.data();
     arg.idx_seq_buf = vec_idx_seq.data();
     (*topk_kernel)(&arg);
+}
+
+inline void MKLDNNTopKNode::prepare_original_idx() {
+    bool shape_agnostic_alg = algorithm == TopKAlgorithm::topk_heap_sort ||
+                             (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
+    if (shape_agnostic_alg) {
+        if (topk_innermost) {
+            if (vec_idx_seq.empty()) {
+                vec_idx_seq.resize(axis_dim);
+                std::iota(vec_idx_seq.begin(), vec_idx_seq.end(), 0);
+            } else {
+                size_t pre_size = vec_idx_seq.size();
+                if (pre_size != axis_dim) {
+                    vec_idx_seq.resize(axis_dim);
+                    for (size_t i = pre_size; i < axis_dim; i++) {
+                        vec_idx_seq[i] = i;
+                    }
+                }
+            }
+        } else {
+            if (vec_idx_block.empty()) {
+                vec_idx_block.resize(axis_dim * blk_size);
+                for (size_t i = 0; i < axis_dim; i++) {
+                    for (size_t j = 0; j < blk_size; j++) {
+                        vec_idx_block[i * blk_size + j] = i;
+                    }
+                }
+            } else {
+                size_t pre_size = vec_idx_block.size() / blk_size;
+                if (pre_size != axis_dim) {
+                    vec_idx_block.resize(axis_dim * blk_size);
+                    for (size_t i = pre_size; i < axis_dim; i++) {
+                        for (size_t j = 0; j < blk_size; j++) {
+                            vec_idx_block[i * blk_size + j] = i;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // bitonic_size: length of the total array for sorting, power of 2

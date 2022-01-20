@@ -106,9 +106,10 @@ private:
     void calc_dims_size(const InferenceEngine::SizeVector &layout_dims);
     void topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx,
                    const InferenceEngine::SizeVector &in_dims, std::function<float(float, float)> compare) const;
+    void prepare_original_idx();
 
-    bool topk_innermost = false;
-    bool jit_mode = true;
+    bool topk_innermost;
+    bool jit_mode;
     bool sort_index;
     bool mode_max;
     int axis;
@@ -122,9 +123,8 @@ private:
     size_t axis_dim;
     int top_k;
     int dim, before_num;
-    bool is_last_dim = false;
-    bool bubble_inplace = false;
-    bool compile_kernel = true;
+    bool bubble_inplace;
+    bool compile_kernel;
 
     InferenceEngine::SizeVector src_dims, dst_dims;
     TopKLayoutType layout;

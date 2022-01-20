@@ -244,7 +244,7 @@ std::vector<ov::test::InputShape> inputShapes = {
 };
 
 std::vector<ov::test::InputShape> inputShapesDynamic = {
-    {{21, 21, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 21, 21, 23}}}
+    {{21, {20, 25}, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 22, 21, 23}}}
 };
 
 std::vector<CPUSpecificParams> cpuParams = {
