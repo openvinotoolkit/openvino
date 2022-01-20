@@ -84,17 +84,6 @@ int tmain(int argc, tchar* argv[]) {
             .set_layout(tensor_layout)
             .set_spatial_static_shape(tensor_shape[ov::layout::height_idx(tensor_layout)],
                                       tensor_shape[ov::layout::width_idx(tensor_layout)]);
-
-        if (device_name == "MYRIAD") {
-            // 2) Adding explicit preprocessing steps:
-            // - convert u8 to f32
-            // Since the MYRIAD plugin uses the 'Insert Transpose layers around
-            // the Interpolate layer' transformation we need to make sure the
-            // input and output are of the same data type as this is required
-            // for the Transpose stage.
-            ppp.input().preprocess().convert_element_type(ov::element::f32);
-        }
-
         // 2) Adding explicit preprocessing steps:
         // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
         // - apply linear resize from tensor spatial dims to model spatial dims
