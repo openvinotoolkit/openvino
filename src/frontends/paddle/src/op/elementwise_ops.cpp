@@ -17,6 +17,7 @@ NamedOutputs elementwise_ops(const NodeContext& node) {
     auto y = node.get_ng_input("Y");
 
     auto axis = node.get_attribute<int>("axis");
+    
     PADDLE_OP_CHECK(node, x.get_partial_shape().rank().is_static(), "elementwise_ops: X rank must be static!");
     PADDLE_OP_CHECK(node, y.get_partial_shape().rank().is_static(), "elementwise_ops: Y rank must be static!");
     int64_t x_rank = x.get_partial_shape().rank().get_length();
