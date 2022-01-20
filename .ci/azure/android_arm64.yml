@@ -20,7 +20,7 @@ jobs:
     BUILD_TYPE: Release
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(OPENVINO_REPO_DIR)/../openvino_contrib
-    WORK_DIR: $(Pipeline.Workspace)/_w
+    WORK_DIR: $(Pipeline.Workspace)
     BUILD_DIR: $(WORK_DIR)/build
     ANDROID_TOOLS: $(WORK_DIR)/android_tools
     ANDROID_SDK_VERSION: 29
@@ -107,6 +107,8 @@ jobs:
         -DBUILD_java_api=ON
         -DTHREADING=SEQ
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
@@ -120,7 +122,6 @@ jobs:
       export CCACHE_DIR=$(CCACHE_DIR)
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
       export CCACHE_BASEDIR=$(WORK_DIR)
-      export CCACHE_NOHASHDIR=true
       export CCACHE_MAXSIZE=50G
       ninja
     workingDirectory: $(BUILD_DIR)

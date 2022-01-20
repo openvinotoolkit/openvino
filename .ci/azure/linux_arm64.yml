@@ -21,7 +21,7 @@ jobs:
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(OPENVINO_REPO_DIR)/../openvino_contrib
     OPENCV_REPO_DIR: $(OPENVINO_REPO_DIR)/../opencv
-    WORK_DIR: $(Pipeline.Workspace)/_w
+    WORK_DIR: $(Pipeline.Workspace)
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_DIR_OPENCV: $(WORK_DIR)/build_opencv
     TMP_DIR: /mnt/tmp
@@ -120,6 +120,8 @@ jobs:
         -DENABLE_INTEL_VPU=OFF
         -DTHREADING=SEQ
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
@@ -133,7 +135,6 @@ jobs:
       export CCACHE_DIR=$(CCACHE_DIR)
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
       export CCACHE_BASEDIR=$(WORK_DIR)
-      export CCACHE_NOHASHDIR=true
       export CCACHE_MAXSIZE=50G
       ninja
     workingDirectory: $(BUILD_DIR)
