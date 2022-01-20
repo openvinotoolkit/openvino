@@ -29,7 +29,7 @@ class SliceLike(Op):
         input_value = node.in_port(0).data.get_value()
         shape_like = node.in_port(1).data.get_shape()
 
-        new_shape = input_shape.copy()
+        new_shape = shape_array(input_shape.copy())
         if node.axes is not None:
             node.axes = sorted([get_canonical_axis_index(input_shape, i) for i in node.axes])
             for i in node.axes:

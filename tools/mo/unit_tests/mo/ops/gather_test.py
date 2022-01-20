@@ -273,7 +273,7 @@ class TestGatherPartialInfer(UnitTestWithMockedTelemetry):
 dyn = dynamic_dimension_value
 
 
-class TestElementwiseReverseInfer(unittest.TestCase):
+class TestElementwiseReverseInfer(UnitTestWithMockedTelemetry):
     @staticmethod
     def build_and_test_reverse_inference(data_shape, indices_shape, axis, batch_dims, out_shape, ref_shape):
         in_port_with_defined_shape = 0 if data_shape is not None else 1

@@ -229,7 +229,7 @@ class SplitBase(Op):
 
     @staticmethod
     def reverse_infer(node: Node):
-        if node.in_port(0).data.get_value() is not None:
+        if node.in_port(0).data.get_shape() is not None:
             return
 
         assert hasattr(node, 'num_splits')

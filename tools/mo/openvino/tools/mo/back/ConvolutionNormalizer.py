@@ -27,6 +27,7 @@ def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
     weights_shape = node.in_port(1).data.get_shape()
     assert weights_shape is not None
     assert len(weights_shape) in [3, 4, 5]
+    group = int64_array(group).item()
     assert weights_shape[0] % group == 0
 
     if ir_version == 'V7':
@@ -47,7 +48,7 @@ def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
             assert np.prod(weights_shape) == np.prod(new_shape), 'Initial weights shape {}, grouped weights shape {}' \
                                                                  ''.format(weights_shape, new_shape)
             reshape = create_op_node_with_second_input(node.graph, Reshape, new_shape,
-                                                       {'override_output_shape': True})
+                                                       {'override_output_shape': True, 'special_zero': True})
         else:
             # if weights/or input channel dimension is dynamic need to to compute new_shape in a new subgraph
             weights_node = node.in_port(1).get_source().node
@@ -67,7 +68,7 @@ def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
                                                                 input_node=weights_shape)
 
             const_part_of_shape = Const(node.graph, attrs=dict(name=node_name + '/GroupsAndOutputChannelsSize',
-                                                               value=shape_array(
+                                                               value=int64_array(
                                                                    [group, node.output // group]))).create_node()
 
             input_shape_node = Shape(node.graph, {'name': node_name + '/ShapeOfInput'}).create_node()
@@ -88,7 +89,7 @@ def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
             new_shape_node.in_port(0).connect(const_part_of_shape.out_port(0))
             new_shape_node.in_port(1).connect(C_IN.out_port(0))
             new_shape_node.in_port(2).connect(weights_spatial_shape.out_port(0))
-            reshape = Reshape(node.graph, {'override_output_shape': True}).create_node()
+            reshape = Reshape(node.graph, {'override_output_shape': True, 'special_zero': True}).create_node()
             reshape.in_port(1).connect(new_shape_node.out_port(0))
 
         del node['group']
