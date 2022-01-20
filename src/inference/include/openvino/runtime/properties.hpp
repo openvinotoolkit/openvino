@@ -555,7 +555,7 @@ static constexpr Property<float, PropertyMutability::RO> thermal{"DEVICE_THERMAL
 /**
  * @brief Read-only property to get a std::vector<std::string> of capabilities options per device.
  */
-static constexpr Property<std::vector<std::string>, PropertyMutability::RO> capabilities{"DEVICE_CAPABILITIES"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> capabilities{"OPTIMIZATION_CAPABILITIES"};
 namespace capability {
 constexpr static const auto FP32 = "FP32";                    //!< Device supports fp32 inference
 constexpr static const auto BF16 = "BF16";                    //!< Device supports bf16 inference
