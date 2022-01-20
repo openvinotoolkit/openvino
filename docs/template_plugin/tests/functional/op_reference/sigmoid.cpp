@@ -23,8 +23,8 @@ struct SigmoidParams {
     ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
 };
 
 class ReferenceSigmoidLayerTest : public testing::TestWithParam<SigmoidParams>, public CommonReferenceTest {
