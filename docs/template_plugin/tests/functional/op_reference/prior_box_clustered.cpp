@@ -43,9 +43,9 @@ struct PriorBoxClusteredParams {
     ov::Shape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor layerShapeData;
-    ov::runtime::Tensor imageShapeData;
-    ov::runtime::Tensor refData;
+    ov::Tensor layerShapeData;
+    ov::Tensor imageShapeData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 

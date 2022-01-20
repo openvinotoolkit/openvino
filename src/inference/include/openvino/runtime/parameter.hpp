@@ -13,10 +13,14 @@
 #include "openvino/core/any.hpp"
 
 namespace ov {
-namespace runtime {
+
 /**
  * @brief An std::map object containing parameters
  */
 using ParamMap = std::map<std::string, Any>;
+
+namespace runtime {
+using ov::ParamMap;
 }  // namespace runtime
+
 }  // namespace ov

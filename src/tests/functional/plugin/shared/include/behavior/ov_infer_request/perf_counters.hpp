@@ -12,7 +12,7 @@ namespace behavior {
 struct OVInferRequestPerfCountersTest : public OVInferRequestTests {
     static std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj);
     void SetUp() override;
-    runtime::InferRequest req;
+    ov::InferRequest req;
 };
 }  // namespace behavior
 }  // namespace test
