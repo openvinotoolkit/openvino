@@ -1695,9 +1695,10 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         clear_tensor_names_info([match.output_node(out)[0] for out in range(match.outputs_count())])
 
         node_name = detection_output_node.soft_get('name')
-        tensor_name = node_name + ":0"
-        detection_output_node.out_edge(0)['fw_tensor_debug_info'] = [(tensor_name, tensor_name)]
-        detection_output_node.out_edge(0)['data_attrs'] = ['fw_tensor_debug_info']
+        if detection_output_node.out_edges():
+            tensor_name = node_name + ":0"
+            detection_output_node.out_edge(0)['fw_tensor_debug_info'] = [(tensor_name, tensor_name)]
+            detection_output_node.out_edge(0)['data_attrs'] = ['fw_tensor_debug_info']
 
         # return dictionary with mapping of nodes that is used in the `output_edges_match` function to finish sub-graph
         # replacement by re-connecting output from the original matched output node to the DetectionOutput node
