@@ -65,7 +65,7 @@ public:
             auto a_mask = getMask(m_a);
             auto b_mask = getMask(m_b);
 
-            if (!a_mask && !b_mask) {
+            if (!a_mask || !b_mask) {
                 NGRAPH_DEBUG << "No mask for any input of " << m_matmul.get_node()->get_friendly_name() << "\n";
                 return false;
             }
@@ -93,10 +93,11 @@ public:
 
             // Connect a and b
             a_mask->add_callback([b_mask_row, matmul_mask_row, a_inner_dim, b_inner_dim, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(a_inner_dim).insert(b_mask_row->at(b_inner_dim).begin(), b_mask_row->at(b_inner_dim).end());
-                // Check is a_mask and b_mask in valid state
-                if (cur_mask->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
-                    cur_mask->initialize_dependencies();
+                cur_mask->at(a_inner_dim) = b_mask_row->at(b_inner_dim);
+                //cur_mask->at(a_inner_dim).insert(b_mask_row->at(b_inner_dim).begin(), b_mask_row->at(b_inner_dim).end());
+                //// Check is a_mask and b_mask in valid state
+                //if (cur_mask->at(a_inner_dim) != b_mask_row->at(b_inner_dim))
+                //    cur_mask->initialize_dependencies();
                 // Check is b_mask and matmul_mask in valid state
                 if (b_mask_row->at(b_outer_dim) != matmul_mask_row->at(matmul_cols_dim))
                     cur_mask->initialize_dependencies();
@@ -104,11 +105,12 @@ public:
             }, b_mask);
 
             b_mask->add_callback([a_mask_row, matmul_mask_row, a_inner_dim, b_inner_dim, b_outer_dim, matmul_cols_dim](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(b_inner_dim).insert(a_mask_row->at(a_inner_dim).begin(), a_mask_row->at(a_inner_dim).end());
+                cur_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
+                //cur_mask->at(b_inner_dim).insert(a_mask_row->at(a_inner_dim).begin(), a_mask_row->at(a_inner_dim).end());
                 cur_mask->at(b_outer_dim) = matmul_mask_row->at(matmul_cols_dim);
-                // Check is b_mask and a_mask in valid state
-                if (cur_mask->at(b_inner_dim) != a_mask_row->at(a_inner_dim))
-                    cur_mask->initialize_dependencies();
+                //// Check is b_mask and a_mask in valid state
+                //if (cur_mask->at(b_inner_dim) != a_mask_row->at(a_inner_dim))
+                //    cur_mask->initialize_dependencies();
                 return true;
             }, a_mask);
 
@@ -454,12 +456,12 @@ public:
             // Case when input masks should be united instead of intersection
             bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
 
-            const auto & input_rank = m_input.get_partial_shape().rank().get_length();
-            const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
+            //const auto & input_rank = m_input.get_partial_shape().rank().get_length();
+            //const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
             // Here assuming that masks can be propagated only through 3/4 dimensional tensors
             // (since channel dim is necessary)
             // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if (weights_rank < 3 || input_rank < 3) return false;
+            //if (weights_rank < 3 || input_rank < 3) return false;
 
             // In case if first of the inputs is constant
             InitConstMask({0, 1/* potential output channel dim */}).apply(m_input.get_node_shared_ptr());
@@ -1049,8 +1051,8 @@ public:
 };
 
 ngraph::pass::PropagateMasks::PropagateMasks() {
-    add_matcher<mask_propagation::Convolution>();
     add_matcher<mask_propagation::MatMul>();
+    add_matcher<mask_propagation::Convolution>();
     add_matcher<mask_propagation::GroupConvolutionReshape>();
     add_matcher<mask_propagation::GroupConvolution>();
     add_matcher<mask_propagation::Elementwise>();
