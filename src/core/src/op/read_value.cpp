@@ -52,20 +52,6 @@ bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool op::v3::ReadValue::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ReadValue_evaluate);
-
-    outputs[0]->set_unary(inputs[0]);
-    void* input = inputs[0]->get_data_ptr();
-    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
-    return true;
-}
-
-bool op::v3::ReadValue::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_ReadValue_has_evaluate);
-    return true;
-}
-
 bool op::v3::ReadValue::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     return false;
 }
@@ -104,8 +90,7 @@ shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v6_ReadValue_visit_attributes);
-    const string& variable_id = get_variable_id();
-    visitor.on_attribute("variable_id", const_cast<string&>(variable_id));
+    visitor.on_attribute("variable_id", m_variable);
     return true;
 }
 
@@ -113,14 +98,6 @@ void op::v6::ReadValue::revalidate_and_infer_types() {
     VariableInfo var_info{ov::PartialShape::dynamic(), element::dynamic, m_variable->get_info().variable_id};
     m_variable->update(var_info);
     Node::revalidate_and_infer_types();
-}
-
-bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v6_ReadValue_evaluate);
-    outputs[0]->set_unary(inputs[0]);
-    void* input = inputs[0]->get_data_ptr();
-    outputs[0]->write(input, outputs[0]->get_size_in_bytes());
-    return true;
 }
 
 bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
