@@ -81,7 +81,7 @@ class LogParser:
         """
         Parse a log file to convert it to a structured format
         """
-        with open(self.log, 'r') as f:
+        with open(self.log, 'r', errors='ignore') as f:
             log_lines = f.readlines()
 
         # iterate each line in the log file

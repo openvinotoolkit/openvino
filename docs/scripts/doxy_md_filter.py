@@ -84,7 +84,7 @@ class DoxyMDFilter:
         A helper function for self.copy_images
         """
         path = path.resolve()
-        rel_path = self.md_file.relative_to(self.input_dir)
+        rel_path = path.relative_to(self.input_dir)
         dest = self.output_dir.joinpath(rel_path)
         dest.parents[0].mkdir(parents=True, exist_ok=True)
         try:
