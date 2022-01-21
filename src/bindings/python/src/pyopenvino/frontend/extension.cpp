@@ -10,6 +10,7 @@
 #include "extension/json_config.hpp"
 #include "manager.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/progress_reporter_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
@@ -53,6 +54,45 @@ void regclass_frontend_JsonConfigExtension(py::module m) {
 
     ext.def(py::init([](const std::string& path) {
         return std::make_shared<ov::frontend::JsonConfigExtension>(path);
+    }));
+}
+
+void regclass_frontend_ConversionExtensionBase(py::module m) {
+    py::class_<ConversionExtensionBase, ConversionExtensionBase::Ptr, ov::Extension> ext(m,
+                                                                                         "ConversionExtensionBase",
+                                                                                         py::dynamic_attr());
+}
+
+void regclass_frontend_ConversionExtension(py::module m) {
+    py::class_<ConversionExtension, ConversionExtension::Ptr, ConversionExtensionBase> _ext(m,
+                                                                                            "_ConversionExtension",
+                                                                                            py::dynamic_attr(),
+                                                                                            py::module_local());
+    class PyConversionExtension : public ConversionExtension {
+    public:
+        using Ptr = std::shared_ptr<PyConversionExtension>;
+        using PyCreatorFunction = std::function<ov::OutputVector(const NodeContext*)>;
+        using PyCreatorFunctionNamed = std::function<std::map<std::string, ov::OutputVector>(const NodeContext*)>;
+        PyConversionExtension(const std::string& op_type, const PyCreatorFunction& f)
+            : ConversionExtension(op_type, [f](const NodeContext& node) -> ov::OutputVector {
+                  return f(static_cast<const NodeContext*>(&node));
+              }) {}
+
+        PyConversionExtension(const std::string& op_type, const PyCreatorFunctionNamed& f)
+            : ConversionExtension(op_type, [f](const NodeContext& node) -> std::map<std::string, ov::OutputVector> {
+                  return f(static_cast<const NodeContext*>(&node));
+              }) {}
+    };
+    py::class_<PyConversionExtension, PyConversionExtension::Ptr, ConversionExtension> ext(m,
+                                                                                           "ConversionExtension",
+                                                                                           py::dynamic_attr());
+
+    ext.def(py::init([](const std::string& op_type, const PyConversionExtension::PyCreatorFunction& f) {
+        return std::make_shared<PyConversionExtension>(op_type, f);
+    }));
+
+    ext.def(py::init([](const std::string& op_type, const PyConversionExtension::PyCreatorFunctionNamed& f) {
+        return std::make_shared<PyConversionExtension>(op_type, f);
     }));
 }
 
