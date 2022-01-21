@@ -140,18 +140,6 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         output.second.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
         outputTensors[resultIndex]->read(output.second.data(), output.second.size());
     }
-    std::vector<std::pair<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>, std::string>> named_outputs(results.size());
-    for (std::size_t i = 0; i < results.size(); ++i) {
-        named_outputs[i] = std::make_pair(outputs[i], results[i]->get_friendly_name());
-    }
-    sort(named_outputs.begin(), named_outputs.end(),
-         [](const std::pair<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>, std::string> & namedOutputA,
-                 const std::pair<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>, std::string> & namedOutputB) -> bool {
-             return namedOutputA.second < namedOutputB.second;
-         });
-    for (std::size_t i = 0; i < results.size(); ++i) {
-        outputs[i] = named_outputs[i].first;
-    }
     return outputs;
 }
 
