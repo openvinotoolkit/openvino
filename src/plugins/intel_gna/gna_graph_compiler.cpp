@@ -1248,7 +1248,9 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (in_4b_total_size != in_2b_total_size) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs size mismatch " << in_4b_total_size << " != " << in_2b_total_size;
+        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs size mismatch "
+            << "(note: For Multiply, Add and Subtract layers, auto broadcasting is only supported for constant inputs) "
+            << in_4b_total_size << " != " << in_2b_total_size;
     }
 
     // If batch size > 1 the data is reshaped to one with batch size = 1

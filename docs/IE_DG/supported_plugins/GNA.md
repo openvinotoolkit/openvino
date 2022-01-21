@@ -230,6 +230,7 @@ Limitations include:
 - The maximum number of filters is 65532 for GNA 2.0 and 8192 for GNA 3.0.
 - Permute layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
 - Splits and concatenations are supported for continuous portions of memory (e.g., split of 1,2,3,4 to 1,1,3,4 and 1,1,3,4 or concats of 1,2,3,4 and 1,2,3,5 to 2,2,3,4).
+- For Multiply, Add and Subtract layers, auto broadcasting is only supported for constant inputs.
 
 ### Support for 2D Convolutions in Previous Generations of GNA Hardware
 
