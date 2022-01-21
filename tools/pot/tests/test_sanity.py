@@ -23,7 +23,7 @@ from .utils.config import get_engine_config, merge_configs, \
     get_dataset_info, PATHS2DATASETS_CONFIG, make_algo_config
 
 TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.733,
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.731,
                                                                                     'accuracy@top5': 0.907},
      {}, 'CPU'),
 
