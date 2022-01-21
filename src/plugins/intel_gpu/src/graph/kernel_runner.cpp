@@ -174,7 +174,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
         batch_end = batch_start + current_compilation_batch;
 
         std::vector<kernel::ptr> kernels;
-        kernels_cache cache(_engine);
+        kernels_cache cache(_engine, program_id);
 
         for (auto it = batch_start; it < batch_end; it++) {
             auto kernel_id = cache.set_kernel_source(it->kernels[0].code.kernelString, false);
