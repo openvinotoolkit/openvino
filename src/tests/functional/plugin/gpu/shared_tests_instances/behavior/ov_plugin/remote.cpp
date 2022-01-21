@@ -8,18 +8,18 @@
 using namespace ov::test;
 
 namespace {
-const std::vector<ov::AnyMap> configs;
+const std::vector<std::map<std::string, std::string>> configs;
 
 
-std::vector<std::pair<ov::AnyMap, ov::AnyMap>> generate_remote_params() {
+std::vector<std::pair<ov::ParamMap, ov::ParamMap>> generate_remote_params() {
         return {};
 }
 
-const std::vector<ov::AnyMap> MultiConfigs = {
+const std::vector<std::map<std::string, std::string>> MultiConfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
 };
 
-const std::vector<ov::AnyMap> AutoBatchConfigs = {
+const std::vector<std::map<std::string, std::string>> AutoBatchConfigs = {
         {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_GPU}}
 };
 

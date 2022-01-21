@@ -10,13 +10,13 @@ using namespace ov::test::behavior;
 
 namespace {
 
-const std::vector<ov::AnyMap> configs = {
+const std::vector<std::map<std::string, std::string>> configs = {
         {},
         {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
         {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "0"}, {InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "1"}}
 };
 
-const std::vector<ov::AnyMap> Multiconfigs = {
+const std::vector<std::map<std::string, std::string>> Multiconfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
 };
 
