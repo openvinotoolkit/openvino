@@ -458,6 +458,7 @@ public:
             const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
             // Here assuming that masks can be propagated only through 3/4 dimensional tensors
             // (since channel dim is necessary)
+            // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             if (weights_rank < 3 || input_rank < 3) return false;
 
             // In case if first of the inputs is constant
@@ -994,11 +995,11 @@ public:
             const auto & node = m.get_match_root();
 
             auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask_row = output_mask.get();
             bool any_input_with_masks = false;
             for (const auto & input : node->input_values()) {
                 if (auto input_mask = getMask(input)) {
                         auto input_mask_row = input_mask.get();
-                        auto output_mask_row = output_mask.get();
                         input_mask->add_callback([output_mask_row](Mask::Ptr cur_mask) -> bool {
                             cur_mask->clean_dim_values();
                             if (!output_mask_row->all_dims_are_empty())

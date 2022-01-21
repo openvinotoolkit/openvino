@@ -49,7 +49,7 @@ public:
               m_adjust_value(adjust_value) {
     }
 
-    explicit Mask(std::vector<value_type> val)
+    explicit Mask(const std::vector<value_type> val)
             : std::vector<value_type>(val) {
     }
 
