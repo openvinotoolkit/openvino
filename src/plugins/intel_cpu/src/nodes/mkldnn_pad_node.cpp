@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -329,6 +329,10 @@ void MKLDNNPadNode::execute(mkldnn::stream strm) {
 
 void MKLDNNPadNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
+}
+
+std::vector<VectorDims> MKLDNNPadNode::shapeInfer() const {
+    return MKLDNNNode::shapeInferGeneric(PortMask(PADS_BEGIN_ID, PADS_END_ID));
 }
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {

@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node_context.hpp>
-
 #include "default_opset.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
 namespace frontend {
@@ -12,7 +11,7 @@ namespace paddle {
 namespace op {
 NamedOutputs layer_norm(const NodeContext& node) {
     using namespace default_opset;
-    const auto data = node.get_ng_input("X");
+    const auto data = node.get_input("X");
     const auto epsilon = node.get_attribute<float>("epsilon", 1e-05);
     const auto begin_norm_axis = node.get_attribute<int32_t>("begin_norm_axis", 1);
     // The limitation from:
@@ -39,14 +38,14 @@ NamedOutputs layer_norm(const NodeContext& node) {
 
     const auto mvn = std::make_shared<MVN>(data, axis, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
     std::shared_ptr<ov::Node> result = mvn;
-    if (node.has_ng_input("Scale")) {
-        const auto s = node.get_ng_input("Scale");
+    if (node.has_input("Scale")) {
+        const auto s = node.get_input("Scale");
         const auto reshaped_s = std::make_shared<Reshape>(s, scale_bias_shape, false);
         result = std::make_shared<Multiply>(mvn, reshaped_s);
     }
 
-    if (node.has_ng_input("Bias")) {
-        const auto b = node.get_ng_input("Bias");
+    if (node.has_input("Bias")) {
+        const auto b = node.get_input("Bias");
         const auto reshaped_b = std::make_shared<Reshape>(b, scale_bias_shape, false);
         result = std::make_shared<Add>(result, reshaped_b);
     }

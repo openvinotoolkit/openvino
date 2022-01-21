@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ public:
     void Export(std::ostream& modelStream) override;
 
 protected:
-    friend class MKLDNNInferRequest;
+    friend class MKLDNNInferRequestBase;
     MKLDNNExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     const InferenceEngine::CNNNetwork           _network;

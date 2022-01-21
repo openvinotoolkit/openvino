@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,9 @@ struct AdaptiveMaxPoolParams {
     Shape m_output_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    runtime::Tensor m_input_data;
-    runtime::Tensor m_expected_data;
-    runtime::Tensor m_expected_indices;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
+    ov::Tensor m_expected_indices;
     Shape m_adaptive_shape;
     std::vector<int64_t> m_adaptive_values;
 };

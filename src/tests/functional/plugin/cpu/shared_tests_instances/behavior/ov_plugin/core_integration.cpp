@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,15 +80,15 @@ INSTANTIATE_TEST_SUITE_P(
 //////////////////////////////////////////////////////////////////////////////////////////
 
 TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedThrow) {
-    ov::runtime::Core ie;
+    ov::Core ie;
     std::string value = {};
 
-    ASSERT_NO_THROW(ie.set_config({{KEY_CPU_THREADS_NUM, "1"}}, "CPU"));
-    ASSERT_NO_THROW(value = ie.get_config("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
+    ASSERT_NO_THROW(ie.set_property("CPU", {{KEY_CPU_THREADS_NUM, "1"}}));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
     ASSERT_EQ("1", value);
 
-    ASSERT_NO_THROW(ie.set_config({{KEY_CPU_THREADS_NUM, "4"}}, "CPU"));
-    ASSERT_NO_THROW(value = ie.get_config("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
+    ASSERT_NO_THROW(ie.set_property("CPU", {{KEY_CPU_THREADS_NUM, "4"}}));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
     ASSERT_EQ("4", value);
 }
 

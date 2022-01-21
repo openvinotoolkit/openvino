@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ namespace reference_tests {
 namespace {
 
 struct AtanhParams {
-    Tensor input;
-    Tensor expected;
+    reference_tests::Tensor input;
+    reference_tests::Tensor expected;
 };
 
 struct Builder : ParamsBuilder<AtanhParams> {

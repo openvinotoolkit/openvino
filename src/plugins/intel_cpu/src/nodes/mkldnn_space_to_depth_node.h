@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,14 +24,7 @@ public:
 
     void prepareParams() override;
 
-protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
-
-private:
-    enum Mode {
-        BLOCKS_FIRST = 0,
-        DEPTH_FIRST = 1
-    };
+    enum Mode { BLOCKS_FIRST = 0, DEPTH_FIRST = 1 };
 
     struct SpaceToDepthAttrs {
         LayoutType layoutType;
@@ -40,12 +33,20 @@ private:
         size_t blockStep = 1lu;
         size_t dataSize = 1lu;
         size_t nSpatialDims = 0lu;
-    } attrs;
+        VectorDims srcBlockedDims;
+        VectorDims destBlockedDims;
+        size_t hash() const;
+        bool operator==(const SpaceToDepthAttrs& rhs) const;
+    };
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+private:
+    SpaceToDepthAttrs attrs;
 
     struct SpaceToDepthExecutor final {
-        SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs,
-                             const VectorDims& srcBlockedDims,
-                             const VectorDims& dstBlockedDims);
+        SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs);
         void exec(const uint8_t* srcData, uint8_t* dstData, const int MB);
         ~SpaceToDepthExecutor() = default;
 

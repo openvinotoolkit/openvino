@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -267,9 +267,9 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
                             const std::vector<std::vector<std::uint8_t>> &inputs,
                             const std::vector<ngraph::element::Type> &inputTypes = {});
 
-std::vector<ov::runtime::Tensor>
+std::vector<ov::Tensor>
 interpretFunction(const std::shared_ptr<Function> &function,
-                  const std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>& inputs);
+                  const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
 
 //
 // This function compares two nGraph functions and requires them to have exactly one output

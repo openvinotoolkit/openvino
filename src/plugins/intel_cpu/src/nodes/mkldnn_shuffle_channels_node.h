@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,11 +26,6 @@ public:
     bool created() const override;
 
     void prepareParams() override;
-
-protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
-
-private:
     struct ShuffleChannelsAttributes {
         LayoutType layoutType;
         int dataRank = 0;
@@ -38,10 +33,20 @@ private:
         int spatialRank = 0;
         size_t group = 0lu;
         size_t dataSize = 1lu;
-    } attrs;
+        VectorDims srcDims;
+        VectorDims srcBlockedDims;
+        size_t hash() const;
+        bool operator==(const ShuffleChannelsAttributes& rhs) const;
+    };
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
+private:
+    ShuffleChannelsAttributes attrs;
 
     struct ShuffleChannelsExecutor final {
-        ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs, const VectorDims& srcDims, const VectorDims& srcBlockedDims);
+        ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
         void exec(const uint8_t* srcData, uint8_t* dstData, const int MB);
         ~ShuffleChannelsExecutor() = default;
 

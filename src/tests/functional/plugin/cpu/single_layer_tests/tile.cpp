@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,9 +115,9 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0lu; i < funcInputs.size(); i++) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             if (funcInput.get_node()->get_friendly_name() == "repeats") {
-                tensor = ov::runtime::Tensor{ov::element::i64, targetInputStaticShapes[i]};
+                tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i]};
                 auto data = tensor.data<ov::element_type_traits<ov::element::i64>::value_type>();
                 for (size_t i = 0lu; i < repeatsData.size(); i++) {
                     data[i] = repeatsData[i];

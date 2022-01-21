@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -62,6 +62,13 @@ def test_compile_model(device):
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(func, device)
     assert isinstance(exec_net, CompiledModel)
+
+
+def test_compile_model_without_device():
+    core = Core()
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    compiled_model = core.compile_model(model)
+    assert isinstance(compiled_model, CompiledModel)
 
 
 def test_read_model_from_ir():
