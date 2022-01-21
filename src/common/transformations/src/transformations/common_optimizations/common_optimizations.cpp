@@ -55,9 +55,9 @@
 #include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_divides.hpp"
-#include "transformations/common_optimizations/resolve_gen_names_collisions.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
+#include "transformations/resolve_gen_names_collisions.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
