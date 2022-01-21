@@ -11,6 +11,23 @@ using ngraph::helpers::EltwiseTypes;
 
 namespace SubgraphTestsDefinitions {
 
+/* We can't fuse EltwiseAdd several times into one convolution
+
+   FQ1    FQ2
+     \   /
+      ADD1      CONV1 [canBeExecutedInInt8]
+        \      /
+         \    /
+          ADD2         CONV2 [canBeExecutedInInt8]
+             \        /
+              \      /
+                ADD3
+                 |
+                RELU
+                 |
+               RESULT
+*/
+
 class ConvsAndSums : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
