@@ -57,7 +57,6 @@
 #include "transformations/common_optimizations/mark_precision_sensitive_divides.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
-#include "transformations/resolve_gen_names_collisions.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -216,7 +215,6 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     // other optimizations
     manager.register_pass<ngraph::pass::StridesOptimization>();
     manager.register_pass<ngraph::pass::Validate>();
-    manager.register_pass<ov::pass::ResolveGeneratedNameCollisions>();
 
     manager.run_passes(f);
 
