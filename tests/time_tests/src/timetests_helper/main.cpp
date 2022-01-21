@@ -63,6 +63,7 @@ int main(int argc, char **argv) {
   auto staticShapes = parseDataShapes(FLAGS_data_shapes);
 
   auto status =  _runPipeline(dynamicShapes, staticShapes);
+
   StatisticsWriter::Instance().setFile(FLAGS_s);
   StatisticsWriter::Instance().write();
   return status;

@@ -5,8 +5,8 @@
 #pragma once
 
 #include <inference_engine.hpp>
+#include <openvino/openvino.hpp>
 
-using namespace InferenceEngine;
 
 /**
  * @brief Determine if InferenceEngine blob means image or not
@@ -65,8 +65,8 @@ inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::Ten
  * @brief Fill InferenceEngine blob with random values
  */
 template<typename T>
-void fillBlobRandom(Blob::Ptr& inputBlob) {
-  MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
+void fillBlobRandom(InferenceEngine::Blob::Ptr& inputBlob) {
+  InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputBlob);
   // locked memory holder should be alive all time while access to its buffer happens
   auto minputHolder = minput->wmap();
 
@@ -79,13 +79,31 @@ void fillBlobRandom(Blob::Ptr& inputBlob) {
 
 
 /**
+ * @brief Fill InferenceEngine tensor with random values
+ */
+template<typename T>
+ov::runtime::Tensor fillTensorRandom(ov::Output<const ov::Node>& input) {
+  ov::runtime::Tensor tensor { input.get_element_type(), input.get_shape() };
+  std::vector<T>values(ov::shape_size(input.get_shape()));
+
+  for (size_t i = 0; i < values.size(); ++i) {
+    auto rand_max = RAND_MAX;
+    values[i] = (T) rand() / static_cast<T>(rand_max) * 10;
+  }
+  std::memcpy(tensor.data(), values.data(), sizeof(T) * values.size());
+
+  return tensor;
+}
+
+
+/**
  * @brief Fill InferenceEngine blob with image information
  */
 template<typename T>
-void fillBlobImInfo(Blob::Ptr& inputBlob,
+void fillBlobImInfo(InferenceEngine::Blob::Ptr& inputBlob,
           const size_t& batchSize,
           std::pair<size_t, size_t> image_size) {
-  MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
+  InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputBlob);
   // locked memory holder should be alive all time while access to its buffer happens
   auto minputHolder = minput->wmap();
 
@@ -111,3 +129,10 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
 void fillBlobs(InferenceEngine::InferRequest inferRequest,
                const InferenceEngine::ConstInputsDataMap& inputsInfo,
                const size_t& batchSize);
+
+
+/**
+ * @brief Fill InferRequest tensors with random values or image information
+ */
+void fillTensors(ov::runtime::InferRequest &infer_request,
+                 std::vector<ov::Output<const ov::Node>>& inputs);

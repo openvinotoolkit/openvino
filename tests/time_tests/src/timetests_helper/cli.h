@@ -81,7 +81,7 @@ DEFINE_string(s, "", statistics_path_message);
  */
 static void showUsage() {
   std::cout << std::endl;
-  std::cout << "TimeInfer [OPTION]" << std::endl;
+  std::cout << "TimeTests [OPTION]" << std::endl;
   std::cout << "Options:" << std::endl;
   std::cout << std::endl;
   std::cout << "    -h, --help           " << help_message << std::endl;

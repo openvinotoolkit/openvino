@@ -1,8 +1,9 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <openvino/runtime/core.hpp>
 
-#include <iostream>
+#include <fstream>
 
 #include "common_utils.h"
 #include "reshape_utils.h"
@@ -21,11 +22,10 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
   auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
                      std::map<std::string, ov::PartialShape> reshapeShapes,
                      std::map<std::string, std::vector<size_t>> dataShapes) {
-    InferenceEngine::Core ie;
-    InferenceEngine::CNNNetwork cnnNetwork;
-    InferenceEngine::ExecutableNetwork exeNetwork;
-    InferenceEngine::InferRequest inferRequest;
-    size_t batchSize = 0;
+    ov::runtime::Core ie;
+    std::shared_ptr<ov::Model> cnnNetwork;
+    ov::runtime::CompiledModel exeNetwork;
+    ov::runtime::InferRequest inferRequest;
 
     bool reshape = false;
     if (!reshapeShapes.empty()) {
@@ -37,70 +37,88 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
       SCOPED_TIMER(time_to_inference);
       {
         SCOPED_TIMER(load_plugin);
-        TimeTest::setPerformanceConfig(ie, device);
-        ie.GetVersions(device);
+        TimeTest::setPerformanceConfigAPI2(ie, device);
+        ie.get_versions(device);
 
         if (isCacheEnabled)
-          ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
+          ie.set_config({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
       }
       {
         SCOPED_TIMER(create_exenetwork);
         if (!isCacheEnabled) {
           if (TimeTest::fileExt(model) == "blob") {
             SCOPED_TIMER(import_network);
-            exeNetwork = ie.ImportNetwork(model, device);
+            std::ifstream streamModel{model};
+            exeNetwork = ie.import_model(streamModel, device);
           }
           else {
             {
               SCOPED_TIMER(read_network);
-              cnnNetwork = ie.ReadNetwork(model);
-              batchSize = cnnNetwork.getBatchSize();
+              cnnNetwork = ie.read_model(model);
             }
             if (reshape) {
               {
-              SCOPED_TIMER(reshape);
-              cnnNetwork.reshape(reshapeShapes);
+                SCOPED_TIMER(reshape);
+                // dynamic input 1..2 3 600 600 not reshapable
+                cnnNetwork->reshape(reshapeShapes);
               }
             }
             {
               SCOPED_TIMER(load_network);
-              exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+              exeNetwork = ie.compile_model(cnnNetwork, device);
             }
           }
         }
         else {
           SCOPED_TIMER(load_network_cache);
-          exeNetwork = ie.LoadNetwork(model, device);
+          exeNetwork = ie.compile_model(model, device);
         }
       }
-      inferRequest = exeNetwork.CreateInferRequest();
+      inferRequest = exeNetwork.create_infer_request();
     }
     {
       SCOPED_TIMER(first_inference);
       {
         SCOPED_TIMER(fill_inputs);
-        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+        std::vector<ov::Output<const ov::Node>> inputs = exeNetwork.inputs();
+
+        // data input should be NHWC if model NCHW
+        for (size_t i = 0; i < inputs.size(); i++) {
+          std::string name;
+          try {
+            name = inputs[i].get_any_name();
+            std::cerr << "name: " << name << "\n";
+          } catch (const ov::Exception &iex) {
+            // Attempt to get a name for a Tensor without names
+          }
+
+          if (!inputs[i].get_partial_shape().is_dynamic()) {
+            std::cerr << "name: " << name << " not dynamic: " << inputs[i].get_partial_shape() << "\n";
+          }
+          else {
+            std::cerr << "name: " << name << " is dynamic: " << inputs[i].get_partial_shape() << "\n";
+          }
+        }
 
         if (reshape) {
-          fillBlobsDynamic(inferRequest, inputsInfo, dataShapes, batchSize);
+          fillTensorsDynamic(inferRequest, inputs, dataShapes);
         } else {
-          batchSize = batchSize != 0 ? batchSize : 1;
-          fillBlobs(inferRequest, inputsInfo, batchSize);
+          fillTensors(inferRequest, inputs);
         }
       }
-      inferRequest.Infer();
+      inferRequest.infer();
     }
   };
 
   try {
     pipeline(model, device, isCacheEnabled, reshapeShapes, dataShapes);
-  } catch (const InferenceEngine::Exception &iex) {
+  } catch (const ov::Exception &iex) {
     std::cerr
-        << "Inference Engine pipeline failed with Inference Engine exception:\n"
+        << "OpenVINO runtime pipeline failed with OpenVINO runtime exception:\n"
         << iex.what();
     return 1;
   } catch (const std::exception &ex) {
-    std::cerr << "Inference Engine pipeline failed with exception:\n"
+    std::cerr << "OpenVINO runtime pipeline failed with exception:\n"
               << ex.what();
     return 2;
   } catch (...) {

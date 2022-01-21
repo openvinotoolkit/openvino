@@ -4,9 +4,6 @@
 
 #include "common_utils.h"
 
-#include <inference_engine.hpp>
-
-using namespace InferenceEngine;
 
 /**
  * @brief Fill InferRequest blobs with random values or image information
@@ -15,13 +12,14 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
                const InferenceEngine::ConstInputsDataMap& inputsInfo,
                const size_t& batchSize) {
   std::vector<std::pair<size_t, size_t>> input_image_sizes;
-  for (const ConstInputsDataMap::value_type& item : inputsInfo) {
+
+  for (const InferenceEngine::ConstInputsDataMap::value_type& item : inputsInfo) {
     if (isImage(item.second))
       input_image_sizes.push_back(getTensorHeightWidth(item.second->getTensorDesc()));
   }
 
-  for (const ConstInputsDataMap::value_type& item : inputsInfo) {
-    Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
+  for (const InferenceEngine::ConstInputsDataMap::value_type& item : inputsInfo) {
+      InferenceEngine::Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
     if (isImageInfo(inputBlob) && (input_image_sizes.size() == 1)) {
       // Fill image information
       auto image_size = input_image_sizes.at(0);
@@ -54,5 +52,57 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
     } else {
       throw std::logic_error("Input precision is not supported for " + item.first);
     }
+  }
+}
+
+
+/**
+ * @brief Fill infer_request tensors with random values or image information
+ */
+void fillTensors(ov::runtime::InferRequest& infer_request, std::vector<ov::Output<const ov::Node>>& inputs) {
+  std::vector<std::pair<size_t, size_t>> input_image_sizes;
+
+  for (size_t i = 0; i < inputs.size(); i++) {
+    if (inputs[i].get_shape().size() == 4) {
+      input_image_sizes.emplace_back(inputs[i].get_shape()[2], inputs[i].get_shape()[3]);
+    }
+
+    ov::runtime::Tensor input_tensor;
+
+    if ((inputs[i].get_shape().size() == 2) && (dynamic_cast<const ov::op::v0::Parameter&>(
+            *inputs[i].get_node()).get_layout() == ov::Layout("NC")) && (input_image_sizes.size() == 1)) {
+      if (inputs[i].get_element_type() == ov::element::f32) {
+        std::vector<float> values{static_cast<float>(input_image_sizes[0].first), static_cast<float>(input_image_sizes[0].second), 1.0f};
+        input_tensor = ov::runtime::Tensor(ov::element::f32, inputs[i].get_shape(), values.data());
+      } else if (inputs[i].get_element_type() == ov::element::f16) {
+        std::vector<short> values{static_cast<short>(input_image_sizes[0].first), static_cast<short>(input_image_sizes[0].second), 1};
+        input_tensor = ov::runtime::Tensor(ov::element::f16, inputs[i].get_shape(), values.data());
+      } else if (inputs[i].get_element_type() == ov::element::i32) {
+        std::vector<int32_t> values{static_cast<int32_t>(input_image_sizes[0].first), static_cast<int32_t>(input_image_sizes[0].second), 1};
+        input_tensor = ov::runtime::Tensor(ov::element::i32, inputs[i].get_shape(), values.data());
+      } else {
+        throw std::logic_error("Input precision is not supported for image info!");
+      }
+    }
+    else {
+      if (inputs[i].get_element_type() == ov::element::f32) {
+        input_tensor = fillTensorRandom<float>(inputs[i]);
+      } else if (inputs[i].get_element_type() == ov::element::f16) {
+        input_tensor = fillTensorRandom<short>(inputs[i]);
+      } else if (inputs[i].get_element_type() == ov::element::i32) {
+        input_tensor = fillTensorRandom<int32_t>(inputs[i]);
+      } else if (inputs[i].get_element_type() == ov::element::u8) {
+        input_tensor = fillTensorRandom<uint8_t>(inputs[i]);
+      } else if (inputs[i].get_element_type() == ov::element::i8) {
+        input_tensor = fillTensorRandom<int8_t>(inputs[i]);
+      } else if (inputs[i].get_element_type() == ov::element::u16) {
+        input_tensor = fillTensorRandom<uint16_t>(inputs[i]);
+      } else if (inputs[i].get_element_type() == ov::element::i16) {
+        input_tensor = fillTensorRandom<int16_t>(inputs[i]);
+      } else {
+        throw std::logic_error("Input precision is not supported for " + inputs[i].get_element_type().get_type_name());
+      }
+    }
+    infer_request.set_input_tensor(i, input_tensor);
   }
 }
