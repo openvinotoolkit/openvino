@@ -9,7 +9,7 @@ list(FILTER SRC EXCLUDE REGEX standalone_build)
 
 add_executable(${TARGET_NAME} ${SRC})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes)
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes ov_paddle_frontend openvino::runtime)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
